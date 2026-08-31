@@ -3,13 +3,21 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: QMS360 Phase 1 foundation API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Local and container authentication
+  - name: platform
+    description: Shared platform context
+  - name: apps
+    description: Distinct QMS360 application overviews
+  - name: executive
+    description: Cross-application executive view
 paths:
   /healthz:
     get:
@@ -24,7 +32,178 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Sign in with local credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Authenticated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a local development user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          description: Email already registered
+  /auth/sso:
+    post:
+      operationId: containerSso
+      tags: [auth]
+      summary: Stub container profile handoff
+      description: Accepts the future Algihaz DronaHQ profile shape and issues the standard QMS360 JWT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContainerSsoInput"
+      responses:
+        "200":
+          description: Authenticated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "501":
+          description: Container strategy is not enabled
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "401":
+          description: Authentication required
+  /platform/context:
+    get:
+      operationId: getPlatformContext
+      tags: [platform]
+      summary: Get shared platform context
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Platform context including apps and projects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformContext"
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [platform]
+      summary: List active projects
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Active project list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+  /apps/{appKey}/overview:
+    get:
+      operationId: getAppOverview
+      tags: [apps]
+      summary: Get an application's home-screen overview
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/AppKey"
+      responses:
+        "200":
+          description: Application overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppOverview"
+        "403":
+          description: Application access denied
+        "404":
+          description: Application not found
+  /apps/{appKey}/settings:
+    get:
+      operationId: getAppSettings
+      tags: [apps]
+      summary: Get an application's independent settings shell
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/AppKey"
+      responses:
+        "200":
+          description: Settings sections available to the current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+        "403":
+          description: Application access denied
+  /executive/overview:
+    get:
+      operationId: getExecutiveOverview
+      tags: [executive]
+      summary: Get cross-application executive overview
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Cross-application summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutiveOverview"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    AppKey:
+      name: appKey
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/AppKey"
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +212,233 @@ components:
           type: string
       required:
         - status
+    AppKey:
+      type: string
+      enum: [qaqc, lessons, audit]
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 8
+    RegisterInput:
+      type: object
+      required: [email, password, fullName]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 8
+        fullName:
+          type: string
+          minLength: 2
+        username:
+          type: string
+          minLength: 2
+    ContainerSsoInput:
+      type: object
+      required: [username]
+      properties:
+        username:
+          type: string
+          minLength: 2
+        email:
+          type: ["string", "null"]
+        fullName:
+          type: ["string", "null"]
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/CurrentUser"
+    CurrentUser:
+      type: object
+      required: [id, email, username, fullName, platformRole, organizationName, workspaceRoles]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        fullName:
+          type: string
+        platformRole:
+          type: string
+        organizationName:
+          type: string
+        workspaceRoles:
+          type: array
+          items:
+            type: string
+    Project:
+      type: object
+      required: [id, code, name, businessUnit, status]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        businessUnit:
+          type: string
+        status:
+          type: string
+        location:
+          type: ["string", "null"]
+    PlatformApp:
+      type: object
+      required: [key, name, shortName, description, accent, workspaceRoleCount]
+      properties:
+        key:
+          $ref: "#/components/schemas/AppKey"
+        name:
+          type: string
+        shortName:
+          type: string
+        description:
+          type: string
+        accent:
+          type: string
+        workspaceRoleCount:
+          type: number
+          minimum: 0
+        hasAccess:
+          type: boolean
+    PlatformContext:
+      type: object
+      required: [organizationName, apps, projects]
+      properties:
+        organizationName:
+          type: string
+        apps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformApp"
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+    OverviewMetric:
+      type: object
+      required: [label, value, detail, tone]
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+        detail:
+          type: string
+        tone:
+          type: string
+          enum: [purple, turquoise, yellow, fuchsia, black]
+    OverviewRecord:
+      type: object
+      required: [id, title, reference, status, meta]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        reference:
+          type: string
+        status:
+          type: string
+        meta:
+          type: string
+        updatedAt:
+          type: ["string", "null"]
+          format: date-time
+    AppOverview:
+      type: object
+      required: [appKey, title, eyebrow, summary, metrics, recentRecords, modules, canConfigure]
+      properties:
+        appKey:
+          $ref: "#/components/schemas/AppKey"
+        title:
+          type: string
+        eyebrow:
+          type: string
+        summary:
+          type: string
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/OverviewMetric"
+        recentRecords:
+          type: array
+          items:
+            $ref: "#/components/schemas/OverviewRecord"
+        modules:
+          type: array
+          items:
+            type: string
+        canConfigure:
+          type: boolean
+    SettingsSection:
+      type: object
+      required: [key, title, description, available]
+      properties:
+        key:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        available:
+          type: boolean
+    AppSettings:
+      type: object
+      required: [appKey, title, description, sections]
+      properties:
+        appKey:
+          $ref: "#/components/schemas/AppKey"
+        title:
+          type: string
+        description:
+          type: string
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/SettingsSection"
+    ExecutiveKpi:
+      type: object
+      required: [label, value, delta, context, tone]
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+        delta:
+          type: string
+        context:
+          type: string
+        tone:
+          type: string
+    ExecutiveOverview:
+      type: object
+      required: [periodLabel, kpis, appHighlights, activity]
+      properties:
+        periodLabel:
+          type: string
+        kpis:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExecutiveKpi"
+        appHighlights:
+          type: array
+          items:
+            $ref: "#/components/schemas/OverviewRecord"
+        activity:
+          type: array
+          items:
+            $ref: "#/components/schemas/OverviewRecord"
 

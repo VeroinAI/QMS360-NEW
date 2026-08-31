@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "QMS360"
+description = "A three-application quality management platform for Algihaz Holding, combining QA/QC and document governance, lesson learned management, and QMS audits on shared infrastructure with distinct app experiences."
+version = "1.0.0"
+id = "artifacts/qms360"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23479
+
+[services.development]
+run = "pnpm --filter @workspace/qms360 run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/qms360", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/qms360/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23479"
+BASE_PATH = "/"
