@@ -108,6 +108,7 @@ async function seed() {
 
   const passwordHash = await bcrypt.hash("Demo1234!", 12);
   const userInputs = [
+    { email: "noura.alharbi@algihaz.com", username: "noura.alharbi", fullName: "Noura Alharbi", platformRole: "Super Admin", projectId: alpha.id },
     { email: "admin@algihaz.demo", username: "ag-admin", fullName: "Noura Al-Qahtani", platformRole: "Super Admin", projectId: alpha.id },
     { email: "quality@algihaz.demo", username: "quality-lead", fullName: "Fahad Al-Mutairi", platformRole: "Quality Manager", projectId: alpha.id },
     { email: "audit@algihaz.demo", username: "audit-lead", fullName: "Sara Al-Dosari", platformRole: "Employee", projectId: beta.id },
@@ -128,11 +129,13 @@ async function seed() {
     if (user) userMap.set(input.username, user.id);
   }
   const adminId = userMap.get("ag-admin");
+  const demoId = userMap.get("noura.alharbi");
   const qualityId = userMap.get("quality-lead");
   const auditUserId = userMap.get("audit-lead");
-  if (!adminId || !qualityId || !auditUserId) throw new Error("Unable to seed users");
+  if (!adminId || !demoId || !qualityId || !auditUserId) throw new Error("Unable to seed users");
 
   const assignments = [
+    [demoId, "QAQC Representative"], [demoId, "Approver / Reviewer"], [demoId, "Form Creator"], [demoId, "Form Approver"], [demoId, "Audit Program Manager"], [demoId, "Audit Team Lead / Auditor"],
     [adminId, "QAQC Representative"], [adminId, "Approver / Reviewer"], [adminId, "Form Creator"], [adminId, "Form Approver"], [adminId, "Audit Program Manager"], [adminId, "Audit Team Lead / Auditor"],
     [qualityId, "QAQC Representative"], [qualityId, "Document Controller"], [qualityId, "Approver / Reviewer"],
     [auditUserId, "Audit Team Lead / Auditor"], [auditUserId, "Process / Product Owner"],
