@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { PageHeader, errorMessage } from "./common";
-import { useLov, withLegacyOption } from "@/lib/use-lov";
+import { useLov } from "@/lib/use-lov";
 
 type Extracted = Record<string, unknown>;
 const text = (value: unknown) => typeof value === "string" ? value : "";
@@ -82,9 +82,9 @@ export function AiEntryPage() {
         <Edit label="Title" value={text(extracted.title)} onChange={(v) => update("title", v)} wide />
         <Choice label="Project" value={text(extracted.projectId)} onChange={(v) => update("projectId", v)} options={refs.data?.projects.map((x) => ({ value: x.id, label: x.name })) ?? []} />
         <Choice label="Discipline" value={text(extracted.disciplineId)} onChange={(v) => update("disciplineId", v)} options={refs.data?.disciplines.map((x) => ({ value: x.id, label: x.name })) ?? []} />
-        <Choice label="Categorisation" value={text(extracted.categorisationId)} onChange={(v) => update("categorisationId", v)} options={withLegacyOption(categorisations.options, text(extracted.categorisationId))} />
-         <Choice label="Issue category" value={text(extracted.issueCategory)} onChange={(v) => update("issueCategory", v)} options={withLegacyOption(issueCategories.options, text(extracted.issueCategory))} />
-         <Choice label="Impact" value={text(extracted.impact)} onChange={(v) => update("impact", v)} options={withLegacyOption(impacts.options, text(extracted.impact))} />
+        <Choice label="Categorisation" value={text(extracted.categorisationId)} onChange={(v) => update("categorisationId", v)} options={categorisations.options} />
+         <Choice label="Issue category" value={text(extracted.issueCategory)} onChange={(v) => update("issueCategory", v)} options={issueCategories.options} />
+         <Choice label="Impact" value={text(extracted.impact)} onChange={(v) => update("impact", v)} options={impacts.options} />
         {["description","rootCause","correction","correctiveAction"].map((field) => <div className="sm:col-span-2" key={field}><Label className="mb-2 block capitalize">{field.replace(/([A-Z])/g, " $1")}</Label><Textarea rows={4} value={text(extracted[field])} onChange={(e) => update(field, e.target.value)} /></div>)}
         <div className="sm:col-span-2"><Button className="w-full" onClick={createLesson} disabled={transaction.missing.length > 0 || create.isPending}>{create.isPending ? <Loader2 className="animate-spin" /> : <Check />} Create draft lesson</Button></div>
       </CardContent></Card>
