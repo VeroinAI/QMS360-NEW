@@ -10,6 +10,7 @@ import {
   notifications, organizationSettings, qaqcMetricEntries, qualityAssessmentBriefs,
   targetBenchmarks, userWorkspaceRoles, users, workspaceRoles,
 } from "@workspace/db";
+import { deliverEmail } from "./email";
 
 type TriggerType = "approval_delay" | "missing_submission" | "lesson_sla" | "performance" | "finding_priority";
 type Calendar = { workingDays: Array<number | string>; holidays: string[] };
@@ -178,21 +179,30 @@ async function reconcileApp(
         const currentIndex = Math.max(0, levels.indexOf(existing.currentLevel ?? levels[0]!));
         const nextIndex = Math.min(currentIndex + 1, levels.length - 1);
         const level = levels[nextIndex]!;
-        const recipientIds = await resolveRecipients(database, app, rule, level);
-        for (const recipientId of recipientIds) {
-          await database.insert(app.notifications).values({
-            organizationId: candidate.organizationId, recipientId,
-            title: `${app.label} ${level} escalation`,
-            body: `${candidate.recordType} remains unresolved at escalation level ${level}.`,
-            channel: "in_app",
-          });
-        }
+        // Advance the escalation state before any notification dispatch so a
+        // slow or failing channel can never cause the next sweep to re-notify.
         await database.update(app.instances).set({
           currentLevel: level,
           nextEscalateAt: addBusinessDays(now, intervalFor(rule, trigger, nextIndex + 1), calendar),
           stateNote: nextIndex === currentIndex ? `Repeated ${level} reminder` : `Advanced to ${level}`,
           updatedAt: now,
         }).where(eq(app.instances.id, existing.id));
+        const recipientIds = await resolveRecipients(database, app, rule, level);
+        const title = `${app.label} ${level} escalation`;
+        const body = `${candidate.recordType} remains unresolved at escalation level ${level}.`;
+        for (const recipientId of recipientIds) {
+          await database.insert(app.notifications).values({
+            organizationId: candidate.organizationId, recipientId,
+            title,
+            body,
+            channel: "in_app",
+          });
+        }
+        // Fire-and-forget: SMTP latency/outages must not stall reconciliation.
+        void deliverEmail(database, {
+          organizationId: candidate.organizationId, recipientIds, subject: title, text: body,
+          context: { app: app.key, trigger, level, recordType: candidate.recordType, recordId: candidate.id, ruleId: rule.id },
+        });
         continue;
       }
       const level = levels[0]!;
@@ -207,14 +217,22 @@ async function reconcileApp(
       }).onConflictDoNothing().returning({ id: app.instances.id });
       if (!inserted) continue;
       const recipientIds = await resolveRecipients(database, app, rule, level);
+      const title = `${app.label} ${level} escalation`;
+      const body = `${candidate.recordType} breached its business-day SLA and escalated to ${level}.`;
       for (const recipientId of recipientIds) {
         await database.insert(app.notifications).values({
           organizationId: candidate.organizationId, recipientId,
-          title: `${app.label} ${level} escalation`,
-          body: `${candidate.recordType} breached its business-day SLA and escalated to ${level}.`,
+          title,
+          body,
           channel: "in_app",
         });
       }
+      // Fire-and-forget: the instance is persisted above, so SMTP latency or
+      // outages can neither stall reconciliation nor cause duplicate sends.
+      void deliverEmail(database, {
+        organizationId: candidate.organizationId, recipientIds, subject: title, text: body,
+        context: { app: app.key, trigger, level, recordType: candidate.recordType, recordId: candidate.id, ruleId: rule.id },
+      });
       created++;
     }
   }
@@ -344,7 +362,10 @@ export async function evaluateEscalations(database: typeof db = db) {
 
 export function startEscalationScheduler(app: Express) {
   const logger = (app as Express & { logger?: { info: (value: unknown, message?: string) => void; error: (value: unknown, message?: string) => void } }).logger;
+  let sweeping = false;
   const run = async () => {
+    if (sweeping) return; // previous sweep still in flight; never overlap
+    sweeping = true;
     try {
       const result = await evaluateEscalations();
       if (logger) logger.info(result, "Escalation reconciliation sweep completed");
@@ -352,6 +373,8 @@ export function startEscalationScheduler(app: Express) {
     } catch (error) {
       if (logger) logger.error({ error }, "Escalation reconciliation sweep failed");
       else console.error("Escalation reconciliation sweep failed", error);
+    } finally {
+      sweeping = false;
     }
   };
   const timer = setInterval(() => { void run(); }, 15 * 60 * 1000);

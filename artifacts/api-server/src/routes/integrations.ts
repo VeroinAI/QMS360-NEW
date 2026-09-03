@@ -5,6 +5,7 @@ import {
   RetrySyncJobResponse, UpdateIntegrationConnectorBody, UpdateIntegrationConnectorResponse,
 } from "@workspace/api-zod";
 import { db, integrationConnectors, syncJobs } from "@workspace/db";
+import { encryptConfigSecrets } from "../lib/secrets";
 import { paginated, pagination } from "../lib/workspace";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 
@@ -58,7 +59,14 @@ router.put("/integrations/connectors/:id", requireAuth, requireAdmin, async (req
   const old = oldRows[0];
   if (!old) { res.status(404).json({ error: "Connector not found" }); return; }
   const incoming = parsed.data.config ?? {};
-  const merged = { ...old.configuration, ...Object.fromEntries(Object.entries(incoming).filter(([, value]) => value !== "********")), status: parsed.data.status };
+  // Secret values (passwords, tokens, ...) are encrypted at rest; masked
+  // placeholders keep the previously stored value. Legacy plaintext secrets
+  // already stored are re-encrypted by encryptConfigSecrets on this save.
+  const merged = encryptConfigSecrets({
+    ...old.configuration,
+    ...Object.fromEntries(Object.entries(incoming).filter(([, value]) => value !== "********")),
+    status: parsed.data.status,
+  });
   const [row] = await db.update(integrationConnectors).set({
     name: parsed.data.name, connectorType: parsed.data.family, isEnabled: parsed.data.enabled,
     configuration: merged, updatedAt: new Date(),
