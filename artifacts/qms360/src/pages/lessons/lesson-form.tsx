@@ -69,6 +69,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   const [review, setReview] = useState<"approve" | "send_back" | null>(null);
   const [remarks, setRemarks] = useState("");
   const refs = useGetLessonsReferenceData();
+  const disciplines = useLov("disciplines");
   const categorisations = useLov("lesson_categorisations");
   const issueCategories = useLov("lesson_issue_categories");
   const impacts = useLov("lesson_impacts");
@@ -161,7 +162,7 @@ export function LessonFormPage({ id }: { id?: string }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Title" error={errors.title} className="sm:col-span-2"><Input value={draft.title} onChange={(e) => set("title", e.target.value)} disabled={readOnly} /></Field>
             <Field label="Project" error={errors.projectId}><Select value={draft.projectId} onValueChange={(v) => set("projectId", v)} disabled={readOnly}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger><SelectContent>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></Field>
-            <Field label="Discipline" error={errors.disciplineId}><Select value={draft.disciplineId} onValueChange={(v) => set("disciplineId", v)} disabled={readOnly}><SelectTrigger><SelectValue placeholder="Select discipline" /></SelectTrigger><SelectContent>{refs.data?.disciplines.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></Field>
+            <Field label="Discipline" error={errors.disciplineId}><Select value={draft.disciplineId} onValueChange={(v) => set("disciplineId", v)} disabled={readOnly || disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Select discipline" /></SelectTrigger><SelectContent>{disciplines.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
             <Field label="Categorisation" error={errors.categorisationId}><Select value={draft.categorisationId} onValueChange={(v) => set("categorisationId", v)} disabled={readOnly || categorisations.isLoading}><SelectTrigger><SelectValue placeholder="Select categorisation" /></SelectTrigger><SelectContent>{categorisations.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
              <Field label="Issue category"><Select value={draft.issueCategory} onValueChange={(v: Draft["issueCategory"]) => set("issueCategory", v)} disabled={readOnly || issueCategories.isLoading}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{issueCategories.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
              <Field label="Impact"><Select value={draft.impact} onValueChange={(v: Draft["impact"]) => set("impact", v)} disabled={readOnly || impacts.isLoading}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{impacts.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>

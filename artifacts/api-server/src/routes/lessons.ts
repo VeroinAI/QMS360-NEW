@@ -44,7 +44,7 @@ import {
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { assertOwnerOrFull, requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertLovValue } from "../lib/lov";
-import { assertDisciplineInOrg, assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
+import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
 import { promptToTransaction, rephraseText } from "../lib/ai";
 import { confirmEvidence, createEvidenceIntent as createIntent, deleteEvidence, listEvidence } from "../lib/evidence";
 import {
@@ -62,7 +62,6 @@ router.use("/forms", asyncHandler(async (req, _res, next) => {
   if (req.method !== "GET") {
     const orgId = req.currentUser!.organizationId;
     if (typeof req.body?.projectId === "string") await assertProjectInOrg(db, orgId, req.body.projectId);
-    if (typeof req.body?.disciplineId === "string") await assertDisciplineInOrg(db, "lessons", orgId, req.body.disciplineId);
     if (typeof req.body?.approverId === "string") await assertUserInOrg(db, orgId, req.body.approverId);
   }
   next();
@@ -182,6 +181,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
   if (!body) return;
   const user = req.currentUser!;
   await Promise.all([
+    assertLovValue(db, user.organizationId, "disciplines", body.disciplineId),
     assertLovValue(db, user.organizationId, "lesson_categorisations", body.categorisationId),
     assertLovValue(db, user.organizationId, "lesson_issue_categories", body.issueCategory),
     assertLovValue(db, user.organizationId, "lesson_impacts", body.impact),
@@ -239,6 +239,7 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
   assertOwnerOrFull(req, before.creatorId);
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back forms may be edited");
   await Promise.all([
+    assertLovValue(db, req.currentUser!.organizationId, "disciplines", body.disciplineId, { allowLegacy: before.disciplineId }),
     assertLovValue(db, req.currentUser!.organizationId, "lesson_categorisations", body.categorisationId, { allowLegacy: before.categorisation }),
     assertLovValue(db, req.currentUser!.organizationId, "lesson_issue_categories", body.issueCategory, { allowLegacy: before.issueCategory }),
     assertLovValue(db, req.currentUser!.organizationId, "lesson_impacts", body.impact, { allowLegacy: before.impact }),

@@ -25,6 +25,7 @@ export function AiEntryPage() {
   const [extracted, setExtracted] = useState<Extracted>({});
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const refs = useGetLessonsReferenceData();
+  const disciplines = useLov("disciplines");
   const categorisations = useLov("lesson_categorisations");
   const issueCategories = useLov("lesson_issue_categories");
   const impacts = useLov("lesson_impacts");
@@ -81,7 +82,7 @@ export function AiEntryPage() {
       <Card className="xl:col-span-2"><CardHeader className="flex-row items-center justify-between"><CardTitle>Structured preview</CardTitle><Badge variant="secondary">AI assembled</Badge></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2">
         <Edit label="Title" value={text(extracted.title)} onChange={(v) => update("title", v)} wide />
         <Choice label="Project" value={text(extracted.projectId)} onChange={(v) => update("projectId", v)} options={refs.data?.projects.map((x) => ({ value: x.id, label: x.name })) ?? []} />
-        <Choice label="Discipline" value={text(extracted.disciplineId)} onChange={(v) => update("disciplineId", v)} options={refs.data?.disciplines.map((x) => ({ value: x.id, label: x.name })) ?? []} />
+        <Choice label="Discipline" value={text(extracted.disciplineId)} onChange={(v) => update("disciplineId", v)} options={disciplines.options} />
         <Choice label="Categorisation" value={text(extracted.categorisationId)} onChange={(v) => update("categorisationId", v)} options={categorisations.options} />
          <Choice label="Issue category" value={text(extracted.issueCategory)} onChange={(v) => update("issueCategory", v)} options={issueCategories.options} />
          <Choice label="Impact" value={text(extracted.impact)} onChange={(v) => update("impact", v)} options={impacts.options} />

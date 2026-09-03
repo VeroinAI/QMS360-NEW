@@ -89,6 +89,7 @@ function LogPage() {
   const refs = useGetLessonsReferenceData();
   const categories = useLov("lesson_issue_categories");
   const impacts = useLov("lesson_impacts");
+  const disciplines = useLov("disciplines");
   const escalations = useGetLessonsEscalations({ page: 1, limit: 200 });
   const queryClient = useQueryClient();
   const remove = useDeleteLessonForm({ mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] }); toast({ title: "Lesson deleted" }); }, onError: (e) => toast({ title: "Delete failed", description: errorMessage(e), variant: "destructive" }) } });
@@ -99,7 +100,7 @@ function LogPage() {
     <Card className="mb-5"><CardContent className="grid gap-3 pt-6 md:grid-cols-2 xl:grid-cols-4">
       <div className="relative md:col-span-2"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input className="pl-9" placeholder="Search title, reference or content…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
       <Select value={projectId} onValueChange={(v) => { setProjectId(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger><SelectContent><SelectItem value="all">All projects</SelectItem>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select>
-      <Select value={disciplineId} onValueChange={(v) => { setDisciplineId(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Discipline" /></SelectTrigger><SelectContent><SelectItem value="all">All disciplines</SelectItem>{refs.data?.disciplines.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select>
+      <Select value={disciplineId} onValueChange={(v) => { setDisciplineId(v); setPage(1); }} disabled={disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Discipline" /></SelectTrigger><SelectContent><SelectItem value="all">All disciplines</SelectItem>{disciplines.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>
        <Select value={category} onValueChange={(v) => { setCategory(v); setPage(1); }} disabled={categories.isLoading}><SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger><SelectContent><SelectItem value="all">All categories</SelectItem>{categories.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>
        <Select value={impact} onValueChange={(v) => { setImpact(v); setPage(1); }} disabled={impacts.isLoading}><SelectTrigger><SelectValue placeholder="Impact" /></SelectTrigger><SelectContent><SelectItem value="all">All impacts</SelectItem>{impacts.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>
       <Input type="date" aria-label="From date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
