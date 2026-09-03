@@ -1252,3 +1252,40 @@ CREATE INDEX "projects_business_unit_idx" ON "shared"."projects" USING btree ("b
 CREATE UNIQUE INDEX "users_org_email_active_idx" ON "shared"."users" USING btree ("organization_id","email") WHERE "shared"."users"."deleted_at" IS NULL;
 CREATE UNIQUE INDEX "users_org_username_active_idx" ON "shared"."users" USING btree ("organization_id","username") WHERE "shared"."users"."deleted_at" IS NULL;
 CREATE INDEX "users_project_idx" ON "shared"."users" USING btree ("project_id");
+
+-- Global Master Data tables (appended for production cutover)
+CREATE TABLE "shared"."master_data_groups" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"code" text NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"app_scope" text DEFAULT 'global' NOT NULL,
+	"is_system" boolean DEFAULT false NOT NULL,
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE "shared"."master_data_values" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"group_id" uuid NOT NULL,
+	"value" text NOT NULL,
+	"label" text NOT NULL,
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	"active" boolean DEFAULT true NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE "shared"."master_data_groups" ADD CONSTRAINT "master_data_groups_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "shared"."master_data_values" ADD CONSTRAINT "master_data_values_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "shared"."master_data_values" ADD CONSTRAINT "master_data_values_group_id_master_data_groups_id_fk" FOREIGN KEY ("group_id") REFERENCES "shared"."master_data_groups"("id") ON DELETE cascade ON UPDATE no action;
+CREATE UNIQUE INDEX "master_data_groups_org_code_active_idx" ON "shared"."master_data_groups" USING btree ("organization_id","code") WHERE "shared"."master_data_groups"."deleted_at" IS NULL;
+CREATE UNIQUE INDEX "master_data_values_group_value_active_idx" ON "shared"."master_data_values" USING btree ("group_id","value") WHERE "shared"."master_data_values"."deleted_at" IS NULL;

@@ -33,6 +33,38 @@ export const organizations = sharedSchema.table("organizations", {
   uniqueIndex("organizations_code_active_idx").on(table.code).where(sql`${table.deletedAt} IS NULL`),
 ]);
 
+export const masterDataGroups = sharedSchema.table("master_data_groups", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  code: text("code").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  appScope: text("app_scope").notNull().default("global"),
+  isSystem: boolean("is_system").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...auditColumns,
+}, (table) => [
+  uniqueIndex("master_data_groups_org_code_active_idx")
+    .on(table.organizationId, table.code)
+    .where(sql`${table.deletedAt} IS NULL`),
+]);
+
+export const masterDataValues = sharedSchema.table("master_data_values", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  groupId: uuid("group_id").notNull().references(() => masterDataGroups.id, { onDelete: "cascade" }),
+  value: text("value").notNull(),
+  label: text("label").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  ...auditColumns,
+}, (table) => [
+  uniqueIndex("master_data_values_group_value_active_idx")
+    .on(table.groupId, table.value)
+    .where(sql`${table.deletedAt} IS NULL`),
+]);
+
 export const businessUnits = sharedSchema.table("business_units", {
   id: uuid("id").defaultRandom().primaryKey(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),

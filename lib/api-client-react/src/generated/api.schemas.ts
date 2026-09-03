@@ -5,6 +5,118 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export type MasterDataValueMetadata = { [key: string]: unknown };
+
+export interface MasterDataValue {
+  id: string;
+  groupId: string;
+  value: string;
+  label: string;
+  sortOrder: number;
+  active: boolean;
+  metadata: MasterDataValueMetadata;
+}
+
+export type MasterDataGroupAppScope = typeof MasterDataGroupAppScope[keyof typeof MasterDataGroupAppScope];
+
+
+export const MasterDataGroupAppScope = {
+  global: 'global',
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+} as const;
+
+export interface MasterDataGroup {
+  id: string;
+  code: string;
+  name: string;
+  /** @nullable */
+  description: string | null;
+  appScope: MasterDataGroupAppScope;
+  isSystem: boolean;
+  sortOrder: number;
+  values: MasterDataValue[];
+}
+
+export interface MasterDataGroupList {
+  items: MasterDataGroup[];
+  total: number;
+}
+
+export type MasterDataLovValuesItemMetadata = { [key: string]: unknown };
+
+export type MasterDataLovValuesItem = {
+  value: string;
+  label: string;
+  sortOrder: number;
+  metadata: MasterDataLovValuesItemMetadata;
+};
+
+export interface MasterDataLov {
+  code: string;
+  values: MasterDataLovValuesItem[];
+}
+
+export type CreateMasterDataGroupInputAppScope = typeof CreateMasterDataGroupInputAppScope[keyof typeof CreateMasterDataGroupInputAppScope];
+
+
+export const CreateMasterDataGroupInputAppScope = {
+  global: 'global',
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+} as const;
+
+export interface CreateMasterDataGroupInput {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+  appScope?: CreateMasterDataGroupInputAppScope;
+  sortOrder?: number;
+}
+
+export type UpdateMasterDataGroupInputAppScope = typeof UpdateMasterDataGroupInputAppScope[keyof typeof UpdateMasterDataGroupInputAppScope];
+
+
+export const UpdateMasterDataGroupInputAppScope = {
+  global: 'global',
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+} as const;
+
+export interface UpdateMasterDataGroupInput {
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+  appScope?: UpdateMasterDataGroupInputAppScope;
+  sortOrder?: number;
+}
+
+export type CreateMasterDataValueInputMetadata = { [key: string]: unknown };
+
+export interface CreateMasterDataValueInput {
+  /** @minLength 1 */
+  value: string;
+  label?: string;
+  sortOrder?: number;
+  metadata?: CreateMasterDataValueInputMetadata;
+}
+
+export type UpdateMasterDataValueInputMetadata = { [key: string]: unknown };
+
+export interface UpdateMasterDataValueInput {
+  /** @minLength 1 */
+  value?: string;
+  label?: string;
+  sortOrder?: number;
+  active?: boolean;
+  metadata?: UpdateMasterDataValueInputMetadata;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -413,44 +525,19 @@ export interface CustomerSatisfactionEntry {
   feedback?: string | null;
 }
 
-export type DocumentGovernanceLogEntryDocumentType = typeof DocumentGovernanceLogEntryDocumentType[keyof typeof DocumentGovernanceLogEntryDocumentType];
-
-
-export const DocumentGovernanceLogEntryDocumentType = {
-  Submittal: 'Submittal',
-  Drawing: 'Drawing',
-  Correspondence: 'Correspondence',
-} as const;
-
-export type DocumentGovernanceLogEntryStatus = typeof DocumentGovernanceLogEntryStatus[keyof typeof DocumentGovernanceLogEntryStatus];
-
-
-export const DocumentGovernanceLogEntryStatus = {
-  Approved: 'Approved',
-  Resubmit: 'Resubmit',
-  Rejected: 'Rejected',
-  Under_Review: 'Under Review',
-} as const;
-
-export type DocumentGovernanceLogEntryPendingWith = typeof DocumentGovernanceLogEntryPendingWith[keyof typeof DocumentGovernanceLogEntryPendingWith];
-
-
-export const DocumentGovernanceLogEntryPendingWith = {
-  Client: 'Client',
-  Algihaz: 'Algihaz',
-  Supplier: 'Supplier',
-} as const;
-
 export interface DocumentGovernanceLogEntry {
   id: string;
   projectId: string;
   date: string;
   disciplineId: string;
-  documentType: DocumentGovernanceLogEntryDocumentType;
-  status: DocumentGovernanceLogEntryStatus;
+  /** Values managed via /platform/master-data/lov/document_types */
+  documentType: string;
+  /** Values managed via /platform/master-data/lov/document_statuses */
+  status: string;
   /** @minimum 0 */
   reviewDays?: number;
-  pendingWith: DocumentGovernanceLogEntryPendingWith;
+  /** Values managed via /platform/master-data/lov/pending_with */
+  pendingWith: string;
   /** @minimum 0 */
   pendingDays?: number;
   /** @minimum 0 */
@@ -865,23 +952,6 @@ export interface LessonsReferenceData {
   categorisation: ReferenceItem[];
 }
 
-export type LessonLearnedFormIssueCategory = typeof LessonLearnedFormIssueCategory[keyof typeof LessonLearnedFormIssueCategory];
-
-
-export const LessonLearnedFormIssueCategory = {
-  Minor: 'Minor',
-  Moderate: 'Moderate',
-  Major: 'Major',
-} as const;
-
-export type LessonLearnedFormImpact = typeof LessonLearnedFormImpact[keyof typeof LessonLearnedFormImpact];
-
-
-export const LessonLearnedFormImpact = {
-  Positive: 'Positive',
-  Negative: 'Negative',
-} as const;
-
 export interface LessonLearnedForm {
   id: string;
   readonly referenceNumber: string;
@@ -889,8 +959,10 @@ export interface LessonLearnedForm {
   title: string;
   disciplineId: string;
   categorisationId: string;
-  issueCategory: LessonLearnedFormIssueCategory;
-  impact: LessonLearnedFormImpact;
+  /** Values managed via /platform/master-data/lov/lesson_issue_categories */
+  issueCategory: string;
+  /** Values managed via /platform/master-data/lov/lesson_impacts */
+  impact: string;
   description: string;
   rootCause: string;
   correction: string;
@@ -1012,23 +1084,13 @@ export interface MeetingMinutes {
   evidenceIds?: string[];
 }
 
-export type ChecklistItemResult = typeof ChecklistItemResult[keyof typeof ChecklistItemResult];
-
-
-export const ChecklistItemResult = {
-  Conformity: 'Conformity',
-  Observation: 'Observation',
-  Minor_NC: 'Minor NC',
-  Major_NC: 'Major NC',
-  Not_Applicable: 'Not Applicable',
-} as const;
-
 export interface ChecklistItem {
   id: string;
   /** @nullable */
   clause?: string | null;
   question: string;
-  result: ChecklistItemResult;
+  /** Values managed via /platform/master-data/lov/checklist_results */
+  result: string;
   /** @nullable */
   notes?: string | null;
   evidenceIds?: string[];
@@ -1061,37 +1123,6 @@ export interface Audit {
   closedAt?: string | null;
 }
 
-export type AuditFindingClassification = typeof AuditFindingClassification[keyof typeof AuditFindingClassification];
-
-
-export const AuditFindingClassification = {
-  Conformity: 'Conformity',
-  Observation: 'Observation',
-  Minor_NC: 'Minor NC',
-  Major_NC: 'Major NC',
-} as const;
-
-export type AuditFindingPriority = typeof AuditFindingPriority[keyof typeof AuditFindingPriority];
-
-
-export const AuditFindingPriority = {
-  P1: 'P1',
-  P2: 'P2',
-  P3: 'P3',
-  P4: 'P4',
-  P5: 'P5',
-  P6: 'P6',
-} as const;
-
-export type AuditFindingRiskLevel = typeof AuditFindingRiskLevel[keyof typeof AuditFindingRiskLevel];
-
-
-export const AuditFindingRiskLevel = {
-  High: 'High',
-  Medium: 'Medium',
-  Low: 'Low',
-} as const;
-
 export type AuditFindingStatus = typeof AuditFindingStatus[keyof typeof AuditFindingStatus];
 
 
@@ -1110,9 +1141,12 @@ export interface AuditFinding {
   description: string;
   /** @nullable */
   clause?: string | null;
-  classification: AuditFindingClassification;
-  priority: AuditFindingPriority;
-  riskLevel: AuditFindingRiskLevel;
+  /** Values managed via /platform/master-data/lov/nc_classifications */
+  classification: string;
+  /** Values managed via /platform/master-data/lov/finding_priorities */
+  priority: string;
+  /** Values managed via /platform/master-data/lov/risk_levels */
+  riskLevel: string;
   responsibleDepartments: string[];
   evidenceIds?: string[];
   status: AuditFindingStatus;

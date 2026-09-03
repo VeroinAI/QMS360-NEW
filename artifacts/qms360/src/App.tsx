@@ -21,6 +21,7 @@ import { QaqcRoutes } from './pages/qaqc';
 import { LessonsRoutes } from './pages/lessons';
 import { AuditRoutes } from './pages/audit';
 import { AdminRoutes } from './pages/settings';
+import { MasterDataRoutes } from './pages/master-data';
 
 const queryClient = new QueryClient();
 setAuthTokenGetter(() => typeof window === 'undefined' ? null : localStorage.getItem('qms360_token'));
@@ -90,6 +91,7 @@ function AuthenticatedRouter() {
     <Route path="/audit"><AuditRoutes /></Route><Route path="/audit/:rest*"><AuditRoutes /></Route>
     <Route path="/cockpit"><AdminRoutes /></Route><Route path="/cockpit/:rest*"><AdminRoutes /></Route>
     <Route path="/settings/:rest*"><AdminRoutes /></Route>
+    <Route path="/master-data"><MasterDataRoutes /></Route>
     <Route component={NotFound} />
   </Switch></ErrorBoundary></AppShell>;
 }

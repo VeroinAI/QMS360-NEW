@@ -43,6 +43,7 @@ import {
 } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { assertOwnerOrFull, requireAppAccess, requirePermission } from "../middlewares/rbac";
+import { assertLovValue } from "../lib/lov";
 import { assertDisciplineInOrg, assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
 import { promptToTransaction, rephraseText } from "../lib/ai";
 import { confirmEvidence, createEvidenceIntent as createIntent, deleteEvidence, listEvidence } from "../lib/evidence";
@@ -180,6 +181,10 @@ router.post("/forms", asyncHandler(async (req, res) => {
   const body = parseBody(CreateLessonFormBody, req, res);
   if (!body) return;
   const user = req.currentUser!;
+  await Promise.all([
+    assertLovValue(db, user.organizationId, "lesson_issue_categories", body.issueCategory),
+    assertLovValue(db, user.organizationId, "lesson_impacts", body.impact),
+  ]);
   const clientReference = body.id;
   const [existing] = await db.select().from(lessonLearnedForms).where(and(
     eq(lessonLearnedForms.organizationId, user.organizationId),
@@ -232,6 +237,10 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
   if (!before) notFound("Lesson form not found");
   assertOwnerOrFull(req, before.creatorId);
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back forms may be edited");
+  await Promise.all([
+    assertLovValue(db, req.currentUser!.organizationId, "lesson_issue_categories", body.issueCategory, { allowLegacy: before.issueCategory }),
+    assertLovValue(db, req.currentUser!.organizationId, "lesson_impacts", body.impact, { allowLegacy: before.impact }),
+  ]);
   const [row] = await db.update(lessonLearnedForms).set({
     projectId: body.projectId, disciplineId: body.disciplineId, title: body.title,
     categorisation: body.categorisationId, issueCategory: body.issueCategory, impact: body.impact,

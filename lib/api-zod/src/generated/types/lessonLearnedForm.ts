@@ -6,8 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EvidenceFile } from './evidenceFile';
-import type { LessonLearnedFormImpact } from './lessonLearnedFormImpact';
-import type { LessonLearnedFormIssueCategory } from './lessonLearnedFormIssueCategory';
 import type { WorkflowState } from './workflowState';
 
 export interface LessonLearnedForm {
@@ -17,8 +15,10 @@ export interface LessonLearnedForm {
   title: string;
   disciplineId: string;
   categorisationId: string;
-  issueCategory: LessonLearnedFormIssueCategory;
-  impact: LessonLearnedFormImpact;
+  /** Values managed via /platform/master-data/lov/lesson_issue_categories */
+  issueCategory: string;
+  /** Values managed via /platform/master-data/lov/lesson_impacts */
+  impact: string;
   description: string;
   rootCause: string;
   correction: string;

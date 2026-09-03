@@ -13,6 +13,7 @@ import {
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg } from "../lib/tenancy";
+import { assertLovValue } from "../lib/lov";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
@@ -289,11 +290,21 @@ router.get("/document-governance-log", asyncHandler(async (req, res) => {
 }));
 router.post("/document-governance-log", asyncHandler(async (req, res) => {
   const v: any = body(api.CreateDocumentGovernanceEntryBody, req);
+  await Promise.all([
+    assertLovValue(db, org(req), "document_types", v.documentType),
+    assertLovValue(db, org(req), "document_statuses", v.status),
+    assertLovValue(db, org(req), "pending_with", v.pendingWith),
+  ]);
   const [row] = await db.insert(documentGovernanceLogEntries).values({ organizationId: org(req), ...documentValues(v) }).returning();
   await audit(req, "create", "document_governance", row.id, undefined, row); res.status(201).json(mapDocument(row));
 }));
 router.put("/document-governance-log/:id", asyncHandler(async (req, res) => {
   const v: any = body(api.UpdateDocumentGovernanceEntryBody, req); const before: any = await activeRow(req, documentGovernanceLogEntries, String(req.params.id));
+  await Promise.all([
+    assertLovValue(db, org(req), "document_types", v.documentType, { allowLegacy: before.entity }),
+    assertLovValue(db, org(req), "document_statuses", v.status, { allowLegacy: before.statusValue }),
+    assertLovValue(db, org(req), "pending_with", v.pendingWith, { allowLegacy: before.status }),
+  ]);
   const [row] = await db.update(documentGovernanceLogEntries).set({ ...documentValues(v), updatedAt: new Date() }).where(eq(documentGovernanceLogEntries.id, before.id)).returning();
   await audit(req, "update", "document_governance", row.id, before, row); res.json(mapDocument(row));
 }));

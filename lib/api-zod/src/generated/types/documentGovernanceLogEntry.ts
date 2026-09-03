@@ -5,20 +5,20 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
-import type { DocumentGovernanceLogEntryDocumentType } from './documentGovernanceLogEntryDocumentType';
-import type { DocumentGovernanceLogEntryPendingWith } from './documentGovernanceLogEntryPendingWith';
-import type { DocumentGovernanceLogEntryStatus } from './documentGovernanceLogEntryStatus';
 
 export interface DocumentGovernanceLogEntry {
   id: string;
   projectId: string;
   date: Date;
   disciplineId: string;
-  documentType: DocumentGovernanceLogEntryDocumentType;
-  status: DocumentGovernanceLogEntryStatus;
+  /** Values managed via /platform/master-data/lov/document_types */
+  documentType: string;
+  /** Values managed via /platform/master-data/lov/document_statuses */
+  status: string;
   /** @minimum 0 */
   reviewDays?: number;
-  pendingWith: DocumentGovernanceLogEntryPendingWith;
+  /** Values managed via /platform/master-data/lov/pending_with */
+  pendingWith: string;
   /** @minimum 0 */
   pendingDays?: number;
   /** @minimum 0 */

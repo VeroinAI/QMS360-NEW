@@ -29,11 +29,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { LoadState, PageHeader, StateBadge, errorMessage } from "./common";
+import { useLov, withLegacyOption } from "@/lib/use-lov";
 
 type FieldName = "description" | "rootCause" | "correction" | "correctiveAction";
 type Draft = {
   title: string; projectId: string; disciplineId: string; categorisationId: string;
-  issueCategory: "Minor" | "Moderate" | "Major"; impact: "Positive" | "Negative";
+  issueCategory: string; impact: string;
   description: string; rootCause: string; correction: string; correctiveAction: string;
   capturedAt: string; gpsLat?: number; gpsLng?: number;
 };
@@ -68,6 +69,8 @@ export function LessonFormPage({ id }: { id?: string }) {
   const [review, setReview] = useState<"approve" | "send_back" | null>(null);
   const [remarks, setRemarks] = useState("");
   const refs = useGetLessonsReferenceData();
+  const issueCategories = useLov("lesson_issue_categories");
+  const impacts = useLov("lesson_impacts");
   const detail = useGetLessonForm(id ?? "", { query: { enabled: Boolean(id), queryKey: [`/api/lessons/forms/${id ?? ""}`] } });
   const user = useGetCurrentUser();
   const queryClient = useQueryClient();
@@ -152,8 +155,8 @@ export function LessonFormPage({ id }: { id?: string }) {
             <Field label="Project" error={errors.projectId}><Select value={draft.projectId} onValueChange={(v) => set("projectId", v)} disabled={readOnly}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger><SelectContent>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></Field>
             <Field label="Discipline" error={errors.disciplineId}><Select value={draft.disciplineId} onValueChange={(v) => set("disciplineId", v)} disabled={readOnly}><SelectTrigger><SelectValue placeholder="Select discipline" /></SelectTrigger><SelectContent>{refs.data?.disciplines.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></Field>
             <Field label="Categorisation" error={errors.categorisationId}><Select value={draft.categorisationId} onValueChange={(v) => set("categorisationId", v)} disabled={readOnly}><SelectTrigger><SelectValue placeholder="Select categorisation" /></SelectTrigger><SelectContent>{refs.data?.categorisation.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></Field>
-            <Field label="Issue category"><Select value={draft.issueCategory} onValueChange={(v: Draft["issueCategory"]) => set("issueCategory", v)} disabled={readOnly}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["Minor","Moderate","Major"].map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></Field>
-            <Field label="Impact"><Select value={draft.impact} onValueChange={(v: Draft["impact"]) => set("impact", v)} disabled={readOnly}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Positive">Positive</SelectItem><SelectItem value="Negative">Negative</SelectItem></SelectContent></Select></Field>
+             <Field label="Issue category"><Select value={draft.issueCategory} onValueChange={(v: Draft["issueCategory"]) => set("issueCategory", v)} disabled={readOnly || issueCategories.isLoading}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{withLegacyOption(issueCategories.options, draft.issueCategory).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
+             <Field label="Impact"><Select value={draft.impact} onValueChange={(v: Draft["impact"]) => set("impact", v)} disabled={readOnly || impacts.isLoading}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{withLegacyOption(impacts.options, draft.impact).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
             <Field label="Capture date"><Input type="datetime-local" value={draft.capturedAt} onChange={(e) => set("capturedAt", e.target.value)} disabled={readOnly} /></Field>
           </div>
           {(["description","rootCause","correction","correctiveAction"] as FieldName[]).map((field) => <Field key={field} label={({ description: "Description", rootCause: "Root cause", correction: "Correction", correctiveAction: "Corrective action" } as const)[field]} error={errors[field]}>

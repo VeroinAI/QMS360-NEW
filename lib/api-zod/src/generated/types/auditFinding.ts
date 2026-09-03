@@ -5,9 +5,6 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
-import type { AuditFindingClassification } from './auditFindingClassification';
-import type { AuditFindingPriority } from './auditFindingPriority';
-import type { AuditFindingRiskLevel } from './auditFindingRiskLevel';
 import type { AuditFindingStatus } from './auditFindingStatus';
 
 export interface AuditFinding {
@@ -17,9 +14,12 @@ export interface AuditFinding {
   description: string;
   /** @nullable */
   clause?: string | null;
-  classification: AuditFindingClassification;
-  priority: AuditFindingPriority;
-  riskLevel: AuditFindingRiskLevel;
+  /** Values managed via /platform/master-data/lov/nc_classifications */
+  classification: string;
+  /** Values managed via /platform/master-data/lov/finding_priorities */
+  priority: string;
+  /** Values managed via /platform/master-data/lov/risk_levels */
+  riskLevel: string;
   responsibleDepartments: string[];
   evidenceIds?: string[];
   status: AuditFindingStatus;

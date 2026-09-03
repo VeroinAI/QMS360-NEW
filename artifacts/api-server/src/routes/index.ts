@@ -9,12 +9,14 @@ import notificationsRouter from "./notifications";
 import qaqcRouter from "./qaqc";
 import lessonsRouter from "./lessons";
 import auditRouter from "./audit";
+import masterDataRouter from "./master-data";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 router.use(platformRouter);
+router.use(masterDataRouter);
 router.use(appsRouter);
 router.use(executiveRouter);
 router.use(integrationsRouter);

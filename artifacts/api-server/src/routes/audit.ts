@@ -23,6 +23,7 @@ import {
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg } from "../lib/tenancy";
+import { assertLovValue } from "../lib/lov";
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
 import { asyncHandler, HttpError, notify, paginated, pagination, writeAuditLog } from "../lib/workspace";
 
@@ -117,6 +118,8 @@ router.get("/schedules", asyncHandler(async (req, res) => {
 }));
 router.post("/schedules", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditScheduleBody, req);
+  await Promise.all((data.auditTypes ?? []).map((value: string) =>
+    assertLovValue(db, actor(req).organizationId, "audit_types", value)));
   const [row] = await db.insert(auditSchedules).values({ organizationId: actor(req).organizationId, ...scheduleValues(data) }).returning();
   await auditLog(req, "create", "audit_schedule", row.id, undefined, row);
   res.status(201).json(scheduleDto(row));
@@ -131,6 +134,8 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit schedule not found");
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back schedules may be edited");
+  await Promise.all((data.auditTypes ?? []).map((value: string) =>
+    assertLovValue(db, actor(req).organizationId, "audit_types", value, { allowLegacy: scheduleMeta(before).auditTypes })));
   const [row] = await db.update(auditSchedules).set({ ...scheduleValues(data), id: undefined, updatedAt: new Date() })
     .where(eq(auditSchedules.id, before.id)).returning();
   await auditLog(req, "update", "audit_schedule", row.id, before, row);
@@ -324,6 +329,10 @@ router.put("/audits/:id/checklist", asyncHandler(async (req, res) => {
   const data = body<AnyRow[]>(Api.UpdateAuditChecklistBody, req);
   const [before] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit not found");
+  const legacyResults = (Array.isArray(before.checklistState) ? before.checklistState : [])
+    .map((item: AnyRow) => item.result).filter((value: unknown): value is string => typeof value === "string");
+  await Promise.all(data.map((item) =>
+    assertLovValue(db, actor(req).organizationId, "checklist_results", item.result, { allowLegacy: legacyResults })));
   const [row] = await db.update(audits).set({ checklistState: data as any, updatedAt: new Date() }).where(eq(audits.id, before.id)).returning();
   await auditLog(req, "update_checklist", "audit", row.id, before, row); res.json(auditDto(row));
 }));
@@ -356,6 +365,11 @@ router.get("/findings", asyncHandler(async (req, res) => {
 }));
 router.post("/findings", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditFindingBody, req);
+  await Promise.all([
+    assertLovValue(db, actor(req).organizationId, "nc_classifications", data.classification),
+    assertLovValue(db, actor(req).organizationId, "finding_priorities", data.priority),
+    assertLovValue(db, actor(req).organizationId, "risk_levels", data.riskLevel),
+  ]);
   const [audit] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, data.auditId)));
   if (!audit) throw new HttpError(404, "Audit not found");
   const [row] = await db.insert(auditFindings).values({ organizationId: actor(req).organizationId, ...findingValues(data) }).returning();
@@ -369,6 +383,11 @@ router.put("/findings/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditFindingBody, req);
   const [before] = await db.select().from(auditFindings).where(and(active(auditFindings, actor(req).organizationId), eq(auditFindings.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit finding not found");
+  await Promise.all([
+    assertLovValue(db, actor(req).organizationId, "nc_classifications", data.classification, { allowLegacy: before.classification }),
+    assertLovValue(db, actor(req).organizationId, "finding_priorities", data.priority, { allowLegacy: before.priority }),
+    assertLovValue(db, actor(req).organizationId, "risk_levels", data.riskLevel, { allowLegacy: before.riskLevel }),
+  ]);
   const [row] = await db.update(auditFindings).set({ ...findingValues(data), id: undefined, updatedAt: new Date() }).where(eq(auditFindings.id, before.id)).returning();
   await auditLog(req, "update", "audit_finding", row.id, before, row); res.json(findingDto(row));
 }));

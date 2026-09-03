@@ -54,6 +54,8 @@ import type {
   ChecklistBody,
   ContainerSsoInput,
   CreateCarsBody,
+  CreateMasterDataGroupInput,
+  CreateMasterDataValueInput,
   CurrentUser,
   CustomerSatisfactionEntry,
   CustomerSatisfactionPageResponse,
@@ -63,6 +65,7 @@ import type {
   DocumentGovernanceLogEntry,
   DocumentGovernancePageResponse,
   DownloadQaqcMetricsTemplateParams,
+  Error,
   EscalationRulePageResponse,
   EscalationRulesBody,
   EscalationSummaryPageResponse,
@@ -140,6 +143,10 @@ import type {
   ListQualityBriefsParams,
   ListSyncJobsParams,
   LoginInput,
+  MasterDataGroup,
+  MasterDataGroupList,
+  MasterDataLov,
+  MasterDataValue,
   MaterialInspectionEntry,
   MaterialInspectionPageResponse,
   MeetingBody,
@@ -171,6 +178,8 @@ import type {
   SearchLessonsLogParams,
   SyncJob,
   SyncJobPageResponse,
+  UpdateMasterDataGroupInput,
+  UpdateMasterDataValueInput,
   UploadIntent,
   WorkspaceUserPageResponse
 } from './api.schemas';
@@ -1298,6 +1307,589 @@ export const useUpdateOrganizationSettings = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateOrganizationSettingsMutationOptions(options));
+    }
+
+export const getListMasterDataUrl = () => {
+
+
+
+
+  return `/api/platform/master-data`
+}
+
+/**
+ * @summary List all master data groups and values
+ */
+export const listMasterData = async ( options?: Parameters<typeof customFetch>[1]): Promise<MasterDataGroupList> => {
+
+  return customFetch<MasterDataGroupList>(getListMasterDataUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMasterDataQueryKey = () => {
+    return [
+    `/api/platform/master-data`
+    ] as const;
+    }
+
+
+export const getListMasterDataQueryOptions = <TData = Awaited<ReturnType<typeof listMasterData>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMasterData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMasterDataQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMasterData>>> = ({ signal }) => listMasterData({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMasterData>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMasterDataQueryResult = NonNullable<Awaited<ReturnType<typeof listMasterData>>>
+export type ListMasterDataQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all master data groups and values
+ */
+
+export function useListMasterData<TData = Awaited<ReturnType<typeof listMasterData>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMasterData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMasterDataQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMasterDataLovUrl = (code: string,) => {
+
+
+
+
+  return `/api/platform/master-data/lov/${code}`
+}
+
+/**
+ * @summary Get active values for a master data code
+ */
+export const getMasterDataLov = async (code: string, options?: Parameters<typeof customFetch>[1]): Promise<MasterDataLov> => {
+
+  return customFetch<MasterDataLov>(getGetMasterDataLovUrl(code),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMasterDataLovQueryKey = (code: string,) => {
+    return [
+    `/api/platform/master-data/lov/${code}`
+    ] as const;
+    }
+
+
+export const getGetMasterDataLovQueryOptions = <TData = Awaited<ReturnType<typeof getMasterDataLov>>, TError = ErrorType<Error>>(code: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMasterDataLov>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMasterDataLovQueryKey(code);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMasterDataLov>>> = ({ signal }) => getMasterDataLov(code, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: code !== null && code !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMasterDataLov>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMasterDataLovQueryResult = NonNullable<Awaited<ReturnType<typeof getMasterDataLov>>>
+export type GetMasterDataLovQueryError = ErrorType<Error>
+
+
+/**
+ * @summary Get active values for a master data code
+ */
+
+export function useGetMasterDataLov<TData = Awaited<ReturnType<typeof getMasterDataLov>>, TError = ErrorType<Error>>(
+ code: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMasterDataLov>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMasterDataLovQueryOptions(code,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMasterDataGroupUrl = () => {
+
+
+
+
+  return `/api/platform/master-data/groups`
+}
+
+/**
+ * @summary Create a master data group
+ */
+export const createMasterDataGroup = async (createMasterDataGroupInput: CreateMasterDataGroupInput, options?: Parameters<typeof customFetch>[1]): Promise<MasterDataGroup> => {
+
+  return customFetch<MasterDataGroup>(getCreateMasterDataGroupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createMasterDataGroupInput)
+  }
+);}
+
+
+
+
+
+export const getCreateMasterDataGroupMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMasterDataGroup>>, TError,{data: BodyType<CreateMasterDataGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMasterDataGroup>>, TError,{data: BodyType<CreateMasterDataGroupInput>}, TContext> => {
+
+const mutationKey = ['createMasterDataGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMasterDataGroup>>, {data: BodyType<CreateMasterDataGroupInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMasterDataGroup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMasterDataGroupMutationResult = NonNullable<Awaited<ReturnType<typeof createMasterDataGroup>>>
+    export type CreateMasterDataGroupMutationBody = BodyType<CreateMasterDataGroupInput>
+    export type CreateMasterDataGroupMutationError = ErrorType<Error>
+
+    /**
+ * @summary Create a master data group
+ */
+export const useCreateMasterDataGroup = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMasterDataGroup>>, TError,{data: BodyType<CreateMasterDataGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMasterDataGroup>>,
+        TError,
+        {data: BodyType<CreateMasterDataGroupInput>},
+        TContext
+      > => {
+      return useMutation(getCreateMasterDataGroupMutationOptions(options));
+    }
+
+export const getUpdateMasterDataGroupUrl = (id: string,) => {
+
+
+
+
+  return `/api/platform/master-data/groups/${id}`
+}
+
+/**
+ * @summary Update a master data group
+ */
+export const updateMasterDataGroup = async (id: string,
+    updateMasterDataGroupInput: UpdateMasterDataGroupInput, options?: Parameters<typeof customFetch>[1]): Promise<MasterDataGroup> => {
+
+  return customFetch<MasterDataGroup>(getUpdateMasterDataGroupUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateMasterDataGroupInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateMasterDataGroupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMasterDataGroup>>, TError,{id: string;data: BodyType<UpdateMasterDataGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMasterDataGroup>>, TError,{id: string;data: BodyType<UpdateMasterDataGroupInput>}, TContext> => {
+
+const mutationKey = ['updateMasterDataGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMasterDataGroup>>, {id: string;data: BodyType<UpdateMasterDataGroupInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateMasterDataGroup(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMasterDataGroupMutationResult = NonNullable<Awaited<ReturnType<typeof updateMasterDataGroup>>>
+    export type UpdateMasterDataGroupMutationBody = BodyType<UpdateMasterDataGroupInput>
+    export type UpdateMasterDataGroupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a master data group
+ */
+export const useUpdateMasterDataGroup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMasterDataGroup>>, TError,{id: string;data: BodyType<UpdateMasterDataGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMasterDataGroup>>,
+        TError,
+        {id: string;data: BodyType<UpdateMasterDataGroupInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateMasterDataGroupMutationOptions(options));
+    }
+
+export const getDeleteMasterDataGroupUrl = (id: string,) => {
+
+
+
+
+  return `/api/platform/master-data/groups/${id}`
+}
+
+/**
+ * @summary Soft-delete a master data group
+ */
+export const deleteMasterDataGroup = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteMasterDataGroupUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteMasterDataGroupMutationOptions = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMasterDataGroup>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMasterDataGroup>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteMasterDataGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMasterDataGroup>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteMasterDataGroup(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMasterDataGroupMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMasterDataGroup>>>
+
+    export type DeleteMasterDataGroupMutationError = ErrorType<Error>
+
+    /**
+ * @summary Soft-delete a master data group
+ */
+export const useDeleteMasterDataGroup = <TError = ErrorType<Error>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMasterDataGroup>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMasterDataGroup>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteMasterDataGroupMutationOptions(options));
+    }
+
+export const getCreateMasterDataValueUrl = (groupId: string,) => {
+
+
+
+
+  return `/api/platform/master-data/groups/${groupId}/values`
+}
+
+/**
+ * @summary Add a value to a master data group
+ */
+export const createMasterDataValue = async (groupId: string,
+    createMasterDataValueInput: CreateMasterDataValueInput, options?: Parameters<typeof customFetch>[1]): Promise<MasterDataValue> => {
+
+  return customFetch<MasterDataValue>(getCreateMasterDataValueUrl(groupId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createMasterDataValueInput)
+  }
+);}
+
+
+
+
+
+export const getCreateMasterDataValueMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMasterDataValue>>, TError,{groupId: string;data: BodyType<CreateMasterDataValueInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMasterDataValue>>, TError,{groupId: string;data: BodyType<CreateMasterDataValueInput>}, TContext> => {
+
+const mutationKey = ['createMasterDataValue'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMasterDataValue>>, {groupId: string;data: BodyType<CreateMasterDataValueInput>}> = (props) => {
+          const {groupId,data} = props ?? {};
+
+          return  createMasterDataValue(groupId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMasterDataValueMutationResult = NonNullable<Awaited<ReturnType<typeof createMasterDataValue>>>
+    export type CreateMasterDataValueMutationBody = BodyType<CreateMasterDataValueInput>
+    export type CreateMasterDataValueMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a value to a master data group
+ */
+export const useCreateMasterDataValue = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMasterDataValue>>, TError,{groupId: string;data: BodyType<CreateMasterDataValueInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMasterDataValue>>,
+        TError,
+        {groupId: string;data: BodyType<CreateMasterDataValueInput>},
+        TContext
+      > => {
+      return useMutation(getCreateMasterDataValueMutationOptions(options));
+    }
+
+export const getUpdateMasterDataValueUrl = (id: string,) => {
+
+
+
+
+  return `/api/platform/master-data/values/${id}`
+}
+
+/**
+ * @summary Update a master data value
+ */
+export const updateMasterDataValue = async (id: string,
+    updateMasterDataValueInput: UpdateMasterDataValueInput, options?: Parameters<typeof customFetch>[1]): Promise<MasterDataValue> => {
+
+  return customFetch<MasterDataValue>(getUpdateMasterDataValueUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateMasterDataValueInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateMasterDataValueMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMasterDataValue>>, TError,{id: string;data: BodyType<UpdateMasterDataValueInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMasterDataValue>>, TError,{id: string;data: BodyType<UpdateMasterDataValueInput>}, TContext> => {
+
+const mutationKey = ['updateMasterDataValue'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMasterDataValue>>, {id: string;data: BodyType<UpdateMasterDataValueInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateMasterDataValue(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMasterDataValueMutationResult = NonNullable<Awaited<ReturnType<typeof updateMasterDataValue>>>
+    export type UpdateMasterDataValueMutationBody = BodyType<UpdateMasterDataValueInput>
+    export type UpdateMasterDataValueMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a master data value
+ */
+export const useUpdateMasterDataValue = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMasterDataValue>>, TError,{id: string;data: BodyType<UpdateMasterDataValueInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMasterDataValue>>,
+        TError,
+        {id: string;data: BodyType<UpdateMasterDataValueInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateMasterDataValueMutationOptions(options));
+    }
+
+export const getDeleteMasterDataValueUrl = (id: string,) => {
+
+
+
+
+  return `/api/platform/master-data/values/${id}`
+}
+
+/**
+ * @summary Soft-delete a master data value
+ */
+export const deleteMasterDataValue = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteMasterDataValueUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteMasterDataValueMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMasterDataValue>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMasterDataValue>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteMasterDataValue'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMasterDataValue>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteMasterDataValue(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMasterDataValueMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMasterDataValue>>>
+
+    export type DeleteMasterDataValueMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Soft-delete a master data value
+ */
+export const useDeleteMasterDataValue = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMasterDataValue>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMasterDataValue>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteMasterDataValueMutationOptions(options));
     }
 
 export const getListIntegrationConnectorsUrl = (params?: ListIntegrationConnectorsParams,) => {

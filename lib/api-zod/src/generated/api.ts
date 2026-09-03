@@ -364,6 +364,200 @@ export const UpdateOrganizationSettingsResponse = zod.object({
 
 
 /**
+ * @summary List all master data groups and values
+ */
+export const ListMasterDataResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "appScope": zod.enum(['global', 'qaqc', 'lessons', 'audit']),
+  "isSystem": zod.boolean(),
+  "sortOrder": zod.number(),
+  "values": zod.array(zod.object({
+  "id": zod.string(),
+  "groupId": zod.string(),
+  "value": zod.string(),
+  "label": zod.string(),
+  "sortOrder": zod.number(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown())
+}))
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary Get active values for a master data code
+ */
+export const GetMasterDataLovParams = zod.object({
+  "code": zod.coerce.string()
+})
+
+export const GetMasterDataLovResponse = zod.object({
+  "code": zod.string(),
+  "values": zod.array(zod.object({
+  "value": zod.string(),
+  "label": zod.string(),
+  "sortOrder": zod.number(),
+  "metadata": zod.record(zod.string(), zod.unknown())
+}))
+})
+
+
+/**
+ * @summary Create a master data group
+ */
+
+
+export const createMasterDataGroupBodyAppScopeDefault = `global`;
+export const createMasterDataGroupBodySortOrderDefault = 0;
+
+export const CreateMasterDataGroupBody = zod.object({
+  "code": zod.string().min(1),
+  "name": zod.string().min(1),
+  "description": zod.string().optional(),
+  "appScope": zod.enum(['global', 'qaqc', 'lessons', 'audit']).default(createMasterDataGroupBodyAppScopeDefault),
+  "sortOrder": zod.number().default(createMasterDataGroupBodySortOrderDefault)
+})
+
+export const CreateMasterDataGroupResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "appScope": zod.enum(['global', 'qaqc', 'lessons', 'audit']),
+  "isSystem": zod.boolean(),
+  "sortOrder": zod.number(),
+  "values": zod.array(zod.object({
+  "id": zod.string(),
+  "groupId": zod.string(),
+  "value": zod.string(),
+  "label": zod.string(),
+  "sortOrder": zod.number(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown())
+}))
+})
+
+
+/**
+ * @summary Update a master data group
+ */
+export const UpdateMasterDataGroupParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const UpdateMasterDataGroupBody = zod.object({
+  "name": zod.string().min(1),
+  "description": zod.string().optional(),
+  "appScope": zod.enum(['global', 'qaqc', 'lessons', 'audit']).optional(),
+  "sortOrder": zod.number().optional()
+})
+
+export const UpdateMasterDataGroupResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "appScope": zod.enum(['global', 'qaqc', 'lessons', 'audit']),
+  "isSystem": zod.boolean(),
+  "sortOrder": zod.number(),
+  "values": zod.array(zod.object({
+  "id": zod.string(),
+  "groupId": zod.string(),
+  "value": zod.string(),
+  "label": zod.string(),
+  "sortOrder": zod.number(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown())
+}))
+})
+
+
+/**
+ * @summary Soft-delete a master data group
+ */
+export const DeleteMasterDataGroupParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteMasterDataGroupResponse = zod.void()
+
+
+/**
+ * @summary Add a value to a master data group
+ */
+export const CreateMasterDataValueParams = zod.object({
+  "groupId": zod.coerce.string()
+})
+
+
+export const createMasterDataValueBodySortOrderDefault = 0;
+
+export const CreateMasterDataValueBody = zod.object({
+  "value": zod.string().min(1),
+  "label": zod.string().optional(),
+  "sortOrder": zod.number().default(createMasterDataValueBodySortOrderDefault),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const CreateMasterDataValueResponse = zod.object({
+  "id": zod.string(),
+  "groupId": zod.string(),
+  "value": zod.string(),
+  "label": zod.string(),
+  "sortOrder": zod.number(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary Update a master data value
+ */
+export const UpdateMasterDataValueParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const UpdateMasterDataValueBody = zod.object({
+  "value": zod.string().min(1).optional(),
+  "label": zod.string().optional(),
+  "sortOrder": zod.number().optional(),
+  "active": zod.boolean().optional(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const UpdateMasterDataValueResponse = zod.object({
+  "id": zod.string(),
+  "groupId": zod.string(),
+  "value": zod.string(),
+  "label": zod.string(),
+  "sortOrder": zod.number(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary Soft-delete a master data value
+ */
+export const DeleteMasterDataValueParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteMasterDataValueResponse = zod.void()
+
+
+/**
  * @summary List integration connectors
  */
 export const listIntegrationConnectorsQueryPageDefault = 1;
@@ -1475,10 +1669,10 @@ export const ListDocumentGovernanceLogResponse = zod.object({
   "projectId": zod.string(),
   "date": zod.coerce.date(),
   "disciplineId": zod.string(),
-  "documentType": zod.enum(['Submittal', 'Drawing', 'Correspondence']),
-  "status": zod.enum(['Approved', 'Resubmit', 'Rejected', 'Under Review']),
+  "documentType": zod.string().describe('Values managed via \/platform\/master-data\/lov\/document_types'),
+  "status": zod.string().describe('Values managed via \/platform\/master-data\/lov\/document_statuses'),
   "reviewDays": zod.number().min(listDocumentGovernanceLogResponseTwoItemsItemReviewDaysMin).optional(),
-  "pendingWith": zod.enum(['Client', 'Algihaz', 'Supplier']),
+  "pendingWith": zod.string().describe('Values managed via \/platform\/master-data\/lov\/pending_with'),
   "pendingDays": zod.number().min(listDocumentGovernanceLogResponseTwoItemsItemPendingDaysMin).optional(),
   "correspondenceCount": zod.number().min(listDocumentGovernanceLogResponseTwoItemsItemCorrespondenceCountMin).optional()
 }))
@@ -1501,10 +1695,10 @@ export const CreateDocumentGovernanceEntryBody = zod.object({
   "projectId": zod.string(),
   "date": zod.coerce.date(),
   "disciplineId": zod.string(),
-  "documentType": zod.enum(['Submittal', 'Drawing', 'Correspondence']),
-  "status": zod.enum(['Approved', 'Resubmit', 'Rejected', 'Under Review']),
+  "documentType": zod.string().describe('Values managed via \/platform\/master-data\/lov\/document_types'),
+  "status": zod.string().describe('Values managed via \/platform\/master-data\/lov\/document_statuses'),
   "reviewDays": zod.number().min(createDocumentGovernanceEntryBodyReviewDaysMin).optional(),
-  "pendingWith": zod.enum(['Client', 'Algihaz', 'Supplier']),
+  "pendingWith": zod.string().describe('Values managed via \/platform\/master-data\/lov\/pending_with'),
   "pendingDays": zod.number().min(createDocumentGovernanceEntryBodyPendingDaysMin).optional(),
   "correspondenceCount": zod.number().min(createDocumentGovernanceEntryBodyCorrespondenceCountMin).optional()
 })
@@ -1532,10 +1726,10 @@ export const UpdateDocumentGovernanceEntryBody = zod.object({
   "projectId": zod.string(),
   "date": zod.coerce.date(),
   "disciplineId": zod.string(),
-  "documentType": zod.enum(['Submittal', 'Drawing', 'Correspondence']),
-  "status": zod.enum(['Approved', 'Resubmit', 'Rejected', 'Under Review']),
+  "documentType": zod.string().describe('Values managed via \/platform\/master-data\/lov\/document_types'),
+  "status": zod.string().describe('Values managed via \/platform\/master-data\/lov\/document_statuses'),
   "reviewDays": zod.number().min(updateDocumentGovernanceEntryBodyReviewDaysMin).optional(),
-  "pendingWith": zod.enum(['Client', 'Algihaz', 'Supplier']),
+  "pendingWith": zod.string().describe('Values managed via \/platform\/master-data\/lov\/pending_with'),
   "pendingDays": zod.number().min(updateDocumentGovernanceEntryBodyPendingDaysMin).optional(),
   "correspondenceCount": zod.number().min(updateDocumentGovernanceEntryBodyCorrespondenceCountMin).optional()
 })
@@ -2588,8 +2782,8 @@ export const ListLessonFormsResponse = zod.object({
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
-  "issueCategory": zod.enum(['Minor', 'Moderate', 'Major']),
-  "impact": zod.enum(['Positive', 'Negative']),
+  "issueCategory": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_issue_categories'),
+  "impact": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_impacts'),
   "description": zod.string(),
   "rootCause": zod.string(),
   "correction": zod.string(),
@@ -2645,8 +2839,8 @@ export const CreateLessonFormBody = zod.object({
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
-  "issueCategory": zod.enum(['Minor', 'Moderate', 'Major']),
-  "impact": zod.enum(['Positive', 'Negative']),
+  "issueCategory": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_issue_categories'),
+  "impact": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_impacts'),
   "description": zod.string(),
   "rootCause": zod.string(),
   "correction": zod.string(),
@@ -2707,8 +2901,8 @@ export const GetLessonFormResponse = zod.object({
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
-  "issueCategory": zod.enum(['Minor', 'Moderate', 'Major']),
-  "impact": zod.enum(['Positive', 'Negative']),
+  "issueCategory": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_issue_categories'),
+  "impact": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_impacts'),
   "description": zod.string(),
   "rootCause": zod.string(),
   "correction": zod.string(),
@@ -2767,8 +2961,8 @@ export const UpdateLessonFormBody = zod.object({
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
-  "issueCategory": zod.enum(['Minor', 'Moderate', 'Major']),
-  "impact": zod.enum(['Positive', 'Negative']),
+  "issueCategory": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_issue_categories'),
+  "impact": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_impacts'),
   "description": zod.string(),
   "rootCause": zod.string(),
   "correction": zod.string(),
@@ -2932,8 +3126,8 @@ export const SearchLessonsLogResponse = zod.object({
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
-  "issueCategory": zod.enum(['Minor', 'Moderate', 'Major']),
-  "impact": zod.enum(['Positive', 'Negative']),
+  "issueCategory": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_issue_categories'),
+  "impact": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_impacts'),
   "description": zod.string(),
   "rootCause": zod.string(),
   "correction": zod.string(),
@@ -3724,7 +3918,7 @@ export const ListAuditSchedulesResponse = zod.object({
   "year": zod.number(),
   "title": zod.string(),
   "projectIds": zod.array(zod.string()),
-  "auditTypes": zod.array(zod.string()).optional(),
+  "auditTypes": zod.array(zod.string().describe('Values managed via \/platform\/master-data\/lov\/audit_types')).optional(),
   "plannedStartDate": zod.coerce.date(),
   "plannedEndDate": zod.coerce.date(),
   "ownerId": zod.string().optional(),
@@ -3742,7 +3936,7 @@ export const CreateAuditScheduleBody = zod.object({
   "year": zod.number(),
   "title": zod.string(),
   "projectIds": zod.array(zod.string()),
-  "auditTypes": zod.array(zod.string()).optional(),
+  "auditTypes": zod.array(zod.string().describe('Values managed via \/platform\/master-data\/lov\/audit_types')).optional(),
   "plannedStartDate": zod.coerce.date(),
   "plannedEndDate": zod.coerce.date(),
   "ownerId": zod.string().optional(),
@@ -3765,7 +3959,7 @@ export const GetAuditScheduleResponse = zod.object({
   "year": zod.number(),
   "title": zod.string(),
   "projectIds": zod.array(zod.string()),
-  "auditTypes": zod.array(zod.string()).optional(),
+  "auditTypes": zod.array(zod.string().describe('Values managed via \/platform\/master-data\/lov\/audit_types')).optional(),
   "plannedStartDate": zod.coerce.date(),
   "plannedEndDate": zod.coerce.date(),
   "ownerId": zod.string().optional(),
@@ -3786,7 +3980,7 @@ export const UpdateAuditScheduleBody = zod.object({
   "year": zod.number(),
   "title": zod.string(),
   "projectIds": zod.array(zod.string()),
-  "auditTypes": zod.array(zod.string()).optional(),
+  "auditTypes": zod.array(zod.string().describe('Values managed via \/platform\/master-data\/lov\/audit_types')).optional(),
   "plannedStartDate": zod.coerce.date(),
   "plannedEndDate": zod.coerce.date(),
   "ownerId": zod.string().optional(),
@@ -4012,7 +4206,7 @@ export const ListAuditsResponse = zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
   "question": zod.string(),
-  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })).optional(),
@@ -4047,7 +4241,7 @@ export const CreateAuditBody = zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
   "question": zod.string(),
-  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })).optional(),
@@ -4087,7 +4281,7 @@ export const GetAuditResponse = zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
   "question": zod.string(),
-  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })).optional(),
@@ -4125,7 +4319,7 @@ export const UpdateAuditBody = zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
   "question": zod.string(),
-  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })).optional(),
@@ -4191,7 +4385,7 @@ export const UpdateAuditChecklistBodyItem = zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
   "question": zod.string(),
-  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })
@@ -4232,9 +4426,9 @@ export const ListAuditFindingsResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "clause": zod.string().nullish(),
-  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
-  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
-  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "classification": zod.string().describe('Values managed via \/platform\/master-data\/lov\/nc_classifications'),
+  "priority": zod.string().describe('Values managed via \/platform\/master-data\/lov\/finding_priorities'),
+  "riskLevel": zod.string().describe('Values managed via \/platform\/master-data\/lov\/risk_levels'),
   "responsibleDepartments": zod.array(zod.string()),
   "evidenceIds": zod.array(zod.string()).optional(),
   "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),
@@ -4252,9 +4446,9 @@ export const CreateAuditFindingBody = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "clause": zod.string().nullish(),
-  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
-  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
-  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "classification": zod.string().describe('Values managed via \/platform\/master-data\/lov\/nc_classifications'),
+  "priority": zod.string().describe('Values managed via \/platform\/master-data\/lov\/finding_priorities'),
+  "riskLevel": zod.string().describe('Values managed via \/platform\/master-data\/lov\/risk_levels'),
   "responsibleDepartments": zod.array(zod.string()),
   "evidenceIds": zod.array(zod.string()).optional(),
   "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),
@@ -4277,9 +4471,9 @@ export const GetAuditFindingResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "clause": zod.string().nullish(),
-  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
-  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
-  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "classification": zod.string().describe('Values managed via \/platform\/master-data\/lov\/nc_classifications'),
+  "priority": zod.string().describe('Values managed via \/platform\/master-data\/lov\/finding_priorities'),
+  "riskLevel": zod.string().describe('Values managed via \/platform\/master-data\/lov\/risk_levels'),
   "responsibleDepartments": zod.array(zod.string()),
   "evidenceIds": zod.array(zod.string()).optional(),
   "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),
@@ -4300,9 +4494,9 @@ export const UpdateAuditFindingBody = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "clause": zod.string().nullish(),
-  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
-  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
-  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "classification": zod.string().describe('Values managed via \/platform\/master-data\/lov\/nc_classifications'),
+  "priority": zod.string().describe('Values managed via \/platform\/master-data\/lov\/finding_priorities'),
+  "riskLevel": zod.string().describe('Values managed via \/platform\/master-data\/lov\/risk_levels'),
   "responsibleDepartments": zod.array(zod.string()),
   "evidenceIds": zod.array(zod.string()).optional(),
   "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),
@@ -4636,9 +4830,9 @@ export const GetAuditFindingsLogReportResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "clause": zod.string().nullish(),
-  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
-  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
-  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "classification": zod.string().describe('Values managed via \/platform\/master-data\/lov\/nc_classifications'),
+  "priority": zod.string().describe('Values managed via \/platform\/master-data\/lov\/finding_priorities'),
+  "riskLevel": zod.string().describe('Values managed via \/platform\/master-data\/lov\/risk_levels'),
   "responsibleDepartments": zod.array(zod.string()),
   "evidenceIds": zod.array(zod.string()).optional(),
   "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),
@@ -4686,7 +4880,7 @@ export const GetAuditScheduleReportResponse = zod.object({
   "year": zod.number(),
   "title": zod.string(),
   "projectIds": zod.array(zod.string()),
-  "auditTypes": zod.array(zod.string()).optional(),
+  "auditTypes": zod.array(zod.string().describe('Values managed via \/platform\/master-data\/lov\/audit_types')).optional(),
   "plannedStartDate": zod.coerce.date(),
   "plannedEndDate": zod.coerce.date(),
   "ownerId": zod.string().optional(),
@@ -4726,7 +4920,7 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
   "question": zod.string(),
-  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })).optional(),
@@ -4739,9 +4933,9 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "title": zod.string(),
   "description": zod.string(),
   "clause": zod.string().nullish(),
-  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
-  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
-  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "classification": zod.string().describe('Values managed via \/platform\/master-data\/lov\/nc_classifications'),
+  "priority": zod.string().describe('Values managed via \/platform\/master-data\/lov\/finding_priorities'),
+  "riskLevel": zod.string().describe('Values managed via \/platform\/master-data\/lov\/risk_levels'),
   "responsibleDepartments": zod.array(zod.string()),
   "evidenceIds": zod.array(zod.string()).optional(),
   "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),

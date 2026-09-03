@@ -14,6 +14,8 @@ tags:
     description: Local and container authentication
   - name: platform
     description: Shared platform context
+  - name: master-data
+    description: Organization-wide master data
   - name: apps
     description: Distinct QMS360 application overviews
   - name: executive
@@ -205,6 +207,81 @@ paths:
       requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/OrganizationSettings"}}}}
       responses:
         "200": {description: Updated settings, content: {application/json: {schema: {$ref: "#/components/schemas/OrganizationSettings"}}}}
+  /platform/master-data:
+    get:
+      operationId: listMasterData
+      tags: [master-data]
+      summary: List all master data groups and values
+      responses:
+        "200": {description: Master data, content: {application/json: {schema: {$ref: "#/components/schemas/MasterDataGroupList"}}}}
+  /platform/master-data/lov/{code}:
+    get:
+      operationId: getMasterDataLov
+      tags: [master-data]
+      summary: Get active values for a master data code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: List of values, content: {application/json: {schema: {$ref: "#/components/schemas/MasterDataLov"}}}}
+        "404": {description: Group not found, content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+  /platform/master-data/groups:
+    post:
+      operationId: createMasterDataGroup
+      tags: [master-data]
+      summary: Create a master data group
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CreateMasterDataGroupInput"}}}}
+      responses:
+        "201": {description: Created group, content: {application/json: {schema: {$ref: "#/components/schemas/MasterDataGroup"}}}}
+        "409": {description: Code already exists, content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+  /platform/master-data/groups/{id}:
+    put:
+      operationId: updateMasterDataGroup
+      tags: [master-data]
+      summary: Update a master data group
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/UpdateMasterDataGroupInput"}}}}
+      responses:
+        "200": {description: Updated group, content: {application/json: {schema: {$ref: "#/components/schemas/MasterDataGroup"}}}}
+    delete:
+      operationId: deleteMasterDataGroup
+      tags: [master-data]
+      summary: Soft-delete a master data group
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "204": {description: Soft-deleted}
+        "409": {description: System groups cannot be deleted, content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
+  /platform/master-data/groups/{groupId}/values:
+    post:
+      operationId: createMasterDataValue
+      tags: [master-data]
+      summary: Add a value to a master data group
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CreateMasterDataValueInput"}}}}
+      responses:
+        "201": {description: Created value, content: {application/json: {schema: {$ref: "#/components/schemas/MasterDataValue"}}}}
+  /platform/master-data/values/{id}:
+    put:
+      operationId: updateMasterDataValue
+      tags: [master-data]
+      summary: Update a master data value
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/UpdateMasterDataValueInput"}}}}
+      responses:
+        "200": {description: Updated value, content: {application/json: {schema: {$ref: "#/components/schemas/MasterDataValue"}}}}
+    delete:
+      operationId: deleteMasterDataValue
+      tags: [master-data]
+      summary: Soft-delete a master data value
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "204": {description: Soft-deleted}
   /integrations/connectors:
     get:
       operationId: listIntegrationConnectors
@@ -755,6 +832,83 @@ components:
     ApproveReject: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ApproveRejectReview"}}}}
     Extension: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ExtensionRequest"}}}}
   schemas:
+    MasterDataValue:
+      type: object
+      required: [id, groupId, value, label, sortOrder, active, metadata]
+      properties:
+        id: {type: string}
+        groupId: {type: string}
+        value: {type: string}
+        label: {type: string}
+        sortOrder: {type: number}
+        active: {type: boolean}
+        metadata: {type: object, additionalProperties: true}
+    MasterDataGroup:
+      type: object
+      required: [id, code, name, description, appScope, isSystem, sortOrder, values]
+      properties:
+        id: {type: string}
+        code: {type: string}
+        name: {type: string}
+        description: {type: [string, "null"]}
+        appScope: {type: string, enum: [global, qaqc, lessons, audit]}
+        isSystem: {type: boolean}
+        sortOrder: {type: number}
+        values: {type: array, items: {$ref: "#/components/schemas/MasterDataValue"}}
+    MasterDataGroupList:
+      type: object
+      required: [items, total]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/MasterDataGroup"}}
+        total: {type: number}
+    MasterDataLov:
+      type: object
+      required: [code, values]
+      properties:
+        code: {type: string}
+        values:
+          type: array
+          items:
+            type: object
+            required: [value, label, sortOrder, metadata]
+            properties:
+              value: {type: string}
+              label: {type: string}
+              sortOrder: {type: number}
+              metadata: {type: object, additionalProperties: true}
+    CreateMasterDataGroupInput:
+      type: object
+      required: [code, name]
+      properties:
+        code: {type: string, minLength: 1}
+        name: {type: string, minLength: 1}
+        description: {type: string}
+        appScope: {type: string, enum: [global, qaqc, lessons, audit], default: global}
+        sortOrder: {type: number, default: 0}
+    UpdateMasterDataGroupInput:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, minLength: 1}
+        description: {type: string}
+        appScope: {type: string, enum: [global, qaqc, lessons, audit]}
+        sortOrder: {type: number}
+    CreateMasterDataValueInput:
+      type: object
+      required: [value]
+      properties:
+        value: {type: string, minLength: 1}
+        label: {type: string}
+        sortOrder: {type: number, default: 0}
+        metadata: {type: object, additionalProperties: true}
+    UpdateMasterDataValueInput:
+      type: object
+      properties:
+        value: {type: string, minLength: 1}
+        label: {type: string}
+        sortOrder: {type: number}
+        active: {type: boolean}
+        metadata: {type: object, additionalProperties: true}
     HealthStatus:
       type: object
       properties:
@@ -1095,7 +1249,7 @@ components:
     DocumentGovernanceLogEntry:
       type: object
       required: [id, projectId, date, disciplineId, documentType, status, pendingWith]
-      properties: {id: {type: string}, projectId: {type: string}, date: {type: string, format: date}, disciplineId: {type: string}, documentType: {type: string, enum: [Submittal, Drawing, Correspondence]}, status: {type: string, enum: [Approved, Resubmit, Rejected, Under Review]}, reviewDays: {type: number, minimum: 0}, pendingWith: {type: string, enum: [Client, Algihaz, Supplier]}, pendingDays: {type: number, minimum: 0}, correspondenceCount: {type: number, minimum: 0}}
+      properties: {id: {type: string}, projectId: {type: string}, date: {type: string, format: date}, disciplineId: {type: string}, documentType: {type: string, description: "Values managed via /platform/master-data/lov/document_types"}, status: {type: string, description: "Values managed via /platform/master-data/lov/document_statuses"}, reviewDays: {type: number, minimum: 0}, pendingWith: {type: string, description: "Values managed via /platform/master-data/lov/pending_with"}, pendingDays: {type: number, minimum: 0}, correspondenceCount: {type: number, minimum: 0}}
     QualityAssessmentBrief:
       type: object
       required: [id, projectId, period, narrative, workflowState]
@@ -1230,8 +1384,8 @@ components:
         title: {type: string}
         disciplineId: {type: string}
         categorisationId: {type: string}
-        issueCategory: {type: string, enum: [Minor, Moderate, Major]}
-        impact: {type: string, enum: [Positive, Negative]}
+        issueCategory: {type: string, description: "Values managed via /platform/master-data/lov/lesson_issue_categories"}
+        impact: {type: string, description: "Values managed via /platform/master-data/lov/lesson_impacts"}
         description: {type: string}
         rootCause: {type: string}
         correction: {type: string}
@@ -1260,7 +1414,7 @@ components:
     AuditSchedule:
       type: object
       required: [id, year, title, projectIds, plannedStartDate, plannedEndDate, workflowState]
-      properties: {id: {type: string}, year: {type: number}, title: {type: string}, projectIds: {type: array, items: {type: string}}, auditTypes: {type: array, items: {type: string}}, plannedStartDate: {type: string, format: date}, plannedEndDate: {type: string, format: date}, ownerId: {type: string}, workflowState: {$ref: "#/components/schemas/WorkflowState"}, reviewComments: {type: [string, "null"]}}
+      properties: {id: {type: string}, year: {type: number}, title: {type: string}, projectIds: {type: array, items: {type: string}}, auditTypes: {type: array, items: {type: string, description: "Values managed via /platform/master-data/lov/audit_types"}}, plannedStartDate: {type: string, format: date}, plannedEndDate: {type: string, format: date}, ownerId: {type: string}, workflowState: {$ref: "#/components/schemas/WorkflowState"}, reviewComments: {type: [string, "null"]}}
     AuditPlan:
       type: object
       required: [id, scheduleId, scope, criteria, auditDate, location, teamMemberIds, status]
@@ -1272,7 +1426,7 @@ components:
     ChecklistItem:
       type: object
       required: [id, question, result]
-      properties: {id: {type: string}, clause: {type: [string, "null"]}, question: {type: string}, result: {type: string, enum: [Conformity, Observation, Minor NC, Major NC, Not Applicable]}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}}
+      properties: {id: {type: string}, clause: {type: [string, "null"]}, question: {type: string}, result: {type: string, description: "Values managed via /platform/master-data/lov/checklist_results"}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}}
     Audit:
       type: object
       required: [id, planId, projectId, title, status]
@@ -1280,7 +1434,7 @@ components:
     AuditFinding:
       type: object
       required: [id, auditId, title, description, classification, priority, riskLevel, responsibleDepartments, status]
-      properties: {id: {type: string}, auditId: {type: string}, title: {type: string}, description: {type: string}, clause: {type: [string, "null"]}, classification: {type: string, enum: [Conformity, Observation, Minor NC, Major NC]}, priority: {type: string, enum: [P1, P2, P3, P4, P5, P6]}, riskLevel: {type: string, enum: [High, Medium, Low]}, responsibleDepartments: {type: array, items: {type: string}}, evidenceIds: {type: array, items: {type: string}}, status: {type: string, enum: [Open, CAR Issued, Verified, Closed, Deleted]}, raisedAt: {type: string, format: date-time}}
+      properties: {id: {type: string}, auditId: {type: string}, title: {type: string}, description: {type: string}, clause: {type: [string, "null"]}, classification: {type: string, description: "Values managed via /platform/master-data/lov/nc_classifications"}, priority: {type: string, description: "Values managed via /platform/master-data/lov/finding_priorities"}, riskLevel: {type: string, description: "Values managed via /platform/master-data/lov/risk_levels"}, responsibleDepartments: {type: array, items: {type: string}}, evidenceIds: {type: array, items: {type: string}}, status: {type: string, enum: [Open, CAR Issued, Verified, Closed, Deleted]}, raisedAt: {type: string, format: date-time}}
     CorrectiveActionReport:
       type: object
       required: [id, findingId, responsibleDepartment, ownerId, status, dueDate]

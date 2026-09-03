@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import {
   applicationAccess,
   organizationSettings,
@@ -16,14 +16,18 @@ import {
   customerSatisfactionEntries,
   db,
   disciplines,
+  distributionLists,
   documentGovernanceLogEntries,
   lessonLearnedForms,
   lessonsDisciplines,
+  lessonsDistributionLists,
   lessonsPermissions,
   lessonsPlatformRoles,
   lessonsUserWorkspaceRoles,
   lessonsWorkspaceRoles,
   materialInspectionEntries,
+  masterDataGroups,
+  masterDataValues,
   organizations,
   permissions,
   platformRoles,
@@ -66,6 +70,61 @@ async function seed() {
   }).onConflictDoNothing().returning();
   const org = organization ?? (await db.select().from(organizations).where(eq(organizations.code, "AGH")).limit(1))[0];
   if (!org) throw new Error("Unable to seed organization");
+
+  const masterGroups = [
+    ["disciplines", "Discipline Master", "global", ["Electrical", "Civil", "Mechanical", "Precast", "Architectural", "Testing & Commissioning", "Plumbing", "RTR & Piping", "Instrumentation", "Communications", "Storage & Handling", "Material Receiving"]],
+    ["audit_types", "Audit Type Master", "audit", ["Quality Internal Process Audit", "Quality Internal Product Audit"]],
+    ["risk_levels", "Risk Level Master", "audit", ["Low", "Medium", "High"]],
+    ["nc_classifications", "NC Classification", "audit", ["Conformity", "Observation", "Minor NC", "Major NC"]],
+    ["lesson_issue_categories", "Lesson Issue Categories", "lessons", ["Minor", "Moderate", "Major"]],
+    ["lesson_impacts", "Lesson Impacts", "lessons", ["Positive", "Negative"]],
+    ["document_types", "Document Types", "qaqc", ["Submittal", "Drawing", "Correspondence"]],
+    ["document_statuses", "Document Statuses", "qaqc", ["Approved", "Resubmit", "Rejected", "Under Review"]],
+    ["pending_with", "Pending With", "qaqc", ["Client", "Algihaz", "Supplier"]],
+    ["finding_priorities", "Finding Priorities", "audit", ["P1", "P2", "P3", "P4", "P5", "P6"]],
+    ["checklist_results", "Checklist Results", "audit", ["Conformity", "Observation", "Minor NC", "Major NC", "Not Applicable"]],
+    ["distribution_events", "Distribution List Events", "global", ["Monthly QAQC Metric Dashboard & Report", "Biweekly Document Governance Report", "Customer Satisfaction Form", "Lesson Learnt Approved Form", "Audit Memo Circulation", "Audit Plan Circulation", "Audit Report Circulation"]],
+    ["metric_categories", "QAQC Metric Categories", "qaqc", ["External NCR", "Internal NCR", "RFI", "RMI"]],
+  ] as const;
+  for (const [groupOrder, [code, name, appScope, values]] of masterGroups.entries()) {
+    const [existingGroup] = await db.select().from(masterDataGroups).where(and(
+      eq(masterDataGroups.organizationId, org.id),
+      eq(masterDataGroups.code, code),
+    )).limit(1);
+    const group = existingGroup ?? (await db.insert(masterDataGroups).values({
+      organizationId: org.id, code, name, appScope, isSystem: true, sortOrder: groupOrder,
+    }).returning())[0];
+    if (!group) throw new Error(`Unable to seed master data group ${code}`);
+    if (!group.isSystem || group.deletedAt) {
+      await db.update(masterDataGroups).set({
+        name, appScope, isSystem: true, sortOrder: groupOrder, status: "active", deletedAt: null, updatedAt: new Date(),
+      }).where(eq(masterDataGroups.id, group.id));
+    }
+    for (const [valueOrder, value] of values.entries()) {
+      const [activeValue] = await db.select().from(masterDataValues).where(and(
+        eq(masterDataValues.organizationId, org.id),
+        eq(masterDataValues.groupId, group.id),
+        eq(masterDataValues.value, value),
+        isNull(masterDataValues.deletedAt),
+      )).limit(1);
+      const [deletedValue] = activeValue ? [] : await db.select().from(masterDataValues).where(and(
+        eq(masterDataValues.organizationId, org.id),
+        eq(masterDataValues.groupId, group.id),
+        eq(masterDataValues.value, value),
+        isNotNull(masterDataValues.deletedAt),
+      )).limit(1);
+      const existingValue = activeValue ?? deletedValue;
+      if (existingValue) {
+        await db.update(masterDataValues).set({
+          label: value, sortOrder: valueOrder, active: true, status: "active", deletedAt: null, updatedAt: new Date(),
+        }).where(eq(masterDataValues.id, existingValue.id));
+      } else {
+        await db.insert(masterDataValues).values({
+          organizationId: org.id, groupId: group.id, value, label: value, sortOrder: valueOrder,
+        });
+      }
+    }
+  }
 
   for (const permissionTableValue of [permissions, lessonsPermissions, auditPermissions]) {
     const permissionTable = permissionTableValue as typeof permissions;
@@ -143,12 +202,44 @@ async function seed() {
   const beta = betaInsert ?? (await db.select().from(projects).where(and(eq(projects.organizationId, org.id), eq(projects.code, "AGH-BETA"))).limit(1))[0];
   if (!alpha || !beta) throw new Error("Unable to seed projects");
 
-  const [civil] = await db.insert(disciplines).values({ organizationId: org.id, code: "CIV", name: "Civil & Structural" }).onConflictDoNothing().returning();
+  const disciplineInputs = [
+    ["ELEC", "Electrical"], ["CIV", "Civil"], ["MECH", "Mechanical"], ["PREC", "Precast"],
+    ["ARCH", "Architectural"], ["TANDC", "Testing & Commissioning"], ["PLUMB", "Plumbing"],
+    ["RTR", "RTR & Piping"], ["INST", "Instrumentation"], ["COMM", "Communications"],
+    ["STOR", "Storage & Handling"], ["MATR", "Material Receiving"],
+  ] as const;
+  for (const tableValue of [disciplines, lessonsDisciplines]) {
+    const table = tableValue as typeof disciplines;
+    for (const [code, name] of disciplineInputs) {
+      const [existing] = await db.select().from(table).where(and(
+        eq(table.organizationId, org.id), eq(table.code, code),
+      )).limit(1);
+      if (existing) {
+        await db.update(table).set({ name, status: "active", deletedAt: null, updatedAt: new Date() }).where(eq(table.id, existing.id));
+      } else {
+        await db.insert(table).values({ organizationId: org.id, code, name });
+      }
+    }
+  }
+  const distributionEvents = masterGroups.find(([code]) => code === "distribution_events")![3];
+  for (const tableValue of [distributionLists, lessonsDistributionLists]) {
+    const table = tableValue as typeof distributionLists;
+    for (const name of distributionEvents) {
+      const [existing] = await db.select().from(table).where(and(
+        eq(table.organizationId, org.id), eq(table.name, name),
+      )).limit(1);
+      if (existing) {
+        await db.update(table).set({ status: "active", deletedAt: null, updatedAt: new Date() }).where(eq(table.id, existing.id));
+      } else {
+        await db.insert(table).values({ organizationId: org.id, name });
+      }
+    }
+  }
+  const [civil] = await db.select().from(disciplines).where(and(eq(disciplines.organizationId, org.id), eq(disciplines.code, "CIV"))).limit(1);
   const [mep] = await db.insert(disciplines).values({ organizationId: org.id, code: "MEP", name: "MEP Services" }).onConflictDoNothing().returning();
-  const disciplineCivil = civil ?? (await db.select().from(disciplines).where(and(eq(disciplines.organizationId, org.id), eq(disciplines.code, "CIV"))).limit(1))[0];
+  const disciplineCivil = civil;
   const disciplineMep = mep ?? (await db.select().from(disciplines).where(and(eq(disciplines.organizationId, org.id), eq(disciplines.code, "MEP"))).limit(1))[0];
   if (!disciplineCivil || !disciplineMep) throw new Error("Unable to seed disciplines");
-  const [lessonCivilInsert] = await db.insert(lessonsDisciplines).values({ organizationId: org.id, code: "CIV", name: "Civil & Structural" }).onConflictDoNothing().returning();
   const [lessonMepInsert] = await db.insert(lessonsDisciplines).values({ organizationId: org.id, code: "MEP", name: "MEP Services" }).onConflictDoNothing().returning();
   const lessonDisciplineMep = lessonMepInsert ?? (await db.select().from(lessonsDisciplines).where(and(eq(lessonsDisciplines.organizationId, org.id), eq(lessonsDisciplines.code, "MEP"))).limit(1))[0];
   if (!lessonDisciplineMep) throw new Error("Unable to seed Lesson Learned disciplines");

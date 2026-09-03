@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { ArrowRight, BarChart3, Blocks, FileCheck2, Lightbulb, Lock, Network } from 'lucide-react';
+import { ArrowRight, BarChart3, Blocks, Database, FileCheck2, Lightbulb, Lock, Network } from 'lucide-react';
 import { useGetApplicationAccess, useGetAppOverview } from '@workspace/api-client-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,10 +55,11 @@ export function LandingPage() {
       </div>
       <section>
         <h2 className="mb-3 text-lg font-semibold">Shared views</h2>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <Secondary href="/executive" title="Executive Page" detail="Cross-application performance" icon={BarChart3} />
           <Secondary href="/sync" title="Project Sync View" detail="Project and master-data jobs" icon={Network} />
           <Secondary href="/cockpit" title="Integration Cockpit" detail="Connector health and configuration" icon={Blocks} />
+          <Secondary href="/master-data" title="Master Data" detail="Global application value lists" icon={Database} />
         </div>
       </section>
     </div>
