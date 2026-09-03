@@ -457,6 +457,7 @@ CREATE TABLE "app2_lessons"."lesson_learned_forms" (
 	"is_repeated" boolean DEFAULT false NOT NULL,
 	"repeat_count" integer DEFAULT 0 NOT NULL,
 	"repeat_location" text,
+"remarks" text,
 	"workflow_state" text DEFAULT 'draft' NOT NULL,
 	"creator_id" uuid NOT NULL,
 	"approver_id" uuid,

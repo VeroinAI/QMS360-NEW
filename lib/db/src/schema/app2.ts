@@ -83,6 +83,7 @@ export const lessonLearnedForms = app2LessonsSchema.table("lesson_learned_forms"
   isRepeated: boolean("is_repeated").notNull().default(false),
   repeatCount: integer("repeat_count").notNull().default(0),
   repeatLocation: text("repeat_location"),
+  remarks: text("remarks"),
   workflowState: text("workflow_state").notNull().default("draft"),
   creatorId: uuid("creator_id").notNull().references(() => users.id),
   approverId: uuid("approver_id").references(() => users.id),

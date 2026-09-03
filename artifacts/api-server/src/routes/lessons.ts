@@ -119,7 +119,7 @@ function formJson(row: typeof lessonLearnedForms.$inferSelect, photos?: Array<ty
     version: row.version,
     conflictFlag: row.conflictFlag,
     workflowState: publicState(row.workflowState),
-    remarks: null,
+    remarks: row.remarks,
     ...(photos ? { photos: photos.map(evidenceJson) } : {}),
   };
 }
@@ -284,7 +284,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
         clientReference, version: 1, conflictFlag: false, description: body.description,
         rootCause: body.rootCause, correction: body.correction, correctiveAction: body.correctiveAction,
         isRepeated: body.isRepeatedIssue ?? false, repeatCount: body.repeatCount ?? 0,
-        repeatLocation: body.repeatLocation, workflowState: "draft", creatorId: user.id,
+        repeatLocation: body.repeatLocation, remarks: body.remarks, workflowState: "draft", creatorId: user.id,
         approverId: body.approverId,
       }).returning();
     } catch (error) {
@@ -326,7 +326,7 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
     description: body.description, rootCause: body.rootCause, correction: body.correction,
     correctiveAction: body.correctiveAction, isRepeated: body.isRepeatedIssue ?? false,
     repeatCount: body.repeatCount ?? 0, repeatLocation: body.repeatLocation,
-    approverId: body.approverId, version: before.workflowState === "sent_back" ? before.version + 1 : before.version,
+    remarks: body.remarks, approverId: body.approverId, version: before.workflowState === "sent_back" ? before.version + 1 : before.version,
     workflowState: before.workflowState === "sent_back" ? "draft" : before.workflowState, updatedAt: new Date(),
   }).where(eq(lessonLearnedForms.id, before.id)).returning();
   await audit(req, "update", "lesson_form", row!.id, formJson(before), formJson(row!));

@@ -37,12 +37,13 @@ type FieldName = "description" | "rootCause" | "correction" | "correctiveAction"
 type Draft = {
   title: string; projectId: string; disciplineId: string; categorisationId: string;
   issueCategory: string; impact: string; approverId: string;
+  isRepeatedIssue: boolean; repeatCount: number; repeatLocation: string; remarks: string;
   description: string; rootCause: string; correction: string; correctiveAction: string;
   capturedAt: string; gpsLat?: number; gpsLng?: number;
 };
 type UploadItem = { key: string; category: "before" | "after"; name: string; preview: string; progress: number; status: "uploading" | "failed" | "done" };
 
-const initialDraft = (): Draft => ({ title: "", projectId: "", disciplineId: "", categorisationId: "", issueCategory: "Minor", impact: "Positive", approverId: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: new Date().toISOString().slice(0, 16) });
+const initialDraft = (): Draft => ({ title: "", projectId: "", disciplineId: "", categorisationId: "", issueCategory: "Minor", impact: "Positive", approverId: "", isRepeatedIssue: false, repeatCount: 0, repeatLocation: "", remarks: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: new Date().toISOString().slice(0, 16) });
 
 async function resizeImage(file: File): Promise<File> {
   if (file.size > 8 * 1024 * 1024) throw new Error(`${file.name} exceeds the 8 MB limit.`);
@@ -69,7 +70,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [review, setReview] = useState<"approve" | "send_back" | null>(null);
-  const [remarks, setRemarks] = useState("");
+  const [reviewRemarks, setReviewRemarks] = useState("");
   const refs = useGetLessonsReferenceData();
   const approvers = useListLessonApprovers();
   const disciplines = useLov("disciplines");
@@ -84,7 +85,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   const create = useCreateLessonForm({ mutation: commonMutation });
   const update = useUpdateLessonForm({ mutation: commonMutation });
   const submit = useSubmitLessonForm({ mutation: { onSuccess: () => { invalidate(); toast({ title: "Lesson submitted for approval" }); }, onError: (e) => toast({ title: "Submit failed", description: errorMessage(e), variant: "destructive" }) } });
-  const reviewMutation = useReviewLessonForm({ mutation: { onSuccess: () => { invalidate(); setReview(null); setRemarks(""); toast({ title: review === "approve" ? "Lesson approved" : "Lesson sent back" }); }, onError: (e) => toast({ title: "Review failed", description: errorMessage(e), variant: "destructive" }) } });
+  const reviewMutation = useReviewLessonForm({ mutation: { onSuccess: () => { invalidate(); setReview(null); setReviewRemarks(""); toast({ title: review === "approve" ? "Lesson approved" : "Lesson sent back" }); }, onError: (e) => toast({ title: "Review failed", description: errorMessage(e), variant: "destructive" }) } });
   const rephrase = useRephraseLessonField();
   const [suggestion, setSuggestion] = useState<{ field: FieldName; text: string } | null>(null);
   const clientReference = useMemo(() => {
@@ -95,7 +96,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   useEffect(() => {
     if (!detail.data) return;
     const x = detail.data;
-    setDraft({ title: x.title, projectId: x.projectId, disciplineId: x.disciplineId, categorisationId: x.categorisationId, issueCategory: x.issueCategory, impact: x.impact, approverId: x.approverId ?? "", description: x.description, rootCause: x.rootCause, correction: x.correction, correctiveAction: x.correctiveAction, capturedAt: x.capturedAt.slice(0, 16), gpsLat: x.gpsLat ?? undefined, gpsLng: x.gpsLng ?? undefined });
+    setDraft({ title: x.title, projectId: x.projectId, disciplineId: x.disciplineId, categorisationId: x.categorisationId, issueCategory: x.issueCategory, impact: x.impact, approverId: x.approverId ?? "", isRepeatedIssue: x.isRepeatedIssue ?? false, repeatCount: x.repeatCount ?? 0, repeatLocation: x.repeatLocation ?? "", remarks: x.remarks ?? "", description: x.description, rootCause: x.rootCause, correction: x.correction, correctiveAction: x.correctiveAction, capturedAt: x.capturedAt.slice(0, 16), gpsLat: x.gpsLat ?? undefined, gpsLng: x.gpsLng ?? undefined });
   }, [detail.data]);
 
   const readOnly = Boolean(detail.data && !["Draft", "Sent Back"].includes(detail.data.workflowState));
@@ -115,6 +116,8 @@ export function LessonFormPage({ id }: { id?: string }) {
     const next: Record<string, string> = {};
     (["title","projectId","disciplineId","categorisationId","description","rootCause","correction","correctiveAction"] as const).forEach((key) => { if (!draft[key]?.trim()) next[key] = "This field is required."; });
     if (!draft.approverId) next.approverId = "Choose an approver before submitting.";
+    if (draft.isRepeatedIssue && draft.repeatCount < 1) next.repeatCount = "Enter how many times this issue was repeated.";
+    if (draft.isRepeatedIssue && !draft.repeatLocation.trim()) next.repeatLocation = "Enter where this issue was repeated.";
     setErrors(next); return Object.keys(next).length === 0;
   }
   function body(): LessonLearnedForm {
@@ -173,6 +176,15 @@ export function LessonFormPage({ id }: { id?: string }) {
       <div className="grid gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2"><CardHeader><CardTitle>Lesson details</CardTitle></CardHeader><CardContent className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Reference"><Input value={record?.referenceNumber ?? "Generated after first save"} disabled /></Field>
+            <Field label="New / Repeated Issue">
+              <Select value={draft.isRepeatedIssue ? "repeated" : "new"} onValueChange={(value) => setDraft((current) => ({ ...current, isRepeatedIssue: value === "repeated", repeatCount: value === "repeated" ? Math.max(1, current.repeatCount) : 0, repeatLocation: value === "repeated" ? current.repeatLocation : "" }))} disabled={readOnly}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="new">New Issue</SelectItem><SelectItem value="repeated">Repeated Issue</SelectItem></SelectContent>
+              </Select>
+            </Field>
+            <Field label="No. of times repeated" error={errors.repeatCount}><Input type="number" min={1} value={draft.repeatCount || ""} onChange={(e) => set("repeatCount", Number(e.target.value) || 0)} disabled={readOnly || !draft.isRepeatedIssue} /></Field>
+            <Field label="Where was it repeated?" error={errors.repeatLocation}><Input value={draft.repeatLocation} onChange={(e) => set("repeatLocation", e.target.value)} disabled={readOnly || !draft.isRepeatedIssue} /></Field>
             <Field label="Title" error={errors.title} className="sm:col-span-2"><Input value={draft.title} onChange={(e) => set("title", e.target.value)} disabled={readOnly} /></Field>
             <Field label="Project" error={errors.projectId}><Select value={draft.projectId} onValueChange={(v) => set("projectId", v)} disabled={readOnly}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger><SelectContent>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></Field>
             <Field label="Discipline" error={errors.disciplineId}><Select value={draft.disciplineId} onValueChange={(v) => set("disciplineId", v)} disabled={readOnly || disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Select discipline" /></SelectTrigger><SelectContent>{disciplines.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
@@ -188,6 +200,7 @@ export function LessonFormPage({ id }: { id?: string }) {
               {!readOnly && <p className="mt-1 text-xs text-muted-foreground">Routes the lesson to this person for review. You cannot select yourself.</p>}
             </Field>
           </div>
+          <Field label="Remarks"><Textarea rows={3} value={draft.remarks} onChange={(e) => set("remarks", e.target.value)} disabled={readOnly} placeholder="Add any additional remarks" /></Field>
           {(["description","rootCause","correction","correctiveAction"] as FieldName[]).map((field) => <Field key={field} label={({ description: "Description", rootCause: "Root cause", correction: "Correction", correctiveAction: "Corrective action" } as const)[field]} error={errors[field]}>
             <Textarea rows={5} value={draft[field]} onChange={(e) => set(field, e.target.value)} disabled={readOnly} />
             {!readOnly && <Popover open={suggestion?.field === field} onOpenChange={(open) => !open && setSuggestion(null)}><PopoverTrigger asChild><Button type="button" variant="ghost" size="sm" className="mt-1 text-primary" onClick={() => askRephrase(field)} disabled={rephrase.isPending}><Sparkles /> Rephrase with AI</Button></PopoverTrigger><PopoverContent className="w-96"><p className="mb-2 text-sm font-semibold">AI suggestion</p><p className="text-sm">{suggestion?.text}</p><div className="mt-4 flex gap-2"><Button size="sm" onClick={() => { if (suggestion) set(field, suggestion.text); setSuggestion(null); }}>Use suggestion</Button><Button size="sm" variant="outline" onClick={() => setSuggestion(null)}>Dismiss</Button></div></PopoverContent></Popover>}
@@ -210,7 +223,7 @@ export function LessonFormPage({ id }: { id?: string }) {
         </div>
       </div>
       {record?.photos?.length ? <Card className="mt-6"><CardHeader><CardTitle>Before & after</CardTitle></CardHeader><CardContent className="grid gap-6 md:grid-cols-2"><PhotoGallery title="Before" photos={record.photos.filter((p) => p.category === "before")} /><PhotoGallery title="After" photos={record.photos.filter((p) => p.category === "after")} /></CardContent></Card> : null}
-      <Dialog open={review !== null} onOpenChange={(open) => !open && setReview(null)}><DialogContent><DialogHeader><DialogTitle>{review === "approve" ? "Approve lesson" : "Send lesson back"}</DialogTitle><DialogDescription>{review === "send_back" ? "Remarks are required so the creator knows what to change." : "Optionally add an approval remark."}</DialogDescription></DialogHeader><Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" onClick={() => setReview(null)}>Cancel</Button><Button disabled={review === "send_back" && !remarks.trim()} onClick={() => record && reviewMutation.mutate({ id: record.id, data: { decision: review!, comments: remarks || undefined } })}>Confirm</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={review !== null} onOpenChange={(open) => !open && setReview(null)}><DialogContent><DialogHeader><DialogTitle>{review === "approve" ? "Approve lesson" : "Send lesson back"}</DialogTitle><DialogDescription>{review === "send_back" ? "Remarks are required so the creator knows what to change." : "Optionally add an approval remark."}</DialogDescription></DialogHeader><Textarea value={reviewRemarks} onChange={(e) => setReviewRemarks(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" onClick={() => setReview(null)}>Cancel</Button><Button disabled={review === "send_back" && !reviewRemarks.trim()} onClick={() => record && reviewMutation.mutate({ id: record.id, data: { decision: review!, comments: reviewRemarks || undefined } })}>Confirm</Button></DialogFooter></DialogContent></Dialog>
     </div>;
   }
 }
