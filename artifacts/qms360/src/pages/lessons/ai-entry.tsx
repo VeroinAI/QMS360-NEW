@@ -25,6 +25,7 @@ export function AiEntryPage() {
   const [extracted, setExtracted] = useState<Extracted>({});
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const refs = useGetLessonsReferenceData();
+  const categorisations = useLov("lesson_categorisations");
   const issueCategories = useLov("lesson_issue_categories");
   const impacts = useLov("lesson_impacts");
   const queryClient = useQueryClient();
@@ -81,7 +82,7 @@ export function AiEntryPage() {
         <Edit label="Title" value={text(extracted.title)} onChange={(v) => update("title", v)} wide />
         <Choice label="Project" value={text(extracted.projectId)} onChange={(v) => update("projectId", v)} options={refs.data?.projects.map((x) => ({ value: x.id, label: x.name })) ?? []} />
         <Choice label="Discipline" value={text(extracted.disciplineId)} onChange={(v) => update("disciplineId", v)} options={refs.data?.disciplines.map((x) => ({ value: x.id, label: x.name })) ?? []} />
-        <Choice label="Categorisation" value={text(extracted.categorisationId)} onChange={(v) => update("categorisationId", v)} options={refs.data?.categorisation.map((x) => ({ value: x.id, label: x.name })) ?? []} />
+        <Choice label="Categorisation" value={text(extracted.categorisationId)} onChange={(v) => update("categorisationId", v)} options={withLegacyOption(categorisations.options, text(extracted.categorisationId))} />
          <Choice label="Issue category" value={text(extracted.issueCategory)} onChange={(v) => update("issueCategory", v)} options={withLegacyOption(issueCategories.options, text(extracted.issueCategory))} />
          <Choice label="Impact" value={text(extracted.impact)} onChange={(v) => update("impact", v)} options={withLegacyOption(impacts.options, text(extracted.impact))} />
         {["description","rootCause","correction","correctiveAction"].map((field) => <div className="sm:col-span-2" key={field}><Label className="mb-2 block capitalize">{field.replace(/([A-Z])/g, " $1")}</Label><Textarea rows={4} value={text(extracted[field])} onChange={(e) => update(field, e.target.value)} /></div>)}

@@ -78,6 +78,7 @@ async function seed() {
     ["risk_levels", "Risk Level Master", "audit", ["Low", "Medium", "High"]],
     ["nc_classifications", "NC Classification", "audit", ["Conformity", "Observation", "Minor NC", "Major NC"]],
     ["lesson_issue_categories", "Lesson Issue Categories", "lessons", ["Minor", "Moderate", "Major"]],
+    ["lesson_categorisations", "Lessons Learned Categorisation", "lessons", ["Design coordination", "Planning", "Execution", "Quality", "Safety", "Procurement", "Stakeholder coordination"]],
     ["lesson_impacts", "Lesson Impacts", "lessons", ["Positive", "Negative"]],
     ["document_types", "Document Types", "qaqc", ["Submittal", "Drawing", "Correspondence"]],
     ["document_statuses", "Document Statuses", "qaqc", ["Approved", "Resubmit", "Rejected", "Under Review"]],

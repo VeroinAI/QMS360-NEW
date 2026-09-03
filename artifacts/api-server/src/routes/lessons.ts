@@ -182,6 +182,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
   if (!body) return;
   const user = req.currentUser!;
   await Promise.all([
+    assertLovValue(db, user.organizationId, "lesson_categorisations", body.categorisationId),
     assertLovValue(db, user.organizationId, "lesson_issue_categories", body.issueCategory),
     assertLovValue(db, user.organizationId, "lesson_impacts", body.impact),
   ]);
@@ -238,6 +239,7 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
   assertOwnerOrFull(req, before.creatorId);
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back forms may be edited");
   await Promise.all([
+    assertLovValue(db, req.currentUser!.organizationId, "lesson_categorisations", body.categorisationId, { allowLegacy: before.categorisation }),
     assertLovValue(db, req.currentUser!.organizationId, "lesson_issue_categories", body.issueCategory, { allowLegacy: before.issueCategory }),
     assertLovValue(db, req.currentUser!.organizationId, "lesson_impacts", body.impact, { allowLegacy: before.impact }),
   ]);
