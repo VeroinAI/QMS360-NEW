@@ -1,9 +1,15 @@
 import bcrypt from "bcryptjs";
 import { and, eq } from "drizzle-orm";
 import {
+  applicationAccess,
+  organizationSettings,
   auditFindings,
+  auditPermissions,
   auditPlans,
+  auditPlatformRoles,
   auditSchedules,
+  auditUserWorkspaceRoles,
+  auditWorkspaceRoles,
   audits,
   businessUnits,
   categorisationRiskMaster,
@@ -12,6 +18,11 @@ import {
   disciplines,
   documentGovernanceLogEntries,
   lessonLearnedForms,
+  lessonsDisciplines,
+  lessonsPermissions,
+  lessonsPlatformRoles,
+  lessonsUserWorkspaceRoles,
+  lessonsWorkspaceRoles,
   materialInspectionEntries,
   organizations,
   permissions,
@@ -56,36 +67,57 @@ async function seed() {
   const org = organization ?? (await db.select().from(organizations).where(eq(organizations.code, "AGH")).limit(1))[0];
   if (!org) throw new Error("Unable to seed organization");
 
-  const permissionMap = new Map<string, string>();
-  for (const [key, label, description] of permissionKeys) {
-    const [existing] = await db.select().from(permissions).where(eq(permissions.key, key)).limit(1);
-    const permission = existing ?? (await db.insert(permissions).values({ key, label, description, category: key === "view_own" || key === "view_all" ? "visibility" : "workflow" }).returning())[0];
-    if (permission) permissionMap.set(key, permission.id);
+  for (const permissionTableValue of [permissions, lessonsPermissions, auditPermissions]) {
+    const permissionTable = permissionTableValue as typeof permissions;
+    for (const [key, label, description] of permissionKeys) {
+      const [existing] = await db.select().from(permissionTable).where(and(eq(permissionTable.organizationId, org.id), eq(permissionTable.key, key))).limit(1);
+      if (!existing) {
+        await db.insert(permissionTable).values({
+          organizationId: org.id,
+          key,
+          label,
+          description,
+          category: key === "view_own" || key === "view_all" ? "visibility" : "workflow",
+        });
+      }
+    }
   }
 
   const platformRoleNames = ["Super Admin", "Org Admin", "Executive Viewer", "BU / Project Head", "Quality Manager", "Employee", "External / Guest Auditor"];
   const platformRoleMap = new Map<string, string>();
-  for (const name of platformRoleNames) {
-    const [existing] = await db.select().from(platformRoles).where(and(eq(platformRoles.organizationId, org.id), eq(platformRoles.name, name))).limit(1);
-    const role = existing ?? (await db.insert(platformRoles).values({ organizationId: org.id, name, description: "System platform role", isSystem: true }).returning())[0];
-    if (role) platformRoleMap.set(name, role.id);
+  for (const [appIndex, roleTableValue] of [platformRoles, lessonsPlatformRoles, auditPlatformRoles].entries()) {
+    const roleTable = roleTableValue as typeof platformRoles;
+    for (const name of platformRoleNames) {
+      const [existing] = await db.select().from(roleTable).where(and(eq(roleTable.organizationId, org.id), eq(roleTable.name, name))).limit(1);
+      const role = existing ?? (await db.insert(roleTable).values({ organizationId: org.id, name, description: "System platform role", isSystem: true }).returning())[0];
+      if (appIndex === 0 && role) platformRoleMap.set(name, role.id);
+    }
   }
 
-  const workspaceRoleInputs = [
-    ["qaqc", "QAQC Representative", "Capture and submit QA/QC records"],
-    ["qaqc", "Document Controller", "Own document governance entries"],
-    ["qaqc", "Approver / Reviewer", "Review QA/QC submissions"],
-    ["lessons", "Form Creator", "Capture and submit lesson learned forms"],
-    ["lessons", "Form Approver", "Review lesson learned forms"],
-    ["audit", "Audit Program Manager", "Manage the annual audit program"],
-    ["audit", "Audit Team Lead / Auditor", "Execute audits and verify findings"],
-    ["audit", "Process / Product Owner", "Own corrective actions"],
+  const workspaceRoleGroups = [
+    [workspaceRoles, [
+      ["QAQC Representative", "Capture and submit QA/QC records"],
+      ["Document Controller", "Own document governance entries"],
+      ["Approver / Reviewer", "Review QA/QC submissions"],
+    ]],
+    [lessonsWorkspaceRoles, [
+      ["Form Creator", "Capture and submit lesson learned forms"],
+      ["Form Approver", "Review lesson learned forms"],
+    ]],
+    [auditWorkspaceRoles, [
+      ["Audit Program Manager", "Manage the annual audit program"],
+      ["Audit Team Lead / Auditor", "Execute audits and verify findings"],
+      ["Process / Product Owner", "Own corrective actions"],
+    ]],
   ] as const;
-  const workspaceRoleMap = new Map<string, string>();
-  for (const [appKey, name, description] of workspaceRoleInputs) {
-    const [existing] = await db.select().from(workspaceRoles).where(and(eq(workspaceRoles.organizationId, org.id), eq(workspaceRoles.appKey, appKey), eq(workspaceRoles.name, name))).limit(1);
-    const role = existing ?? (await db.insert(workspaceRoles).values({ organizationId: org.id, appKey, name, description, isSystem: true }).returning())[0];
-    if (role) workspaceRoleMap.set(name, role.id);
+  const workspaceRoleMaps = workspaceRoleGroups.map(() => new Map<string, string>());
+  for (const [groupIndex, [roleTableValue, inputs]] of workspaceRoleGroups.entries()) {
+    const roleTable = roleTableValue as typeof workspaceRoles;
+    for (const [name, description] of inputs) {
+      const [existing] = await db.select().from(roleTable).where(and(eq(roleTable.organizationId, org.id), eq(roleTable.name, name))).limit(1);
+      const role = existing ?? (await db.insert(roleTable).values({ organizationId: org.id, name, description, isSystem: true }).returning())[0];
+      if (role) workspaceRoleMaps[groupIndex]!.set(name, role.id);
+    }
   }
 
   const [buDelivery] = await db.insert(businessUnits).values({ organizationId: org.id, code: "DEL", name: "Delivery & Projects", headName: "Mariam Al-Salem" }).onConflictDoNothing().returning();
@@ -93,6 +125,17 @@ async function seed() {
   const delivery = buDelivery ?? (await db.select().from(businessUnits).where(and(eq(businessUnits.organizationId, org.id), eq(businessUnits.code, "DEL"))).limit(1))[0];
   const corporate = buCorporate ?? (await db.select().from(businessUnits).where(and(eq(businessUnits.organizationId, org.id), eq(businessUnits.code, "CORP"))).limit(1))[0];
   if (!delivery || !corporate) throw new Error("Unable to seed business units");
+
+  const [settings] = await db.select().from(organizationSettings).where(eq(organizationSettings.organizationId, org.id)).limit(1);
+  if (!settings) {
+    await db.insert(organizationSettings).values({
+      organizationId: org.id,
+      branding: org.branding,
+      locale: org.locale,
+      timezone: org.timezone,
+      allowedEmailDomains: ["algihaz.com", "algihaz.demo"],
+    });
+  }
 
   const [alphaInsert] = await db.insert(projects).values({ organizationId: org.id, businessUnitId: delivery.id, externalId: "AGH-P-001", source: "local", code: "AGH-ALPHA", name: "Alpha District Development", location: "Riyadh", status: "active" }).onConflictDoNothing().returning();
   const [betaInsert] = await db.insert(projects).values({ organizationId: org.id, businessUnitId: corporate.id, externalId: "AGH-P-002", source: "local", code: "AGH-BETA", name: "Beta Operations Campus", location: "Jeddah", status: "active" }).onConflictDoNothing().returning();
@@ -105,6 +148,10 @@ async function seed() {
   const disciplineCivil = civil ?? (await db.select().from(disciplines).where(and(eq(disciplines.organizationId, org.id), eq(disciplines.code, "CIV"))).limit(1))[0];
   const disciplineMep = mep ?? (await db.select().from(disciplines).where(and(eq(disciplines.organizationId, org.id), eq(disciplines.code, "MEP"))).limit(1))[0];
   if (!disciplineCivil || !disciplineMep) throw new Error("Unable to seed disciplines");
+  const [lessonCivilInsert] = await db.insert(lessonsDisciplines).values({ organizationId: org.id, code: "CIV", name: "Civil & Structural" }).onConflictDoNothing().returning();
+  const [lessonMepInsert] = await db.insert(lessonsDisciplines).values({ organizationId: org.id, code: "MEP", name: "MEP Services" }).onConflictDoNothing().returning();
+  const lessonDisciplineMep = lessonMepInsert ?? (await db.select().from(lessonsDisciplines).where(and(eq(lessonsDisciplines.organizationId, org.id), eq(lessonsDisciplines.code, "MEP"))).limit(1))[0];
+  if (!lessonDisciplineMep) throw new Error("Unable to seed Lesson Learned disciplines");
 
   const passwordHash = await bcrypt.hash("Demo1234!", 12);
   const userInputs = [
@@ -134,17 +181,47 @@ async function seed() {
   const auditUserId = userMap.get("audit-lead");
   if (!adminId || !demoId || !qualityId || !auditUserId) throw new Error("Unable to seed users");
 
-  const assignments = [
-    [demoId, "QAQC Representative"], [demoId, "Approver / Reviewer"], [demoId, "Form Creator"], [demoId, "Form Approver"], [demoId, "Audit Program Manager"], [demoId, "Audit Team Lead / Auditor"],
-    [adminId, "QAQC Representative"], [adminId, "Approver / Reviewer"], [adminId, "Form Creator"], [adminId, "Form Approver"], [adminId, "Audit Program Manager"], [adminId, "Audit Team Lead / Auditor"],
-    [qualityId, "QAQC Representative"], [qualityId, "Document Controller"], [qualityId, "Approver / Reviewer"],
-    [auditUserId, "Audit Team Lead / Auditor"], [auditUserId, "Process / Product Owner"],
+  for (const [username, userId] of userMap) {
+    const [existing] = await db.select().from(applicationAccess).where(and(eq(applicationAccess.organizationId, org.id), eq(applicationAccess.username, username), eq(applicationAccess.projectId, username === "audit-lead" ? beta.id : alpha.id))).limit(1);
+    if (!existing) {
+      await db.insert(applicationAccess).values({
+        organizationId: org.id,
+        username,
+        projectId: username === "audit-lead" ? beta.id : alpha.id,
+        canOpenQaqc: true,
+        canOpenLessons: true,
+        canOpenAudit: true,
+        isInitialAdminQaqc: userId === adminId,
+        isInitialAdminLessons: userId === adminId,
+        isInitialAdminAudit: userId === adminId,
+      });
+    }
+  }
+
+  const assignmentGroups = [
+    [userWorkspaceRoles, workspaceRoleMaps[0], [
+      [demoId, "QAQC Representative"], [demoId, "Approver / Reviewer"],
+      [adminId, "QAQC Representative"], [adminId, "Approver / Reviewer"],
+      [qualityId, "QAQC Representative"], [qualityId, "Document Controller"], [qualityId, "Approver / Reviewer"],
+    ]],
+    [lessonsUserWorkspaceRoles, workspaceRoleMaps[1], [
+      [demoId, "Form Creator"], [demoId, "Form Approver"],
+      [adminId, "Form Creator"], [adminId, "Form Approver"],
+    ]],
+    [auditUserWorkspaceRoles, workspaceRoleMaps[2], [
+      [demoId, "Audit Program Manager"], [demoId, "Audit Team Lead / Auditor"],
+      [adminId, "Audit Program Manager"], [adminId, "Audit Team Lead / Auditor"],
+      [auditUserId, "Audit Team Lead / Auditor"], [auditUserId, "Process / Product Owner"],
+    ]],
   ] as const;
-  for (const [userId, roleName] of assignments) {
-    const roleId = workspaceRoleMap.get(roleName);
-    if (!roleId) continue;
-    const [existing] = await db.select().from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.userId, userId), eq(userWorkspaceRoles.workspaceRoleId, roleId))).limit(1);
-    if (!existing) await db.insert(userWorkspaceRoles).values({ userId, workspaceRoleId: roleId, projectIds: [alpha.id, beta.id] });
+  for (const [assignmentTableValue, roleMap, assignments] of assignmentGroups) {
+    const assignmentTable = assignmentTableValue as typeof userWorkspaceRoles;
+    for (const [userId, roleName] of assignments) {
+      const roleId = roleMap.get(roleName);
+      if (!roleId) continue;
+      const [existing] = await db.select().from(assignmentTable).where(and(eq(assignmentTable.userId, userId), eq(assignmentTable.workspaceRoleId, roleId))).limit(1);
+      if (!existing) await db.insert(assignmentTable).values({ organizationId: org.id, userId, workspaceRoleId: roleId, projectIds: [alpha.id, beta.id] });
+    }
   }
 
   const [metric] = await db.insert(qaqcMetricEntries).values({
@@ -161,7 +238,7 @@ async function seed() {
   await db.insert(qualityAssessmentBriefs).values({ organizationId: org.id, projectId: alpha.id, reportingPeriod: "2026-08-01", narrative: "August quality performance is trending positively with strong closure discipline.", workflowState: "approved", submittedById: qualityId, approvedById: adminId }).onConflictDoNothing();
 
   const [lesson] = await db.insert(lessonLearnedForms).values({
-    organizationId: org.id, projectId: alpha.id, disciplineId: disciplineMep.id, referenceNumber: "LL-2026-0001",
+    organizationId: org.id, projectId: alpha.id, disciplineId: lessonDisciplineMep.id, referenceNumber: "LL-2026-0001",
     title: "Late drawing approval drove formwork rework", categorisation: "Design coordination", issueCategory: "Moderate", impact: "Negative",
     description: "A late drawing approval created avoidable formwork rework in the east wing.",
     rootCause: "Approval dependencies were not surfaced early enough in the lookahead plan.",

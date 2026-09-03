@@ -153,3 +153,2139 @@ export interface ExecutiveOverview {
   activity: OverviewRecord[];
 }
 
+export interface Error {
+  error: string;
+}
+
+export interface BusinessUnit {
+  id: string;
+  name: string;
+  /** @nullable */
+  parentGroup?: string | null;
+  projectIds?: string[];
+}
+
+export interface ApplicationAccess {
+  qaqc: boolean;
+  lessons: boolean;
+  audit: boolean;
+}
+
+export interface ReferenceDataSnapshot {
+  generatedAt: string;
+  projects: Project[];
+  businessUnits: BusinessUnit[];
+}
+
+export interface WorkingCalendar {
+  /**
+     * @items.minimum 0
+     * @items.maximum 6
+     */
+  workingDays: number[];
+  holidays: string[];
+}
+
+export interface EvidenceLimits {
+  photoMaxBytes?: number;
+  photoMaxCount?: number;
+  videoMaxBytes?: number;
+  videoMaxDurationSeconds?: number;
+  documentMaxBytes?: number;
+}
+
+export interface OrganizationSettings {
+  organizationName: string;
+  /** @nullable */
+  logoUrl?: string | null;
+  primaryColor?: string;
+  locale: string;
+  timezone: string;
+  workingCalendar: WorkingCalendar;
+  exportRowThreshold?: number;
+  exportMonthThreshold?: number;
+  evidenceLimits?: EvidenceLimits;
+  allowedEmailDomains?: string[];
+}
+
+export type IntegrationConnectorFamily = typeof IntegrationConnectorFamily[keyof typeof IntegrationConnectorFamily];
+
+
+export const IntegrationConnectorFamily = {
+  platform: 'platform',
+  email: 'email',
+  ai: 'ai',
+  oracle_adw: 'oracle_adw',
+  bi: 'bi',
+} as const;
+
+export type IntegrationConnectorStatus = typeof IntegrationConnectorStatus[keyof typeof IntegrationConnectorStatus];
+
+
+export const IntegrationConnectorStatus = {
+  Connected: 'Connected',
+  Degraded: 'Degraded',
+  Failed: 'Failed',
+  Disabled: 'Disabled',
+} as const;
+
+export type IntegrationConnectorConfig = { [key: string]: unknown };
+
+export interface IntegrationConnector {
+  id: string;
+  name: string;
+  family: IntegrationConnectorFamily;
+  status: IntegrationConnectorStatus;
+  enabled: boolean;
+  config?: IntegrationConnectorConfig;
+  /** @nullable */
+  lastSuccessfulSyncAt?: string | null;
+}
+
+export type SyncJobStatus = typeof SyncJobStatus[keyof typeof SyncJobStatus];
+
+
+export const SyncJobStatus = {
+  queued: 'queued',
+  running: 'running',
+  succeeded: 'succeeded',
+  failed: 'failed',
+} as const;
+
+export interface SyncJob {
+  id: string;
+  connectorId: string;
+  status: SyncJobStatus;
+  /** @nullable */
+  schedule?: string | null;
+  startedAt: string;
+  /** @nullable */
+  completedAt?: string | null;
+  /** @nullable */
+  durationMs?: number | null;
+  sourceCount?: number;
+  targetCount?: number;
+  /** @nullable */
+  error?: string | null;
+}
+
+export type IntegrationHealthStatus = typeof IntegrationHealthStatus[keyof typeof IntegrationHealthStatus];
+
+
+export const IntegrationHealthStatus = {
+  healthy: 'healthy',
+  degraded: 'degraded',
+  failed: 'failed',
+} as const;
+
+export interface IntegrationHealth {
+  status: IntegrationHealthStatus;
+  connectors: IntegrationConnector[];
+  checkedAt?: string;
+}
+
+export type ExecutiveSummaryMetrics = {[key: string]: number};
+
+export interface ExecutiveSummary {
+  id: string;
+  appKey: AppKey;
+  period: string;
+  publishedAt: string;
+  metrics: ExecutiveSummaryMetrics;
+  /** @nullable */
+  narrative?: string | null;
+}
+
+export type ReferenceItemMetadata = { [key: string]: unknown };
+
+export interface ReferenceItem {
+  id: string;
+  /** @nullable */
+  code?: string | null;
+  name: string;
+  active: boolean;
+  metadata?: ReferenceItemMetadata;
+}
+
+export type WorkflowState = typeof WorkflowState[keyof typeof WorkflowState];
+
+
+export const WorkflowState = {
+  Draft: 'Draft',
+  Submitted: 'Submitted',
+  Approved: 'Approved',
+  Sent_Back: 'Sent Back',
+  Deleted: 'Deleted',
+} as const;
+
+export type QAQCMetricEntryCategory = typeof QAQCMetricEntryCategory[keyof typeof QAQCMetricEntryCategory];
+
+
+export const QAQCMetricEntryCategory = {
+  External_NCR: 'External NCR',
+  Internal_NCR: 'Internal NCR',
+  RFI: 'RFI',
+  RMI: 'RMI',
+} as const;
+
+export interface QAQCMetricEntry {
+  id: string;
+  projectId: string;
+  period: string;
+  category: QAQCMetricEntryCategory;
+  /** @minimum 0 */
+  issuedCount: number;
+  /** @minimum 0 */
+  closedCount: number;
+  /** @minimum 0 */
+  ageing0To15: number;
+  /** @minimum 0 */
+  ageing15To45: number;
+  /** @minimum 0 */
+  ageingOver45: number;
+  workflowState: WorkflowState;
+  /** Returns 100 when issued and closed are both zero */
+  readonly closureRate?: number;
+  readonly variance?: number;
+  readonly pqi?: number;
+  /** @nullable */
+  deletedAt?: string | null;
+}
+
+/**
+ * Status counts must reconcile exactly to mirnTotal.
+ */
+export interface MaterialInspectionEntry {
+  id: string;
+  projectId: string;
+  period: string;
+  /** @minimum 0 */
+  mirnTotal: number;
+  /** @minimum 0 */
+  osdCount?: number;
+  /** @minimum 0 */
+  approved: number;
+  /** @minimum 0 */
+  onHold: number;
+  /** @minimum 0 */
+  rejected: number;
+  /** @minimum 0 */
+  hazardous: number;
+  /** @minimum 0 */
+  handleWithCare: number;
+}
+
+export interface QTBTEntry {
+  id: string;
+  projectId: string;
+  period: string;
+  /** @minimum 0 */
+  talkCount: number;
+  /** @minimum 0 */
+  attendance: number;
+  /** @minimum 0 */
+  durationMinutes: number;
+  readonly cumulativeTalkCount?: number;
+}
+
+export type CustomerSatisfactionEntryOutcomesItem = typeof CustomerSatisfactionEntryOutcomesItem[keyof typeof CustomerSatisfactionEntryOutcomesItem];
+
+
+export const CustomerSatisfactionEntryOutcomesItem = {
+  Yes: 'Yes',
+  No: 'No',
+  Partially: 'Partially',
+} as const;
+
+export interface CustomerSatisfactionEntry {
+  id: string;
+  projectId: string;
+  period: string;
+  /**
+     * @minItems 6
+     * @maxItems 6
+     * @items.minimum 1
+     * @items.maximum 5
+     */
+  serviceRatings: number[];
+  outcomes?: CustomerSatisfactionEntryOutcomesItem[];
+  /** @nullable */
+  feedback?: string | null;
+}
+
+export type DocumentGovernanceLogEntryDocumentType = typeof DocumentGovernanceLogEntryDocumentType[keyof typeof DocumentGovernanceLogEntryDocumentType];
+
+
+export const DocumentGovernanceLogEntryDocumentType = {
+  Submittal: 'Submittal',
+  Drawing: 'Drawing',
+  Correspondence: 'Correspondence',
+} as const;
+
+export type DocumentGovernanceLogEntryStatus = typeof DocumentGovernanceLogEntryStatus[keyof typeof DocumentGovernanceLogEntryStatus];
+
+
+export const DocumentGovernanceLogEntryStatus = {
+  Approved: 'Approved',
+  Resubmit: 'Resubmit',
+  Rejected: 'Rejected',
+  Under_Review: 'Under Review',
+} as const;
+
+export type DocumentGovernanceLogEntryPendingWith = typeof DocumentGovernanceLogEntryPendingWith[keyof typeof DocumentGovernanceLogEntryPendingWith];
+
+
+export const DocumentGovernanceLogEntryPendingWith = {
+  Client: 'Client',
+  Algihaz: 'Algihaz',
+  Supplier: 'Supplier',
+} as const;
+
+export interface DocumentGovernanceLogEntry {
+  id: string;
+  projectId: string;
+  date: string;
+  disciplineId: string;
+  documentType: DocumentGovernanceLogEntryDocumentType;
+  status: DocumentGovernanceLogEntryStatus;
+  /** @minimum 0 */
+  reviewDays?: number;
+  pendingWith: DocumentGovernanceLogEntryPendingWith;
+  /** @minimum 0 */
+  pendingDays?: number;
+  /** @minimum 0 */
+  correspondenceCount?: number;
+}
+
+/**
+ * @nullable
+ */
+export type QualityAssessmentBriefAiReviewDecision = typeof QualityAssessmentBriefAiReviewDecision[keyof typeof QualityAssessmentBriefAiReviewDecision] | null;
+
+
+export const QualityAssessmentBriefAiReviewDecision = {
+  Accept: 'Accept',
+  Edit: 'Edit',
+  Reject: 'Reject',
+} as const;
+
+export interface QualityAssessmentBrief {
+  id: string;
+  projectId: string;
+  period: string;
+  narrative: string;
+  /** @nullable */
+  aiDraft?: string | null;
+  /** @nullable */
+  aiReviewDecision?: QualityAssessmentBriefAiReviewDecision;
+  workflowState: WorkflowState;
+  /** @nullable */
+  reviewComments?: string | null;
+}
+
+export type ApprovalReviewDecision = typeof ApprovalReviewDecision[keyof typeof ApprovalReviewDecision];
+
+
+export const ApprovalReviewDecision = {
+  approve: 'approve',
+  send_back: 'send_back',
+} as const;
+
+export interface ApprovalReview {
+  decision: ApprovalReviewDecision;
+  /** @nullable */
+  comments?: string | null;
+}
+
+export interface AIDraft {
+  draft: string;
+  suggestions: string[];
+}
+
+export interface PQICategory {
+  category: string;
+  closureRate: number;
+  variance: number;
+  score: number;
+}
+
+export interface PQIResult {
+  projectId: string;
+  period: string;
+  pqi: number;
+  categories: PQICategory[];
+}
+
+export type DashboardMetrics = { [key: string]: unknown };
+
+export type DashboardSeriesItem = { [key: string]: unknown };
+
+export interface Dashboard {
+  generatedAt: string;
+  metrics: DashboardMetrics;
+  series?: DashboardSeriesItem[];
+}
+
+export interface BulkImportResult {
+  created: number;
+  updated: number;
+  rejected: number;
+  errors?: Error[];
+}
+
+export interface ApprovalItem {
+  id: string;
+  recordType: string;
+  recordId: string;
+  title: string;
+  submittedAt: string;
+  /** @nullable */
+  delegatedFrom?: string | null;
+}
+
+export interface RephraseRequest {
+  field: string;
+  text: string;
+}
+
+export interface AISuggestion {
+  suggestion: string;
+}
+
+export interface PromptRequest {
+  prompt: string;
+}
+
+export interface MissingField {
+  field: string;
+  question: string;
+  options: string[];
+}
+
+export type PromptTransactionExtracted = { [key: string]: unknown };
+
+export interface PromptTransaction {
+  extracted: PromptTransactionExtracted;
+  missing: MissingField[];
+  sessionId: string;
+}
+
+export interface PromptAnswer {
+  field: string;
+  value: unknown;
+}
+
+export interface EvidenceIntentRequest {
+  recordType: string;
+  recordId: string;
+  category: string;
+  fileName: string;
+  mimeType: string;
+  /** @minimum 1 */
+  sizeBytes: number;
+  clientReference: string;
+}
+
+export interface UploadIntent {
+  id: string;
+  uploadUrl: string;
+}
+
+export type EvidenceFileStatus = typeof EvidenceFileStatus[keyof typeof EvidenceFileStatus];
+
+
+export const EvidenceFileStatus = {
+  pending: 'pending',
+  confirmed: 'confirmed',
+  failed: 'failed',
+  deleted: 'deleted',
+} as const;
+
+export interface EvidenceFile {
+  id: string;
+  recordType: string;
+  recordId: string;
+  category: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  status: EvidenceFileStatus;
+  clientReference: string;
+  /** @nullable */
+  storageUrl?: string | null;
+  /** @nullable */
+  gpsLat?: number | null;
+  /** @nullable */
+  gpsLng?: number | null;
+  createdAt?: string;
+}
+
+export type PermissionKey = typeof PermissionKey[keyof typeof PermissionKey];
+
+
+export const PermissionKey = {
+  data_entry: 'data_entry',
+  submit: 'submit',
+  approve_reject: 'approve_reject',
+  view_own_scope: 'view_own_scope',
+  view_all: 'view_all',
+  configure_masters: 'configure_masters',
+  manage_integrations: 'manage_integrations',
+  manage_ai_settings: 'manage_ai_settings',
+  export: 'export',
+  delegate: 'delegate',
+} as const;
+
+export interface Permission {
+  key: PermissionKey;
+  name: string;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  permissions: Permission[];
+  active: boolean;
+  systemDefault?: boolean;
+}
+
+export type RoleAssignmentScopeType = typeof RoleAssignmentScopeType[keyof typeof RoleAssignmentScopeType];
+
+
+export const RoleAssignmentScopeType = {
+  organization: 'organization',
+  business_unit: 'business_unit',
+  project: 'project',
+} as const;
+
+export interface RoleAssignment {
+  roleId: string;
+  scopeType: RoleAssignmentScopeType;
+  scopeIds: string[];
+}
+
+export type WorkspaceUserStatus = typeof WorkspaceUserStatus[keyof typeof WorkspaceUserStatus];
+
+
+export const WorkspaceUserStatus = {
+  Not_Requested: 'Not Requested',
+  Active: 'Active',
+  Deactivated: 'Deactivated',
+} as const;
+
+export interface WorkspaceUser {
+  id: string;
+  username: string;
+  /** @nullable */
+  email?: string | null;
+  platformRole: string;
+  workspaceRoles: Role[];
+  status: WorkspaceUserStatus;
+  /** @nullable */
+  lastAccessAt?: string | null;
+}
+
+export type AccessRequestStatus = typeof AccessRequestStatus[keyof typeof AccessRequestStatus];
+
+
+export const AccessRequestStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface AccessRequest {
+  id: string;
+  userId: string;
+  requestedRoleId: string;
+  scope?: RoleAssignment;
+  status: AccessRequestStatus;
+  requestedAt: string;
+}
+
+export type AdminDecisionDecision = typeof AdminDecisionDecision[keyof typeof AdminDecisionDecision];
+
+
+export const AdminDecisionDecision = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface AdminDecision {
+  decision: AdminDecisionDecision;
+  /** @nullable */
+  comments?: string | null;
+}
+
+export type DelegationStatus = typeof DelegationStatus[keyof typeof DelegationStatus];
+
+
+export const DelegationStatus = {
+  pending: 'pending',
+  active: 'active',
+  expired: 'expired',
+  revoked: 'revoked',
+} as const;
+
+export interface Delegation {
+  id: string;
+  delegatorId: string;
+  delegateId: string;
+  scope: string;
+  approvalTypes?: string[];
+  startDate: string;
+  endDate: string;
+  status: DelegationStatus;
+  /** @nullable */
+  revokedAt?: string | null;
+}
+
+export interface EscalationRule {
+  id: string;
+  triggerType: string;
+  /** @nullable */
+  priority?: string | null;
+  /** @nullable */
+  level?: string | null;
+  /** @minimum 0 */
+  slaWorkingDays: number;
+  recipientRoles: string[];
+  /** @minimum 1 */
+  repeatCadenceDays: number;
+  enabled: boolean;
+}
+
+export type AISettingsFeatures = {[key: string]: boolean};
+
+export interface AISettings {
+  enabled: boolean;
+  features: AISettingsFeatures;
+  provider: string;
+  model: string;
+  /** @minimum 1 */
+  timeoutSeconds: number;
+  stripPersonalData?: boolean;
+  retentionDays?: number;
+  monthlyQuota?: number;
+}
+
+export interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  critical: boolean;
+  read: boolean;
+  /** @nullable */
+  recordType?: string | null;
+  /** @nullable */
+  recordId?: string | null;
+  createdAt: string;
+  /** @nullable */
+  readAt?: string | null;
+}
+
+export type NotificationTemplateChannelsItem = typeof NotificationTemplateChannelsItem[keyof typeof NotificationTemplateChannelsItem];
+
+
+export const NotificationTemplateChannelsItem = {
+  in_app: 'in_app',
+  email: 'email',
+  push: 'push',
+  sms: 'sms',
+} as const;
+
+export interface NotificationTemplate {
+  id: string;
+  key: string;
+  subject: string;
+  body: string;
+  channels: NotificationTemplateChannelsItem[];
+  mergeFields?: string[];
+  enabled: boolean;
+}
+
+/**
+ * @nullable
+ */
+export type AuditLogEntryBefore = { [key: string]: unknown } | null;
+
+/**
+ * @nullable
+ */
+export type AuditLogEntryAfter = { [key: string]: unknown } | null;
+
+export interface AuditLogEntry {
+  id: string;
+  actorId: string;
+  /** @nullable */
+  delegatedForId?: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  /** @nullable */
+  before?: AuditLogEntryBefore;
+  /** @nullable */
+  after?: AuditLogEntryAfter;
+  /** @nullable */
+  ipAddress?: string | null;
+  occurredAt: string;
+}
+
+export type AISuggestionLogStatus = typeof AISuggestionLogStatus[keyof typeof AISuggestionLogStatus];
+
+
+export const AISuggestionLogStatus = {
+  accepted: 'accepted',
+  edited: 'edited',
+  rejected: 'rejected',
+  failed: 'failed',
+  timed_out: 'timed_out',
+} as const;
+
+export interface AISuggestionLog {
+  id: string;
+  userId: string;
+  feature: string;
+  prompt: string;
+  /** @nullable */
+  response?: string | null;
+  status: AISuggestionLogStatus;
+  /** @nullable */
+  finalRecordId?: string | null;
+  createdAt: string;
+}
+
+export interface LessonsReferenceData {
+  generatedAt: string;
+  projects: Project[];
+  disciplines: ReferenceItem[];
+  categorisation: ReferenceItem[];
+}
+
+export type LessonLearnedFormIssueCategory = typeof LessonLearnedFormIssueCategory[keyof typeof LessonLearnedFormIssueCategory];
+
+
+export const LessonLearnedFormIssueCategory = {
+  Minor: 'Minor',
+  Moderate: 'Moderate',
+  Major: 'Major',
+} as const;
+
+export type LessonLearnedFormImpact = typeof LessonLearnedFormImpact[keyof typeof LessonLearnedFormImpact];
+
+
+export const LessonLearnedFormImpact = {
+  Positive: 'Positive',
+  Negative: 'Negative',
+} as const;
+
+export interface LessonLearnedForm {
+  id: string;
+  readonly referenceNumber: string;
+  projectId: string;
+  title: string;
+  disciplineId: string;
+  categorisationId: string;
+  issueCategory: LessonLearnedFormIssueCategory;
+  impact: LessonLearnedFormImpact;
+  description: string;
+  rootCause: string;
+  correction: string;
+  correctiveAction: string;
+  isRepeatedIssue?: boolean;
+  /** @minimum 0 */
+  repeatCount?: number;
+  /** @nullable */
+  repeatLocation?: string | null;
+  readonly capturedAt: string;
+  /**
+     * @minimum -90
+     * @maximum 90
+     * @nullable
+     */
+  gpsLat?: number | null;
+  /**
+     * @minimum -180
+     * @maximum 180
+     * @nullable
+     */
+  gpsLng?: number | null;
+  creatorId?: string;
+  /** @nullable */
+  approverId?: string | null;
+  /** @minimum 1 */
+  version: number;
+  conflictFlag: boolean;
+  workflowState: WorkflowState;
+  /** @nullable */
+  remarks?: string | null;
+  photos?: EvidenceFile[];
+}
+
+export type LessonPhotoIntentRequestCategory = typeof LessonPhotoIntentRequestCategory[keyof typeof LessonPhotoIntentRequestCategory];
+
+
+export const LessonPhotoIntentRequestCategory = {
+  before: 'before',
+  after: 'after',
+} as const;
+
+export interface LessonPhotoIntentRequest {
+  category: LessonPhotoIntentRequestCategory;
+  fileName: string;
+  mimeType: string;
+  /** @minimum 1 */
+  sizeBytes: number;
+  clientReference: string;
+}
+
+export type EscalationSummaryStatus = typeof EscalationSummaryStatus[keyof typeof EscalationSummaryStatus];
+
+
+export const EscalationSummaryStatus = {
+  open: 'open',
+  resolved: 'resolved',
+  paused: 'paused',
+} as const;
+
+export interface EscalationSummary {
+  id: string;
+  recordType: string;
+  recordId: string;
+  priority: string;
+  level: string;
+  dueAt: string;
+  status: EscalationSummaryStatus;
+  /** @nullable */
+  lastNotifiedAt?: string | null;
+}
+
+export interface AuditSchedule {
+  id: string;
+  year: number;
+  title: string;
+  projectIds: string[];
+  auditTypes?: string[];
+  plannedStartDate: string;
+  plannedEndDate: string;
+  ownerId?: string;
+  workflowState: WorkflowState;
+  /** @nullable */
+  reviewComments?: string | null;
+}
+
+export type AuditPlanStatus = typeof AuditPlanStatus[keyof typeof AuditPlanStatus];
+
+
+export const AuditPlanStatus = {
+  Draft: 'Draft',
+  Shared: 'Shared',
+  Active: 'Active',
+  Completed: 'Completed',
+  Deleted: 'Deleted',
+} as const;
+
+export interface AuditPlan {
+  id: string;
+  scheduleId: string;
+  scope: string;
+  /** @nullable */
+  objectives?: string | null;
+  criteria: string[];
+  auditDate: string;
+  location: string;
+  leadAuditorId?: string;
+  teamMemberIds: string[];
+  processOwnerIds?: string[];
+  /** @nullable */
+  feasibilityNotes?: string | null;
+  status: AuditPlanStatus;
+}
+
+export interface MeetingMinutes {
+  heldAt: string;
+  attendees: string[];
+  minutes: string;
+  evidenceIds?: string[];
+}
+
+export type ChecklistItemResult = typeof ChecklistItemResult[keyof typeof ChecklistItemResult];
+
+
+export const ChecklistItemResult = {
+  Conformity: 'Conformity',
+  Observation: 'Observation',
+  Minor_NC: 'Minor NC',
+  Major_NC: 'Major NC',
+  Not_Applicable: 'Not Applicable',
+} as const;
+
+export interface ChecklistItem {
+  id: string;
+  /** @nullable */
+  clause?: string | null;
+  question: string;
+  result: ChecklistItemResult;
+  /** @nullable */
+  notes?: string | null;
+  evidenceIds?: string[];
+}
+
+export type AuditStatus = typeof AuditStatus[keyof typeof AuditStatus];
+
+
+export const AuditStatus = {
+  Planned: 'Planned',
+  In_Progress: 'In Progress',
+  Report_Draft: 'Report Draft',
+  'CAR_Follow-up': 'CAR Follow-up',
+  Closed: 'Closed',
+  Deleted: 'Deleted',
+} as const;
+
+export interface Audit {
+  id: string;
+  planId: string;
+  projectId: string;
+  title: string;
+  status: AuditStatus;
+  openingMeeting?: MeetingMinutes;
+  closingMeeting?: MeetingMinutes;
+  checklist?: ChecklistItem[];
+  /** @nullable */
+  startedAt?: string | null;
+  /** @nullable */
+  closedAt?: string | null;
+}
+
+export type AuditFindingClassification = typeof AuditFindingClassification[keyof typeof AuditFindingClassification];
+
+
+export const AuditFindingClassification = {
+  Conformity: 'Conformity',
+  Observation: 'Observation',
+  Minor_NC: 'Minor NC',
+  Major_NC: 'Major NC',
+} as const;
+
+export type AuditFindingPriority = typeof AuditFindingPriority[keyof typeof AuditFindingPriority];
+
+
+export const AuditFindingPriority = {
+  P1: 'P1',
+  P2: 'P2',
+  P3: 'P3',
+  P4: 'P4',
+  P5: 'P5',
+  P6: 'P6',
+} as const;
+
+export type AuditFindingRiskLevel = typeof AuditFindingRiskLevel[keyof typeof AuditFindingRiskLevel];
+
+
+export const AuditFindingRiskLevel = {
+  High: 'High',
+  Medium: 'Medium',
+  Low: 'Low',
+} as const;
+
+export type AuditFindingStatus = typeof AuditFindingStatus[keyof typeof AuditFindingStatus];
+
+
+export const AuditFindingStatus = {
+  Open: 'Open',
+  CAR_Issued: 'CAR Issued',
+  Verified: 'Verified',
+  Closed: 'Closed',
+  Deleted: 'Deleted',
+} as const;
+
+export interface AuditFinding {
+  id: string;
+  auditId: string;
+  title: string;
+  description: string;
+  /** @nullable */
+  clause?: string | null;
+  classification: AuditFindingClassification;
+  priority: AuditFindingPriority;
+  riskLevel: AuditFindingRiskLevel;
+  responsibleDepartments: string[];
+  evidenceIds?: string[];
+  status: AuditFindingStatus;
+  raisedAt?: string;
+}
+
+export type CorrectiveActionReportStatus = typeof CorrectiveActionReportStatus[keyof typeof CorrectiveActionReportStatus];
+
+
+export const CorrectiveActionReportStatus = {
+  Open: 'Open',
+  Draft: 'Draft',
+  Submitted: 'Submitted',
+  Accepted: 'Accepted',
+  Rejected: 'Rejected',
+  Extension_Requested: 'Extension Requested',
+  Closed: 'Closed',
+} as const;
+
+/**
+ * @nullable
+ */
+export type CorrectiveActionReportExtensionStatus = typeof CorrectiveActionReportExtensionStatus[keyof typeof CorrectiveActionReportExtensionStatus] | null;
+
+
+export const CorrectiveActionReportExtensionStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface CorrectiveActionReport {
+  id: string;
+  findingId: string;
+  responsibleDepartment: string;
+  ownerId: string;
+  /** @nullable */
+  rootCause?: string | null;
+  /** @nullable */
+  correction?: string | null;
+  /** @nullable */
+  correctiveAction?: string | null;
+  status: CorrectiveActionReportStatus;
+  dueDate: string;
+  /** @nullable */
+  extensionRequestedTo?: string | null;
+  /** @nullable */
+  extensionReason?: string | null;
+  /** @nullable */
+  extensionStatus?: CorrectiveActionReportExtensionStatus;
+  /** @nullable */
+  extensionReviewedBy?: string | null;
+  /** @nullable */
+  extensionReviewedAt?: string | null;
+  effectivenessVerified?: boolean;
+  /** @nullable */
+  closedAt?: string | null;
+}
+
+export type AcceptRejectReviewDecision = typeof AcceptRejectReviewDecision[keyof typeof AcceptRejectReviewDecision];
+
+
+export const AcceptRejectReviewDecision = {
+  accept: 'accept',
+  reject: 'reject',
+} as const;
+
+export interface AcceptRejectReview {
+  decision: AcceptRejectReviewDecision;
+  /** @nullable */
+  comments?: string | null;
+}
+
+export type ApproveRejectReviewDecision = typeof ApproveRejectReviewDecision[keyof typeof ApproveRejectReviewDecision];
+
+
+export const ApproveRejectReviewDecision = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface ApproveRejectReview {
+  decision: ApproveRejectReviewDecision;
+  /** @nullable */
+  comments?: string | null;
+}
+
+export interface ExtensionRequest {
+  requestedDueDate: string;
+  reason: string;
+}
+
+export interface GeneratedAuditReport {
+  audit: Audit;
+  findings: AuditFinding[];
+  cars: CorrectiveActionReport[];
+  generatedAt: string;
+  /** @nullable */
+  downloadUrl?: string | null;
+}
+
+export type ReportDeliveryDelivery = typeof ReportDeliveryDelivery[keyof typeof ReportDeliveryDelivery];
+
+
+export const ReportDeliveryDelivery = {
+  download: 'download',
+  email: 'email',
+} as const;
+
+export interface ReportDelivery {
+  delivery: ReportDeliveryDelivery;
+  fileName: string;
+  /** @nullable */
+  downloadUrl?: string | null;
+  /** @nullable */
+  message?: string | null;
+}
+
+export interface PageMeta {
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 1 */
+  page: number;
+  /** @minimum 1 */
+  limit: number;
+}
+
+export type ProjectPage = PageMeta & {
+  items: Project[];
+};
+
+export type BusinessUnitPage = PageMeta & {
+  items: BusinessUnit[];
+};
+
+export type IntegrationConnectorPage = PageMeta & {
+  items: IntegrationConnector[];
+};
+
+export type SyncJobPage = PageMeta & {
+  items: SyncJob[];
+};
+
+export type ExecutiveSummaryPage = PageMeta & {
+  items: ExecutiveSummary[];
+};
+
+export type ReferenceItemPage = PageMeta & {
+  items: ReferenceItem[];
+};
+
+export type QAQCMetricPage = PageMeta & {
+  items: QAQCMetricEntry[];
+};
+
+export type MaterialInspectionPage = PageMeta & {
+  items: MaterialInspectionEntry[];
+};
+
+export type QTBTPage = PageMeta & {
+  items: QTBTEntry[];
+};
+
+export type CustomerSatisfactionPage = PageMeta & {
+  items: CustomerSatisfactionEntry[];
+};
+
+export type DocumentGovernancePage = PageMeta & {
+  items: DocumentGovernanceLogEntry[];
+};
+
+export type QualityBriefPage = PageMeta & {
+  items: QualityAssessmentBrief[];
+};
+
+export type ApprovalItemPage = PageMeta & {
+  items: ApprovalItem[];
+};
+
+export type EvidencePage = PageMeta & {
+  items: EvidenceFile[];
+};
+
+export type RolePage = PageMeta & {
+  items: Role[];
+};
+
+export type WorkspaceUserPage = PageMeta & {
+  items: WorkspaceUser[];
+};
+
+export type AccessRequestPage = PageMeta & {
+  items: AccessRequest[];
+};
+
+export type DelegationPage = PageMeta & {
+  items: Delegation[];
+};
+
+export type EscalationRulePage = PageMeta & {
+  items: EscalationRule[];
+};
+
+export type AuditLogPage = PageMeta & {
+  items: AuditLogEntry[];
+};
+
+export type NotificationTemplatePage = PageMeta & {
+  items: NotificationTemplate[];
+};
+
+export type NotificationPage = PageMeta & {
+  items: Notification[];
+};
+
+export type LessonFormPage = PageMeta & {
+  items: LessonLearnedForm[];
+};
+
+export type EscalationSummaryPage = PageMeta & {
+  items: EscalationSummary[];
+};
+
+export type AuditSchedulePage = PageMeta & {
+  items: AuditSchedule[];
+};
+
+export type AuditPlanPage = PageMeta & {
+  items: AuditPlan[];
+};
+
+export type AuditPage = PageMeta & {
+  items: Audit[];
+};
+
+export type AuditFindingPage = PageMeta & {
+  items: AuditFinding[];
+};
+
+export type CorrectiveActionReportPage = PageMeta & {
+  items: CorrectiveActionReport[];
+};
+
+/**
+ * Generated report file
+ */
+export type ReportFileResponse = ReportDelivery;
+
+/**
+ * Paginated projects
+ */
+export type ProjectPageResponse = ProjectPage;
+
+/**
+ * Paginated business units
+ */
+export type BusinessUnitPageResponse = BusinessUnitPage;
+
+/**
+ * Paginated connectors
+ */
+export type IntegrationConnectorPageResponse = IntegrationConnectorPage;
+
+/**
+ * Paginated jobs
+ */
+export type SyncJobPageResponse = SyncJobPage;
+
+/**
+ * Paginated summaries
+ */
+export type ExecutiveSummaryPageResponse = ExecutiveSummaryPage;
+
+/**
+ * Paginated reference items
+ */
+export type ReferenceItemPageResponse = ReferenceItemPage;
+
+/**
+ * Paginated metrics
+ */
+export type QAQCMetricPageResponse = QAQCMetricPage;
+
+/**
+ * Paginated inspections
+ */
+export type MaterialInspectionPageResponse = MaterialInspectionPage;
+
+/**
+ * Paginated talks
+ */
+export type QtbtPageResponse = QTBTPage;
+
+/**
+ * Paginated surveys
+ */
+export type CustomerSatisfactionPageResponse = CustomerSatisfactionPage;
+
+/**
+ * Paginated log
+ */
+export type DocumentGovernancePageResponse = DocumentGovernancePage;
+
+/**
+ * Paginated briefs
+ */
+export type QualityBriefPageResponse = QualityBriefPage;
+
+/**
+ * Paginated approvals
+ */
+export type ApprovalItemPageResponse = ApprovalItemPage;
+
+/**
+ * Paginated evidence
+ */
+export type EvidencePageResponse = EvidencePage;
+
+/**
+ * Paginated roles
+ */
+export type RolePageResponse = RolePage;
+
+/**
+ * Paginated users
+ */
+export type WorkspaceUserPageResponse = WorkspaceUserPage;
+
+/**
+ * Paginated requests
+ */
+export type AccessRequestPageResponse = AccessRequestPage;
+
+/**
+ * Paginated delegations
+ */
+export type DelegationPageResponse = DelegationPage;
+
+/**
+ * Paginated rules
+ */
+export type EscalationRulePageResponse = EscalationRulePage;
+
+/**
+ * Paginated audit entries
+ */
+export type AuditLogPageResponse = AuditLogPage;
+
+/**
+ * Paginated templates
+ */
+export type NotificationTemplatePageResponse = NotificationTemplatePage;
+
+/**
+ * Paginated notifications
+ */
+export type NotificationPageResponse = NotificationPage;
+
+/**
+ * Paginated forms
+ */
+export type LessonFormPageResponse = LessonFormPage;
+
+/**
+ * Paginated escalation summary
+ */
+export type EscalationSummaryPageResponse = EscalationSummaryPage;
+
+/**
+ * Paginated schedules
+ */
+export type AuditSchedulePageResponse = AuditSchedulePage;
+
+/**
+ * Paginated plans
+ */
+export type AuditPlanPageResponse = AuditPlanPage;
+
+/**
+ * Paginated audits
+ */
+export type AuditPageResponse = AuditPage;
+
+/**
+ * Paginated findings
+ */
+export type AuditFindingPageResponse = AuditFindingPage;
+
+/**
+ * Paginated CARs
+ */
+export type CarPageResponse = CorrectiveActionReportPage;
+
+export type ApprovalReviewBody = ApprovalReview;
+
+export type RephraseBody = RephraseRequest;
+
+export type PromptBody = PromptRequest;
+
+export type PromptAnswerBody = PromptAnswer;
+
+export type EvidenceIntentBody = EvidenceIntentRequest;
+
+export type LessonPhotoIntentBody = LessonPhotoIntentRequest;
+
+export type RoleBody = Role;
+
+export type RoleAssignmentBody = RoleAssignment;
+
+export type AdminDecisionBody = AdminDecision;
+
+export type DelegationBody = Delegation;
+
+export type EscalationRulesBody = EscalationRule[];
+
+export type AISettingsBody = AISettings;
+
+export type NotificationTemplateBody = NotificationTemplate;
+
+export type LessonFormBody = LessonLearnedForm;
+
+export type AuditScheduleBody = AuditSchedule;
+
+export type AuditPlanBody = AuditPlan;
+
+export type AuditBody = Audit;
+
+export type AuditFindingBody = AuditFinding;
+
+export type CarBody = CorrectiveActionReport;
+
+export type CreateCarsBody = {
+  /** @minItems 1 */
+  responsibleDepartments: string[];
+};
+
+export type MeetingBody = MeetingMinutes;
+
+export type ChecklistBody = ChecklistItem[];
+
+export type AcceptRejectBody = AcceptRejectReview;
+
+export type ApproveRejectBody = ApproveRejectReview;
+
+export type ExtensionBody = ExtensionRequest;
+
+export type PageParameter = number;
+
+export type LimitParameter = number;
+
+export type SinceParameter = string;
+
+export type ProjectIdParameter = string;
+
+export type PeriodParameter = string;
+
+export type FromParameter = string;
+
+export type ToParameter = string;
+
+export type ActorIdParameter = string;
+
+export type ActionParameter = string;
+
+export type RecordTypeParameter = string;
+
+export type RecordIdParameter = string;
+
+export type SpreadsheetFormatParameter = typeof SpreadsheetFormatParameter[keyof typeof SpreadsheetFormatParameter];
+
+
+export const SpreadsheetFormatParameter = {
+  csv: 'csv',
+  xlsx: 'xlsx',
+} as const;
+
+export type ReportFormatParameter = typeof ReportFormatParameter[keyof typeof ReportFormatParameter];
+
+
+export const ReportFormatParameter = {
+  json: 'json',
+  pdf: 'pdf',
+  csv: 'csv',
+  xlsx: 'xlsx',
+} as const;
+
+export type ListPlatformProjectsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListBusinessUnitsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type GetPlatformReferenceDataParams = {
+since?: SinceParameter;
+};
+
+export type ListIntegrationConnectorsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListSyncJobsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListPublishedExecutiveSummariesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcDisciplinesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcTargetsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcDistributionListsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcCategorisationParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcMetricsParams = {
+projectId?: ProjectIdParameter;
+/**
+ * @pattern ^[0-9]{4}-(0[1-9]|1[0-2])$
+ */
+period?: PeriodParameter;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListMaterialInspectionsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQtbtEntriesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListCustomerSatisfactionEntriesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListDocumentGovernanceLogParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQualityBriefsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type GetQaqcPqiParams = {
+projectId?: ProjectIdParameter;
+/**
+ * @pattern ^[0-9]{4}-(0[1-9]|1[0-2])$
+ */
+period?: PeriodParameter;
+};
+
+export type GetQaqcDashboardParams = {
+projectId?: ProjectIdParameter;
+/**
+ * @pattern ^[0-9]{4}-(0[1-9]|1[0-2])$
+ */
+period?: PeriodParameter;
+category?: string;
+};
+
+export type ExportQaqcMonthlyReportParams = {
+projectId?: ProjectIdParameter;
+/**
+ * @pattern ^[0-9]{4}-(0[1-9]|1[0-2])$
+ */
+period?: PeriodParameter;
+format: SpreadsheetFormatParameter;
+};
+
+export type ExportDocumentGovernanceReportParams = {
+projectId?: ProjectIdParameter;
+/**
+ * @pattern ^[0-9]{4}-(0[1-9]|1[0-2])$
+ */
+period?: PeriodParameter;
+format: SpreadsheetFormatParameter;
+};
+
+export type DownloadQaqcMetricsTemplateParams = {
+format: SpreadsheetFormatParameter;
+};
+
+export type ListQaqcApprovalsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcEvidenceParams = {
+recordType: RecordTypeParameter;
+recordId: RecordIdParameter;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcRolesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcUsersParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcAccessQueueParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcDelegationsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcAuditLogParams = {
+from?: FromParameter;
+to?: ToParameter;
+actorId?: ActorIdParameter;
+action?: ActionParameter;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcNotificationTemplatesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListQaqcNotificationsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type GetLessonsReferenceDataParams = {
+since?: SinceParameter;
+};
+
+export type ListLessonFormsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type SearchLessonsLogParams = {
+search?: string;
+projectId?: ProjectIdParameter;
+disciplineId?: string;
+category?: string;
+impact?: SearchLessonsLogImpact;
+from?: FromParameter;
+to?: ToParameter;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type SearchLessonsLogImpact = typeof SearchLessonsLogImpact[keyof typeof SearchLessonsLogImpact];
+
+
+export const SearchLessonsLogImpact = {
+  Positive: 'Positive',
+  Negative: 'Negative',
+} as const;
+
+export type GetLessonsEscalationsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ExportLessonsLogParams = {
+format?: ReportFormatParameter;
+};
+
+export type ListLessonsRolesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListLessonsUsersParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListLessonsAccessQueueParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListLessonsDelegationsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListLessonsAuditLogParams = {
+from?: FromParameter;
+to?: ToParameter;
+actorId?: ActorIdParameter;
+action?: ActionParameter;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListLessonsNotificationTemplatesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListLessonsNotificationsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListLessonsEvidenceParams = {
+recordType: RecordTypeParameter;
+recordId: RecordIdParameter;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditSchedulesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditPlansParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditFindingsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListCorrectiveActionReportsParams = {
+status?: string;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditEvidenceParams = {
+recordType: RecordTypeParameter;
+recordId: RecordIdParameter;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type GetAuditOpenVsClosedReportParams = {
+projectId?: ProjectIdParameter;
+from?: FromParameter;
+to?: ToParameter;
+};
+
+export type GetAuditFindingsLogReportParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type GetAuditDashboardParams = {
+projectId?: ProjectIdParameter;
+from?: FromParameter;
+to?: ToParameter;
+};
+
+export type ListAuditRolesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditUsersParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditAccessQueueParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditDelegationsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditWorkspaceAuditLogParams = {
+from?: FromParameter;
+to?: ToParameter;
+actorId?: ActorIdParameter;
+action?: ActionParameter;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditNotificationTemplatesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditNotificationsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+

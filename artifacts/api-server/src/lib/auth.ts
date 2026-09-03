@@ -1,7 +1,18 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { db, users, organizations, platformRoles, workspaceRoles, userWorkspaceRoles } from "@workspace/db";
+import {
+  auditUserWorkspaceRoles,
+  auditWorkspaceRoles,
+  db,
+  lessonsUserWorkspaceRoles,
+  lessonsWorkspaceRoles,
+  organizations,
+  platformRoles,
+  userWorkspaceRoles,
+  users,
+  workspaceRoles,
+} from "@workspace/db";
 
 const jwtSecret = (() => {
   const secret = process.env.JWT_SECRET ?? process.env.SESSION_SECRET;
@@ -54,11 +65,21 @@ export async function getUserContext(userId: string) {
     return null;
   }
 
-  const roleRows = await db
-    .select({ name: workspaceRoles.name })
-    .from(userWorkspaceRoles)
-    .innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id))
-    .where(eq(userWorkspaceRoles.userId, userId));
+  const [qaqcRoleRows, lessonRoleRows, auditRoleRows] = await Promise.all([
+    db.select({ name: workspaceRoles.name })
+      .from(userWorkspaceRoles)
+      .innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id))
+      .where(eq(userWorkspaceRoles.userId, userId)),
+    db.select({ name: lessonsWorkspaceRoles.name })
+      .from(lessonsUserWorkspaceRoles)
+      .innerJoin(lessonsWorkspaceRoles, eq(lessonsUserWorkspaceRoles.workspaceRoleId, lessonsWorkspaceRoles.id))
+      .where(eq(lessonsUserWorkspaceRoles.userId, userId)),
+    db.select({ name: auditWorkspaceRoles.name })
+      .from(auditUserWorkspaceRoles)
+      .innerJoin(auditWorkspaceRoles, eq(auditUserWorkspaceRoles.workspaceRoleId, auditWorkspaceRoles.id))
+      .where(eq(auditUserWorkspaceRoles.userId, userId)),
+  ]);
+  const roleRows = [...qaqcRoleRows, ...lessonRoleRows, ...auditRoleRows];
 
   return {
     id: user.id,

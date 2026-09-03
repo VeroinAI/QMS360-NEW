@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { GetExecutiveOverviewResponse } from "@workspace/api-zod";
-import { auditFindings, audits, db, lessonLearnedForms, qaqcMetricEntries } from "@workspace/db";
+import { GetExecutiveOverviewResponse, ListPublishedExecutiveSummariesResponse } from "@workspace/api-zod";
+import { auditFindings, audits, db, executiveSummarySnapshots, lessonLearnedForms, qaqcMetricEntries } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
+import { paginated, pagination } from "../lib/workspace";
 
 const router: IRouter = Router();
 
@@ -45,6 +46,26 @@ router.get("/executive/overview", requireAuth, async (req, res): Promise<void> =
     })),
   };
   res.json(GetExecutiveOverviewResponse.parse(response));
+});
+
+router.get("/executive/published-summaries", requireAuth, async (req, res) => {
+  const { page, limit } = pagination(req);
+  const rows = await db.select().from(executiveSummarySnapshots).where(and(
+    eq(executiveSummarySnapshots.organizationId, req.currentUser!.organizationId),
+    sql`${executiveSummarySnapshots.deletedAt} IS NULL`,
+  )).orderBy(desc(executiveSummarySnapshots.publishedAt));
+  const latest = rows.filter((row, index, all) => all.findIndex((other) => other.appKey === row.appKey) === index);
+  const sliced = latest.slice((page - 1) * limit, page * limit).map((row) => {
+    const metricsValue = row.payload.metrics;
+    const metrics = metricsValue && typeof metricsValue === "object" && !Array.isArray(metricsValue)
+      ? Object.fromEntries(Object.entries(metricsValue).filter((entry): entry is [string, number] => typeof entry[1] === "number"))
+      : {};
+    return {
+      id: row.id, appKey: row.appKey, period: row.periodLabel, publishedAt: row.publishedAt,
+      metrics, narrative: typeof row.payload.narrative === "string" ? row.payload.narrative : null,
+    };
+  });
+  res.json(ListPublishedExecutiveSummariesResponse.parse(paginated(sliced, latest.length, page, limit)));
 });
 
 export default router;

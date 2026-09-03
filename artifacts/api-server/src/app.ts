@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import filesRouter from "./routes/files";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -26,6 +27,8 @@ app.use(
   }),
 );
 app.use(cors());
+// Evidence uploads are raw bytes and must be parsed before the global JSON middleware.
+app.use("/api/files", filesRouter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

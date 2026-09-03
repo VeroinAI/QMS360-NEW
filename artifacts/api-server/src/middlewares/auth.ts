@@ -42,3 +42,16 @@ export function requirePlatformRole(...roles: string[]) {
     next();
   };
 }
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  const user = req.currentUser;
+  const platformAdmins = ["Super Admin", "Org Admin"];
+  const isWorkspaceAdmin = user?.workspaceRoles.some((role) =>
+    /\b(admin|administrator)\b/i.test(role),
+  );
+  if (!user || (!platformAdmins.includes(user.platformRole) && !isWorkspaceAdmin)) {
+    res.status(403).json({ error: "Administrator access is required" });
+    return;
+  }
+  next();
+}

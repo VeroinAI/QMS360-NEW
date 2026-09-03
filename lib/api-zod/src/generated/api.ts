@@ -118,6 +118,12 @@ export const GetCurrentUserResponse = zod.object({
 
 
 /**
+ * @summary End the current session
+ */
+export const LogoutResponse = zod.void()
+
+
+/**
  * @summary Get shared platform context
  */
 export const getPlatformContextResponseAppsItemWorkspaceRoleCountMin = 0;
@@ -158,6 +164,349 @@ export const ListProjectsResponseItem = zod.object({
   "location": zod.string().nullish()
 })
 export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
+
+
+/**
+ * @summary List shared projects
+ */
+export const listPlatformProjectsQueryPageDefault = 1;
+
+export const listPlatformProjectsQueryLimitDefault = 20;
+export const listPlatformProjectsQueryLimitMax = 200;
+
+
+
+export const ListPlatformProjectsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listPlatformProjectsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listPlatformProjectsQueryLimitMax).default(listPlatformProjectsQueryLimitDefault)
+})
+
+export const listPlatformProjectsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListPlatformProjectsResponse = zod.object({
+  "total": zod.number().min(listPlatformProjectsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "businessUnit": zod.string(),
+  "status": zod.string(),
+  "location": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary List shared business units
+ */
+export const listBusinessUnitsQueryPageDefault = 1;
+
+export const listBusinessUnitsQueryLimitDefault = 20;
+export const listBusinessUnitsQueryLimitMax = 200;
+
+
+
+export const ListBusinessUnitsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listBusinessUnitsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listBusinessUnitsQueryLimitMax).default(listBusinessUnitsQueryLimitDefault)
+})
+
+export const listBusinessUnitsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListBusinessUnitsResponse = zod.object({
+  "total": zod.number().min(listBusinessUnitsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "parentGroup": zod.string().nullish(),
+  "projectIds": zod.array(zod.string()).optional()
+}))
+}))
+
+
+/**
+ * @summary Get current user's application access flags
+ */
+export const GetApplicationAccessResponse = zod.object({
+  "qaqc": zod.boolean(),
+  "lessons": zod.boolean(),
+  "audit": zod.boolean()
+})
+
+
+/**
+ * @summary Get cacheable shared reference data snapshot
+ */
+export const GetPlatformReferenceDataQueryParams = zod.object({
+  "since": zod.date().optional()
+})
+
+export const GetPlatformReferenceDataResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "businessUnit": zod.string(),
+  "status": zod.string(),
+  "location": zod.string().nullish()
+})),
+  "businessUnits": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "parentGroup": zod.string().nullish(),
+  "projectIds": zod.array(zod.string()).optional()
+}))
+})
+
+
+/**
+ * @summary Get organization settings
+ */
+export const getOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMin = 0;
+export const getOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMax = 6;
+
+
+
+export const GetOrganizationSettingsResponse = zod.object({
+  "organizationName": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "primaryColor": zod.string().optional(),
+  "locale": zod.string(),
+  "timezone": zod.string(),
+  "workingCalendar": zod.object({
+  "workingDays": zod.array(zod.number().min(getOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMin).max(getOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMax)),
+  "holidays": zod.array(zod.coerce.date())
+}),
+  "exportRowThreshold": zod.number().optional(),
+  "exportMonthThreshold": zod.number().optional(),
+  "evidenceLimits": zod.object({
+  "photoMaxBytes": zod.number().optional(),
+  "photoMaxCount": zod.number().optional(),
+  "videoMaxBytes": zod.number().optional(),
+  "videoMaxDurationSeconds": zod.number().optional(),
+  "documentMaxBytes": zod.number().optional()
+}).optional(),
+  "allowedEmailDomains": zod.array(zod.string()).optional()
+})
+
+
+/**
+ * @summary Update organization settings
+ */
+export const updateOrganizationSettingsBodyWorkingCalendarWorkingDaysItemMin = 0;
+export const updateOrganizationSettingsBodyWorkingCalendarWorkingDaysItemMax = 6;
+
+
+
+export const UpdateOrganizationSettingsBody = zod.object({
+  "organizationName": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "primaryColor": zod.string().optional(),
+  "locale": zod.string(),
+  "timezone": zod.string(),
+  "workingCalendar": zod.object({
+  "workingDays": zod.array(zod.number().min(updateOrganizationSettingsBodyWorkingCalendarWorkingDaysItemMin).max(updateOrganizationSettingsBodyWorkingCalendarWorkingDaysItemMax)),
+  "holidays": zod.array(zod.coerce.date())
+}),
+  "exportRowThreshold": zod.number().optional(),
+  "exportMonthThreshold": zod.number().optional(),
+  "evidenceLimits": zod.object({
+  "photoMaxBytes": zod.number().optional(),
+  "photoMaxCount": zod.number().optional(),
+  "videoMaxBytes": zod.number().optional(),
+  "videoMaxDurationSeconds": zod.number().optional(),
+  "documentMaxBytes": zod.number().optional()
+}).optional(),
+  "allowedEmailDomains": zod.array(zod.string()).optional()
+})
+
+export const updateOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMin = 0;
+export const updateOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMax = 6;
+
+
+
+export const UpdateOrganizationSettingsResponse = zod.object({
+  "organizationName": zod.string(),
+  "logoUrl": zod.string().nullish(),
+  "primaryColor": zod.string().optional(),
+  "locale": zod.string(),
+  "timezone": zod.string(),
+  "workingCalendar": zod.object({
+  "workingDays": zod.array(zod.number().min(updateOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMin).max(updateOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMax)),
+  "holidays": zod.array(zod.coerce.date())
+}),
+  "exportRowThreshold": zod.number().optional(),
+  "exportMonthThreshold": zod.number().optional(),
+  "evidenceLimits": zod.object({
+  "photoMaxBytes": zod.number().optional(),
+  "photoMaxCount": zod.number().optional(),
+  "videoMaxBytes": zod.number().optional(),
+  "videoMaxDurationSeconds": zod.number().optional(),
+  "documentMaxBytes": zod.number().optional()
+}).optional(),
+  "allowedEmailDomains": zod.array(zod.string()).optional()
+})
+
+
+/**
+ * @summary List integration connectors
+ */
+export const listIntegrationConnectorsQueryPageDefault = 1;
+
+export const listIntegrationConnectorsQueryLimitDefault = 20;
+export const listIntegrationConnectorsQueryLimitMax = 200;
+
+
+
+export const ListIntegrationConnectorsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listIntegrationConnectorsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listIntegrationConnectorsQueryLimitMax).default(listIntegrationConnectorsQueryLimitDefault)
+})
+
+export const listIntegrationConnectorsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListIntegrationConnectorsResponse = zod.object({
+  "total": zod.number().min(listIntegrationConnectorsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi']),
+  "status": zod.enum(['Connected', 'Degraded', 'Failed', 'Disabled']),
+  "enabled": zod.boolean(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "lastSuccessfulSyncAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Update connector configuration or status
+ */
+export const UpdateIntegrationConnectorParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateIntegrationConnectorBody = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi']),
+  "status": zod.enum(['Connected', 'Degraded', 'Failed', 'Disabled']),
+  "enabled": zod.boolean(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "lastSuccessfulSyncAt": zod.coerce.date().nullish()
+})
+
+export const UpdateIntegrationConnectorResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi']),
+  "status": zod.enum(['Connected', 'Degraded', 'Failed', 'Disabled']),
+  "enabled": zod.boolean(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "lastSuccessfulSyncAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary List data sync jobs
+ */
+export const listSyncJobsQueryPageDefault = 1;
+
+export const listSyncJobsQueryLimitDefault = 20;
+export const listSyncJobsQueryLimitMax = 200;
+
+
+
+export const ListSyncJobsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listSyncJobsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listSyncJobsQueryLimitMax).default(listSyncJobsQueryLimitDefault)
+})
+
+export const listSyncJobsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListSyncJobsResponse = zod.object({
+  "total": zod.number().min(listSyncJobsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "connectorId": zod.string(),
+  "status": zod.enum(['queued', 'running', 'succeeded', 'failed']),
+  "schedule": zod.string().nullish(),
+  "startedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullish(),
+  "durationMs": zod.number().nullish(),
+  "sourceCount": zod.number().optional(),
+  "targetCount": zod.number().optional(),
+  "error": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary Retry a failed sync job
+ */
+export const RetrySyncJobParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RetrySyncJobResponse = zod.object({
+  "id": zod.string(),
+  "connectorId": zod.string(),
+  "status": zod.enum(['queued', 'running', 'succeeded', 'failed']),
+  "schedule": zod.string().nullish(),
+  "startedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullish(),
+  "durationMs": zod.number().nullish(),
+  "sourceCount": zod.number().optional(),
+  "targetCount": zod.number().optional(),
+  "error": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get aggregate integration health
+ */
+export const GetIntegrationsHealthResponse = zod.object({
+  "status": zod.enum(['healthy', 'degraded', 'failed']),
+  "connectors": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi']),
+  "status": zod.enum(['Connected', 'Degraded', 'Failed', 'Disabled']),
+  "enabled": zod.boolean(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "lastSuccessfulSyncAt": zod.coerce.date().nullish()
+})),
+  "checkedAt": zod.coerce.date().optional()
+})
 
 
 /**
@@ -240,5 +589,4675 @@ export const GetExecutiveOverviewResponse = zod.object({
   "updatedAt": zod.coerce.date().nullish()
 }))
 })
+
+
+/**
+ * @summary List workspace-published executive summaries
+ */
+export const listPublishedExecutiveSummariesQueryPageDefault = 1;
+
+export const listPublishedExecutiveSummariesQueryLimitDefault = 20;
+export const listPublishedExecutiveSummariesQueryLimitMax = 200;
+
+
+
+export const ListPublishedExecutiveSummariesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listPublishedExecutiveSummariesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listPublishedExecutiveSummariesQueryLimitMax).default(listPublishedExecutiveSummariesQueryLimitDefault)
+})
+
+export const listPublishedExecutiveSummariesResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListPublishedExecutiveSummariesResponse = zod.object({
+  "total": zod.number().min(listPublishedExecutiveSummariesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "appKey": zod.enum(['qaqc', 'lessons', 'audit']),
+  "period": zod.string(),
+  "publishedAt": zod.coerce.date(),
+  "metrics": zod.record(zod.string(), zod.number()),
+  "narrative": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary List QA/QC disciplines
+ */
+export const listQaqcDisciplinesQueryPageDefault = 1;
+
+export const listQaqcDisciplinesQueryLimitDefault = 20;
+export const listQaqcDisciplinesQueryLimitMax = 200;
+
+
+
+export const ListQaqcDisciplinesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQaqcDisciplinesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcDisciplinesQueryLimitMax).default(listQaqcDisciplinesQueryLimitDefault)
+})
+
+export const listQaqcDisciplinesResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcDisciplinesResponse = zod.object({
+  "total": zod.number().min(listQaqcDisciplinesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string().nullish(),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}))
+}))
+
+
+/**
+ * @summary List QA/QC target benchmarks
+ */
+export const listQaqcTargetsQueryPageDefault = 1;
+
+export const listQaqcTargetsQueryLimitDefault = 20;
+export const listQaqcTargetsQueryLimitMax = 200;
+
+
+
+export const ListQaqcTargetsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQaqcTargetsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcTargetsQueryLimitMax).default(listQaqcTargetsQueryLimitDefault)
+})
+
+export const listQaqcTargetsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcTargetsResponse = zod.object({
+  "total": zod.number().min(listQaqcTargetsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string().nullish(),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}))
+}))
+
+
+/**
+ * @summary List QA/QC distribution lists
+ */
+export const listQaqcDistributionListsQueryPageDefault = 1;
+
+export const listQaqcDistributionListsQueryLimitDefault = 20;
+export const listQaqcDistributionListsQueryLimitMax = 200;
+
+
+
+export const ListQaqcDistributionListsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQaqcDistributionListsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcDistributionListsQueryLimitMax).default(listQaqcDistributionListsQueryLimitDefault)
+})
+
+export const listQaqcDistributionListsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcDistributionListsResponse = zod.object({
+  "total": zod.number().min(listQaqcDistributionListsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string().nullish(),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}))
+}))
+
+
+/**
+ * @summary List QA/QC categories
+ */
+export const listQaqcCategorisationQueryPageDefault = 1;
+
+export const listQaqcCategorisationQueryLimitDefault = 20;
+export const listQaqcCategorisationQueryLimitMax = 200;
+
+
+
+export const ListQaqcCategorisationQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQaqcCategorisationQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcCategorisationQueryLimitMax).default(listQaqcCategorisationQueryLimitDefault)
+})
+
+export const listQaqcCategorisationResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcCategorisationResponse = zod.object({
+  "total": zod.number().min(listQaqcCategorisationResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string().nullish(),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}))
+}))
+
+
+/**
+ * @summary List metric entries
+ */
+export const listQaqcMetricsQueryPeriodRegExp = new RegExp('^[0-9]{4}-(0[1-9]|1[0-2])$');
+export const listQaqcMetricsQueryPageDefault = 1;
+
+export const listQaqcMetricsQueryLimitDefault = 20;
+export const listQaqcMetricsQueryLimitMax = 200;
+
+
+
+export const ListQaqcMetricsQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "period": zod.coerce.string().regex(listQaqcMetricsQueryPeriodRegExp).optional(),
+  "page": zod.coerce.number().min(1).default(listQaqcMetricsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcMetricsQueryLimitMax).default(listQaqcMetricsQueryLimitDefault)
+})
+
+export const listQaqcMetricsResponseOneTotalMin = 0;
+
+
+
+export const listQaqcMetricsResponseTwoItemsItemIssuedCountMin = 0;
+
+export const listQaqcMetricsResponseTwoItemsItemClosedCountMin = 0;
+
+export const listQaqcMetricsResponseTwoItemsItemAgeing0To15Min = 0;
+
+export const listQaqcMetricsResponseTwoItemsItemAgeing15To45Min = 0;
+
+export const listQaqcMetricsResponseTwoItemsItemAgeingOver45Min = 0;
+
+
+
+export const ListQaqcMetricsResponse = zod.object({
+  "total": zod.number().min(listQaqcMetricsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "category": zod.enum(['External NCR', 'Internal NCR', 'RFI', 'RMI']),
+  "issuedCount": zod.number().min(listQaqcMetricsResponseTwoItemsItemIssuedCountMin),
+  "closedCount": zod.number().min(listQaqcMetricsResponseTwoItemsItemClosedCountMin),
+  "ageing0To15": zod.number().min(listQaqcMetricsResponseTwoItemsItemAgeing0To15Min),
+  "ageing15To45": zod.number().min(listQaqcMetricsResponseTwoItemsItemAgeing15To45Min),
+  "ageingOver45": zod.number().min(listQaqcMetricsResponseTwoItemsItemAgeingOver45Min),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
+  "variance": zod.number().optional(),
+  "pqi": zod.number().optional(),
+  "deletedAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Create a metric entry
+ */
+export const createQaqcMetricBodyIssuedCountMin = 0;
+
+export const createQaqcMetricBodyClosedCountMin = 0;
+
+export const createQaqcMetricBodyAgeing0To15Min = 0;
+
+export const createQaqcMetricBodyAgeing15To45Min = 0;
+
+export const createQaqcMetricBodyAgeingOver45Min = 0;
+
+
+
+export const CreateQaqcMetricBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "category": zod.enum(['External NCR', 'Internal NCR', 'RFI', 'RMI']),
+  "issuedCount": zod.number().min(createQaqcMetricBodyIssuedCountMin),
+  "closedCount": zod.number().min(createQaqcMetricBodyClosedCountMin),
+  "ageing0To15": zod.number().min(createQaqcMetricBodyAgeing0To15Min),
+  "ageing15To45": zod.number().min(createQaqcMetricBodyAgeing15To45Min),
+  "ageingOver45": zod.number().min(createQaqcMetricBodyAgeingOver45Min),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "deletedAt": zod.coerce.date().nullish()
+})
+
+export const createQaqcMetricResponseIssuedCountMin = 0;
+
+export const createQaqcMetricResponseClosedCountMin = 0;
+
+export const createQaqcMetricResponseAgeing0To15Min = 0;
+
+export const createQaqcMetricResponseAgeing15To45Min = 0;
+
+export const createQaqcMetricResponseAgeingOver45Min = 0;
+
+
+
+export const CreateQaqcMetricResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "category": zod.enum(['External NCR', 'Internal NCR', 'RFI', 'RMI']),
+  "issuedCount": zod.number().min(createQaqcMetricResponseIssuedCountMin),
+  "closedCount": zod.number().min(createQaqcMetricResponseClosedCountMin),
+  "ageing0To15": zod.number().min(createQaqcMetricResponseAgeing0To15Min),
+  "ageing15To45": zod.number().min(createQaqcMetricResponseAgeing15To45Min),
+  "ageingOver45": zod.number().min(createQaqcMetricResponseAgeingOver45Min),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
+  "variance": zod.number().optional(),
+  "pqi": zod.number().optional(),
+  "deletedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Update a metric entry
+ */
+export const UpdateQaqcMetricParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateQaqcMetricBodyIssuedCountMin = 0;
+
+export const updateQaqcMetricBodyClosedCountMin = 0;
+
+export const updateQaqcMetricBodyAgeing0To15Min = 0;
+
+export const updateQaqcMetricBodyAgeing15To45Min = 0;
+
+export const updateQaqcMetricBodyAgeingOver45Min = 0;
+
+
+
+export const UpdateQaqcMetricBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "category": zod.enum(['External NCR', 'Internal NCR', 'RFI', 'RMI']),
+  "issuedCount": zod.number().min(updateQaqcMetricBodyIssuedCountMin),
+  "closedCount": zod.number().min(updateQaqcMetricBodyClosedCountMin),
+  "ageing0To15": zod.number().min(updateQaqcMetricBodyAgeing0To15Min),
+  "ageing15To45": zod.number().min(updateQaqcMetricBodyAgeing15To45Min),
+  "ageingOver45": zod.number().min(updateQaqcMetricBodyAgeingOver45Min),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "deletedAt": zod.coerce.date().nullish()
+})
+
+export const updateQaqcMetricResponseIssuedCountMin = 0;
+
+export const updateQaqcMetricResponseClosedCountMin = 0;
+
+export const updateQaqcMetricResponseAgeing0To15Min = 0;
+
+export const updateQaqcMetricResponseAgeing15To45Min = 0;
+
+export const updateQaqcMetricResponseAgeingOver45Min = 0;
+
+
+
+export const UpdateQaqcMetricResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "category": zod.enum(['External NCR', 'Internal NCR', 'RFI', 'RMI']),
+  "issuedCount": zod.number().min(updateQaqcMetricResponseIssuedCountMin),
+  "closedCount": zod.number().min(updateQaqcMetricResponseClosedCountMin),
+  "ageing0To15": zod.number().min(updateQaqcMetricResponseAgeing0To15Min),
+  "ageing15To45": zod.number().min(updateQaqcMetricResponseAgeing15To45Min),
+  "ageingOver45": zod.number().min(updateQaqcMetricResponseAgeingOver45Min),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
+  "variance": zod.number().optional(),
+  "pqi": zod.number().optional(),
+  "deletedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Soft-delete a metric entry
+ */
+export const DeleteQaqcMetricParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteQaqcMetricResponse = zod.void()
+
+
+/**
+ * @summary Submit a metric entry for review
+ */
+export const SubmitQaqcMetricParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const submitQaqcMetricResponseIssuedCountMin = 0;
+
+export const submitQaqcMetricResponseClosedCountMin = 0;
+
+export const submitQaqcMetricResponseAgeing0To15Min = 0;
+
+export const submitQaqcMetricResponseAgeing15To45Min = 0;
+
+export const submitQaqcMetricResponseAgeingOver45Min = 0;
+
+
+
+export const SubmitQaqcMetricResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "category": zod.enum(['External NCR', 'Internal NCR', 'RFI', 'RMI']),
+  "issuedCount": zod.number().min(submitQaqcMetricResponseIssuedCountMin),
+  "closedCount": zod.number().min(submitQaqcMetricResponseClosedCountMin),
+  "ageing0To15": zod.number().min(submitQaqcMetricResponseAgeing0To15Min),
+  "ageing15To45": zod.number().min(submitQaqcMetricResponseAgeing15To45Min),
+  "ageingOver45": zod.number().min(submitQaqcMetricResponseAgeingOver45Min),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
+  "variance": zod.number().optional(),
+  "pqi": zod.number().optional(),
+  "deletedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Review a metric entry
+ */
+export const ReviewQaqcMetricParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReviewQaqcMetricBody = zod.object({
+  "decision": zod.enum(['approve', 'send_back']),
+  "comments": zod.string().nullish()
+})
+
+export const reviewQaqcMetricResponseIssuedCountMin = 0;
+
+export const reviewQaqcMetricResponseClosedCountMin = 0;
+
+export const reviewQaqcMetricResponseAgeing0To15Min = 0;
+
+export const reviewQaqcMetricResponseAgeing15To45Min = 0;
+
+export const reviewQaqcMetricResponseAgeingOver45Min = 0;
+
+
+
+export const ReviewQaqcMetricResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "category": zod.enum(['External NCR', 'Internal NCR', 'RFI', 'RMI']),
+  "issuedCount": zod.number().min(reviewQaqcMetricResponseIssuedCountMin),
+  "closedCount": zod.number().min(reviewQaqcMetricResponseClosedCountMin),
+  "ageing0To15": zod.number().min(reviewQaqcMetricResponseAgeing0To15Min),
+  "ageing15To45": zod.number().min(reviewQaqcMetricResponseAgeing15To45Min),
+  "ageingOver45": zod.number().min(reviewQaqcMetricResponseAgeingOver45Min),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
+  "variance": zod.number().optional(),
+  "pqi": zod.number().optional(),
+  "deletedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary List material inspections
+ */
+export const listMaterialInspectionsQueryPageDefault = 1;
+
+export const listMaterialInspectionsQueryLimitDefault = 20;
+export const listMaterialInspectionsQueryLimitMax = 200;
+
+
+
+export const ListMaterialInspectionsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listMaterialInspectionsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listMaterialInspectionsQueryLimitMax).default(listMaterialInspectionsQueryLimitDefault)
+})
+
+export const listMaterialInspectionsResponseOneTotalMin = 0;
+
+
+
+export const listMaterialInspectionsResponseTwoItemsItemMirnTotalMin = 0;
+
+export const listMaterialInspectionsResponseTwoItemsItemOsdCountMin = 0;
+
+export const listMaterialInspectionsResponseTwoItemsItemApprovedMin = 0;
+
+export const listMaterialInspectionsResponseTwoItemsItemOnHoldMin = 0;
+
+export const listMaterialInspectionsResponseTwoItemsItemRejectedMin = 0;
+
+export const listMaterialInspectionsResponseTwoItemsItemHazardousMin = 0;
+
+export const listMaterialInspectionsResponseTwoItemsItemHandleWithCareMin = 0;
+
+
+
+export const ListMaterialInspectionsResponse = zod.object({
+  "total": zod.number().min(listMaterialInspectionsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "mirnTotal": zod.number().min(listMaterialInspectionsResponseTwoItemsItemMirnTotalMin),
+  "osdCount": zod.number().min(listMaterialInspectionsResponseTwoItemsItemOsdCountMin).optional(),
+  "approved": zod.number().min(listMaterialInspectionsResponseTwoItemsItemApprovedMin),
+  "onHold": zod.number().min(listMaterialInspectionsResponseTwoItemsItemOnHoldMin),
+  "rejected": zod.number().min(listMaterialInspectionsResponseTwoItemsItemRejectedMin),
+  "hazardous": zod.number().min(listMaterialInspectionsResponseTwoItemsItemHazardousMin),
+  "handleWithCare": zod.number().min(listMaterialInspectionsResponseTwoItemsItemHandleWithCareMin)
+}).describe('Status counts must reconcile exactly to mirnTotal.'))
+}))
+
+
+/**
+ * @summary Create a reconciled material inspection
+ */
+export const createMaterialInspectionBodyMirnTotalMin = 0;
+
+export const createMaterialInspectionBodyOsdCountMin = 0;
+
+export const createMaterialInspectionBodyApprovedMin = 0;
+
+export const createMaterialInspectionBodyOnHoldMin = 0;
+
+export const createMaterialInspectionBodyRejectedMin = 0;
+
+export const createMaterialInspectionBodyHazardousMin = 0;
+
+export const createMaterialInspectionBodyHandleWithCareMin = 0;
+
+
+
+export const CreateMaterialInspectionBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "mirnTotal": zod.number().min(createMaterialInspectionBodyMirnTotalMin),
+  "osdCount": zod.number().min(createMaterialInspectionBodyOsdCountMin).optional(),
+  "approved": zod.number().min(createMaterialInspectionBodyApprovedMin),
+  "onHold": zod.number().min(createMaterialInspectionBodyOnHoldMin),
+  "rejected": zod.number().min(createMaterialInspectionBodyRejectedMin),
+  "hazardous": zod.number().min(createMaterialInspectionBodyHazardousMin),
+  "handleWithCare": zod.number().min(createMaterialInspectionBodyHandleWithCareMin)
+}).describe('Status counts must reconcile exactly to mirnTotal.')
+
+export const createMaterialInspectionResponseMirnTotalMin = 0;
+
+export const createMaterialInspectionResponseOsdCountMin = 0;
+
+export const createMaterialInspectionResponseApprovedMin = 0;
+
+export const createMaterialInspectionResponseOnHoldMin = 0;
+
+export const createMaterialInspectionResponseRejectedMin = 0;
+
+export const createMaterialInspectionResponseHazardousMin = 0;
+
+export const createMaterialInspectionResponseHandleWithCareMin = 0;
+
+
+
+export const CreateMaterialInspectionResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "mirnTotal": zod.number().min(createMaterialInspectionResponseMirnTotalMin),
+  "osdCount": zod.number().min(createMaterialInspectionResponseOsdCountMin).optional(),
+  "approved": zod.number().min(createMaterialInspectionResponseApprovedMin),
+  "onHold": zod.number().min(createMaterialInspectionResponseOnHoldMin),
+  "rejected": zod.number().min(createMaterialInspectionResponseRejectedMin),
+  "hazardous": zod.number().min(createMaterialInspectionResponseHazardousMin),
+  "handleWithCare": zod.number().min(createMaterialInspectionResponseHandleWithCareMin)
+}).describe('Status counts must reconcile exactly to mirnTotal.')
+
+
+/**
+ * @summary Update and reconcile a material inspection
+ */
+export const UpdateMaterialInspectionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateMaterialInspectionBodyMirnTotalMin = 0;
+
+export const updateMaterialInspectionBodyOsdCountMin = 0;
+
+export const updateMaterialInspectionBodyApprovedMin = 0;
+
+export const updateMaterialInspectionBodyOnHoldMin = 0;
+
+export const updateMaterialInspectionBodyRejectedMin = 0;
+
+export const updateMaterialInspectionBodyHazardousMin = 0;
+
+export const updateMaterialInspectionBodyHandleWithCareMin = 0;
+
+
+
+export const UpdateMaterialInspectionBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "mirnTotal": zod.number().min(updateMaterialInspectionBodyMirnTotalMin),
+  "osdCount": zod.number().min(updateMaterialInspectionBodyOsdCountMin).optional(),
+  "approved": zod.number().min(updateMaterialInspectionBodyApprovedMin),
+  "onHold": zod.number().min(updateMaterialInspectionBodyOnHoldMin),
+  "rejected": zod.number().min(updateMaterialInspectionBodyRejectedMin),
+  "hazardous": zod.number().min(updateMaterialInspectionBodyHazardousMin),
+  "handleWithCare": zod.number().min(updateMaterialInspectionBodyHandleWithCareMin)
+}).describe('Status counts must reconcile exactly to mirnTotal.')
+
+export const updateMaterialInspectionResponseMirnTotalMin = 0;
+
+export const updateMaterialInspectionResponseOsdCountMin = 0;
+
+export const updateMaterialInspectionResponseApprovedMin = 0;
+
+export const updateMaterialInspectionResponseOnHoldMin = 0;
+
+export const updateMaterialInspectionResponseRejectedMin = 0;
+
+export const updateMaterialInspectionResponseHazardousMin = 0;
+
+export const updateMaterialInspectionResponseHandleWithCareMin = 0;
+
+
+
+export const UpdateMaterialInspectionResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "mirnTotal": zod.number().min(updateMaterialInspectionResponseMirnTotalMin),
+  "osdCount": zod.number().min(updateMaterialInspectionResponseOsdCountMin).optional(),
+  "approved": zod.number().min(updateMaterialInspectionResponseApprovedMin),
+  "onHold": zod.number().min(updateMaterialInspectionResponseOnHoldMin),
+  "rejected": zod.number().min(updateMaterialInspectionResponseRejectedMin),
+  "hazardous": zod.number().min(updateMaterialInspectionResponseHazardousMin),
+  "handleWithCare": zod.number().min(updateMaterialInspectionResponseHandleWithCareMin)
+}).describe('Status counts must reconcile exactly to mirnTotal.')
+
+
+/**
+ * @summary Soft-delete a material inspection
+ */
+export const DeleteMaterialInspectionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteMaterialInspectionResponse = zod.void()
+
+
+/**
+ * @summary List quality toolbox talks
+ */
+export const listQtbtEntriesQueryPageDefault = 1;
+
+export const listQtbtEntriesQueryLimitDefault = 20;
+export const listQtbtEntriesQueryLimitMax = 200;
+
+
+
+export const ListQtbtEntriesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQtbtEntriesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQtbtEntriesQueryLimitMax).default(listQtbtEntriesQueryLimitDefault)
+})
+
+export const listQtbtEntriesResponseOneTotalMin = 0;
+
+
+
+export const listQtbtEntriesResponseTwoItemsItemTalkCountMin = 0;
+
+export const listQtbtEntriesResponseTwoItemsItemAttendanceMin = 0;
+
+export const listQtbtEntriesResponseTwoItemsItemDurationMinutesMin = 0;
+
+
+
+export const ListQtbtEntriesResponse = zod.object({
+  "total": zod.number().min(listQtbtEntriesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "talkCount": zod.number().min(listQtbtEntriesResponseTwoItemsItemTalkCountMin),
+  "attendance": zod.number().min(listQtbtEntriesResponseTwoItemsItemAttendanceMin),
+  "durationMinutes": zod.number().min(listQtbtEntriesResponseTwoItemsItemDurationMinutesMin),
+  "cumulativeTalkCount": zod.number().optional()
+}))
+}))
+
+
+/**
+ * @summary Create a toolbox talk entry
+ */
+export const createQtbtEntryBodyTalkCountMin = 0;
+
+export const createQtbtEntryBodyAttendanceMin = 0;
+
+export const createQtbtEntryBodyDurationMinutesMin = 0;
+
+
+
+export const CreateQtbtEntryBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "talkCount": zod.number().min(createQtbtEntryBodyTalkCountMin),
+  "attendance": zod.number().min(createQtbtEntryBodyAttendanceMin),
+  "durationMinutes": zod.number().min(createQtbtEntryBodyDurationMinutesMin)
+})
+
+export const CreateQtbtEntryResponse = zod.void()
+
+
+/**
+ * @summary Update a toolbox talk entry
+ */
+export const UpdateQtbtEntryParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateQtbtEntryBodyTalkCountMin = 0;
+
+export const updateQtbtEntryBodyAttendanceMin = 0;
+
+export const updateQtbtEntryBodyDurationMinutesMin = 0;
+
+
+
+export const UpdateQtbtEntryBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "talkCount": zod.number().min(updateQtbtEntryBodyTalkCountMin),
+  "attendance": zod.number().min(updateQtbtEntryBodyAttendanceMin),
+  "durationMinutes": zod.number().min(updateQtbtEntryBodyDurationMinutesMin)
+})
+
+export const UpdateQtbtEntryResponse = zod.unknown()
+
+
+/**
+ * @summary Soft-delete a toolbox talk entry
+ */
+export const DeleteQtbtEntryParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteQtbtEntryResponse = zod.void()
+
+
+/**
+ * @summary List customer satisfaction entries
+ */
+export const listCustomerSatisfactionEntriesQueryPageDefault = 1;
+
+export const listCustomerSatisfactionEntriesQueryLimitDefault = 20;
+export const listCustomerSatisfactionEntriesQueryLimitMax = 200;
+
+
+
+export const ListCustomerSatisfactionEntriesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listCustomerSatisfactionEntriesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listCustomerSatisfactionEntriesQueryLimitMax).default(listCustomerSatisfactionEntriesQueryLimitDefault)
+})
+
+export const listCustomerSatisfactionEntriesResponseOneTotalMin = 0;
+
+
+
+export const listCustomerSatisfactionEntriesResponseTwoItemsItemServiceRatingsItemMax = 5;
+
+export const listCustomerSatisfactionEntriesResponseTwoItemsItemServiceRatingsMin = 6;
+export const listCustomerSatisfactionEntriesResponseTwoItemsItemServiceRatingsMax = 6;
+
+
+
+export const ListCustomerSatisfactionEntriesResponse = zod.object({
+  "total": zod.number().min(listCustomerSatisfactionEntriesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "serviceRatings": zod.array(zod.number().min(1).max(listCustomerSatisfactionEntriesResponseTwoItemsItemServiceRatingsItemMax)).min(listCustomerSatisfactionEntriesResponseTwoItemsItemServiceRatingsMin).max(listCustomerSatisfactionEntriesResponseTwoItemsItemServiceRatingsMax),
+  "outcomes": zod.array(zod.enum(['Yes', 'No', 'Partially'])).optional(),
+  "feedback": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary Create customer satisfaction entry
+ */
+export const createCustomerSatisfactionEntryBodyServiceRatingsItemMax = 5;
+
+export const createCustomerSatisfactionEntryBodyServiceRatingsMin = 6;
+export const createCustomerSatisfactionEntryBodyServiceRatingsMax = 6;
+
+
+
+export const CreateCustomerSatisfactionEntryBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "serviceRatings": zod.array(zod.number().min(1).max(createCustomerSatisfactionEntryBodyServiceRatingsItemMax)).min(createCustomerSatisfactionEntryBodyServiceRatingsMin).max(createCustomerSatisfactionEntryBodyServiceRatingsMax),
+  "outcomes": zod.array(zod.enum(['Yes', 'No', 'Partially'])).optional(),
+  "feedback": zod.string().nullish()
+})
+
+export const CreateCustomerSatisfactionEntryResponse = zod.void()
+
+
+/**
+ * @summary Update customer satisfaction entry
+ */
+export const UpdateCustomerSatisfactionEntryParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateCustomerSatisfactionEntryBodyServiceRatingsItemMax = 5;
+
+export const updateCustomerSatisfactionEntryBodyServiceRatingsMin = 6;
+export const updateCustomerSatisfactionEntryBodyServiceRatingsMax = 6;
+
+
+
+export const UpdateCustomerSatisfactionEntryBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "serviceRatings": zod.array(zod.number().min(1).max(updateCustomerSatisfactionEntryBodyServiceRatingsItemMax)).min(updateCustomerSatisfactionEntryBodyServiceRatingsMin).max(updateCustomerSatisfactionEntryBodyServiceRatingsMax),
+  "outcomes": zod.array(zod.enum(['Yes', 'No', 'Partially'])).optional(),
+  "feedback": zod.string().nullish()
+})
+
+export const UpdateCustomerSatisfactionEntryResponse = zod.unknown()
+
+
+/**
+ * @summary Soft-delete customer satisfaction entry
+ */
+export const DeleteCustomerSatisfactionEntryParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteCustomerSatisfactionEntryResponse = zod.void()
+
+
+/**
+ * @summary List document governance entries
+ */
+export const listDocumentGovernanceLogQueryPageDefault = 1;
+
+export const listDocumentGovernanceLogQueryLimitDefault = 20;
+export const listDocumentGovernanceLogQueryLimitMax = 200;
+
+
+
+export const ListDocumentGovernanceLogQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listDocumentGovernanceLogQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listDocumentGovernanceLogQueryLimitMax).default(listDocumentGovernanceLogQueryLimitDefault)
+})
+
+export const listDocumentGovernanceLogResponseOneTotalMin = 0;
+
+
+
+export const listDocumentGovernanceLogResponseTwoItemsItemReviewDaysMin = 0;
+
+export const listDocumentGovernanceLogResponseTwoItemsItemPendingDaysMin = 0;
+
+export const listDocumentGovernanceLogResponseTwoItemsItemCorrespondenceCountMin = 0;
+
+
+
+export const ListDocumentGovernanceLogResponse = zod.object({
+  "total": zod.number().min(listDocumentGovernanceLogResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "date": zod.coerce.date(),
+  "disciplineId": zod.string(),
+  "documentType": zod.enum(['Submittal', 'Drawing', 'Correspondence']),
+  "status": zod.enum(['Approved', 'Resubmit', 'Rejected', 'Under Review']),
+  "reviewDays": zod.number().min(listDocumentGovernanceLogResponseTwoItemsItemReviewDaysMin).optional(),
+  "pendingWith": zod.enum(['Client', 'Algihaz', 'Supplier']),
+  "pendingDays": zod.number().min(listDocumentGovernanceLogResponseTwoItemsItemPendingDaysMin).optional(),
+  "correspondenceCount": zod.number().min(listDocumentGovernanceLogResponseTwoItemsItemCorrespondenceCountMin).optional()
+}))
+}))
+
+
+/**
+ * @summary Create document governance entry
+ */
+export const createDocumentGovernanceEntryBodyReviewDaysMin = 0;
+
+export const createDocumentGovernanceEntryBodyPendingDaysMin = 0;
+
+export const createDocumentGovernanceEntryBodyCorrespondenceCountMin = 0;
+
+
+
+export const CreateDocumentGovernanceEntryBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "date": zod.coerce.date(),
+  "disciplineId": zod.string(),
+  "documentType": zod.enum(['Submittal', 'Drawing', 'Correspondence']),
+  "status": zod.enum(['Approved', 'Resubmit', 'Rejected', 'Under Review']),
+  "reviewDays": zod.number().min(createDocumentGovernanceEntryBodyReviewDaysMin).optional(),
+  "pendingWith": zod.enum(['Client', 'Algihaz', 'Supplier']),
+  "pendingDays": zod.number().min(createDocumentGovernanceEntryBodyPendingDaysMin).optional(),
+  "correspondenceCount": zod.number().min(createDocumentGovernanceEntryBodyCorrespondenceCountMin).optional()
+})
+
+export const CreateDocumentGovernanceEntryResponse = zod.void()
+
+
+/**
+ * @summary Update document governance entry
+ */
+export const UpdateDocumentGovernanceEntryParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateDocumentGovernanceEntryBodyReviewDaysMin = 0;
+
+export const updateDocumentGovernanceEntryBodyPendingDaysMin = 0;
+
+export const updateDocumentGovernanceEntryBodyCorrespondenceCountMin = 0;
+
+
+
+export const UpdateDocumentGovernanceEntryBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "date": zod.coerce.date(),
+  "disciplineId": zod.string(),
+  "documentType": zod.enum(['Submittal', 'Drawing', 'Correspondence']),
+  "status": zod.enum(['Approved', 'Resubmit', 'Rejected', 'Under Review']),
+  "reviewDays": zod.number().min(updateDocumentGovernanceEntryBodyReviewDaysMin).optional(),
+  "pendingWith": zod.enum(['Client', 'Algihaz', 'Supplier']),
+  "pendingDays": zod.number().min(updateDocumentGovernanceEntryBodyPendingDaysMin).optional(),
+  "correspondenceCount": zod.number().min(updateDocumentGovernanceEntryBodyCorrespondenceCountMin).optional()
+})
+
+export const UpdateDocumentGovernanceEntryResponse = zod.unknown()
+
+
+/**
+ * @summary Soft-delete document governance entry
+ */
+export const DeleteDocumentGovernanceEntryParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteDocumentGovernanceEntryResponse = zod.void()
+
+
+/**
+ * @summary List quality assessment briefs
+ */
+export const listQualityBriefsQueryPageDefault = 1;
+
+export const listQualityBriefsQueryLimitDefault = 20;
+export const listQualityBriefsQueryLimitMax = 200;
+
+
+
+export const ListQualityBriefsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQualityBriefsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQualityBriefsQueryLimitMax).default(listQualityBriefsQueryLimitDefault)
+})
+
+export const listQualityBriefsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQualityBriefsResponse = zod.object({
+  "total": zod.number().min(listQualityBriefsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "narrative": zod.string(),
+  "aiDraft": zod.string().nullish(),
+  "aiReviewDecision": zod.union([zod.literal('Accept'),zod.literal('Edit'),zod.literal('Reject'),zod.literal(null)]).nullish(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "reviewComments": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary Create quality assessment brief
+ */
+export const CreateQualityBriefBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "narrative": zod.string(),
+  "aiDraft": zod.string().nullish(),
+  "aiReviewDecision": zod.union([zod.literal('Accept'),zod.literal('Edit'),zod.literal('Reject'),zod.literal(null)]).nullish(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "reviewComments": zod.string().nullish()
+})
+
+export const CreateQualityBriefResponse = zod.void()
+
+
+/**
+ * @summary Update quality assessment brief
+ */
+export const UpdateQualityBriefParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateQualityBriefBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "narrative": zod.string(),
+  "aiDraft": zod.string().nullish(),
+  "aiReviewDecision": zod.union([zod.literal('Accept'),zod.literal('Edit'),zod.literal('Reject'),zod.literal(null)]).nullish(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "reviewComments": zod.string().nullish()
+})
+
+export const UpdateQualityBriefResponse = zod.unknown()
+
+
+/**
+ * @summary Generate a human-reviewed quality brief draft
+ */
+export const DraftQualityBriefWithAiParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DraftQualityBriefWithAiResponse = zod.object({
+  "draft": zod.string(),
+  "suggestions": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Submit quality brief
+ */
+export const SubmitQualityBriefParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SubmitQualityBriefResponse = zod.unknown()
+
+
+/**
+ * @summary Review quality brief
+ */
+export const ReviewQualityBriefParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReviewQualityBriefBody = zod.object({
+  "decision": zod.enum(['approve', 'send_back']),
+  "comments": zod.string().nullish()
+})
+
+export const ReviewQualityBriefResponse = zod.unknown()
+
+
+/**
+ * @summary Get zero-denominator-safe composite PQI
+ */
+export const getQaqcPqiQueryPeriodRegExp = new RegExp('^[0-9]{4}-(0[1-9]|1[0-2])$');
+
+
+export const GetQaqcPqiQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "period": zod.coerce.string().regex(getQaqcPqiQueryPeriodRegExp).optional()
+})
+
+export const GetQaqcPqiResponse = zod.object({
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "pqi": zod.number(),
+  "categories": zod.array(zod.object({
+  "category": zod.string(),
+  "closureRate": zod.number(),
+  "variance": zod.number(),
+  "score": zod.number()
+}))
+})
+
+
+/**
+ * @summary Get QA/QC dashboard
+ */
+export const getQaqcDashboardQueryPeriodRegExp = new RegExp('^[0-9]{4}-(0[1-9]|1[0-2])$');
+
+
+export const GetQaqcDashboardQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "period": zod.coerce.string().regex(getQaqcDashboardQueryPeriodRegExp).optional(),
+  "category": zod.coerce.string().optional()
+})
+
+export const GetQaqcDashboardResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "metrics": zod.record(zod.string(), zod.unknown()),
+  "series": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+
+
+/**
+ * @summary Export monthly QA/QC report
+ */
+export const exportQaqcMonthlyReportQueryPeriodRegExp = new RegExp('^[0-9]{4}-(0[1-9]|1[0-2])$');
+
+
+export const ExportQaqcMonthlyReportQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "period": zod.coerce.string().regex(exportQaqcMonthlyReportQueryPeriodRegExp).optional(),
+  "format": zod.enum(['csv', 'xlsx'])
+})
+
+export const ExportQaqcMonthlyReportResponse = zod.object({
+  "delivery": zod.enum(['download', 'email']),
+  "fileName": zod.string(),
+  "downloadUrl": zod.string().nullish(),
+  "message": zod.string().nullish()
+})
+
+
+/**
+ * @summary Export document governance report
+ */
+export const exportDocumentGovernanceReportQueryPeriodRegExp = new RegExp('^[0-9]{4}-(0[1-9]|1[0-2])$');
+
+
+export const ExportDocumentGovernanceReportQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "period": zod.coerce.string().regex(exportDocumentGovernanceReportQueryPeriodRegExp).optional(),
+  "format": zod.enum(['csv', 'xlsx'])
+})
+
+export const ExportDocumentGovernanceReportResponse = zod.object({
+  "delivery": zod.enum(['download', 'email']),
+  "fileName": zod.string(),
+  "downloadUrl": zod.string().nullish(),
+  "message": zod.string().nullish()
+})
+
+
+/**
+ * @summary Download metrics import template
+ */
+export const DownloadQaqcMetricsTemplateQueryParams = zod.object({
+  "format": zod.enum(['csv', 'xlsx'])
+})
+
+export const DownloadQaqcMetricsTemplateResponse = zod.object({
+  "delivery": zod.enum(['download', 'email']),
+  "fileName": zod.string(),
+  "downloadUrl": zod.string().nullish(),
+  "message": zod.string().nullish()
+})
+
+
+/**
+ * @summary Bulk upsert metric rows
+ */
+export const importQaqcMetricsBodyIssuedCountMin = 0;
+
+export const importQaqcMetricsBodyClosedCountMin = 0;
+
+export const importQaqcMetricsBodyAgeing0To15Min = 0;
+
+export const importQaqcMetricsBodyAgeing15To45Min = 0;
+
+export const importQaqcMetricsBodyAgeingOver45Min = 0;
+
+
+
+export const ImportQaqcMetricsBodyItem = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "category": zod.enum(['External NCR', 'Internal NCR', 'RFI', 'RMI']),
+  "issuedCount": zod.number().min(importQaqcMetricsBodyIssuedCountMin),
+  "closedCount": zod.number().min(importQaqcMetricsBodyClosedCountMin),
+  "ageing0To15": zod.number().min(importQaqcMetricsBodyAgeing0To15Min),
+  "ageing15To45": zod.number().min(importQaqcMetricsBodyAgeing15To45Min),
+  "ageingOver45": zod.number().min(importQaqcMetricsBodyAgeingOver45Min),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "deletedAt": zod.coerce.date().nullish()
+})
+export const ImportQaqcMetricsBody = zod.array(ImportQaqcMetricsBodyItem)
+
+export const ImportQaqcMetricsResponse = zod.object({
+  "created": zod.number(),
+  "updated": zod.number(),
+  "rejected": zod.number(),
+  "errors": zod.array(zod.object({
+  "error": zod.string()
+})).optional()
+})
+
+
+/**
+ * @summary List current user's pending approvals
+ */
+export const listQaqcApprovalsQueryPageDefault = 1;
+
+export const listQaqcApprovalsQueryLimitDefault = 20;
+export const listQaqcApprovalsQueryLimitMax = 200;
+
+
+
+export const ListQaqcApprovalsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQaqcApprovalsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcApprovalsQueryLimitMax).default(listQaqcApprovalsQueryLimitDefault)
+})
+
+export const listQaqcApprovalsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcApprovalsResponse = zod.object({
+  "total": zod.number().min(listQaqcApprovalsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "title": zod.string(),
+  "submittedAt": zod.coerce.date(),
+  "delegatedFrom": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary Suggest improved field wording
+ */
+export const RephraseQaqcFieldBody = zod.object({
+  "field": zod.string(),
+  "text": zod.string()
+})
+
+export const RephraseQaqcFieldResponse = zod.object({
+  "suggestion": zod.string()
+})
+
+
+/**
+ * @summary Extract a draft transaction from a prompt
+ */
+export const PromptToQaqcTransactionBody = zod.object({
+  "prompt": zod.string()
+})
+
+export const PromptToQaqcTransactionResponse = zod.object({
+  "extracted": zod.record(zod.string(), zod.unknown()),
+  "missing": zod.array(zod.object({
+  "field": zod.string(),
+  "question": zod.string(),
+  "options": zod.array(zod.string())
+})),
+  "sessionId": zod.string()
+})
+
+
+/**
+ * @summary Answer a prompt clarification
+ */
+export const AnswerQaqcPromptQuestionParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const AnswerQaqcPromptQuestionBody = zod.object({
+  "field": zod.string(),
+  "value": zod.unknown()
+})
+
+export const AnswerQaqcPromptQuestionResponse = zod.object({
+  "extracted": zod.record(zod.string(), zod.unknown()),
+  "missing": zod.array(zod.object({
+  "field": zod.string(),
+  "question": zod.string(),
+  "options": zod.array(zod.string())
+})),
+  "sessionId": zod.string()
+})
+
+
+/**
+ * @summary List record evidence
+ */
+export const listQaqcEvidenceQueryPageDefault = 1;
+
+export const listQaqcEvidenceQueryLimitDefault = 20;
+export const listQaqcEvidenceQueryLimitMax = 200;
+
+
+
+export const ListQaqcEvidenceQueryParams = zod.object({
+  "recordType": zod.coerce.string(),
+  "recordId": zod.coerce.string(),
+  "page": zod.coerce.number().min(1).default(listQaqcEvidenceQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcEvidenceQueryLimitMax).default(listQaqcEvidenceQueryLimitDefault)
+})
+
+export const listQaqcEvidenceResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcEvidenceResponse = zod.object({
+  "total": zod.number().min(listQaqcEvidenceResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'failed', 'deleted']),
+  "clientReference": zod.string(),
+  "storageUrl": zod.string().nullish(),
+  "gpsLat": zod.number().nullish(),
+  "gpsLng": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional()
+}))
+}))
+
+
+/**
+ * @summary Create evidence upload intent
+ */
+
+
+
+export const CreateQaqcEvidenceIntentBody = zod.object({
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().min(1),
+  "clientReference": zod.string()
+})
+
+export const CreateQaqcEvidenceIntentResponse = zod.object({
+  "id": zod.string(),
+  "uploadUrl": zod.string()
+})
+
+
+/**
+ * @summary Confirm evidence storage upload
+ */
+export const ConfirmQaqcEvidenceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ConfirmQaqcEvidenceResponse = zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'failed', 'deleted']),
+  "clientReference": zod.string(),
+  "storageUrl": zod.string().nullish(),
+  "gpsLat": zod.number().nullish(),
+  "gpsLng": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Soft-delete evidence
+ */
+export const DeleteQaqcEvidenceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteQaqcEvidenceResponse = zod.void()
+
+
+/**
+ * @summary List workspace roles
+ */
+export const listQaqcRolesQueryPageDefault = 1;
+
+export const listQaqcRolesQueryLimitDefault = 20;
+export const listQaqcRolesQueryLimitMax = 200;
+
+
+
+export const ListQaqcRolesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQaqcRolesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcRolesQueryLimitMax).default(listQaqcRolesQueryLimitDefault)
+})
+
+export const listQaqcRolesResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcRolesResponse = zod.object({
+  "total": zod.number().min(listQaqcRolesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+}))
+}))
+
+
+/**
+ * @summary Create workspace role
+ */
+export const CreateQaqcRoleBody = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+})
+
+export const CreateQaqcRoleResponse = zod.void()
+
+
+/**
+ * @summary Update workspace role
+ */
+export const UpdateQaqcRoleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateQaqcRoleBody = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+})
+
+export const UpdateQaqcRoleResponse = zod.unknown()
+
+
+/**
+ * @summary List workspace users
+ */
+export const listQaqcUsersQueryPageDefault = 1;
+
+export const listQaqcUsersQueryLimitDefault = 20;
+export const listQaqcUsersQueryLimitMax = 200;
+
+
+
+export const ListQaqcUsersQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQaqcUsersQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcUsersQueryLimitMax).default(listQaqcUsersQueryLimitDefault)
+})
+
+export const listQaqcUsersResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcUsersResponse = zod.object({
+  "total": zod.number().min(listQaqcUsersResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "username": zod.string(),
+  "email": zod.string().nullish(),
+  "platformRole": zod.string(),
+  "workspaceRoles": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+})),
+  "status": zod.enum(['Not Requested', 'Active', 'Deactivated']),
+  "lastAccessAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Assign role and scope
+ */
+export const AssignQaqcUserRoleParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const AssignQaqcUserRoleBody = zod.object({
+  "roleId": zod.string(),
+  "scopeType": zod.enum(['organization', 'business_unit', 'project']),
+  "scopeIds": zod.array(zod.string())
+})
+
+export const AssignQaqcUserRoleResponse = zod.unknown()
+
+
+/**
+ * @summary List pending access requests
+ */
+export const listQaqcAccessQueueQueryPageDefault = 1;
+
+export const listQaqcAccessQueueQueryLimitDefault = 20;
+export const listQaqcAccessQueueQueryLimitMax = 200;
+
+
+
+export const ListQaqcAccessQueueQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQaqcAccessQueueQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcAccessQueueQueryLimitMax).default(listQaqcAccessQueueQueryLimitDefault)
+})
+
+export const listQaqcAccessQueueResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcAccessQueueResponse = zod.object({
+  "total": zod.number().min(listQaqcAccessQueueResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "requestedRoleId": zod.string(),
+  "scope": zod.object({
+  "roleId": zod.string(),
+  "scopeType": zod.enum(['organization', 'business_unit', 'project']),
+  "scopeIds": zod.array(zod.string())
+}).optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "requestedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Decide an access request
+ */
+export const DecideQaqcAccessRequestParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DecideQaqcAccessRequestBody = zod.object({
+  "decision": zod.enum(['approve', 'reject']),
+  "comments": zod.string().nullish()
+})
+
+export const DecideQaqcAccessRequestResponse = zod.unknown()
+
+
+/**
+ * @summary List delegations
+ */
+export const listQaqcDelegationsQueryPageDefault = 1;
+
+export const listQaqcDelegationsQueryLimitDefault = 20;
+export const listQaqcDelegationsQueryLimitMax = 200;
+
+
+
+export const ListQaqcDelegationsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQaqcDelegationsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcDelegationsQueryLimitMax).default(listQaqcDelegationsQueryLimitDefault)
+})
+
+export const listQaqcDelegationsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcDelegationsResponse = zod.object({
+  "total": zod.number().min(listQaqcDelegationsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "delegatorId": zod.string(),
+  "delegateId": zod.string(),
+  "scope": zod.string(),
+  "approvalTypes": zod.array(zod.string()).optional(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['pending', 'active', 'expired', 'revoked']),
+  "revokedAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Create delegation
+ */
+export const CreateQaqcDelegationBody = zod.object({
+  "id": zod.string(),
+  "delegatorId": zod.string(),
+  "delegateId": zod.string(),
+  "scope": zod.string(),
+  "approvalTypes": zod.array(zod.string()).optional(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['pending', 'active', 'expired', 'revoked']),
+  "revokedAt": zod.coerce.date().nullish()
+})
+
+export const CreateQaqcDelegationResponse = zod.void()
+
+
+/**
+ * @summary Revoke delegation
+ */
+export const RevokeQaqcDelegationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RevokeQaqcDelegationResponse = zod.void()
+
+
+/**
+ * @summary List escalation rules
+ */
+export const listQaqcEscalationRulesResponseOneTotalMin = 0;
+
+
+
+export const listQaqcEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin = 0;
+
+
+
+
+export const ListQaqcEscalationRulesResponse = zod.object({
+  "total": zod.number().min(listQaqcEscalationRulesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "triggerType": zod.string(),
+  "priority": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "slaWorkingDays": zod.number().min(listQaqcEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin),
+  "recipientRoles": zod.array(zod.string()),
+  "repeatCadenceDays": zod.number().min(1),
+  "enabled": zod.boolean()
+}))
+}))
+
+
+/**
+ * @summary Replace escalation rules
+ */
+export const updateQaqcEscalationRulesBodySlaWorkingDaysMin = 0;
+
+
+
+
+export const UpdateQaqcEscalationRulesBodyItem = zod.object({
+  "id": zod.string(),
+  "triggerType": zod.string(),
+  "priority": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "slaWorkingDays": zod.number().min(updateQaqcEscalationRulesBodySlaWorkingDaysMin),
+  "recipientRoles": zod.array(zod.string()),
+  "repeatCadenceDays": zod.number().min(1),
+  "enabled": zod.boolean()
+})
+export const UpdateQaqcEscalationRulesBody = zod.array(UpdateQaqcEscalationRulesBodyItem)
+
+export const UpdateQaqcEscalationRulesResponse = zod.unknown()
+
+
+/**
+ * @summary Get AI settings
+ */
+
+
+
+export const GetQaqcAiSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "features": zod.record(zod.string(), zod.boolean()),
+  "provider": zod.string(),
+  "model": zod.string(),
+  "timeoutSeconds": zod.number().min(1),
+  "stripPersonalData": zod.boolean().optional(),
+  "retentionDays": zod.number().optional(),
+  "monthlyQuota": zod.number().optional()
+})
+
+
+/**
+ * @summary Update AI settings
+ */
+
+
+
+export const UpdateQaqcAiSettingsBody = zod.object({
+  "enabled": zod.boolean(),
+  "features": zod.record(zod.string(), zod.boolean()),
+  "provider": zod.string(),
+  "model": zod.string(),
+  "timeoutSeconds": zod.number().min(1),
+  "stripPersonalData": zod.boolean().optional(),
+  "retentionDays": zod.number().optional(),
+  "monthlyQuota": zod.number().optional()
+})
+
+export const UpdateQaqcAiSettingsResponse = zod.unknown()
+
+
+/**
+ * @summary List immutable workspace audit log
+ */
+export const listQaqcAuditLogQueryPageDefault = 1;
+
+export const listQaqcAuditLogQueryLimitDefault = 20;
+export const listQaqcAuditLogQueryLimitMax = 200;
+
+
+
+export const ListQaqcAuditLogQueryParams = zod.object({
+  "from": zod.date().optional(),
+  "to": zod.date().optional(),
+  "actorId": zod.coerce.string().optional(),
+  "action": zod.coerce.string().optional(),
+  "page": zod.coerce.number().min(1).default(listQaqcAuditLogQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcAuditLogQueryLimitMax).default(listQaqcAuditLogQueryLimitDefault)
+})
+
+export const listQaqcAuditLogResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcAuditLogResponse = zod.object({
+  "total": zod.number().min(listQaqcAuditLogResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "actorId": zod.string(),
+  "delegatedForId": zod.string().nullish(),
+  "action": zod.string(),
+  "entityType": zod.string(),
+  "entityId": zod.string(),
+  "before": zod.record(zod.string(), zod.unknown()).nullish(),
+  "after": zod.record(zod.string(), zod.unknown()).nullish(),
+  "ipAddress": zod.string().nullish(),
+  "occurredAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary List notification templates
+ */
+export const listQaqcNotificationTemplatesQueryPageDefault = 1;
+
+export const listQaqcNotificationTemplatesQueryLimitDefault = 20;
+export const listQaqcNotificationTemplatesQueryLimitMax = 200;
+
+
+
+export const ListQaqcNotificationTemplatesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQaqcNotificationTemplatesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcNotificationTemplatesQueryLimitMax).default(listQaqcNotificationTemplatesQueryLimitDefault)
+})
+
+export const listQaqcNotificationTemplatesResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcNotificationTemplatesResponse = zod.object({
+  "total": zod.number().min(listQaqcNotificationTemplatesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "key": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "channels": zod.array(zod.enum(['in_app', 'email', 'push', 'sms'])),
+  "mergeFields": zod.array(zod.string()).optional(),
+  "enabled": zod.boolean()
+}))
+}))
+
+
+/**
+ * @summary Update notification template
+ */
+export const UpdateQaqcNotificationTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateQaqcNotificationTemplateBody = zod.object({
+  "id": zod.string(),
+  "key": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "channels": zod.array(zod.enum(['in_app', 'email', 'push', 'sms'])),
+  "mergeFields": zod.array(zod.string()).optional(),
+  "enabled": zod.boolean()
+})
+
+export const UpdateQaqcNotificationTemplateResponse = zod.unknown()
+
+
+/**
+ * @summary List current user's notifications
+ */
+export const listQaqcNotificationsQueryPageDefault = 1;
+
+export const listQaqcNotificationsQueryLimitDefault = 20;
+export const listQaqcNotificationsQueryLimitMax = 200;
+
+
+
+export const ListQaqcNotificationsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listQaqcNotificationsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcNotificationsQueryLimitMax).default(listQaqcNotificationsQueryLimitDefault)
+})
+
+export const listQaqcNotificationsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListQaqcNotificationsResponse = zod.object({
+  "total": zod.number().min(listQaqcNotificationsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.string(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "critical": zod.boolean(),
+  "read": zod.boolean(),
+  "recordType": zod.string().nullish(),
+  "recordId": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Mark notification read
+ */
+export const MarkQaqcNotificationReadParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const MarkQaqcNotificationReadResponse = zod.void()
+
+
+/**
+ * @summary Get cacheable lessons reference snapshot
+ */
+export const GetLessonsReferenceDataQueryParams = zod.object({
+  "since": zod.date().optional()
+})
+
+export const GetLessonsReferenceDataResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "businessUnit": zod.string(),
+  "status": zod.string(),
+  "location": zod.string().nullish()
+})),
+  "disciplines": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string().nullish(),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})),
+  "categorisation": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string().nullish(),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+}))
+})
+
+
+/**
+ * @summary List lesson learned forms
+ */
+export const listLessonFormsQueryPageDefault = 1;
+
+export const listLessonFormsQueryLimitDefault = 20;
+export const listLessonFormsQueryLimitMax = 200;
+
+
+
+export const ListLessonFormsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listLessonFormsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listLessonFormsQueryLimitMax).default(listLessonFormsQueryLimitDefault)
+})
+
+export const listLessonFormsResponseOneTotalMin = 0;
+
+
+
+export const listLessonFormsResponseTwoItemsItemRepeatCountMin = 0;
+
+export const listLessonFormsResponseTwoItemsItemGpsLatMin = -90;
+export const listLessonFormsResponseTwoItemsItemGpsLatMax = 90;
+
+export const listLessonFormsResponseTwoItemsItemGpsLngMin = -180;
+export const listLessonFormsResponseTwoItemsItemGpsLngMax = 180;
+
+
+
+
+export const ListLessonFormsResponse = zod.object({
+  "total": zod.number().min(listLessonFormsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "referenceNumber": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "disciplineId": zod.string(),
+  "categorisationId": zod.string(),
+  "issueCategory": zod.enum(['Minor', 'Moderate', 'Major']),
+  "impact": zod.enum(['Positive', 'Negative']),
+  "description": zod.string(),
+  "rootCause": zod.string(),
+  "correction": zod.string(),
+  "correctiveAction": zod.string(),
+  "isRepeatedIssue": zod.boolean().optional(),
+  "repeatCount": zod.number().min(listLessonFormsResponseTwoItemsItemRepeatCountMin).optional(),
+  "repeatLocation": zod.string().nullish(),
+  "capturedAt": zod.coerce.date(),
+  "gpsLat": zod.number().min(listLessonFormsResponseTwoItemsItemGpsLatMin).max(listLessonFormsResponseTwoItemsItemGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(listLessonFormsResponseTwoItemsItemGpsLngMin).max(listLessonFormsResponseTwoItemsItemGpsLngMax).nullish(),
+  "creatorId": zod.string().optional(),
+  "approverId": zod.string().nullish(),
+  "version": zod.number().min(1),
+  "conflictFlag": zod.boolean(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "remarks": zod.string().nullish(),
+  "photos": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'failed', 'deleted']),
+  "clientReference": zod.string(),
+  "storageUrl": zod.string().nullish(),
+  "gpsLat": zod.number().nullish(),
+  "gpsLng": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional()
+})).optional()
+}))
+}))
+
+
+/**
+ * @summary Create lesson learned form
+ */
+export const createLessonFormBodyRepeatCountMin = 0;
+
+export const createLessonFormBodyGpsLatMin = -90;
+export const createLessonFormBodyGpsLatMax = 90;
+
+export const createLessonFormBodyGpsLngMin = -180;
+export const createLessonFormBodyGpsLngMax = 180;
+
+
+
+
+export const CreateLessonFormBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "disciplineId": zod.string(),
+  "categorisationId": zod.string(),
+  "issueCategory": zod.enum(['Minor', 'Moderate', 'Major']),
+  "impact": zod.enum(['Positive', 'Negative']),
+  "description": zod.string(),
+  "rootCause": zod.string(),
+  "correction": zod.string(),
+  "correctiveAction": zod.string(),
+  "isRepeatedIssue": zod.boolean().optional(),
+  "repeatCount": zod.number().min(createLessonFormBodyRepeatCountMin).optional(),
+  "repeatLocation": zod.string().nullish(),
+  "gpsLat": zod.number().min(createLessonFormBodyGpsLatMin).max(createLessonFormBodyGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(createLessonFormBodyGpsLngMin).max(createLessonFormBodyGpsLngMax).nullish(),
+  "creatorId": zod.string().optional(),
+  "approverId": zod.string().nullish(),
+  "version": zod.number().min(1),
+  "conflictFlag": zod.boolean(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "remarks": zod.string().nullish(),
+  "photos": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'failed', 'deleted']),
+  "clientReference": zod.string(),
+  "storageUrl": zod.string().nullish(),
+  "gpsLat": zod.number().nullish(),
+  "gpsLng": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional()
+})).optional()
+})
+
+export const CreateLessonFormResponse = zod.void()
+
+
+/**
+ * @summary Get lesson learned form
+ */
+export const GetLessonFormParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const getLessonFormResponseRepeatCountMin = 0;
+
+export const getLessonFormResponseGpsLatMin = -90;
+export const getLessonFormResponseGpsLatMax = 90;
+
+export const getLessonFormResponseGpsLngMin = -180;
+export const getLessonFormResponseGpsLngMax = 180;
+
+
+
+
+export const GetLessonFormResponse = zod.object({
+  "id": zod.string(),
+  "referenceNumber": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "disciplineId": zod.string(),
+  "categorisationId": zod.string(),
+  "issueCategory": zod.enum(['Minor', 'Moderate', 'Major']),
+  "impact": zod.enum(['Positive', 'Negative']),
+  "description": zod.string(),
+  "rootCause": zod.string(),
+  "correction": zod.string(),
+  "correctiveAction": zod.string(),
+  "isRepeatedIssue": zod.boolean().optional(),
+  "repeatCount": zod.number().min(getLessonFormResponseRepeatCountMin).optional(),
+  "repeatLocation": zod.string().nullish(),
+  "capturedAt": zod.coerce.date(),
+  "gpsLat": zod.number().min(getLessonFormResponseGpsLatMin).max(getLessonFormResponseGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(getLessonFormResponseGpsLngMin).max(getLessonFormResponseGpsLngMax).nullish(),
+  "creatorId": zod.string().optional(),
+  "approverId": zod.string().nullish(),
+  "version": zod.number().min(1),
+  "conflictFlag": zod.boolean(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "remarks": zod.string().nullish(),
+  "photos": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'failed', 'deleted']),
+  "clientReference": zod.string(),
+  "storageUrl": zod.string().nullish(),
+  "gpsLat": zod.number().nullish(),
+  "gpsLng": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional()
+})).optional()
+})
+
+
+/**
+ * @summary Update lesson learned form
+ */
+export const UpdateLessonFormParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateLessonFormBodyRepeatCountMin = 0;
+
+export const updateLessonFormBodyGpsLatMin = -90;
+export const updateLessonFormBodyGpsLatMax = 90;
+
+export const updateLessonFormBodyGpsLngMin = -180;
+export const updateLessonFormBodyGpsLngMax = 180;
+
+
+
+
+export const UpdateLessonFormBody = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "disciplineId": zod.string(),
+  "categorisationId": zod.string(),
+  "issueCategory": zod.enum(['Minor', 'Moderate', 'Major']),
+  "impact": zod.enum(['Positive', 'Negative']),
+  "description": zod.string(),
+  "rootCause": zod.string(),
+  "correction": zod.string(),
+  "correctiveAction": zod.string(),
+  "isRepeatedIssue": zod.boolean().optional(),
+  "repeatCount": zod.number().min(updateLessonFormBodyRepeatCountMin).optional(),
+  "repeatLocation": zod.string().nullish(),
+  "gpsLat": zod.number().min(updateLessonFormBodyGpsLatMin).max(updateLessonFormBodyGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(updateLessonFormBodyGpsLngMin).max(updateLessonFormBodyGpsLngMax).nullish(),
+  "creatorId": zod.string().optional(),
+  "approverId": zod.string().nullish(),
+  "version": zod.number().min(1),
+  "conflictFlag": zod.boolean(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "remarks": zod.string().nullish(),
+  "photos": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'failed', 'deleted']),
+  "clientReference": zod.string(),
+  "storageUrl": zod.string().nullish(),
+  "gpsLat": zod.number().nullish(),
+  "gpsLng": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional()
+})).optional()
+})
+
+export const UpdateLessonFormResponse = zod.unknown()
+
+
+/**
+ * @summary Soft-delete lesson learned form
+ */
+export const DeleteLessonFormParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteLessonFormResponse = zod.void()
+
+
+/**
+ * @summary Submit lesson learned form
+ */
+export const SubmitLessonFormParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SubmitLessonFormResponse = zod.unknown()
+
+
+/**
+ * @summary Review form; remarks are required when sent back
+ */
+export const ReviewLessonFormParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReviewLessonFormBody = zod.object({
+  "decision": zod.enum(['approve', 'send_back']),
+  "comments": zod.string().nullish()
+})
+
+export const ReviewLessonFormResponse = zod.unknown()
+
+
+/**
+ * @summary Create photo upload intent; maximum five per category
+ */
+export const CreateLessonPhotoIntentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const CreateLessonPhotoIntentBody = zod.object({
+  "category": zod.enum(['before', 'after']),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().min(1),
+  "clientReference": zod.string()
+})
+
+export const CreateLessonPhotoIntentResponse = zod.object({
+  "id": zod.string(),
+  "uploadUrl": zod.string()
+})
+
+
+/**
+ * @summary Confirm photo upload
+ */
+export const ConfirmLessonPhotoParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ConfirmLessonPhotoResponse = zod.unknown()
+
+
+/**
+ * @summary Soft-delete photo
+ */
+export const DeleteLessonPhotoParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteLessonPhotoResponse = zod.void()
+
+
+/**
+ * @summary Search the lesson learned knowledge base
+ */
+export const searchLessonsLogQueryPageDefault = 1;
+
+export const searchLessonsLogQueryLimitDefault = 20;
+export const searchLessonsLogQueryLimitMax = 200;
+
+
+
+export const SearchLessonsLogQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "projectId": zod.coerce.string().optional(),
+  "disciplineId": zod.coerce.string().optional(),
+  "category": zod.coerce.string().optional(),
+  "impact": zod.enum(['Positive', 'Negative']).optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional(),
+  "page": zod.coerce.number().min(1).default(searchLessonsLogQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(searchLessonsLogQueryLimitMax).default(searchLessonsLogQueryLimitDefault)
+})
+
+export const searchLessonsLogResponseOneTotalMin = 0;
+
+
+
+export const searchLessonsLogResponseTwoItemsItemRepeatCountMin = 0;
+
+export const searchLessonsLogResponseTwoItemsItemGpsLatMin = -90;
+export const searchLessonsLogResponseTwoItemsItemGpsLatMax = 90;
+
+export const searchLessonsLogResponseTwoItemsItemGpsLngMin = -180;
+export const searchLessonsLogResponseTwoItemsItemGpsLngMax = 180;
+
+
+
+
+export const SearchLessonsLogResponse = zod.object({
+  "total": zod.number().min(searchLessonsLogResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "referenceNumber": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "disciplineId": zod.string(),
+  "categorisationId": zod.string(),
+  "issueCategory": zod.enum(['Minor', 'Moderate', 'Major']),
+  "impact": zod.enum(['Positive', 'Negative']),
+  "description": zod.string(),
+  "rootCause": zod.string(),
+  "correction": zod.string(),
+  "correctiveAction": zod.string(),
+  "isRepeatedIssue": zod.boolean().optional(),
+  "repeatCount": zod.number().min(searchLessonsLogResponseTwoItemsItemRepeatCountMin).optional(),
+  "repeatLocation": zod.string().nullish(),
+  "capturedAt": zod.coerce.date(),
+  "gpsLat": zod.number().min(searchLessonsLogResponseTwoItemsItemGpsLatMin).max(searchLessonsLogResponseTwoItemsItemGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(searchLessonsLogResponseTwoItemsItemGpsLngMin).max(searchLessonsLogResponseTwoItemsItemGpsLngMax).nullish(),
+  "creatorId": zod.string().optional(),
+  "approverId": zod.string().nullish(),
+  "version": zod.number().min(1),
+  "conflictFlag": zod.boolean(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "remarks": zod.string().nullish(),
+  "photos": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'failed', 'deleted']),
+  "clientReference": zod.string(),
+  "storageUrl": zod.string().nullish(),
+  "gpsLat": zod.number().nullish(),
+  "gpsLng": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional()
+})).optional()
+}))
+}))
+
+
+/**
+ * @summary Rephrase a supported lesson field
+ */
+export const RephraseLessonFieldBody = zod.object({
+  "field": zod.string(),
+  "text": zod.string()
+})
+
+export const RephraseLessonFieldResponse = zod.object({
+  "suggestion": zod.string()
+})
+
+
+/**
+ * @summary Extract a lesson from a prompt
+ */
+export const PromptToLessonTransactionBody = zod.object({
+  "prompt": zod.string()
+})
+
+export const PromptToLessonTransactionResponse = zod.object({
+  "extracted": zod.record(zod.string(), zod.unknown()),
+  "missing": zod.array(zod.object({
+  "field": zod.string(),
+  "question": zod.string(),
+  "options": zod.array(zod.string())
+})),
+  "sessionId": zod.string()
+})
+
+
+/**
+ * @summary Answer a prompt clarification
+ */
+export const AnswerLessonPromptQuestionParams = zod.object({
+  "sessionId": zod.coerce.string()
+})
+
+export const AnswerLessonPromptQuestionBody = zod.object({
+  "field": zod.string(),
+  "value": zod.unknown()
+})
+
+export const AnswerLessonPromptQuestionResponse = zod.object({
+  "extracted": zod.record(zod.string(), zod.unknown()),
+  "missing": zod.array(zod.object({
+  "field": zod.string(),
+  "question": zod.string(),
+  "options": zod.array(zod.string())
+})),
+  "sessionId": zod.string()
+})
+
+
+/**
+ * @summary Get lesson escalation summary
+ */
+export const getLessonsEscalationsQueryPageDefault = 1;
+
+export const getLessonsEscalationsQueryLimitDefault = 20;
+export const getLessonsEscalationsQueryLimitMax = 200;
+
+
+
+export const GetLessonsEscalationsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(getLessonsEscalationsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(getLessonsEscalationsQueryLimitMax).default(getLessonsEscalationsQueryLimitDefault)
+})
+
+export const getLessonsEscalationsResponseOneTotalMin = 0;
+
+
+
+
+
+export const GetLessonsEscalationsResponse = zod.object({
+  "total": zod.number().min(getLessonsEscalationsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "priority": zod.string(),
+  "level": zod.string(),
+  "dueAt": zod.coerce.date(),
+  "status": zod.enum(['open', 'resolved', 'paused']),
+  "lastNotifiedAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Export lesson learned log
+ */
+export const ExportLessonsLogQueryParams = zod.object({
+  "format": zod.enum(['json', 'pdf', 'csv', 'xlsx']).optional()
+})
+
+export const ExportLessonsLogResponse = zod.object({
+  "delivery": zod.enum(['download', 'email']),
+  "fileName": zod.string(),
+  "downloadUrl": zod.string().nullish(),
+  "message": zod.string().nullish()
+})
+
+
+/**
+ * @summary Export one lesson learned form using Accept for format negotiation
+ */
+export const ExportLessonFormReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ExportLessonFormReportResponse = zod.object({
+  "delivery": zod.enum(['download', 'email']),
+  "fileName": zod.string(),
+  "downloadUrl": zod.string().nullish(),
+  "message": zod.string().nullish()
+})
+
+
+/**
+ * @summary List roles
+ */
+export const listLessonsRolesQueryPageDefault = 1;
+
+export const listLessonsRolesQueryLimitDefault = 20;
+export const listLessonsRolesQueryLimitMax = 200;
+
+
+
+export const ListLessonsRolesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listLessonsRolesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listLessonsRolesQueryLimitMax).default(listLessonsRolesQueryLimitDefault)
+})
+
+export const listLessonsRolesResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListLessonsRolesResponse = zod.object({
+  "total": zod.number().min(listLessonsRolesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+}))
+}))
+
+
+/**
+ * @summary Create role
+ */
+export const CreateLessonsRoleBody = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+})
+
+export const CreateLessonsRoleResponse = zod.void()
+
+
+/**
+ * @summary Update role
+ */
+export const UpdateLessonsRoleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateLessonsRoleBody = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+})
+
+export const UpdateLessonsRoleResponse = zod.unknown()
+
+
+/**
+ * @summary List users
+ */
+export const listLessonsUsersQueryPageDefault = 1;
+
+export const listLessonsUsersQueryLimitDefault = 20;
+export const listLessonsUsersQueryLimitMax = 200;
+
+
+
+export const ListLessonsUsersQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listLessonsUsersQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listLessonsUsersQueryLimitMax).default(listLessonsUsersQueryLimitDefault)
+})
+
+export const listLessonsUsersResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListLessonsUsersResponse = zod.object({
+  "total": zod.number().min(listLessonsUsersResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "username": zod.string(),
+  "email": zod.string().nullish(),
+  "platformRole": zod.string(),
+  "workspaceRoles": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+})),
+  "status": zod.enum(['Not Requested', 'Active', 'Deactivated']),
+  "lastAccessAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Assign role and scope
+ */
+export const AssignLessonsUserRoleParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const AssignLessonsUserRoleBody = zod.object({
+  "roleId": zod.string(),
+  "scopeType": zod.enum(['organization', 'business_unit', 'project']),
+  "scopeIds": zod.array(zod.string())
+})
+
+export const AssignLessonsUserRoleResponse = zod.unknown()
+
+
+/**
+ * @summary List access queue
+ */
+export const listLessonsAccessQueueQueryPageDefault = 1;
+
+export const listLessonsAccessQueueQueryLimitDefault = 20;
+export const listLessonsAccessQueueQueryLimitMax = 200;
+
+
+
+export const ListLessonsAccessQueueQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listLessonsAccessQueueQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listLessonsAccessQueueQueryLimitMax).default(listLessonsAccessQueueQueryLimitDefault)
+})
+
+export const listLessonsAccessQueueResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListLessonsAccessQueueResponse = zod.object({
+  "total": zod.number().min(listLessonsAccessQueueResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "requestedRoleId": zod.string(),
+  "scope": zod.object({
+  "roleId": zod.string(),
+  "scopeType": zod.enum(['organization', 'business_unit', 'project']),
+  "scopeIds": zod.array(zod.string())
+}).optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "requestedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Decide access request
+ */
+export const DecideLessonsAccessRequestParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DecideLessonsAccessRequestBody = zod.object({
+  "decision": zod.enum(['approve', 'reject']),
+  "comments": zod.string().nullish()
+})
+
+export const DecideLessonsAccessRequestResponse = zod.unknown()
+
+
+/**
+ * @summary List delegations
+ */
+export const listLessonsDelegationsQueryPageDefault = 1;
+
+export const listLessonsDelegationsQueryLimitDefault = 20;
+export const listLessonsDelegationsQueryLimitMax = 200;
+
+
+
+export const ListLessonsDelegationsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listLessonsDelegationsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listLessonsDelegationsQueryLimitMax).default(listLessonsDelegationsQueryLimitDefault)
+})
+
+export const listLessonsDelegationsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListLessonsDelegationsResponse = zod.object({
+  "total": zod.number().min(listLessonsDelegationsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "delegatorId": zod.string(),
+  "delegateId": zod.string(),
+  "scope": zod.string(),
+  "approvalTypes": zod.array(zod.string()).optional(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['pending', 'active', 'expired', 'revoked']),
+  "revokedAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Create delegation
+ */
+export const CreateLessonsDelegationBody = zod.object({
+  "id": zod.string(),
+  "delegatorId": zod.string(),
+  "delegateId": zod.string(),
+  "scope": zod.string(),
+  "approvalTypes": zod.array(zod.string()).optional(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['pending', 'active', 'expired', 'revoked']),
+  "revokedAt": zod.coerce.date().nullish()
+})
+
+export const CreateLessonsDelegationResponse = zod.void()
+
+
+/**
+ * @summary Revoke delegation
+ */
+export const RevokeLessonsDelegationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RevokeLessonsDelegationResponse = zod.void()
+
+
+/**
+ * @summary List escalation rules
+ */
+export const listLessonsEscalationRulesResponseOneTotalMin = 0;
+
+
+
+export const listLessonsEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin = 0;
+
+
+
+
+export const ListLessonsEscalationRulesResponse = zod.object({
+  "total": zod.number().min(listLessonsEscalationRulesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "triggerType": zod.string(),
+  "priority": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "slaWorkingDays": zod.number().min(listLessonsEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin),
+  "recipientRoles": zod.array(zod.string()),
+  "repeatCadenceDays": zod.number().min(1),
+  "enabled": zod.boolean()
+}))
+}))
+
+
+/**
+ * @summary Replace escalation rules
+ */
+export const updateLessonsEscalationRulesBodySlaWorkingDaysMin = 0;
+
+
+
+
+export const UpdateLessonsEscalationRulesBodyItem = zod.object({
+  "id": zod.string(),
+  "triggerType": zod.string(),
+  "priority": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "slaWorkingDays": zod.number().min(updateLessonsEscalationRulesBodySlaWorkingDaysMin),
+  "recipientRoles": zod.array(zod.string()),
+  "repeatCadenceDays": zod.number().min(1),
+  "enabled": zod.boolean()
+})
+export const UpdateLessonsEscalationRulesBody = zod.array(UpdateLessonsEscalationRulesBodyItem)
+
+export const UpdateLessonsEscalationRulesResponse = zod.unknown()
+
+
+/**
+ * @summary Get AI settings
+ */
+
+
+
+export const GetLessonsAiSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "features": zod.record(zod.string(), zod.boolean()),
+  "provider": zod.string(),
+  "model": zod.string(),
+  "timeoutSeconds": zod.number().min(1),
+  "stripPersonalData": zod.boolean().optional(),
+  "retentionDays": zod.number().optional(),
+  "monthlyQuota": zod.number().optional()
+})
+
+
+/**
+ * @summary Update AI settings
+ */
+
+
+
+export const UpdateLessonsAiSettingsBody = zod.object({
+  "enabled": zod.boolean(),
+  "features": zod.record(zod.string(), zod.boolean()),
+  "provider": zod.string(),
+  "model": zod.string(),
+  "timeoutSeconds": zod.number().min(1),
+  "stripPersonalData": zod.boolean().optional(),
+  "retentionDays": zod.number().optional(),
+  "monthlyQuota": zod.number().optional()
+})
+
+export const UpdateLessonsAiSettingsResponse = zod.unknown()
+
+
+/**
+ * @summary List immutable audit log
+ */
+export const listLessonsAuditLogQueryPageDefault = 1;
+
+export const listLessonsAuditLogQueryLimitDefault = 20;
+export const listLessonsAuditLogQueryLimitMax = 200;
+
+
+
+export const ListLessonsAuditLogQueryParams = zod.object({
+  "from": zod.date().optional(),
+  "to": zod.date().optional(),
+  "actorId": zod.coerce.string().optional(),
+  "action": zod.coerce.string().optional(),
+  "page": zod.coerce.number().min(1).default(listLessonsAuditLogQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listLessonsAuditLogQueryLimitMax).default(listLessonsAuditLogQueryLimitDefault)
+})
+
+export const listLessonsAuditLogResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListLessonsAuditLogResponse = zod.object({
+  "total": zod.number().min(listLessonsAuditLogResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "actorId": zod.string(),
+  "delegatedForId": zod.string().nullish(),
+  "action": zod.string(),
+  "entityType": zod.string(),
+  "entityId": zod.string(),
+  "before": zod.record(zod.string(), zod.unknown()).nullish(),
+  "after": zod.record(zod.string(), zod.unknown()).nullish(),
+  "ipAddress": zod.string().nullish(),
+  "occurredAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary List notification templates
+ */
+export const listLessonsNotificationTemplatesQueryPageDefault = 1;
+
+export const listLessonsNotificationTemplatesQueryLimitDefault = 20;
+export const listLessonsNotificationTemplatesQueryLimitMax = 200;
+
+
+
+export const ListLessonsNotificationTemplatesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listLessonsNotificationTemplatesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listLessonsNotificationTemplatesQueryLimitMax).default(listLessonsNotificationTemplatesQueryLimitDefault)
+})
+
+export const listLessonsNotificationTemplatesResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListLessonsNotificationTemplatesResponse = zod.object({
+  "total": zod.number().min(listLessonsNotificationTemplatesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "key": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "channels": zod.array(zod.enum(['in_app', 'email', 'push', 'sms'])),
+  "mergeFields": zod.array(zod.string()).optional(),
+  "enabled": zod.boolean()
+}))
+}))
+
+
+/**
+ * @summary Update notification template
+ */
+export const UpdateLessonsNotificationTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateLessonsNotificationTemplateBody = zod.object({
+  "id": zod.string(),
+  "key": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "channels": zod.array(zod.enum(['in_app', 'email', 'push', 'sms'])),
+  "mergeFields": zod.array(zod.string()).optional(),
+  "enabled": zod.boolean()
+})
+
+export const UpdateLessonsNotificationTemplateResponse = zod.unknown()
+
+
+/**
+ * @summary List current user's notifications
+ */
+export const listLessonsNotificationsQueryPageDefault = 1;
+
+export const listLessonsNotificationsQueryLimitDefault = 20;
+export const listLessonsNotificationsQueryLimitMax = 200;
+
+
+
+export const ListLessonsNotificationsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listLessonsNotificationsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listLessonsNotificationsQueryLimitMax).default(listLessonsNotificationsQueryLimitDefault)
+})
+
+export const listLessonsNotificationsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListLessonsNotificationsResponse = zod.object({
+  "total": zod.number().min(listLessonsNotificationsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.string(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "critical": zod.boolean(),
+  "read": zod.boolean(),
+  "recordType": zod.string().nullish(),
+  "recordId": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Mark notification read
+ */
+export const MarkLessonsNotificationReadParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const MarkLessonsNotificationReadResponse = zod.void()
+
+
+/**
+ * @summary List record evidence
+ */
+export const listLessonsEvidenceQueryPageDefault = 1;
+
+export const listLessonsEvidenceQueryLimitDefault = 20;
+export const listLessonsEvidenceQueryLimitMax = 200;
+
+
+
+export const ListLessonsEvidenceQueryParams = zod.object({
+  "recordType": zod.coerce.string(),
+  "recordId": zod.coerce.string(),
+  "page": zod.coerce.number().min(1).default(listLessonsEvidenceQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listLessonsEvidenceQueryLimitMax).default(listLessonsEvidenceQueryLimitDefault)
+})
+
+export const listLessonsEvidenceResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListLessonsEvidenceResponse = zod.object({
+  "total": zod.number().min(listLessonsEvidenceResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'failed', 'deleted']),
+  "clientReference": zod.string(),
+  "storageUrl": zod.string().nullish(),
+  "gpsLat": zod.number().nullish(),
+  "gpsLng": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional()
+}))
+}))
+
+
+/**
+ * @summary Create evidence upload intent
+ */
+
+
+
+export const CreateLessonsEvidenceIntentBody = zod.object({
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().min(1),
+  "clientReference": zod.string()
+})
+
+export const CreateLessonsEvidenceIntentResponse = zod.object({
+  "id": zod.string(),
+  "uploadUrl": zod.string()
+})
+
+
+/**
+ * @summary Confirm evidence upload
+ */
+export const ConfirmLessonsEvidenceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ConfirmLessonsEvidenceResponse = zod.unknown()
+
+
+/**
+ * @summary Soft-delete evidence
+ */
+export const DeleteLessonsEvidenceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteLessonsEvidenceResponse = zod.void()
+
+
+/**
+ * @summary List audit schedules
+ */
+export const listAuditSchedulesQueryPageDefault = 1;
+
+export const listAuditSchedulesQueryLimitDefault = 20;
+export const listAuditSchedulesQueryLimitMax = 200;
+
+
+
+export const ListAuditSchedulesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditSchedulesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditSchedulesQueryLimitMax).default(listAuditSchedulesQueryLimitDefault)
+})
+
+export const listAuditSchedulesResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditSchedulesResponse = zod.object({
+  "total": zod.number().min(listAuditSchedulesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "year": zod.number(),
+  "title": zod.string(),
+  "projectIds": zod.array(zod.string()),
+  "auditTypes": zod.array(zod.string()).optional(),
+  "plannedStartDate": zod.coerce.date(),
+  "plannedEndDate": zod.coerce.date(),
+  "ownerId": zod.string().optional(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "reviewComments": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary Create audit schedule
+ */
+export const CreateAuditScheduleBody = zod.object({
+  "id": zod.string(),
+  "year": zod.number(),
+  "title": zod.string(),
+  "projectIds": zod.array(zod.string()),
+  "auditTypes": zod.array(zod.string()).optional(),
+  "plannedStartDate": zod.coerce.date(),
+  "plannedEndDate": zod.coerce.date(),
+  "ownerId": zod.string().optional(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "reviewComments": zod.string().nullish()
+})
+
+export const CreateAuditScheduleResponse = zod.void()
+
+
+/**
+ * @summary Get audit schedule
+ */
+export const GetAuditScheduleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetAuditScheduleResponse = zod.object({
+  "id": zod.string(),
+  "year": zod.number(),
+  "title": zod.string(),
+  "projectIds": zod.array(zod.string()),
+  "auditTypes": zod.array(zod.string()).optional(),
+  "plannedStartDate": zod.coerce.date(),
+  "plannedEndDate": zod.coerce.date(),
+  "ownerId": zod.string().optional(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "reviewComments": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update audit schedule
+ */
+export const UpdateAuditScheduleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateAuditScheduleBody = zod.object({
+  "id": zod.string(),
+  "year": zod.number(),
+  "title": zod.string(),
+  "projectIds": zod.array(zod.string()),
+  "auditTypes": zod.array(zod.string()).optional(),
+  "plannedStartDate": zod.coerce.date(),
+  "plannedEndDate": zod.coerce.date(),
+  "ownerId": zod.string().optional(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "reviewComments": zod.string().nullish()
+})
+
+export const UpdateAuditScheduleResponse = zod.unknown()
+
+
+/**
+ * @summary Soft-delete audit schedule
+ */
+export const DeleteAuditScheduleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteAuditScheduleResponse = zod.void()
+
+
+/**
+ * @summary Submit schedule for approval
+ */
+export const SubmitAuditScheduleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SubmitAuditScheduleResponse = zod.unknown()
+
+
+/**
+ * @summary Approve or send back schedule
+ */
+export const ReviewAuditScheduleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReviewAuditScheduleBody = zod.object({
+  "decision": zod.enum(['approve', 'send_back']),
+  "comments": zod.string().nullish()
+})
+
+export const ReviewAuditScheduleResponse = zod.unknown()
+
+
+/**
+ * @summary List audit plans
+ */
+export const listAuditPlansQueryPageDefault = 1;
+
+export const listAuditPlansQueryLimitDefault = 20;
+export const listAuditPlansQueryLimitMax = 200;
+
+
+
+export const ListAuditPlansQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditPlansQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditPlansQueryLimitMax).default(listAuditPlansQueryLimitDefault)
+})
+
+export const listAuditPlansResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditPlansResponse = zod.object({
+  "total": zod.number().min(listAuditPlansResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "scheduleId": zod.string(),
+  "scope": zod.string(),
+  "objectives": zod.string().nullish(),
+  "criteria": zod.array(zod.string()),
+  "auditDate": zod.coerce.date(),
+  "location": zod.string(),
+  "leadAuditorId": zod.string().optional(),
+  "teamMemberIds": zod.array(zod.string()),
+  "processOwnerIds": zod.array(zod.string()).optional(),
+  "feasibilityNotes": zod.string().nullish(),
+  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted'])
+}))
+}))
+
+
+/**
+ * @summary Create plan linked to schedule
+ */
+export const CreateAuditPlanBody = zod.object({
+  "id": zod.string(),
+  "scheduleId": zod.string(),
+  "scope": zod.string(),
+  "objectives": zod.string().nullish(),
+  "criteria": zod.array(zod.string()),
+  "auditDate": zod.coerce.date(),
+  "location": zod.string(),
+  "leadAuditorId": zod.string().optional(),
+  "teamMemberIds": zod.array(zod.string()),
+  "processOwnerIds": zod.array(zod.string()).optional(),
+  "feasibilityNotes": zod.string().nullish(),
+  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted'])
+})
+
+export const CreateAuditPlanResponse = zod.void()
+
+
+/**
+ * @summary Get audit plan
+ */
+export const GetAuditPlanParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetAuditPlanResponse = zod.object({
+  "id": zod.string(),
+  "scheduleId": zod.string(),
+  "scope": zod.string(),
+  "objectives": zod.string().nullish(),
+  "criteria": zod.array(zod.string()),
+  "auditDate": zod.coerce.date(),
+  "location": zod.string(),
+  "leadAuditorId": zod.string().optional(),
+  "teamMemberIds": zod.array(zod.string()),
+  "processOwnerIds": zod.array(zod.string()).optional(),
+  "feasibilityNotes": zod.string().nullish(),
+  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted'])
+})
+
+
+/**
+ * @summary Update audit plan
+ */
+export const UpdateAuditPlanParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateAuditPlanBody = zod.object({
+  "id": zod.string(),
+  "scheduleId": zod.string(),
+  "scope": zod.string(),
+  "objectives": zod.string().nullish(),
+  "criteria": zod.array(zod.string()),
+  "auditDate": zod.coerce.date(),
+  "location": zod.string(),
+  "leadAuditorId": zod.string().optional(),
+  "teamMemberIds": zod.array(zod.string()),
+  "processOwnerIds": zod.array(zod.string()).optional(),
+  "feasibilityNotes": zod.string().nullish(),
+  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted'])
+})
+
+export const UpdateAuditPlanResponse = zod.unknown()
+
+
+/**
+ * @summary Soft-delete audit plan
+ */
+export const DeleteAuditPlanParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteAuditPlanResponse = zod.void()
+
+
+/**
+ * @summary Share plan with process and product owners
+ */
+export const ShareAuditPlanParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ShareAuditPlanResponse = zod.void()
+
+
+/**
+ * @summary List audits
+ */
+export const listAuditsQueryPageDefault = 1;
+
+export const listAuditsQueryLimitDefault = 20;
+export const listAuditsQueryLimitMax = 200;
+
+
+
+export const ListAuditsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditsQueryLimitMax).default(listAuditsQueryLimitDefault)
+})
+
+export const listAuditsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditsResponse = zod.object({
+  "total": zod.number().min(listAuditsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "question": zod.string(),
+  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional()
+})).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Create audit linked to plan
+ */
+export const CreateAuditBody = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "question": zod.string(),
+  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional()
+})).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+export const CreateAuditResponse = zod.void()
+
+
+/**
+ * @summary Get audit
+ */
+export const GetAuditParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetAuditResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "question": zod.string(),
+  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional()
+})).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Update audit
+ */
+export const UpdateAuditParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateAuditBody = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "question": zod.string(),
+  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional()
+})).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+export const UpdateAuditResponse = zod.unknown()
+
+
+/**
+ * @summary Soft-delete audit
+ */
+export const DeleteAuditParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteAuditResponse = zod.void()
+
+
+/**
+ * @summary Record opening meeting minutes
+ */
+export const UpdateAuditOpeningMeetingParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateAuditOpeningMeetingBody = zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+})
+
+export const UpdateAuditOpeningMeetingResponse = zod.unknown()
+
+
+/**
+ * @summary Record closing meeting minutes
+ */
+export const UpdateAuditClosingMeetingParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateAuditClosingMeetingBody = zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+})
+
+export const UpdateAuditClosingMeetingResponse = zod.unknown()
+
+
+/**
+ * @summary Update audit checklist
+ */
+export const UpdateAuditChecklistParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateAuditChecklistBodyItem = zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "question": zod.string(),
+  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional()
+})
+export const UpdateAuditChecklistBody = zod.array(UpdateAuditChecklistBodyItem)
+
+export const UpdateAuditChecklistResponse = zod.unknown()
+
+
+/**
+ * @summary List audit findings
+ */
+export const listAuditFindingsQueryPageDefault = 1;
+
+export const listAuditFindingsQueryLimitDefault = 20;
+export const listAuditFindingsQueryLimitMax = 200;
+
+
+
+export const ListAuditFindingsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditFindingsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditFindingsQueryLimitMax).default(listAuditFindingsQueryLimitDefault)
+})
+
+export const listAuditFindingsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditFindingsResponse = zod.object({
+  "total": zod.number().min(listAuditFindingsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "auditId": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "clause": zod.string().nullish(),
+  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
+  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
+  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "responsibleDepartments": zod.array(zod.string()),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),
+  "raisedAt": zod.coerce.date().optional()
+}))
+}))
+
+
+/**
+ * @summary Create audit finding
+ */
+export const CreateAuditFindingBody = zod.object({
+  "id": zod.string(),
+  "auditId": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "clause": zod.string().nullish(),
+  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
+  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
+  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "responsibleDepartments": zod.array(zod.string()),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),
+  "raisedAt": zod.coerce.date().optional()
+})
+
+export const CreateAuditFindingResponse = zod.void()
+
+
+/**
+ * @summary Get audit finding
+ */
+export const GetAuditFindingParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetAuditFindingResponse = zod.object({
+  "id": zod.string(),
+  "auditId": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "clause": zod.string().nullish(),
+  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
+  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
+  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "responsibleDepartments": zod.array(zod.string()),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),
+  "raisedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Update audit finding
+ */
+export const UpdateAuditFindingParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateAuditFindingBody = zod.object({
+  "id": zod.string(),
+  "auditId": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "clause": zod.string().nullish(),
+  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
+  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
+  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "responsibleDepartments": zod.array(zod.string()),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),
+  "raisedAt": zod.coerce.date().optional()
+})
+
+export const UpdateAuditFindingResponse = zod.unknown()
+
+
+/**
+ * @summary Soft-delete audit finding
+ */
+export const DeleteAuditFindingParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteAuditFindingResponse = zod.void()
+
+
+/**
+ * @summary Create one CAR per responsible department
+ */
+export const CreateFindingCarsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const CreateFindingCarsBody = zod.object({
+  "responsibleDepartments": zod.array(zod.string()).min(1)
+})
+
+export const createFindingCarsResponseOneTotalMin = 0;
+
+
+
+
+
+export const CreateFindingCarsResponse = zod.object({
+  "total": zod.number().min(createFindingCarsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary List corrective action reports
+ */
+export const listCorrectiveActionReportsQueryPageDefault = 1;
+
+export const listCorrectiveActionReportsQueryLimitDefault = 20;
+export const listCorrectiveActionReportsQueryLimitMax = 200;
+
+
+
+export const ListCorrectiveActionReportsQueryParams = zod.object({
+  "status": zod.coerce.string().optional(),
+  "page": zod.coerce.number().min(1).default(listCorrectiveActionReportsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listCorrectiveActionReportsQueryLimitMax).default(listCorrectiveActionReportsQueryLimitDefault)
+})
+
+export const listCorrectiveActionReportsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListCorrectiveActionReportsResponse = zod.object({
+  "total": zod.number().min(listCorrectiveActionReportsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Update root cause, correction, and corrective action
+ */
+export const UpdateCorrectiveActionReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateCorrectiveActionReportBody = zod.object({
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+export const UpdateCorrectiveActionReportResponse = zod.unknown()
+
+
+/**
+ * @summary Submit CAR
+ */
+export const SubmitCorrectiveActionReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SubmitCorrectiveActionReportResponse = zod.unknown()
+
+
+/**
+ * @summary Accept or reject CAR
+ */
+export const ReviewCorrectiveActionReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReviewCorrectiveActionReportBody = zod.object({
+  "decision": zod.enum(['accept', 'reject']),
+  "comments": zod.string().nullish()
+})
+
+export const ReviewCorrectiveActionReportResponse = zod.unknown()
+
+
+/**
+ * @summary Request CAR due-date extension
+ */
+export const RequestCarExtensionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RequestCarExtensionBody = zod.object({
+  "requestedDueDate": zod.coerce.date(),
+  "reason": zod.string()
+})
+
+export const RequestCarExtensionResponse = zod.unknown()
+
+
+/**
+ * @summary Approve or reject extension
+ */
+export const ReviewCarExtensionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReviewCarExtensionBody = zod.object({
+  "decision": zod.enum(['approve', 'reject']),
+  "comments": zod.string().nullish()
+})
+
+export const ReviewCarExtensionResponse = zod.unknown()
+
+
+/**
+ * @summary Verify effectiveness and close CAR
+ */
+export const CloseCorrectiveActionReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CloseCorrectiveActionReportResponse = zod.unknown()
+
+
+/**
+ * @summary List audit evidence
+ */
+export const listAuditEvidenceQueryPageDefault = 1;
+
+export const listAuditEvidenceQueryLimitDefault = 20;
+export const listAuditEvidenceQueryLimitMax = 200;
+
+
+
+export const ListAuditEvidenceQueryParams = zod.object({
+  "recordType": zod.coerce.string(),
+  "recordId": zod.coerce.string(),
+  "page": zod.coerce.number().min(1).default(listAuditEvidenceQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditEvidenceQueryLimitMax).default(listAuditEvidenceQueryLimitDefault)
+})
+
+export const listAuditEvidenceResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditEvidenceResponse = zod.object({
+  "total": zod.number().min(listAuditEvidenceResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'failed', 'deleted']),
+  "clientReference": zod.string(),
+  "storageUrl": zod.string().nullish(),
+  "gpsLat": zod.number().nullish(),
+  "gpsLng": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional()
+}))
+}))
+
+
+/**
+ * @summary Create evidence upload intent
+ */
+
+
+
+export const CreateAuditEvidenceIntentBody = zod.object({
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().min(1),
+  "clientReference": zod.string()
+})
+
+export const CreateAuditEvidenceIntentResponse = zod.object({
+  "id": zod.string(),
+  "uploadUrl": zod.string()
+})
+
+
+/**
+ * @summary Confirm evidence upload
+ */
+export const ConfirmAuditEvidenceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ConfirmAuditEvidenceResponse = zod.unknown()
+
+
+/**
+ * @summary Get open versus closed report
+ */
+export const GetAuditOpenVsClosedReportQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional()
+})
+
+export const GetAuditOpenVsClosedReportResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "metrics": zod.record(zod.string(), zod.unknown()),
+  "series": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+
+
+/**
+ * @summary Get findings log report
+ */
+export const getAuditFindingsLogReportQueryPageDefault = 1;
+
+export const getAuditFindingsLogReportQueryLimitDefault = 20;
+export const getAuditFindingsLogReportQueryLimitMax = 200;
+
+
+
+export const GetAuditFindingsLogReportQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(getAuditFindingsLogReportQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(getAuditFindingsLogReportQueryLimitMax).default(getAuditFindingsLogReportQueryLimitDefault)
+})
+
+export const getAuditFindingsLogReportResponseOneTotalMin = 0;
+
+
+
+
+
+export const GetAuditFindingsLogReportResponse = zod.object({
+  "total": zod.number().min(getAuditFindingsLogReportResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "auditId": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "clause": zod.string().nullish(),
+  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
+  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
+  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "responsibleDepartments": zod.array(zod.string()),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),
+  "raisedAt": zod.coerce.date().optional()
+}))
+}))
+
+
+/**
+ * @summary Get findings ageing report
+ */
+export const GetAuditAgeingReportResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "metrics": zod.record(zod.string(), zod.unknown()),
+  "series": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+
+
+/**
+ * @summary Get CAR status report
+ */
+export const GetAuditCarStatusReportResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "metrics": zod.record(zod.string(), zod.unknown()),
+  "series": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+
+
+/**
+ * @summary Get annual schedule report
+ */
+export const getAuditScheduleReportResponseOneTotalMin = 0;
+
+
+
+
+
+export const GetAuditScheduleReportResponse = zod.object({
+  "total": zod.number().min(getAuditScheduleReportResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "year": zod.number(),
+  "title": zod.string(),
+  "projectIds": zod.array(zod.string()),
+  "auditTypes": zod.array(zod.string()).optional(),
+  "plannedStartDate": zod.coerce.date(),
+  "plannedEndDate": zod.coerce.date(),
+  "ownerId": zod.string().optional(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "reviewComments": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary Preview or download generated audit report using Accept for format negotiation
+ */
+export const GetGeneratedAuditReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetGeneratedAuditReportResponse = zod.object({
+  "audit": zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "question": zod.string(),
+  "result": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC', 'Not Applicable']),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional()
+})).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+}),
+  "findings": zod.array(zod.object({
+  "id": zod.string(),
+  "auditId": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "clause": zod.string().nullish(),
+  "classification": zod.enum(['Conformity', 'Observation', 'Minor NC', 'Major NC']),
+  "priority": zod.enum(['P1', 'P2', 'P3', 'P4', 'P5', 'P6']),
+  "riskLevel": zod.enum(['High', 'Medium', 'Low']),
+  "responsibleDepartments": zod.array(zod.string()),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "status": zod.enum(['Open', 'CAR Issued', 'Verified', 'Closed', 'Deleted']),
+  "raisedAt": zod.coerce.date().optional()
+})),
+  "cars": zod.array(zod.object({
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish()
+})),
+  "generatedAt": zod.coerce.date(),
+  "downloadUrl": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get audit dashboard
+ */
+export const GetAuditDashboardQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional()
+})
+
+export const GetAuditDashboardResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "metrics": zod.record(zod.string(), zod.unknown()),
+  "series": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+
+
+/**
+ * @summary List roles
+ */
+export const listAuditRolesQueryPageDefault = 1;
+
+export const listAuditRolesQueryLimitDefault = 20;
+export const listAuditRolesQueryLimitMax = 200;
+
+
+
+export const ListAuditRolesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditRolesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditRolesQueryLimitMax).default(listAuditRolesQueryLimitDefault)
+})
+
+export const listAuditRolesResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditRolesResponse = zod.object({
+  "total": zod.number().min(listAuditRolesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+}))
+}))
+
+
+/**
+ * @summary Create role
+ */
+export const CreateAuditRoleBody = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+})
+
+export const CreateAuditRoleResponse = zod.void()
+
+
+/**
+ * @summary Update role
+ */
+export const UpdateAuditRoleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateAuditRoleBody = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+})
+
+export const UpdateAuditRoleResponse = zod.unknown()
+
+
+/**
+ * @summary List users
+ */
+export const listAuditUsersQueryPageDefault = 1;
+
+export const listAuditUsersQueryLimitDefault = 20;
+export const listAuditUsersQueryLimitMax = 200;
+
+
+
+export const ListAuditUsersQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditUsersQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditUsersQueryLimitMax).default(listAuditUsersQueryLimitDefault)
+})
+
+export const listAuditUsersResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditUsersResponse = zod.object({
+  "total": zod.number().min(listAuditUsersResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "username": zod.string(),
+  "email": zod.string().nullish(),
+  "platformRole": zod.string(),
+  "workspaceRoles": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional()
+})),
+  "status": zod.enum(['Not Requested', 'Active', 'Deactivated']),
+  "lastAccessAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Assign role and scope
+ */
+export const AssignAuditUserRoleParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const AssignAuditUserRoleBody = zod.object({
+  "roleId": zod.string(),
+  "scopeType": zod.enum(['organization', 'business_unit', 'project']),
+  "scopeIds": zod.array(zod.string())
+})
+
+export const AssignAuditUserRoleResponse = zod.unknown()
+
+
+/**
+ * @summary List access queue
+ */
+export const listAuditAccessQueueQueryPageDefault = 1;
+
+export const listAuditAccessQueueQueryLimitDefault = 20;
+export const listAuditAccessQueueQueryLimitMax = 200;
+
+
+
+export const ListAuditAccessQueueQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditAccessQueueQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditAccessQueueQueryLimitMax).default(listAuditAccessQueueQueryLimitDefault)
+})
+
+export const listAuditAccessQueueResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditAccessQueueResponse = zod.object({
+  "total": zod.number().min(listAuditAccessQueueResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "requestedRoleId": zod.string(),
+  "scope": zod.object({
+  "roleId": zod.string(),
+  "scopeType": zod.enum(['organization', 'business_unit', 'project']),
+  "scopeIds": zod.array(zod.string())
+}).optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "requestedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Decide access request
+ */
+export const DecideAuditAccessRequestParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DecideAuditAccessRequestBody = zod.object({
+  "decision": zod.enum(['approve', 'reject']),
+  "comments": zod.string().nullish()
+})
+
+export const DecideAuditAccessRequestResponse = zod.unknown()
+
+
+/**
+ * @summary List delegations
+ */
+export const listAuditDelegationsQueryPageDefault = 1;
+
+export const listAuditDelegationsQueryLimitDefault = 20;
+export const listAuditDelegationsQueryLimitMax = 200;
+
+
+
+export const ListAuditDelegationsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditDelegationsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditDelegationsQueryLimitMax).default(listAuditDelegationsQueryLimitDefault)
+})
+
+export const listAuditDelegationsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditDelegationsResponse = zod.object({
+  "total": zod.number().min(listAuditDelegationsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "delegatorId": zod.string(),
+  "delegateId": zod.string(),
+  "scope": zod.string(),
+  "approvalTypes": zod.array(zod.string()).optional(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['pending', 'active', 'expired', 'revoked']),
+  "revokedAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Create delegation
+ */
+export const CreateAuditDelegationBody = zod.object({
+  "id": zod.string(),
+  "delegatorId": zod.string(),
+  "delegateId": zod.string(),
+  "scope": zod.string(),
+  "approvalTypes": zod.array(zod.string()).optional(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['pending', 'active', 'expired', 'revoked']),
+  "revokedAt": zod.coerce.date().nullish()
+})
+
+export const CreateAuditDelegationResponse = zod.void()
+
+
+/**
+ * @summary Revoke delegation
+ */
+export const RevokeAuditDelegationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RevokeAuditDelegationResponse = zod.void()
+
+
+/**
+ * @summary List escalation rules
+ */
+export const listAuditEscalationRulesResponseOneTotalMin = 0;
+
+
+
+export const listAuditEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin = 0;
+
+
+
+
+export const ListAuditEscalationRulesResponse = zod.object({
+  "total": zod.number().min(listAuditEscalationRulesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "triggerType": zod.string(),
+  "priority": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "slaWorkingDays": zod.number().min(listAuditEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin),
+  "recipientRoles": zod.array(zod.string()),
+  "repeatCadenceDays": zod.number().min(1),
+  "enabled": zod.boolean()
+}))
+}))
+
+
+/**
+ * @summary Replace escalation rules
+ */
+export const updateAuditEscalationRulesBodySlaWorkingDaysMin = 0;
+
+
+
+
+export const UpdateAuditEscalationRulesBodyItem = zod.object({
+  "id": zod.string(),
+  "triggerType": zod.string(),
+  "priority": zod.string().nullish(),
+  "level": zod.string().nullish(),
+  "slaWorkingDays": zod.number().min(updateAuditEscalationRulesBodySlaWorkingDaysMin),
+  "recipientRoles": zod.array(zod.string()),
+  "repeatCadenceDays": zod.number().min(1),
+  "enabled": zod.boolean()
+})
+export const UpdateAuditEscalationRulesBody = zod.array(UpdateAuditEscalationRulesBodyItem)
+
+export const UpdateAuditEscalationRulesResponse = zod.unknown()
+
+
+/**
+ * @summary List immutable audit log
+ */
+export const listAuditWorkspaceAuditLogQueryPageDefault = 1;
+
+export const listAuditWorkspaceAuditLogQueryLimitDefault = 20;
+export const listAuditWorkspaceAuditLogQueryLimitMax = 200;
+
+
+
+export const ListAuditWorkspaceAuditLogQueryParams = zod.object({
+  "from": zod.date().optional(),
+  "to": zod.date().optional(),
+  "actorId": zod.coerce.string().optional(),
+  "action": zod.coerce.string().optional(),
+  "page": zod.coerce.number().min(1).default(listAuditWorkspaceAuditLogQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditWorkspaceAuditLogQueryLimitMax).default(listAuditWorkspaceAuditLogQueryLimitDefault)
+})
+
+export const listAuditWorkspaceAuditLogResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditWorkspaceAuditLogResponse = zod.object({
+  "total": zod.number().min(listAuditWorkspaceAuditLogResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "actorId": zod.string(),
+  "delegatedForId": zod.string().nullish(),
+  "action": zod.string(),
+  "entityType": zod.string(),
+  "entityId": zod.string(),
+  "before": zod.record(zod.string(), zod.unknown()).nullish(),
+  "after": zod.record(zod.string(), zod.unknown()).nullish(),
+  "ipAddress": zod.string().nullish(),
+  "occurredAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary List notification templates
+ */
+export const listAuditNotificationTemplatesQueryPageDefault = 1;
+
+export const listAuditNotificationTemplatesQueryLimitDefault = 20;
+export const listAuditNotificationTemplatesQueryLimitMax = 200;
+
+
+
+export const ListAuditNotificationTemplatesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditNotificationTemplatesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditNotificationTemplatesQueryLimitMax).default(listAuditNotificationTemplatesQueryLimitDefault)
+})
+
+export const listAuditNotificationTemplatesResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditNotificationTemplatesResponse = zod.object({
+  "total": zod.number().min(listAuditNotificationTemplatesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "key": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "channels": zod.array(zod.enum(['in_app', 'email', 'push', 'sms'])),
+  "mergeFields": zod.array(zod.string()).optional(),
+  "enabled": zod.boolean()
+}))
+}))
+
+
+/**
+ * @summary Update notification template
+ */
+export const UpdateAuditNotificationTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateAuditNotificationTemplateBody = zod.object({
+  "id": zod.string(),
+  "key": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "channels": zod.array(zod.enum(['in_app', 'email', 'push', 'sms'])),
+  "mergeFields": zod.array(zod.string()).optional(),
+  "enabled": zod.boolean()
+})
+
+export const UpdateAuditNotificationTemplateResponse = zod.unknown()
+
+
+/**
+ * @summary List current user's notifications
+ */
+export const listAuditNotificationsQueryPageDefault = 1;
+
+export const listAuditNotificationsQueryLimitDefault = 20;
+export const listAuditNotificationsQueryLimitMax = 200;
+
+
+
+export const ListAuditNotificationsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditNotificationsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditNotificationsQueryLimitMax).default(listAuditNotificationsQueryLimitDefault)
+})
+
+export const listAuditNotificationsResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditNotificationsResponse = zod.object({
+  "total": zod.number().min(listAuditNotificationsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.string(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "critical": zod.boolean(),
+  "read": zod.boolean(),
+  "recordType": zod.string().nullish(),
+  "recordId": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Mark notification read
+ */
+export const MarkAuditNotificationReadParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const MarkAuditNotificationReadResponse = zod.void()
 
 

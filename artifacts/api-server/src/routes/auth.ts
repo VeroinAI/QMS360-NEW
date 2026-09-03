@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { eq, and } from "drizzle-orm";
 import {
   ContainerSsoBody,
@@ -76,6 +77,20 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 router.post("/auth/sso", async (req, res): Promise<void> => {
   if ((process.env.AUTH_STRATEGY ?? "local") !== "container") {
     res.status(501).json({ error: "Container auth strategy is disabled in this environment" });
+    return;
+  }
+  // The container bridge, not an end user, is the identity authority. Its
+  // shared secret must be authenticated before any caller-provided identity is used.
+  const secret = process.env.SSO_BRIDGE_SECRET;
+  if (!secret) {
+    res.status(503).json({ error: "Container SSO bridge is not configured" });
+    return;
+  }
+  const supplied = req.header("x-qms-bridge-token") ?? "";
+  const expectedBuffer = createHash("sha256").update(secret).digest();
+  const suppliedBuffer = createHash("sha256").update(supplied).digest();
+  if (!timingSafeEqual(expectedBuffer, suppliedBuffer)) {
+    res.status(401).json({ error: "Invalid container SSO bridge token" });
     return;
   }
   const parsed = ContainerSsoBody.safeParse(req.body);

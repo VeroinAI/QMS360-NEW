@@ -18,6 +18,20 @@ tags:
     description: Distinct QMS360 application overviews
   - name: executive
     description: Cross-application executive view
+  - name: integrations
+    description: Shared integration and data-sync cockpit
+  - name: qaqc
+    description: QA/QC and document governance workspace
+  - name: qaqc-admin
+    description: QA/QC workspace administration
+  - name: lessons
+    description: Lesson Learned workspace
+  - name: lessons-admin
+    description: Lesson Learned workspace administration
+  - name: audit
+    description: QMS Audit workspace
+  - name: audit-admin
+    description: QMS Audit workspace administration
 paths:
   /healthz:
     get:
@@ -109,6 +123,13 @@ paths:
                 $ref: "#/components/schemas/CurrentUser"
         "401":
           description: Authentication required
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: End the current session
+      responses:
+        "204": { description: Session ended }
   /platform/context:
     get:
       operationId: getPlatformContext
@@ -139,6 +160,91 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Project"
+  /platform/projects:
+    get:
+      operationId: listPlatformProjects
+      tags: [platform]
+      summary: List shared projects
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses:
+        "200": {$ref: "#/components/responses/ProjectPage"}
+  /platform/business-units:
+    get:
+      operationId: listBusinessUnits
+      tags: [platform]
+      summary: List shared business units
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses:
+        "200": {$ref: "#/components/responses/BusinessUnitPage"}
+  /platform/application-access:
+    get:
+      operationId: getApplicationAccess
+      tags: [platform]
+      summary: Get current user's application access flags
+      responses:
+        "200": {description: Application access, content: {application/json: {schema: {$ref: "#/components/schemas/ApplicationAccess"}}}}
+  /platform/reference-data:
+    get:
+      operationId: getPlatformReferenceData
+      tags: [platform]
+      summary: Get cacheable shared reference data snapshot
+      parameters: [{$ref: "#/components/parameters/Since"}]
+      responses:
+        "200": {description: Reference data snapshot, content: {application/json: {schema: {$ref: "#/components/schemas/ReferenceDataSnapshot"}}}}
+  /platform/organization-settings:
+    get:
+      operationId: getOrganizationSettings
+      tags: [platform]
+      summary: Get organization settings
+      responses:
+        "200": {description: Organization settings, content: {application/json: {schema: {$ref: "#/components/schemas/OrganizationSettings"}}}}
+    put:
+      operationId: updateOrganizationSettings
+      tags: [platform]
+      summary: Update organization settings
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/OrganizationSettings"}}}}
+      responses:
+        "200": {description: Updated settings, content: {application/json: {schema: {$ref: "#/components/schemas/OrganizationSettings"}}}}
+  /integrations/connectors:
+    get:
+      operationId: listIntegrationConnectors
+      tags: [integrations]
+      summary: List integration connectors
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses:
+        "200": {$ref: "#/components/responses/IntegrationConnectorPage"}
+  /integrations/connectors/{id}:
+    put:
+      operationId: updateIntegrationConnector
+      tags: [integrations]
+      summary: Update connector configuration or status
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/IntegrationConnector"}}}}
+      responses:
+        "200": {description: Updated connector, content: {application/json: {schema: {$ref: "#/components/schemas/IntegrationConnector"}}}}
+  /integrations/sync-jobs:
+    get:
+      operationId: listSyncJobs
+      tags: [integrations]
+      summary: List data sync jobs
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses:
+        "200": {$ref: "#/components/responses/SyncJobPage"}
+  /integrations/sync-jobs/{id}/retry:
+    post:
+      operationId: retrySyncJob
+      tags: [integrations]
+      summary: Retry a failed sync job
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "202": {description: Retry queued, content: {application/json: {schema: {$ref: "#/components/schemas/SyncJob"}}}}
+  /integrations/health:
+    get:
+      operationId: getIntegrationsHealth
+      tags: [integrations]
+      summary: Get aggregate integration health
+      responses:
+        "200": {description: Integration health, content: {application/json: {schema: {$ref: "#/components/schemas/IntegrationHealth"}}}}
   /apps/{appKey}/overview:
     get:
       operationId: getAppOverview
@@ -191,6 +297,374 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExecutiveOverview"
+  /executive/published-summaries:
+    get:
+      operationId: listPublishedExecutiveSummaries
+      tags: [executive]
+      summary: List workspace-published executive summaries
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses:
+        "200": {$ref: "#/components/responses/ExecutiveSummaryPage"}
+  /qaqc/disciplines:
+    get:
+      operationId: listQaqcDisciplines
+      tags: [qaqc]
+      summary: List QA/QC disciplines
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses: {"200": {$ref: "#/components/responses/ReferenceItemPage"}}
+  /qaqc/targets:
+    get:
+      operationId: listQaqcTargets
+      tags: [qaqc]
+      summary: List QA/QC target benchmarks
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses: {"200": {$ref: "#/components/responses/ReferenceItemPage"}}
+  /qaqc/distribution-lists:
+    get:
+      operationId: listQaqcDistributionLists
+      tags: [qaqc]
+      summary: List QA/QC distribution lists
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses: {"200": {$ref: "#/components/responses/ReferenceItemPage"}}
+  /qaqc/categorisation:
+    get:
+      operationId: listQaqcCategorisation
+      tags: [qaqc]
+      summary: List QA/QC categories
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses: {"200": {$ref: "#/components/responses/ReferenceItemPage"}}
+  /qaqc/metrics:
+    get:
+      operationId: listQaqcMetrics
+      tags: [qaqc]
+      summary: List metric entries
+      parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/Period"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses: {"200": {$ref: "#/components/responses/QAQCMetricPage"}}
+    post:
+      operationId: createQaqcMetric
+      tags: [qaqc]
+      summary: Create a metric entry
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QAQCMetricEntry"}}}}
+      responses: {"201": {description: Created metric, content: {application/json: {schema: {$ref: "#/components/schemas/QAQCMetricEntry"}}}}}
+  /qaqc/metrics/{id}:
+    put:
+      operationId: updateQaqcMetric
+      tags: [qaqc]
+      summary: Update a metric entry
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QAQCMetricEntry"}}}}
+      responses: {"200": {description: Updated metric, content: {application/json: {schema: {$ref: "#/components/schemas/QAQCMetricEntry"}}}}}
+    delete:
+      operationId: deleteQaqcMetric
+      tags: [qaqc]
+      summary: Soft-delete a metric entry
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses: {"204": {description: Soft-deleted}}
+  /qaqc/metrics/{id}/submit:
+    post:
+      operationId: submitQaqcMetric
+      tags: [qaqc]
+      summary: Submit a metric entry for review
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses: {"200": {description: Submitted metric, content: {application/json: {schema: {$ref: "#/components/schemas/QAQCMetricEntry"}}}}}
+  /qaqc/metrics/{id}/review:
+    post:
+      operationId: reviewQaqcMetric
+      tags: [qaqc]
+      summary: Review a metric entry
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}
+      responses: {"200": {description: Reviewed metric, content: {application/json: {schema: {$ref: "#/components/schemas/QAQCMetricEntry"}}}}}
+  /qaqc/material-inspections:
+    get: {operationId: listMaterialInspections, tags: [qaqc], summary: List material inspections, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/MaterialInspectionPage"}}}
+    post: {operationId: createMaterialInspection, tags: [qaqc], summary: Create a reconciled material inspection, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/MaterialInspectionEntry"}}}}, responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/MaterialInspectionEntry"}}}}}}
+  /qaqc/material-inspections/{id}:
+    put: {operationId: updateMaterialInspection, tags: [qaqc], summary: Update and reconcile a material inspection, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/MaterialInspectionEntry"}}}}, responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/MaterialInspectionEntry"}}}}}}
+    delete: {operationId: deleteMaterialInspection, tags: [qaqc], summary: Soft-delete a material inspection, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /qaqc/qtbt:
+    get: {operationId: listQtbtEntries, tags: [qaqc], summary: List quality toolbox talks, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/QtbtPage"}}}
+    post: {operationId: createQtbtEntry, tags: [qaqc], summary: Create a toolbox talk entry, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QTBTEntry"}}}}, responses: {"201": {description: Created}}}
+  /qaqc/qtbt/{id}:
+    put: {operationId: updateQtbtEntry, tags: [qaqc], summary: Update a toolbox talk entry, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QTBTEntry"}}}}, responses: {"200": {description: Updated}}}
+    delete: {operationId: deleteQtbtEntry, tags: [qaqc], summary: Soft-delete a toolbox talk entry, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /qaqc/customer-satisfaction:
+    get: {operationId: listCustomerSatisfactionEntries, tags: [qaqc], summary: List customer satisfaction entries, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/CustomerSatisfactionPage"}}}
+    post: {operationId: createCustomerSatisfactionEntry, tags: [qaqc], summary: Create customer satisfaction entry, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CustomerSatisfactionEntry"}}}}, responses: {"201": {description: Created}}}
+  /qaqc/customer-satisfaction/{id}:
+    put: {operationId: updateCustomerSatisfactionEntry, tags: [qaqc], summary: Update customer satisfaction entry, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CustomerSatisfactionEntry"}}}}, responses: {"200": {description: Updated}}}
+    delete: {operationId: deleteCustomerSatisfactionEntry, tags: [qaqc], summary: Soft-delete customer satisfaction entry, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /qaqc/document-governance-log:
+    get: {operationId: listDocumentGovernanceLog, tags: [qaqc], summary: List document governance entries, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/DocumentGovernancePage"}}}
+    post: {operationId: createDocumentGovernanceEntry, tags: [qaqc], summary: Create document governance entry, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/DocumentGovernanceLogEntry"}}}}, responses: {"201": {description: Created}}}
+  /qaqc/document-governance-log/{id}:
+    put: {operationId: updateDocumentGovernanceEntry, tags: [qaqc], summary: Update document governance entry, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/DocumentGovernanceLogEntry"}}}}, responses: {"200": {description: Updated}}}
+    delete: {operationId: deleteDocumentGovernanceEntry, tags: [qaqc], summary: Soft-delete document governance entry, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /qaqc/quality-briefs:
+    get: {operationId: listQualityBriefs, tags: [qaqc], summary: List quality assessment briefs, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/QualityBriefPage"}}}
+    post: {operationId: createQualityBrief, tags: [qaqc], summary: Create quality assessment brief, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QualityAssessmentBrief"}}}}, responses: {"201": {description: Created}}}
+  /qaqc/quality-briefs/{id}:
+    put: {operationId: updateQualityBrief, tags: [qaqc], summary: Update quality assessment brief, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QualityAssessmentBrief"}}}}, responses: {"200": {description: Updated}}}
+  /qaqc/quality-briefs/{id}/ai-draft:
+    post: {operationId: draftQualityBriefWithAi, tags: [qaqc], summary: Generate a human-reviewed quality brief draft, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: AI draft, content: {application/json: {schema: {$ref: "#/components/schemas/AIDraft"}}}}}}
+  /qaqc/quality-briefs/{id}/submit:
+    post: {operationId: submitQualityBrief, tags: [qaqc], summary: Submit quality brief, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
+  /qaqc/quality-briefs/{id}/review:
+    post: {operationId: reviewQualityBrief, tags: [qaqc], summary: Review quality brief, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed}}}
+  /qaqc/pqi:
+    get: {operationId: getQaqcPqi, tags: [qaqc], summary: Get zero-denominator-safe composite PQI, parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/Period"}], responses: {"200": {description: PQI, content: {application/json: {schema: {$ref: "#/components/schemas/PQIResult"}}}}}}
+  /qaqc/dashboard:
+    get: {operationId: getQaqcDashboard, tags: [qaqc], summary: Get QA/QC dashboard, parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/Period"}, {name: category, in: query, schema: {type: string}}], responses: {"200": {description: Dashboard, content: {application/json: {schema: {$ref: "#/components/schemas/Dashboard"}}}}}}
+  /qaqc/reports/monthly:
+    get: {operationId: exportQaqcMonthlyReport, tags: [qaqc], summary: Export monthly QA/QC report, parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/Period"}, {$ref: "#/components/parameters/SpreadsheetFormat"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
+  /qaqc/reports/document-governance:
+    get: {operationId: exportDocumentGovernanceReport, tags: [qaqc], summary: Export document governance report, parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/Period"}, {$ref: "#/components/parameters/SpreadsheetFormat"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
+  /qaqc/metrics/template:
+    get: {operationId: downloadQaqcMetricsTemplate, tags: [qaqc], summary: Download metrics import template, parameters: [{$ref: "#/components/parameters/SpreadsheetFormat"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
+  /qaqc/metrics/import:
+    post: {operationId: importQaqcMetrics, tags: [qaqc], summary: Bulk upsert metric rows, requestBody: {required: true, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/QAQCMetricEntry"}}}}}, responses: {"200": {description: Import result, content: {application/json: {schema: {$ref: "#/components/schemas/BulkImportResult"}}}}}}
+  /qaqc/approvals:
+    get: {operationId: listQaqcApprovals, tags: [qaqc], summary: List current user's pending approvals, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/ApprovalItemPage"}}}
+  /qaqc/ai/rephrase:
+    post: {operationId: rephraseQaqcField, tags: [qaqc], summary: Suggest improved field wording, requestBody: {$ref: "#/components/requestBodies/Rephrase"}, responses: {"200": {description: Suggestion, content: {application/json: {schema: {$ref: "#/components/schemas/AISuggestion"}}}}}}
+  /qaqc/ai/prompt-to-transaction:
+    post: {operationId: promptToQaqcTransaction, tags: [qaqc], summary: Extract a draft transaction from a prompt, requestBody: {$ref: "#/components/requestBodies/Prompt"}, responses: {"200": {description: Extracted transaction, content: {application/json: {schema: {$ref: "#/components/schemas/PromptTransaction"}}}}}}
+  /qaqc/ai/prompt-to-transaction/{sessionId}/answer:
+    post: {operationId: answerQaqcPromptQuestion, tags: [qaqc], summary: Answer a prompt clarification, parameters: [{$ref: "#/components/parameters/SessionId"}], requestBody: {$ref: "#/components/requestBodies/PromptAnswer"}, responses: {"200": {description: Updated extraction, content: {application/json: {schema: {$ref: "#/components/schemas/PromptTransaction"}}}}}}
+  /qaqc/evidence:
+    get: {operationId: listQaqcEvidence, tags: [qaqc], summary: List record evidence, parameters: [{$ref: "#/components/parameters/RecordType"}, {$ref: "#/components/parameters/RecordId"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/EvidencePage"}}}
+    post: {operationId: createQaqcEvidenceIntent, tags: [qaqc], summary: Create evidence upload intent, requestBody: {$ref: "#/components/requestBodies/EvidenceIntent"}, responses: {"201": {description: Upload intent, content: {application/json: {schema: {$ref: "#/components/schemas/UploadIntent"}}}}}}
+  /qaqc/evidence/{id}/confirm:
+    put: {operationId: confirmQaqcEvidence, tags: [qaqc], summary: Confirm evidence storage upload, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Confirmed, content: {application/json: {schema: {$ref: "#/components/schemas/EvidenceFile"}}}}}}
+  /qaqc/evidence/{id}:
+    delete: {operationId: deleteQaqcEvidence, tags: [qaqc], summary: Soft-delete evidence, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /qaqc/admin/roles:
+    get: {operationId: listQaqcRoles, tags: [qaqc-admin], summary: List workspace roles, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/RolePage"}}}
+    post: {operationId: createQaqcRole, tags: [qaqc-admin], summary: Create workspace role, requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"201": {description: Created}}}
+  /qaqc/admin/roles/{id}:
+    put: {operationId: updateQaqcRole, tags: [qaqc-admin], summary: Update workspace role, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"200": {description: Updated}}}
+  /qaqc/admin/users:
+    get: {operationId: listQaqcUsers, tags: [qaqc-admin], summary: List workspace users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
+  /qaqc/admin/users/{userId}/roles:
+    post: {operationId: assignQaqcUserRole, tags: [qaqc-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
+  /qaqc/admin/access-queue:
+    get: {operationId: listQaqcAccessQueue, tags: [qaqc-admin], summary: List pending access requests, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
+  /qaqc/admin/access-queue/{id}/decision:
+    post: {operationId: decideQaqcAccessRequest, tags: [qaqc-admin], summary: Decide an access request, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"200": {description: Decided}}}
+  /qaqc/admin/delegations:
+    get: {operationId: listQaqcDelegations, tags: [qaqc-admin], summary: List delegations, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/DelegationPage"}}}
+    post: {operationId: createQaqcDelegation, tags: [qaqc-admin], summary: Create delegation, requestBody: {$ref: "#/components/requestBodies/Delegation"}, responses: {"201": {description: Created}}}
+  /qaqc/admin/delegations/{id}:
+    delete: {operationId: revokeQaqcDelegation, tags: [qaqc-admin], summary: Revoke delegation, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Revoked}}}
+  /qaqc/admin/escalation-rules:
+    get: {operationId: listQaqcEscalationRules, tags: [qaqc-admin], summary: List escalation rules, responses: {"200": {$ref: "#/components/responses/EscalationRulePage"}}}
+    put: {operationId: updateQaqcEscalationRules, tags: [qaqc-admin], summary: Replace escalation rules, requestBody: {$ref: "#/components/requestBodies/EscalationRules"}, responses: {"200": {description: Updated}}}
+  /qaqc/admin/ai-settings:
+    get: {operationId: getQaqcAiSettings, tags: [qaqc-admin], summary: Get AI settings, responses: {"200": {description: Settings, content: {application/json: {schema: {$ref: "#/components/schemas/AISettings"}}}}}}
+    put: {operationId: updateQaqcAiSettings, tags: [qaqc-admin], summary: Update AI settings, requestBody: {$ref: "#/components/requestBodies/AISettings"}, responses: {"200": {description: Updated}}}
+  /qaqc/admin/audit-log:
+    get: {operationId: listQaqcAuditLog, tags: [qaqc-admin], summary: List immutable workspace audit log, parameters: [{$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}, {$ref: "#/components/parameters/ActorId"}, {$ref: "#/components/parameters/Action"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditLogPage"}}}
+  /qaqc/admin/notification-templates:
+    get: {operationId: listQaqcNotificationTemplates, tags: [qaqc-admin], summary: List notification templates, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/NotificationTemplatePage"}}}
+  /qaqc/admin/notification-templates/{id}:
+    put: {operationId: updateQaqcNotificationTemplate, tags: [qaqc-admin], summary: Update notification template, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/NotificationTemplate"}, responses: {"200": {description: Updated}}}
+  /qaqc/notifications:
+    get: {operationId: listQaqcNotifications, tags: [qaqc], summary: List current user's notifications, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/NotificationPage"}}}
+  /qaqc/notifications/{id}/read:
+    post: {operationId: markQaqcNotificationRead, tags: [qaqc], summary: Mark notification read, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Marked read}}}
+  /lessons/reference-data:
+    get: {operationId: getLessonsReferenceData, tags: [lessons], summary: Get cacheable lessons reference snapshot, parameters: [{$ref: "#/components/parameters/Since"}], responses: {"200": {description: Snapshot, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsReferenceData"}}}}}}
+  /lessons/forms:
+    get: {operationId: listLessonForms, tags: [lessons], summary: List lesson learned forms, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/LessonFormPage"}}}
+    post: {operationId: createLessonForm, tags: [lessons], summary: Create lesson learned form, requestBody: {$ref: "#/components/requestBodies/LessonForm"}, responses: {"201": {description: Created}}}
+  /lessons/forms/{id}:
+    get: {operationId: getLessonForm, tags: [lessons], summary: Get lesson learned form, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Form, content: {application/json: {schema: {$ref: "#/components/schemas/LessonLearnedForm"}}}}}}
+    put: {operationId: updateLessonForm, tags: [lessons], summary: Update lesson learned form, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/LessonForm"}, responses: {"200": {description: Updated}}}
+    delete: {operationId: deleteLessonForm, tags: [lessons], summary: Soft-delete lesson learned form, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /lessons/forms/{id}/submit:
+    post: {operationId: submitLessonForm, tags: [lessons], summary: Submit lesson learned form, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
+  /lessons/forms/{id}/review:
+    post: {operationId: reviewLessonForm, tags: [lessons], summary: Review form; remarks are required when sent back, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed}}}
+  /lessons/forms/{id}/photos:
+    post: {operationId: createLessonPhotoIntent, tags: [lessons], summary: Create photo upload intent; maximum five per category, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/LessonPhotoIntent"}, responses: {"201": {description: Upload intent, content: {application/json: {schema: {$ref: "#/components/schemas/UploadIntent"}}}}}}
+  /lessons/photos/{id}/confirm:
+    put: {operationId: confirmLessonPhoto, tags: [lessons], summary: Confirm photo upload, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Confirmed}}}
+  /lessons/photos/{id}:
+    delete: {operationId: deleteLessonPhoto, tags: [lessons], summary: Soft-delete photo, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /lessons/log:
+    get:
+      operationId: searchLessonsLog
+      tags: [lessons]
+      summary: Search the lesson learned knowledge base
+      parameters:
+        - {name: search, in: query, schema: {type: string}}
+        - {$ref: "#/components/parameters/ProjectId"}
+        - {name: disciplineId, in: query, schema: {type: string}}
+        - {name: category, in: query, schema: {type: string}}
+        - {name: impact, in: query, schema: {type: string, enum: [Positive, Negative]}}
+        - {$ref: "#/components/parameters/From"}
+        - {$ref: "#/components/parameters/To"}
+        - {$ref: "#/components/parameters/Page"}
+        - {$ref: "#/components/parameters/Limit"}
+      responses: {"200": {$ref: "#/components/responses/LessonFormPage"}}
+  /lessons/ai/rephrase:
+    post: {operationId: rephraseLessonField, tags: [lessons], summary: Rephrase a supported lesson field, requestBody: {$ref: "#/components/requestBodies/Rephrase"}, responses: {"200": {description: Suggestion, content: {application/json: {schema: {$ref: "#/components/schemas/AISuggestion"}}}}}}
+  /lessons/ai/prompt-to-transaction:
+    post: {operationId: promptToLessonTransaction, tags: [lessons], summary: Extract a lesson from a prompt, requestBody: {$ref: "#/components/requestBodies/Prompt"}, responses: {"200": {description: Extraction, content: {application/json: {schema: {$ref: "#/components/schemas/PromptTransaction"}}}}}}
+  /lessons/ai/prompt-to-transaction/{sessionId}/answer:
+    post: {operationId: answerLessonPromptQuestion, tags: [lessons], summary: Answer a prompt clarification, parameters: [{$ref: "#/components/parameters/SessionId"}], requestBody: {$ref: "#/components/requestBodies/PromptAnswer"}, responses: {"200": {description: Extraction, content: {application/json: {schema: {$ref: "#/components/schemas/PromptTransaction"}}}}}}
+  /lessons/escalations:
+    get: {operationId: getLessonsEscalations, tags: [lessons], summary: Get lesson escalation summary, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/EscalationSummaryPage"}}}
+  /lessons/reports/log:
+    get: {operationId: exportLessonsLog, tags: [lessons], summary: Export lesson learned log, parameters: [{$ref: "#/components/parameters/ReportFormat"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
+  /lessons/forms/{id}/report:
+    get: {operationId: exportLessonFormReport, tags: [lessons], summary: Export one lesson learned form using Accept for format negotiation, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
+  /lessons/admin/roles:
+    get: {operationId: listLessonsRoles, tags: [lessons-admin], summary: List roles, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/RolePage"}}}
+    post: {operationId: createLessonsRole, tags: [lessons-admin], summary: Create role, requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"201": {description: Created}}}
+  /lessons/admin/roles/{id}:
+    put: {operationId: updateLessonsRole, tags: [lessons-admin], summary: Update role, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"200": {description: Updated}}}
+  /lessons/admin/users:
+    get: {operationId: listLessonsUsers, tags: [lessons-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
+  /lessons/admin/users/{userId}/roles:
+    post: {operationId: assignLessonsUserRole, tags: [lessons-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
+  /lessons/admin/access-queue:
+    get: {operationId: listLessonsAccessQueue, tags: [lessons-admin], summary: List access queue, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
+  /lessons/admin/access-queue/{id}/decision:
+    post: {operationId: decideLessonsAccessRequest, tags: [lessons-admin], summary: Decide access request, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"200": {description: Decided}}}
+  /lessons/admin/delegations:
+    get: {operationId: listLessonsDelegations, tags: [lessons-admin], summary: List delegations, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/DelegationPage"}}}
+    post: {operationId: createLessonsDelegation, tags: [lessons-admin], summary: Create delegation, requestBody: {$ref: "#/components/requestBodies/Delegation"}, responses: {"201": {description: Created}}}
+  /lessons/admin/delegations/{id}:
+    delete: {operationId: revokeLessonsDelegation, tags: [lessons-admin], summary: Revoke delegation, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Revoked}}}
+  /lessons/admin/escalation-rules:
+    get: {operationId: listLessonsEscalationRules, tags: [lessons-admin], summary: List escalation rules, responses: {"200": {$ref: "#/components/responses/EscalationRulePage"}}}
+    put: {operationId: updateLessonsEscalationRules, tags: [lessons-admin], summary: Replace escalation rules, requestBody: {$ref: "#/components/requestBodies/EscalationRules"}, responses: {"200": {description: Updated}}}
+  /lessons/admin/ai-settings:
+    get: {operationId: getLessonsAiSettings, tags: [lessons-admin], summary: Get AI settings, responses: {"200": {description: Settings, content: {application/json: {schema: {$ref: "#/components/schemas/AISettings"}}}}}}
+    put: {operationId: updateLessonsAiSettings, tags: [lessons-admin], summary: Update AI settings, requestBody: {$ref: "#/components/requestBodies/AISettings"}, responses: {"200": {description: Updated}}}
+  /lessons/admin/audit-log:
+    get: {operationId: listLessonsAuditLog, tags: [lessons-admin], summary: List immutable audit log, parameters: [{$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}, {$ref: "#/components/parameters/ActorId"}, {$ref: "#/components/parameters/Action"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditLogPage"}}}
+  /lessons/admin/notification-templates:
+    get: {operationId: listLessonsNotificationTemplates, tags: [lessons-admin], summary: List notification templates, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/NotificationTemplatePage"}}}
+  /lessons/admin/notification-templates/{id}:
+    put: {operationId: updateLessonsNotificationTemplate, tags: [lessons-admin], summary: Update notification template, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/NotificationTemplate"}, responses: {"200": {description: Updated}}}
+  /lessons/notifications:
+    get: {operationId: listLessonsNotifications, tags: [lessons], summary: List current user's notifications, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/NotificationPage"}}}
+  /lessons/notifications/{id}/read:
+    post: {operationId: markLessonsNotificationRead, tags: [lessons], summary: Mark notification read, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Marked read}}}
+  /lessons/evidence:
+    get: {operationId: listLessonsEvidence, tags: [lessons], summary: List record evidence, parameters: [{$ref: "#/components/parameters/RecordType"}, {$ref: "#/components/parameters/RecordId"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/EvidencePage"}}}
+    post: {operationId: createLessonsEvidenceIntent, tags: [lessons], summary: Create evidence upload intent, requestBody: {$ref: "#/components/requestBodies/EvidenceIntent"}, responses: {"201": {description: Upload intent, content: {application/json: {schema: {$ref: "#/components/schemas/UploadIntent"}}}}}}
+  /lessons/evidence/{id}/confirm:
+    put: {operationId: confirmLessonsEvidence, tags: [lessons], summary: Confirm evidence upload, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Confirmed}}}
+  /lessons/evidence/{id}:
+    delete: {operationId: deleteLessonsEvidence, tags: [lessons], summary: Soft-delete evidence, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /audit/schedules:
+    get: {operationId: listAuditSchedules, tags: [audit], summary: List audit schedules, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditSchedulePage"}}}
+    post: {operationId: createAuditSchedule, tags: [audit], summary: Create audit schedule, requestBody: {$ref: "#/components/requestBodies/AuditSchedule"}, responses: {"201": {description: Created}}}
+  /audit/schedules/{id}:
+    get: {operationId: getAuditSchedule, tags: [audit], summary: Get audit schedule, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Schedule, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}}}
+    put: {operationId: updateAuditSchedule, tags: [audit], summary: Update audit schedule, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditSchedule"}, responses: {"200": {description: Updated}}}
+    delete: {operationId: deleteAuditSchedule, tags: [audit], summary: Soft-delete audit schedule, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /audit/schedules/{id}/submit:
+    post: {operationId: submitAuditSchedule, tags: [audit], summary: Submit schedule for approval, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
+  /audit/schedules/{id}/review:
+    post: {operationId: reviewAuditSchedule, tags: [audit], summary: Approve or send back schedule, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed}}}
+  /audit/plans:
+    get: {operationId: listAuditPlans, tags: [audit], summary: List audit plans, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditPlanPage"}}}
+    post: {operationId: createAuditPlan, tags: [audit], summary: Create plan linked to schedule, requestBody: {$ref: "#/components/requestBodies/AuditPlan"}, responses: {"201": {description: Created}}}
+  /audit/plans/{id}:
+    get: {operationId: getAuditPlan, tags: [audit], summary: Get audit plan, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Plan, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlan"}}}}}}
+    put: {operationId: updateAuditPlan, tags: [audit], summary: Update audit plan, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditPlan"}, responses: {"200": {description: Updated}}}
+    delete: {operationId: deleteAuditPlan, tags: [audit], summary: Soft-delete audit plan, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /audit/plans/{id}/share:
+    post: {operationId: shareAuditPlan, tags: [audit], summary: Share plan with process and product owners, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"202": {description: Shared}}}
+  /audit/audits:
+    get: {operationId: listAudits, tags: [audit], summary: List audits, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditPage"}}}
+    post: {operationId: createAudit, tags: [audit], summary: Create audit linked to plan, requestBody: {$ref: "#/components/requestBodies/Audit"}, responses: {"201": {description: Created}}}
+  /audit/audits/{id}:
+    get: {operationId: getAudit, tags: [audit], summary: Get audit, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
+    put: {operationId: updateAudit, tags: [audit], summary: Update audit, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Audit"}, responses: {"200": {description: Updated}}}
+    delete: {operationId: deleteAudit, tags: [audit], summary: Soft-delete audit, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /audit/audits/{id}/opening-meeting:
+    put: {operationId: updateAuditOpeningMeeting, tags: [audit], summary: Record opening meeting minutes, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Meeting"}, responses: {"200": {description: Updated}}}
+  /audit/audits/{id}/closing-meeting:
+    put: {operationId: updateAuditClosingMeeting, tags: [audit], summary: Record closing meeting minutes, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Meeting"}, responses: {"200": {description: Updated}}}
+  /audit/audits/{id}/checklist:
+    put: {operationId: updateAuditChecklist, tags: [audit], summary: Update audit checklist, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Checklist"}, responses: {"200": {description: Updated}}}
+  /audit/findings:
+    get: {operationId: listAuditFindings, tags: [audit], summary: List audit findings, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditFindingPage"}}}
+    post: {operationId: createAuditFinding, tags: [audit], summary: Create audit finding, requestBody: {$ref: "#/components/requestBodies/AuditFinding"}, responses: {"201": {description: Created}}}
+  /audit/findings/{id}:
+    get: {operationId: getAuditFinding, tags: [audit], summary: Get audit finding, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Finding, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFinding"}}}}}}
+    put: {operationId: updateAuditFinding, tags: [audit], summary: Update audit finding, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditFinding"}, responses: {"200": {description: Updated}}}
+    delete: {operationId: deleteAuditFinding, tags: [audit], summary: Soft-delete audit finding, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /audit/findings/{id}/cars:
+    post: {operationId: createFindingCars, tags: [audit], summary: Create one CAR per responsible department, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/CreateCars"}, responses: {"201": {$ref: "#/components/responses/CarPage"}}}
+  /audit/cars:
+    get: {operationId: listCorrectiveActionReports, tags: [audit], summary: List corrective action reports, parameters: [{name: status, in: query, schema: {type: string}}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/CarPage"}}}
+  /audit/cars/{id}:
+    put: {operationId: updateCorrectiveActionReport, tags: [audit], summary: "Update root cause, correction, and corrective action", parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Car"}, responses: {"200": {description: Updated}}}
+  /audit/cars/{id}/submit:
+    post: {operationId: submitCorrectiveActionReport, tags: [audit], summary: Submit CAR, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
+  /audit/cars/{id}/review:
+    post: {operationId: reviewCorrectiveActionReport, tags: [audit], summary: Accept or reject CAR, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AcceptReject"}, responses: {"200": {description: Reviewed}}}
+  /audit/cars/{id}/extension:
+    post: {operationId: requestCarExtension, tags: [audit], summary: Request CAR due-date extension, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Extension"}, responses: {"200": {description: Requested}}}
+  /audit/cars/{id}/extension/review:
+    post: {operationId: reviewCarExtension, tags: [audit], summary: Approve or reject extension, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApproveReject"}, responses: {"200": {description: Reviewed}}}
+  /audit/cars/{id}/close:
+    post: {operationId: closeCorrectiveActionReport, tags: [audit], summary: Verify effectiveness and close CAR, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Closed}}}
+  /audit/evidence:
+    get: {operationId: listAuditEvidence, tags: [audit], summary: List audit evidence, parameters: [{$ref: "#/components/parameters/RecordType"}, {$ref: "#/components/parameters/RecordId"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/EvidencePage"}}}
+    post: {operationId: createAuditEvidenceIntent, tags: [audit], summary: Create evidence upload intent, requestBody: {$ref: "#/components/requestBodies/EvidenceIntent"}, responses: {"201": {description: Upload intent, content: {application/json: {schema: {$ref: "#/components/schemas/UploadIntent"}}}}}}
+  /audit/evidence/{id}/confirm:
+    put: {operationId: confirmAuditEvidence, tags: [audit], summary: Confirm evidence upload, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Confirmed}}}
+  /audit/reports/open-vs-closed:
+    get: {operationId: getAuditOpenVsClosedReport, tags: [audit], summary: Get open versus closed report, parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}], responses: {"200": {description: Report, content: {application/json: {schema: {$ref: "#/components/schemas/Dashboard"}}}}}}
+  /audit/reports/findings-log:
+    get: {operationId: getAuditFindingsLogReport, tags: [audit], summary: Get findings log report, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditFindingPage"}}}
+  /audit/reports/ageing:
+    get: {operationId: getAuditAgeingReport, tags: [audit], summary: Get findings ageing report, responses: {"200": {description: Report, content: {application/json: {schema: {$ref: "#/components/schemas/Dashboard"}}}}}}
+  /audit/reports/car-status:
+    get: {operationId: getAuditCarStatusReport, tags: [audit], summary: Get CAR status report, responses: {"200": {description: Report, content: {application/json: {schema: {$ref: "#/components/schemas/Dashboard"}}}}}}
+  /audit/reports/schedule:
+    get: {operationId: getAuditScheduleReport, tags: [audit], summary: Get annual schedule report, responses: {"200": {$ref: "#/components/responses/AuditSchedulePage"}}}
+  /audit/audits/{id}/report:
+    get: {operationId: getGeneratedAuditReport, tags: [audit], summary: Preview or download generated audit report using Accept for format negotiation, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Generated report, content: {application/json: {schema: {$ref: "#/components/schemas/GeneratedAuditReport"}}}}}}
+  /audit/dashboard:
+    get: {operationId: getAuditDashboard, tags: [audit], summary: Get audit dashboard, parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}], responses: {"200": {description: Dashboard, content: {application/json: {schema: {$ref: "#/components/schemas/Dashboard"}}}}}}
+  /audit/admin/roles:
+    get: {operationId: listAuditRoles, tags: [audit-admin], summary: List roles, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/RolePage"}}}
+    post: {operationId: createAuditRole, tags: [audit-admin], summary: Create role, requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"201": {description: Created}}}
+  /audit/admin/roles/{id}:
+    put: {operationId: updateAuditRole, tags: [audit-admin], summary: Update role, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"200": {description: Updated}}}
+  /audit/admin/users:
+    get: {operationId: listAuditUsers, tags: [audit-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
+  /audit/admin/users/{userId}/roles:
+    post: {operationId: assignAuditUserRole, tags: [audit-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
+  /audit/admin/access-queue:
+    get: {operationId: listAuditAccessQueue, tags: [audit-admin], summary: List access queue, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
+  /audit/admin/access-queue/{id}/decision:
+    post: {operationId: decideAuditAccessRequest, tags: [audit-admin], summary: Decide access request, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"200": {description: Decided}}}
+  /audit/admin/delegations:
+    get: {operationId: listAuditDelegations, tags: [audit-admin], summary: List delegations, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/DelegationPage"}}}
+    post: {operationId: createAuditDelegation, tags: [audit-admin], summary: Create delegation, requestBody: {$ref: "#/components/requestBodies/Delegation"}, responses: {"201": {description: Created}}}
+  /audit/admin/delegations/{id}:
+    delete: {operationId: revokeAuditDelegation, tags: [audit-admin], summary: Revoke delegation, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Revoked}}}
+  /audit/admin/escalation-rules:
+    get: {operationId: listAuditEscalationRules, tags: [audit-admin], summary: List escalation rules, responses: {"200": {$ref: "#/components/responses/EscalationRulePage"}}}
+    put: {operationId: updateAuditEscalationRules, tags: [audit-admin], summary: Replace escalation rules, requestBody: {$ref: "#/components/requestBodies/EscalationRules"}, responses: {"200": {description: Updated}}}
+  /audit/admin/audit-log:
+    get: {operationId: listAuditWorkspaceAuditLog, tags: [audit-admin], summary: List immutable audit log, parameters: [{$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}, {$ref: "#/components/parameters/ActorId"}, {$ref: "#/components/parameters/Action"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditLogPage"}}}
+  /audit/admin/notification-templates:
+    get: {operationId: listAuditNotificationTemplates, tags: [audit-admin], summary: List notification templates, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/NotificationTemplatePage"}}}
+  /audit/admin/notification-templates/{id}:
+    put: {operationId: updateAuditNotificationTemplate, tags: [audit-admin], summary: Update notification template, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/NotificationTemplate"}, responses: {"200": {description: Updated}}}
+  /audit/notifications:
+    get: {operationId: listAuditNotifications, tags: [audit], summary: List current user's notifications, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/NotificationPage"}}}
+  /audit/notifications/{id}/read:
+    post: {operationId: markAuditNotificationRead, tags: [audit], summary: Mark notification read, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Marked read}}}
 components:
   securitySchemes:
     bearerAuth:
@@ -204,6 +678,82 @@ components:
       required: true
       schema:
         $ref: "#/components/schemas/AppKey"
+    Id: {name: id, in: path, required: true, schema: {type: string}}
+    UserId: {name: userId, in: path, required: true, schema: {type: string}}
+    SessionId: {name: sessionId, in: path, required: true, schema: {type: string}}
+    Page: {name: page, in: query, schema: {type: number, minimum: 1, default: 1}}
+    Limit: {name: limit, in: query, schema: {type: number, minimum: 1, maximum: 200, default: 20}}
+    Since: {name: since, in: query, required: false, schema: {type: string, format: date-time}}
+    ProjectId: {name: projectId, in: query, required: false, schema: {type: string}}
+    Period: {name: period, in: query, required: false, schema: {type: string, pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$"}}
+    From: {name: from, in: query, schema: {type: string, format: date}}
+    To: {name: to, in: query, schema: {type: string, format: date}}
+    ActorId: {name: actorId, in: query, schema: {type: string}}
+    Action: {name: action, in: query, schema: {type: string}}
+    RecordType: {name: recordType, in: query, required: true, schema: {type: string}}
+    RecordId: {name: recordId, in: query, required: true, schema: {type: string}}
+    SpreadsheetFormat: {name: format, in: query, required: true, schema: {type: string, enum: [csv, xlsx]}}
+    ReportFormat: {name: format, in: query, required: false, schema: {type: string, enum: [json, pdf, csv, xlsx]}}
+  responses:
+    ReportFile:
+      description: Generated report file
+      content:
+        application/json: {schema: {$ref: "#/components/schemas/ReportDelivery"}}
+    ProjectPage: {description: Paginated projects, content: {application/json: {schema: {$ref: "#/components/schemas/ProjectPage"}}}}
+    BusinessUnitPage: {description: Paginated business units, content: {application/json: {schema: {$ref: "#/components/schemas/BusinessUnitPage"}}}}
+    IntegrationConnectorPage: {description: Paginated connectors, content: {application/json: {schema: {$ref: "#/components/schemas/IntegrationConnectorPage"}}}}
+    SyncJobPage: {description: Paginated jobs, content: {application/json: {schema: {$ref: "#/components/schemas/SyncJobPage"}}}}
+    ExecutiveSummaryPage: {description: Paginated summaries, content: {application/json: {schema: {$ref: "#/components/schemas/ExecutiveSummaryPage"}}}}
+    ReferenceItemPage: {description: Paginated reference items, content: {application/json: {schema: {$ref: "#/components/schemas/ReferenceItemPage"}}}}
+    QAQCMetricPage: {description: Paginated metrics, content: {application/json: {schema: {$ref: "#/components/schemas/QAQCMetricPage"}}}}
+    MaterialInspectionPage: {description: Paginated inspections, content: {application/json: {schema: {$ref: "#/components/schemas/MaterialInspectionPage"}}}}
+    QtbtPage: {description: Paginated talks, content: {application/json: {schema: {$ref: "#/components/schemas/QTBTPage"}}}}
+    CustomerSatisfactionPage: {description: Paginated surveys, content: {application/json: {schema: {$ref: "#/components/schemas/CustomerSatisfactionPage"}}}}
+    DocumentGovernancePage: {description: Paginated log, content: {application/json: {schema: {$ref: "#/components/schemas/DocumentGovernancePage"}}}}
+    QualityBriefPage: {description: Paginated briefs, content: {application/json: {schema: {$ref: "#/components/schemas/QualityBriefPage"}}}}
+    ApprovalItemPage: {description: Paginated approvals, content: {application/json: {schema: {$ref: "#/components/schemas/ApprovalItemPage"}}}}
+    EvidencePage: {description: Paginated evidence, content: {application/json: {schema: {$ref: "#/components/schemas/EvidencePage"}}}}
+    RolePage: {description: Paginated roles, content: {application/json: {schema: {$ref: "#/components/schemas/RolePage"}}}}
+    WorkspaceUserPage: {description: Paginated users, content: {application/json: {schema: {$ref: "#/components/schemas/WorkspaceUserPage"}}}}
+    AccessRequestPage: {description: Paginated requests, content: {application/json: {schema: {$ref: "#/components/schemas/AccessRequestPage"}}}}
+    DelegationPage: {description: Paginated delegations, content: {application/json: {schema: {$ref: "#/components/schemas/DelegationPage"}}}}
+    EscalationRulePage: {description: Paginated rules, content: {application/json: {schema: {$ref: "#/components/schemas/EscalationRulePage"}}}}
+    AuditLogPage: {description: Paginated audit entries, content: {application/json: {schema: {$ref: "#/components/schemas/AuditLogPage"}}}}
+    NotificationTemplatePage: {description: Paginated templates, content: {application/json: {schema: {$ref: "#/components/schemas/NotificationTemplatePage"}}}}
+    NotificationPage: {description: Paginated notifications, content: {application/json: {schema: {$ref: "#/components/schemas/NotificationPage"}}}}
+    LessonFormPage: {description: Paginated forms, content: {application/json: {schema: {$ref: "#/components/schemas/LessonFormPage"}}}}
+    EscalationSummaryPage: {description: Paginated escalation summary, content: {application/json: {schema: {$ref: "#/components/schemas/EscalationSummaryPage"}}}}
+    AuditSchedulePage: {description: Paginated schedules, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedulePage"}}}}
+    AuditPlanPage: {description: Paginated plans, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanPage"}}}}
+    AuditPage: {description: Paginated audits, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPage"}}}}
+    AuditFindingPage: {description: Paginated findings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingPage"}}}}
+    CarPage: {description: Paginated CARs, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReportPage"}}}}
+  requestBodies:
+    ApprovalReview: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ApprovalReview"}}}}
+    Rephrase: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/RephraseRequest"}}}}
+    Prompt: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/PromptRequest"}}}}
+    PromptAnswer: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/PromptAnswer"}}}}
+    EvidenceIntent: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/EvidenceIntentRequest"}}}}
+    LessonPhotoIntent: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonPhotoIntentRequest"}}}}
+    Role: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/Role"}}}}
+    RoleAssignment: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/RoleAssignment"}}}}
+    AdminDecision: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AdminDecision"}}}}
+    Delegation: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/Delegation"}}}}
+    EscalationRules: {required: true, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/EscalationRule"}}}}}
+    AISettings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AISettings"}}}}
+    NotificationTemplate: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/NotificationTemplate"}}}}
+    LessonForm: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonLearnedForm"}}}}
+    AuditSchedule: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}
+    AuditPlan: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlan"}}}}
+    Audit: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
+    AuditFinding: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFinding"}}}}
+    Car: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}
+    CreateCars: {required: true, content: {application/json: {schema: {type: object, required: [responsibleDepartments], properties: {responsibleDepartments: {type: array, minItems: 1, items: {type: string}}}}}}}
+    Meeting: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/MeetingMinutes"}}}}
+    Checklist: {required: true, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}}}}
+    AcceptReject: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AcceptRejectReview"}}}}
+    ApproveReject: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ApproveRejectReview"}}}}
+    Extension: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ExtensionRequest"}}}}
   schemas:
     HealthStatus:
       type: object
@@ -441,4 +991,367 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OverviewRecord"
+    Error:
+      type: object
+      required: [error]
+      properties: {error: {type: string}}
+    BusinessUnit:
+      type: object
+      required: [id, name]
+      properties: {id: {type: string}, name: {type: string}, parentGroup: {type: [string, "null"]}, projectIds: {type: array, items: {type: string}}}
+    ApplicationAccess:
+      type: object
+      required: [qaqc, lessons, audit]
+      properties: {qaqc: {type: boolean}, lessons: {type: boolean}, audit: {type: boolean}}
+    ReferenceDataSnapshot:
+      type: object
+      required: [generatedAt, projects, businessUnits]
+      properties:
+        generatedAt: {type: string, format: date-time}
+        projects: {type: array, items: {$ref: "#/components/schemas/Project"}}
+        businessUnits: {type: array, items: {$ref: "#/components/schemas/BusinessUnit"}}
+    WorkingCalendar:
+      type: object
+      required: [workingDays, holidays]
+      properties: {workingDays: {type: array, items: {type: number, minimum: 0, maximum: 6}}, holidays: {type: array, items: {type: string, format: date}}}
+    EvidenceLimits:
+      type: object
+      properties: {photoMaxBytes: {type: number}, photoMaxCount: {type: number}, videoMaxBytes: {type: number}, videoMaxDurationSeconds: {type: number}, documentMaxBytes: {type: number}}
+    OrganizationSettings:
+      type: object
+      required: [organizationName, locale, timezone, workingCalendar]
+      properties:
+        organizationName: {type: string}
+        logoUrl: {type: [string, "null"]}
+        primaryColor: {type: string}
+        locale: {type: string}
+        timezone: {type: string}
+        workingCalendar: {$ref: "#/components/schemas/WorkingCalendar"}
+        exportRowThreshold: {type: number}
+        exportMonthThreshold: {type: number}
+        evidenceLimits: {$ref: "#/components/schemas/EvidenceLimits"}
+        allowedEmailDomains: {type: array, items: {type: string}}
+    IntegrationConnector:
+      type: object
+      required: [id, name, family, status, enabled]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        family: {type: string, enum: [platform, email, ai, oracle_adw, bi]}
+        status: {type: string, enum: [Connected, Degraded, Failed, Disabled]}
+        enabled: {type: boolean}
+        config: {type: object, additionalProperties: true}
+        lastSuccessfulSyncAt: {type: [string, "null"], format: date-time}
+    SyncJob:
+      type: object
+      required: [id, connectorId, status, startedAt]
+      properties: {id: {type: string}, connectorId: {type: string}, status: {type: string, enum: [queued, running, succeeded, failed]}, schedule: {type: [string, "null"]}, startedAt: {type: string, format: date-time}, completedAt: {type: [string, "null"], format: date-time}, durationMs: {type: [number, "null"]}, sourceCount: {type: number}, targetCount: {type: number}, error: {type: [string, "null"]}}
+    IntegrationHealth:
+      type: object
+      required: [status, connectors]
+      properties: {status: {type: string, enum: [healthy, degraded, failed]}, connectors: {type: array, items: {$ref: "#/components/schemas/IntegrationConnector"}}, checkedAt: {type: string, format: date-time}}
+    ExecutiveSummary:
+      type: object
+      required: [id, appKey, period, publishedAt, metrics]
+      properties: {id: {type: string}, appKey: {$ref: "#/components/schemas/AppKey"}, period: {type: string}, publishedAt: {type: string, format: date-time}, metrics: {type: object, additionalProperties: {type: number}}, narrative: {type: [string, "null"]}}
+    ReferenceItem:
+      type: object
+      required: [id, name, active]
+      properties: {id: {type: string}, code: {type: [string, "null"]}, name: {type: string}, active: {type: boolean}, metadata: {type: object, additionalProperties: true}}
+    WorkflowState:
+      type: string
+      enum: [Draft, Submitted, Approved, Sent Back, Deleted]
+    QAQCMetricEntry:
+      type: object
+      required: [id, projectId, period, category, issuedCount, closedCount, ageing0To15, ageing15To45, ageingOver45, workflowState]
+      properties:
+        id: {type: string}
+        projectId: {type: string}
+        period: {type: string}
+        category: {type: string, enum: [External NCR, Internal NCR, RFI, RMI]}
+        issuedCount: {type: number, minimum: 0}
+        closedCount: {type: number, minimum: 0}
+        ageing0To15: {type: number, minimum: 0}
+        ageing15To45: {type: number, minimum: 0}
+        ageingOver45: {type: number, minimum: 0}
+        workflowState: {$ref: "#/components/schemas/WorkflowState"}
+        closureRate: {type: number, readOnly: true, description: Returns 100 when issued and closed are both zero}
+        variance: {type: number, readOnly: true}
+        pqi: {type: number, readOnly: true}
+        deletedAt: {type: [string, "null"], format: date-time}
+    MaterialInspectionEntry:
+      type: object
+      description: Status counts must reconcile exactly to mirnTotal.
+      required: [id, projectId, period, mirnTotal, approved, onHold, rejected, hazardous, handleWithCare]
+      properties: {id: {type: string}, projectId: {type: string}, period: {type: string}, mirnTotal: {type: number, minimum: 0}, osdCount: {type: number, minimum: 0}, approved: {type: number, minimum: 0}, onHold: {type: number, minimum: 0}, rejected: {type: number, minimum: 0}, hazardous: {type: number, minimum: 0}, handleWithCare: {type: number, minimum: 0}}
+    QTBTEntry:
+      type: object
+      required: [id, projectId, period, talkCount, attendance, durationMinutes]
+      properties: {id: {type: string}, projectId: {type: string}, period: {type: string}, talkCount: {type: number, minimum: 0}, attendance: {type: number, minimum: 0}, durationMinutes: {type: number, minimum: 0}, cumulativeTalkCount: {type: number, readOnly: true}}
+    CustomerSatisfactionEntry:
+      type: object
+      required: [id, projectId, period, serviceRatings]
+      properties: {id: {type: string}, projectId: {type: string}, period: {type: string}, serviceRatings: {type: array, minItems: 6, maxItems: 6, items: {type: number, minimum: 1, maximum: 5}}, outcomes: {type: array, items: {type: string, enum: [Yes, No, Partially]}}, feedback: {type: [string, "null"]}}
+    DocumentGovernanceLogEntry:
+      type: object
+      required: [id, projectId, date, disciplineId, documentType, status, pendingWith]
+      properties: {id: {type: string}, projectId: {type: string}, date: {type: string, format: date}, disciplineId: {type: string}, documentType: {type: string, enum: [Submittal, Drawing, Correspondence]}, status: {type: string, enum: [Approved, Resubmit, Rejected, Under Review]}, reviewDays: {type: number, minimum: 0}, pendingWith: {type: string, enum: [Client, Algihaz, Supplier]}, pendingDays: {type: number, minimum: 0}, correspondenceCount: {type: number, minimum: 0}}
+    QualityAssessmentBrief:
+      type: object
+      required: [id, projectId, period, narrative, workflowState]
+      properties: {id: {type: string}, projectId: {type: string}, period: {type: string}, narrative: {type: string}, aiDraft: {type: [string, "null"]}, aiReviewDecision: {type: [string, "null"], enum: [Accept, Edit, Reject, null]}, workflowState: {$ref: "#/components/schemas/WorkflowState"}, reviewComments: {type: [string, "null"]}}
+    ApprovalReview:
+      type: object
+      required: [decision]
+      properties: {decision: {type: string, enum: [approve, send_back]}, comments: {type: [string, "null"]}}
+    AIDraft:
+      type: object
+      required: [draft, suggestions]
+      properties: {draft: {type: string}, suggestions: {type: array, items: {type: string}}}
+    PQICategory:
+      type: object
+      required: [category, closureRate, variance, score]
+      properties: {category: {type: string}, closureRate: {type: number}, variance: {type: number}, score: {type: number}}
+    PQIResult:
+      type: object
+      required: [projectId, period, pqi, categories]
+      properties: {projectId: {type: string}, period: {type: string}, pqi: {type: number}, categories: {type: array, items: {$ref: "#/components/schemas/PQICategory"}}}
+    Dashboard:
+      type: object
+      required: [generatedAt, metrics]
+      properties: {generatedAt: {type: string, format: date-time}, metrics: {type: object, additionalProperties: true}, series: {type: array, items: {type: object, additionalProperties: true}}}
+    BulkImportResult:
+      type: object
+      required: [created, updated, rejected]
+      properties: {created: {type: number}, updated: {type: number}, rejected: {type: number}, errors: {type: array, items: {$ref: "#/components/schemas/Error"}}}
+    ApprovalItem:
+      type: object
+      required: [id, recordType, recordId, title, submittedAt]
+      properties: {id: {type: string}, recordType: {type: string}, recordId: {type: string}, title: {type: string}, submittedAt: {type: string, format: date-time}, delegatedFrom: {type: [string, "null"]}}
+    RephraseRequest:
+      type: object
+      required: [field, text]
+      properties: {field: {type: string}, text: {type: string}}
+    AISuggestion:
+      type: object
+      required: [suggestion]
+      properties: {suggestion: {type: string}}
+    PromptRequest:
+      type: object
+      required: [prompt]
+      properties: {prompt: {type: string}}
+    MissingField:
+      type: object
+      required: [field, question, options]
+      properties: {field: {type: string}, question: {type: string}, options: {type: array, items: {type: string}}}
+    PromptTransaction:
+      type: object
+      required: [extracted, missing, sessionId]
+      properties: {extracted: {type: object, additionalProperties: true}, missing: {type: array, items: {$ref: "#/components/schemas/MissingField"}}, sessionId: {type: string}}
+    PromptAnswer:
+      type: object
+      required: [field, value]
+      properties: {field: {type: string}, value: {}}
+    EvidenceIntentRequest:
+      type: object
+      required: [recordType, recordId, category, fileName, mimeType, sizeBytes, clientReference]
+      properties: {recordType: {type: string}, recordId: {type: string}, category: {type: string}, fileName: {type: string}, mimeType: {type: string}, sizeBytes: {type: number, minimum: 1}, clientReference: {type: string}}
+    UploadIntent:
+      type: object
+      required: [id, uploadUrl]
+      properties: {id: {type: string}, uploadUrl: {type: string}}
+    EvidenceFile:
+      type: object
+      required: [id, recordType, recordId, category, fileName, mimeType, sizeBytes, status, clientReference]
+      properties: {id: {type: string}, recordType: {type: string}, recordId: {type: string}, category: {type: string}, fileName: {type: string}, mimeType: {type: string}, sizeBytes: {type: number}, status: {type: string, enum: [pending, confirmed, failed, deleted]}, clientReference: {type: string}, storageUrl: {type: [string, "null"]}, gpsLat: {type: [number, "null"]}, gpsLng: {type: [number, "null"]}, createdAt: {type: string, format: date-time}}
+    Permission:
+      type: object
+      required: [key, name]
+      properties: {key: {type: string, enum: [data_entry, submit, approve_reject, view_own_scope, view_all, configure_masters, manage_integrations, manage_ai_settings, export, delegate]}, name: {type: string}}
+    Role:
+      type: object
+      required: [id, name, permissions, active]
+      properties: {id: {type: string}, name: {type: string}, description: {type: [string, "null"]}, permissions: {type: array, items: {$ref: "#/components/schemas/Permission"}}, active: {type: boolean}, systemDefault: {type: boolean}}
+    RoleAssignment:
+      type: object
+      required: [roleId, scopeType, scopeIds]
+      properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, business_unit, project]}, scopeIds: {type: array, items: {type: string}}}
+    WorkspaceUser:
+      type: object
+      required: [id, username, platformRole, workspaceRoles, status]
+      properties: {id: {type: string}, username: {type: string}, email: {type: [string, "null"]}, platformRole: {type: string}, workspaceRoles: {type: array, items: {$ref: "#/components/schemas/Role"}}, status: {type: string, enum: [Not Requested, Active, Deactivated]}, lastAccessAt: {type: [string, "null"], format: date-time}}
+    AccessRequest:
+      type: object
+      required: [id, userId, requestedRoleId, status, requestedAt]
+      properties: {id: {type: string}, userId: {type: string}, requestedRoleId: {type: string}, scope: {$ref: "#/components/schemas/RoleAssignment"}, status: {type: string, enum: [pending, approved, rejected]}, requestedAt: {type: string, format: date-time}}
+    AdminDecision:
+      type: object
+      required: [decision]
+      properties: {decision: {type: string, enum: [approve, reject]}, comments: {type: [string, "null"]}}
+    Delegation:
+      type: object
+      required: [id, delegatorId, delegateId, scope, startDate, endDate, status]
+      properties: {id: {type: string}, delegatorId: {type: string}, delegateId: {type: string}, scope: {type: string}, approvalTypes: {type: array, items: {type: string}}, startDate: {type: string, format: date}, endDate: {type: string, format: date}, status: {type: string, enum: [pending, active, expired, revoked]}, revokedAt: {type: [string, "null"], format: date-time}}
+    EscalationRule:
+      type: object
+      required: [id, triggerType, slaWorkingDays, recipientRoles, repeatCadenceDays, enabled]
+      properties: {id: {type: string}, triggerType: {type: string}, priority: {type: [string, "null"]}, level: {type: [string, "null"]}, slaWorkingDays: {type: number, minimum: 0}, recipientRoles: {type: array, items: {type: string}}, repeatCadenceDays: {type: number, minimum: 1}, enabled: {type: boolean}}
+    AISettings:
+      type: object
+      required: [enabled, features, provider, model, timeoutSeconds]
+      properties: {enabled: {type: boolean}, features: {type: object, additionalProperties: {type: boolean}}, provider: {type: string}, model: {type: string}, timeoutSeconds: {type: number, minimum: 1}, stripPersonalData: {type: boolean}, retentionDays: {type: number}, monthlyQuota: {type: number}}
+    Notification:
+      type: object
+      required: [id, type, title, message, critical, read, createdAt]
+      properties: {id: {type: string}, type: {type: string}, title: {type: string}, message: {type: string}, critical: {type: boolean}, read: {type: boolean}, recordType: {type: [string, "null"]}, recordId: {type: [string, "null"]}, createdAt: {type: string, format: date-time}, readAt: {type: [string, "null"], format: date-time}}
+    NotificationTemplate:
+      type: object
+      required: [id, key, subject, body, channels, enabled]
+      properties: {id: {type: string}, key: {type: string}, subject: {type: string}, body: {type: string}, channels: {type: array, items: {type: string, enum: [in_app, email, push, sms]}}, mergeFields: {type: array, items: {type: string}}, enabled: {type: boolean}}
+    AuditLogEntry:
+      type: object
+      required: [id, actorId, action, entityType, entityId, occurredAt]
+      properties: {id: {type: string}, actorId: {type: string}, delegatedForId: {type: [string, "null"]}, action: {type: string}, entityType: {type: string}, entityId: {type: string}, before: {type: [object, "null"], additionalProperties: true}, after: {type: [object, "null"], additionalProperties: true}, ipAddress: {type: [string, "null"]}, occurredAt: {type: string, format: date-time}}
+    AISuggestionLog:
+      type: object
+      required: [id, userId, feature, prompt, status, createdAt]
+      properties: {id: {type: string}, userId: {type: string}, feature: {type: string}, prompt: {type: string}, response: {type: [string, "null"]}, status: {type: string, enum: [accepted, edited, rejected, failed, timed_out]}, finalRecordId: {type: [string, "null"]}, createdAt: {type: string, format: date-time}}
+    LessonsReferenceData:
+      type: object
+      required: [generatedAt, projects, disciplines, categorisation]
+      properties: {generatedAt: {type: string, format: date-time}, projects: {type: array, items: {$ref: "#/components/schemas/Project"}}, disciplines: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}, categorisation: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}}
+    LessonLearnedForm:
+      type: object
+      required: [id, referenceNumber, projectId, title, disciplineId, categorisationId, issueCategory, impact, description, rootCause, correction, correctiveAction, capturedAt, version, conflictFlag, workflowState]
+      properties:
+        id: {type: string}
+        referenceNumber: {type: string, readOnly: true}
+        projectId: {type: string}
+        title: {type: string}
+        disciplineId: {type: string}
+        categorisationId: {type: string}
+        issueCategory: {type: string, enum: [Minor, Moderate, Major]}
+        impact: {type: string, enum: [Positive, Negative]}
+        description: {type: string}
+        rootCause: {type: string}
+        correction: {type: string}
+        correctiveAction: {type: string}
+        isRepeatedIssue: {type: boolean}
+        repeatCount: {type: number, minimum: 0}
+        repeatLocation: {type: [string, "null"]}
+        capturedAt: {type: string, format: date-time, readOnly: true}
+        gpsLat: {type: [number, "null"], minimum: -90, maximum: 90}
+        gpsLng: {type: [number, "null"], minimum: -180, maximum: 180}
+        creatorId: {type: string}
+        approverId: {type: [string, "null"]}
+        version: {type: number, minimum: 1}
+        conflictFlag: {type: boolean}
+        workflowState: {$ref: "#/components/schemas/WorkflowState"}
+        remarks: {type: [string, "null"]}
+        photos: {type: array, items: {$ref: "#/components/schemas/EvidenceFile"}}
+    LessonPhotoIntentRequest:
+      type: object
+      required: [category, fileName, mimeType, sizeBytes, clientReference]
+      properties: {category: {type: string, enum: [before, after]}, fileName: {type: string}, mimeType: {type: string}, sizeBytes: {type: number, minimum: 1}, clientReference: {type: string}}
+    EscalationSummary:
+      type: object
+      required: [id, recordType, recordId, priority, level, dueAt, status]
+      properties: {id: {type: string}, recordType: {type: string}, recordId: {type: string}, priority: {type: string}, level: {type: string}, dueAt: {type: string, format: date-time}, status: {type: string, enum: [open, resolved, paused]}, lastNotifiedAt: {type: [string, "null"], format: date-time}}
+    AuditSchedule:
+      type: object
+      required: [id, year, title, projectIds, plannedStartDate, plannedEndDate, workflowState]
+      properties: {id: {type: string}, year: {type: number}, title: {type: string}, projectIds: {type: array, items: {type: string}}, auditTypes: {type: array, items: {type: string}}, plannedStartDate: {type: string, format: date}, plannedEndDate: {type: string, format: date}, ownerId: {type: string}, workflowState: {$ref: "#/components/schemas/WorkflowState"}, reviewComments: {type: [string, "null"]}}
+    AuditPlan:
+      type: object
+      required: [id, scheduleId, scope, criteria, auditDate, location, teamMemberIds, status]
+      properties: {id: {type: string}, scheduleId: {type: string}, scope: {type: string}, objectives: {type: [string, "null"]}, criteria: {type: array, items: {type: string}}, auditDate: {type: string, format: date}, location: {type: string}, leadAuditorId: {type: string}, teamMemberIds: {type: array, items: {type: string}}, processOwnerIds: {type: array, items: {type: string}}, feasibilityNotes: {type: [string, "null"]}, status: {type: string, enum: [Draft, Shared, Active, Completed, Deleted]}}
+    MeetingMinutes:
+      type: object
+      required: [heldAt, attendees, minutes]
+      properties: {heldAt: {type: string, format: date-time}, attendees: {type: array, items: {type: string}}, minutes: {type: string}, evidenceIds: {type: array, items: {type: string}}}
+    ChecklistItem:
+      type: object
+      required: [id, question, result]
+      properties: {id: {type: string}, clause: {type: [string, "null"]}, question: {type: string}, result: {type: string, enum: [Conformity, Observation, Minor NC, Major NC, Not Applicable]}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}}
+    Audit:
+      type: object
+      required: [id, planId, projectId, title, status]
+      properties: {id: {type: string}, planId: {type: string}, projectId: {type: string}, title: {type: string}, status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Closed, Deleted]}, openingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, checklist: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}, startedAt: {type: [string, "null"], format: date-time}, closedAt: {type: [string, "null"], format: date-time}}
+    AuditFinding:
+      type: object
+      required: [id, auditId, title, description, classification, priority, riskLevel, responsibleDepartments, status]
+      properties: {id: {type: string}, auditId: {type: string}, title: {type: string}, description: {type: string}, clause: {type: [string, "null"]}, classification: {type: string, enum: [Conformity, Observation, Minor NC, Major NC]}, priority: {type: string, enum: [P1, P2, P3, P4, P5, P6]}, riskLevel: {type: string, enum: [High, Medium, Low]}, responsibleDepartments: {type: array, items: {type: string}}, evidenceIds: {type: array, items: {type: string}}, status: {type: string, enum: [Open, CAR Issued, Verified, Closed, Deleted]}, raisedAt: {type: string, format: date-time}}
+    CorrectiveActionReport:
+      type: object
+      required: [id, findingId, responsibleDepartment, ownerId, status, dueDate]
+      properties:
+        id: {type: string}
+        findingId: {type: string}
+        responsibleDepartment: {type: string}
+        ownerId: {type: string}
+        rootCause: {type: [string, "null"]}
+        correction: {type: [string, "null"]}
+        correctiveAction: {type: [string, "null"]}
+        status: {type: string, enum: [Open, Draft, Submitted, Accepted, Rejected, Extension Requested, Closed]}
+        dueDate: {type: string, format: date}
+        extensionRequestedTo: {type: [string, "null"], format: date}
+        extensionReason: {type: [string, "null"]}
+        extensionStatus: {type: [string, "null"], enum: [pending, approved, rejected, null]}
+        extensionReviewedBy: {type: [string, "null"]}
+        extensionReviewedAt: {type: [string, "null"], format: date-time}
+        effectivenessVerified: {type: boolean}
+        closedAt: {type: [string, "null"], format: date-time}
+    AcceptRejectReview:
+      type: object
+      required: [decision]
+      properties: {decision: {type: string, enum: [accept, reject]}, comments: {type: [string, "null"]}}
+    ApproveRejectReview:
+      type: object
+      required: [decision]
+      properties: {decision: {type: string, enum: [approve, reject]}, comments: {type: [string, "null"]}}
+    ExtensionRequest:
+      type: object
+      required: [requestedDueDate, reason]
+      properties: {requestedDueDate: {type: string, format: date}, reason: {type: string}}
+    GeneratedAuditReport:
+      type: object
+      required: [audit, findings, cars, generatedAt]
+      properties: {audit: {$ref: "#/components/schemas/Audit"}, findings: {type: array, items: {$ref: "#/components/schemas/AuditFinding"}}, cars: {type: array, items: {$ref: "#/components/schemas/CorrectiveActionReport"}}, generatedAt: {type: string, format: date-time}, downloadUrl: {type: [string, "null"]}}
+    ReportDelivery:
+      type: object
+      required: [delivery, fileName]
+      properties: {delivery: {type: string, enum: [download, email]}, fileName: {type: string}, downloadUrl: {type: [string, "null"]}, message: {type: [string, "null"]}}
+    PageMeta:
+      type: object
+      required: [total, page, limit]
+      properties: {total: {type: number, minimum: 0}, page: {type: number, minimum: 1}, limit: {type: number, minimum: 1}}
+    ProjectPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Project"}}}}]}
+    BusinessUnitPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/BusinessUnit"}}}}]}
+    IntegrationConnectorPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/IntegrationConnector"}}}}]}
+    SyncJobPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/SyncJob"}}}}]}
+    ExecutiveSummaryPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/ExecutiveSummary"}}}}]}
+    ReferenceItemPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}}}]}
+    QAQCMetricPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/QAQCMetricEntry"}}}}]}
+    MaterialInspectionPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/MaterialInspectionEntry"}}}}]}
+    QTBTPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/QTBTEntry"}}}}]}
+    CustomerSatisfactionPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/CustomerSatisfactionEntry"}}}}]}
+    DocumentGovernancePage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/DocumentGovernanceLogEntry"}}}}]}
+    QualityBriefPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/QualityAssessmentBrief"}}}}]}
+    ApprovalItemPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/ApprovalItem"}}}}]}
+    EvidencePage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/EvidenceFile"}}}}]}
+    RolePage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Role"}}}}]}
+    WorkspaceUserPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/WorkspaceUser"}}}}]}
+    AccessRequestPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/AccessRequest"}}}}]}
+    DelegationPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Delegation"}}}}]}
+    EscalationRulePage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/EscalationRule"}}}}]}
+    AuditLogPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/AuditLogEntry"}}}}]}
+    NotificationTemplatePage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/NotificationTemplate"}}}}]}
+    NotificationPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Notification"}}}}]}
+    LessonFormPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/LessonLearnedForm"}}}}]}
+    EscalationSummaryPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/EscalationSummary"}}}}]}
+    AuditSchedulePage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/AuditSchedule"}}}}]}
+    AuditPlanPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/AuditPlan"}}}}]}
+    AuditPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Audit"}}}}]}
+    AuditFindingPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/AuditFinding"}}}}]}
+    CorrectiveActionReportPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}]}
 
