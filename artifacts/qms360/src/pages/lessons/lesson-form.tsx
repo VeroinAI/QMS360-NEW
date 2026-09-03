@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   confirmLessonPhoto,
   createLessonPhotoIntent,
+  customFetch,
   exportLessonFormReport,
   useCreateLessonForm,
   useGetCurrentUser,
@@ -132,8 +133,7 @@ export function LessonFormPage({ id }: { id?: string }) {
         setUploads((u) => [...u, { key, category, name: file.name, preview, progress: 20, status: "uploading" }]);
         const intent = await createLessonPhotoIntent(id, { category, fileName: file.name, mimeType: file.type, sizeBytes: file.size, clientReference: `${clientReference}-${key}` });
         setUploads((u) => u.map((x) => x.key === key ? { ...x, progress: 55 } : x));
-        const response = await fetch(intent.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
-        if (!response.ok) throw new Error(`Upload failed (${response.status}).`);
+        await customFetch(intent.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
         setUploads((u) => u.map((x) => x.key === key ? { ...x, progress: 85 } : x));
         await confirmLessonPhoto(intent.id);
         setUploads((u) => u.map((x) => x.key === key ? { ...x, progress: 100, status: "done" } : x));
