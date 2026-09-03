@@ -103,7 +103,14 @@ export function LessonFormPage({ id }: { id?: string }) {
     setErrors(next); return Object.keys(next).length === 0;
   }
   function body(): LessonLearnedForm {
-    return { ...draft, capturedAt: new Date(draft.capturedAt).toISOString() } as LessonLearnedForm;
+    return {
+      ...draft,
+      id: detail.data?.id ?? clientReference,
+      version: detail.data?.version ?? 1,
+      conflictFlag: detail.data?.conflictFlag ?? false,
+      workflowState: detail.data?.workflowState ?? "Draft",
+      capturedAt: new Date(draft.capturedAt).toISOString(),
+    } as LessonLearnedForm;
   }
   function save() { if (!validate() || uploadBlocking) return; if (id) update.mutate({ id, data: body() }); else create.mutate({ data: body() }); }
   function captureGps() {

@@ -19,6 +19,7 @@ import {
   distributionLists,
   documentGovernanceLogEntries,
   lessonLearnedForms,
+  lessonsCategorisationRiskMaster,
   lessonsDisciplines,
   lessonsDistributionLists,
   lessonsPermissions,
@@ -243,6 +244,18 @@ async function seed() {
   const [lessonMepInsert] = await db.insert(lessonsDisciplines).values({ organizationId: org.id, code: "MEP", name: "MEP Services" }).onConflictDoNothing().returning();
   const lessonDisciplineMep = lessonMepInsert ?? (await db.select().from(lessonsDisciplines).where(and(eq(lessonsDisciplines.organizationId, org.id), eq(lessonsDisciplines.code, "MEP"))).limit(1))[0];
   if (!lessonDisciplineMep) throw new Error("Unable to seed Lesson Learned disciplines");
+  const [lessonCategory] = await db.select().from(lessonsCategorisationRiskMaster).where(and(
+    eq(lessonsCategorisationRiskMaster.organizationId, org.id),
+    eq(lessonsCategorisationRiskMaster.category, "Design coordination"),
+  )).limit(1);
+  if (!lessonCategory) {
+    await db.insert(lessonsCategorisationRiskMaster).values({
+      organizationId: org.id,
+      category: "Design coordination",
+      impact: "Negative",
+      riskLevel: "Medium",
+    });
+  }
 
   const passwordHash = await bcrypt.hash("Demo1234!", 12);
   const userInputs = [
@@ -279,13 +292,15 @@ async function seed() {
         organizationId: org.id,
         username,
         projectId: username === "audit-lead" ? beta.id : alpha.id,
-        canOpenQaqc: true,
-        canOpenLessons: true,
+        canOpenQaqc: username !== "audit-lead",
+        canOpenLessons: username !== "audit-lead",
         canOpenAudit: true,
         isInitialAdminQaqc: userId === adminId,
         isInitialAdminLessons: userId === adminId,
         isInitialAdminAudit: userId === adminId,
       });
+    } else if (username === "audit-lead") {
+      await db.update(applicationAccess).set({ canOpenQaqc: false, canOpenLessons: false, canOpenAudit: true }).where(eq(applicationAccess.id, existing.id));
     }
   }
 

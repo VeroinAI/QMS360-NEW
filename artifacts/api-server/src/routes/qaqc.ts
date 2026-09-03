@@ -103,6 +103,10 @@ async function softDelete(req: Request, res: Response, table: Table, type: strin
   res.status(204).send();
 }
 
+function monthStart(value: string) {
+  return /^\d{4}-\d{2}$/.test(value) ? `${value}-01` : value;
+}
+
 function mapMetric(row: any, target = 100) {
   const closureRate = row.issuedCount === 0 && row.closedCount === 0
     ? 100 : row.issuedCount === 0 ? 0 : (row.closedCount / row.issuedCount) * 100;
@@ -172,14 +176,14 @@ router.get("/categorisation", asyncHandler(async (req, res) => {
 router.get("/metrics", asyncHandler(async (req, res) => {
   const filters: any[] = [];
   if (req.query.projectId) filters.push(eq(qaqcMetricEntries.projectId, String(req.query.projectId)));
-  if (req.query.period) filters.push(eq(qaqcMetricEntries.reportingPeriod, String(req.query.period)));
+  if (req.query.period) filters.push(eq(qaqcMetricEntries.reportingPeriod, monthStart(String(req.query.period))));
   const result = await pageTable(req, qaqcMetricEntries, filters);
   res.json({ ...result, items: result.items.map(mapMetric) });
 }));
 router.post("/metrics", asyncHandler(async (req, res) => {
   const value: any = body(api.CreateQaqcMetricBody, req);
   const [row] = await db.insert(qaqcMetricEntries).values({
-    organizationId: org(req), projectId: value.projectId, reportingPeriod: value.period,
+    organizationId: org(req), projectId: value.projectId, reportingPeriod: monthStart(value.period),
     category: value.category, issuedCount: value.issuedCount, closedCount: value.closedCount,
     ageing0To15: value.ageing0To15, ageing15To45: value.ageing15To45,
     ageingOver45: value.ageingOver45, status: "draft",
@@ -192,7 +196,7 @@ router.put("/metrics/:id", asyncHandler(async (req, res) => {
   const before: any = await activeRow(req, qaqcMetricEntries, String(req.params.id));
   if (!["draft", "sent_back"].includes(before.status)) throw new HttpError(409, "Only draft or sent-back metrics can be edited");
   const [row] = await db.update(qaqcMetricEntries).set({
-    projectId: value.projectId, reportingPeriod: value.period, category: value.category,
+    projectId: value.projectId, reportingPeriod: monthStart(value.period), category: value.category,
     issuedCount: value.issuedCount, closedCount: value.closedCount, ageing0To15: value.ageing0To15,
     ageing15To45: value.ageing15To45, ageingOver45: value.ageingOver45, updatedAt: new Date(),
   }).where(eq(qaqcMetricEntries.id, before.id)).returning();
@@ -226,7 +230,7 @@ router.post("/metrics/:id/review", requireAdmin, asyncHandler(async (req, res) =
 // Standard QA/QC entry CRUD
 function inspectionValues(value: any) {
   return {
-    projectId: value.projectId, reportingPeriod: value.period, mirnTotal: value.mirnTotal,
+    projectId: value.projectId, reportingPeriod: monthStart(value.period), mirnTotal: value.mirnTotal,
     osdCount: value.osdCount ?? 0, approvedCount: value.approved, onHoldCount: value.onHold,
     rejectedCount: value.rejected, hazardousCount: value.hazardous,
     handleWithCareCount: value.handleWithCare,
@@ -364,7 +368,7 @@ async function pqiData(req: Request) {
   const period = String(req.query.period ?? "");
   const clauses: any[] = [eq(qaqcMetricEntries.organizationId, org(req)), isNull(qaqcMetricEntries.deletedAt)];
   if (projectId) clauses.push(eq(qaqcMetricEntries.projectId, projectId));
-  if (period) clauses.push(eq(qaqcMetricEntries.reportingPeriod, period));
+  if (period) clauses.push(eq(qaqcMetricEntries.reportingPeriod, monthStart(period)));
   const [rows, targets] = await Promise.all([
     db.select().from(qaqcMetricEntries).where(and(...clauses)),
     db.select().from(targetBenchmarks).where(and(eq(targetBenchmarks.organizationId, org(req)), isNull(targetBenchmarks.deletedAt))),
@@ -395,14 +399,14 @@ function sendCsv(res: Response, name: string, headers: string[], rows: unknown[]
 router.get("/reports/monthly", asyncHandler(async (req, res) => {
   const filters: any[] = [];
   if (req.query.projectId) filters.push(eq(qaqcMetricEntries.projectId, String(req.query.projectId)));
-  if (req.query.period) filters.push(eq(qaqcMetricEntries.reportingPeriod, String(req.query.period)));
+  if (req.query.period) filters.push(eq(qaqcMetricEntries.reportingPeriod, monthStart(String(req.query.period))));
   const rows = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), isNull(qaqcMetricEntries.deletedAt), ...filters)).orderBy(asc(qaqcMetricEntries.category));
   sendCsv(res, "qaqc-monthly.csv", ["Project ID", "Period", "Category", "Issued", "Closed", "0-15", "15-45", ">45", "Closure Rate"], rows.map((r) => { const m = mapMetric(r); return [r.projectId, r.reportingPeriod, r.category, r.issuedCount, r.closedCount, r.ageing0To15, r.ageing15To45, r.ageingOver45, m.closureRate]; }));
 }));
 router.get("/reports/document-governance", asyncHandler(async (req, res) => {
   const filters: any[] = [];
   if (req.query.projectId) filters.push(eq(documentGovernanceLogEntries.projectId, String(req.query.projectId)));
-  if (req.query.period) filters.push(eq(documentGovernanceLogEntries.reportingPeriod, String(req.query.period)));
+  if (req.query.period) filters.push(eq(documentGovernanceLogEntries.reportingPeriod, monthStart(String(req.query.period))));
   const rows = await db.select().from(documentGovernanceLogEntries).where(and(eq(documentGovernanceLogEntries.organizationId, org(req)), isNull(documentGovernanceLogEntries.deletedAt), ...filters));
   sendCsv(res, "document-governance.csv", ["Project ID", "Date", "Discipline ID", "Document Type", "Status", "Review Days", "Pending With", "Pending Days", "Correspondence Count"], rows.map((r) => { const m = mapDocument(r); return [m.projectId, m.date, m.disciplineId, m.documentType, m.status, m.reviewDays, m.pendingWith, m.pendingDays, m.correspondenceCount]; }));
 }));
@@ -415,8 +419,8 @@ router.post("/metrics/import", asyncHandler(async (req, res) => {
   let created = 0; let updated = 0; const errors: Array<{ error: string }> = [];
   for (const [index, v] of parsed.data.entries()) {
     try {
-      const [existing] = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), eq(qaqcMetricEntries.projectId, v.projectId), eq(qaqcMetricEntries.reportingPeriod, v.period), eq(qaqcMetricEntries.category, v.category), isNull(qaqcMetricEntries.deletedAt))).limit(1);
-      const values = { projectId: v.projectId, reportingPeriod: v.period, category: v.category, issuedCount: v.issuedCount, closedCount: v.closedCount, ageing0To15: v.ageing0To15, ageing15To45: v.ageing15To45, ageingOver45: v.ageingOver45, status: v.workflowState.toLowerCase().replace(" ", "_"), updatedAt: new Date() };
+      const [existing] = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), eq(qaqcMetricEntries.projectId, v.projectId), eq(qaqcMetricEntries.reportingPeriod, monthStart(v.period)), eq(qaqcMetricEntries.category, v.category), isNull(qaqcMetricEntries.deletedAt))).limit(1);
+      const values = { projectId: v.projectId, reportingPeriod: monthStart(v.period), category: v.category, issuedCount: v.issuedCount, closedCount: v.closedCount, ageing0To15: v.ageing0To15, ageing15To45: v.ageing15To45, ageingOver45: v.ageingOver45, status: v.workflowState.toLowerCase().replace(" ", "_"), updatedAt: new Date() };
       if (existing) { const [row] = await db.update(qaqcMetricEntries).set(values).where(eq(qaqcMetricEntries.id, existing.id)).returning(); await audit(req, "import_update", "metric", row.id, existing, row); updated++; }
       else { const [row] = await db.insert(qaqcMetricEntries).values({ organizationId: org(req), ...values }).returning(); await audit(req, "import_create", "metric", row.id, undefined, row); created++; }
     } catch (error) { errors.push({ error: `Row ${index + 1}: ${error instanceof Error ? error.message : "Import failed"}` }); }
