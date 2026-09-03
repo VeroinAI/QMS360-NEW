@@ -6,20 +6,24 @@ const admin = {
   password: process.env.E2E_ADMIN_PASSWORD ?? "Demo1234!",
 };
 const restricted = { email: "audit@algihaz.demo", password: "Demo1234!" };
+const creator = { email: "creator@algihaz.demo", password: "Demo1234!" };
+const approverAccount = { email: "quality@algihaz.demo", password: "Demo1234!" };
+// Platform admin without any Lessons workspace role, to cover the admin review bypass.
+const orgAdmin = { email: "org.admin@algihaz.demo", password: "Demo1234!" };
 
 type Session = {
   token: string;
   user: { id: string };
 };
 
-async function createSession(request: APIRequestContext): Promise<Session> {
-  const response = await request.post("/api/auth/login", { data: admin });
+async function createSession(request: APIRequestContext, account = admin): Promise<Session> {
+  const response = await request.post("/api/auth/login", { data: account });
   expect(response.ok(), await response.text()).toBeTruthy();
   return response.json();
 }
 
-async function authenticate(page: Page): Promise<Session> {
-  const session = await createSession(page.request);
+async function authenticate(page: Page, account = admin): Promise<Session> {
+  const session = await createSession(page.request, account);
   await page.addInitScript((token) => localStorage.setItem("qms360_token", token), session.token);
   return session;
 }
@@ -135,8 +139,15 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     await expect(dialog.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
   });
 
-  test("lesson creation, AI rephrase and send-back requires remarks", async ({ page }) => {
+  test("lesson creation, approver selection, AI rephrase and send-back requires remarks", async ({ page, browser }) => {
     const session = await authenticate(page);
+    const approversResponse = await page.request.get("/api/lessons/approvers", { headers: authHeaders(session) });
+    expect(approversResponse.ok(), await approversResponse.text()).toBeTruthy();
+    const approvers = await approversResponse.json() as Array<{ id: string; fullName: string; email: string }>;
+    const approver = approvers.find((x) => x.email === approverAccount.email);
+    expect(approver, "Seed data must include an active Lesson approver account").toBeTruthy();
+    expect(approvers.some((x) => x.id === session.user.id), "The picker must exclude the creator").toBeFalsy();
+
     const title = `E2E lesson ${Date.now()}`;
     const improvedDescription = "Preventive maintenance was missed, causing the valve failure.";
     await page.route("**/api/lessons/ai/rephrase", (route) => route.fulfill({
@@ -151,6 +162,8 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     await selectFirst(page, "Project");
     await selectFirst(page, "Discipline");
     await selectFirst(page, "Categorisation");
+    await page.getByText("Approver", { exact: true }).locator("..").getByRole("combobox").click();
+    await page.getByRole("option", { name: approver!.fullName, exact: true }).click();
     await field(page, "Description").fill("The valve failed because preventive maintenance was missed.");
     await field(page, "Root cause").fill("The maintenance schedule was not followed.");
     await field(page, "Correction").fill("The valve was replaced and inspected.");
@@ -168,26 +181,54 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
       response.url().includes("/api/lessons/forms/") && response.request().method() === "GET" && response.ok(),
     );
     await page.getByRole("link", { name: title }).click();
-    const lesson = await (await lessonResponse).json() as Record<string, unknown> & { id: string };
-    const updateResponse = await page.request.put(`/api/lessons/forms/${lesson.id}`, {
-      headers: authHeaders(session),
-      data: { ...lesson, approverId: session.user.id },
-    });
-    expect(updateResponse.ok(), await updateResponse.text()).toBeTruthy();
-    await page.reload();
+    const lesson = await (await lessonResponse).json() as Record<string, unknown> & { id: string; referenceNumber: string; approverId: string | null };
+    expect(lesson.approverId, "The chosen approver must be persisted").toBe(approver!.id);
+    await expect(page.getByText("Approver", { exact: true }).locator("..").getByRole("combobox")).toContainText(approver!.fullName);
 
     await page.getByRole("button", { name: "Submit for approval" }).click();
     await expect(page.getByText("Lesson submitted for approval", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Send back" })).toBeVisible();
-    await page.getByRole("button", { name: "Send back" }).click();
-    const reviewDialog = page.getByRole("dialog");
-    await expect(reviewDialog.getByText("Remarks are required so the creator knows what to change.")).toBeVisible();
-    await expect(reviewDialog.getByRole("button", { name: "Confirm" })).toBeDisabled();
-    await reviewDialog.getByPlaceholder("Review remarks").fill("Please add the verification evidence.");
-    await expect(reviewDialog.getByRole("button", { name: "Confirm" })).toBeEnabled();
-    await reviewDialog.getByRole("button", { name: "Confirm" }).click();
-    await expect(page.getByText("Lesson sent back", { exact: true })).toBeVisible();
-    await expect(page.getByText("Sent Back", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Send back" })).toHaveCount(0);
+
+    const orgAdminContext = await browser.newContext();
+    const orgAdminPage = await orgAdminContext.newPage();
+    try {
+      const orgAdminSession = await createSession(orgAdminPage.request, orgAdmin);
+      await orgAdminPage.addInitScript((token) => localStorage.setItem("qms360_token", token), orgAdminSession.token);
+      await orgAdminPage.goto(`/lessons/${lesson.id}`);
+      await expect(orgAdminPage.getByRole("heading", { name: title })).toBeVisible();
+      await expect(orgAdminPage.getByRole("button", { name: "Approve" })).toBeVisible();
+      await expect(orgAdminPage.getByRole("button", { name: "Send back" })).toBeVisible();
+    } finally {
+      await orgAdminContext.close();
+    }
+
+    const approverContext = await browser.newContext();
+    const approverPage = await approverContext.newPage();
+    try {
+      const approverSession = await createSession(approverPage.request, approverAccount);
+      const notificationsResponse = await approverPage.request.get("/api/lessons/notifications?page=1&limit=20", { headers: authHeaders(approverSession) });
+      expect(notificationsResponse.ok()).toBeTruthy();
+      const notifications = await notificationsResponse.json() as { items: Array<{ title: string; message: string }> };
+      expect(
+        notifications.items.some((x) => x.title === "Lesson awaiting approval" && x.message.includes(lesson.referenceNumber)),
+        "The chosen approver must receive the review task notification",
+      ).toBeTruthy();
+
+      await approverPage.addInitScript((token) => localStorage.setItem("qms360_token", token), approverSession.token);
+      await approverPage.goto(`/lessons/${lesson.id}`);
+      await expect(approverPage.getByRole("heading", { name: title })).toBeVisible();
+      await approverPage.getByRole("button", { name: "Send back" }).click();
+      const reviewDialog = approverPage.getByRole("dialog");
+      await expect(reviewDialog.getByText("Remarks are required so the creator knows what to change.")).toBeVisible();
+      await expect(reviewDialog.getByRole("button", { name: "Confirm" })).toBeDisabled();
+      await reviewDialog.getByPlaceholder("Review remarks").fill("Please add the verification evidence.");
+      await expect(reviewDialog.getByRole("button", { name: "Confirm" })).toBeEnabled();
+      await reviewDialog.getByRole("button", { name: "Confirm" }).click();
+      await expect(approverPage.getByText("Lesson sent back", { exact: true })).toBeVisible();
+      await expect(approverPage.getByText("Sent Back", { exact: true })).toBeVisible();
+    } finally {
+      await approverContext.close();
+    }
   });
 
   test("audit finding raises one CAR per department, requests extension and closes", async ({ page }) => {
@@ -198,7 +239,7 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     expect(audits.items.length, "Seed data must include an audit workspace").toBeGreaterThan(0);
     const auditId = audits.items[0]!.id;
     const suffix = Date.now();
-    const findingTitle = `E2E NC ${suffix}`;
+    const findingTitle = `E2E Legacy NC ${suffix}`;
     const departmentA = `E2E Operations ${suffix}`;
     const departmentB = `E2E Quality ${suffix}`;
 
@@ -207,13 +248,12 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     await page.getByRole("button", { name: "New finding" }).click();
     const findingDialog = page.getByRole("dialog");
     await findingDialog.getByText("Title *").locator("..").getByRole("textbox").fill(findingTitle);
-    await findingDialog.getByText("Description *").locator("..").getByRole("textbox").fill("A mandatory control was not implemented.");
-    await findingDialog.getByText("Responsible departments *").locator("..").getByRole("textbox").fill(`${departmentA}, ${departmentB}`);
+    await findingDialog.getByText("Description *").locator("..").getByRole("textbox").fill("Control gap requiring a corrective action.");
+    await findingDialog.getByText("Responsible departments *").locator("..").getByRole("textbox").fill(department);
     await findingDialog.getByRole("combobox").nth(0).click();
-    await page.getByRole("option", { name: "Major NC", exact: true }).click();
+    await page.getByRole("option", { name: "Minor NC", exact: true }).click();
     await findingDialog.getByRole("button", { name: "Save finding" }).click();
     await expect(page.getByText("Finding saved", { exact: true })).toBeVisible();
-
     const findingCard = page.getByRole("heading", { name: findingTitle }).locator("..").locator("..");
     await findingCard.getByRole("button", { name: "Raise CAR" }).click();
     await expect(page.getByText("Raised 2 CAR(s)", { exact: true })).toBeVisible();
@@ -221,23 +261,24 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     await page.goto("/audit/cars");
     await expect(page.getByText(departmentA, { exact: true })).toBeVisible();
     await expect(page.getByText(departmentB, { exact: true })).toBeVisible();
-    const car = page.getByText(departmentA, { exact: true }).locator("..").locator("..");
+    const car = cars.items.find((x) => x.responsibleDepartment === department)!;
+    await expect(car.getByRole("button", { name: "Extension" })).toHaveCount(0);
+
+    // Complete the response and review steps, then request an extension (allowed).
     await car.getByRole("button", { name: "Edit response" }).click();
     const responseDialog = page.getByRole("dialog");
-    await responseDialog.getByText("Root cause", { exact: true }).locator("..").getByRole("textbox").fill("Ownership was unclear.");
-    await responseDialog.getByText("Correction", { exact: true }).locator("..").getByRole("textbox").fill("The control was implemented.");
-    await responseDialog.getByText("Corrective action", { exact: true }).locator("..").getByRole("textbox").fill("Assign and review control ownership monthly.");
+    await responseDialog.getByText("Root cause", { exact: true }).locator("..").getByRole("textbox").fill("Training gap.");
+    await responseDialog.getByText("Correction", { exact: true }).locator("..").getByRole("textbox").fill("Retrained the team.");
+    await responseDialog.getByText("Corrective action", { exact: true }).locator("..").getByRole("textbox").fill("Add training to onboarding.");
     await responseDialog.getByRole("button", { name: "Save response" }).click();
     await expect(page.getByText("CAR updated", { exact: true })).toBeVisible();
-
     await car.getByRole("button", { name: "Submit" }).click();
     await expect(page.getByText("CAR submitted", { exact: true })).toBeVisible();
     await car.getByRole("button", { name: "Accept" }).click();
     await expect(page.getByText("CAR accepted", { exact: true })).toBeVisible();
 
-    const promptAnswers = [futureDate(), "Additional time is required for effectiveness verification."];
-    const answerExtensionPrompts = async (dialog: Dialog) =>
-      dialog.accept(promptAnswers.shift() ?? "");
+    const promptAnswers = [futureDate(), "Effectiveness evidence collection needs more time."];
+    const answerExtensionPrompts = async (dialog: Dialog) => dialog.accept(promptAnswers.shift() ?? "");
     page.on("dialog", answerExtensionPrompts);
     await car.getByRole("button", { name: "Extension" }).click();
     await expect(page.getByText("Extension requested", { exact: true })).toBeVisible();
@@ -257,8 +298,8 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     const audits = await auditsResponse.json() as { items: Array<{ id: string }> };
     const auditId = audits.items[0]!.id;
     const suffix = Date.now();
-    const findingTitle = `E2E Ext NC ${suffix}`;
-    const department = `E2E Ext Dept ${suffix}`;
+    const findingTitle = `E2E Legacy NC ${suffix}`;
+    const department = `E2E Legacy Dept ${suffix}`;
 
     await page.goto(`/audit/audits/${auditId}`);
     await page.getByRole("tab", { name: "Findings" }).click();
@@ -276,8 +317,8 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     await expect(page.getByText("Raised 1 CAR(s)", { exact: true })).toBeVisible();
 
     const carsResponse = await page.request.get("/api/audit/cars?page=1&limit=100&status=open", { headers: authHeaders(session) });
-    const cars = await carsResponse.json() as { items: Array<{ id: string; responsibleDepartment: string }> };
-    const carId = cars.items.find((x) => x.responsibleDepartment === department)!.id;
+    const cars = await carsResponse.json() as { items: Array<{ id: string; findingId: string; responsibleDepartment: string; status: string; dueDate: string }> };
+    const carId = car.id;
 
     // API: an extension request is a conflict while the CAR is still Open (pre-response).
     const earlyExtension = await page.request.post(`/api/audit/cars/${carId}/extension`, {
@@ -295,7 +336,7 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
 
     // Browser: the Extension action is not offered before acceptance.
     await page.goto("/audit/cars");
-    const car = page.getByText(department, { exact: true }).locator("..").locator("..");
+    const car = cars.items.find((x) => x.responsibleDepartment === department)!;
     await expect(car.getByRole("button", { name: "Extension" })).toHaveCount(0);
 
     // Complete the response and review steps, then request an extension (allowed).
@@ -331,7 +372,7 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     await expect(page.getByRole("status").filter({ hasText: "Extension rejected" })).toBeVisible();
     await expect(car.getByRole("button", { name: "Close" })).toBeVisible();
     const afterRejection = await page.request.get("/api/audit/cars?page=1&limit=100&status=accepted", { headers: authHeaders(session) });
-    const acceptedCars = await afterRejection.json() as { items: Array<{ id: string; status: string }> };
+    const acceptedCars = await acceptedList.json() as { items: Array<{ id: string }> };
     expect(acceptedCars.items.find((x) => x.id === carId)?.status).toBe("Accepted");
   });
 

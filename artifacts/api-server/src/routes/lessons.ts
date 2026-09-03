@@ -182,6 +182,60 @@ router.get("/reference-data", asyncHandler(async (req, res) => {
   });
 }));
 
+type EligibleApprover = { id: string; fullName: string; email: string; roles: string[] };
+
+async function eligibleApprovers(organizationId: string): Promise<EligibleApprover[]> {
+  const rows = await db.select({
+    id: users.id,
+    fullName: users.fullName,
+    email: users.email,
+    platformRole: platformRoles.name,
+    workspaceRole: lessonsWorkspaceRoles.name,
+  })
+    .from(users)
+    .leftJoin(platformRoles, eq(users.platformRoleId, platformRoles.id))
+    .leftJoin(lessonsUserWorkspaceRoles, and(
+      eq(lessonsUserWorkspaceRoles.userId, users.id),
+      isNull(lessonsUserWorkspaceRoles.deletedAt),
+    ))
+    .leftJoin(lessonsWorkspaceRoles, and(
+      eq(lessonsWorkspaceRoles.id, lessonsUserWorkspaceRoles.workspaceRoleId),
+      isNull(lessonsWorkspaceRoles.deletedAt),
+      eq(lessonsWorkspaceRoles.status, "active"),
+    ))
+    .where(and(
+      eq(users.organizationId, organizationId),
+      eq(users.accessStatus, "active"),
+      isNull(users.deletedAt),
+    ));
+  const byUser = new Map<string, { fullName: string; email: string; platformRole: string | null; roles: Set<string> }>();
+  for (const row of rows) {
+    const entry = byUser.get(row.id) ?? { fullName: row.fullName, email: row.email, platformRole: row.platformRole, roles: new Set<string>() };
+    if (row.workspaceRole) entry.roles.add(row.workspaceRole);
+    byUser.set(row.id, entry);
+  }
+  const isApproverRole = (name: string) => /approv/i.test(name) || /\b(admin|administrator)\b/i.test(name);
+  return [...byUser.entries()]
+    .filter(([, entry]) => ["Super Admin", "Org Admin"].includes(entry.platformRole ?? "") || [...entry.roles].some(isApproverRole))
+    .map(([id, entry]) => ({ id, fullName: entry.fullName, email: entry.email, roles: [...entry.roles].sort() }))
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+}
+
+router.get("/approvers", asyncHandler(async (req, res) => {
+  const approvers = await eligibleApprovers(req.currentUser!.organizationId);
+  res.json(approvers.filter((approver) => approver.id !== req.currentUser!.id));
+}));
+
+async function assertEligibleApprover(req: any, approverId: string, creatorId: string | null) {
+  if (creatorId && approverId === creatorId && !req.permissionAdminBypass) {
+    throw new HttpError(422, "The approver must be different from the creator");
+  }
+  const approvers = await eligibleApprovers(req.currentUser!.organizationId);
+  if (!approvers.some((approver) => approver.id === approverId)) {
+    throw new HttpError(422, "Selected approver is not an active Lesson approver");
+  }
+}
+
 router.get("/forms", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = and(eq(lessonLearnedForms.organizationId, req.currentUser!.organizationId), isNull(lessonLearnedForms.deletedAt));
@@ -203,6 +257,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
     assertLovValue(db, user.organizationId, "lesson_impacts", body.impact),
   ]);
   const disciplineId = await resolveLessonsDisciplineId(user.organizationId, body.disciplineId);
+  if (body.approverId) await assertEligibleApprover(req, body.approverId, user.id);
   const clientReference = body.id;
   const [existing] = await db.select().from(lessonLearnedForms).where(and(
     eq(lessonLearnedForms.organizationId, user.organizationId),
@@ -264,6 +319,7 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
   const disciplineId = body.disciplineId === before.disciplineId
     ? before.disciplineId
     : await resolveLessonsDisciplineId(req.currentUser!.organizationId, body.disciplineId);
+  if (body.approverId) await assertEligibleApprover(req, body.approverId, before.creatorId);
   const [row] = await db.update(lessonLearnedForms).set({
     projectId: body.projectId, disciplineId, title: body.title,
     categorisation: body.categorisationId, issueCategory: body.issueCategory, impact: body.impact,

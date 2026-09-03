@@ -144,6 +144,7 @@ export * from './integrationConnectorPageResponse';
 export * from './integrationConnectorStatus';
 export * from './integrationHealth';
 export * from './integrationHealthStatus';
+export * from './lessonApproverOption';
 export * from './lessonFormBody';
 export * from './lessonFormPage';
 export * from './lessonFormPageResponse';

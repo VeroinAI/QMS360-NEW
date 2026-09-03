@@ -91,6 +91,7 @@ import type {
   IntegrationConnector,
   IntegrationConnectorPageResponse,
   IntegrationHealth,
+  LessonApproverOption,
   LessonFormBody,
   LessonFormPageResponse,
   LessonLearnedForm,
@@ -7619,6 +7620,83 @@ export function useGetLessonsReferenceData<TData = Awaited<ReturnType<typeof get
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetLessonsReferenceDataQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListLessonApproversUrl = () => {
+
+
+
+
+  return `/api/lessons/approvers`
+}
+
+/**
+ * @summary List eligible active lesson approvers (excludes the requester)
+ */
+export const listLessonApprovers = async ( options?: Parameters<typeof customFetch>[1]): Promise<LessonApproverOption[]> => {
+
+  return customFetch<LessonApproverOption[]>(getListLessonApproversUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLessonApproversQueryKey = () => {
+    return [
+    `/api/lessons/approvers`
+    ] as const;
+    }
+
+
+export const getListLessonApproversQueryOptions = <TData = Awaited<ReturnType<typeof listLessonApprovers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonApprovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLessonApproversQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLessonApprovers>>> = ({ signal }) => listLessonApprovers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLessonApprovers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListLessonApproversQueryResult = NonNullable<Awaited<ReturnType<typeof listLessonApprovers>>>
+export type ListLessonApproversQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List eligible active lesson approvers (excludes the requester)
+ */
+
+export function useListLessonApprovers<TData = Awaited<ReturnType<typeof listLessonApprovers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonApprovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListLessonApproversQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -12,6 +12,7 @@ import {
   useGetCurrentUser,
   useGetLessonForm,
   useGetLessonsReferenceData,
+  useListLessonApprovers,
   useRephraseLessonField,
   useReviewLessonForm,
   useSubmitLessonForm,
@@ -35,13 +36,13 @@ import { useLov } from "@/lib/use-lov";
 type FieldName = "description" | "rootCause" | "correction" | "correctiveAction";
 type Draft = {
   title: string; projectId: string; disciplineId: string; categorisationId: string;
-  issueCategory: string; impact: string;
+  issueCategory: string; impact: string; approverId: string;
   description: string; rootCause: string; correction: string; correctiveAction: string;
   capturedAt: string; gpsLat?: number; gpsLng?: number;
 };
 type UploadItem = { key: string; category: "before" | "after"; name: string; preview: string; progress: number; status: "uploading" | "failed" | "done" };
 
-const initialDraft = (): Draft => ({ title: "", projectId: "", disciplineId: "", categorisationId: "", issueCategory: "Minor", impact: "Positive", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: new Date().toISOString().slice(0, 16) });
+const initialDraft = (): Draft => ({ title: "", projectId: "", disciplineId: "", categorisationId: "", issueCategory: "Minor", impact: "Positive", approverId: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: new Date().toISOString().slice(0, 16) });
 
 async function resizeImage(file: File): Promise<File> {
   if (file.size > 8 * 1024 * 1024) throw new Error(`${file.name} exceeds the 8 MB limit.`);
@@ -70,6 +71,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   const [review, setReview] = useState<"approve" | "send_back" | null>(null);
   const [remarks, setRemarks] = useState("");
   const refs = useGetLessonsReferenceData();
+  const approvers = useListLessonApprovers();
   const disciplines = useLov("disciplines");
   const categorisations = useLov("lesson_categorisations");
   const issueCategories = useLov("lesson_issue_categories");
@@ -93,21 +95,32 @@ export function LessonFormPage({ id }: { id?: string }) {
   useEffect(() => {
     if (!detail.data) return;
     const x = detail.data;
-    setDraft({ title: x.title, projectId: x.projectId, disciplineId: x.disciplineId, categorisationId: x.categorisationId, issueCategory: x.issueCategory, impact: x.impact, description: x.description, rootCause: x.rootCause, correction: x.correction, correctiveAction: x.correctiveAction, capturedAt: x.capturedAt.slice(0, 16), gpsLat: x.gpsLat ?? undefined, gpsLng: x.gpsLng ?? undefined });
+    setDraft({ title: x.title, projectId: x.projectId, disciplineId: x.disciplineId, categorisationId: x.categorisationId, issueCategory: x.issueCategory, impact: x.impact, approverId: x.approverId ?? "", description: x.description, rootCause: x.rootCause, correction: x.correction, correctiveAction: x.correctiveAction, capturedAt: x.capturedAt.slice(0, 16), gpsLat: x.gpsLat ?? undefined, gpsLng: x.gpsLng ?? undefined });
   }, [detail.data]);
 
   const readOnly = Boolean(detail.data && !["Draft", "Sent Back"].includes(detail.data.workflowState));
   const isApprover = user.data?.workspaceRoles.some((role) => /approver|admin/i.test(role)) ?? false;
+  const isPlatformAdmin = ["Super Admin", "Org Admin"].includes(user.data?.platformRole ?? "");
+  const canReview = isPlatformAdmin || (isApprover && detail.data?.approverId != null && detail.data.approverId === user.data?.id);
   const uploadBlocking = uploads.some((x) => x.status !== "done");
+  const approverOptions = useMemo(() => {
+    const options = approvers.data ?? [];
+    return draft.approverId && !options.some((x) => x.id === draft.approverId)
+      ? [...options, { id: draft.approverId, fullName: "Current approver", email: "", roles: [] }]
+      : options;
+  }, [approvers.data, draft.approverId]);
+  const approverUnsaved = Boolean(detail.data) && draft.approverId !== (detail.data?.approverId ?? "");
   function set<K extends keyof Draft>(key: K, value: Draft[K]) { setDraft((d) => ({ ...d, [key]: value })); setErrors((e) => ({ ...e, [key]: "" })); }
   function validate() {
     const next: Record<string, string> = {};
     (["title","projectId","disciplineId","categorisationId","description","rootCause","correction","correctiveAction"] as const).forEach((key) => { if (!draft[key]?.trim()) next[key] = "This field is required."; });
+    if (!draft.approverId) next.approverId = "Choose an approver before submitting.";
     setErrors(next); return Object.keys(next).length === 0;
   }
   function body(): LessonLearnedForm {
     return {
       ...draft,
+      approverId: draft.approverId || null,
       id: detail.data?.id ?? clientReference,
       version: detail.data?.version ?? 1,
       conflictFlag: detail.data?.conflictFlag ?? false,
@@ -167,6 +180,13 @@ export function LessonFormPage({ id }: { id?: string }) {
              <Field label="Issue category"><Select value={draft.issueCategory} onValueChange={(v: Draft["issueCategory"]) => set("issueCategory", v)} disabled={readOnly || issueCategories.isLoading}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{issueCategories.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
              <Field label="Impact"><Select value={draft.impact} onValueChange={(v: Draft["impact"]) => set("impact", v)} disabled={readOnly || impacts.isLoading}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{impacts.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
             <Field label="Capture date"><Input type="datetime-local" value={draft.capturedAt} onChange={(e) => set("capturedAt", e.target.value)} disabled={readOnly} /></Field>
+            <Field label="Approver" error={errors.approverId}>
+              <Select value={draft.approverId} onValueChange={(v) => set("approverId", v)} disabled={readOnly || approvers.isLoading}>
+                <SelectTrigger><SelectValue placeholder="Select approver" /></SelectTrigger>
+                <SelectContent>{approverOptions.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent>
+              </Select>
+              {!readOnly && <p className="mt-1 text-xs text-muted-foreground">Routes the lesson to this person for review. You cannot select yourself.</p>}
+            </Field>
           </div>
           {(["description","rootCause","correction","correctiveAction"] as FieldName[]).map((field) => <Field key={field} label={({ description: "Description", rootCause: "Root cause", correction: "Correction", correctiveAction: "Corrective action" } as const)[field]} error={errors[field]}>
             <Textarea rows={5} value={draft[field]} onChange={(e) => set(field, e.target.value)} disabled={readOnly} />
@@ -182,8 +202,11 @@ export function LessonFormPage({ id }: { id?: string }) {
             {uploadBlocking && <p className="text-xs text-destructive">Resolve pending or failed uploads before saving or submitting.</p>}
           </CardContent></Card>
           {!readOnly && <Button className="w-full" onClick={save} disabled={create.isPending || update.isPending || uploadBlocking}>{(create.isPending || update.isPending) && <Loader2 className="animate-spin" />} Save lesson</Button>}
-          {record?.workflowState === "Draft" || record?.workflowState === "Sent Back" ? <Button variant="secondary" className="w-full" disabled={uploadBlocking || submit.isPending} onClick={() => submit.mutate({ id: record.id })}>Submit for approval</Button> : null}
-          {record?.workflowState === "Submitted" && isApprover && <div className="grid grid-cols-2 gap-2"><Button onClick={() => setReview("approve")}>Approve</Button><Button variant="destructive" onClick={() => setReview("send_back")}>Send back</Button></div>}
+          {record?.workflowState === "Draft" || record?.workflowState === "Sent Back" ? <div>
+            <Button variant="secondary" className="w-full" disabled={uploadBlocking || submit.isPending || !record.approverId || approverUnsaved} onClick={() => submit.mutate({ id: record.id })}>Submit for approval</Button>
+            {(!record.approverId || approverUnsaved) && <p className="mt-2 text-center text-xs text-muted-foreground">{!record.approverId && !draft.approverId ? "Choose an approver above, then save, before submitting." : "Save the lesson so the selected approver is stored before submitting."}</p>}
+          </div> : null}
+          {record?.workflowState === "Submitted" && canReview && <div className="grid grid-cols-2 gap-2"><Button onClick={() => setReview("approve")}>Approve</Button><Button variant="destructive" onClick={() => setReview("send_back")}>Send back</Button></div>}
         </div>
       </div>
       {record?.photos?.length ? <Card className="mt-6"><CardHeader><CardTitle>Before & after</CardTitle></CardHeader><CardContent className="grid gap-6 md:grid-cols-2"><PhotoGallery title="Before" photos={record.photos.filter((p) => p.category === "before")} /><PhotoGallery title="After" photos={record.photos.filter((p) => p.category === "after")} /></CardContent></Card> : null}

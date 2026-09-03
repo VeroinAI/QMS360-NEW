@@ -952,6 +952,13 @@ export interface LessonsReferenceData {
   categorisation: ReferenceItem[];
 }
 
+export interface LessonApproverOption {
+  id: string;
+  fullName: string;
+  email: string;
+  roles: string[];
+}
+
 export interface LessonLearnedForm {
   id: string;
   readonly referenceNumber: string;

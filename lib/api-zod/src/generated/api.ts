@@ -2741,6 +2741,18 @@ export const GetLessonsReferenceDataResponse = zod.object({
 
 
 /**
+ * @summary List eligible active lesson approvers (excludes the requester)
+ */
+export const ListLessonApproversResponseItem = zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "roles": zod.array(zod.string())
+})
+export const ListLessonApproversResponse = zod.array(ListLessonApproversResponseItem)
+
+
+/**
  * @summary List lesson learned forms
  */
 export const listLessonFormsQueryPageDefault = 1;

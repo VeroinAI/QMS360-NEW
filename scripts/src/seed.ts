@@ -25,6 +25,7 @@ import {
   lessonsPermissions,
   lessonsPlatformRoles,
   lessonsUserWorkspaceRoles,
+  lessonsWorkspaceRolePermissions,
   lessonsWorkspaceRoles,
   materialInspectionEntries,
   masterDataGroups,
@@ -264,6 +265,9 @@ async function seed() {
     { email: "admin@algihaz.demo", username: "ag-admin", fullName: "Noura Al-Qahtani", platformRole: "Super Admin", projectId: alpha.id },
     { email: "quality@algihaz.demo", username: "quality-lead", fullName: "Fahad Al-Mutairi", platformRole: "Quality Manager", projectId: alpha.id },
     { email: "audit@algihaz.demo", username: "audit-lead", fullName: "Sara Al-Dosari", platformRole: "Employee", projectId: beta.id },
+    { email: "creator@algihaz.demo", username: "lesson-creator", fullName: "Layla Haddad", platformRole: "Employee", projectId: alpha.id },
+    // Intentionally has no Lessons workspace role: regression cover for platform-admin review bypass.
+    { email: "org.admin@algihaz.demo", username: "org-admin", fullName: "Omar Al-Rashid", platformRole: "Org Admin", projectId: alpha.id },
   ];
   const userMap = new Map<string, string>();
   for (const input of userInputs) {
@@ -284,7 +288,8 @@ async function seed() {
   const demoId = userMap.get("noura.alharbi");
   const qualityId = userMap.get("quality-lead");
   const auditUserId = userMap.get("audit-lead");
-  if (!adminId || !demoId || !qualityId || !auditUserId) throw new Error("Unable to seed users");
+  const creatorId = userMap.get("lesson-creator");
+  if (!adminId || !demoId || !qualityId || !auditUserId || !creatorId) throw new Error("Unable to seed users");
 
   for (const [username, userId] of userMap) {
     const [existing] = await db.select().from(applicationAccess).where(and(eq(applicationAccess.organizationId, org.id), eq(applicationAccess.username, username), eq(applicationAccess.projectId, username === "audit-lead" ? beta.id : alpha.id))).limit(1);
@@ -305,6 +310,32 @@ async function seed() {
     }
   }
 
+  const lessonsRolePermissionGrants = [
+    ["Form Creator", [["create_edit", "own"], ["submit", "own"], ["view_own", "own"]]],
+    ["Form Approver", [["approve_reject", "own"], ["view_all", "full"]]],
+  ] as const;
+  for (const [roleName, grants] of lessonsRolePermissionGrants) {
+    const roleId = workspaceRoleMaps[1]!.get(roleName);
+    if (!roleId) continue;
+    for (const [key, grant] of grants) {
+      const [permission] = await db.select().from(lessonsPermissions).where(and(
+        eq(lessonsPermissions.organizationId, org.id),
+        eq(lessonsPermissions.key, key),
+      )).limit(1);
+      if (!permission) continue;
+      const [existingGrant] = await db.select().from(lessonsWorkspaceRolePermissions).where(and(
+        eq(lessonsWorkspaceRolePermissions.workspaceRoleId, roleId),
+        eq(lessonsWorkspaceRolePermissions.permissionId, permission.id),
+        isNull(lessonsWorkspaceRolePermissions.deletedAt),
+      )).limit(1);
+      if (existingGrant) {
+        await db.update(lessonsWorkspaceRolePermissions).set({ grant, updatedAt: new Date() }).where(eq(lessonsWorkspaceRolePermissions.id, existingGrant.id));
+      } else {
+        await db.insert(lessonsWorkspaceRolePermissions).values({ organizationId: org.id, workspaceRoleId: roleId, permissionId: permission.id, grant });
+      }
+    }
+  }
+
   const assignmentGroups = [
     [userWorkspaceRoles, workspaceRoleMaps[0], [
       [demoId, "QAQC Representative"], [demoId, "Approver / Reviewer"],
@@ -314,6 +345,8 @@ async function seed() {
     [lessonsUserWorkspaceRoles, workspaceRoleMaps[1], [
       [demoId, "Form Creator"], [demoId, "Form Approver"],
       [adminId, "Form Creator"], [adminId, "Form Approver"],
+      [qualityId, "Form Approver"],
+      [creatorId, "Form Creator"],
     ]],
     [auditUserWorkspaceRoles, workspaceRoleMaps[2], [
       [demoId, "Audit Program Manager"], [demoId, "Audit Team Lead / Auditor"],
