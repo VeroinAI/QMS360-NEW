@@ -149,6 +149,22 @@ async function audit(req: any, action: string, entityType: string, entityId?: st
   });
 }
 
+async function resolveLessonsDisciplineId(organizationId: string, masterValue: string) {
+  const [existing] = await db.select().from(lessonsDisciplines).where(and(
+    eq(lessonsDisciplines.organizationId, organizationId),
+    eq(lessonsDisciplines.name, masterValue),
+    isNull(lessonsDisciplines.deletedAt),
+  )).limit(1);
+  if (existing) return existing.id;
+
+  const [created] = await db.insert(lessonsDisciplines).values({
+    organizationId,
+    code: `MD-${randomUUID().slice(0, 8).toUpperCase()}`,
+    name: masterValue,
+  }).returning({ id: lessonsDisciplines.id });
+  return created!.id;
+}
+
 router.get("/reference-data", asyncHandler(async (req, res) => {
   const user = req.currentUser!;
   const since = typeof req.query.since === "string" ? new Date(req.query.since) : null;
@@ -186,6 +202,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
     assertLovValue(db, user.organizationId, "lesson_issue_categories", body.issueCategory),
     assertLovValue(db, user.organizationId, "lesson_impacts", body.impact),
   ]);
+  const disciplineId = await resolveLessonsDisciplineId(user.organizationId, body.disciplineId);
   const clientReference = body.id;
   const [existing] = await db.select().from(lessonLearnedForms).where(and(
     eq(lessonLearnedForms.organizationId, user.organizationId),
@@ -205,7 +222,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
     try {
       [created] = await db.insert(lessonLearnedForms).values({
         organizationId: user.organizationId, projectId: body.projectId,
-        disciplineId: body.disciplineId, referenceNumber, title: body.title,
+        disciplineId, referenceNumber, title: body.title,
         categorisation: body.categorisationId, issueCategory: body.issueCategory, impact: body.impact,
         capturedAt: new Date(), gpsLat: body.gpsLat?.toString(), gpsLng: body.gpsLng?.toString(),
         gpsLocation: body.gpsLat != null && body.gpsLng != null ? { lat: body.gpsLat, lng: body.gpsLng } : undefined,
@@ -244,8 +261,11 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
     assertLovValue(db, req.currentUser!.organizationId, "lesson_issue_categories", body.issueCategory, { allowLegacy: before.issueCategory }),
     assertLovValue(db, req.currentUser!.organizationId, "lesson_impacts", body.impact, { allowLegacy: before.impact }),
   ]);
+  const disciplineId = body.disciplineId === before.disciplineId
+    ? before.disciplineId
+    : await resolveLessonsDisciplineId(req.currentUser!.organizationId, body.disciplineId);
   const [row] = await db.update(lessonLearnedForms).set({
-    projectId: body.projectId, disciplineId: body.disciplineId, title: body.title,
+    projectId: body.projectId, disciplineId, title: body.title,
     categorisation: body.categorisationId, issueCategory: body.issueCategory, impact: body.impact,
     description: body.description, rootCause: body.rootCause, correction: body.correction,
     correctiveAction: body.correctiveAction, isRepeated: body.isRepeatedIssue ?? false,
