@@ -962,6 +962,8 @@ export interface LessonApproverOption {
 export interface LessonLearnedForm {
   id: string;
   readonly referenceNumber: string;
+  /** @nullable */
+  reference?: string | null;
   projectId: string;
   title: string;
   disciplineId: string;

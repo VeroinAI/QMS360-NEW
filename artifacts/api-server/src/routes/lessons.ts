@@ -98,6 +98,7 @@ function formJson(row: typeof lessonLearnedForms.$inferSelect, photos?: Array<ty
   return {
     id: row.id,
     referenceNumber: row.referenceNumber,
+    reference: row.reference,
     projectId: row.projectId,
     title: row.title,
     disciplineId: row.disciplineId ?? "",
@@ -281,7 +282,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
         categorisation: body.categorisationId, issueCategory: body.issueCategory, impact: body.impact,
         capturedAt: new Date(), gpsLat: body.gpsLat?.toString(), gpsLng: body.gpsLng?.toString(),
         gpsLocation: body.gpsLat != null && body.gpsLng != null ? { lat: body.gpsLat, lng: body.gpsLng } : undefined,
-        clientReference, version: 1, conflictFlag: false, description: body.description,
+        clientReference, reference: body.reference, version: 1, conflictFlag: false, description: body.description,
         rootCause: body.rootCause, correction: body.correction, correctiveAction: body.correctiveAction,
         isRepeated: body.isRepeatedIssue ?? false, repeatCount: body.repeatCount ?? 0,
         repeatLocation: body.repeatLocation, remarks: body.remarks, workflowState: "draft", creatorId: user.id,
@@ -321,7 +322,7 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
     : await resolveLessonsDisciplineId(req.currentUser!.organizationId, body.disciplineId);
   if (body.approverId) await assertEligibleApprover(req, body.approverId, before.creatorId);
   const [row] = await db.update(lessonLearnedForms).set({
-    projectId: body.projectId, disciplineId, title: body.title,
+    projectId: body.projectId, disciplineId, title: body.title, reference: body.reference,
     categorisation: body.categorisationId, issueCategory: body.issueCategory, impact: body.impact,
     description: body.description, rootCause: body.rootCause, correction: body.correction,
     correctiveAction: body.correctiveAction, isRepeated: body.isRepeatedIssue ?? false,

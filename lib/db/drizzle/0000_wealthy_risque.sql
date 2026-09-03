@@ -436,6 +436,7 @@ CREATE TABLE "app2_lessons"."lesson_learned_forms" (
 	"gps_lat" numeric(10, 7),
 	"gps_lng" numeric(10, 7),
 	"client_reference" varchar(255),
+"reference" text,
 	"version" integer DEFAULT 1 NOT NULL,
 	"conflict_flag" boolean DEFAULT false NOT NULL,
 	"description" text,

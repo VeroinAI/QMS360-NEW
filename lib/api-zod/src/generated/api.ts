@@ -2790,6 +2790,7 @@ export const ListLessonFormsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
+  "reference": zod.string().nullish(),
   "projectId": zod.string(),
   "title": zod.string(),
   "disciplineId": zod.string(),
@@ -2847,6 +2848,7 @@ export const createLessonFormBodyGpsLngMax = 180;
 
 export const CreateLessonFormBody = zod.object({
   "id": zod.string(),
+  "reference": zod.string().nullish(),
   "projectId": zod.string(),
   "title": zod.string(),
   "disciplineId": zod.string(),
@@ -2909,6 +2911,7 @@ export const getLessonFormResponseGpsLngMax = 180;
 export const GetLessonFormResponse = zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
+  "reference": zod.string().nullish(),
   "projectId": zod.string(),
   "title": zod.string(),
   "disciplineId": zod.string(),
@@ -2969,6 +2972,7 @@ export const updateLessonFormBodyGpsLngMax = 180;
 
 export const UpdateLessonFormBody = zod.object({
   "id": zod.string(),
+  "reference": zod.string().nullish(),
   "projectId": zod.string(),
   "title": zod.string(),
   "disciplineId": zod.string(),
@@ -3134,6 +3138,7 @@ export const SearchLessonsLogResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
+  "reference": zod.string().nullish(),
   "projectId": zod.string(),
   "title": zod.string(),
   "disciplineId": zod.string(),

@@ -15,6 +15,13 @@
       "when": 1788432000000,
       "tag": "0001_add_lesson_remarks",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788432600000,
+      "tag": "0002_add_lesson_reference",
+      "breakpoints": true
     }
   ]
 }

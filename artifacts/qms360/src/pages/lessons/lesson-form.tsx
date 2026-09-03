@@ -35,7 +35,7 @@ import { useLov } from "@/lib/use-lov";
 
 type FieldName = "description" | "rootCause" | "correction" | "correctiveAction";
 type Draft = {
-  title: string; projectId: string; disciplineId: string; categorisationId: string;
+  title: string; projectId: string; disciplineId: string; categorisationId: string; reference: string;
   issueCategory: string; impact: string; approverId: string;
   isRepeatedIssue: boolean; repeatCount: number; repeatLocation: string; remarks: string;
   description: string; rootCause: string; correction: string; correctiveAction: string;
@@ -43,7 +43,7 @@ type Draft = {
 };
 type UploadItem = { key: string; category: "before" | "after"; name: string; preview: string; progress: number; status: "uploading" | "failed" | "done" };
 
-const initialDraft = (): Draft => ({ title: "", projectId: "", disciplineId: "", categorisationId: "", issueCategory: "Minor", impact: "Positive", approverId: "", isRepeatedIssue: false, repeatCount: 0, repeatLocation: "", remarks: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: new Date().toISOString().slice(0, 16) });
+const initialDraft = (): Draft => ({ title: "", projectId: "", disciplineId: "", categorisationId: "", reference: "", issueCategory: "Minor", impact: "Positive", approverId: "", isRepeatedIssue: false, repeatCount: 0, repeatLocation: "", remarks: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: new Date().toISOString().slice(0, 16) });
 
 async function resizeImage(file: File): Promise<File> {
   if (file.size > 8 * 1024 * 1024) throw new Error(`${file.name} exceeds the 8 MB limit.`);
@@ -96,7 +96,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   useEffect(() => {
     if (!detail.data) return;
     const x = detail.data;
-    setDraft({ title: x.title, projectId: x.projectId, disciplineId: x.disciplineId, categorisationId: x.categorisationId, issueCategory: x.issueCategory, impact: x.impact, approverId: x.approverId ?? "", isRepeatedIssue: x.isRepeatedIssue ?? false, repeatCount: x.repeatCount ?? 0, repeatLocation: x.repeatLocation ?? "", remarks: x.remarks ?? "", description: x.description, rootCause: x.rootCause, correction: x.correction, correctiveAction: x.correctiveAction, capturedAt: x.capturedAt.slice(0, 16), gpsLat: x.gpsLat ?? undefined, gpsLng: x.gpsLng ?? undefined });
+    setDraft({ title: x.title, projectId: x.projectId, disciplineId: x.disciplineId, categorisationId: x.categorisationId, reference: x.reference ?? "", issueCategory: x.issueCategory, impact: x.impact, approverId: x.approverId ?? "", isRepeatedIssue: x.isRepeatedIssue ?? false, repeatCount: x.repeatCount ?? 0, repeatLocation: x.repeatLocation ?? "", remarks: x.remarks ?? "", description: x.description, rootCause: x.rootCause, correction: x.correction, correctiveAction: x.correctiveAction, capturedAt: x.capturedAt.slice(0, 16), gpsLat: x.gpsLat ?? undefined, gpsLng: x.gpsLng ?? undefined });
   }, [detail.data]);
 
   const readOnly = Boolean(detail.data && !["Draft", "Sent Back"].includes(detail.data.workflowState));
@@ -176,7 +176,23 @@ export function LessonFormPage({ id }: { id?: string }) {
       <div className="grid gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2"><CardHeader><CardTitle>Lesson details</CardTitle></CardHeader><CardContent className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Reference"><Input value={record?.referenceNumber ?? "Generated after first save"} disabled /></Field>
+            <Field label="Project Name" error={errors.projectId}><Select value={draft.projectId} onValueChange={(v) => set("projectId", v)} disabled={readOnly}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger><SelectContent>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></Field>
+            <Field label="Reference Number"><Input value={record?.referenceNumber ?? "Generated after first save"} disabled /></Field>
+            <Field label="Title" error={errors.title} className="sm:col-span-2"><Input value={draft.title} onChange={(e) => set("title", e.target.value)} disabled={readOnly} /></Field>
+            <Field label="Discipline" error={errors.disciplineId}><Select value={draft.disciplineId} onValueChange={(v) => set("disciplineId", v)} disabled={readOnly || disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Select discipline" /></SelectTrigger><SelectContent>{disciplines.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
+            <Field label="Categorization" error={errors.categorisationId}><Select value={draft.categorisationId} onValueChange={(v) => set("categorisationId", v)} disabled={readOnly || categorisations.isLoading}><SelectTrigger><SelectValue placeholder="Select categorization" /></SelectTrigger><SelectContent>{categorisations.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
+            <Field label="Date"><Input type="datetime-local" value={draft.capturedAt} onChange={(e) => set("capturedAt", e.target.value)} disabled={readOnly} /></Field>
+            <Field label="Location">
+              <Button type="button" variant="outline" className="w-full" onClick={captureGps} disabled={readOnly}><MapPin /> Capture GPS</Button>
+              {draft.gpsLat != null && <p className="mt-2 text-xs text-muted-foreground">{draft.gpsLat.toFixed(5)}, {draft.gpsLng?.toFixed(5)}</p>}
+            </Field>
+            <Field label="Issue Category"><Select value={draft.issueCategory} onValueChange={(v: Draft["issueCategory"]) => set("issueCategory", v)} disabled={readOnly || issueCategories.isLoading}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{issueCategories.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
+            <Field label="Impact"><Select value={draft.impact} onValueChange={(v: Draft["impact"]) => set("impact", v)} disabled={readOnly || impacts.isLoading}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{impacts.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
+            <Field label="Description" error={errors.description} className="sm:col-span-2">
+              <Textarea rows={5} value={draft.description} onChange={(e) => set("description", e.target.value)} disabled={readOnly} />
+              {!readOnly && <Popover open={suggestion?.field === "description"} onOpenChange={(open) => !open && setSuggestion(null)}><PopoverTrigger asChild><Button type="button" variant="ghost" size="sm" className="mt-1 text-primary" onClick={() => askRephrase("description")} disabled={rephrase.isPending}><Sparkles /> Rephrase with AI</Button></PopoverTrigger><PopoverContent className="w-96"><p className="mb-2 text-sm font-semibold">AI suggestion</p><p className="text-sm">{suggestion?.text}</p><div className="mt-4 flex gap-2"><Button size="sm" onClick={() => { if (suggestion) set("description", suggestion.text); setSuggestion(null); }}>Use suggestion</Button><Button size="sm" variant="outline" onClick={() => setSuggestion(null)}>Dismiss</Button></div></PopoverContent></Popover>}
+            </Field>
+            <Field label="Reference" className="sm:col-span-2"><Input value={draft.reference} onChange={(e) => set("reference", e.target.value)} disabled={readOnly} /></Field>
             <Field label="New / Repeated Issue">
               <Select value={draft.isRepeatedIssue ? "repeated" : "new"} onValueChange={(value) => setDraft((current) => ({ ...current, isRepeatedIssue: value === "repeated", repeatCount: value === "repeated" ? Math.max(1, current.repeatCount) : 0, repeatLocation: value === "repeated" ? current.repeatLocation : "" }))} disabled={readOnly}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -185,35 +201,17 @@ export function LessonFormPage({ id }: { id?: string }) {
             </Field>
             <Field label="No. of times repeated" error={errors.repeatCount}><Input type="number" min={1} value={draft.repeatCount || ""} onChange={(e) => set("repeatCount", Number(e.target.value) || 0)} disabled={readOnly || !draft.isRepeatedIssue} /></Field>
             <Field label="Where was it repeated?" error={errors.repeatLocation}><Input value={draft.repeatLocation} onChange={(e) => set("repeatLocation", e.target.value)} disabled={readOnly || !draft.isRepeatedIssue} /></Field>
-            <Field label="Title" error={errors.title} className="sm:col-span-2"><Input value={draft.title} onChange={(e) => set("title", e.target.value)} disabled={readOnly} /></Field>
-            <Field label="Project" error={errors.projectId}><Select value={draft.projectId} onValueChange={(v) => set("projectId", v)} disabled={readOnly}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger><SelectContent>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></Field>
-            <Field label="Discipline" error={errors.disciplineId}><Select value={draft.disciplineId} onValueChange={(v) => set("disciplineId", v)} disabled={readOnly || disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Select discipline" /></SelectTrigger><SelectContent>{disciplines.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
-            <Field label="Categorisation" error={errors.categorisationId}><Select value={draft.categorisationId} onValueChange={(v) => set("categorisationId", v)} disabled={readOnly || categorisations.isLoading}><SelectTrigger><SelectValue placeholder="Select categorisation" /></SelectTrigger><SelectContent>{categorisations.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
-             <Field label="Issue category"><Select value={draft.issueCategory} onValueChange={(v: Draft["issueCategory"]) => set("issueCategory", v)} disabled={readOnly || issueCategories.isLoading}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{issueCategories.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
-             <Field label="Impact"><Select value={draft.impact} onValueChange={(v: Draft["impact"]) => set("impact", v)} disabled={readOnly || impacts.isLoading}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{impacts.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
-            <Field label="Capture date"><Input type="datetime-local" value={draft.capturedAt} onChange={(e) => set("capturedAt", e.target.value)} disabled={readOnly} /></Field>
-            <Field label="Approver" error={errors.approverId}>
-              <Select value={draft.approverId} onValueChange={(v) => set("approverId", v)} disabled={readOnly || approvers.isLoading}>
-                <SelectTrigger><SelectValue placeholder="Select approver" /></SelectTrigger>
-                <SelectContent>{approverOptions.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent>
-              </Select>
-              {!readOnly && <p className="mt-1 text-xs text-muted-foreground">Routes the lesson to this person for review. You cannot select yourself.</p>}
-            </Field>
+            {(["rootCause","correction","correctiveAction"] as FieldName[]).map((field) => <Field key={field} className="sm:col-span-2" label={({ description: "Description", rootCause: "Root Cause", correction: "Correction", correctiveAction: "Corrective Action" } as const)[field]} error={errors[field]}>
+              <Textarea rows={5} value={draft[field]} onChange={(e) => set(field, e.target.value)} disabled={readOnly} />
+              {!readOnly && <Popover open={suggestion?.field === field} onOpenChange={(open) => !open && setSuggestion(null)}><PopoverTrigger asChild><Button type="button" variant="ghost" size="sm" className="mt-1 text-primary" onClick={() => askRephrase(field)} disabled={rephrase.isPending}><Sparkles /> Rephrase with AI</Button></PopoverTrigger><PopoverContent className="w-96"><p className="mb-2 text-sm font-semibold">AI suggestion</p><p className="text-sm">{suggestion?.text}</p><div className="mt-4 flex gap-2"><Button size="sm" onClick={() => { if (suggestion) set(field, suggestion.text); setSuggestion(null); }}>Use suggestion</Button><Button size="sm" variant="outline" onClick={() => setSuggestion(null)}>Dismiss</Button></div></PopoverContent></Popover>}
+            </Field>)}
           </div>
+          <Card><CardHeader><CardTitle>Before Photo</CardTitle></CardHeader><CardContent><PhotoInput category="before" /></CardContent></Card>
+          <Card><CardHeader><CardTitle>After Photo</CardTitle></CardHeader><CardContent><PhotoInput category="after" /></CardContent></Card>
           <Field label="Remarks"><Textarea rows={3} value={draft.remarks} onChange={(e) => set("remarks", e.target.value)} disabled={readOnly} placeholder="Add any additional remarks" /></Field>
-          {(["description","rootCause","correction","correctiveAction"] as FieldName[]).map((field) => <Field key={field} label={({ description: "Description", rootCause: "Root cause", correction: "Correction", correctiveAction: "Corrective action" } as const)[field]} error={errors[field]}>
-            <Textarea rows={5} value={draft[field]} onChange={(e) => set(field, e.target.value)} disabled={readOnly} />
-            {!readOnly && <Popover open={suggestion?.field === field} onOpenChange={(open) => !open && setSuggestion(null)}><PopoverTrigger asChild><Button type="button" variant="ghost" size="sm" className="mt-1 text-primary" onClick={() => askRephrase(field)} disabled={rephrase.isPending}><Sparkles /> Rephrase with AI</Button></PopoverTrigger><PopoverContent className="w-96"><p className="mb-2 text-sm font-semibold">AI suggestion</p><p className="text-sm">{suggestion?.text}</p><div className="mt-4 flex gap-2"><Button size="sm" onClick={() => { if (suggestion) set(field, suggestion.text); setSuggestion(null); }}>Use suggestion</Button><Button size="sm" variant="outline" onClick={() => setSuggestion(null)}>Dismiss</Button></div></PopoverContent></Popover>}
-          </Field>)}
         </CardContent></Card>
         <div className="space-y-6">
-          <Card><CardHeader><CardTitle>Capture location</CardTitle></CardHeader><CardContent><Button variant="outline" className="w-full" onClick={captureGps} disabled={readOnly}><MapPin /> Capture GPS</Button>{draft.gpsLat != null && <p className="mt-3 text-center text-xs text-muted-foreground">{draft.gpsLat.toFixed(5)}, {draft.gpsLng?.toFixed(5)}</p>}</CardContent></Card>
-          <Card><CardHeader><CardTitle>Photo evidence</CardTitle></CardHeader><CardContent className="space-y-5">
-            {!id ? <p className="text-sm text-muted-foreground">Save the lesson first, then reopen it to add before and after evidence.</p> : (["before","after"] as const).map((category) => <div key={category}><div className="mb-2 flex items-center justify-between"><Label className="capitalize">{category} photos</Label>{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => choosePhotos(e.target.files, category)} /></label></Button>}</div>
-              <div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="overflow-hidden rounded border border-border">{p.storageUrl ? <img src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}<Progress value={p.progress} className="absolute bottom-0 rounded-none" /></div>)}</div>
-            </div>)}
-            {uploadBlocking && <p className="text-xs text-destructive">Resolve pending or failed uploads before saving or submitting.</p>}
-          </CardContent></Card>
+          <Card><CardHeader><CardTitle>Workflow</CardTitle></CardHeader><CardContent><Field label="Approver" error={errors.approverId}><Select value={draft.approverId} onValueChange={(v) => set("approverId", v)} disabled={readOnly || approvers.isLoading}><SelectTrigger><SelectValue placeholder="Select approver" /></SelectTrigger><SelectContent>{approverOptions.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent></Select>{!readOnly && <p className="mt-1 text-xs text-muted-foreground">Routes the lesson to this person for review. You cannot select yourself.</p>}</Field></CardContent></Card>
           {!readOnly && <Button className="w-full" onClick={save} disabled={create.isPending || update.isPending || uploadBlocking}>{(create.isPending || update.isPending) && <Loader2 className="animate-spin" />} Save lesson</Button>}
           {record?.workflowState === "Draft" || record?.workflowState === "Sent Back" ? <div>
             <Button variant="secondary" className="w-full" disabled={uploadBlocking || submit.isPending || !record.approverId || approverUnsaved} onClick={() => submit.mutate({ id: record.id })}>Submit for approval</Button>
@@ -225,6 +223,11 @@ export function LessonFormPage({ id }: { id?: string }) {
       {record?.photos?.length ? <Card className="mt-6"><CardHeader><CardTitle>Before & after</CardTitle></CardHeader><CardContent className="grid gap-6 md:grid-cols-2"><PhotoGallery title="Before" photos={record.photos.filter((p) => p.category === "before")} /><PhotoGallery title="After" photos={record.photos.filter((p) => p.category === "after")} /></CardContent></Card> : null}
       <Dialog open={review !== null} onOpenChange={(open) => !open && setReview(null)}><DialogContent><DialogHeader><DialogTitle>{review === "approve" ? "Approve lesson" : "Send lesson back"}</DialogTitle><DialogDescription>{review === "send_back" ? "Remarks are required so the creator knows what to change." : "Optionally add an approval remark."}</DialogDescription></DialogHeader><Textarea value={reviewRemarks} onChange={(e) => setReviewRemarks(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" onClick={() => setReview(null)}>Cancel</Button><Button disabled={review === "send_back" && !reviewRemarks.trim()} onClick={() => record && reviewMutation.mutate({ id: record.id, data: { decision: review!, comments: reviewRemarks || undefined } })}>Confirm</Button></DialogFooter></DialogContent></Dialog>
     </div>;
+
+    function PhotoInput({ category }: { category: "before" | "after" }) {
+      if (!id) return <p className="text-sm text-muted-foreground">Save the lesson first, then reopen it to add {category} photos.</p>;
+      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => choosePhotos(e.target.files, category)} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="overflow-hidden rounded border border-border">{p.storageUrl ? <img src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}<Progress value={p.progress} className="absolute bottom-0 rounded-none" /></div>)}</div>{uploadBlocking && <p className="mt-2 text-xs text-destructive">Resolve pending or failed uploads before saving or submitting.</p>}</div>;
+    }
   }
 }
 

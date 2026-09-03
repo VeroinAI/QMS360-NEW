@@ -1392,6 +1392,7 @@ components:
       properties:
         id: {type: string}
         referenceNumber: {type: string, readOnly: true}
+        reference: {type: [string, "null"]}
         projectId: {type: string}
         title: {type: string}
         disciplineId: {type: string}

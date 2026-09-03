@@ -74,6 +74,7 @@ export const lessonLearnedForms = app2LessonsSchema.table("lesson_learned_forms"
   gpsLat: numeric("gps_lat", { precision: 10, scale: 7 }),
   gpsLng: numeric("gps_lng", { precision: 10, scale: 7 }),
   clientReference: varchar("client_reference", { length: 255 }),
+  reference: text("reference"),
   version: integer("version").notNull().default(1),
   conflictFlag: boolean("conflict_flag").notNull().default(false),
   description: text("description"),
