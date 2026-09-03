@@ -13104,6 +13104,77 @@ export const useReviewCarExtension = <TError = ErrorType<unknown>,
       return useMutation(getReviewCarExtensionMutationOptions(options));
     }
 
+export const getCancelCarExtensionUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/cars/${id}/extension/cancel`
+}
+
+/**
+ * @summary Withdraw a pending extension request
+ */
+export const cancelCarExtension = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getCancelCarExtensionUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelCarExtensionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelCarExtension>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelCarExtension>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['cancelCarExtension'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelCarExtension>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  cancelCarExtension(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelCarExtensionMutationResult = NonNullable<Awaited<ReturnType<typeof cancelCarExtension>>>
+
+    export type CancelCarExtensionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Withdraw a pending extension request
+ */
+export const useCancelCarExtension = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelCarExtension>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelCarExtension>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCancelCarExtensionMutationOptions(options));
+    }
+
 export const getCloseCorrectiveActionReportUrl = (id: string,) => {
 
 

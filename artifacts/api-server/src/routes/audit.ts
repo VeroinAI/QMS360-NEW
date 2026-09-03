@@ -399,7 +399,33 @@ router.delete("/findings/:id", asyncHandler(async (req, res) => {
 
 type CarMeta = {
   extensionReason?: string | null; extensionReviewedBy?: string | null; extensionReviewedAt?: string | null;
+  extensionPriorState?: string | null;
   reviewComments?: string | null; effectivenessVerified?: boolean; closedAt?: string | null;
+};
+// A due-date extension may only be requested once the CAR response has been reviewed and
+// accepted (implementation stage). Allowing earlier requests would let an extension approval
+// promote a CAR past its response and review steps straight into a closable state.
+const CAR_EXTENSION_ELIGIBLE_STATES: readonly string[] = ["accepted"];
+// States a CAR may legitimately resume after an extension decision ("extension_requested" and
+// "closed" are never valid restore targets).
+const CAR_EXTENSION_RESTORABLE_STATES: readonly string[] = ["open", "draft", "submitted", "accepted", "rejected"];
+// Resolves the workflow state a CAR was in when its pending extension was requested. Rows
+// requested after the safeguard record it in the CAR metadata; older rows recover it from the
+// audit trail, whose request_extension entries store the pre-request snapshot. Returns null
+// when the original state cannot be verified.
+const extensionPriorState = async (before: AnyRow): Promise<string | null> => {
+  const recorded = carMeta(before).extensionPriorState;
+  if (typeof recorded === "string" && CAR_EXTENSION_RESTORABLE_STATES.includes(recorded)) return recorded;
+  const [entry] = await db.select({ before: auditAuditLogEntries.before }).from(auditAuditLogEntries)
+    .where(and(
+      eq(auditAuditLogEntries.organizationId, before.organizationId),
+      eq(auditAuditLogEntries.entityType, "corrective_action_report"),
+      eq(auditAuditLogEntries.entityId, before.id),
+      eq(auditAuditLogEntries.action, "request_extension"),
+    ))
+    .orderBy(desc(auditAuditLogEntries.createdAt)).limit(1);
+  const state = (entry?.before as AnyRow | null | undefined)?.workflowState;
+  return typeof state === "string" && CAR_EXTENSION_RESTORABLE_STATES.includes(state) ? state : null;
 };
 const carMeta = (row: AnyRow): CarMeta => parseJson(row.effectivenessNotes, {});
 const carDto = (row: AnyRow) => {
@@ -477,11 +503,13 @@ router.post("/cars/:id/extension", asyncHandler(async (req, res) => { const data
   if (!data.reason.trim()) throw new HttpError(422, "Extension reason is required");
   const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "CAR not found");
-  if (["closed"].includes(before.workflowState) || before.extensionStatus === "requested") throw new HttpError(409, "Extension cannot be requested");
+  if (before.workflowState === "extension_requested" || before.extensionStatus === "requested") throw new HttpError(409, "An extension request is already awaiting review");
+  if (!CAR_EXTENSION_ELIGIBLE_STATES.includes(before.workflowState)) throw new HttpError(409, `Extension can only be requested once the CAR is accepted (current state: ${before.workflowState})`);
   if (before.dueDate && dateOnly(data.requestedDueDate)! <= before.dueDate) throw new HttpError(422, "Requested due date must be after the current due date");
   const [row] = await db.update(correctiveActionReports).set({
     extensionStatus: "requested", extensionRequestedAt: new Date(), extensionDueDate: dateOnly(data.requestedDueDate),
-    workflowState: "extension_requested", effectivenessNotes: JSON.stringify({ ...carMeta(before), extensionReason: data.reason }), updatedAt: new Date(),
+    workflowState: "extension_requested",
+    effectivenessNotes: JSON.stringify({ ...carMeta(before), extensionReason: data.reason, extensionPriorState: before.workflowState }), updatedAt: new Date(),
   }).where(eq(correctiveActionReports.id, before.id)).returning();
   await auditLog(req, "request_extension", "corrective_action_report", row.id, before, row); res.json(carDto(row));
 }));
@@ -489,16 +517,35 @@ router.post("/cars/:id/extension/review", requireAdmin, asyncHandler(async (req,
   if (data.decision === "reject" && !data.comments?.trim()) throw new HttpError(422, "Comments are required when rejecting");
   const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "CAR not found");
-  if (before.extensionStatus !== "requested") throw new HttpError(409, "No extension is awaiting review");
+  if (before.extensionStatus !== "requested" || before.workflowState !== "extension_requested") throw new HttpError(409, "No extension is awaiting review");
+  // Restore the state the CAR was in before the extension request so an approval can never
+  // promote it past response/review. When the original state cannot be verified (legacy rows
+  // predate the safeguard and have no audit-trail snapshot), refuse to decide: the request
+  // must be withdrawn and re-submitted so the CAR cannot skip its required steps.
+  const priorState = await extensionPriorState(before);
+  if (!priorState) throw new HttpError(409, "This extension request predates the workflow safeguards and its original state cannot be verified. Withdraw the request and submit a new extension.");
   const meta = { ...carMeta(before), extensionReviewedBy: actor(req).id, extensionReviewedAt: new Date().toISOString(), reviewComments: data.comments ?? null };
   const [row] = await db.update(correctiveActionReports).set({
     extensionStatus: data.decision === "approve" ? "approved" : "rejected",
     extensionApprovedAt: data.decision === "approve" ? new Date() : null,
     extensionDueDate: data.decision === "approve" ? before.extensionDueDate : null,
-    workflowState: "accepted", effectivenessNotes: JSON.stringify(meta), updatedAt: new Date(),
+    workflowState: priorState, effectivenessNotes: JSON.stringify(meta), updatedAt: new Date(),
   }).where(eq(correctiveActionReports.id, before.id)).returning();
   if (row.ownerId) await notify(db, "audit", { organizationId: actor(req).organizationId, userId: row.ownerId, type: "extension_decision", title: `CAR extension ${data.decision}d`, body: data.comments || "Your extension request has been reviewed.", entityType: "corrective_action_report", entityId: row.id });
   await auditLog(req, `${data.decision}_extension`, "corrective_action_report", row.id, before, row); res.json(carDto(row));
+}));
+router.post("/cars/:id/extension/cancel", asyncHandler(async (req, res) => {
+  const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
+  if (!before) throw new HttpError(404, "CAR not found");
+  if (before.extensionStatus !== "requested" || before.workflowState !== "extension_requested") throw new HttpError(409, "No extension is awaiting review");
+  // Fall back to "open" when the original state cannot be verified: a reopened CAR must go
+  // through the full response and review cycle again, so it can never skip required steps.
+  const priorState = (await extensionPriorState(before)) ?? "open";
+  const [row] = await db.update(correctiveActionReports).set({
+    extensionStatus: "none", extensionRequestedAt: null, extensionDueDate: null,
+    workflowState: priorState, updatedAt: new Date(),
+  }).where(eq(correctiveActionReports.id, before.id)).returning();
+  await auditLog(req, "cancel_extension", "corrective_action_report", row.id, before, row); res.json(carDto(row));
 }));
 router.post("/cars/:id/close", requireAdmin, asyncHandler(async (req, res) => {
   const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));

@@ -690,6 +690,8 @@ paths:
     post: {operationId: requestCarExtension, tags: [audit], summary: Request CAR due-date extension, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Extension"}, responses: {"200": {description: Requested}}}
   /audit/cars/{id}/extension/review:
     post: {operationId: reviewCarExtension, tags: [audit], summary: Approve or reject extension, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApproveReject"}, responses: {"200": {description: Reviewed}}}
+  /audit/cars/{id}/extension/cancel:
+    post: {operationId: cancelCarExtension, tags: [audit], summary: Withdraw a pending extension request, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Cancelled}}}
   /audit/cars/{id}/close:
     post: {operationId: closeCorrectiveActionReport, tags: [audit], summary: Verify effectiveness and close CAR, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Closed}}}
   /audit/evidence:

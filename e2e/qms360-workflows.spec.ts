@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { expect, test, type APIRequestContext, type Dialog, type Locator, type Page } from "@playwright/test";
 
 const admin = {
@@ -248,5 +249,175 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     await car.getByRole("button", { name: "Close" }).click();
     await expect(page.getByText("CAR closed", { exact: true })).toBeVisible();
     await expect(car).toContainText("Closed");
+  });
+
+  test("CAR extensions cannot bypass response and review steps", async ({ page }) => {
+    const session = await authenticate(page);
+    const auditsResponse = await page.request.get("/api/audit/audits?page=1&limit=100", { headers: authHeaders(session) });
+    const audits = await auditsResponse.json() as { items: Array<{ id: string }> };
+    const auditId = audits.items[0]!.id;
+    const suffix = Date.now();
+    const findingTitle = `E2E Ext NC ${suffix}`;
+    const department = `E2E Ext Dept ${suffix}`;
+
+    await page.goto(`/audit/audits/${auditId}`);
+    await page.getByRole("tab", { name: "Findings" }).click();
+    await page.getByRole("button", { name: "New finding" }).click();
+    const findingDialog = page.getByRole("dialog");
+    await findingDialog.getByText("Title *").locator("..").getByRole("textbox").fill(findingTitle);
+    await findingDialog.getByText("Description *").locator("..").getByRole("textbox").fill("Control gap requiring a corrective action.");
+    await findingDialog.getByText("Responsible departments *").locator("..").getByRole("textbox").fill(department);
+    await findingDialog.getByRole("combobox").nth(0).click();
+    await page.getByRole("option", { name: "Minor NC", exact: true }).click();
+    await findingDialog.getByRole("button", { name: "Save finding" }).click();
+    await expect(page.getByText("Finding saved", { exact: true })).toBeVisible();
+    const findingCard = page.getByRole("heading", { name: findingTitle }).locator("..").locator("..");
+    await findingCard.getByRole("button", { name: "Raise CAR" }).click();
+    await expect(page.getByText("Raised 1 CAR(s)", { exact: true })).toBeVisible();
+
+    const carsResponse = await page.request.get("/api/audit/cars?page=1&limit=100&status=open", { headers: authHeaders(session) });
+    const cars = await carsResponse.json() as { items: Array<{ id: string; responsibleDepartment: string }> };
+    const carId = cars.items.find((x) => x.responsibleDepartment === department)!.id;
+
+    // API: an extension request is a conflict while the CAR is still Open (pre-response).
+    const earlyExtension = await page.request.post(`/api/audit/cars/${carId}/extension`, {
+      headers: authHeaders(session),
+      data: { requestedDueDate: futureDate(), reason: "Trying to skip the response and review steps." },
+    });
+    expect(earlyExtension.status()).toBe(409);
+
+    // API: reviewing an extension is a conflict when none is awaiting review.
+    const prematureReview = await page.request.post(`/api/audit/cars/${carId}/extension/review`, {
+      headers: authHeaders(session),
+      data: { decision: "approve" },
+    });
+    expect(prematureReview.status()).toBe(409);
+
+    // Browser: the Extension action is not offered before acceptance.
+    await page.goto("/audit/cars");
+    const car = page.getByText(department, { exact: true }).locator("..").locator("..");
+    await expect(car.getByRole("button", { name: "Extension" })).toHaveCount(0);
+
+    // Complete the response and review steps, then request an extension (allowed).
+    await car.getByRole("button", { name: "Edit response" }).click();
+    const responseDialog = page.getByRole("dialog");
+    await responseDialog.getByText("Root cause", { exact: true }).locator("..").getByRole("textbox").fill("Training gap.");
+    await responseDialog.getByText("Correction", { exact: true }).locator("..").getByRole("textbox").fill("Retrained the team.");
+    await responseDialog.getByText("Corrective action", { exact: true }).locator("..").getByRole("textbox").fill("Add training to onboarding.");
+    await responseDialog.getByRole("button", { name: "Save response" }).click();
+    await expect(page.getByText("CAR updated", { exact: true })).toBeVisible();
+    await car.getByRole("button", { name: "Submit" }).click();
+    await expect(page.getByText("CAR submitted", { exact: true })).toBeVisible();
+    await car.getByRole("button", { name: "Accept" }).click();
+    await expect(page.getByText("CAR accepted", { exact: true })).toBeVisible();
+
+    const promptAnswers = [futureDate(), "Effectiveness evidence collection needs more time."];
+    const answerExtensionPrompts = async (dialog: Dialog) => dialog.accept(promptAnswers.shift() ?? "");
+    page.on("dialog", answerExtensionPrompts);
+    await car.getByRole("button", { name: "Extension" }).click();
+    await expect(page.getByText("Extension requested", { exact: true })).toBeVisible();
+    page.off("dialog", answerExtensionPrompts);
+
+    // API: a second request while one is pending is a conflict.
+    const duplicateExtension = await page.request.post(`/api/audit/cars/${carId}/extension`, {
+      headers: authHeaders(session),
+      data: { requestedDueDate: futureDate(), reason: "Duplicate request." },
+    });
+    expect(duplicateExtension.status()).toBe(409);
+
+    // Rejecting the extension restores the prior workflow state (Accepted), not Closed.
+    page.once("dialog", (dialog) => dialog.accept("Extension is not justified by the evidence plan."));
+    await car.getByRole("button", { name: "Reject extension" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Extension rejected" })).toBeVisible();
+    await expect(car.getByRole("button", { name: "Close" })).toBeVisible();
+    const afterRejection = await page.request.get("/api/audit/cars?page=1&limit=100&status=accepted", { headers: authHeaders(session) });
+    const acceptedCars = await afterRejection.json() as { items: Array<{ id: string; status: string }> };
+    expect(acceptedCars.items.find((x) => x.id === carId)?.status).toBe("Accepted");
+  });
+
+  test("legacy pending CAR extensions cannot be reviewed into a closable state", async ({ page }) => {
+    const session = await authenticate(page);
+    const auditsResponse = await page.request.get("/api/audit/audits?page=1&limit=100", { headers: authHeaders(session) });
+    const audits = await auditsResponse.json() as { items: Array<{ id: string }> };
+    const auditId = audits.items[0]!.id;
+    const suffix = Date.now();
+    const findingTitle = `E2E Legacy NC ${suffix}`;
+    const department = `E2E Legacy Dept ${suffix}`;
+
+    await page.goto(`/audit/audits/${auditId}`);
+    await page.getByRole("tab", { name: "Findings" }).click();
+    await page.getByRole("button", { name: "New finding" }).click();
+    const findingDialog = page.getByRole("dialog");
+    await findingDialog.getByText("Title *").locator("..").getByRole("textbox").fill(findingTitle);
+    await findingDialog.getByText("Description *").locator("..").getByRole("textbox").fill("Control gap requiring a corrective action.");
+    await findingDialog.getByText("Responsible departments *").locator("..").getByRole("textbox").fill(department);
+    await findingDialog.getByRole("combobox").nth(0).click();
+    await page.getByRole("option", { name: "Minor NC", exact: true }).click();
+    await findingDialog.getByRole("button", { name: "Save finding" }).click();
+    await expect(page.getByText("Finding saved", { exact: true })).toBeVisible();
+    const findingCard = page.getByRole("heading", { name: findingTitle }).locator("..").locator("..");
+    await findingCard.getByRole("button", { name: "Raise CAR" }).click();
+    await expect(page.getByText("Raised 1 CAR(s)", { exact: true })).toBeVisible();
+
+    const carsResponse = await page.request.get("/api/audit/cars?page=1&limit=100&status=open", { headers: authHeaders(session) });
+    const cars = await carsResponse.json() as { items: Array<{ id: string; findingId: string; responsibleDepartment: string; status: string; dueDate: string }> };
+    const car = cars.items.find((x) => x.responsibleDepartment === department)!;
+    const carId = car.id;
+
+    // Simulate a legacy row: pending extension requested before the safeguard existed, so no
+    // prior state is recorded in the CAR metadata (and no request_extension audit entry).
+    const sql = (statement: string) =>
+      execFileSync("psql", [process.env.DATABASE_URL!, "-v", "ON_ERROR_STOP=1", "-q", "-c", statement], { stdio: "pipe" });
+    sql(`UPDATE app3_audit.corrective_action_reports
+         SET workflow_state = 'extension_requested', extension_status = 'requested',
+             extension_requested_at = now(), extension_due_date = '${futureDate()}',
+             effectiveness_notes = '{"extensionReason":"legacy request"}', updated_at = now()
+         WHERE id = '${carId}'`);
+
+    // Approving must be refused: the original state cannot be verified, so advancing the CAR
+    // would let it skip the response and review steps.
+    const legacyReview = await page.request.post(`/api/audit/cars/${carId}/extension/review`, {
+      headers: authHeaders(session),
+      data: { decision: "approve" },
+    });
+    expect(legacyReview.status()).toBe(409);
+    const acceptedList = await page.request.get("/api/audit/cars?page=1&limit=100&status=accepted", { headers: authHeaders(session) });
+    const acceptedCars = await acceptedList.json() as { items: Array<{ id: string }> };
+    expect(acceptedCars.items.some((x) => x.id === carId)).toBeFalsy();
+
+    // Withdrawing restores a safe state (Open) that still requires the full response cycle.
+    const cancel = await page.request.post(`/api/audit/cars/${carId}/extension/cancel`, { headers: authHeaders(session) });
+    expect(cancel.ok(), await cancel.text()).toBeTruthy();
+    expect((await cancel.json()).status).toBe("Open");
+
+    // Rows with an audit-trail snapshot but no recorded metadata prior state (pre-safeguard
+    // requests) are restored from the audit trail instead of being forced to Accepted.
+    const edit = await page.request.put(`/api/audit/cars/${carId}`, {
+      headers: authHeaders(session),
+      data: {
+        id: car.id, findingId: car.findingId, responsibleDepartment: car.responsibleDepartment,
+        ownerId: session.user.id, status: car.status, dueDate: car.dueDate,
+        rootCause: "Training gap.", correction: "Retrained the team.", correctiveAction: "Add training to onboarding.",
+      },
+    });
+    expect(edit.ok(), await edit.text()).toBeTruthy();
+    const submitted = await page.request.post(`/api/audit/cars/${carId}/submit`, { headers: authHeaders(session) });
+    expect(submitted.ok(), await submitted.text()).toBeTruthy();
+    const accepted = await page.request.post(`/api/audit/cars/${carId}/review`, { headers: authHeaders(session), data: { decision: "accept" } });
+    expect(accepted.ok(), await accepted.text()).toBeTruthy();
+    const requested = await page.request.post(`/api/audit/cars/${carId}/extension`, {
+      headers: authHeaders(session),
+      data: { requestedDueDate: futureDate(), reason: "Effectiveness verification needs more time." },
+    });
+    expect(requested.ok(), await requested.text()).toBeTruthy();
+    sql(`UPDATE app3_audit.corrective_action_reports
+         SET effectiveness_notes = '{"extensionReason":"legacy request"}', updated_at = now()
+         WHERE id = '${carId}'`);
+    const backfilledReview = await page.request.post(`/api/audit/cars/${carId}/extension/review`, {
+      headers: authHeaders(session),
+      data: { decision: "approve" },
+    });
+    expect(backfilledReview.ok(), await backfilledReview.text()).toBeTruthy();
+    expect((await backfilledReview.json()).status).toBe("Accepted");
   });
 });

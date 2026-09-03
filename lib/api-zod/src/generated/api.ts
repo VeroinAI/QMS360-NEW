@@ -4695,6 +4695,16 @@ export const ReviewCarExtensionResponse = zod.unknown()
 
 
 /**
+ * @summary Withdraw a pending extension request
+ */
+export const CancelCarExtensionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CancelCarExtensionResponse = zod.unknown()
+
+
+/**
  * @summary Verify effectiveness and close CAR
  */
 export const CloseCorrectiveActionReportParams = zod.object({
