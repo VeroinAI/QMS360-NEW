@@ -231,6 +231,106 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     }
   });
 
+  test("lesson photo upload sends authentication and confirms the evidence", async ({ page }) => {
+    const session = await authenticate(page);
+    const refsResponse = await page.request.get("/api/lessons/reference-data", { headers: authHeaders(session) });
+    expect(refsResponse.ok(), await refsResponse.text()).toBeTruthy();
+    const refs = await refsResponse.json() as {
+      projects: Array<{ id: string }>;
+    };
+    expect(refs.projects.length).toBeGreaterThan(0);
+    const [disciplinesResponse, categorisationResponse] = await Promise.all([
+      page.request.get("/api/platform/master-data/lov/disciplines", { headers: authHeaders(session) }),
+      page.request.get("/api/platform/master-data/lov/lesson_categorisations", { headers: authHeaders(session) }),
+    ]);
+    expect(disciplinesResponse.ok(), await disciplinesResponse.text()).toBeTruthy();
+    expect(categorisationResponse.ok(), await categorisationResponse.text()).toBeTruthy();
+    const disciplines = await disciplinesResponse.json() as { values: Array<{ value: string }> };
+    const categorisation = await categorisationResponse.json() as { values: Array<{ value: string }> };
+    expect(disciplines.values.length).toBeGreaterThan(0);
+    expect(categorisation.values.length).toBeGreaterThan(0);
+
+    const suffix = Date.now();
+    const createResponse = await page.request.post("/api/lessons/forms", {
+      headers: authHeaders(session),
+      data: {
+        id: `e2e-photo-${suffix}`,
+        projectId: refs.projects[0]!.id,
+        title: `E2E photo upload ${suffix}`,
+        disciplineId: disciplines.values[0]!.value,
+        categorisationId: categorisation.values[0]!.value,
+        issueCategory: "Minor",
+        impact: "Negative",
+        description: "A draft lesson used to verify authenticated photo uploads.",
+        rootCause: "Regression coverage was missing.",
+        correction: "Add an end-to-end upload check.",
+        correctiveAction: "Keep the upload request authenticated.",
+        version: 1,
+        conflictFlag: false,
+        workflowState: "Draft",
+      },
+    });
+    expect(createResponse.ok(), await createResponse.text()).toBeTruthy();
+    const lesson = await createResponse.json() as { id: string };
+    let evidenceId: string | undefined;
+
+    try {
+      await page.goto(`/lessons/${lesson.id}`);
+      await expect(page.getByRole("heading", { name: `E2E photo upload ${suffix}` })).toBeVisible();
+
+      const intentResponse = page.waitForResponse((response) =>
+        response.url().includes(`/api/lessons/forms/${lesson.id}/photos`)
+        && response.request().method() === "POST",
+      );
+      const uploadResponse = page.waitForResponse((response) =>
+        /\/api\/files\/[^/]+$/.test(new URL(response.url()).pathname)
+        && response.request().method() === "PUT",
+      );
+      const confirmResponse = page.waitForResponse((response) =>
+        /\/api\/lessons\/photos\/[^/]+\/confirm$/.test(new URL(response.url()).pathname)
+        && response.request().method() === "PUT",
+      );
+
+      const beforePhotos = page.getByText("before photos", { exact: true }).locator("..").locator("..");
+      await beforePhotos.locator('input[type="file"]').setInputFiles({
+        name: "e2e-photo.png",
+        mimeType: "image/png",
+        buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+      });
+
+      const intent = await intentResponse;
+      expect(intent.ok(), await intent.text()).toBeTruthy();
+      evidenceId = ((await intent.json()) as { id: string }).id;
+
+      const upload = await uploadResponse;
+      expect(upload.request().headers()["authorization"]).toBe(`Bearer ${session.token}`);
+      expect(upload.ok(), await upload.text()).toBeTruthy();
+
+      const confirm = await confirmResponse;
+      expect(confirm.ok(), await confirm.text()).toBeTruthy();
+      expect((await confirm.json()) as { id: string; status: string }).toMatchObject({
+        id: evidenceId,
+        status: "confirmed",
+      });
+
+      const detailResponse = await page.request.get(`/api/lessons/forms/${lesson.id}`, { headers: authHeaders(session) });
+      expect(detailResponse.ok(), await detailResponse.text()).toBeTruthy();
+      const detail = await detailResponse.json() as { photos: Array<{ id: string; status: string }> };
+      expect(detail.photos).toContainEqual(expect.objectContaining({ id: evidenceId, status: "confirmed" }));
+    } finally {
+      if (evidenceId) {
+        const removeEvidence = await page.request.delete(`/api/lessons/photos/${evidenceId}`, {
+          headers: authHeaders(session),
+        });
+        expect(removeEvidence.status()).toBe(204);
+      }
+      const removeLesson = await page.request.delete(`/api/lessons/forms/${lesson.id}`, {
+        headers: authHeaders(session),
+      });
+      expect(removeLesson.status()).toBe(204);
+    }
+  });
+
   test("audit finding raises one CAR per department, requests extension and closes", async ({ page }) => {
     const session = await authenticate(page);
     const auditsResponse = await page.request.get("/api/audit/audits?page=1&limit=100", { headers: authHeaders(session) });
@@ -239,7 +339,7 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     expect(audits.items.length, "Seed data must include an audit workspace").toBeGreaterThan(0);
     const auditId = audits.items[0]!.id;
     const suffix = Date.now();
-    const findingTitle = `E2E Legacy NC ${suffix}`;
+    const findingTitle = `E2E NC ${suffix}`;
     const departmentA = `E2E Operations ${suffix}`;
     const departmentB = `E2E Quality ${suffix}`;
 
@@ -248,10 +348,10 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     await page.getByRole("button", { name: "New finding" }).click();
     const findingDialog = page.getByRole("dialog");
     await findingDialog.getByText("Title *").locator("..").getByRole("textbox").fill(findingTitle);
-    await findingDialog.getByText("Description *").locator("..").getByRole("textbox").fill("Control gap requiring a corrective action.");
-    await findingDialog.getByText("Responsible departments *").locator("..").getByRole("textbox").fill(department);
+    await findingDialog.getByText("Description *").locator("..").getByRole("textbox").fill("A mandatory control was not implemented.");
+    await findingDialog.getByText("Responsible departments *").locator("..").getByRole("textbox").fill(`${departmentA}, ${departmentB}`);
     await findingDialog.getByRole("combobox").nth(0).click();
-    await page.getByRole("option", { name: "Minor NC", exact: true }).click();
+    await page.getByRole("option", { name: "Major NC", exact: true }).click();
     await findingDialog.getByRole("button", { name: "Save finding" }).click();
     await expect(page.getByText("Finding saved", { exact: true })).toBeVisible();
     const findingCard = page.getByRole("heading", { name: findingTitle }).locator("..").locator("..");
@@ -261,15 +361,12 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     await page.goto("/audit/cars");
     await expect(page.getByText(departmentA, { exact: true })).toBeVisible();
     await expect(page.getByText(departmentB, { exact: true })).toBeVisible();
-    const car = cars.items.find((x) => x.responsibleDepartment === department)!;
-    await expect(car.getByRole("button", { name: "Extension" })).toHaveCount(0);
-
-    // Complete the response and review steps, then request an extension (allowed).
+    const car = page.getByText(departmentA, { exact: true }).locator("..").locator("..");
     await car.getByRole("button", { name: "Edit response" }).click();
     const responseDialog = page.getByRole("dialog");
-    await responseDialog.getByText("Root cause", { exact: true }).locator("..").getByRole("textbox").fill("Training gap.");
-    await responseDialog.getByText("Correction", { exact: true }).locator("..").getByRole("textbox").fill("Retrained the team.");
-    await responseDialog.getByText("Corrective action", { exact: true }).locator("..").getByRole("textbox").fill("Add training to onboarding.");
+    await responseDialog.getByText("Root cause", { exact: true }).locator("..").getByRole("textbox").fill("Ownership was unclear.");
+    await responseDialog.getByText("Correction", { exact: true }).locator("..").getByRole("textbox").fill("The control was implemented.");
+    await responseDialog.getByText("Corrective action", { exact: true }).locator("..").getByRole("textbox").fill("Assign and review control ownership monthly.");
     await responseDialog.getByRole("button", { name: "Save response" }).click();
     await expect(page.getByText("CAR updated", { exact: true })).toBeVisible();
     await car.getByRole("button", { name: "Submit" }).click();
@@ -277,8 +374,9 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     await car.getByRole("button", { name: "Accept" }).click();
     await expect(page.getByText("CAR accepted", { exact: true })).toBeVisible();
 
-    const promptAnswers = [futureDate(), "Effectiveness evidence collection needs more time."];
-    const answerExtensionPrompts = async (dialog: Dialog) => dialog.accept(promptAnswers.shift() ?? "");
+    const promptAnswers = [futureDate(), "Additional time is required for effectiveness verification."];
+    const answerExtensionPrompts = async (dialog: Dialog) =>
+      dialog.accept(promptAnswers.shift() ?? "");
     page.on("dialog", answerExtensionPrompts);
     await car.getByRole("button", { name: "Extension" }).click();
     await expect(page.getByText("Extension requested", { exact: true })).toBeVisible();
@@ -298,8 +396,8 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     const audits = await auditsResponse.json() as { items: Array<{ id: string }> };
     const auditId = audits.items[0]!.id;
     const suffix = Date.now();
-    const findingTitle = `E2E Legacy NC ${suffix}`;
-    const department = `E2E Legacy Dept ${suffix}`;
+    const findingTitle = `E2E Ext NC ${suffix}`;
+    const department = `E2E Ext Dept ${suffix}`;
 
     await page.goto(`/audit/audits/${auditId}`);
     await page.getByRole("tab", { name: "Findings" }).click();
@@ -318,7 +416,8 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
 
     const carsResponse = await page.request.get("/api/audit/cars?page=1&limit=100&status=open", { headers: authHeaders(session) });
     const cars = await carsResponse.json() as { items: Array<{ id: string; findingId: string; responsibleDepartment: string; status: string; dueDate: string }> };
-    const carId = car.id;
+    const carRecord = cars.items.find((x) => x.responsibleDepartment === department)!;
+    const carId = carRecord.id;
 
     // API: an extension request is a conflict while the CAR is still Open (pre-response).
     const earlyExtension = await page.request.post(`/api/audit/cars/${carId}/extension`, {
@@ -336,7 +435,7 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
 
     // Browser: the Extension action is not offered before acceptance.
     await page.goto("/audit/cars");
-    const car = cars.items.find((x) => x.responsibleDepartment === department)!;
+    const car = page.getByText(department, { exact: true }).locator("..").locator("..");
     await expect(car.getByRole("button", { name: "Extension" })).toHaveCount(0);
 
     // Complete the response and review steps, then request an extension (allowed).
@@ -372,7 +471,7 @@ test.describe.serial("QMS360 critical workspace journeys", () => {
     await expect(page.getByRole("status").filter({ hasText: "Extension rejected" })).toBeVisible();
     await expect(car.getByRole("button", { name: "Close" })).toBeVisible();
     const afterRejection = await page.request.get("/api/audit/cars?page=1&limit=100&status=accepted", { headers: authHeaders(session) });
-    const acceptedCars = await acceptedList.json() as { items: Array<{ id: string }> };
+    const acceptedCars = await afterRejection.json() as { items: Array<{ id: string; status: string }> };
     expect(acceptedCars.items.find((x) => x.id === carId)?.status).toBe("Accepted");
   });
 
