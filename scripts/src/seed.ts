@@ -76,6 +76,7 @@ async function seed() {
   const masterGroups = [
     ["disciplines", "Discipline Master", "global", ["Electrical", "Civil", "Mechanical", "Precast", "Architectural", "Testing & Commissioning", "Plumbing", "RTR & Piping", "Instrumentation", "Communications", "Storage & Handling", "Material Receiving"]],
     ["audit_types", "Audit Type Master", "audit", ["Quality Internal Process Audit", "Quality Internal Product Audit"]],
+    ["audit_categories", "Audit Category Master", "audit", ["Business Unit", "Regional Office", "Project"]],
     ["risk_levels", "Risk Level Master", "audit", ["Low", "Medium", "High"]],
     ["nc_classifications", "NC Classification", "audit", ["Conformity", "Observation", "Minor NC", "Major NC"]],
     ["lesson_issue_categories", "Lesson Issue Categories", "lessons", ["Minor", "Moderate", "Major"]],

@@ -5,6 +5,8 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { AuditScheduleL1ReviewStatus } from './auditScheduleL1ReviewStatus';
+import type { AuditScheduleL2ReviewStatus } from './auditScheduleL2ReviewStatus';
 import type { WorkflowState } from './workflowState';
 
 export interface AuditSchedule {
@@ -13,8 +15,30 @@ export interface AuditSchedule {
   title: string;
   projectIds: string[];
   auditTypes?: string[];
+  auditCategory?: string;
+  departmentProject?: string;
+  location?: string;
+  processProductOwner?: string;
   plannedStartDate: Date;
   plannedEndDate: Date;
+  qaqcReference?: string;
+  auditNumber?: string;
+  qaqcScope?: string;
+  qaqcClauses?: string;
+  /** @nullable */
+  remarks?: string | null;
+  l1Name?: string;
+  l1ReviewStatus?: AuditScheduleL1ReviewStatus;
+  /** @nullable */
+  l1ReviewComments?: string | null;
+  l1Attachments?: string[];
+  l2Name?: string;
+  l2ReviewStatus?: AuditScheduleL2ReviewStatus;
+  /** @nullable */
+  l2ReviewComments?: string | null;
+  l2Attachments?: string[];
+  memoDescription?: string;
+  memoCirculation?: string;
   ownerId?: string;
   workflowState: WorkflowState;
   /** @nullable */

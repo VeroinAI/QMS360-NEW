@@ -1146,14 +1146,54 @@ export interface EscalationSummary {
   lastNotifiedAt?: string | null;
 }
 
+export type AuditScheduleL1ReviewStatus = typeof AuditScheduleL1ReviewStatus[keyof typeof AuditScheduleL1ReviewStatus];
+
+
+export const AuditScheduleL1ReviewStatus = {
+  Pending: 'Pending',
+  Accept: 'Accept',
+  Send_Back: 'Send Back',
+} as const;
+
+export type AuditScheduleL2ReviewStatus = typeof AuditScheduleL2ReviewStatus[keyof typeof AuditScheduleL2ReviewStatus];
+
+
+export const AuditScheduleL2ReviewStatus = {
+  Pending: 'Pending',
+  Accept: 'Accept',
+  Send_Back: 'Send Back',
+} as const;
+
 export interface AuditSchedule {
   id: string;
   year: number;
   title: string;
   projectIds: string[];
   auditTypes?: string[];
+  auditCategory?: string;
+  departmentProject?: string;
+  location?: string;
+  processProductOwner?: string;
   plannedStartDate: string;
   plannedEndDate: string;
+  qaqcReference?: string;
+  auditNumber?: string;
+  qaqcScope?: string;
+  qaqcClauses?: string;
+  /** @nullable */
+  remarks?: string | null;
+  l1Name?: string;
+  l1ReviewStatus?: AuditScheduleL1ReviewStatus;
+  /** @nullable */
+  l1ReviewComments?: string | null;
+  l1Attachments?: string[];
+  l2Name?: string;
+  l2ReviewStatus?: AuditScheduleL2ReviewStatus;
+  /** @nullable */
+  l2ReviewComments?: string | null;
+  l2Attachments?: string[];
+  memoDescription?: string;
+  memoCirculation?: string;
   ownerId?: string;
   workflowState: WorkflowState;
   /** @nullable */

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, MessageSquarePlus, Sparkles } from 'lucide-react';
@@ -57,10 +58,14 @@ export function FeedbackWidget() {
   const verdict = triage ? verdictLabels[triage.verdict] ?? verdictLabels.unclear : null;
 
   return <>
-    <Button aria-label="Give feedback" onClick={() => setOpen(true)}
-      className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full p-0 shadow-lg">
-      <MessageSquarePlus className="h-5 w-5" />
-    </Button>
+    {createPortal(
+      <Button aria-label="Give feedback" onClick={() => setOpen(true)}
+        style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 50 }}
+        className="h-12 w-12 rounded-full p-0 shadow-lg">
+        <MessageSquarePlus className="h-5 w-5" />
+      </Button>,
+      document.body,
+    )}
     <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) { setTriage(null); } }}>
       <DialogContent>
         <DialogHeader>

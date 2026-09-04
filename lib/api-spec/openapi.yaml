@@ -1506,7 +1506,36 @@ components:
     AuditSchedule:
       type: object
       required: [id, year, title, projectIds, plannedStartDate, plannedEndDate, workflowState]
-      properties: {id: {type: string}, year: {type: number}, title: {type: string}, projectIds: {type: array, items: {type: string}}, auditTypes: {type: array, items: {type: string, description: "Values managed via /platform/master-data/lov/audit_types"}}, plannedStartDate: {type: string, format: date}, plannedEndDate: {type: string, format: date}, ownerId: {type: string}, workflowState: {$ref: "#/components/schemas/WorkflowState"}, reviewComments: {type: [string, "null"]}}
+      properties:
+        id: {type: string}
+        year: {type: number}
+        title: {type: string}
+        projectIds: {type: array, items: {type: string}}
+        auditTypes: {type: array, items: {type: string, description: "Values managed via /platform/master-data/lov/audit_types"}}
+        auditCategory: {type: string}
+        departmentProject: {type: string}
+        location: {type: string}
+        processProductOwner: {type: string}
+        plannedStartDate: {type: string, format: date}
+        plannedEndDate: {type: string, format: date}
+        qaqcReference: {type: string}
+        auditNumber: {type: string}
+        qaqcScope: {type: string}
+        qaqcClauses: {type: string}
+        remarks: {type: [string, "null"]}
+        l1Name: {type: string}
+        l1ReviewStatus: {type: string, enum: [Pending, Accept, Send Back]}
+        l1ReviewComments: {type: [string, "null"]}
+        l1Attachments: {type: array, items: {type: string}}
+        l2Name: {type: string}
+        l2ReviewStatus: {type: string, enum: [Pending, Accept, Send Back]}
+        l2ReviewComments: {type: [string, "null"]}
+        l2Attachments: {type: array, items: {type: string}}
+        memoDescription: {type: string}
+        memoCirculation: {type: string}
+        ownerId: {type: string}
+        workflowState: {$ref: "#/components/schemas/WorkflowState"}
+        reviewComments: {type: [string, "null"]}
     AuditPlan:
       type: object
       required: [id, scheduleId, scope, criteria, auditDate, location, teamMemberIds, status]

@@ -127,22 +127,76 @@ function Metric({ label, value, icon }: { label: string; value: number; icon: Re
 
 function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: () => void }) {
   const qc = useQueryClient(); const { toast } = useToast();
-  const [form, setForm] = useState<AuditSchedule>(initial ?? { id: crypto.randomUUID(), year: new Date().getFullYear(), title: "", projectIds: [], auditTypes: [], plannedStartDate: "", plannedEndDate: "", ownerId: "", workflowState: "Draft" });
+  const [l1Files, setL1Files] = useState<File[]>([]);
+  const [l2Files, setL2Files] = useState<File[]>([]);
+  const [form, setForm] = useState<AuditSchedule>(initial ?? {
+    id: crypto.randomUUID(), year: new Date().getFullYear(), title: "", projectIds: [], auditTypes: [],
+    auditCategory: "", departmentProject: "", location: "", processProductOwner: "",
+    plannedStartDate: "", plannedEndDate: "", qaqcReference: `QAM-IA/${new Date().getFullYear().toString().slice(-2)}-`,
+    auditNumber: `AUD-${new Date().getFullYear()}-`, qaqcScope: "System and Process audits against ISO 9001:2015",
+    qaqcClauses: "ISO 9001 — All clauses", remarks: "", l1Name: "", l1ReviewStatus: "Pending",
+    l1ReviewComments: "", l1Attachments: [], l2Name: "", l2ReviewStatus: "Pending", l2ReviewComments: "",
+    l2Attachments: [], memoDescription: "", memoCirculation: "", ownerId: "", workflowState: "Draft"
+  });
   const create = useCreateAuditSchedule(); const update = useUpdateAuditSchedule();
+  const evidenceIntent = useCreateAuditEvidenceIntent(); const confirmEvidence = useConfirmAuditEvidence();
   const auditTypes = useLov("audit_types");
-  const save = () => {
-    if (!form.title || !form.plannedStartDate || !form.plannedEndDate || !form.auditTypes?.length) { toast({ title: "Complete required fields", description: "Title, type and dates are required.", variant: "destructive" }); return; }
-    const callbacks = { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] }); toast({ title: initial ? "Schedule updated" : "Schedule created" }); onClose(); }, onError: (e: unknown) => { toast({ title: "Unable to save", description: errorText(e), variant: "destructive" as const }); } };
-    initial ? update.mutate({ id: initial.id, data: form }, callbacks) : create.mutate({ data: form }, callbacks);
+  const auditCategories = useLov("audit_categories");
+  const uploadAttachment = async (file: File, category: "l1-review" | "l2-review") => {
+    const intent = await evidenceIntent.mutateAsync({ data: {
+      recordType: "audit_schedule", recordId: form.id, category, fileName: file.name,
+      mimeType: file.type || "application/octet-stream", sizeBytes: file.size, clientReference: crypto.randomUUID(),
+    } });
+    const response = await fetch(intent.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "application/octet-stream" } });
+    if (!response.ok) throw new Error(`Unable to upload ${file.name}`);
+    await confirmEvidence.mutateAsync({ id: intent.id });
+  };
+  const save = async () => {
+    if (!form.title || !form.plannedStartDate || !form.plannedEndDate || !form.auditTypes?.length || !form.auditCategory || !form.departmentProject || !form.location || !form.processProductOwner || !form.l1Name || !form.l2Name || !form.memoDescription || !form.memoCirculation || (form.l1ReviewStatus === "Send Back" && !form.l1ReviewComments?.trim()) || (form.l2ReviewStatus === "Send Back" && !form.l2ReviewComments?.trim())) { toast({ title: "Complete required fields", description: "Please complete all fields marked with *.", variant: "destructive" }); return; }
+    try {
+      if (initial) await update.mutateAsync({ id: initial.id, data: form });
+      else await create.mutateAsync({ data: form });
+      await Promise.all([
+        ...l1Files.map(file => uploadAttachment(file, "l1-review")),
+        ...l2Files.map(file => uploadAttachment(file, "l2-review")),
+      ]);
+      qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
+      toast({ title: initial ? "Schedule updated" : "Schedule created" });
+      onClose();
+    } catch (e) {
+      toast({ title: "Unable to save", description: errorText(e), variant: "destructive" });
+    }
   };
   const field = (key: keyof AuditSchedule, value: unknown) => setForm(v => ({ ...v, [key]: value }));
+  const files = (key: "l1Attachments" | "l2Attachments", list: FileList | null) => {
+    const selected = Array.from(list ?? []);
+    field(key, selected.map(file => file.name));
+    if (key === "l1Attachments") setL1Files(selected); else setL2Files(selected);
+  };
   return <div className="grid gap-4 py-2">
-    <div><Label>Schedule title *</Label><Input value={form.title} onChange={e => field("title", e.target.value)}/></div>
-    <div className="grid grid-cols-2 gap-3"><div><Label>Year</Label><Input type="number" value={form.year} onChange={e => field("year", Number(e.target.value))}/></div><div><Label>Audit type *</Label><Select value={form.auditTypes?.[0] ?? ""} disabled={auditTypes.isLoading} onValueChange={v => field("auditTypes", [v])}><SelectTrigger><SelectValue placeholder="Select audit type"/></SelectTrigger><SelectContent>{withLegacyOption(auditTypes.options, form.auditTypes?.[0]).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div></div>
-    <div><Label>Scope / project IDs</Label><Input value={form.projectIds.join(", ")} onChange={e => field("projectIds", e.target.value.split(",").map(x => x.trim()).filter(Boolean))}/></div>
-    <div className="grid grid-cols-2 gap-3"><div><Label>Start *</Label><Input type="date" value={form.plannedStartDate.slice(0,10)} onChange={e => field("plannedStartDate", e.target.value)}/></div><div><Label>End *</Label><Input type="date" value={form.plannedEndDate.slice(0,10)} onChange={e => field("plannedEndDate", e.target.value)}/></div></div>
-    <div><Label>Lead auditor ID</Label><Input value={form.ownerId ?? ""} onChange={e => field("ownerId", e.target.value)}/></div>
-    <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save} disabled={create.isPending || update.isPending}>Save schedule</Button></DialogFooter>
+    <div><Label>1. Audit Type *</Label><Select value={form.auditTypes?.[0] ?? ""} disabled={auditTypes.isLoading} onValueChange={v => field("auditTypes", [v])}><SelectTrigger><SelectValue placeholder="Select audit type"/></SelectTrigger><SelectContent>{withLegacyOption(auditTypes.options, form.auditTypes?.[0]).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
+    <div><Label>2. Audit Category *</Label><Select value={form.auditCategory ?? ""} disabled={auditCategories.isLoading} onValueChange={v => field("auditCategory", v)}><SelectTrigger><SelectValue placeholder="Select category"/></SelectTrigger><SelectContent>{withLegacyOption(auditCategories.options, form.auditCategory).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
+    <div><Label>3. Department / Project *</Label><Input value={form.departmentProject ?? ""} onChange={e => field("departmentProject", e.target.value)}/></div>
+    <div><Label>4. Location *</Label><Input value={form.location ?? ""} placeholder="GPS / site location" onChange={e => field("location", e.target.value)}/></div>
+    <div><Label>5. Audit Title *</Label><Input value={form.title} onChange={e => field("title", e.target.value)}/></div>
+    <div><Label>6. Process / Product Owner *</Label><Input value={form.processProductOwner ?? ""} onChange={e => field("processProductOwner", e.target.value)}/></div>
+    <div className="grid grid-cols-2 gap-3"><div><Label>7. From Date *</Label><Input type="date" value={form.plannedStartDate.slice(0,10)} onChange={e => field("plannedStartDate", e.target.value)}/></div><div><Label>To Date *</Label><Input type="date" value={form.plannedEndDate.slice(0,10)} onChange={e => field("plannedEndDate", e.target.value)}/></div></div>
+    <div><Label>8. QA/QC Reference *</Label><Input readOnly value={form.qaqcReference ?? ""}/></div>
+    <div><Label>9. Audit Number / Site Visit No. *</Label><Input readOnly value={form.auditNumber ?? ""}/></div>
+    <div><Label>10. QA/QC Scope *</Label><Input readOnly value={form.qaqcScope ?? ""}/></div>
+    <div><Label>11. QA/QC Clauses *</Label><Input readOnly value={form.qaqcClauses ?? ""}/></div>
+    <div><Label>12. Remarks</Label><Textarea value={form.remarks ?? ""} onChange={e => field("remarks", e.target.value)}/></div>
+    <div><Label>13. Name of L1 *</Label><Input value={form.l1Name ?? ""} onChange={e => field("l1Name", e.target.value)}/></div>
+    <div><Label>14. L1 Review Status *</Label><Select value={form.l1ReviewStatus ?? "Pending"} onValueChange={v => field("l1ReviewStatus", v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pending">Pending</SelectItem><SelectItem value="Accept">Accept</SelectItem><SelectItem value="Send Back">Send Back</SelectItem></SelectContent></Select></div>
+    <div><Label>15. L1 Review Comments {form.l1ReviewStatus === "Send Back" ? "*" : ""}</Label><Textarea value={form.l1ReviewComments ?? ""} onChange={e => field("l1ReviewComments", e.target.value)}/></div>
+    <div><Label>16. L1 Attachments</Label><Input type="file" multiple onChange={e => files("l1Attachments", e.target.files)}/></div>
+    <div><Label>17. Name of L2 *</Label><Input value={form.l2Name ?? ""} onChange={e => field("l2Name", e.target.value)}/></div>
+    <div><Label>18. L2 Review Status *</Label><Select value={form.l2ReviewStatus ?? "Pending"} onValueChange={v => field("l2ReviewStatus", v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pending">Pending</SelectItem><SelectItem value="Accept">Accept</SelectItem><SelectItem value="Send Back">Send Back</SelectItem></SelectContent></Select></div>
+    <div><Label>19. L2 Review Comments {form.l2ReviewStatus === "Send Back" ? "*" : ""}</Label><Textarea value={form.l2ReviewComments ?? ""} onChange={e => field("l2ReviewComments", e.target.value)}/></div>
+    <div><Label>20. L2 Attachments</Label><Input type="file" multiple onChange={e => files("l2Attachments", e.target.files)}/></div>
+    <div><Label>21. Memo Description *</Label><Textarea value={form.memoDescription ?? ""} onChange={e => field("memoDescription", e.target.value)}/></div>
+    <div><Label>22. Memo Circulation *</Label><Input value={form.memoCirculation ?? ""} onChange={e => field("memoCirculation", e.target.value)}/></div>
+    <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={() => void save()} disabled={create.isPending || update.isPending || evidenceIntent.isPending || confirmEvidence.isPending}>Save schedule</Button></DialogFooter>
   </div>;
 }
 
@@ -155,7 +209,7 @@ function Schedules() {
   const sendBack = (id: string) => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id, data: { decision: "send_back", comments } }, { onSuccess: () => done("Schedule sent back") }); };
   return <div className="space-y-5"><PageHeader title="Annual audit schedules" description="Build, submit and approve the annual audit programme" action={<Button onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New schedule</Button>}/>
     <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
-    <Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>{editing ? "Edit schedule" : "Create schedule"}</DialogTitle></DialogHeader><ScheduleForm initial={editing} onClose={() => setOpen(false)}/></DialogContent></Dialog>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit schedule" : "Create schedule"}</DialogTitle></DialogHeader><ScheduleForm initial={editing} onClose={() => setOpen(false)}/></DialogContent></Dialog>
     <State loading={query.isLoading} error={query.error} empty={!items.length}/>{items.length > 0 && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><b>{item.title}</b><div className="text-xs text-muted-foreground">{item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
       {item.workflowState === "Draft" && <><Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button><Button size="sm" onClick={() => submit.mutate({ id: item.id }, { onSuccess: () => done("Schedule submitted") })}>Submit</Button></>}
       {item.workflowState === "Submitted" && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved") })}>Approve</Button><Button size="sm" variant="outline" onClick={() => sendBack(item.id)}>Send back</Button></>}

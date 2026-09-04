@@ -85,6 +85,12 @@ const maybeCsv = (req: Request, res: Response, name: string, rows: AnyRow[]) => 
 type ScheduleMeta = {
   projectIds?: string[]; auditTypes?: string[]; plannedStartDate?: string;
   plannedEndDate?: string; reviewComments?: string | null;
+  auditCategory?: string; departmentProject?: string; location?: string;
+  processProductOwner?: string; qaqcReference?: string; auditNumber?: string;
+  qaqcScope?: string; qaqcClauses?: string; remarks?: string | null;
+  l1Name?: string; l1ReviewStatus?: string; l1ReviewComments?: string | null; l1Attachments?: string[];
+  l2Name?: string; l2ReviewStatus?: string; l2ReviewComments?: string | null; l2Attachments?: string[];
+  memoDescription?: string; memoCirculation?: string;
 };
 const scheduleMeta = (row: AnyRow): ScheduleMeta => parseJson(row.status, {});
 const scheduleDto = (row: AnyRow) => {
@@ -95,15 +101,32 @@ const scheduleDto = (row: AnyRow) => {
     plannedEndDate: new Date(meta.plannedEndDate ?? `${row.year}-12-31`), ownerId: row.ownerId ?? undefined,
     workflowState: ({ draft: "Draft", submitted: "Submitted", approved: "Approved", sent_back: "Sent Back" } as AnyRow)[row.workflowState] ?? "Draft",
     reviewComments: meta.reviewComments ?? null,
+    auditCategory: meta.auditCategory ?? "", departmentProject: meta.departmentProject ?? "",
+    location: meta.location ?? "", processProductOwner: meta.processProductOwner ?? "",
+    qaqcReference: meta.qaqcReference ?? "", auditNumber: meta.auditNumber ?? "",
+    qaqcScope: meta.qaqcScope ?? "System and Process audits against ISO 9001:2015",
+    qaqcClauses: meta.qaqcClauses ?? "ISO 9001 — All clauses", remarks: meta.remarks ?? null,
+    l1Name: meta.l1Name ?? "", l1ReviewStatus: meta.l1ReviewStatus ?? "Pending",
+    l1ReviewComments: meta.l1ReviewComments ?? null, l1Attachments: meta.l1Attachments ?? [],
+    l2Name: meta.l2Name ?? "", l2ReviewStatus: meta.l2ReviewStatus ?? "Pending",
+    l2ReviewComments: meta.l2ReviewComments ?? null, l2Attachments: meta.l2Attachments ?? [],
+    memoDescription: meta.memoDescription ?? "", memoCirculation: meta.memoCirculation ?? "",
   };
 };
 const scheduleValues = (data: AnyRow) => ({
   id: data.id, year: data.year, title: data.title, projectId: data.projectIds[0] ?? null,
-  ownerId: data.ownerId ?? null,
+  ownerId: data.ownerId || null,
   workflowState: ({ Draft: "draft", Submitted: "submitted", Approved: "approved", "Sent Back": "sent_back", Deleted: "deleted" } as AnyRow)[data.workflowState],
   status: JSON.stringify({
     projectIds: data.projectIds, auditTypes: data.auditTypes ?? [], plannedStartDate: dateOnly(data.plannedStartDate),
     plannedEndDate: dateOnly(data.plannedEndDate), reviewComments: data.reviewComments ?? null,
+    auditCategory: data.auditCategory, departmentProject: data.departmentProject, location: data.location,
+    processProductOwner: data.processProductOwner, qaqcReference: data.qaqcReference, auditNumber: data.auditNumber,
+    qaqcScope: data.qaqcScope, qaqcClauses: data.qaqcClauses, remarks: data.remarks ?? null,
+    l1Name: data.l1Name, l1ReviewStatus: data.l1ReviewStatus, l1ReviewComments: data.l1ReviewComments ?? null,
+    l1Attachments: data.l1Attachments ?? [], l2Name: data.l2Name, l2ReviewStatus: data.l2ReviewStatus,
+    l2ReviewComments: data.l2ReviewComments ?? null, l2Attachments: data.l2Attachments ?? [],
+    memoDescription: data.memoDescription, memoCirculation: data.memoCirculation,
   }),
 });
 
@@ -120,6 +143,7 @@ router.post("/schedules", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditScheduleBody, req);
   await Promise.all((data.auditTypes ?? []).map((value: string) =>
     assertLovValue(db, actor(req).organizationId, "audit_types", value)));
+  await assertLovValue(db, actor(req).organizationId, "audit_categories", data.auditCategory);
   const [row] = await db.insert(auditSchedules).values({ organizationId: actor(req).organizationId, ...scheduleValues(data) }).returning();
   await auditLog(req, "create", "audit_schedule", row.id, undefined, row);
   res.status(201).json(scheduleDto(row));
@@ -136,6 +160,7 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back schedules may be edited");
   await Promise.all((data.auditTypes ?? []).map((value: string) =>
     assertLovValue(db, actor(req).organizationId, "audit_types", value, { allowLegacy: scheduleMeta(before).auditTypes })));
+  await assertLovValue(db, actor(req).organizationId, "audit_categories", data.auditCategory, { allowLegacy: [scheduleMeta(before).auditCategory ?? ""] });
   const [row] = await db.update(auditSchedules).set({ ...scheduleValues(data), id: undefined, updatedAt: new Date() })
     .where(eq(auditSchedules.id, before.id)).returning();
   await auditLog(req, "update", "audit_schedule", row.id, before, row);

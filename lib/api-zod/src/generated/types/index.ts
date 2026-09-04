@@ -59,6 +59,8 @@ export * from './auditPlanPageResponse';
 export * from './auditPlanStatus';
 export * from './auditSchedule';
 export * from './auditScheduleBody';
+export * from './auditScheduleL1ReviewStatus';
+export * from './auditScheduleL2ReviewStatus';
 export * from './auditSchedulePage';
 export * from './auditSchedulePageResponse';
 export * from './auditStatus';
