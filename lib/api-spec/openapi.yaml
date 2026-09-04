@@ -382,6 +382,42 @@ paths:
       parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
       responses:
         "200": {$ref: "#/components/responses/ExecutiveSummaryPage"}
+  /feedback:
+    get:
+      operationId: listFeedbackEntries
+      tags: [feedback]
+      summary: List feedback entries with user details (admin only)
+      security:
+        - bearerAuth: []
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses: {"200": {description: Feedback entries, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackPage"}}}}, "401": {description: Authentication required}, "403": {description: Administrator access required}}
+    post:
+      operationId: submitFeedback
+      tags: [feedback]
+      summary: Submit feedback or a testing issue
+      security:
+        - bearerAuth: []
+      requestBody: {$ref: "#/components/requestBodies/FeedbackSubmission"}
+      responses: {"201": {description: Recorded, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackEntry"}}}}, "401": {description: Authentication required}, "422": {description: Invalid request body}}
+  /feedback/triage:
+    post:
+      operationId: triageFeedback
+      tags: [feedback]
+      summary: AI triage of draft feedback before submission
+      security:
+        - bearerAuth: []
+      requestBody: {$ref: "#/components/requestBodies/FeedbackTriageRequest"}
+      responses: {"200": {description: Triage result, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackTriage"}}}}, "401": {description: Authentication required}, "422": {description: Invalid request body}, "503": {description: AI assistance is temporarily unavailable}}
+  /feedback/{id}/resolution:
+    put:
+      operationId: updateFeedbackResolution
+      tags: [feedback]
+      summary: Update feedback resolution (admin only)
+      security:
+        - bearerAuth: []
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {$ref: "#/components/requestBodies/FeedbackResolutionUpdate"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackEntry"}}}}, "401": {description: Authentication required}, "403": {description: Administrator access required}, "404": {description: Feedback entry not found}}
   /qaqc/disciplines:
     get:
       operationId: listQaqcDisciplines
@@ -835,6 +871,9 @@ components:
     AcceptReject: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AcceptRejectReview"}}}}
     ApproveReject: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ApproveRejectReview"}}}}
     Extension: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ExtensionRequest"}}}}
+    FeedbackSubmission: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SubmitFeedbackInput"}}}}
+    FeedbackTriageRequest: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/TriageFeedbackInput"}}}}
+    FeedbackResolutionUpdate: {required: true, content: {application/json: {schema: {type: object, required: [resolution], properties: {resolution: {type: string, enum: [open, reviewing, resolved]}}}}}}
   schemas:
     MasterDataValue:
       type: object
@@ -1358,6 +1397,46 @@ components:
       type: object
       required: [enabled, features, provider, model, timeoutSeconds]
       properties: {enabled: {type: boolean}, features: {type: object, additionalProperties: {type: boolean}}, provider: {type: string}, model: {type: string}, timeoutSeconds: {type: number, minimum: 1}, stripPersonalData: {type: boolean}, retentionDays: {type: number}, monthlyQuota: {type: number}}
+    FeedbackTriage:
+      type: object
+      required: [verdict, summary]
+      properties:
+        verdict: {type: string, enum: [valid_issue, awareness_gap, suggestion, unclear]}
+        summary: {type: string}
+        guidance: {type: [string, "null"]}
+    SubmitFeedbackInput:
+      type: object
+      required: [category, message]
+      properties:
+        category: {type: string, enum: [issue, suggestion, question]}
+        message: {type: string, minLength: 5, maxLength: 4000}
+        appKey: {type: [string, "null"]}
+        pagePath: {type: [string, "null"], maxLength: 500}
+        triage: {anyOf: [{$ref: "#/components/schemas/FeedbackTriage"}, {type: "null"}]}
+    TriageFeedbackInput:
+      type: object
+      required: [category, message]
+      properties:
+        category: {type: string, enum: [issue, suggestion, question]}
+        message: {type: string, minLength: 5, maxLength: 4000}
+        pagePath: {type: [string, "null"], maxLength: 500}
+    FeedbackEntry:
+      type: object
+      required: [id, category, message, resolution, createdAt, user]
+      properties:
+        id: {type: string}
+        appKey: {type: [string, "null"]}
+        pagePath: {type: [string, "null"]}
+        category: {type: string}
+        message: {type: string}
+        triage: {anyOf: [{$ref: "#/components/schemas/FeedbackTriage"}, {type: "null"}]}
+        resolution: {type: string, enum: [open, reviewing, resolved]}
+        createdAt: {type: string, format: date-time}
+        user: {type: object, required: [id, fullName, email], properties: {id: {type: string}, fullName: {type: string}, email: {type: string}}}
+    FeedbackPage:
+      type: object
+      required: [items, total, page, limit]
+      properties: {items: {type: array, items: {$ref: "#/components/schemas/FeedbackEntry"}}, total: {type: number}, page: {type: number}, limit: {type: number}}
     Notification:
       type: object
       required: [id, type, title, message, critical, read, createdAt]

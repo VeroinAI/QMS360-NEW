@@ -185,6 +185,19 @@ export const syncJobs = sharedSchema.table("sync_jobs", {
   ...auditColumns,
 });
 
+export const feedbackEntries = sharedSchema.table("feedback_entries", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  appKey: text("app_key"),
+  pagePath: text("page_path"),
+  category: text("category").notNull().default("issue"),
+  message: text("message").notNull(),
+  triage: jsonb("triage").$type<{ verdict: string; summary: string; guidance: string | null }>(),
+  resolution: text("resolution").notNull().default("open"),
+  ...auditColumns,
+});
+
 export const executiveSummarySnapshots = sharedSchema.table("executive_summary_snapshots", {
   id: uuid("id").defaultRandom().primaryKey(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),

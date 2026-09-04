@@ -823,6 +823,145 @@ export const ListPublishedExecutiveSummariesResponse = zod.object({
 
 
 /**
+ * @summary List feedback entries with user details (admin only)
+ */
+export const listFeedbackEntriesQueryPageDefault = 1;
+
+export const listFeedbackEntriesQueryLimitDefault = 20;
+export const listFeedbackEntriesQueryLimitMax = 200;
+
+
+
+export const ListFeedbackEntriesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listFeedbackEntriesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listFeedbackEntriesQueryLimitMax).default(listFeedbackEntriesQueryLimitDefault)
+})
+
+export const ListFeedbackEntriesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "appKey": zod.string().nullish(),
+  "pagePath": zod.string().nullish(),
+  "category": zod.string(),
+  "message": zod.string(),
+  "triage": zod.union([zod.object({
+  "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
+  "summary": zod.string(),
+  "guidance": zod.string().nullish()
+}),zod.null()]).optional(),
+  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "createdAt": zod.coerce.date(),
+  "user": zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string()
+})
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number()
+})
+
+
+/**
+ * @summary Submit feedback or a testing issue
+ */
+export const submitFeedbackBodyMessageMin = 5;
+export const submitFeedbackBodyMessageMax = 4000;
+
+export const submitFeedbackBodyPagePathMax = 500;
+
+
+
+export const SubmitFeedbackBody = zod.object({
+  "category": zod.enum(['issue', 'suggestion', 'question']),
+  "message": zod.string().min(submitFeedbackBodyMessageMin).max(submitFeedbackBodyMessageMax),
+  "appKey": zod.string().nullish(),
+  "pagePath": zod.string().max(submitFeedbackBodyPagePathMax).nullish(),
+  "triage": zod.union([zod.object({
+  "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
+  "summary": zod.string(),
+  "guidance": zod.string().nullish()
+}),zod.null()]).optional()
+})
+
+export const SubmitFeedbackResponse = zod.object({
+  "id": zod.string(),
+  "appKey": zod.string().nullish(),
+  "pagePath": zod.string().nullish(),
+  "category": zod.string(),
+  "message": zod.string(),
+  "triage": zod.union([zod.object({
+  "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
+  "summary": zod.string(),
+  "guidance": zod.string().nullish()
+}),zod.null()]).optional(),
+  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "createdAt": zod.coerce.date(),
+  "user": zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string()
+})
+})
+
+
+/**
+ * @summary AI triage of draft feedback before submission
+ */
+export const triageFeedbackBodyMessageMin = 5;
+export const triageFeedbackBodyMessageMax = 4000;
+
+export const triageFeedbackBodyPagePathMax = 500;
+
+
+
+export const TriageFeedbackBody = zod.object({
+  "category": zod.enum(['issue', 'suggestion', 'question']),
+  "message": zod.string().min(triageFeedbackBodyMessageMin).max(triageFeedbackBodyMessageMax),
+  "pagePath": zod.string().max(triageFeedbackBodyPagePathMax).nullish()
+})
+
+export const TriageFeedbackResponse = zod.object({
+  "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
+  "summary": zod.string(),
+  "guidance": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update feedback resolution (admin only)
+ */
+export const UpdateFeedbackResolutionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateFeedbackResolutionBody = zod.object({
+  "resolution": zod.enum(['open', 'reviewing', 'resolved'])
+})
+
+export const UpdateFeedbackResolutionResponse = zod.object({
+  "id": zod.string(),
+  "appKey": zod.string().nullish(),
+  "pagePath": zod.string().nullish(),
+  "category": zod.string(),
+  "message": zod.string(),
+  "triage": zod.union([zod.object({
+  "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
+  "summary": zod.string(),
+  "guidance": zod.string().nullish()
+}),zod.null()]).optional(),
+  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "createdAt": zod.coerce.date(),
+  "user": zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string()
+})
+})
+
+
+/**
  * @summary List QA/QC disciplines
  */
 export const listQaqcDisciplinesQueryPageDefault = 1;

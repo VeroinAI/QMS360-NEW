@@ -11,6 +11,7 @@ import {
 } from '@workspace/api-client-react';
 import type { CurrentUser } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
+import { FeedbackWidget } from '@/components/feedback-widget';
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -124,6 +125,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
         </header>
         <main className="mx-auto max-w-[1440px] p-4 md:p-8">{children}</main>
       </div>
+      <FeedbackWidget />
     </div>
   );
 }

@@ -858,6 +858,108 @@ export interface AISettings {
   monthlyQuota?: number;
 }
 
+export type FeedbackTriageVerdict = typeof FeedbackTriageVerdict[keyof typeof FeedbackTriageVerdict];
+
+
+export const FeedbackTriageVerdict = {
+  valid_issue: 'valid_issue',
+  awareness_gap: 'awareness_gap',
+  suggestion: 'suggestion',
+  unclear: 'unclear',
+} as const;
+
+export interface FeedbackTriage {
+  verdict: FeedbackTriageVerdict;
+  summary: string;
+  /** @nullable */
+  guidance?: string | null;
+}
+
+export type SubmitFeedbackInputCategory = typeof SubmitFeedbackInputCategory[keyof typeof SubmitFeedbackInputCategory];
+
+
+export const SubmitFeedbackInputCategory = {
+  issue: 'issue',
+  suggestion: 'suggestion',
+  question: 'question',
+} as const;
+
+export interface SubmitFeedbackInput {
+  category: SubmitFeedbackInputCategory;
+  /**
+     * @minLength 5
+     * @maxLength 4000
+     */
+  message: string;
+  /** @nullable */
+  appKey?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  pagePath?: string | null;
+  triage?: FeedbackTriage | null;
+}
+
+export type TriageFeedbackInputCategory = typeof TriageFeedbackInputCategory[keyof typeof TriageFeedbackInputCategory];
+
+
+export const TriageFeedbackInputCategory = {
+  issue: 'issue',
+  suggestion: 'suggestion',
+  question: 'question',
+} as const;
+
+export interface TriageFeedbackInput {
+  category: TriageFeedbackInputCategory;
+  /**
+     * @minLength 5
+     * @maxLength 4000
+     */
+  message: string;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  pagePath?: string | null;
+}
+
+export type FeedbackEntryResolution = typeof FeedbackEntryResolution[keyof typeof FeedbackEntryResolution];
+
+
+export const FeedbackEntryResolution = {
+  open: 'open',
+  reviewing: 'reviewing',
+  resolved: 'resolved',
+} as const;
+
+export type FeedbackEntryUser = {
+  id: string;
+  fullName: string;
+  email: string;
+};
+
+export interface FeedbackEntry {
+  id: string;
+  /** @nullable */
+  appKey?: string | null;
+  /** @nullable */
+  pagePath?: string | null;
+  category: string;
+  message: string;
+  triage?: FeedbackTriage | null;
+  resolution: FeedbackEntryResolution;
+  createdAt: string;
+  user: FeedbackEntryUser;
+}
+
+export interface FeedbackPage {
+  items: FeedbackEntry[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface Notification {
   id: string;
   type: string;
@@ -1602,6 +1704,23 @@ export type ApproveRejectBody = ApproveRejectReview;
 
 export type ExtensionBody = ExtensionRequest;
 
+export type FeedbackSubmissionBody = SubmitFeedbackInput;
+
+export type FeedbackTriageRequestBody = TriageFeedbackInput;
+
+export type FeedbackResolutionUpdateBodyResolution = typeof FeedbackResolutionUpdateBodyResolution[keyof typeof FeedbackResolutionUpdateBodyResolution];
+
+
+export const FeedbackResolutionUpdateBodyResolution = {
+  open: 'open',
+  reviewing: 'reviewing',
+  resolved: 'resolved',
+} as const;
+
+export type FeedbackResolutionUpdateBody = {
+  resolution: FeedbackResolutionUpdateBodyResolution;
+};
+
 export type PageParameter = number;
 
 export type LimitParameter = number;
@@ -1695,6 +1814,18 @@ limit?: LimitParameter;
 };
 
 export type ListPublishedExecutiveSummariesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListFeedbackEntriesParams = {
 /**
  * @minimum 1
  */

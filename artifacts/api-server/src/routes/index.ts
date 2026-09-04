@@ -10,6 +10,7 @@ import qaqcRouter from "./qaqc";
 import lessonsRouter from "./lessons";
 import auditRouter from "./audit";
 import masterDataRouter from "./master-data";
+import feedbackRouter from "./feedback";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,7 @@ router.use(appsRouter);
 router.use(executiveRouter);
 router.use(integrationsRouter);
 router.use(notificationsRouter);
+router.use(feedbackRouter);
 router.use("/qaqc", qaqcRouter);
 router.use("/lessons", lessonsRouter);
 router.use("/audit", auditRouter);
