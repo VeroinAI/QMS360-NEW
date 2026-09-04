@@ -129,6 +129,7 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   const qc = useQueryClient(); const { toast } = useToast();
   const [l1Files, setL1Files] = useState<File[]>([]);
   const [l2Files, setL2Files] = useState<File[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<AuditSchedule>(initial ?? {
     id: crypto.randomUUID(), year: new Date().getFullYear(), title: "", projectIds: [], auditTypes: [],
     auditCategory: "", departmentProject: "", location: "", processProductOwner: "",
@@ -152,7 +153,29 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
     await confirmEvidence.mutateAsync({ id: intent.id });
   };
   const save = async () => {
-    if (!form.title || !form.plannedStartDate || !form.plannedEndDate || !form.auditTypes?.length || !form.auditCategory || !form.departmentProject || !form.location || !form.processProductOwner || !form.l1Name || !form.l2Name || !form.memoDescription || !form.memoCirculation || (form.l1ReviewStatus === "Send Back" && !form.l1ReviewComments?.trim()) || (form.l2ReviewStatus === "Send Back" && !form.l2ReviewComments?.trim())) { toast({ title: "Complete required fields", description: "Please complete all fields marked with *.", variant: "destructive" }); return; }
+    const missing: Record<string, string> = {};
+    if (!form.auditTypes?.length) missing.auditTypes = "Audit Type is required.";
+    if (!form.auditCategory) missing.auditCategory = "Audit Category is required.";
+    if (!form.departmentProject?.trim()) missing.departmentProject = "Department / Project is required.";
+    if (!form.location?.trim()) missing.location = "Location is required.";
+    if (!form.title.trim()) missing.title = "Audit Title is required.";
+    if (!form.processProductOwner?.trim()) missing.processProductOwner = "Process / Product Owner is required.";
+    if (!form.plannedStartDate) missing.plannedStartDate = "From Date is required.";
+    if (!form.plannedEndDate) missing.plannedEndDate = "To Date is required.";
+    if (!form.l1Name?.trim()) missing.l1Name = "Name of L1 is required.";
+    if (form.l1ReviewStatus === "Send Back" && !form.l1ReviewComments?.trim()) missing.l1ReviewComments = "L1 Review Comments are required when sending back.";
+    if (!form.l2Name?.trim()) missing.l2Name = "Name of L2 is required.";
+    if (form.l2ReviewStatus === "Send Back" && !form.l2ReviewComments?.trim()) missing.l2ReviewComments = "L2 Review Comments are required when sending back.";
+    if (!form.memoDescription?.trim()) missing.memoDescription = "Memo Description is required.";
+    if (!form.memoCirculation?.trim()) missing.memoCirculation = "Memo Circulation is required.";
+    if (Object.keys(missing).length) {
+      setErrors(missing);
+      const first = Object.keys(missing)[0];
+      requestAnimationFrame(() => document.getElementById(`schedule-${first}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+      toast({ title: "Complete required fields", description: "Update the fields highlighted in red.", variant: "destructive" });
+      return;
+    }
+    setErrors({});
     try {
       if (initial) await update.mutateAsync({ id: initial.id, data: form });
       else await create.mutateAsync({ data: form });
@@ -167,35 +190,44 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
       toast({ title: "Unable to save", description: errorText(e), variant: "destructive" });
     }
   };
-  const field = (key: keyof AuditSchedule, value: unknown) => setForm(v => ({ ...v, [key]: value }));
+  const field = (key: keyof AuditSchedule, value: unknown) => {
+    setForm(v => ({ ...v, [key]: value }));
+    setErrors(current => {
+      const related = key === "l1ReviewStatus" ? "l1ReviewComments" : key === "l2ReviewStatus" ? "l2ReviewComments" : undefined;
+      if (!current[key] && (!related || !current[related])) return current;
+      const next = { ...current }; delete next[key]; if (related) delete next[related]; return next;
+    });
+  };
+  const error = (key: keyof AuditSchedule) => errors[key] ? <p className="mt-1 text-sm font-medium text-destructive" role="alert">{errors[key]}</p> : null;
+  const invalid = (key: keyof AuditSchedule) => errors[key] ? "border-destructive focus-visible:ring-destructive" : "";
   const files = (key: "l1Attachments" | "l2Attachments", list: FileList | null) => {
     const selected = Array.from(list ?? []);
     field(key, selected.map(file => file.name));
     if (key === "l1Attachments") setL1Files(selected); else setL2Files(selected);
   };
   return <div className="grid gap-4 py-2">
-    <div><Label>1. Audit Type *</Label><Select value={form.auditTypes?.[0] ?? ""} disabled={auditTypes.isLoading} onValueChange={v => field("auditTypes", [v])}><SelectTrigger><SelectValue placeholder="Select audit type"/></SelectTrigger><SelectContent>{withLegacyOption(auditTypes.options, form.auditTypes?.[0]).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
-    <div><Label>2. Audit Category *</Label><Select value={form.auditCategory ?? ""} disabled={auditCategories.isLoading} onValueChange={v => field("auditCategory", v)}><SelectTrigger><SelectValue placeholder="Select category"/></SelectTrigger><SelectContent>{withLegacyOption(auditCategories.options, form.auditCategory).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
-    <div><Label>3. Department / Project *</Label><Input value={form.departmentProject ?? ""} onChange={e => field("departmentProject", e.target.value)}/></div>
-    <div><Label>4. Location *</Label><Input value={form.location ?? ""} placeholder="GPS / site location" onChange={e => field("location", e.target.value)}/></div>
-    <div><Label>5. Audit Title *</Label><Input value={form.title} onChange={e => field("title", e.target.value)}/></div>
-    <div><Label>6. Process / Product Owner *</Label><Input value={form.processProductOwner ?? ""} onChange={e => field("processProductOwner", e.target.value)}/></div>
-    <div className="grid grid-cols-2 gap-3"><div><Label>7. From Date *</Label><Input type="date" value={form.plannedStartDate.slice(0,10)} onChange={e => field("plannedStartDate", e.target.value)}/></div><div><Label>To Date *</Label><Input type="date" value={form.plannedEndDate.slice(0,10)} onChange={e => field("plannedEndDate", e.target.value)}/></div></div>
+    <div id="schedule-auditTypes"><Label>1. Audit Type *</Label><Select value={form.auditTypes?.[0] ?? ""} disabled={auditTypes.isLoading} onValueChange={v => field("auditTypes", [v])}><SelectTrigger aria-invalid={!!errors.auditTypes} className={invalid("auditTypes")}><SelectValue placeholder="Select audit type"/></SelectTrigger><SelectContent>{withLegacyOption(auditTypes.options, form.auditTypes?.[0]).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditTypes")}</div>
+    <div id="schedule-auditCategory"><Label>2. Audit Category *</Label><Select value={form.auditCategory ?? ""} disabled={auditCategories.isLoading} onValueChange={v => field("auditCategory", v)}><SelectTrigger aria-invalid={!!errors.auditCategory} className={invalid("auditCategory")}><SelectValue placeholder="Select category"/></SelectTrigger><SelectContent>{withLegacyOption(auditCategories.options, form.auditCategory).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditCategory")}</div>
+    <div id="schedule-departmentProject"><Label>3. Department / Project *</Label><Input aria-invalid={!!errors.departmentProject} className={invalid("departmentProject")} value={form.departmentProject ?? ""} onChange={e => field("departmentProject", e.target.value)}/>{error("departmentProject")}</div>
+    <div id="schedule-location"><Label>4. Location *</Label><Input aria-invalid={!!errors.location} className={invalid("location")} value={form.location ?? ""} placeholder="GPS / site location" onChange={e => field("location", e.target.value)}/>{error("location")}</div>
+    <div id="schedule-title"><Label>5. Audit Title *</Label><Input aria-invalid={!!errors.title} className={invalid("title")} value={form.title} onChange={e => field("title", e.target.value)}/>{error("title")}</div>
+    <div id="schedule-processProductOwner"><Label>6. Process / Product Owner *</Label><Input aria-invalid={!!errors.processProductOwner} className={invalid("processProductOwner")} value={form.processProductOwner ?? ""} onChange={e => field("processProductOwner", e.target.value)}/>{error("processProductOwner")}</div>
+    <div className="grid grid-cols-2 gap-3"><div id="schedule-plannedStartDate"><Label>7. From Date *</Label><Input aria-invalid={!!errors.plannedStartDate} className={invalid("plannedStartDate")} type="date" value={form.plannedStartDate.slice(0,10)} onChange={e => field("plannedStartDate", e.target.value)}/>{error("plannedStartDate")}</div><div id="schedule-plannedEndDate"><Label>To Date *</Label><Input aria-invalid={!!errors.plannedEndDate} className={invalid("plannedEndDate")} type="date" value={form.plannedEndDate.slice(0,10)} onChange={e => field("plannedEndDate", e.target.value)}/>{error("plannedEndDate")}</div></div>
     <div><Label>8. QA/QC Reference *</Label><Input readOnly value={form.qaqcReference ?? ""}/></div>
     <div><Label>9. Audit Number / Site Visit No. *</Label><Input readOnly value={form.auditNumber ?? ""}/></div>
     <div><Label>10. QA/QC Scope *</Label><Input readOnly value={form.qaqcScope ?? ""}/></div>
     <div><Label>11. QA/QC Clauses *</Label><Input readOnly value={form.qaqcClauses ?? ""}/></div>
     <div><Label>12. Remarks</Label><Textarea value={form.remarks ?? ""} onChange={e => field("remarks", e.target.value)}/></div>
-    <div><Label>13. Name of L1 *</Label><Input value={form.l1Name ?? ""} onChange={e => field("l1Name", e.target.value)}/></div>
+    <div id="schedule-l1Name"><Label>13. Name of L1 *</Label><Input aria-invalid={!!errors.l1Name} className={invalid("l1Name")} value={form.l1Name ?? ""} onChange={e => field("l1Name", e.target.value)}/>{error("l1Name")}</div>
     <div><Label>14. L1 Review Status *</Label><Select value={form.l1ReviewStatus ?? "Pending"} onValueChange={v => field("l1ReviewStatus", v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pending">Pending</SelectItem><SelectItem value="Accept">Accept</SelectItem><SelectItem value="Send Back">Send Back</SelectItem></SelectContent></Select></div>
-    <div><Label>15. L1 Review Comments {form.l1ReviewStatus === "Send Back" ? "*" : ""}</Label><Textarea value={form.l1ReviewComments ?? ""} onChange={e => field("l1ReviewComments", e.target.value)}/></div>
+    <div id="schedule-l1ReviewComments"><Label>15. L1 Review Comments {form.l1ReviewStatus === "Send Back" ? "*" : ""}</Label><Textarea aria-invalid={!!errors.l1ReviewComments} className={invalid("l1ReviewComments")} value={form.l1ReviewComments ?? ""} onChange={e => field("l1ReviewComments", e.target.value)}/>{error("l1ReviewComments")}</div>
     <div><Label>16. L1 Attachments</Label><Input type="file" multiple onChange={e => files("l1Attachments", e.target.files)}/></div>
-    <div><Label>17. Name of L2 *</Label><Input value={form.l2Name ?? ""} onChange={e => field("l2Name", e.target.value)}/></div>
+    <div id="schedule-l2Name"><Label>17. Name of L2 *</Label><Input aria-invalid={!!errors.l2Name} className={invalid("l2Name")} value={form.l2Name ?? ""} onChange={e => field("l2Name", e.target.value)}/>{error("l2Name")}</div>
     <div><Label>18. L2 Review Status *</Label><Select value={form.l2ReviewStatus ?? "Pending"} onValueChange={v => field("l2ReviewStatus", v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pending">Pending</SelectItem><SelectItem value="Accept">Accept</SelectItem><SelectItem value="Send Back">Send Back</SelectItem></SelectContent></Select></div>
-    <div><Label>19. L2 Review Comments {form.l2ReviewStatus === "Send Back" ? "*" : ""}</Label><Textarea value={form.l2ReviewComments ?? ""} onChange={e => field("l2ReviewComments", e.target.value)}/></div>
+    <div id="schedule-l2ReviewComments"><Label>19. L2 Review Comments {form.l2ReviewStatus === "Send Back" ? "*" : ""}</Label><Textarea aria-invalid={!!errors.l2ReviewComments} className={invalid("l2ReviewComments")} value={form.l2ReviewComments ?? ""} onChange={e => field("l2ReviewComments", e.target.value)}/>{error("l2ReviewComments")}</div>
     <div><Label>20. L2 Attachments</Label><Input type="file" multiple onChange={e => files("l2Attachments", e.target.files)}/></div>
-    <div><Label>21. Memo Description *</Label><Textarea value={form.memoDescription ?? ""} onChange={e => field("memoDescription", e.target.value)}/></div>
-    <div><Label>22. Memo Circulation *</Label><Input value={form.memoCirculation ?? ""} onChange={e => field("memoCirculation", e.target.value)}/></div>
+    <div id="schedule-memoDescription"><Label>21. Memo Description *</Label><Textarea aria-invalid={!!errors.memoDescription} className={invalid("memoDescription")} value={form.memoDescription ?? ""} onChange={e => field("memoDescription", e.target.value)}/>{error("memoDescription")}</div>
+    <div id="schedule-memoCirculation"><Label>22. Memo Circulation *</Label><Input aria-invalid={!!errors.memoCirculation} className={invalid("memoCirculation")} value={form.memoCirculation ?? ""} onChange={e => field("memoCirculation", e.target.value)}/>{error("memoCirculation")}</div>
     <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={() => void save()} disabled={create.isPending || update.isPending || evidenceIntent.isPending || confirmEvidence.isPending}>Save schedule</Button></DialogFooter>
   </div>;
 }
