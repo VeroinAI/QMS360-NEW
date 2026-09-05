@@ -93,7 +93,7 @@ router.get("/platform/context", requireAuth, async (req, res): Promise<void> => 
   res.json(GetPlatformContextResponse.parse(response));
 });
 
-router.get("/projects", requireAuth, async (req, res): Promise<void> => {
+router.get("/platform/projects", requireAuth, async (req, res): Promise<void> => {
   const user = req.currentUser;
   if (!user) {
     res.status(401).json({ error: "Authentication required" });

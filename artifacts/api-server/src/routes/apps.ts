@@ -56,10 +56,13 @@ router.get("/apps/:appKey/overview", requireAuth, async (req, res): Promise<void
     const [metricsCount] = await db.select({ count: sql<number>`count(*)` }).from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, user.organizationId), sql`${qaqcMetricEntries.deletedAt} IS NULL`));
     const [briefCount] = await db.select({ count: sql<number>`count(*)` }).from(qualityAssessmentBriefs).where(and(eq(qualityAssessmentBriefs.organizationId, user.organizationId), sql`${qualityAssessmentBriefs.deletedAt} IS NULL`));
     const rows = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, user.organizationId), sql`${qaqcMetricEntries.deletedAt} IS NULL`)).orderBy(desc(qaqcMetricEntries.updatedAt)).limit(4);
+    const [totals] = await db.select({ issued: sql<number>`coalesce(sum(${qaqcMetricEntries.issuedCount}), 0)`, closed: sql<number>`coalesce(sum(${qaqcMetricEntries.closedCount}), 0)` }).from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, user.organizationId), sql`${qaqcMetricEntries.deletedAt} IS NULL`));
+    const issuedTotal = Number(totals?.issued ?? 0);
+    const closedTotal = Number(totals?.closed ?? 0);
     metrics = [
       { label: "Metric entries", value: countValue([metricsCount]), detail: "Across active projects", tone: "purple" },
       { label: "Quality briefs", value: countValue([briefCount]), detail: "Monthly reporting cycle", tone: "turquoise" },
-      { label: "Closure rate", value: "100%", detail: "0 / 0 baseline is healthy", tone: "yellow" },
+      { label: "Closure rate", value: issuedTotal === 0 ? "—" : `${((closedTotal / issuedTotal) * 100).toFixed(1)}%`, detail: `${closedTotal} closed of ${issuedTotal} issued`, tone: "yellow" },
     ];
     recentRecords = rows.map((row) => ({
       id: row.id,

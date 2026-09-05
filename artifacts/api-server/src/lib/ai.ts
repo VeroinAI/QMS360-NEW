@@ -43,7 +43,7 @@ async function invoke(featureKey: string, prompt: string, context: AiContext): P
     return text;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown AI error";
-    try { await logAiCall({ ...context, featureKey, prompt, failureReason: message, durationMs: Date.now() - started }); } catch {}
+    try { await logAiCall({ ...context, featureKey, prompt, failureReason: message, durationMs: Date.now() - started }); } catch (logError) { console.error("AI audit log persistence failed", logError); }
     throw new AiUnavailableError();
   } finally {
     clearTimeout(timer);

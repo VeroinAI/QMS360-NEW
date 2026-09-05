@@ -18,15 +18,15 @@ type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{
 const appNav = {
   qaqc: [
     ['Overview', '/qaqc', LayoutDashboard], ['Metrics', '/qaqc/metrics', BarChart3],
-    ['Inspections', '/qaqc/inspections', ClipboardCheck], ['Documents', '/qaqc/documents', FileText],
+    ['Inspections', '/qaqc/material-inspections', ClipboardCheck], ['Documents', '/qaqc/documents', FileText],
   ],
   lessons: [
-    ['Overview', '/lessons', LayoutDashboard], ['Lesson forms', '/lessons/forms', Lightbulb],
-    ['Library', '/lessons/library', FileText],
+    ['Overview', '/lessons', LayoutDashboard], ['Lesson log', '/lessons/log', Lightbulb],
+    ['New lesson', '/lessons/new', FileText],
   ],
   audit: [
-    ['Overview', '/audit', LayoutDashboard], ['Programme', '/audit/programme', ClipboardCheck],
-    ['Findings', '/audit/findings', FileText],
+    ['Overview', '/audit', LayoutDashboard], ['Programme', '/audit/schedules', ClipboardCheck],
+    ['Audits', '/audit/audits', FileText], ['Reports', '/audit/reports', Download],
   ],
 } as const;
 

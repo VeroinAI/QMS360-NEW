@@ -223,7 +223,7 @@ router.post("/metrics/:id/review", requireAdmin, asyncHandler(async (req, res) =
   const state = value.decision === "approve" ? "approved" : "sent_back";
   const [row] = await db.update(qaqcMetricEntries).set({ status: state, updatedAt: new Date() }).where(eq(qaqcMetricEntries.id, before.id)).returning();
   await audit(req, value.decision, "metric", row.id, before, { ...row, reviewComments: value.comments });
-  await notify(db, "qaqc", { organizationId: org(req), userId: before.createdById ?? actor(req), type: "decision", title: `Metric ${state}`, body: value.comments || `Your metric was ${state}.`, entityType: "metric", entityId: row.id }).catch(() => undefined);
+  await notify(db, "qaqc", { organizationId: org(req), userId: before.createdById ?? actor(req), type: "decision", title: `Metric ${state}`, body: value.comments || `Your metric was ${state}.`, entityType: "metric", entityId: row.id }).catch((error) => console.error(`qaqc decision notification failed for metric ${row.id}`, error));
   res.json(mapMetric(row));
 }));
 

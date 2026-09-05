@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Link, Route, Switch, useLocation, useRoute } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -158,6 +158,51 @@ function MetricDialog({ open, onOpenChange, seed, existing }: { open: boolean; o
   </div><DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button disabled={!valid || create.isPending || update.isPending} onClick={save}>{existing ? 'Save changes' : 'Save draft'}</Button></DialogFooter></DialogContent></Dialog>;
 }
 
+function parseCsvRows(text: string): string[][] {
+  const rows: string[][] = [];
+  let cell = ''; let row: string[] = []; let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else cell += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ',') { row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell); cell = '';
+      if (row.some((c) => c.trim())) rows.push(row);
+      row = [];
+    } else cell += ch;
+  }
+  row.push(cell);
+  if (row.some((c) => c.trim())) rows.push(row);
+  return rows;
+}
+
+function csvToMetricRows(text: string): QAQCMetricEntry[] {
+  const [header, ...lines] = parseCsvRows(text);
+  if (!header) return [];
+  const keys = header.map((h) => h.trim());
+  return lines.map((cols) => {
+    const raw: Record<string, string> = {};
+    keys.forEach((key, i) => { raw[key] = (cols[i] ?? '').trim(); });
+    return {
+      id: raw.id || crypto.randomUUID(),
+      projectId: raw.projectId || '',
+      period: raw.period || '',
+      category: raw.category || 'External NCR',
+      issuedCount: Number(raw.issuedCount || 0),
+      closedCount: Number(raw.closedCount || 0),
+      ageing0To15: Number(raw.ageing0To15 || 0),
+      ageing15To45: Number(raw.ageing15To45 || 0),
+      ageingOver45: Number(raw.ageingOver45 || 0),
+      workflowState: raw.workflowState || 'Draft',
+    } as unknown as QAQCMetricEntry;
+  });
+}
+
 function MetricsPage() {
   const queryClient = useQueryClient(); const { toast } = useToast();
   const [page, setPage] = useState(1); const [projectId, setProjectId] = useState(''); const [period, setPeriod] = useState(''); const [category, setCategory] = useState('External NCR'); const [open, setOpen] = useState(false); const [seed, setSeed] = useState<Record<string, unknown>>({}); const [editing, setEditing] = useState<QAQCMetricEntry>();
@@ -168,9 +213,22 @@ function MetricsPage() {
   const [reviewing, setReviewing] = useState<{ id: string; decision: 'approve' | 'send_back' }>(); const [comments, setComments] = useState('');
   const done = (message: string) => { invalidate(queryClient); toast({ title: message }); };
   const delivery = async (kind: 'template' | 'report') => { try { const r = kind === 'template' ? await downloadQaqcMetricsTemplate({ format: 'xlsx' }) : await exportQaqcMonthlyReport({ format: 'csv', ...(period ? { period } : {}) }); if (r.downloadUrl) window.location.assign(r.downloadUrl); else toast({ title: r.fileName, description: r.message || 'Your report is being prepared.' }); } catch (e) { toast({ title: 'Download failed', description: errorText(e), variant: 'destructive' }); } };
+  const importFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const rows = csvToMetricRows(await file.text());
+      if (!rows.length) { toast({ title: 'No data rows found', description: 'Use the downloaded template and keep the header row.', variant: 'destructive' }); return; }
+      importer.mutate({ data: rows }, {
+        onSuccess: r => { done(`Import finished: ${r.created} created, ${r.updated} updated`); if (r.errors?.length) toast({ title: `${r.rejected} rows rejected`, description: r.errors.map(x => x.error).join(', '), variant: 'destructive' }); },
+        onError: err => toast({ title: 'Import failed', description: errorText(err), variant: 'destructive' }),
+      });
+    } catch { toast({ title: 'Could not read the file', description: 'Save the template as CSV and try again.', variant: 'destructive' }); }
+  };
   return <Page title="NCR / RFI / RMI metrics" description="Monthly quality transactions, closure performance and ageing analysis." actions={<><Button variant="secondary" onClick={() => delivery('template')}><Download className="mr-2 size-4" />Template</Button><Button variant="secondary" onClick={() => delivery('report')}><FileBarChart className="mr-2 size-4" />Export CSV</Button><Button variant="secondary" onClick={() => { setEditing(undefined); setSeed({}); setOpen(true); }}><Plus className="mr-2 size-4" />New entry</Button></>}>
     <AiQuickEntry onExtract={data => { setEditing(undefined); setSeed(data); setOpen(true); }} />
-    <Card><CardContent className="flex flex-col gap-3 p-4 sm:flex-row"><SearchBox value={projectId} onChange={v => { setProjectId(v); setPage(1); }} placeholder="Filter by project ID" /><Input className="w-full sm:w-44" type="month" value={period} onChange={e => { setPeriod(e.target.value); setPage(1); }} /><Label className="flex cursor-pointer items-center gap-2 rounded-md border px-3 text-sm"><Upload className="size-4" />Import Excel<input className="hidden" type="file" accept=".xlsx,.csv" onChange={e => { const file = e.target.files?.[0]; if (!file) return; toast({ title: 'Import uses validated transaction rows', description: 'Select the populated template; invalid rows will be reported.' }); importer.mutate({ data: [] }, { onSuccess: r => { done(`Imported ${r.created} rows`); if (r.errors?.length) toast({ title: `${r.rejected} rows rejected`, description: r.errors.map(x => x.error).join(', '), variant: 'destructive' }); } }); }} /></Label></CardContent></Card>
+    <Card><CardContent className="flex flex-col gap-3 p-4 sm:flex-row"><SearchBox value={projectId} onChange={v => { setProjectId(v); setPage(1); }} placeholder="Filter by project ID" /><Input className="w-full sm:w-44" type="month" value={period} onChange={e => { setPeriod(e.target.value); setPage(1); }} /><Label className="flex cursor-pointer items-center gap-2 rounded-md border px-3 text-sm"><Upload className="size-4" />{importer.isPending ? 'Importing…' : 'Import CSV'}<input className="hidden" type="file" accept=".csv" onChange={importFile} /></Label></CardContent></Card>
     <Tabs value={category} onValueChange={setCategory}><TabsList className="h-auto flex-wrap">{withLegacyOption(categories.options, category).map(c => <TabsTrigger key={c.value} value={c.value}>{c.label}</TabsTrigger>)}</TabsList></Tabs>
     <QueryState loading={query.isLoading} error={query.error} empty={!rows.length}><Card className="overflow-hidden"><Table><TableHeader><TableRow><TableHead>Project / period</TableHead><TableHead>Issued</TableHead><TableHead>Closed</TableHead><TableHead>Ageing 0–15 / 15–45 / &gt;45</TableHead><TableHead>Closure</TableHead><TableHead>Variance</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{rows.map(row => {
       const rate = row.issuedCount === 0 && row.closedCount === 0 ? 100 : row.issuedCount ? row.closedCount / row.issuedCount * 100 : 0;

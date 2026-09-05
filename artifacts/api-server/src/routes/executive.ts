@@ -20,8 +20,10 @@ router.get("/executive/overview", requireAuth, async (req, res): Promise<void> =
   const lessons = await db.select().from(lessonLearnedForms).where(and(eq(lessonLearnedForms.organizationId, user.organizationId), sql`${lessonLearnedForms.deletedAt} IS NULL`)).orderBy(desc(lessonLearnedForms.updatedAt)).limit(3);
   const auditRows = await db.select().from(auditFindings).where(eq(auditFindings.organizationId, user.organizationId)).orderBy(desc(auditFindings.createdAt)).limit(3);
   const toCount = (value: number | string | null | undefined) => Number(value ?? 0);
+  const [latestPeriod] = await db.select({ period: qaqcMetricEntries.reportingPeriod }).from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, user.organizationId), sql`${qaqcMetricEntries.deletedAt} IS NULL`)).orderBy(desc(qaqcMetricEntries.reportingPeriod)).limit(1);
+  const periodDate = latestPeriod?.period ? new Date(latestPeriod.period) : new Date();
   const response = {
-    periodLabel: "August 2026 · executive view",
+    periodLabel: `${periodDate.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })} · executive view`,
     kpis: [
       { label: "Quality entries", value: String(toCount(metricCount.count)), delta: "Active foundation", context: "QA/QC & document governance", tone: "purple" },
       { label: "Lessons captured", value: String(toCount(lessonCount.count)), delta: "Knowledge base", context: "Lesson Learned Management", tone: "turquoise" },
