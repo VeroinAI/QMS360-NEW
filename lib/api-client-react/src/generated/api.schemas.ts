@@ -1034,6 +1034,32 @@ export interface AISettings {
   monthlyQuota?: number;
 }
 
+export type FieldControlSettingAccess = typeof FieldControlSettingAccess[keyof typeof FieldControlSettingAccess];
+
+
+export const FieldControlSettingAccess = {
+  editable: 'editable',
+  read_only: 'read_only',
+} as const;
+
+export type FieldControlSettingRequirement = typeof FieldControlSettingRequirement[keyof typeof FieldControlSettingRequirement];
+
+
+export const FieldControlSettingRequirement = {
+  optional: 'optional',
+  mandatory: 'mandatory',
+} as const;
+
+export interface FieldControlSetting {
+  access: FieldControlSettingAccess;
+  requirement: FieldControlSettingRequirement;
+}
+
+/**
+ * Field control matrix for one application, keyed by form key then field key
+ */
+export interface FieldControls {[key: string]: {[key: string]: FieldControlSetting}}
+
 export type FeedbackTriageVerdict = typeof FeedbackTriageVerdict[keyof typeof FeedbackTriageVerdict];
 
 
@@ -1925,6 +1951,8 @@ export type DelegationBody = Delegation;
 export type EscalationRulesBody = EscalationRule[];
 
 export type AISettingsBody = AISettings;
+
+export type FieldControlsBody = FieldControls;
 
 export type NotificationTemplateBody = NotificationTemplate;
 

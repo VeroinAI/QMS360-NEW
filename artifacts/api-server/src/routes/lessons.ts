@@ -15,6 +15,7 @@ import {
   RephraseLessonFieldBody,
   ReviewLessonFormBody,
   UpdateLessonFormBody,
+  UpdateLessonsAdminFieldControlsBody,
   UpdateLessonsAiSettingsBody,
   UpdateLessonsEscalationRulesBody,
   UpdateLessonsNotificationTemplateBody,
@@ -46,6 +47,7 @@ import { allocateReferenceNumber } from "../lib/numbering";
 import { assertOwnerOrFull, requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
+import { readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
 import { promptToTransaction, rephraseText } from "../lib/ai";
 import { confirmEvidence, createEvidenceIntent as createIntent, deleteEvidence, listEvidence } from "../lib/evidence";
@@ -536,7 +538,22 @@ router.get("/forms/:id/report", asyncHandler(async (req, res) => {
   res.json({ delivery: "download", fileName, downloadUrl: `data:${format === "csv" ? "text/csv" : "application/json"};charset=utf-8,${encodeURIComponent(content)}`, message: null });
 }));
 
+router.get("/field-controls", asyncHandler(async (req, res) => {
+  res.json(await readFieldControls(req.currentUser!.organizationId, "lessons"));
+}));
+
 router.use("/admin", requireAdmin);
+
+router.get("/admin/field-controls", asyncHandler(async (req, res) => {
+  res.json(await readFieldControls(req.currentUser!.organizationId, "lessons"));
+}));
+
+router.put("/admin/field-controls", asyncHandler(async (req, res) => {
+  const body = parseBody<FieldControlsMatrix>(UpdateLessonsAdminFieldControlsBody, req, res); if (!body) return;
+  const before = await writeFieldControls(req.currentUser!.organizationId, "lessons", body);
+  await audit(req, "update", "field_controls", undefined, before, body);
+  res.json(body);
+}));
 
 async function roleJson(row: typeof lessonsWorkspaceRoles.$inferSelect) {
   const permissionRows = await db.select({ key: lessonsPermissions.key, name: lessonsPermissions.label })

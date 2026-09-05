@@ -26,6 +26,7 @@ import { requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
+import { readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
 import { asyncHandler, HttpError, notify, paginated, pagination, writeAuditLog } from "../lib/workspace";
 
@@ -718,7 +719,20 @@ router.get("/audits/:id/report", asyncHandler(async (req, res) => {
   if (!maybeCsv(req, res, `audit-${audit.referenceNumber}`, findings.map((finding) => ({ ...findingDto(finding), cars: cars.filter((car) => car.auditFindingId === finding.id).map(carDto) })))) res.json(payload);
 }));
 
+router.get("/field-controls", asyncHandler(async (req, res) => {
+  res.json(await readFieldControls(actor(req).organizationId, "audit"));
+}));
+
 router.use("/admin", requireAdmin);
+router.get("/admin/field-controls", asyncHandler(async (req, res) => {
+  res.json(await readFieldControls(actor(req).organizationId, "audit"));
+}));
+router.put("/admin/field-controls", asyncHandler(async (req, res) => {
+  const data = body<FieldControlsMatrix>(Api.UpdateAuditAdminFieldControlsBody, req);
+  const before = await writeFieldControls(actor(req).organizationId, "audit", data);
+  await auditLog(req, "update", "field_controls", actor(req).organizationId, before, data);
+  res.json(data);
+}));
 router.get("/admin/roles", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const where = active(auditWorkspaceRoles, actor(req).organizationId);
   const [rows, [{ count }]] = await Promise.all([

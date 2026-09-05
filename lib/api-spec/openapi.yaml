@@ -622,6 +622,8 @@ paths:
     put: {operationId: confirmQaqcEvidence, tags: [qaqc], summary: Confirm evidence storage upload, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Confirmed, content: {application/json: {schema: {$ref: "#/components/schemas/EvidenceFile"}}}}}}
   /qaqc/evidence/{id}:
     delete: {operationId: deleteQaqcEvidence, tags: [qaqc], summary: Soft-delete evidence, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /qaqc/field-controls:
+    get: {operationId: getQaqcFieldControls, tags: [qaqc], summary: Get field control configuration for forms, responses: {"200": {description: Field controls, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
   /qaqc/admin/roles:
     get: {operationId: listQaqcRoles, tags: [qaqc-admin], summary: List workspace roles, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/RolePage"}}}
     post: {operationId: createQaqcRole, tags: [qaqc-admin], summary: Create workspace role, requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"201": {description: Created}}}
@@ -646,6 +648,9 @@ paths:
   /qaqc/admin/ai-settings:
     get: {operationId: getQaqcAiSettings, tags: [qaqc-admin], summary: Get AI settings, responses: {"200": {description: Settings, content: {application/json: {schema: {$ref: "#/components/schemas/AISettings"}}}}}}
     put: {operationId: updateQaqcAiSettings, tags: [qaqc-admin], summary: Update AI settings, requestBody: {$ref: "#/components/requestBodies/AISettings"}, responses: {"200": {description: Updated}}}
+  /qaqc/admin/field-controls:
+    get: {operationId: getQaqcAdminFieldControls, tags: [qaqc-admin], summary: Get field control configuration (admin), responses: {"200": {description: Field controls, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
+    put: {operationId: updateQaqcAdminFieldControls, tags: [qaqc-admin], summary: Replace field control configuration, requestBody: {$ref: "#/components/requestBodies/FieldControls"}, responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
   /qaqc/admin/audit-log:
     get: {operationId: listQaqcAuditLog, tags: [qaqc-admin], summary: List immutable workspace audit log, parameters: [{$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}, {$ref: "#/components/parameters/ActorId"}, {$ref: "#/components/parameters/Action"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditLogPage"}}}
   /qaqc/admin/notification-templates:
@@ -705,6 +710,8 @@ paths:
     get: {operationId: exportLessonsLog, tags: [lessons], summary: Export lesson learned log, parameters: [{$ref: "#/components/parameters/ReportFormat"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
   /lessons/forms/{id}/report:
     get: {operationId: exportLessonFormReport, tags: [lessons], summary: Export one lesson learned form using Accept for format negotiation, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
+  /lessons/field-controls:
+    get: {operationId: getLessonsFieldControls, tags: [lessons], summary: Get field control configuration for forms, responses: {"200": {description: Field controls, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
   /lessons/admin/roles:
     get: {operationId: listLessonsRoles, tags: [lessons-admin], summary: List roles, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/RolePage"}}}
     post: {operationId: createLessonsRole, tags: [lessons-admin], summary: Create role, requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"201": {description: Created}}}
@@ -729,6 +736,9 @@ paths:
   /lessons/admin/ai-settings:
     get: {operationId: getLessonsAiSettings, tags: [lessons-admin], summary: Get AI settings, responses: {"200": {description: Settings, content: {application/json: {schema: {$ref: "#/components/schemas/AISettings"}}}}}}
     put: {operationId: updateLessonsAiSettings, tags: [lessons-admin], summary: Update AI settings, requestBody: {$ref: "#/components/requestBodies/AISettings"}, responses: {"200": {description: Updated}}}
+  /lessons/admin/field-controls:
+    get: {operationId: getLessonsAdminFieldControls, tags: [lessons-admin], summary: Get field control configuration (admin), responses: {"200": {description: Field controls, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
+    put: {operationId: updateLessonsAdminFieldControls, tags: [lessons-admin], summary: Replace field control configuration, requestBody: {$ref: "#/components/requestBodies/FieldControls"}, responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
   /lessons/admin/audit-log:
     get: {operationId: listLessonsAuditLog, tags: [lessons-admin], summary: List immutable audit log, parameters: [{$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}, {$ref: "#/components/parameters/ActorId"}, {$ref: "#/components/parameters/Action"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditLogPage"}}}
   /lessons/admin/notification-templates:
@@ -823,6 +833,8 @@ paths:
     get: {operationId: getGeneratedAuditReport, tags: [audit], summary: Preview or download generated audit report using Accept for format negotiation, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Generated report, content: {application/json: {schema: {$ref: "#/components/schemas/GeneratedAuditReport"}}}}}}
   /audit/dashboard:
     get: {operationId: getAuditDashboard, tags: [audit], summary: Get audit dashboard, parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}], responses: {"200": {description: Dashboard, content: {application/json: {schema: {$ref: "#/components/schemas/Dashboard"}}}}}}
+  /audit/field-controls:
+    get: {operationId: getAuditFieldControls, tags: [audit], summary: Get field control configuration for forms, responses: {"200": {description: Field controls, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
   /audit/admin/roles:
     get: {operationId: listAuditRoles, tags: [audit-admin], summary: List roles, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/RolePage"}}}
     post: {operationId: createAuditRole, tags: [audit-admin], summary: Create role, requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"201": {description: Created}}}
@@ -844,6 +856,9 @@ paths:
   /audit/admin/escalation-rules:
     get: {operationId: listAuditEscalationRules, tags: [audit-admin], summary: List escalation rules, responses: {"200": {$ref: "#/components/responses/EscalationRulePage"}}}
     put: {operationId: updateAuditEscalationRules, tags: [audit-admin], summary: Replace escalation rules, requestBody: {$ref: "#/components/requestBodies/EscalationRules"}, responses: {"200": {description: Updated}}}
+  /audit/admin/field-controls:
+    get: {operationId: getAuditAdminFieldControls, tags: [audit-admin], summary: Get field control configuration (admin), responses: {"200": {description: Field controls, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
+    put: {operationId: updateAuditAdminFieldControls, tags: [audit-admin], summary: Replace field control configuration, requestBody: {$ref: "#/components/requestBodies/FieldControls"}, responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
   /audit/admin/audit-log:
     get: {operationId: listAuditWorkspaceAuditLog, tags: [audit-admin], summary: List immutable audit log, parameters: [{$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}, {$ref: "#/components/parameters/ActorId"}, {$ref: "#/components/parameters/Action"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditLogPage"}}}
   /audit/admin/notification-templates:
@@ -931,6 +946,7 @@ components:
     Delegation: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/Delegation"}}}}
     EscalationRules: {required: true, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/EscalationRule"}}}}}
     AISettings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AISettings"}}}}
+    FieldControls: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}
     NotificationTemplate: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/NotificationTemplate"}}}}
     LessonForm: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonLearnedForm"}}}}
     AuditSchedule: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}
@@ -1595,6 +1611,18 @@ components:
       type: object
       required: [enabled, features, provider, model, timeoutSeconds]
       properties: {enabled: {type: boolean}, features: {type: object, additionalProperties: {type: boolean}}, provider: {type: string}, model: {type: string}, timeoutSeconds: {type: number, minimum: 1}, stripPersonalData: {type: boolean}, retentionDays: {type: number}, monthlyQuota: {type: number}}
+    FieldControlSetting:
+      type: object
+      required: [access, requirement]
+      properties:
+        access: {type: string, enum: [editable, read_only]}
+        requirement: {type: string, enum: [optional, mandatory]}
+    FieldControls:
+      type: object
+      description: Field control matrix for one application, keyed by form key then field key
+      additionalProperties:
+        type: object
+        additionalProperties: {$ref: "#/components/schemas/FieldControlSetting"}
     FeedbackTriage:
       type: object
       required: [verdict, summary]

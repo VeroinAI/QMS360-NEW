@@ -2661,6 +2661,15 @@ export const DeleteQaqcEvidenceResponse = zod.void()
 
 
 /**
+ * @summary Get field control configuration for forms
+ */
+export const GetQaqcFieldControlsResponse = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
+
+
+/**
  * @summary List workspace roles
  */
 export const listQaqcRolesQueryPageDefault = 1;
@@ -3017,6 +3026,29 @@ export const UpdateQaqcAiSettingsBody = zod.object({
 })
 
 export const UpdateQaqcAiSettingsResponse = zod.unknown()
+
+
+/**
+ * @summary Get field control configuration (admin)
+ */
+export const GetQaqcAdminFieldControlsResponse = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
+
+
+/**
+ * @summary Replace field control configuration
+ */
+export const UpdateQaqcAdminFieldControlsBody = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
+
+export const UpdateQaqcAdminFieldControlsResponse = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
 
 
 /**
@@ -3771,6 +3803,15 @@ export const ExportLessonFormReportResponse = zod.object({
 
 
 /**
+ * @summary Get field control configuration for forms
+ */
+export const GetLessonsFieldControlsResponse = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
+
+
+/**
  * @summary List roles
  */
 export const listLessonsRolesQueryPageDefault = 1;
@@ -4127,6 +4168,29 @@ export const UpdateLessonsAiSettingsBody = zod.object({
 })
 
 export const UpdateLessonsAiSettingsResponse = zod.unknown()
+
+
+/**
+ * @summary Get field control configuration (admin)
+ */
+export const GetLessonsAdminFieldControlsResponse = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
+
+
+/**
+ * @summary Replace field control configuration
+ */
+export const UpdateLessonsAdminFieldControlsBody = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
+
+export const UpdateLessonsAdminFieldControlsResponse = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
 
 
 /**
@@ -5570,6 +5634,15 @@ export const GetAuditDashboardResponse = zod.object({
 
 
 /**
+ * @summary Get field control configuration for forms
+ */
+export const GetAuditFieldControlsResponse = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
+
+
+/**
  * @summary List roles
  */
 export const listAuditRolesQueryPageDefault = 1;
@@ -5888,6 +5961,29 @@ export const UpdateAuditEscalationRulesBodyItem = zod.object({
 export const UpdateAuditEscalationRulesBody = zod.array(UpdateAuditEscalationRulesBodyItem)
 
 export const UpdateAuditEscalationRulesResponse = zod.unknown()
+
+
+/**
+ * @summary Get field control configuration (admin)
+ */
+export const GetAuditAdminFieldControlsResponse = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
+
+
+/**
+ * @summary Replace field control configuration
+ */
+export const UpdateAuditAdminFieldControlsBody = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
+
+export const UpdateAuditAdminFieldControlsResponse = zod.record(zod.string(), zod.record(zod.string(), zod.object({
+  "access": zod.enum(['editable', 'read_only']),
+  "requirement": zod.enum(['optional', 'mandatory'])
+}))).describe('Field control matrix for one application, keyed by form key then field key')
 
 
 /**

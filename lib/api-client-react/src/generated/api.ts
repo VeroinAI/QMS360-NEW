@@ -84,6 +84,8 @@ import type {
   FeedbackSubmissionBody,
   FeedbackTriage,
   FeedbackTriageRequestBody,
+  FieldControls,
+  FieldControlsBody,
   FieldMappingWorkspace,
   FieldSettingsCatalog,
   FieldSettingsUpdate,
@@ -7144,6 +7146,83 @@ export const useDeleteQaqcEvidence = <TError = ErrorType<unknown>,
       return useMutation(getDeleteQaqcEvidenceMutationOptions(options));
     }
 
+export const getGetQaqcFieldControlsUrl = () => {
+
+
+
+
+  return `/api/qaqc/field-controls`
+}
+
+/**
+ * @summary Get field control configuration for forms
+ */
+export const getQaqcFieldControls = async ( options?: Parameters<typeof customFetch>[1]): Promise<FieldControls> => {
+
+  return customFetch<FieldControls>(getGetQaqcFieldControlsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcFieldControlsQueryKey = () => {
+    return [
+    `/api/qaqc/field-controls`
+    ] as const;
+    }
+
+
+export const getGetQaqcFieldControlsQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcFieldControls>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcFieldControlsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcFieldControls>>> = ({ signal }) => getQaqcFieldControls({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcFieldControls>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcFieldControlsQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcFieldControls>>>
+export type GetQaqcFieldControlsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get field control configuration for forms
+ */
+
+export function useGetQaqcFieldControls<TData = Awaited<ReturnType<typeof getQaqcFieldControls>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcFieldControlsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListQaqcRolesUrl = (params?: ListQaqcRolesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -8203,6 +8282,154 @@ export const useUpdateQaqcAiSettings = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateQaqcAiSettingsMutationOptions(options));
+    }
+
+export const getGetQaqcAdminFieldControlsUrl = () => {
+
+
+
+
+  return `/api/qaqc/admin/field-controls`
+}
+
+/**
+ * @summary Get field control configuration (admin)
+ */
+export const getQaqcAdminFieldControls = async ( options?: Parameters<typeof customFetch>[1]): Promise<FieldControls> => {
+
+  return customFetch<FieldControls>(getGetQaqcAdminFieldControlsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcAdminFieldControlsQueryKey = () => {
+    return [
+    `/api/qaqc/admin/field-controls`
+    ] as const;
+    }
+
+
+export const getGetQaqcAdminFieldControlsQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcAdminFieldControls>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcAdminFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcAdminFieldControlsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcAdminFieldControls>>> = ({ signal }) => getQaqcAdminFieldControls({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcAdminFieldControls>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcAdminFieldControlsQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcAdminFieldControls>>>
+export type GetQaqcAdminFieldControlsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get field control configuration (admin)
+ */
+
+export function useGetQaqcAdminFieldControls<TData = Awaited<ReturnType<typeof getQaqcAdminFieldControls>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcAdminFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcAdminFieldControlsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateQaqcAdminFieldControlsUrl = () => {
+
+
+
+
+  return `/api/qaqc/admin/field-controls`
+}
+
+/**
+ * @summary Replace field control configuration
+ */
+export const updateQaqcAdminFieldControls = async (fieldControlsBody: FieldControlsBody, options?: Parameters<typeof customFetch>[1]): Promise<FieldControls> => {
+
+  return customFetch<FieldControls>(getUpdateQaqcAdminFieldControlsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(fieldControlsBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateQaqcAdminFieldControlsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQaqcAdminFieldControls>>, TError,{data: BodyType<FieldControlsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateQaqcAdminFieldControls>>, TError,{data: BodyType<FieldControlsBody>}, TContext> => {
+
+const mutationKey = ['updateQaqcAdminFieldControls'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateQaqcAdminFieldControls>>, {data: BodyType<FieldControlsBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateQaqcAdminFieldControls(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateQaqcAdminFieldControlsMutationResult = NonNullable<Awaited<ReturnType<typeof updateQaqcAdminFieldControls>>>
+    export type UpdateQaqcAdminFieldControlsMutationBody = BodyType<FieldControlsBody>
+    export type UpdateQaqcAdminFieldControlsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Replace field control configuration
+ */
+export const useUpdateQaqcAdminFieldControls = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQaqcAdminFieldControls>>, TError,{data: BodyType<FieldControlsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateQaqcAdminFieldControls>>,
+        TError,
+        {data: BodyType<FieldControlsBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateQaqcAdminFieldControlsMutationOptions(options));
     }
 
 export const getListQaqcAuditLogUrl = (params?: ListQaqcAuditLogParams,) => {
@@ -10036,6 +10263,83 @@ export function useExportLessonFormReport<TData = Awaited<ReturnType<typeof expo
 
 
 
+export const getGetLessonsFieldControlsUrl = () => {
+
+
+
+
+  return `/api/lessons/field-controls`
+}
+
+/**
+ * @summary Get field control configuration for forms
+ */
+export const getLessonsFieldControls = async ( options?: Parameters<typeof customFetch>[1]): Promise<FieldControls> => {
+
+  return customFetch<FieldControls>(getGetLessonsFieldControlsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLessonsFieldControlsQueryKey = () => {
+    return [
+    `/api/lessons/field-controls`
+    ] as const;
+    }
+
+
+export const getGetLessonsFieldControlsQueryOptions = <TData = Awaited<ReturnType<typeof getLessonsFieldControls>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLessonsFieldControlsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLessonsFieldControls>>> = ({ signal }) => getLessonsFieldControls({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLessonsFieldControls>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLessonsFieldControlsQueryResult = NonNullable<Awaited<ReturnType<typeof getLessonsFieldControls>>>
+export type GetLessonsFieldControlsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get field control configuration for forms
+ */
+
+export function useGetLessonsFieldControls<TData = Awaited<ReturnType<typeof getLessonsFieldControls>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLessonsFieldControlsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListLessonsRolesUrl = (params?: ListLessonsRolesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -11095,6 +11399,154 @@ export const useUpdateLessonsAiSettings = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateLessonsAiSettingsMutationOptions(options));
+    }
+
+export const getGetLessonsAdminFieldControlsUrl = () => {
+
+
+
+
+  return `/api/lessons/admin/field-controls`
+}
+
+/**
+ * @summary Get field control configuration (admin)
+ */
+export const getLessonsAdminFieldControls = async ( options?: Parameters<typeof customFetch>[1]): Promise<FieldControls> => {
+
+  return customFetch<FieldControls>(getGetLessonsAdminFieldControlsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLessonsAdminFieldControlsQueryKey = () => {
+    return [
+    `/api/lessons/admin/field-controls`
+    ] as const;
+    }
+
+
+export const getGetLessonsAdminFieldControlsQueryOptions = <TData = Awaited<ReturnType<typeof getLessonsAdminFieldControls>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsAdminFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLessonsAdminFieldControlsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLessonsAdminFieldControls>>> = ({ signal }) => getLessonsAdminFieldControls({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLessonsAdminFieldControls>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLessonsAdminFieldControlsQueryResult = NonNullable<Awaited<ReturnType<typeof getLessonsAdminFieldControls>>>
+export type GetLessonsAdminFieldControlsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get field control configuration (admin)
+ */
+
+export function useGetLessonsAdminFieldControls<TData = Awaited<ReturnType<typeof getLessonsAdminFieldControls>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsAdminFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLessonsAdminFieldControlsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateLessonsAdminFieldControlsUrl = () => {
+
+
+
+
+  return `/api/lessons/admin/field-controls`
+}
+
+/**
+ * @summary Replace field control configuration
+ */
+export const updateLessonsAdminFieldControls = async (fieldControlsBody: FieldControlsBody, options?: Parameters<typeof customFetch>[1]): Promise<FieldControls> => {
+
+  return customFetch<FieldControls>(getUpdateLessonsAdminFieldControlsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(fieldControlsBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateLessonsAdminFieldControlsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLessonsAdminFieldControls>>, TError,{data: BodyType<FieldControlsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLessonsAdminFieldControls>>, TError,{data: BodyType<FieldControlsBody>}, TContext> => {
+
+const mutationKey = ['updateLessonsAdminFieldControls'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLessonsAdminFieldControls>>, {data: BodyType<FieldControlsBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateLessonsAdminFieldControls(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLessonsAdminFieldControlsMutationResult = NonNullable<Awaited<ReturnType<typeof updateLessonsAdminFieldControls>>>
+    export type UpdateLessonsAdminFieldControlsMutationBody = BodyType<FieldControlsBody>
+    export type UpdateLessonsAdminFieldControlsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Replace field control configuration
+ */
+export const useUpdateLessonsAdminFieldControls = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLessonsAdminFieldControls>>, TError,{data: BodyType<FieldControlsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLessonsAdminFieldControls>>,
+        TError,
+        {data: BodyType<FieldControlsBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateLessonsAdminFieldControlsMutationOptions(options));
     }
 
 export const getListLessonsAuditLogUrl = (params?: ListLessonsAuditLogParams,) => {
@@ -15162,6 +15614,83 @@ export function useGetAuditDashboard<TData = Awaited<ReturnType<typeof getAuditD
 
 
 
+export const getGetAuditFieldControlsUrl = () => {
+
+
+
+
+  return `/api/audit/field-controls`
+}
+
+/**
+ * @summary Get field control configuration for forms
+ */
+export const getAuditFieldControls = async ( options?: Parameters<typeof customFetch>[1]): Promise<FieldControls> => {
+
+  return customFetch<FieldControls>(getGetAuditFieldControlsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditFieldControlsQueryKey = () => {
+    return [
+    `/api/audit/field-controls`
+    ] as const;
+    }
+
+
+export const getGetAuditFieldControlsQueryOptions = <TData = Awaited<ReturnType<typeof getAuditFieldControls>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditFieldControlsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditFieldControls>>> = ({ signal }) => getAuditFieldControls({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditFieldControls>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditFieldControlsQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditFieldControls>>>
+export type GetAuditFieldControlsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get field control configuration for forms
+ */
+
+export function useGetAuditFieldControls<TData = Awaited<ReturnType<typeof getAuditFieldControls>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditFieldControlsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListAuditRolesUrl = (params?: ListAuditRolesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -16073,6 +16602,154 @@ export const useUpdateAuditEscalationRules = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateAuditEscalationRulesMutationOptions(options));
+    }
+
+export const getGetAuditAdminFieldControlsUrl = () => {
+
+
+
+
+  return `/api/audit/admin/field-controls`
+}
+
+/**
+ * @summary Get field control configuration (admin)
+ */
+export const getAuditAdminFieldControls = async ( options?: Parameters<typeof customFetch>[1]): Promise<FieldControls> => {
+
+  return customFetch<FieldControls>(getGetAuditAdminFieldControlsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditAdminFieldControlsQueryKey = () => {
+    return [
+    `/api/audit/admin/field-controls`
+    ] as const;
+    }
+
+
+export const getGetAuditAdminFieldControlsQueryOptions = <TData = Awaited<ReturnType<typeof getAuditAdminFieldControls>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditAdminFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditAdminFieldControlsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditAdminFieldControls>>> = ({ signal }) => getAuditAdminFieldControls({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditAdminFieldControls>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditAdminFieldControlsQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditAdminFieldControls>>>
+export type GetAuditAdminFieldControlsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get field control configuration (admin)
+ */
+
+export function useGetAuditAdminFieldControls<TData = Awaited<ReturnType<typeof getAuditAdminFieldControls>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditAdminFieldControls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditAdminFieldControlsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAuditAdminFieldControlsUrl = () => {
+
+
+
+
+  return `/api/audit/admin/field-controls`
+}
+
+/**
+ * @summary Replace field control configuration
+ */
+export const updateAuditAdminFieldControls = async (fieldControlsBody: FieldControlsBody, options?: Parameters<typeof customFetch>[1]): Promise<FieldControls> => {
+
+  return customFetch<FieldControls>(getUpdateAuditAdminFieldControlsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(fieldControlsBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditAdminFieldControlsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditAdminFieldControls>>, TError,{data: BodyType<FieldControlsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditAdminFieldControls>>, TError,{data: BodyType<FieldControlsBody>}, TContext> => {
+
+const mutationKey = ['updateAuditAdminFieldControls'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditAdminFieldControls>>, {data: BodyType<FieldControlsBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAuditAdminFieldControls(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditAdminFieldControlsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditAdminFieldControls>>>
+    export type UpdateAuditAdminFieldControlsMutationBody = BodyType<FieldControlsBody>
+    export type UpdateAuditAdminFieldControlsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Replace field control configuration
+ */
+export const useUpdateAuditAdminFieldControls = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditAdminFieldControls>>, TError,{data: BodyType<FieldControlsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditAdminFieldControls>>,
+        TError,
+        {data: BodyType<FieldControlsBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditAdminFieldControlsMutationOptions(options));
     }
 
 export const getListAuditWorkspaceAuditLogUrl = (params?: ListAuditWorkspaceAuditLogParams,) => {

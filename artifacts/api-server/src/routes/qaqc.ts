@@ -16,6 +16,7 @@ import { requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
+import { readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
@@ -621,8 +622,21 @@ router.post("/notifications/:id/read", asyncHandler(async (req, res) => {
   if (!row) throw new HttpError(404, "Notification not found"); res.status(204).send();
 }));
 
+router.get("/field-controls", asyncHandler(async (req, res) => {
+  res.json(await readFieldControls(org(req), "qaqc"));
+}));
+
 // Per-application administration
 router.use("/admin", requireAdmin);
+router.get("/admin/field-controls", asyncHandler(async (req, res) => {
+  res.json(await readFieldControls(org(req), "qaqc"));
+}));
+router.put("/admin/field-controls", asyncHandler(async (req, res) => {
+  const v = body<FieldControlsMatrix>(api.UpdateQaqcAdminFieldControlsBody, req);
+  const before = await writeFieldControls(org(req), "qaqc", v);
+  await audit(req, "update", "field_controls", org(req), before, v);
+  res.json(v);
+}));
 async function roleResponse(role: any) {
   const rows = await db.select({ key: permissions.key, name: permissions.label }).from(workspaceRolePermissions)
     .innerJoin(permissions, eq(workspaceRolePermissions.permissionId, permissions.id))

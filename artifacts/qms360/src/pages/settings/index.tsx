@@ -1,18 +1,17 @@
-import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, Route, Switch, useLocation, useParams } from 'wouter';
 import {
   useAssignAuditUserRole, useAssignLessonsUserRole, useAssignQaqcUserRole,
   useCreateAuditDelegation, useCreateAuditRole, useCreateLessonsDelegation, useCreateLessonsRole, useCreateQaqcDelegation, useCreateQaqcRole,
   useDecideAuditAccessRequest, useDecideLessonsAccessRequest, useDecideQaqcAccessRequest,
-  useGetFieldSettings, useGetLessonsAiSettings, useGetNumberingConfig, useGetQaqcAiSettings,
+  useGetAuditAdminFieldControls, useGetFieldSettings, useGetLessonsAdminFieldControls, useGetLessonsAiSettings, useGetNumberingConfig, useGetQaqcAdminFieldControls, useGetQaqcAiSettings,
   useListAuditAccessQueue, useListAuditDelegations, useListAuditEscalationRules, useListAuditNotificationTemplates, useListAuditRoles, useListAuditUsers, useListAuditWorkspaceAuditLog,
   useListLessonsAccessQueue, useListLessonsAuditLog, useListLessonsDelegations, useListLessonsEscalationRules, useListLessonsNotificationTemplates, useListLessonsRoles, useListLessonsUsers,
   useListQaqcAccessQueue, useListQaqcAuditLog, useListQaqcDelegations, useListQaqcEscalationRules, useListQaqcNotificationTemplates, useListQaqcRoles, useListQaqcUsers,
   useResetNumberingPattern, useRevokeAuditDelegation, useRevokeLessonsDelegation, useRevokeQaqcDelegation,
   useUpdateAuditEscalationRules, useUpdateAuditNotificationTemplate, useUpdateAuditRole, useUpdateNumberingPattern,
-  useUpdateFieldSettings, useUpdateLessonsAiSettings, useUpdateLessonsEscalationRules, useUpdateLessonsNotificationTemplate, useUpdateLessonsRole,
-  useUpdateQaqcAiSettings, useUpdateQaqcEscalationRules, useUpdateQaqcNotificationTemplate, useUpdateQaqcRole,
+  useUpdateAuditAdminFieldControls, useUpdateFieldSettings, useUpdateLessonsAdminFieldControls, useUpdateLessonsAiSettings, useUpdateLessonsEscalationRules, useUpdateLessonsNotificationTemplate, useUpdateLessonsRole,
+  useUpdateQaqcAdminFieldControls, useUpdateQaqcAiSettings, useUpdateQaqcEscalationRules, useUpdateQaqcNotificationTemplate, useUpdateQaqcRole,
 } from '@workspace/api-client-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,16 +26,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { CockpitPage } from '../cockpit';
-import type { AISettings, EscalationRule, FieldAccessLevel, NotificationTemplate, NumberingModuleConfig, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
-import { AlertCircle, ArrowLeft, Bell, Bot, Check, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Lock, Plus, Save, Search, Settings2, ShieldCheck, Trash2, Users } from 'lucide-react';
+import type { AISettings, EscalationRule, FieldAccessLevel, FieldControlSetting, NotificationTemplate, NumberingModuleConfig, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
+import { AlertCircle, ArrowLeft, Bell, Bot, Check, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Lock, Plus, Save, Search, Settings2, ShieldCheck, SlidersHorizontal, Trash2, Users } from 'lucide-react';
+import { fieldControlRegistry } from '@/lib/field-controls';
+import { useEffect, useState } from 'react';
 
 type AppKey = 'qaqc' | 'lessons' | 'audit';
-type TabKey = 'overview' | 'numbering' | 'access' | 'roles' | 'escalation' | 'ai' | 'fields' | 'notifications' | 'audit-log';
+type TabKey = 'overview' | 'numbering' | 'access' | 'roles' | 'escalation' | 'ai' | 'fields' | 'form-fields' | 'notifications' | 'audit-log';
 const names: Record<AppKey, string> = { qaqc: 'QA/QC & Document Governance', lessons: 'Lesson Learned Management', audit: 'QMS Audit Management' };
 const tabs: { key: TabKey; label: string; icon: typeof Settings2 }[] = [
   { key: 'overview', label: 'Overview', icon: Settings2 }, { key: 'numbering', label: 'Numbering', icon: Hash }, { key: 'access', label: 'Users & Access', icon: Users },
   { key: 'roles', label: 'Roles & Permissions', icon: ShieldCheck }, { key: 'escalation', label: 'Escalation', icon: Clock },
-  { key: 'ai', label: 'AI Settings', icon: Bot }, { key: 'fields', label: 'Fields', icon: Lock },
+  { key: 'ai', label: 'AI Settings', icon: Bot }, { key: 'fields', label: 'Fields', icon: Lock }, { key: 'form-fields', label: 'Form Fields', icon: SlidersHorizontal },
   { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'audit-log', label: 'Audit Log', icon: FileClock },
 ];
@@ -172,6 +173,8 @@ function Notifications({ app }: { app: AppKey }) {
   return <PageState loading={api.templates.isLoading} error={api.templates.error} empty={!api.templates.data?.items.length} onRetry={api.templates.refetch}><Card><CardHeader><CardTitle>Notification templates</CardTitle><CardDescription>Manage application-specific subject, body, channels and availability.</CardDescription></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Template</TableHead><TableHead>Subject</TableHead><TableHead>Channels</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{api.templates.data?.items.map(t => <TableRow key={t.id}><TableCell className="font-medium">{t.key}</TableCell><TableCell>{t.subject}</TableCell><TableCell className="space-x-1">{t.channels.map(c => <Badge variant="secondary" key={c}>{c}</Badge>)}</TableCell><TableCell><Badge variant={t.enabled ? 'default' : 'secondary'}>{t.enabled ? 'Enabled' : 'Disabled'}</Badge></TableCell><TableCell><Button size="sm" variant="outline" onClick={() => setEditing(t)}>Edit</Button></TableCell></TableRow>)}</TableBody></Table></CardContent></Card><Dialog open={!!editing} onOpenChange={open => !open && setEditing(undefined)}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Edit notification template</DialogTitle><DialogDescription>Merge fields are preserved when the message is sent.</DialogDescription></DialogHeader>{editing && <div className="space-y-4"><div><Label>Subject</Label><Input value={editing.subject} onChange={e => setEditing({ ...editing, subject: e.target.value })} /></div><div><Label>Body template</Label><Textarea rows={8} value={editing.body} onChange={e => setEditing({ ...editing, body: e.target.value })} /></div><div><Label>Channel</Label><Select value={editing.channels[0] ?? 'in_app'} onValueChange={v => setEditing({ ...editing, channels: [v as NotificationTemplate['channels'][number]] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{['in_app','email','push','sms'].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select></div><label className="flex items-center gap-3"><Toggle checked={editing.enabled} onCheckedChange={enabled => setEditing({ ...editing, enabled })} />Template enabled</label></div>}<DialogFooter><Button onClick={save}><Save className="mr-2 h-4 w-4" />Save template</Button></DialogFooter></DialogContent></Dialog></PageState>;
 }
 
+const accessOptions = [{ value: 'editable', label: 'Editable' }, { value: 'read_only', label: 'Read-only' }] as const;
+
 function FieldSettings({ app }: { app: AppKey }) {
   const query = useGetFieldSettings(); const save = useUpdateFieldSettings(); const client = useQueryClient(); const { toast } = useToast();
   const [draft, setDraft] = useState<Record<string, FieldAccessLevel>>();
@@ -246,10 +249,51 @@ function SettingsPage() {
   const app = (['qaqc','lessons','audit'].includes(params.app) ? params.app : 'qaqc') as AppKey;
   const tab = (params.tab || 'overview') as TabKey;
   const visibleTabs = tabs.filter(t => !(app === 'audit' && t.key === 'ai'));
-  const content = tab === 'overview' ? <Overview app={app} /> : tab === 'numbering' ? <NumberingTab app={app} /> : tab === 'access' ? <UsersAccess app={app} /> : tab === 'roles' ? <Roles app={app} /> : tab === 'escalation' ? <Escalations app={app} /> : tab === 'ai' && app !== 'audit' ? <AiSettings app={app} /> : tab === 'fields' ? <FieldSettings app={app} /> : tab === 'notifications' ? <Notifications app={app} /> : <AuditLog app={app} />;
+  const content = tab === 'overview' ? <Overview app={app} /> : tab === 'numbering' ? <NumberingTab app={app} /> : tab === 'access' ? <UsersAccess app={app} /> : tab === 'roles' ? <Roles app={app} /> : tab === 'escalation' ? <Escalations app={app} /> : tab === 'ai' && app !== 'audit' ? <AiSettings app={app} /> : tab === 'fields' ? <FieldSettings app={app} /> : tab === 'form-fields' ? <FormFields app={app} /> : tab === 'notifications' ? <Notifications app={app} /> : <AuditLog app={app} />;
   return <main className="min-h-screen bg-background"><header className="bg-primary px-5 py-8 text-primary-foreground md:px-10"><div className="mx-auto max-w-7xl"><Link href={`/${app}`} className="mb-5 inline-flex items-center gap-2 text-sm opacity-80 hover:opacity-100"><ArrowLeft className="h-4 w-4" />Back to application</Link><p className="text-sm font-semibold uppercase tracking-widest opacity-70">Independent workspace administration</p><h1 className="mt-2 font-display text-3xl font-bold">{names[app]} Settings</h1><p className="mt-2 max-w-2xl opacity-80">Configure access, governance and operational controls for this application only.</p></div></header><div className="mx-auto max-w-7xl px-5 py-6 md:px-10"><nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl border bg-card p-1.5">{visibleTabs.map(({ key, label, icon: Icon }) => <button key={key} onClick={() => navigate(`/settings/${app}/${key}`)} className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${tab === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}><Icon className="h-4 w-4" />{label}</button>)}</nav>{content}</div></main>;
 }
 
 export function AdminRoutes() {
   return <Switch><Route path="/settings/:app/:tab"><SettingsPage /></Route><Route path="/settings/:app"><SettingsPage /></Route><Route path="/cockpit"><CockpitPage /></Route></Switch>;
+}
+
+const requirementOptions = [{ value: 'optional', label: 'Optional' }, { value: 'mandatory', label: 'Mandatory' }] as const;
+
+function FormFields({ app }: { app: AppKey }) {
+  const opts = (key: AppKey): any => ({ query: { enabled: app === key } });
+  const queries = {
+    qaqc: useGetQaqcAdminFieldControls(opts('qaqc')),
+    lessons: useGetLessonsAdminFieldControls(opts('lessons')),
+    audit: useGetAuditAdminFieldControls(opts('audit')),
+  };
+  const mutations = {
+    qaqc: useUpdateQaqcAdminFieldControls(),
+    lessons: useUpdateLessonsAdminFieldControls(),
+    audit: useUpdateAuditAdminFieldControls(),
+  };
+  const act = useActions(app);
+  const query = queries[app];
+  const mutation = mutations[app];
+  const forms = fieldControlRegistry[app];
+  const [formKey, setFormKey] = useState('');
+  const [draft, setDraft] = useState<Record<string, FieldControlSetting>>();
+  const form = forms.find(f => f.key === formKey) ?? forms[0];
+  useEffect(() => setDraft(undefined), [app, form?.key]);
+  if (!form) return null;
+  const saved = query.data?.[form.key] ?? {};
+  const matrix = draft ?? Object.fromEntries(form.fields.map(f => [f.key, saved[f.key] ?? { access: 'editable' as const, requirement: 'optional' as const }]));
+  const patch = (fieldKey: string, value: Partial<FieldControlSetting>) => setDraft({ ...matrix, [fieldKey]: { ...matrix[fieldKey]!, ...value } as FieldControlSetting });
+  const save = () => mutation.mutate({ data: { ...(query.data ?? {}), [form.key]: matrix } }, { onSuccess: () => { act.done('Field controls saved'); setDraft(undefined); }, onError: act.fail });
+  return <PageState loading={query.isLoading} error={query.error} onRetry={query.refetch}>
+    <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Form field controls</CardTitle><CardDescription>Decide which fields are read-only or mandatory on each form. Applies to everyone except administrators.</CardDescription></div><Button disabled={!draft || mutation.isPending} onClick={save}><Save className="mr-2 h-4 w-4" />Save changes</Button></CardHeader>
+      <CardContent>
+        <div className="mb-4 max-w-sm"><Label>Form</Label><Select value={form.key} onValueChange={key => { setFormKey(key); setDraft(undefined); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{forms.map(f => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}</SelectContent></Select></div>
+        <Table><TableHeader><TableRow><TableHead>Field</TableHead><TableHead className="w-44">Access</TableHead><TableHead className="w-44">Requirement</TableHead></TableRow></TableHeader>
+          <TableBody>{form.fields.map(f => <TableRow key={f.key}><TableCell className="font-medium">{f.label}</TableCell>
+            <TableCell><Select value={matrix[f.key]?.access ?? 'editable'} onValueChange={v => patch(f.key, { access: v as FieldControlSetting['access'] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{accessOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></TableCell>
+            <TableCell><Select value={matrix[f.key]?.requirement ?? 'optional'} onValueChange={v => patch(f.key, { requirement: v as FieldControlSetting['requirement'] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{requirementOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></TableCell>
+          </TableRow>)}</TableBody></Table>
+        <p className="mt-4 text-sm text-muted-foreground">Read-only fields appear disabled on the form. Mandatory fields are marked required and block saving while empty. Administrators always keep full edit access.</p>
+      </CardContent></Card>
+  </PageState>;
 }

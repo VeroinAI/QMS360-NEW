@@ -93,7 +93,7 @@ function AuthenticatedRouter() {
     <Route path="/audit/audits/:id"><AuditRoutes /></Route>
     <Route path="/audit"><AuditRoutes /></Route><Route path="/audit/:rest*"><AuditRoutes /></Route>
     <Route path="/cockpit"><AdminRoutes /></Route><Route path="/cockpit/:rest*"><AdminRoutes /></Route>
-    <Route path="/settings/:rest*"><AdminRoutes /></Route>
+    <Route path="/settings/:app/:tab"><AdminRoutes /></Route><Route path="/settings/:rest*"><AdminRoutes /></Route>
     <Route path="/master-data"><MasterDataRoutes /></Route>
     <Route path="/feedback" component={FeedbackPage} />
     <Route component={NotFound} />
