@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
   BarChart3, Bell, Blocks, ChevronDown, ClipboardCheck, Download, FileText,
-  Globe2, LayoutDashboard, Lightbulb, LogOut, Menu, Network, PanelLeftClose,
-  PanelLeftOpen, Settings, X,
+  Globe2, LayoutDashboard, Lightbulb, LogOut, Menu, MessageSquarePlus, Network,
+  PanelLeftClose, PanelLeftOpen, Settings, X,
 } from 'lucide-react';
 import {
   useGetOrganizationSettings, useListAuditNotifications, useListLessonsNotifications,
@@ -59,7 +59,10 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
     return () => window.removeEventListener('beforeinstallprompt', listener);
   }, []);
 
-  const nav = section ? appNav[section] : systemNav;
+  const isAdmin = ['Super Admin', 'Org Admin'].includes(user.platformRole ?? '')
+    || (user.workspaceRoles?.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
+  const nav = section ? appNav[section]
+    : [...systemNav, ...(isAdmin ? [['User Feedback', '/feedback', MessageSquarePlus] as const] : [])];
   const orgName = organization.data?.organizationName ?? user.organizationName;
   const logout = () => {
     localStorage.removeItem('qms360_token');
