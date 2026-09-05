@@ -139,14 +139,14 @@ describe("authorization", () => {
   });
 
   it("forbids non-admin users from updating a resolution with 403", async () => {
-    const created = await api("POST", "/feedback", { token: memberA.token, body: { category: "issue", message: "Broken export button" } });
+    const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "qaqc", category: "issue", message: "Broken export button" } });
     expect(created.status).toBe(201);
     const res = await api("PUT", `/feedback/${created.json.id}/resolution`, { token: memberA.token, body: { resolution: "resolved" } });
     expect(res.status).toBe(403);
   });
 
   it("lets a same-organization admin update the resolution and persists it", async () => {
-    const created = await api("POST", "/feedback", { token: memberA.token, body: { category: "issue", message: "Filter dropdown is empty" } });
+    const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "qaqc", category: "issue", message: "Filter dropdown is empty" } });
     expect(created.status).toBe(201);
     const updated = await api("PUT", `/feedback/${created.json.id}/resolution`, { token: adminA.token, body: { resolution: "resolved" } });
     expect(updated.status).toBe(200);
@@ -158,7 +158,7 @@ describe("authorization", () => {
   });
 
   it("rejects an invalid resolution value with 422", async () => {
-    const created = await api("POST", "/feedback", { token: memberA.token, body: { category: "issue", message: "Sort order is wrong" } });
+    const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "qaqc", category: "issue", message: "Sort order is wrong" } });
     expect(created.status).toBe(201);
     const res = await api("PUT", `/feedback/${created.json.id}/resolution`, { token: adminA.token, body: { resolution: "banana" } });
     expect(res.status).toBe(422);
@@ -168,7 +168,7 @@ describe("authorization", () => {
   });
 
   it("denies admins updating feedback from another organization", async () => {
-    const created = await api("POST", "/feedback", { token: memberA.token, body: { category: "suggestion", message: "Add dark mode please" } });
+    const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "system", category: "suggestion", message: "Add dark mode please" } });
     expect(created.status).toBe(201);
     const res = await api("PUT", `/feedback/${created.json.id}/resolution`, { token: adminB.token, body: { resolution: "resolved" } });
     expect([403, 404]).toContain(res.status);
@@ -179,13 +179,18 @@ describe("authorization", () => {
 });
 
 describe("validation", () => {
+  it("rejects submissions without a module with 422", async () => {
+    const res = await api("POST", "/feedback", { token: memberA.token, body: { category: "issue", message: "Something is broken" } });
+    expect(res.status).toBe(422);
+  });
+
   it("rejects messages shorter than 5 characters with 422", async () => {
-    const res = await api("POST", "/feedback", { token: memberA.token, body: { category: "issue", message: "hi" } });
+    const res = await api("POST", "/feedback", { token: memberA.token, body: { module: "qaqc", category: "issue", message: "hi" } });
     expect(res.status).toBe(422);
   });
 
   it("rejects messages over 4000 characters with 422", async () => {
-    const res = await api("POST", "/feedback", { token: memberA.token, body: { category: "issue", message: "x".repeat(4001) } });
+    const res = await api("POST", "/feedback", { token: memberA.token, body: { module: "qaqc", category: "issue", message: "x".repeat(4001) } });
     expect(res.status).toBe(422);
   });
 });
@@ -218,12 +223,62 @@ describe("AI triage", () => {
   });
 });
 
+describe("admin re-triage", () => {
+  it("rejects unauthenticated requests with 401", async () => {
+    const res = await api("POST", `/feedback/${crypto.randomUUID()}/triage`);
+    expect(res.status).toBe(401);
+  });
+
+  it("forbids non-admin users with 403", async () => {
+    const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "qaqc", category: "issue", message: "Button does nothing" } });
+    expect(created.status).toBe(201);
+    const res = await api("POST", `/feedback/${created.json.id}/triage`, { token: memberA.token });
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 404 for feedback from another organization", async () => {
+    const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "qaqc", category: "issue", message: "Button does nothing" } });
+    expect(created.status).toBe(201);
+    const res = await api("POST", `/feedback/${created.json.id}/triage`, { token: adminB.token });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for a nonexistent entry", async () => {
+    const res = await api("POST", `/feedback/${crypto.randomUUID()}/triage`, { token: adminA.token });
+    expect(res.status).toBe(404);
+  });
+
+  it("persists the triage result with the resolution suggestion", async () => {
+    const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "audit", category: "question", message: "Where is the export button?" } });
+    expect(created.status).toBe(201);
+    stubAiResponse({ verdict: "awareness_gap", summary: "The feature already exists.", guidance: null, resolutionSuggestion: "Point the user to the export button." });
+    const res = await api("POST", `/feedback/${created.json.id}/triage`, { token: adminA.token });
+    expect(res.status).toBe(200);
+    expect(res.json.triage).toMatchObject({ verdict: "awareness_gap", resolutionSuggestion: "Point the user to the export button." });
+    const list = await api("GET", "/feedback", { token: adminA.token });
+    const entry = list.json.items.find((item: any) => item.id === created.json.id);
+    expect(entry.triage.resolutionSuggestion).toBe("Point the user to the export button.");
+  });
+
+  it("returns 503 and leaves prior triage unchanged when the AI fails", async () => {
+    const triage = { verdict: "valid_issue", summary: "Real bug", guidance: null, resolutionSuggestion: null };
+    const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "qaqc", category: "issue", message: "Save button throws an error", triage } });
+    expect(created.status).toBe(201);
+    stubFetch(() => new Response("upstream error", { status: 500 }));
+    const res = await api("POST", `/feedback/${created.json.id}/triage`, { token: adminA.token });
+    expect(res.status).toBe(503);
+    const list = await api("GET", "/feedback", { token: adminA.token });
+    const entry = list.json.items.find((item: any) => item.id === created.json.id);
+    expect(entry.triage.verdict).toBe("valid_issue");
+  });
+});
+
 describe("happy path", () => {
   it("submit then admin list shows the entry with user details and timestamp", async () => {
-    const triage = { verdict: "suggestion", summary: "Enhancement idea", guidance: null };
+    const triage = { verdict: "suggestion", summary: "Enhancement idea", guidance: null, resolutionSuggestion: null };
     const created = await api("POST", "/feedback", {
       token: memberA.token,
-      body: { category: "suggestion", message: "It would be great to export reports", appKey: "qaqc", pagePath: "/qaqc/overview", triage },
+      body: { module: "qaqc", category: "suggestion", message: "It would be great to export reports", appKey: "qaqc", pagePath: "/qaqc/overview", triage },
     });
     expect(created.status).toBe(201);
     expect(created.json.user).toMatchObject({ id: memberA.id, fullName: "Member A" });
