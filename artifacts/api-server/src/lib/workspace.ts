@@ -7,6 +7,7 @@ import {
   lessonsAuditLogEntries,
   notifications,
 } from "@workspace/db";
+import { deliverEmail } from "./email";
 
 export type AppKey = "qaqc" | "lessons" | "audit";
 
@@ -71,5 +72,22 @@ export async function notify(database: any, app: AppKey, input: NotifyInput) {
     title: input.title,
     body: input.body,
     channel: "in_app",
+  });
+}
+
+/**
+ * In-app notification plus a best-effort email through the Cockpit SMTP
+ * connector. The email is fire-and-forget (same pattern as SLA escalations):
+ * SMTP latency or outages must never stall an approval workflow, and the
+ * in-app notification is the durable record.
+ */
+export async function notifyWithEmail(database: any, app: AppKey, input: NotifyInput) {
+  await notify(database, app, input);
+  void deliverEmail(database, {
+    organizationId: input.organizationId,
+    recipientIds: [input.userId],
+    subject: input.title,
+    text: input.body,
+    context: { kind: "workflow_notification", app, type: input.type, entityType: input.entityType, entityId: input.entityId },
   });
 }

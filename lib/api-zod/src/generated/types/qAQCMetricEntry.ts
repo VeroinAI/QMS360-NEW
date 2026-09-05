@@ -24,6 +24,13 @@ export interface QAQCMetricEntry {
   /** @minimum 0 */
   ageingOver45: number;
   workflowState: WorkflowState;
+  /**
+     * Designated approver chosen at submission
+     * @nullable
+     */
+  approverId?: string | null;
+  /** @nullable */
+  readonly submittedById?: string | null;
   /** Returns 100 when issued and closed are both zero */
   readonly closureRate?: number;
   readonly variance?: number;

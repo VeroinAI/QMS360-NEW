@@ -5,6 +5,8 @@ import { createAppAdministration } from "./app-common";
 
 export const app2LessonsSchema = pgSchema("app2_lessons");
 const admin = createAppAdministration(app2LessonsSchema);
+export const lessonsEvidenceStatus = admin.evidenceStatus;
+export const lessonsNotificationChannel = admin.notificationChannel;
 export const lessonsPlatformRoles = admin.platformRoles;
 export const lessonsPermissions = admin.permissions;
 export const lessonsPlatformRolePermissions = admin.platformRolePermissions;

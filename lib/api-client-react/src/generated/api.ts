@@ -84,6 +84,7 @@ import type {
   FeedbackSubmissionBody,
   FeedbackTriage,
   FeedbackTriageRequestBody,
+  FieldMappingWorkspace,
   GeneratedAuditReport,
   GetAuditDashboardParams,
   GetAuditFindingsLogReportParams,
@@ -183,7 +184,10 @@ import type {
   RoleAssignmentBody,
   RoleBody,
   RolePageResponse,
+  SaveFieldMappingsBody,
   SearchLessonsLogParams,
+  SendConnectorTestEmail200,
+  SubmitForReviewBody,
   SyncJob,
   SyncJobPageResponse,
   UpdateMasterDataGroupInput,
@@ -2056,6 +2060,226 @@ export const useUpdateIntegrationConnector = <TError = ErrorType<unknown>,
       return useMutation(getUpdateIntegrationConnectorMutationOptions(options));
     }
 
+export const getSendConnectorTestEmailUrl = (id: string,) => {
+
+
+
+
+  return `/api/integrations/connectors/${id}/test-email`
+}
+
+/**
+ * @summary Send a test email to the requesting admin through an email connector
+ */
+export const sendConnectorTestEmail = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<SendConnectorTestEmail200> => {
+
+  return customFetch<SendConnectorTestEmail200>(getSendConnectorTestEmailUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSendConnectorTestEmailMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendConnectorTestEmail>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendConnectorTestEmail>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['sendConnectorTestEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendConnectorTestEmail>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  sendConnectorTestEmail(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendConnectorTestEmailMutationResult = NonNullable<Awaited<ReturnType<typeof sendConnectorTestEmail>>>
+
+    export type SendConnectorTestEmailMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Send a test email to the requesting admin through an email connector
+ */
+export const useSendConnectorTestEmail = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendConnectorTestEmail>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendConnectorTestEmail>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getSendConnectorTestEmailMutationOptions(options));
+    }
+
+export const getGetConnectorFieldMappingsUrl = (id: string,) => {
+
+
+
+
+  return `/api/integrations/connectors/${id}/field-mappings`
+}
+
+/**
+ * @summary Get the field-mapping workspace for a connector
+ */
+export const getConnectorFieldMappings = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<FieldMappingWorkspace> => {
+
+  return customFetch<FieldMappingWorkspace>(getGetConnectorFieldMappingsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetConnectorFieldMappingsQueryKey = (id: string,) => {
+    return [
+    `/api/integrations/connectors/${id}/field-mappings`
+    ] as const;
+    }
+
+
+export const getGetConnectorFieldMappingsQueryOptions = <TData = Awaited<ReturnType<typeof getConnectorFieldMappings>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConnectorFieldMappings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetConnectorFieldMappingsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getConnectorFieldMappings>>> = ({ signal }) => getConnectorFieldMappings(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getConnectorFieldMappings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetConnectorFieldMappingsQueryResult = NonNullable<Awaited<ReturnType<typeof getConnectorFieldMappings>>>
+export type GetConnectorFieldMappingsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the field-mapping workspace for a connector
+ */
+
+export function useGetConnectorFieldMappings<TData = Awaited<ReturnType<typeof getConnectorFieldMappings>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConnectorFieldMappings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetConnectorFieldMappingsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveConnectorFieldMappingsUrl = (id: string,) => {
+
+
+
+
+  return `/api/integrations/connectors/${id}/field-mappings`
+}
+
+/**
+ * @summary Replace and activate field mappings for one entity (admin only)
+ */
+export const saveConnectorFieldMappings = async (id: string,
+    saveFieldMappingsBody: SaveFieldMappingsBody, options?: Parameters<typeof customFetch>[1]): Promise<FieldMappingWorkspace> => {
+
+  return customFetch<FieldMappingWorkspace>(getSaveConnectorFieldMappingsUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(saveFieldMappingsBody)
+  }
+);}
+
+
+
+
+
+export const getSaveConnectorFieldMappingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveConnectorFieldMappings>>, TError,{id: string;data: BodyType<SaveFieldMappingsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveConnectorFieldMappings>>, TError,{id: string;data: BodyType<SaveFieldMappingsBody>}, TContext> => {
+
+const mutationKey = ['saveConnectorFieldMappings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveConnectorFieldMappings>>, {id: string;data: BodyType<SaveFieldMappingsBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveConnectorFieldMappings(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveConnectorFieldMappingsMutationResult = NonNullable<Awaited<ReturnType<typeof saveConnectorFieldMappings>>>
+    export type SaveConnectorFieldMappingsMutationBody = BodyType<SaveFieldMappingsBody>
+    export type SaveConnectorFieldMappingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Replace and activate field mappings for one entity (admin only)
+ */
+export const useSaveConnectorFieldMappings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveConnectorFieldMappings>>, TError,{id: string;data: BodyType<SaveFieldMappingsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveConnectorFieldMappings>>,
+        TError,
+        {id: string;data: BodyType<SaveFieldMappingsBody>},
+        TContext
+      > => {
+      return useMutation(getSaveConnectorFieldMappingsMutationOptions(options));
+    }
+
 export const getListSyncJobsUrl = (params?: ListSyncJobsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -3606,6 +3830,83 @@ export const useDeleteQaqcMetric = <TError = ErrorType<unknown>,
       return useMutation(getDeleteQaqcMetricMutationOptions(options));
     }
 
+export const getListQaqcApproversUrl = () => {
+
+
+
+
+  return `/api/qaqc/approvers`
+}
+
+/**
+ * @summary List eligible active QA/QC approvers (excludes the requester)
+ */
+export const listQaqcApprovers = async ( options?: Parameters<typeof customFetch>[1]): Promise<LessonApproverOption[]> => {
+
+  return customFetch<LessonApproverOption[]>(getListQaqcApproversUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListQaqcApproversQueryKey = () => {
+    return [
+    `/api/qaqc/approvers`
+    ] as const;
+    }
+
+
+export const getListQaqcApproversQueryOptions = <TData = Awaited<ReturnType<typeof listQaqcApprovers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQaqcApprovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListQaqcApproversQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listQaqcApprovers>>> = ({ signal }) => listQaqcApprovers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listQaqcApprovers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListQaqcApproversQueryResult = NonNullable<Awaited<ReturnType<typeof listQaqcApprovers>>>
+export type ListQaqcApproversQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List eligible active QA/QC approvers (excludes the requester)
+ */
+
+export function useListQaqcApprovers<TData = Awaited<ReturnType<typeof listQaqcApprovers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQaqcApprovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListQaqcApproversQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getSubmitQaqcMetricUrl = (id: string,) => {
 
 
@@ -3617,14 +3918,15 @@ export const getSubmitQaqcMetricUrl = (id: string,) => {
 /**
  * @summary Submit a metric entry for review
  */
-export const submitQaqcMetric = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<QAQCMetricEntry> => {
+export const submitQaqcMetric = async (id: string,
+    submitForReviewBody?: SubmitForReviewBody, options?: Parameters<typeof customFetch>[1]): Promise<QAQCMetricEntry> => {
 
   return customFetch<QAQCMetricEntry>(getSubmitQaqcMetricUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submitForReviewBody)
   }
 );}
 
@@ -3633,8 +3935,8 @@ export const submitQaqcMetric = async (id: string, options?: Parameters<typeof c
 
 
 export const getSubmitQaqcMetricMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitQaqcMetric>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof submitQaqcMetric>>, TError,{id: string}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitQaqcMetric>>, TError,{id: string;data?: BodyType<SubmitForReviewBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitQaqcMetric>>, TError,{id: string;data?: BodyType<SubmitForReviewBody>}, TContext> => {
 
 const mutationKey = ['submitQaqcMetric'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -3646,10 +3948,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitQaqcMetric>>, {id: string}> = (props) => {
-          const {id} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitQaqcMetric>>, {id: string;data?: BodyType<SubmitForReviewBody>}> = (props) => {
+          const {id,data} = props ?? {};
 
-          return  submitQaqcMetric(id,requestOptions)
+          return  submitQaqcMetric(id,data,requestOptions)
         }
 
 
@@ -3660,18 +3962,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SubmitQaqcMetricMutationResult = NonNullable<Awaited<ReturnType<typeof submitQaqcMetric>>>
-
+    export type SubmitQaqcMetricMutationBody = BodyType<SubmitForReviewBody> | undefined
     export type SubmitQaqcMetricMutationError = ErrorType<unknown>
 
     /**
  * @summary Submit a metric entry for review
  */
 export const useSubmitQaqcMetric = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitQaqcMetric>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitQaqcMetric>>, TError,{id: string;data?: BodyType<SubmitForReviewBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof submitQaqcMetric>>,
         TError,
-        {id: string},
+        {id: string;data?: BodyType<SubmitForReviewBody>},
         TContext
       > => {
       return useMutation(getSubmitQaqcMetricMutationOptions(options));
@@ -5250,14 +5552,15 @@ export const getSubmitQualityBriefUrl = (id: string,) => {
 /**
  * @summary Submit quality brief
  */
-export const submitQualityBrief = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+export const submitQualityBrief = async (id: string,
+    submitForReviewBody?: SubmitForReviewBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
 
   return customFetch<void>(getSubmitQualityBriefUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submitForReviewBody)
   }
 );}
 
@@ -5266,8 +5569,8 @@ export const submitQualityBrief = async (id: string, options?: Parameters<typeof
 
 
 export const getSubmitQualityBriefMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitQualityBrief>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof submitQualityBrief>>, TError,{id: string}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitQualityBrief>>, TError,{id: string;data?: BodyType<SubmitForReviewBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitQualityBrief>>, TError,{id: string;data?: BodyType<SubmitForReviewBody>}, TContext> => {
 
 const mutationKey = ['submitQualityBrief'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -5279,10 +5582,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitQualityBrief>>, {id: string}> = (props) => {
-          const {id} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitQualityBrief>>, {id: string;data?: BodyType<SubmitForReviewBody>}> = (props) => {
+          const {id,data} = props ?? {};
 
-          return  submitQualityBrief(id,requestOptions)
+          return  submitQualityBrief(id,data,requestOptions)
         }
 
 
@@ -5293,18 +5596,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SubmitQualityBriefMutationResult = NonNullable<Awaited<ReturnType<typeof submitQualityBrief>>>
-
+    export type SubmitQualityBriefMutationBody = BodyType<SubmitForReviewBody> | undefined
     export type SubmitQualityBriefMutationError = ErrorType<unknown>
 
     /**
  * @summary Submit quality brief
  */
 export const useSubmitQualityBrief = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitQualityBrief>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitQualityBrief>>, TError,{id: string;data?: BodyType<SubmitForReviewBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof submitQualityBrief>>,
         TError,
-        {id: string},
+        {id: string;data?: BodyType<SubmitForReviewBody>},
         TContext
       > => {
       return useMutation(getSubmitQualityBriefMutationOptions(options));

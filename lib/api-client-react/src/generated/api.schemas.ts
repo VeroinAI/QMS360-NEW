@@ -5,6 +5,47 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export interface FieldMappingTargetField {
+  key: string;
+  label: string;
+  required: boolean;
+}
+
+export interface FieldMappingEntity {
+  entity: string;
+  label: string;
+  sourceSuggestions: string[];
+  targetFields: FieldMappingTargetField[];
+}
+
+export interface ConnectorFieldMapping {
+  id: string;
+  entity: string;
+  sourceField: string;
+  targetField: string;
+  active: boolean;
+}
+
+export interface FieldMappingWorkspace {
+  connectorId: string;
+  entities: FieldMappingEntity[];
+  mappings: ConnectorFieldMapping[];
+}
+
+export type SaveFieldMappingsInputMappingsItem = {
+  /** @minLength 1 */
+  sourceField: string;
+  /** @minLength 1 */
+  targetField: string;
+};
+
+export interface SaveFieldMappingsInput {
+  /** @minLength 1 */
+  entity: string;
+  active: boolean;
+  mappings: SaveFieldMappingsInputMappingsItem[];
+}
+
 export type MasterDataValueMetadata = { [key: string]: unknown };
 
 export interface MasterDataValue {
@@ -456,6 +497,13 @@ export interface QAQCMetricEntry {
   /** @minimum 0 */
   ageingOver45: number;
   workflowState: WorkflowState;
+  /**
+     * Designated approver chosen at submission
+     * @nullable
+     */
+  approverId?: string | null;
+  /** @nullable */
+  readonly submittedById?: string | null;
   /** Returns 100 when issued and closed are both zero */
   readonly closureRate?: number;
   readonly variance?: number;
@@ -566,6 +614,11 @@ export interface QualityAssessmentBrief {
   /** @nullable */
   aiReviewDecision?: QualityAssessmentBriefAiReviewDecision;
   workflowState: WorkflowState;
+  /**
+     * Designated approver chosen at submission
+     * @nullable
+     */
+  approverId?: string | null;
   /** @nullable */
   reviewComments?: string | null;
 }
@@ -582,6 +635,11 @@ export interface ApprovalReview {
   decision: ApprovalReviewDecision;
   /** @nullable */
   comments?: string | null;
+}
+
+export interface SubmitForReview {
+  /** Designated approver; defaults to the approver already stored on the record */
+  approverId?: string;
 }
 
 export interface AIDraft {
@@ -1726,6 +1784,8 @@ export type CarPageResponse = CorrectiveActionReportPage;
 
 export type ApprovalReviewBody = ApprovalReview;
 
+export type SubmitForReviewBody = SubmitForReview;
+
 export type RephraseBody = RephraseRequest;
 
 export type PromptBody = PromptRequest;
@@ -1793,6 +1853,8 @@ export const FeedbackResolutionUpdateBodyResolution = {
 export type FeedbackResolutionUpdateBody = {
   resolution: FeedbackResolutionUpdateBodyResolution;
 };
+
+export type SaveFieldMappingsBody = SaveFieldMappingsInput;
 
 export type PageParameter = number;
 
@@ -1872,6 +1934,11 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+};
+
+export type SendConnectorTestEmail200 = {
+  sent: boolean;
+  message: string;
 };
 
 export type ListSyncJobsParams = {

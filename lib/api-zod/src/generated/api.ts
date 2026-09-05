@@ -624,6 +624,91 @@ export const UpdateIntegrationConnectorResponse = zod.object({
 
 
 /**
+ * @summary Send a test email to the requesting admin through an email connector
+ */
+export const SendConnectorTestEmailParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SendConnectorTestEmailResponse = zod.object({
+  "sent": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Get the field-mapping workspace for a connector
+ */
+export const GetConnectorFieldMappingsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetConnectorFieldMappingsResponse = zod.object({
+  "connectorId": zod.string(),
+  "entities": zod.array(zod.object({
+  "entity": zod.string(),
+  "label": zod.string(),
+  "sourceSuggestions": zod.array(zod.string()),
+  "targetFields": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "required": zod.boolean()
+}))
+})),
+  "mappings": zod.array(zod.object({
+  "id": zod.string(),
+  "entity": zod.string(),
+  "sourceField": zod.string(),
+  "targetField": zod.string(),
+  "active": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Replace and activate field mappings for one entity (admin only)
+ */
+export const SaveConnectorFieldMappingsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+
+
+export const SaveConnectorFieldMappingsBody = zod.object({
+  "entity": zod.string().min(1),
+  "active": zod.boolean(),
+  "mappings": zod.array(zod.object({
+  "sourceField": zod.string().min(1),
+  "targetField": zod.string().min(1)
+}))
+})
+
+export const SaveConnectorFieldMappingsResponse = zod.object({
+  "connectorId": zod.string(),
+  "entities": zod.array(zod.object({
+  "entity": zod.string(),
+  "label": zod.string(),
+  "sourceSuggestions": zod.array(zod.string()),
+  "targetFields": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "required": zod.boolean()
+}))
+})),
+  "mappings": zod.array(zod.object({
+  "id": zod.string(),
+  "entity": zod.string(),
+  "sourceField": zod.string(),
+  "targetField": zod.string(),
+  "active": zod.boolean()
+}))
+})
+
+
+/**
  * @summary List data sync jobs
  */
 export const listSyncJobsQueryPageDefault = 1;
@@ -1195,6 +1280,8 @@ export const ListQaqcMetricsResponse = zod.object({
   "ageing15To45": zod.number().min(listQaqcMetricsResponseTwoItemsItemAgeing15To45Min),
   "ageingOver45": zod.number().min(listQaqcMetricsResponseTwoItemsItemAgeingOver45Min),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
+  "submittedById": zod.string().nullish(),
   "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
   "variance": zod.number().optional(),
   "pqi": zod.number().optional(),
@@ -1229,6 +1316,7 @@ export const CreateQaqcMetricBody = zod.object({
   "ageing15To45": zod.number().min(createQaqcMetricBodyAgeing15To45Min),
   "ageingOver45": zod.number().min(createQaqcMetricBodyAgeingOver45Min),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
   "deletedAt": zod.coerce.date().nullish()
 })
 
@@ -1255,6 +1343,8 @@ export const CreateQaqcMetricResponse = zod.object({
   "ageing15To45": zod.number().min(createQaqcMetricResponseAgeing15To45Min),
   "ageingOver45": zod.number().min(createQaqcMetricResponseAgeingOver45Min),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
+  "submittedById": zod.string().nullish(),
   "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
   "variance": zod.number().optional(),
   "pqi": zod.number().optional(),
@@ -1292,6 +1382,7 @@ export const UpdateQaqcMetricBody = zod.object({
   "ageing15To45": zod.number().min(updateQaqcMetricBodyAgeing15To45Min),
   "ageingOver45": zod.number().min(updateQaqcMetricBodyAgeingOver45Min),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
   "deletedAt": zod.coerce.date().nullish()
 })
 
@@ -1318,6 +1409,8 @@ export const UpdateQaqcMetricResponse = zod.object({
   "ageing15To45": zod.number().min(updateQaqcMetricResponseAgeing15To45Min),
   "ageingOver45": zod.number().min(updateQaqcMetricResponseAgeingOver45Min),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
+  "submittedById": zod.string().nullish(),
   "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
   "variance": zod.number().optional(),
   "pqi": zod.number().optional(),
@@ -1336,10 +1429,26 @@ export const DeleteQaqcMetricResponse = zod.void()
 
 
 /**
+ * @summary List eligible active QA/QC approvers (excludes the requester)
+ */
+export const ListQaqcApproversResponseItem = zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "roles": zod.array(zod.string())
+})
+export const ListQaqcApproversResponse = zod.array(ListQaqcApproversResponseItem)
+
+
+/**
  * @summary Submit a metric entry for review
  */
 export const SubmitQaqcMetricParams = zod.object({
   "id": zod.coerce.string()
+})
+
+export const SubmitQaqcMetricBody = zod.object({
+  "approverId": zod.string().optional().describe('Designated approver; defaults to the approver already stored on the record')
 })
 
 export const submitQaqcMetricResponseIssuedCountMin = 0;
@@ -1365,6 +1474,8 @@ export const SubmitQaqcMetricResponse = zod.object({
   "ageing15To45": zod.number().min(submitQaqcMetricResponseAgeing15To45Min),
   "ageingOver45": zod.number().min(submitQaqcMetricResponseAgeingOver45Min),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
+  "submittedById": zod.string().nullish(),
   "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
   "variance": zod.number().optional(),
   "pqi": zod.number().optional(),
@@ -1407,6 +1518,8 @@ export const ReviewQaqcMetricResponse = zod.object({
   "ageing15To45": zod.number().min(reviewQaqcMetricResponseAgeing15To45Min),
   "ageingOver45": zod.number().min(reviewQaqcMetricResponseAgeingOver45Min),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
+  "submittedById": zod.string().nullish(),
   "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
   "variance": zod.number().optional(),
   "pqi": zod.number().optional(),
@@ -1960,6 +2073,7 @@ export const ListQualityBriefsResponse = zod.object({
   "aiDraft": zod.string().nullish(),
   "aiReviewDecision": zod.union([zod.literal('Accept'),zod.literal('Edit'),zod.literal('Reject'),zod.literal(null)]).nullish(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
   "reviewComments": zod.string().nullish()
 }))
 }))
@@ -1976,6 +2090,7 @@ export const CreateQualityBriefBody = zod.object({
   "aiDraft": zod.string().nullish(),
   "aiReviewDecision": zod.union([zod.literal('Accept'),zod.literal('Edit'),zod.literal('Reject'),zod.literal(null)]).nullish(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
   "reviewComments": zod.string().nullish()
 })
 
@@ -1997,6 +2112,7 @@ export const UpdateQualityBriefBody = zod.object({
   "aiDraft": zod.string().nullish(),
   "aiReviewDecision": zod.union([zod.literal('Accept'),zod.literal('Edit'),zod.literal('Reject'),zod.literal(null)]).nullish(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
   "reviewComments": zod.string().nullish()
 })
 
@@ -2021,6 +2137,10 @@ export const DraftQualityBriefWithAiResponse = zod.object({
  */
 export const SubmitQualityBriefParams = zod.object({
   "id": zod.coerce.string()
+})
+
+export const SubmitQualityBriefBody = zod.object({
+  "approverId": zod.string().optional().describe('Designated approver; defaults to the approver already stored on the record')
 })
 
 export const SubmitQualityBriefResponse = zod.unknown()
@@ -2165,6 +2285,7 @@ export const ImportQaqcMetricsBodyItem = zod.object({
   "ageing15To45": zod.number().min(importQaqcMetricsBodyAgeing15To45Min),
   "ageingOver45": zod.number().min(importQaqcMetricsBodyAgeingOver45Min),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
   "deletedAt": zod.coerce.date().nullish()
 })
 export const ImportQaqcMetricsBody = zod.array(ImportQaqcMetricsBodyItem)

@@ -18,6 +18,11 @@ export interface QualityAssessmentBrief {
   /** @nullable */
   aiReviewDecision?: QualityAssessmentBriefAiReviewDecision;
   workflowState: WorkflowState;
+  /**
+     * Designated approver chosen at submission
+     * @nullable
+     */
+  approverId?: string | null;
   /** @nullable */
   reviewComments?: string | null;
 }

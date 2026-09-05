@@ -5,6 +5,8 @@ import { createAppAdministration } from "./app-common";
 
 export const app1QaqcSchema = pgSchema("app1_qaqc");
 const admin = createAppAdministration(app1QaqcSchema);
+export const evidenceStatus = admin.evidenceStatus;
+export const notificationChannel = admin.notificationChannel;
 export const {
   platformRoles, permissions, platformRolePermissions, workspaceRoles,
   workspaceRolePermissions, userWorkspaceRoles, delegations, escalationRules,
@@ -80,6 +82,8 @@ export const qaqcMetricEntries = app1QaqcSchema.table("qaqc_metric_entries", {
   ageing0To15: integer("ageing_0_to_15").notNull().default(0),
   ageing15To45: integer("ageing_15_to_45").notNull().default(0),
   ageingOver45: integer("ageing_over_45").notNull().default(0),
+  approverId: uuid("approver_id").references(() => users.id),
+  submittedById: uuid("submitted_by_id").references(() => users.id),
   ...auditColumns,
 }, (table) => [uniqueIndex("qaqc_metric_project_period_category_active_idx").on(table.projectId, table.reportingPeriod, table.category).where(sql`${table.deletedAt} IS NULL`)]);
 
@@ -145,5 +149,6 @@ export const qualityAssessmentBriefs = app1QaqcSchema.table("quality_assessment_
   workflowState: text("workflow_state").notNull().default("draft"),
   submittedById: uuid("submitted_by_id").references(() => users.id),
   approvedById: uuid("approved_by_id").references(() => users.id),
+  approverId: uuid("approver_id").references(() => users.id),
   ...auditColumns,
 });

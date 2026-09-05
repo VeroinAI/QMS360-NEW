@@ -203,6 +203,8 @@ export function createAppAdministration(schema: AppSchema) {
 
   return {
     auditColumns,
+    evidenceStatus,
+    notificationChannel,
     platformRoles,
     permissions,
     platformRolePermissions,

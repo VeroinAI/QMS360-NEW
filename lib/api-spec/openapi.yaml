@@ -299,6 +299,34 @@ paths:
       requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/IntegrationConnector"}}}}
       responses:
         "200": {description: Updated connector, content: {application/json: {schema: {$ref: "#/components/schemas/IntegrationConnector"}}}}
+  /integrations/connectors/{id}/test-email:
+    post:
+      operationId: sendConnectorTestEmail
+      tags: [integrations]
+      summary: Send a test email to the requesting admin through an email connector
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses: {"200": {description: Test email sent, content: {application/json: {schema: {type: object, required: [sent, message], properties: {sent: {type: boolean}, message: {type: string}}}}}}}
+  /integrations/connectors/{id}/field-mappings:
+    get:
+      operationId: getConnectorFieldMappings
+      tags: [integrations]
+      summary: Get the field-mapping workspace for a connector
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200": {description: Field-mapping workspace, content: {application/json: {schema: {$ref: "#/components/schemas/FieldMappingWorkspace"}}}}
+        "404": {description: Connector not found}
+        "422": {description: Connector does not support field mapping}
+    put:
+      operationId: saveConnectorFieldMappings
+      tags: [integrations]
+      summary: Replace and activate field mappings for one entity (admin only)
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {$ref: "#/components/requestBodies/SaveFieldMappings"}
+      responses:
+        "200": {description: Saved field-mapping workspace, content: {application/json: {schema: {$ref: "#/components/schemas/FieldMappingWorkspace"}}}}
+        "403": {description: Administrator access required}
+        "404": {description: Connector not found}
+        "422": {description: Mapping validation failed}
   /integrations/sync-jobs:
     get:
       operationId: listSyncJobs
@@ -482,12 +510,15 @@ paths:
       summary: Soft-delete a metric entry
       parameters: [{$ref: "#/components/parameters/Id"}]
       responses: {"204": {description: Soft-deleted}}
+  /qaqc/approvers:
+    get: {operationId: listQaqcApprovers, tags: [qaqc], summary: List eligible active QA/QC approvers (excludes the requester), responses: {"200": {description: Approvers, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/LessonApproverOption"}}}}}}}
   /qaqc/metrics/{id}/submit:
     post:
       operationId: submitQaqcMetric
       tags: [qaqc]
       summary: Submit a metric entry for review
       parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {$ref: "#/components/requestBodies/SubmitForReview"}
       responses: {"200": {description: Submitted metric, content: {application/json: {schema: {$ref: "#/components/schemas/QAQCMetricEntry"}}}}}
   /qaqc/metrics/{id}/review:
     post:
@@ -529,7 +560,7 @@ paths:
   /qaqc/quality-briefs/{id}/ai-draft:
     post: {operationId: draftQualityBriefWithAi, tags: [qaqc], summary: Generate a human-reviewed quality brief draft, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: AI draft, content: {application/json: {schema: {$ref: "#/components/schemas/AIDraft"}}}}}}
   /qaqc/quality-briefs/{id}/submit:
-    post: {operationId: submitQualityBrief, tags: [qaqc], summary: Submit quality brief, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
+    post: {operationId: submitQualityBrief, tags: [qaqc], summary: Submit quality brief, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/SubmitForReview"}, responses: {"200": {description: Submitted}}}
   /qaqc/quality-briefs/{id}/review:
     post: {operationId: reviewQualityBrief, tags: [qaqc], summary: Review quality brief, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed}}}
   /qaqc/pqi:
@@ -856,6 +887,7 @@ components:
     CarPage: {description: Paginated CARs, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReportPage"}}}}
   requestBodies:
     ApprovalReview: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ApprovalReview"}}}}
+    SubmitForReview: {required: false, content: {application/json: {schema: {$ref: "#/components/schemas/SubmitForReview"}}}}
     Rephrase: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/RephraseRequest"}}}}
     Prompt: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/PromptRequest"}}}}
     PromptAnswer: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/PromptAnswer"}}}}
@@ -883,7 +915,46 @@ components:
     FeedbackSubmission: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SubmitFeedbackInput"}}}}
     FeedbackTriageRequest: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/TriageFeedbackInput"}}}}
     FeedbackResolutionUpdate: {required: true, content: {application/json: {schema: {type: object, required: [resolution], properties: {resolution: {type: string, enum: [open, reviewing, resolved]}}}}}}
+    SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    FieldMappingTargetField:
+      type: object
+      required: [key, label, required]
+      properties:
+        key: {type: string}
+        label: {type: string}
+        required: {type: boolean}
+    FieldMappingEntity:
+      type: object
+      required: [entity, label, sourceSuggestions, targetFields]
+      properties:
+        entity: {type: string}
+        label: {type: string}
+        sourceSuggestions: {type: array, items: {type: string}}
+        targetFields: {type: array, items: {$ref: "#/components/schemas/FieldMappingTargetField"}}
+    ConnectorFieldMapping:
+      type: object
+      required: [id, entity, sourceField, targetField, active]
+      properties:
+        id: {type: string}
+        entity: {type: string}
+        sourceField: {type: string}
+        targetField: {type: string}
+        active: {type: boolean}
+    FieldMappingWorkspace:
+      type: object
+      required: [connectorId, entities, mappings]
+      properties:
+        connectorId: {type: string}
+        entities: {type: array, items: {$ref: "#/components/schemas/FieldMappingEntity"}}
+        mappings: {type: array, items: {$ref: "#/components/schemas/ConnectorFieldMapping"}}
+    SaveFieldMappingsInput:
+      type: object
+      required: [entity, active, mappings]
+      properties:
+        entity: {type: string, minLength: 1}
+        active: {type: boolean}
+        mappings: {type: array, items: {type: object, required: [sourceField, targetField], properties: {sourceField: {type: string, minLength: 1}, targetField: {type: string, minLength: 1}}}}
     MasterDataValue:
       type: object
       required: [id, groupId, value, label, sortOrder, active, metadata]
@@ -1281,6 +1352,8 @@ components:
         ageing15To45: {type: number, minimum: 0}
         ageingOver45: {type: number, minimum: 0}
         workflowState: {$ref: "#/components/schemas/WorkflowState"}
+        approverId: {type: [string, "null"], description: Designated approver chosen at submission}
+        submittedById: {type: [string, "null"], readOnly: true}
         closureRate: {type: number, readOnly: true, description: Returns 100 when issued and closed are both zero}
         variance: {type: number, readOnly: true}
         pqi: {type: number, readOnly: true}
@@ -1305,11 +1378,14 @@ components:
     QualityAssessmentBrief:
       type: object
       required: [id, projectId, period, narrative, workflowState]
-      properties: {id: {type: string}, projectId: {type: string}, period: {type: string}, narrative: {type: string}, aiDraft: {type: [string, "null"]}, aiReviewDecision: {type: [string, "null"], enum: [Accept, Edit, Reject, null]}, workflowState: {$ref: "#/components/schemas/WorkflowState"}, reviewComments: {type: [string, "null"]}}
+      properties: {id: {type: string}, projectId: {type: string}, period: {type: string}, narrative: {type: string}, aiDraft: {type: [string, "null"]}, aiReviewDecision: {type: [string, "null"], enum: [Accept, Edit, Reject, null]}, workflowState: {$ref: "#/components/schemas/WorkflowState"}, approverId: {type: [string, "null"], description: Designated approver chosen at submission}, reviewComments: {type: [string, "null"]}}
     ApprovalReview:
       type: object
       required: [decision]
       properties: {decision: {type: string, enum: [approve, send_back]}, comments: {type: [string, "null"]}}
+    SubmitForReview:
+      type: object
+      properties: {approverId: {type: string, description: Designated approver; defaults to the approver already stored on the record}}
     AIDraft:
       type: object
       required: [draft, suggestions]

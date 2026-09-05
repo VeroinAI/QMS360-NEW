@@ -200,6 +200,21 @@ async function recordSyncJob(
   });
 }
 
+function createTransporter(config: SmtpConfig, target: SmtpTarget) {
+  return nodemailer.createTransport({
+    host: target.host, // vetted IP literal — nodemailer will not re-resolve it
+    port: config.port,
+    secure: config.secure,
+    // hostname for TLS SNI + certificate verification (merged into both the
+    // implicit-TLS connect and the STARTTLS upgrade)
+    tls: target.servername ? { servername: target.servername } : undefined,
+    auth: config.username ? { user: config.username, pass: config.password ?? "" } : undefined,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
+  });
+}
+
 export async function deliverEmail(
   database: Database,
   input: EmailDeliveryInput,
@@ -207,6 +222,9 @@ export async function deliverEmail(
   try {
     const recipientIds = [...new Set(input.recipientIds)].filter(Boolean);
     if (!recipientIds.length) return { attempted: false, reason: "no_recipients" };
+    // Embedded in every recorded failure so the Cockpit sync-job retry action
+    // can resend the exact original email without the caller reconstructing it.
+    const retryPayload = { recipientIds, subject: input.subject, text: input.text };
 
     const connector = await findEmailConnector(database, input.organizationId);
     if (!connector) return { attempted: false, reason: "no_connector" };
@@ -217,7 +235,7 @@ export async function deliverEmail(
       await recordSyncJob(database, {
         organizationId: input.organizationId, connectorId: connector.id, outcome: "failed",
         durationMs: 0,
-        errors: [{ message: "SMTP connector is missing host/from configuration", ...input.context }],
+        errors: [{ message: "SMTP connector is missing host/from configuration", ...input.context, ...retryPayload }],
       });
       await setConnectorStatus(database, connector, "Failed");
       return { attempted: false, reason: "incomplete_config" };
@@ -238,21 +256,10 @@ export async function deliverEmail(
     try {
       target = await resolveSmtpTarget(config.host);
     } catch (error) {
-      errors.push({ message: error instanceof Error ? error.message : String(error), ...input.context });
+      errors.push({ message: error instanceof Error ? error.message : String(error), ...input.context, ...retryPayload });
     }
     if (target) {
-      const transporter = nodemailer.createTransport({
-        host: target.host, // vetted IP literal — nodemailer will not re-resolve it
-        port: config.port,
-        secure: config.secure,
-        // hostname for TLS SNI + certificate verification (merged into both the
-        // implicit-TLS connect and the STARTTLS upgrade)
-        tls: target.servername ? { servername: target.servername } : undefined,
-        auth: config.username ? { user: config.username, pass: config.password ?? "" } : undefined,
-        connectionTimeout: 10_000,
-        greetingTimeout: 10_000,
-        socketTimeout: 15_000,
-      });
+      const transporter = createTransporter(config, target);
       const from = `"${config.fromName.replaceAll('"', "")}" <${config.fromAddress}>`;
       const results = await Promise.allSettled(recipients.map((recipient) =>
         transporter.sendMail({ from, to: recipient.email, subject: input.subject, text: input.text })));
@@ -265,6 +272,7 @@ export async function deliverEmail(
             recipient: recipients[index]!.email,
             message: result.reason instanceof Error ? result.reason.message : String(result.reason),
             ...input.context,
+            ...retryPayload,
           });
         }
       }
@@ -281,5 +289,50 @@ export async function deliverEmail(
     // Delivery must never break the caller; in-app notification already stands.
     console.error("Email delivery failed unexpectedly", error);
     return { attempted: false, reason: "unexpected_error" };
+  }
+}
+
+/**
+ * Sends a single test email through a specific email connector (used by the
+ * Integration Cockpit "Send test email" action). Unlike deliverEmail this
+ * reports failure to the caller, and it still records a sync job + updates
+ * connector status so the Cockpit log reflects the attempt.
+ */
+export async function sendConnectorTestEmail(
+  database: Database,
+  connector: typeof integrationConnectors.$inferSelect,
+  recipientEmail: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const startedAt = Date.now();
+  const record = (outcome: "success" | "failed", errors: Array<Record<string, unknown>>) =>
+    recordSyncJob(database, {
+      organizationId: connector.organizationId, connectorId: connector.id, outcome,
+      durationMs: Date.now() - startedAt, errors,
+    });
+  const config = readSmtpConfig(connector.configuration);
+  if (!config) {
+    await record("failed", [{ message: "SMTP connector is missing host/from configuration", kind: "connector_test" }]);
+    await setConnectorStatus(database, connector, "Failed");
+    return { ok: false, error: "SMTP connector is missing host/from configuration" };
+  }
+  try {
+    const target = await resolveSmtpTarget(config.host);
+    const transporter = createTransporter(config, target);
+    const from = `"${config.fromName.replaceAll('"', "")}" <${config.fromAddress}>`;
+    await transporter.sendMail({
+      from,
+      to: recipientEmail,
+      subject: "QMS360 connector test",
+      text: "This is a test email from the QMS360 Integration Cockpit. If you received it, this connector's SMTP settings are working.",
+    });
+    transporter.close();
+    await record("success", []);
+    await setConnectorStatus(database, connector, "Connected");
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await record("failed", [{ message, kind: "connector_test" }]);
+    await setConnectorStatus(database, connector, "Failed");
+    return { ok: false, error: message };
   }
 }

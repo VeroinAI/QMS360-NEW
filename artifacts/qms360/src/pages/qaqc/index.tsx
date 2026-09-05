@@ -21,7 +21,7 @@ import {
   useListMaterialInspections, useListQaqcApprovals, useListQaqcMetrics,
   useListQtbtEntries, useListQualityBriefs, usePromptToQaqcTransaction,
   useRephraseQaqcField, useReviewQaqcMetric, useReviewQualityBrief,
-  useSubmitQaqcMetric, useSubmitQualityBrief, useUpdateQaqcMetric, useUpdateQualityBrief,
+  useListQaqcApprovers, useSubmitQaqcMetric, useSubmitQualityBrief, useUpdateQaqcMetric, useUpdateQualityBrief,
   type CustomerSatisfactionEntry, type DocumentGovernanceLogEntry,
   type MaterialInspectionEntry, type QAQCMetricEntry, type QTBTEntry,
   type QualityAssessmentBrief,
@@ -181,13 +181,12 @@ function parseCsvRows(text: string): string[][] {
   return rows;
 }
 
-function csvToMetricRows(text: string): QAQCMetricEntry[] {
-  const [header, ...lines] = parseCsvRows(text);
+function tableToMetricRows(header: string[] | undefined, lines: string[][]): QAQCMetricEntry[] {
   if (!header) return [];
   const keys = header.map((h) => h.trim());
   return lines.map((cols) => {
     const raw: Record<string, string> = {};
-    keys.forEach((key, i) => { raw[key] = (cols[i] ?? '').trim(); });
+    keys.forEach((key, i) => { raw[key] = String(cols[i] ?? '').trim(); });
     return {
       id: raw.id || crypto.randomUUID(),
       projectId: raw.projectId || '',
@@ -200,7 +199,36 @@ function csvToMetricRows(text: string): QAQCMetricEntry[] {
       ageingOver45: Number(raw.ageingOver45 || 0),
       workflowState: raw.workflowState || 'Draft',
     } as unknown as QAQCMetricEntry;
-  });
+  }).filter((row) => row.projectId || row.period);
+}
+
+function SubmitForReviewButton({ label, size, disabled, onSubmit }: { label: string; size?: 'sm'; disabled?: boolean; onSubmit: (approverId: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [approverId, setApproverId] = useState('');
+  const approvers = useListQaqcApprovers();
+  return <>
+    <Button size={size} variant="outline" disabled={disabled} onClick={() => setOpen(true)}>{label}</Button>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent>
+      <DialogHeader><DialogTitle>Submit for review</DialogTitle><DialogDescription>Choose the designated approver. They are notified in-app and by email, and only they (or an org admin) can review it.</DialogDescription></DialogHeader>
+      <Select value={approverId} onValueChange={setApproverId}><SelectTrigger><SelectValue placeholder={approvers.isLoading ? 'Loading approvers…' : 'Select approver'} /></SelectTrigger><SelectContent>{(approvers.data ?? []).map((a) => <SelectItem key={a.id} value={a.id}>{a.fullName}</SelectItem>)}</SelectContent></Select>
+      <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button disabled={!approverId} onClick={() => { onSubmit(approverId); setOpen(false); setApproverId(''); }}>Submit</Button></DialogFooter>
+    </DialogContent></Dialog>
+  </>;
+}
+
+function csvToMetricRows(text: string): QAQCMetricEntry[] {
+  const [header, ...lines] = parseCsvRows(text);
+  return tableToMetricRows(header, lines);
+}
+
+async function xlsxToMetricRows(file: File): Promise<QAQCMetricEntry[]> {
+  const XLSX = await import('xlsx');
+  const workbook = XLSX.read(await file.arrayBuffer());
+  const sheet = workbook.Sheets[workbook.SheetNames[0]!];
+  if (!sheet) return [];
+  const grid = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, raw: false, defval: '' });
+  const [header, ...lines] = grid;
+  return tableToMetricRows(header, lines as string[][]);
 }
 
 function MetricsPage() {
@@ -218,21 +246,21 @@ function MetricsPage() {
     event.target.value = '';
     if (!file) return;
     try {
-      const rows = csvToMetricRows(await file.text());
+      const rows = /\.xlsx$/i.test(file.name) ? await xlsxToMetricRows(file) : csvToMetricRows(await file.text());
       if (!rows.length) { toast({ title: 'No data rows found', description: 'Use the downloaded template and keep the header row.', variant: 'destructive' }); return; }
       importer.mutate({ data: rows }, {
         onSuccess: r => { done(`Import finished: ${r.created} created, ${r.updated} updated`); if (r.errors?.length) toast({ title: `${r.rejected} rows rejected`, description: r.errors.map(x => x.error).join(', '), variant: 'destructive' }); },
         onError: err => toast({ title: 'Import failed', description: errorText(err), variant: 'destructive' }),
       });
-    } catch { toast({ title: 'Could not read the file', description: 'Save the template as CSV and try again.', variant: 'destructive' }); }
+    } catch { toast({ title: 'Could not read the file', description: 'Use the downloaded CSV or Excel template and try again.', variant: 'destructive' }); }
   };
   return <Page title="NCR / RFI / RMI metrics" description="Monthly quality transactions, closure performance and ageing analysis." actions={<><Button variant="secondary" onClick={() => delivery('template')}><Download className="mr-2 size-4" />Template</Button><Button variant="secondary" onClick={() => delivery('report')}><FileBarChart className="mr-2 size-4" />Export CSV</Button><Button variant="secondary" onClick={() => { setEditing(undefined); setSeed({}); setOpen(true); }}><Plus className="mr-2 size-4" />New entry</Button></>}>
     <AiQuickEntry onExtract={data => { setEditing(undefined); setSeed(data); setOpen(true); }} />
-    <Card><CardContent className="flex flex-col gap-3 p-4 sm:flex-row"><SearchBox value={projectId} onChange={v => { setProjectId(v); setPage(1); }} placeholder="Filter by project ID" /><Input className="w-full sm:w-44" type="month" value={period} onChange={e => { setPeriod(e.target.value); setPage(1); }} /><Label className="flex cursor-pointer items-center gap-2 rounded-md border px-3 text-sm"><Upload className="size-4" />{importer.isPending ? 'Importing…' : 'Import CSV'}<input className="hidden" type="file" accept=".csv" onChange={importFile} /></Label></CardContent></Card>
+    <Card><CardContent className="flex flex-col gap-3 p-4 sm:flex-row"><SearchBox value={projectId} onChange={v => { setProjectId(v); setPage(1); }} placeholder="Filter by project ID" /><Input className="w-full sm:w-44" type="month" value={period} onChange={e => { setPeriod(e.target.value); setPage(1); }} /><Label className="flex cursor-pointer items-center gap-2 rounded-md border px-3 text-sm"><Upload className="size-4" />{importer.isPending ? 'Importing…' : 'Import Excel / CSV'}<input className="hidden" type="file" accept=".csv,.xlsx" onChange={importFile} /></Label></CardContent></Card>
     <Tabs value={category} onValueChange={setCategory}><TabsList className="h-auto flex-wrap">{withLegacyOption(categories.options, category).map(c => <TabsTrigger key={c.value} value={c.value}>{c.label}</TabsTrigger>)}</TabsList></Tabs>
     <QueryState loading={query.isLoading} error={query.error} empty={!rows.length}><Card className="overflow-hidden"><Table><TableHeader><TableRow><TableHead>Project / period</TableHead><TableHead>Issued</TableHead><TableHead>Closed</TableHead><TableHead>Ageing 0–15 / 15–45 / &gt;45</TableHead><TableHead>Closure</TableHead><TableHead>Variance</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{rows.map(row => {
       const rate = row.issuedCount === 0 && row.closedCount === 0 ? 100 : row.issuedCount ? row.closedCount / row.issuedCount * 100 : 0;
-      return <TableRow key={row.id}><TableCell><p className="font-medium">{row.projectId}</p><p className="text-xs text-muted-foreground">{row.period}</p></TableCell><TableCell>{row.issuedCount}</TableCell><TableCell>{row.closedCount}</TableCell><TableCell>{row.ageing0To15} / {row.ageing15To45} / {row.ageingOver45}</TableCell><TableCell>{(row.closureRate ?? rate).toFixed(1)}%</TableCell><TableCell>{(row.variance ?? 0).toFixed(1)}</TableCell><TableCell><StateBadge state={row.workflowState} /></TableCell><TableCell><div className="flex justify-end gap-1">{(row.workflowState === 'Draft' || row.workflowState === 'Sent Back') && <Button size="sm" variant="ghost" onClick={() => { setEditing(row); setOpen(true); }}>Edit</Button>}{row.workflowState === 'Draft' && <Button size="sm" variant="outline" onClick={() => submit.mutate({ id: row.id }, { onSuccess: () => done('Metric submitted') })}>Submit</Button>}{row.workflowState === 'Submitted' && <><Button size="sm" onClick={() => setReviewing({ id: row.id, decision: 'approve' })}>Approve</Button><Button size="sm" variant="outline" onClick={() => setReviewing({ id: row.id, decision: 'send_back' })}>Send back</Button></>}<ConfirmDelete busy={del.isPending} onConfirm={() => del.mutate({ id: row.id }, { onSuccess: () => done('Metric deleted') })} /></div></TableCell></TableRow>;
+      return <TableRow key={row.id}><TableCell><p className="font-medium">{row.projectId}</p><p className="text-xs text-muted-foreground">{row.period}</p></TableCell><TableCell>{row.issuedCount}</TableCell><TableCell>{row.closedCount}</TableCell><TableCell>{row.ageing0To15} / {row.ageing15To45} / {row.ageingOver45}</TableCell><TableCell>{(row.closureRate ?? rate).toFixed(1)}%</TableCell><TableCell>{(row.variance ?? 0).toFixed(1)}</TableCell><TableCell><StateBadge state={row.workflowState} /></TableCell><TableCell><div className="flex justify-end gap-1">{(row.workflowState === 'Draft' || row.workflowState === 'Sent Back') && <Button size="sm" variant="ghost" onClick={() => { setEditing(row); setOpen(true); }}>Edit</Button>}{row.workflowState === 'Draft' && <SubmitForReviewButton label="Submit" size="sm" disabled={submit.isPending} onSubmit={(approverId) => submit.mutate({ id: row.id, data: { approverId } }, { onSuccess: () => done('Metric submitted') })} />}{row.workflowState === 'Submitted' && <><Button size="sm" onClick={() => setReviewing({ id: row.id, decision: 'approve' })}>Approve</Button><Button size="sm" variant="outline" onClick={() => setReviewing({ id: row.id, decision: 'send_back' })}>Send back</Button></>}<ConfirmDelete busy={del.isPending} onConfirm={() => del.mutate({ id: row.id }, { onSuccess: () => done('Metric deleted') })} /></div></TableCell></TableRow>;
     })}</TableBody></Table><Pager page={page} total={query.data?.total || 0} onPage={setPage} /></Card></QueryState>
     <MetricDialog key={`${editing?.id || 'new'}-${JSON.stringify(seed)}`} open={open} onOpenChange={setOpen} seed={seed} existing={editing} />
     <Dialog open={!!reviewing} onOpenChange={() => setReviewing(undefined)}><DialogContent><DialogHeader><DialogTitle>{reviewing?.decision === 'approve' ? 'Approve metric' : 'Send metric back'}</DialogTitle><DialogDescription>Add review remarks. Remarks are required when sending back.</DialogDescription></DialogHeader><Textarea value={comments} onChange={e => setComments(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" onClick={() => setReviewing(undefined)}>Cancel</Button><Button disabled={!reviewing || (reviewing.decision === 'send_back' && !comments.trim()) || review.isPending} onClick={() => reviewing && review.mutate({ id: reviewing.id, data: { decision: reviewing.decision, comments } }, { onSuccess: () => { done(reviewing.decision === 'approve' ? 'Metric approved' : 'Metric sent back'); setReviewing(undefined); setComments(''); } })}>Confirm</Button></DialogFooter></DialogContent></Dialog>
@@ -338,7 +366,7 @@ function BriefEditor() {
   const save = (next = text, aiDecision = original.aiReviewDecision) => update.mutate({ id, data: { ...original, narrative: next, aiReviewDecision: aiDecision } }, { onSuccess: () => { invalidate(qc); toast({ title: 'Brief saved' }); } });
   return <Page title="Quality brief editor" description={`${original.projectId} · ${original.period}`} actions={<Button variant="secondary" onClick={() => navigate('/qaqc/briefs')}><ArrowLeft className="mr-2 size-4" />All briefs</Button>}>
     {aiUnavailable && <Alert><Bot className="size-4" /><AlertTitle>AI drafting is temporarily unavailable</AlertTitle><AlertDescription>You can continue writing and submit the brief manually. Your work is not affected.</AlertDescription></Alert>}
-    <div className="grid gap-4 lg:grid-cols-[1fr_360px]"><Card><CardHeader><CardTitle>Assessment narrative</CardTitle><CardDescription>Review all generated content before accepting it.</CardDescription></CardHeader><CardContent className="space-y-4"><RephraseField label="Quality assessment narrative" value={text} onChange={setNarrative} /><div className="flex flex-wrap gap-2"><Button onClick={() => save()}>Save changes</Button>{original.workflowState === 'Draft' && <Button variant="outline" onClick={() => submit.mutate({ id }, { onSuccess: () => { invalidate(qc); toast({ title: 'Brief submitted' }); } })}>Submit for review</Button>}{original.workflowState === 'Submitted' && <><Button variant="outline" onClick={() => setDecision('approve')}>Approve</Button><Button variant="outline" onClick={() => setDecision('send_back')}>Send back</Button></>}</div></CardContent></Card>
+    <div className="grid gap-4 lg:grid-cols-[1fr_360px]"><Card><CardHeader><CardTitle>Assessment narrative</CardTitle><CardDescription>Review all generated content before accepting it.</CardDescription></CardHeader><CardContent className="space-y-4"><RephraseField label="Quality assessment narrative" value={text} onChange={setNarrative} /><div className="flex flex-wrap gap-2"><Button onClick={() => save()}>Save changes</Button>{original.workflowState === 'Draft' && <SubmitForReviewButton label="Submit for review" disabled={submit.isPending} onSubmit={(approverId) => submit.mutate({ id, data: { approverId } }, { onSuccess: () => { invalidate(qc); toast({ title: 'Brief submitted' }); } })} />}{original.workflowState === 'Submitted' && <><Button variant="outline" onClick={() => setDecision('approve')}>Approve</Button><Button variant="outline" onClick={() => setDecision('send_back')}>Send back</Button></>}</div></CardContent></Card>
       <Card><CardHeader><CardTitle className="flex items-center gap-2"><Sparkles className="size-4 text-primary" />AI draft assistant</CardTitle><CardDescription>Suggestions require an explicit human decision.</CardDescription></CardHeader><CardContent className="space-y-3"><Button className="w-full" disabled={ai.isPending} onClick={() => { setAiUnavailable(false); ai.mutate({ id }, { onSuccess: setAiDraft, onError: () => setAiUnavailable(true) }); }}><Bot className="mr-2 size-4" />Generate AI draft</Button>{aiDraft && <><div className="max-h-52 overflow-auto rounded-md border p-3 text-sm">{aiDraft.draft}</div><div className="flex flex-wrap gap-1">{aiDraft.suggestions.map(s => <Badge key={s} variant="secondary">{s}</Badge>)}</div><div className="grid grid-cols-3 gap-2"><Button size="sm" onClick={() => { setNarrative(aiDraft.draft); save(aiDraft.draft, 'Accept'); }}>Accept</Button><Button size="sm" variant="outline" onClick={() => { setNarrative(aiDraft.draft); save(aiDraft.draft, 'Edit'); }}>Edit</Button><Button size="sm" variant="outline" onClick={() => { save(text, 'Reject'); setAiDraft(undefined); }}>Reject</Button></div></>}</CardContent></Card>
     </div>
     <Dialog open={!!decision} onOpenChange={() => setDecision(undefined)}><DialogContent><DialogHeader><DialogTitle>{decision === 'approve' ? 'Approve brief' : 'Send brief back'}</DialogTitle><DialogDescription>Remarks are required when sending a brief back.</DialogDescription></DialogHeader><Textarea value={remarks} onChange={e => setRemarks(e.target.value)} /><DialogFooter><Button disabled={!decision || (decision === 'send_back' && !remarks.trim())} onClick={() => decision && review.mutate({ id, data: { decision, comments: remarks } }, { onSuccess: () => { invalidate(qc); toast({ title: decision === 'approve' ? 'Brief approved' : 'Brief sent back' }); setDecision(undefined); } })}>Confirm</Button></DialogFooter></DialogContent></Dialog>

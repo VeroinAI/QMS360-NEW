@@ -1541,3 +1541,37 @@ CREATE TABLE IF NOT EXISTS "shared"."feedback_entries" (
 ALTER TABLE "shared"."feedback_entries" ADD CONSTRAINT "feedback_entries_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;
 --> statement-breakpoint
 ALTER TABLE "shared"."feedback_entries" ADD CONSTRAINT "feedback_entries_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;
+
+CREATE TABLE IF NOT EXISTS "shared"."connector_field_mappings" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"connector_id" uuid NOT NULL,
+	"entity" text NOT NULL,
+	"source_field" text NOT NULL,
+	"target_field" text NOT NULL,
+	"is_active" boolean DEFAULT false NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "shared"."connector_field_mappings" ADD CONSTRAINT "connector_field_mappings_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "shared"."connector_field_mappings" ADD CONSTRAINT "connector_field_mappings_connector_id_integration_connectors_id_fk" FOREIGN KEY ("connector_id") REFERENCES "shared"."integration_connectors"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "connector_field_mappings_connector_idx" ON "shared"."connector_field_mappings" USING btree ("connector_id");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "connector_field_mappings_live_target_idx" ON "shared"."connector_field_mappings" USING btree ("connector_id", "entity", "target_field") WHERE "deleted_at" IS NULL;
+
+ALTER TABLE "app1_qaqc"."qaqc_metric_entries" ADD COLUMN IF NOT EXISTS "approver_id" uuid;
+ALTER TABLE "app1_qaqc"."qaqc_metric_entries" ADD COLUMN IF NOT EXISTS "submitted_by_id" uuid;
+ALTER TABLE "app1_qaqc"."quality_assessment_briefs" ADD COLUMN IF NOT EXISTS "approver_id" uuid;
+ALTER TABLE "app1_qaqc"."qaqc_metric_entries" ADD CONSTRAINT "qaqc_metric_entries_approver_id_users_id_fk" FOREIGN KEY ("approver_id") REFERENCES "shared"."users"("id");
+ALTER TABLE "app1_qaqc"."qaqc_metric_entries" ADD CONSTRAINT "qaqc_metric_entries_submitted_by_id_users_id_fk" FOREIGN KEY ("submitted_by_id") REFERENCES "shared"."users"("id");
+ALTER TABLE "app1_qaqc"."quality_assessment_briefs" ADD CONSTRAINT "quality_assessment_briefs_approver_id_users_id_fk" FOREIGN KEY ("approver_id") REFERENCES "shared"."users"("id");
+
+-- After applying this script to a live database, record the migration baseline:
+--   pnpm --filter @workspace/scripts run record-baseline
+-- Then verify no drift before future promotions:
+--   pnpm --filter @workspace/scripts run check-drift

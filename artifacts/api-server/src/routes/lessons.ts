@@ -50,6 +50,7 @@ import { confirmEvidence, createEvidenceIntent as createIntent, deleteEvidence, 
 import {
   asyncHandler, HttpError, notFound, notify, paginated, pagination, writeAuditLog,
 } from "../lib/workspace";
+import { notifyWithEmail } from "../lib/workspace";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -351,7 +352,7 @@ router.post("/forms/:id/submit", asyncHandler(async (req, res) => {
   if (!before.approverId) throw new HttpError(422, "An approver is required before submission");
   const [row] = await db.update(lessonLearnedForms).set({ workflowState: "submitted", updatedAt: new Date() }).where(eq(lessonLearnedForms.id, before.id)).returning();
   await audit(req, "submit", "lesson_form", before.id, formJson(before), formJson(row!));
-  await notify(db, "lessons", { organizationId: before.organizationId, userId: before.approverId, type: "lesson_submitted", title: "Lesson awaiting approval", body: `${before.referenceNumber} is ready for review.`, entityType: "lesson_form", entityId: before.id });
+  await notifyWithEmail(db, "lessons", { organizationId: before.organizationId, userId: before.approverId, type: "lesson_submitted", title: "Lesson awaiting approval", body: `${before.referenceNumber} is ready for review.`, entityType: "lesson_form", entityId: before.id });
   res.json(formJson(row!));
 }));
 
@@ -363,6 +364,10 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
   if (!before) notFound("Lesson form not found");
   if (!req.permissionAdminBypass && before.approverId !== req.currentUser!.id) {
     throw new HttpError(403, "Only the designated approver may review this form");
+  }
+  // Self-approval is never allowed — not even for admins with review bypass.
+  if (before.creatorId === req.currentUser!.id) {
+    throw new HttpError(403, "You cannot review a lesson you created");
   }
   if (before.workflowState !== "submitted") throw new HttpError(409, "Only submitted forms may be reviewed");
   const state = body.decision === "approve" ? "approved" : "sent_back";
@@ -381,7 +386,7 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
     isNull(lessonEscalationInstances.deletedAt),
   ));
   await audit(req, body.decision, "lesson_form", before.id, formJson(before), { ...formJson(row!), remarks: body.comments });
-  await notify(db, "lessons", { organizationId: before.organizationId, userId: before.creatorId, type: `lesson_${state}`, title: `Lesson ${publicState(state)}`, body: body.comments?.trim() || `${before.referenceNumber} was approved.`, entityType: "lesson_form", entityId: before.id });
+  await notifyWithEmail(db, "lessons", { organizationId: before.organizationId, userId: before.creatorId, type: `lesson_${state}`, title: `Lesson ${publicState(state)}`, body: body.comments?.trim() || `${before.referenceNumber} was approved.`, entityType: "lesson_form", entityId: before.id });
   res.json({ ...formJson(row!), remarks: body.comments });
 }));
 

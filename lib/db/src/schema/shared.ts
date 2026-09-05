@@ -185,6 +185,19 @@ export const syncJobs = sharedSchema.table("sync_jobs", {
   ...auditColumns,
 });
 
+export const connectorFieldMappings = sharedSchema.table("connector_field_mappings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  connectorId: uuid("connector_id").notNull().references(() => integrationConnectors.id),
+  entity: text("entity").notNull(),
+  sourceField: text("source_field").notNull(),
+  targetField: text("target_field").notNull(),
+  isActive: boolean("is_active").notNull().default(false),
+  ...auditColumns,
+}, (table) => [
+  index("connector_field_mappings_connector_idx").on(table.connectorId),
+]);
+
 export const feedbackEntries = sharedSchema.table("feedback_entries", {
   id: uuid("id").defaultRandom().primaryKey(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),

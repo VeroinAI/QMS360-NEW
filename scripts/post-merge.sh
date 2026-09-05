@@ -9,3 +9,11 @@ pnpm install --frozen-lockfile
 # failure must NOT fail the merge. The dev database schema is applied via the
 # versioned baseline migration (lib/db/drizzle/) + scripts/production-schema.sql.
 pnpm --filter db push || echo "WARNING: drizzle-kit push did not complete cleanly (known multi-schema enum quirk); schema sync skipped. Apply schema changes via lib/db/drizzle migrations instead."
+
+# Schema drift guard: compares the live database and scripts/production-schema.sql
+# against lib/db/src/schema (enum types/labels, tables, columns). This is the
+# check that stops enum types from slipping past database change scripts —
+# investigate any DRIFT lines before promoting schema changes to production.
+if ! pnpm --filter @workspace/scripts run check-drift; then
+  echo "WARNING: schema drift detected (see DRIFT lines above). Reconcile lib/db/drizzle migrations + scripts/production-schema.sql before promoting to production."
+fi

@@ -8,7 +8,7 @@ import {
 } from "../lib/ai";
 import { confirmEvidence, createEvidenceIntent, deleteEvidence, listEvidence } from "../lib/evidence";
 import {
-  asyncHandler, HttpError, notify, paginated, pagination, writeAuditLog,
+  asyncHandler, HttpError, notify, notifyWithEmail, paginated, pagination, writeAuditLog,
 } from "../lib/workspace";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { requireAppAccess, requirePermission } from "../middlewares/rbac";
@@ -55,6 +55,41 @@ router.use(asyncHandler(async (req, _res, next) => {
 type Table = any;
 const org = (req: Request) => req.currentUser!.organizationId;
 const actor = (req: Request) => req.currentUser!.id;
+
+/** Users eligible to approve QA/QC work: org/super admins or holders of an approver-like workspace role. */
+async function eligibleQaqcApprovers(organizationId: string) {
+  const rows = await db.select({
+    id: users.id, fullName: users.fullName, email: users.email,
+    platformRole: platformRoles.name, workspaceRole: workspaceRoles.name,
+  })
+    .from(users)
+    .leftJoin(platformRoles, eq(users.platformRoleId, platformRoles.id))
+    .leftJoin(userWorkspaceRoles, and(eq(userWorkspaceRoles.userId, users.id), isNull(userWorkspaceRoles.deletedAt)))
+    .leftJoin(workspaceRoles, and(eq(workspaceRoles.id, userWorkspaceRoles.workspaceRoleId), isNull(workspaceRoles.deletedAt), eq(workspaceRoles.status, "active")))
+    .where(and(eq(users.organizationId, organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt)));
+  const byUser = new Map<string, { fullName: string; email: string; platformRole: string | null; roles: Set<string> }>();
+  for (const row of rows) {
+    const entry = byUser.get(row.id) ?? { fullName: row.fullName, email: row.email, platformRole: row.platformRole, roles: new Set<string>() };
+    if (row.workspaceRole) entry.roles.add(row.workspaceRole);
+    byUser.set(row.id, entry);
+  }
+  const isApproverRole = (name: string) => /approv/i.test(name) || /\b(admin|administrator)\b/i.test(name);
+  return [...byUser.entries()]
+    .filter(([, entry]) => ["Super Admin", "Org Admin"].includes(entry.platformRole ?? "") || [...entry.roles].some(isApproverRole))
+    .map(([id, entry]) => ({ id, fullName: entry.fullName, email: entry.email, roles: [...entry.roles].sort() }))
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+}
+
+async function assertQaqcApprover(req: Request, approverId: string) {
+  if (approverId === actor(req)) throw new HttpError(422, "The approver must be different from the submitter");
+  const approvers = await eligibleQaqcApprovers(org(req));
+  if (!approvers.some((a) => a.id === approverId)) throw new HttpError(422, "Selected approver is not an active QA/QC approver");
+}
+
+router.get("/approvers", asyncHandler(async (req, res) => {
+  const approvers = await eligibleQaqcApprovers(req.currentUser!.organizationId);
+  res.json(approvers.filter((approver) => approver.id !== req.currentUser!.id));
+}));
 const titleState = (value: string) => value.split("_").map((p) => p[0]!.toUpperCase() + p.slice(1)).join(" ");
 
 function body<T>(schema: { safeParse: (value: unknown) => any }, req: Request): T {
@@ -205,25 +240,30 @@ router.put("/metrics/:id", asyncHandler(async (req, res) => {
 }));
 router.delete("/metrics/:id", asyncHandler((req, res) => softDelete(req, res, qaqcMetricEntries, "metric")));
 router.post("/metrics/:id/submit", asyncHandler(async (req, res) => {
+  const value: any = req.body && Object.keys(req.body).length ? body(api.SubmitQaqcMetricBody, req) : {};
   const before: any = await activeRow(req, qaqcMetricEntries, String(req.params.id));
   if (!["draft", "sent_back"].includes(before.status)) throw new HttpError(409, "Metric is not eligible for submission");
-  const [row] = await db.update(qaqcMetricEntries).set({ status: "submitted", updatedAt: new Date() }).where(eq(qaqcMetricEntries.id, before.id)).returning();
+  const approverId = value.approverId ?? before.approverId;
+  if (!approverId) throw new HttpError(422, "An approver is required before submission");
+  await assertQaqcApprover(req, approverId);
+  const [row] = await db.update(qaqcMetricEntries).set({ status: "submitted", approverId, submittedById: actor(req), updatedAt: new Date() }).where(eq(qaqcMetricEntries.id, before.id)).returning();
   await audit(req, "submit", "metric", row.id, before, row);
-  const approvers = await db.select({ userId: userWorkspaceRoles.userId }).from(userWorkspaceRoles)
-    .innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id))
-    .where(and(eq(userWorkspaceRoles.organizationId, org(req)), ilike(workspaceRoles.name, "%approv%"), isNull(userWorkspaceRoles.deletedAt)));
-  await Promise.all(approvers.map((a) => notify(db, "qaqc", { organizationId: org(req), userId: a.userId, type: "approval", title: "Metric awaiting review", body: `${row.category} has been submitted.`, entityType: "metric", entityId: row.id })));
+  await notifyWithEmail(db, "qaqc", { organizationId: org(req), userId: approverId, type: "approval", title: "Metric awaiting review", body: `${row.category} has been submitted.`, entityType: "metric", entityId: row.id });
   res.json(mapMetric(row));
 }));
-router.post("/metrics/:id/review", requireAdmin, asyncHandler(async (req, res) => {
+router.post("/metrics/:id/review", asyncHandler(async (req, res) => {
   const value: any = body(api.ReviewQaqcMetricBody, req);
   if (value.decision === "send_back" && !value.comments?.trim()) throw new HttpError(422, "Comments are required when sending back");
   const before: any = await activeRow(req, qaqcMetricEntries, String(req.params.id));
   if (before.status !== "submitted") throw new HttpError(409, "Only submitted metrics can be reviewed");
+  // Self-review is never allowed — not even for admins with review bypass.
+  if (before.submittedById === actor(req)) throw new HttpError(403, "You cannot review a metric you submitted");
+  if (!req.permissionAdminBypass && before.approverId !== actor(req)) throw new HttpError(403, "Only the designated approver may review this metric");
   const state = value.decision === "approve" ? "approved" : "sent_back";
   const [row] = await db.update(qaqcMetricEntries).set({ status: state, updatedAt: new Date() }).where(eq(qaqcMetricEntries.id, before.id)).returning();
   await audit(req, value.decision, "metric", row.id, before, { ...row, reviewComments: value.comments });
-  await notify(db, "qaqc", { organizationId: org(req), userId: before.createdById ?? actor(req), type: "decision", title: `Metric ${state}`, body: value.comments || `Your metric was ${state}.`, entityType: "metric", entityId: row.id }).catch((error) => console.error(`qaqc decision notification failed for metric ${row.id}`, error));
+  const recipient = before.submittedById ?? before.createdById;
+  if (recipient) await notifyWithEmail(db, "qaqc", { organizationId: org(req), userId: recipient, type: "decision", title: `Metric ${state}`, body: value.comments || `Your metric was ${state}.`, entityType: "metric", entityId: row.id }).catch((error) => console.error(`qaqc decision notification failed for metric ${row.id}`, error));
   res.json(mapMetric(row));
 }));
 
@@ -343,23 +383,29 @@ router.post("/quality-briefs/:id/ai-draft", asyncHandler(async (req, res) => {
   }
 }));
 router.post("/quality-briefs/:id/submit", asyncHandler(async (req, res) => {
+  const value: any = req.body && Object.keys(req.body).length ? body(api.SubmitQualityBriefBody, req) : {};
   const before: any = await activeRow(req, qualityAssessmentBriefs, String(req.params.id));
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Brief is not eligible for submission");
-  const [row] = await db.update(qualityAssessmentBriefs).set({ workflowState: "submitted", submittedById: actor(req), updatedAt: new Date() }).where(eq(qualityAssessmentBriefs.id, before.id)).returning();
+  const approverId = value.approverId ?? before.approverId;
+  if (!approverId) throw new HttpError(422, "An approver is required before submission");
+  await assertQaqcApprover(req, approverId);
+  const [row] = await db.update(qualityAssessmentBriefs).set({ workflowState: "submitted", submittedById: actor(req), approverId, updatedAt: new Date() }).where(eq(qualityAssessmentBriefs.id, before.id)).returning();
   await audit(req, "submit", "quality_brief", row.id, before, row);
-  const approvers = await db.select({ userId: userWorkspaceRoles.userId }).from(userWorkspaceRoles).innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id)).where(and(eq(userWorkspaceRoles.organizationId, org(req)), ilike(workspaceRoles.name, "%approv%"), isNull(userWorkspaceRoles.deletedAt)));
-  await Promise.all(approvers.map((a) => notify(db, "qaqc", { organizationId: org(req), userId: a.userId, type: "approval", title: "Quality brief awaiting review", body: "A quality assessment brief was submitted.", entityType: "quality_brief", entityId: row.id })));
+  await notifyWithEmail(db, "qaqc", { organizationId: org(req), userId: approverId, type: "approval", title: "Quality brief awaiting review", body: "A quality assessment brief was submitted.", entityType: "quality_brief", entityId: row.id });
   res.json(mapBrief(row));
 }));
-router.post("/quality-briefs/:id/review", requireAdmin, asyncHandler(async (req, res) => {
+router.post("/quality-briefs/:id/review", asyncHandler(async (req, res) => {
   const v: any = body(api.ReviewQualityBriefBody, req);
   if (v.decision === "send_back" && !v.comments?.trim()) throw new HttpError(422, "Comments are required when sending back");
   const before: any = await activeRow(req, qualityAssessmentBriefs, String(req.params.id));
   if (before.workflowState !== "submitted") throw new HttpError(409, "Only submitted briefs can be reviewed");
+  // Self-review is never allowed — not even for admins with review bypass.
+  if (before.submittedById === actor(req)) throw new HttpError(403, "You cannot review a brief you submitted");
+  if (!req.permissionAdminBypass && before.approverId !== actor(req)) throw new HttpError(403, "Only the designated approver may review this brief");
   const state = v.decision === "approve" ? "approved" : "sent_back";
   const [row] = await db.update(qualityAssessmentBriefs).set({ workflowState: state, approvedById: state === "approved" ? actor(req) : null, updatedAt: new Date() }).where(eq(qualityAssessmentBriefs.id, before.id)).returning();
   await audit(req, v.decision, "quality_brief", row.id, before, { ...row, reviewComments: v.comments });
-  if (before.submittedById) await notify(db, "qaqc", { organizationId: org(req), userId: before.submittedById, type: "decision", title: `Quality brief ${state}`, body: v.comments || `Your brief was ${state}.`, entityType: "quality_brief", entityId: row.id });
+  if (before.submittedById) await notifyWithEmail(db, "qaqc", { organizationId: org(req), userId: before.submittedById, type: "decision", title: `Quality brief ${state}`, body: v.comments || `Your brief was ${state}.`, entityType: "quality_brief", entityId: row.id });
   res.json(mapBrief(row));
 }));
 
@@ -390,35 +436,52 @@ router.get("/dashboard", asyncHandler(async (req, res) => {
 }));
 
 const csvCell = (value: unknown) => `"${String(value ?? "").replaceAll("\"", "\"\"")}"`;
-function sendCsv(res: Response, name: string, headers: string[], rows: unknown[][]) {
-  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
-  res.setHeader("content-type", "text/csv; charset=utf-8");
-  res.setHeader("content-disposition", `attachment; filename="${name.replace(/\.xlsx$/, ".csv")}"`);
-  res.send(csv);
+const toCsv = (headers: string[], rows: unknown[][]) => [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+function sendDownload(res: Response, fileName: string, csv: string) {
+  res.json({ delivery: "download", fileName, downloadUrl: `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`, message: null });
 }
 router.get("/reports/monthly", asyncHandler(async (req, res) => {
   const filters: any[] = [];
   if (req.query.projectId) filters.push(eq(qaqcMetricEntries.projectId, String(req.query.projectId)));
   if (req.query.period) filters.push(eq(qaqcMetricEntries.reportingPeriod, monthStart(String(req.query.period))));
   const rows = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), isNull(qaqcMetricEntries.deletedAt), ...filters)).orderBy(asc(qaqcMetricEntries.category));
-  sendCsv(res, "qaqc-monthly.csv", ["Project ID", "Period", "Category", "Issued", "Closed", "0-15", "15-45", ">45", "Closure Rate"], rows.map((r) => { const m = mapMetric(r); return [r.projectId, r.reportingPeriod, r.category, r.issuedCount, r.closedCount, r.ageing0To15, r.ageing15To45, r.ageingOver45, m.closureRate]; }));
+  sendDownload(res, "qaqc-monthly.csv", toCsv(["Project ID", "Period", "Category", "Issued", "Closed", "0-15", "15-45", ">45", "Closure Rate"], rows.map((r) => { const m = mapMetric(r); return [r.projectId, r.reportingPeriod, r.category, r.issuedCount, r.closedCount, r.ageing0To15, r.ageing15To45, r.ageingOver45, m.closureRate]; })));
 }));
 router.get("/reports/document-governance", asyncHandler(async (req, res) => {
   const filters: any[] = [];
   if (req.query.projectId) filters.push(eq(documentGovernanceLogEntries.projectId, String(req.query.projectId)));
   if (req.query.period) filters.push(eq(documentGovernanceLogEntries.reportingPeriod, monthStart(String(req.query.period))));
   const rows = await db.select().from(documentGovernanceLogEntries).where(and(eq(documentGovernanceLogEntries.organizationId, org(req)), isNull(documentGovernanceLogEntries.deletedAt), ...filters));
-  sendCsv(res, "document-governance.csv", ["Project ID", "Date", "Discipline ID", "Document Type", "Status", "Review Days", "Pending With", "Pending Days", "Correspondence Count"], rows.map((r) => { const m = mapDocument(r); return [m.projectId, m.date, m.disciplineId, m.documentType, m.status, m.reviewDays, m.pendingWith, m.pendingDays, m.correspondenceCount]; }));
+  sendDownload(res, "document-governance.csv", toCsv(["Project ID", "Date", "Discipline ID", "Document Type", "Status", "Review Days", "Pending With", "Pending Days", "Correspondence Count"], rows.map((r) => { const m = mapDocument(r); return [m.projectId, m.date, m.disciplineId, m.documentType, m.status, m.reviewDays, m.pendingWith, m.pendingDays, m.correspondenceCount]; })));
 }));
-router.get("/metrics/template", (_req, res) => sendCsv(res, "qaqc-metrics-template.csv", ["id", "projectId", "period", "category", "issuedCount", "closedCount", "ageing0To15", "ageing15To45", "ageingOver45", "workflowState"], []));
+const TEMPLATE_HEADERS = ["id", "projectId", "period", "category", "issuedCount", "closedCount", "ageing0To15", "ageing15To45", "ageingOver45", "workflowState"];
+router.get("/metrics/template", asyncHandler(async (req, res) => {
+  if (String(req.query.format ?? "") === "xlsx") {
+    const XLSX = await import("xlsx");
+    const sheet = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS]);
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, "Metrics");
+    const buffer = XLSX.write(book, { type: "buffer", bookType: "xlsx" }) as Buffer;
+    res.json({ delivery: "download", fileName: "qaqc-metrics-template.xlsx", downloadUrl: `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${buffer.toString("base64")}`, message: null });
+    return;
+  }
+  sendDownload(res, "qaqc-metrics-template.csv", toCsv(TEMPLATE_HEADERS, []));
+}));
 router.post("/metrics/import", asyncHandler(async (req, res) => {
-  const parsed = api.ImportQaqcMetricsBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(422).json({ error: "Import validation failed", details: parsed.error.issues }); return;
+  if (!Array.isArray(req.body)) {
+    res.status(422).json({ error: "Import validation failed", details: [{ message: "Request body must be an array of metric rows" }] }); return;
   }
   let created = 0; let updated = 0; const errors: Array<{ error: string }> = [];
-  for (const [index, v] of parsed.data.entries()) {
+  for (const [index, item] of (req.body as unknown[]).entries()) {
+    const parsed = api.ImportQaqcMetricsBodyItem.safeParse(item);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      errors.push({ error: `Row ${index + 1}: ${issue ? `${issue.path.join(".") || "row"}: ${issue.message}` : "Invalid row"}` });
+      continue;
+    }
+    const v = parsed.data;
     try {
+      await assertProjectInOrg(db, org(req), v.projectId);
       const [existing] = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), eq(qaqcMetricEntries.projectId, v.projectId), eq(qaqcMetricEntries.reportingPeriod, monthStart(v.period)), eq(qaqcMetricEntries.category, v.category), isNull(qaqcMetricEntries.deletedAt))).limit(1);
       const values = { projectId: v.projectId, reportingPeriod: monthStart(v.period), category: v.category, issuedCount: v.issuedCount, closedCount: v.closedCount, ageing0To15: v.ageing0To15, ageing15To45: v.ageing15To45, ageingOver45: v.ageingOver45, status: v.workflowState.toLowerCase().replace(" ", "_"), updatedAt: new Date() };
       if (existing) { const [row] = await db.update(qaqcMetricEntries).set(values).where(eq(qaqcMetricEntries.id, existing.id)).returning(); await audit(req, "import_update", "metric", row.id, existing, row); updated++; }

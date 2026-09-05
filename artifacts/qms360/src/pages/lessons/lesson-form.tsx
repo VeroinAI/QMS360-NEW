@@ -102,7 +102,8 @@ export function LessonFormPage({ id }: { id?: string }) {
   const readOnly = Boolean(detail.data && !["Draft", "Sent Back"].includes(detail.data.workflowState));
   const isApprover = user.data?.workspaceRoles.some((role) => /approver|admin/i.test(role)) ?? false;
   const isPlatformAdmin = ["Super Admin", "Org Admin"].includes(user.data?.platformRole ?? "");
-  const canReview = isPlatformAdmin || (isApprover && detail.data?.approverId != null && detail.data.approverId === user.data?.id);
+  const isCreator = detail.data?.creatorId != null && detail.data.creatorId === user.data?.id;
+  const canReview = !isCreator && (isPlatformAdmin || (isApprover && detail.data?.approverId != null && detail.data.approverId === user.data?.id));
   const uploadBlocking = uploads.some((x) => x.status !== "done");
   const approverOptions = useMemo(() => {
     const options = approvers.data ?? [];
