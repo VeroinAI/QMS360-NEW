@@ -85,6 +85,8 @@ import type {
   FeedbackTriage,
   FeedbackTriageRequestBody,
   FieldMappingWorkspace,
+  FieldSettingsCatalog,
+  FieldSettingsUpdate,
   GeneratedAuditReport,
   GetAuditDashboardParams,
   GetAuditFindingsLogReportParams,
@@ -1091,6 +1093,154 @@ export function useGetApplicationAccess<TData = Awaited<ReturnType<typeof getApp
 
 
 
+
+export const getGetFieldSettingsUrl = () => {
+
+
+
+
+  return `/api/platform/field-settings`
+}
+
+/**
+ * @summary Get the configurable field catalog per module with current editable/read-only access
+ */
+export const getFieldSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<FieldSettingsCatalog> => {
+
+  return customFetch<FieldSettingsCatalog>(getGetFieldSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFieldSettingsQueryKey = () => {
+    return [
+    `/api/platform/field-settings`
+    ] as const;
+    }
+
+
+export const getGetFieldSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getFieldSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFieldSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFieldSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFieldSettings>>> = ({ signal }) => getFieldSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFieldSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFieldSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getFieldSettings>>>
+export type GetFieldSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the configurable field catalog per module with current editable/read-only access
+ */
+
+export function useGetFieldSettings<TData = Awaited<ReturnType<typeof getFieldSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFieldSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFieldSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateFieldSettingsUrl = () => {
+
+
+
+
+  return `/api/platform/field-settings`
+}
+
+/**
+ * @summary Save field access settings (administrator only); upserts each provided entry
+ */
+export const updateFieldSettings = async (fieldSettingsUpdate: FieldSettingsUpdate, options?: Parameters<typeof customFetch>[1]): Promise<FieldSettingsCatalog> => {
+
+  return customFetch<FieldSettingsCatalog>(getUpdateFieldSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(fieldSettingsUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateFieldSettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFieldSettings>>, TError,{data: BodyType<FieldSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFieldSettings>>, TError,{data: BodyType<FieldSettingsUpdate>}, TContext> => {
+
+const mutationKey = ['updateFieldSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFieldSettings>>, {data: BodyType<FieldSettingsUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateFieldSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFieldSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateFieldSettings>>>
+    export type UpdateFieldSettingsMutationBody = BodyType<FieldSettingsUpdate>
+    export type UpdateFieldSettingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Save field access settings (administrator only); upserts each provided entry
+ */
+export const useUpdateFieldSettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFieldSettings>>, TError,{data: BodyType<FieldSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFieldSettings>>,
+        TError,
+        {data: BodyType<FieldSettingsUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateFieldSettingsMutationOptions(options));
+    }
 
 export const getGetPlatformReferenceDataUrl = (params?: GetPlatformReferenceDataParams,) => {
   const normalizedParams = new URLSearchParams();

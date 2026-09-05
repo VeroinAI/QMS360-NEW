@@ -45,6 +45,7 @@ import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { allocateReferenceNumber } from "../lib/numbering";
 import { assertOwnerOrFull, requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertLovValue } from "../lib/lov";
+import { assertFieldAccess } from "../lib/field-access";
 import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
 import { promptToTransaction, rephraseText } from "../lib/ai";
 import { confirmEvidence, createEvidenceIntent as createIntent, deleteEvidence, listEvidence } from "../lib/evidence";
@@ -253,6 +254,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
   const body = parseBody(CreateLessonFormBody, req, res);
   if (!body) return;
   const user = req.currentUser!;
+  await assertFieldAccess(req, "lessons", "lesson-form", { mode: "create" });
   await Promise.all([
     assertLovValue(db, user.organizationId, "disciplines", body.disciplineId),
     assertLovValue(db, user.organizationId, "lesson_categorisations", body.categorisationId),
@@ -311,6 +313,7 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
   if (!before) notFound("Lesson form not found");
   assertOwnerOrFull(req, before.creatorId);
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back forms may be edited");
+  await assertFieldAccess(req, "lessons", "lesson-form", { mode: "update", current: formJson(before) });
   await Promise.all([
     assertLovValue(db, req.currentUser!.organizationId, "disciplines", body.disciplineId, { allowLegacy: before.disciplineId }),
     assertLovValue(db, req.currentUser!.organizationId, "lesson_categorisations", body.categorisationId, { allowLegacy: before.categorisation }),

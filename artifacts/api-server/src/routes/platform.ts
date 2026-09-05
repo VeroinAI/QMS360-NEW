@@ -1,15 +1,16 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import {
-  GetApplicationAccessResponse, GetNumberingConfigResponse, GetOrganizationSettingsResponse,
+  GetApplicationAccessResponse, GetFieldSettingsResponse, GetNumberingConfigResponse, GetOrganizationSettingsResponse,
   GetPlatformContextResponse, GetPlatformReferenceDataResponse,
   ListBusinessUnitsResponse, ListProjectsResponse, ResetNumberingPatternResponse,
-  UpdateNumberingPatternBody, UpdateNumberingPatternResponse, UpdateOrganizationSettingsBody,
+  UpdateFieldSettingsBody, UpdateFieldSettingsResponse, UpdateNumberingPatternBody, UpdateNumberingPatternResponse, UpdateOrganizationSettingsBody,
   UpdateOrganizationSettingsResponse,
 } from "@workspace/api-zod";
-import { applicationAccess, businessUnits, db, organizations, organizationSettings, projects } from "@workspace/db";
+import { applicationAccess, businessUnits, db, moduleFieldSettings, organizations, organizationSettings, projects } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
-import { paginated, pagination } from "../lib/workspace";
+import { paginated, pagination, type AppKey } from "../lib/workspace";
+import { catalogKeys, FIELD_CATALOG } from "../lib/field-access";
 import {
   effectivePattern, formatReferenceNumber, getNumberingMap, isConfigured, NUMBERING_MODULES,
   resetNumberingPattern, saveNumberingPattern, type NumberingModule,
@@ -290,6 +291,65 @@ router.delete("/platform/numbering/:module", requireAuth, requireAdmin, async (r
   await resetNumberingPattern(req.currentUser!.organizationId, module);
   const map = await getNumberingMap(req.currentUser!.organizationId);
   res.json(ResetNumberingPatternResponse.parse(moduleConfigDto(map, module)));
+});
+
+async function fieldSettingsCatalogResponse(organizationId: string) {
+  const rows = await db.select().from(moduleFieldSettings).where(and(
+    eq(moduleFieldSettings.organizationId, organizationId), isNull(moduleFieldSettings.deletedAt),
+  ));
+  const accessByKey = new Map(rows.map((row) => [`${row.module}.${row.formKey}.${row.fieldKey}`, row.access]));
+  return {
+    modules: (Object.entries(FIELD_CATALOG) as Array<[AppKey, typeof FIELD_CATALOG[AppKey]]>).map(([module, forms]) => ({
+      module,
+      forms: forms.map((form) => ({
+        formKey: form.formKey,
+        label: form.label,
+        fields: form.fields.map((field) => ({
+          fieldKey: field.fieldKey,
+          label: field.label,
+          access: accessByKey.get(`${module}.${form.formKey}.${field.fieldKey}`) ?? "editable",
+        })),
+      })),
+    })),
+  };
+}
+
+router.get("/platform/field-settings", requireAuth, async (req, res): Promise<void> => {
+  const user = req.currentUser!;
+  res.json(GetFieldSettingsResponse.parse(await fieldSettingsCatalogResponse(user.organizationId)));
+});
+
+router.put("/platform/field-settings", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const parsed = UpdateFieldSettingsBody.safeParse(req.body);
+  if (!parsed.success) { res.status(422).json({ error: parsed.error.issues[0]?.message ?? "Invalid field settings" }); return; }
+  const user = req.currentUser!;
+  const known = catalogKeys();
+  const unknown = parsed.data.settings.filter((entry) => !known.has(`${entry.module}.${entry.formKey}.${entry.fieldKey}`));
+  if (unknown.length) {
+    res.status(422).json({ error: `Unknown field setting(s): ${unknown.map((entry) => `${entry.module}.${entry.formKey}.${entry.fieldKey}`).join(", ")}` });
+    return;
+  }
+  for (const entry of parsed.data.settings) {
+    const [existing] = await db.select({ id: moduleFieldSettings.id }).from(moduleFieldSettings).where(and(
+      eq(moduleFieldSettings.organizationId, user.organizationId),
+      eq(moduleFieldSettings.module, entry.module),
+      eq(moduleFieldSettings.formKey, entry.formKey),
+      eq(moduleFieldSettings.fieldKey, entry.fieldKey),
+      isNull(moduleFieldSettings.deletedAt),
+    )).limit(1);
+    if (existing) {
+      await db.update(moduleFieldSettings).set({ access: entry.access, updatedAt: new Date() }).where(eq(moduleFieldSettings.id, existing.id));
+    } else {
+      await db.insert(moduleFieldSettings).values({
+        organizationId: user.organizationId,
+        module: entry.module,
+        formKey: entry.formKey,
+        fieldKey: entry.fieldKey,
+        access: entry.access,
+      });
+    }
+  }
+  res.json(UpdateFieldSettingsResponse.parse(await fieldSettingsCatalogResponse(user.organizationId)));
 });
 
 export { appDefinitions, userHasAppAccess };

@@ -185,6 +185,22 @@ paths:
       summary: Get current user's application access flags
       responses:
         "200": {description: Application access, content: {application/json: {schema: {$ref: "#/components/schemas/ApplicationAccess"}}}}
+  /platform/field-settings:
+    get:
+      operationId: getFieldSettings
+      tags: [platform]
+      summary: Get the configurable field catalog per module with current editable/read-only access
+      responses:
+        "200": {description: Field settings catalog, content: {application/json: {schema: {$ref: "#/components/schemas/FieldSettingsCatalog"}}}}
+    put:
+      operationId: updateFieldSettings
+      tags: [platform]
+      summary: Save field access settings (administrator only); upserts each provided entry
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FieldSettingsUpdate"}}}}
+      responses:
+        "200": {description: Updated catalog, content: {application/json: {schema: {$ref: "#/components/schemas/FieldSettingsCatalog"}}}}
+        "403": {description: Administrator access required}
+        "422": {description: "Unknown module, form or field key"}
   /platform/reference-data:
     get:
       operationId: getPlatformReferenceData
@@ -933,6 +949,47 @@ components:
     FeedbackResolutionUpdate: {required: true, content: {application/json: {schema: {type: object, required: [resolution], properties: {resolution: {type: string, enum: [open, reviewing, resolved]}}}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    FieldAccessLevel:
+      type: string
+      enum: [editable, read_only]
+    FieldSettingInput:
+      type: object
+      required: [module, formKey, fieldKey, access]
+      properties:
+        module: {type: string, enum: [qaqc, lessons, audit]}
+        formKey: {type: string}
+        fieldKey: {type: string}
+        access: {$ref: "#/components/schemas/FieldAccessLevel"}
+    FieldSettingsUpdate:
+      type: object
+      required: [settings]
+      properties:
+        settings: {type: array, items: {$ref: "#/components/schemas/FieldSettingInput"}}
+    FieldSettingsField:
+      type: object
+      required: [fieldKey, label, access]
+      properties:
+        fieldKey: {type: string}
+        label: {type: string}
+        access: {$ref: "#/components/schemas/FieldAccessLevel"}
+    FieldSettingsForm:
+      type: object
+      required: [formKey, label, fields]
+      properties:
+        formKey: {type: string}
+        label: {type: string}
+        fields: {type: array, items: {$ref: "#/components/schemas/FieldSettingsField"}}
+    FieldSettingsModule:
+      type: object
+      required: [module, forms]
+      properties:
+        module: {type: string}
+        forms: {type: array, items: {$ref: "#/components/schemas/FieldSettingsForm"}}
+    FieldSettingsCatalog:
+      type: object
+      required: [modules]
+      properties:
+        modules: {type: array, items: {$ref: "#/components/schemas/FieldSettingsModule"}}
     FieldMappingTargetField:
       type: object
       required: [key, label, required]

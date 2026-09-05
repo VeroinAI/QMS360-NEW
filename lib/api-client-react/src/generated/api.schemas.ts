@@ -5,6 +5,55 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export type FieldAccessLevel = typeof FieldAccessLevel[keyof typeof FieldAccessLevel];
+
+
+export const FieldAccessLevel = {
+  editable: 'editable',
+  read_only: 'read_only',
+} as const;
+
+export type FieldSettingInputModule = typeof FieldSettingInputModule[keyof typeof FieldSettingInputModule];
+
+
+export const FieldSettingInputModule = {
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+} as const;
+
+export interface FieldSettingInput {
+  module: FieldSettingInputModule;
+  formKey: string;
+  fieldKey: string;
+  access: FieldAccessLevel;
+}
+
+export interface FieldSettingsUpdate {
+  settings: FieldSettingInput[];
+}
+
+export interface FieldSettingsField {
+  fieldKey: string;
+  label: string;
+  access: FieldAccessLevel;
+}
+
+export interface FieldSettingsForm {
+  formKey: string;
+  label: string;
+  fields: FieldSettingsField[];
+}
+
+export interface FieldSettingsModule {
+  module: string;
+  forms: FieldSettingsForm[];
+}
+
+export interface FieldSettingsCatalog {
+  modules: FieldSettingsModule[];
+}
+
 export interface FieldMappingTargetField {
   key: string;
   label: string;

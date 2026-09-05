@@ -14,6 +14,8 @@ CREATE TYPE "app3_audit"."car_extension_status" AS ENUM('none', 'requested', 'ap
 
 CREATE TYPE "shared"."executive_app_key" AS ENUM('qaqc', 'lessons', 'audit');
 
+CREATE TYPE "shared"."field_access_level" AS ENUM('editable', 'read_only');
+
 -- drizzle-kit does not collect pgSchema enums declared inside the app-common.ts
 -- factory function; the six CREATE TYPE statements below are maintained manually
 -- and must stay in sync with lib/db/drizzle/0000_wealthy_risque.sql.
@@ -1570,6 +1572,23 @@ ALTER TABLE "app1_qaqc"."quality_assessment_briefs" ADD COLUMN IF NOT EXISTS "ap
 ALTER TABLE "app1_qaqc"."qaqc_metric_entries" ADD CONSTRAINT "qaqc_metric_entries_approver_id_users_id_fk" FOREIGN KEY ("approver_id") REFERENCES "shared"."users"("id");
 ALTER TABLE "app1_qaqc"."qaqc_metric_entries" ADD CONSTRAINT "qaqc_metric_entries_submitted_by_id_users_id_fk" FOREIGN KEY ("submitted_by_id") REFERENCES "shared"."users"("id");
 ALTER TABLE "app1_qaqc"."quality_assessment_briefs" ADD CONSTRAINT "quality_assessment_briefs_approver_id_users_id_fk" FOREIGN KEY ("approver_id") REFERENCES "shared"."users"("id");
+
+CREATE TABLE IF NOT EXISTS "shared"."module_field_settings" (
+"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+"organization_id" uuid NOT NULL,
+"module" "shared"."executive_app_key" NOT NULL,
+"form_key" text NOT NULL,
+"field_key" text NOT NULL,
+"access" "shared"."field_access_level" DEFAULT 'editable' NOT NULL,
+"status" text DEFAULT 'active' NOT NULL,
+"deleted_at" timestamp with time zone,
+"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "shared"."module_field_settings" ADD CONSTRAINT "module_field_settings_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "module_field_settings_org_module_form_field_active_idx" ON "shared"."module_field_settings" USING btree ("organization_id", "module", "form_key", "field_key") WHERE "deleted_at" IS NULL;
 
 -- After applying this script to a live database, record the migration baseline:
 --   pnpm --filter @workspace/scripts run record-baseline

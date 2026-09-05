@@ -14,6 +14,7 @@ import { sql } from "drizzle-orm";
 export const sharedSchema = pgSchema("shared");
 export const executiveAppKey = sharedSchema.enum("executive_app_key", ["qaqc", "lessons", "audit"]);
 
+export const fieldAccessLevel = sharedSchema.enum("field_access_level", ["editable", "read_only"]);
 const auditColumns = {
   status: text("status").notNull().default("active"),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -236,6 +237,19 @@ export const executiveSummarySnapshots = sharedSchema.table("executive_summary_s
     .where(sql`${table.deletedAt} IS NULL`),
 ]);
 
+export const moduleFieldSettings = sharedSchema.table("module_field_settings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  module: executiveAppKey("module").notNull(),
+  formKey: text("form_key").notNull(),
+  fieldKey: text("field_key").notNull(),
+  access: fieldAccessLevel("access").notNull().default("editable"),
+  ...auditColumns,
+}, (table) => [
+  uniqueIndex("module_field_settings_org_module_form_field_active_idx")
+    .on(table.organizationId, table.module, table.formKey, table.fieldKey)
+    .where(sql`${table.deletedAt} IS NULL`),
+]);
 export type Organization = typeof organizations.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Project = typeof projects.$inferSelect;

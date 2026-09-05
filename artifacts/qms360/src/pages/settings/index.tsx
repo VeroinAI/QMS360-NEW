@@ -5,17 +5,15 @@ import {
   useAssignAuditUserRole, useAssignLessonsUserRole, useAssignQaqcUserRole,
   useCreateAuditDelegation, useCreateAuditRole, useCreateLessonsDelegation, useCreateLessonsRole, useCreateQaqcDelegation, useCreateQaqcRole,
   useDecideAuditAccessRequest, useDecideLessonsAccessRequest, useDecideQaqcAccessRequest,
-  useGetLessonsAiSettings, useGetNumberingConfig, useGetQaqcAiSettings,
+  useGetFieldSettings, useGetLessonsAiSettings, useGetNumberingConfig, useGetQaqcAiSettings,
   useListAuditAccessQueue, useListAuditDelegations, useListAuditEscalationRules, useListAuditNotificationTemplates, useListAuditRoles, useListAuditUsers, useListAuditWorkspaceAuditLog,
   useListLessonsAccessQueue, useListLessonsAuditLog, useListLessonsDelegations, useListLessonsEscalationRules, useListLessonsNotificationTemplates, useListLessonsRoles, useListLessonsUsers,
   useListQaqcAccessQueue, useListQaqcAuditLog, useListQaqcDelegations, useListQaqcEscalationRules, useListQaqcNotificationTemplates, useListQaqcRoles, useListQaqcUsers,
   useResetNumberingPattern, useRevokeAuditDelegation, useRevokeLessonsDelegation, useRevokeQaqcDelegation,
   useUpdateAuditEscalationRules, useUpdateAuditNotificationTemplate, useUpdateAuditRole, useUpdateNumberingPattern,
-  useUpdateLessonsAiSettings, useUpdateLessonsEscalationRules, useUpdateLessonsNotificationTemplate, useUpdateLessonsRole,
+  useUpdateFieldSettings, useUpdateLessonsAiSettings, useUpdateLessonsEscalationRules, useUpdateLessonsNotificationTemplate, useUpdateLessonsRole,
   useUpdateQaqcAiSettings, useUpdateQaqcEscalationRules, useUpdateQaqcNotificationTemplate, useUpdateQaqcRole,
 } from '@workspace/api-client-react';
-import type { AISettings, EscalationRule, NotificationTemplate, NumberingModuleConfig, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
-import { AlertCircle, ArrowLeft, Bell, Bot, Check, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Plus, Save, Search, Settings2, ShieldCheck, Trash2, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,14 +27,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { CockpitPage } from '../cockpit';
+import type { AISettings, EscalationRule, FieldAccessLevel, NotificationTemplate, NumberingModuleConfig, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
+import { AlertCircle, ArrowLeft, Bell, Bot, Check, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Lock, Plus, Save, Search, Settings2, ShieldCheck, Trash2, Users } from 'lucide-react';
 
 type AppKey = 'qaqc' | 'lessons' | 'audit';
-type TabKey = 'overview' | 'numbering' | 'access' | 'roles' | 'escalation' | 'ai' | 'notifications' | 'audit-log';
+type TabKey = 'overview' | 'numbering' | 'access' | 'roles' | 'escalation' | 'ai' | 'fields' | 'notifications' | 'audit-log';
 const names: Record<AppKey, string> = { qaqc: 'QA/QC & Document Governance', lessons: 'Lesson Learned Management', audit: 'QMS Audit Management' };
 const tabs: { key: TabKey; label: string; icon: typeof Settings2 }[] = [
   { key: 'overview', label: 'Overview', icon: Settings2 }, { key: 'numbering', label: 'Numbering', icon: Hash }, { key: 'access', label: 'Users & Access', icon: Users },
   { key: 'roles', label: 'Roles & Permissions', icon: ShieldCheck }, { key: 'escalation', label: 'Escalation', icon: Clock },
-  { key: 'ai', label: 'AI Settings', icon: Bot }, { key: 'notifications', label: 'Notifications', icon: Bell },
+  { key: 'ai', label: 'AI Settings', icon: Bot }, { key: 'fields', label: 'Fields', icon: Lock },
+  { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'audit-log', label: 'Audit Log', icon: FileClock },
 ];
 
@@ -171,6 +172,21 @@ function Notifications({ app }: { app: AppKey }) {
   return <PageState loading={api.templates.isLoading} error={api.templates.error} empty={!api.templates.data?.items.length} onRetry={api.templates.refetch}><Card><CardHeader><CardTitle>Notification templates</CardTitle><CardDescription>Manage application-specific subject, body, channels and availability.</CardDescription></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Template</TableHead><TableHead>Subject</TableHead><TableHead>Channels</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{api.templates.data?.items.map(t => <TableRow key={t.id}><TableCell className="font-medium">{t.key}</TableCell><TableCell>{t.subject}</TableCell><TableCell className="space-x-1">{t.channels.map(c => <Badge variant="secondary" key={c}>{c}</Badge>)}</TableCell><TableCell><Badge variant={t.enabled ? 'default' : 'secondary'}>{t.enabled ? 'Enabled' : 'Disabled'}</Badge></TableCell><TableCell><Button size="sm" variant="outline" onClick={() => setEditing(t)}>Edit</Button></TableCell></TableRow>)}</TableBody></Table></CardContent></Card><Dialog open={!!editing} onOpenChange={open => !open && setEditing(undefined)}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Edit notification template</DialogTitle><DialogDescription>Merge fields are preserved when the message is sent.</DialogDescription></DialogHeader>{editing && <div className="space-y-4"><div><Label>Subject</Label><Input value={editing.subject} onChange={e => setEditing({ ...editing, subject: e.target.value })} /></div><div><Label>Body template</Label><Textarea rows={8} value={editing.body} onChange={e => setEditing({ ...editing, body: e.target.value })} /></div><div><Label>Channel</Label><Select value={editing.channels[0] ?? 'in_app'} onValueChange={v => setEditing({ ...editing, channels: [v as NotificationTemplate['channels'][number]] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{['in_app','email','push','sms'].map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select></div><label className="flex items-center gap-3"><Toggle checked={editing.enabled} onCheckedChange={enabled => setEditing({ ...editing, enabled })} />Template enabled</label></div>}<DialogFooter><Button onClick={save}><Save className="mr-2 h-4 w-4" />Save template</Button></DialogFooter></DialogContent></Dialog></PageState>;
 }
 
+function FieldSettings({ app }: { app: AppKey }) {
+  const query = useGetFieldSettings(); const save = useUpdateFieldSettings(); const client = useQueryClient(); const { toast } = useToast();
+  const [draft, setDraft] = useState<Record<string, FieldAccessLevel>>();
+  const module = query.data?.modules.find(m => m.module === app);
+  const accessOf = (formKey: string, fieldKey: string, current: FieldAccessLevel) => draft?.[`${formKey}.${fieldKey}`] ?? current;
+  const submit = () => {
+    if (!module) return;
+    const settings = module.forms.flatMap(form => form.fields.map(field => ({ module: app, formKey: form.formKey, fieldKey: field.fieldKey, access: accessOf(form.formKey, field.fieldKey, field.access) })));
+    save.mutate({ data: { settings } }, { onSuccess: () => { client.invalidateQueries(); toast({ title: 'Field settings saved' }); setDraft(undefined); }, onError: error => toast({ title: 'Unable to save field settings', description: errorText(error), variant: 'destructive' }) });
+  };
+  return <PageState loading={query.isLoading} error={query.error} onRetry={() => query.refetch()}>
+    <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Field access control</CardTitle><CardDescription>Read-only fields are disabled on this application's create and edit forms for non-administrator users, and the API rejects changes to them. System-generated fields always stay read-only. Unconfigured fields remain editable.</CardDescription></div><Button disabled={!draft || save.isPending} onClick={submit}><Save className="mr-2 h-4 w-4" />Save changes</Button></CardHeader>
+      <CardContent className="space-y-8">{module?.forms.map(form => <div key={form.formKey}><p className="mb-2 font-semibold">{form.label}</p><Table><TableHeader><TableRow><TableHead>Field</TableHead><TableHead className="w-44">Access</TableHead></TableRow></TableHeader><TableBody>{form.fields.map(field => { const access = accessOf(form.formKey, field.fieldKey, field.access); return <TableRow key={field.fieldKey}><TableCell>{field.label}<span className="ml-2 text-xs text-muted-foreground">{field.fieldKey}</span></TableCell><TableCell><Select value={access} onValueChange={value => setDraft({ ...(draft ?? {}), [`${form.formKey}.${field.fieldKey}`]: value as FieldAccessLevel })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="editable">Editable</SelectItem><SelectItem value="read_only">Read-only</SelectItem></SelectContent></Select></TableCell></TableRow>; })}</TableBody></Table></div>)}</CardContent></Card>
+  </PageState>;
+}
 function AuditLog({ app }: { app: AppKey }) {
   const [page, setPage] = useState(1); const [draft, setDraft] = useState({ from: '', to: '', actorId: '', action: '' }); const [filters, setFilters] = useState<Record<string, string>>({});
   const api = useAdmin(app, page, filters);
@@ -230,7 +246,7 @@ function SettingsPage() {
   const app = (['qaqc','lessons','audit'].includes(params.app) ? params.app : 'qaqc') as AppKey;
   const tab = (params.tab || 'overview') as TabKey;
   const visibleTabs = tabs.filter(t => !(app === 'audit' && t.key === 'ai'));
-  const content = tab === 'overview' ? <Overview app={app} /> : tab === 'numbering' ? <NumberingTab app={app} /> : tab === 'access' ? <UsersAccess app={app} /> : tab === 'roles' ? <Roles app={app} /> : tab === 'escalation' ? <Escalations app={app} /> : tab === 'ai' && app !== 'audit' ? <AiSettings app={app} /> : tab === 'notifications' ? <Notifications app={app} /> : <AuditLog app={app} />;
+  const content = tab === 'overview' ? <Overview app={app} /> : tab === 'numbering' ? <NumberingTab app={app} /> : tab === 'access' ? <UsersAccess app={app} /> : tab === 'roles' ? <Roles app={app} /> : tab === 'escalation' ? <Escalations app={app} /> : tab === 'ai' && app !== 'audit' ? <AiSettings app={app} /> : tab === 'fields' ? <FieldSettings app={app} /> : tab === 'notifications' ? <Notifications app={app} /> : <AuditLog app={app} />;
   return <main className="min-h-screen bg-background"><header className="bg-primary px-5 py-8 text-primary-foreground md:px-10"><div className="mx-auto max-w-7xl"><Link href={`/${app}`} className="mb-5 inline-flex items-center gap-2 text-sm opacity-80 hover:opacity-100"><ArrowLeft className="h-4 w-4" />Back to application</Link><p className="text-sm font-semibold uppercase tracking-widest opacity-70">Independent workspace administration</p><h1 className="mt-2 font-display text-3xl font-bold">{names[app]} Settings</h1><p className="mt-2 max-w-2xl opacity-80">Configure access, governance and operational controls for this application only.</p></div></header><div className="mx-auto max-w-7xl px-5 py-6 md:px-10"><nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl border bg-card p-1.5">{visibleTabs.map(({ key, label, icon: Icon }) => <button key={key} onClick={() => navigate(`/settings/${app}/${key}`)} className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${tab === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}><Icon className="h-4 w-4" />{label}</button>)}</nav>{content}</div></main>;
 }
 

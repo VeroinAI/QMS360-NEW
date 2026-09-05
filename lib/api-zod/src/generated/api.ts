@@ -249,6 +249,53 @@ export const GetApplicationAccessResponse = zod.object({
 
 
 /**
+ * @summary Get the configurable field catalog per module with current editable/read-only access
+ */
+export const GetFieldSettingsResponse = zod.object({
+  "modules": zod.array(zod.object({
+  "module": zod.string(),
+  "forms": zod.array(zod.object({
+  "formKey": zod.string(),
+  "label": zod.string(),
+  "fields": zod.array(zod.object({
+  "fieldKey": zod.string(),
+  "label": zod.string(),
+  "access": zod.enum(['editable', 'read_only'])
+}))
+}))
+}))
+})
+
+
+/**
+ * @summary Save field access settings (administrator only); upserts each provided entry
+ */
+export const UpdateFieldSettingsBody = zod.object({
+  "settings": zod.array(zod.object({
+  "module": zod.enum(['qaqc', 'lessons', 'audit']),
+  "formKey": zod.string(),
+  "fieldKey": zod.string(),
+  "access": zod.enum(['editable', 'read_only'])
+}))
+})
+
+export const UpdateFieldSettingsResponse = zod.object({
+  "modules": zod.array(zod.object({
+  "module": zod.string(),
+  "forms": zod.array(zod.object({
+  "formKey": zod.string(),
+  "label": zod.string(),
+  "fields": zod.array(zod.object({
+  "fieldKey": zod.string(),
+  "label": zod.string(),
+  "access": zod.enum(['editable', 'read_only'])
+}))
+}))
+}))
+})
+
+
+/**
  * @summary Get cacheable shared reference data snapshot
  */
 export const GetPlatformReferenceDataQueryParams = zod.object({
