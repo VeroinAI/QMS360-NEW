@@ -2829,6 +2829,77 @@ export const useTriageFeedback = <TError = ErrorType<void>,
       return useMutation(getTriageFeedbackMutationOptions(options));
     }
 
+export const getRunFeedbackTriageUrl = (id: string,) => {
+
+
+
+
+  return `/api/feedback/${id}/triage`
+}
+
+/**
+ * @summary Run or re-run AI triage against a feedback entry (admin only)
+ */
+export const runFeedbackTriage = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<FeedbackEntry> => {
+
+  return customFetch<FeedbackEntry>(getRunFeedbackTriageUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRunFeedbackTriageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runFeedbackTriage>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runFeedbackTriage>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['runFeedbackTriage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runFeedbackTriage>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  runFeedbackTriage(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunFeedbackTriageMutationResult = NonNullable<Awaited<ReturnType<typeof runFeedbackTriage>>>
+
+    export type RunFeedbackTriageMutationError = ErrorType<void>
+
+    /**
+ * @summary Run or re-run AI triage against a feedback entry (admin only)
+ */
+export const useRunFeedbackTriage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runFeedbackTriage>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runFeedbackTriage>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getRunFeedbackTriageMutationOptions(options));
+    }
+
 export const getUpdateFeedbackResolutionUrl = (id: string,) => {
 
 

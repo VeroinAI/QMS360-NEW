@@ -7,8 +7,11 @@
  */
 import type { FeedbackTriage } from './feedbackTriage';
 import type { SubmitFeedbackInputCategory } from './submitFeedbackInputCategory';
+import type { SubmitFeedbackInputModule } from './submitFeedbackInputModule';
 
 export interface SubmitFeedbackInput {
+  /** Module or functionality the feedback relates to */
+  module: SubmitFeedbackInputModule;
   category: SubmitFeedbackInputCategory;
   /**
      * @minLength 5

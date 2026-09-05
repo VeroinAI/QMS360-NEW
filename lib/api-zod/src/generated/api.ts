@@ -841,13 +841,15 @@ export const ListFeedbackEntriesResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "appKey": zod.string().nullish(),
+  "module": zod.string().nullish(),
   "pagePath": zod.string().nullish(),
   "category": zod.string(),
   "message": zod.string(),
   "triage": zod.union([zod.object({
   "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
   "summary": zod.string(),
-  "guidance": zod.string().nullish()
+  "guidance": zod.string().nullish(),
+  "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
   "resolution": zod.enum(['open', 'reviewing', 'resolved']),
   "createdAt": zod.coerce.date(),
@@ -874,6 +876,7 @@ export const submitFeedbackBodyPagePathMax = 500;
 
 
 export const SubmitFeedbackBody = zod.object({
+  "module": zod.enum(['qaqc', 'lessons', 'audit', 'system']).describe('Module or functionality the feedback relates to'),
   "category": zod.enum(['issue', 'suggestion', 'question']),
   "message": zod.string().min(submitFeedbackBodyMessageMin).max(submitFeedbackBodyMessageMax),
   "appKey": zod.string().nullish(),
@@ -881,20 +884,23 @@ export const SubmitFeedbackBody = zod.object({
   "triage": zod.union([zod.object({
   "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
   "summary": zod.string(),
-  "guidance": zod.string().nullish()
+  "guidance": zod.string().nullish(),
+  "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional()
 })
 
 export const SubmitFeedbackResponse = zod.object({
   "id": zod.string(),
   "appKey": zod.string().nullish(),
+  "module": zod.string().nullish(),
   "pagePath": zod.string().nullish(),
   "category": zod.string(),
   "message": zod.string(),
   "triage": zod.union([zod.object({
   "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
   "summary": zod.string(),
-  "guidance": zod.string().nullish()
+  "guidance": zod.string().nullish(),
+  "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
   "resolution": zod.enum(['open', 'reviewing', 'resolved']),
   "createdAt": zod.coerce.date(),
@@ -917,6 +923,7 @@ export const triageFeedbackBodyPagePathMax = 500;
 
 
 export const TriageFeedbackBody = zod.object({
+  "module": zod.enum(['qaqc', 'lessons', 'audit', 'system']).optional(),
   "category": zod.enum(['issue', 'suggestion', 'question']),
   "message": zod.string().min(triageFeedbackBodyMessageMin).max(triageFeedbackBodyMessageMax),
   "pagePath": zod.string().max(triageFeedbackBodyPagePathMax).nullish()
@@ -925,7 +932,38 @@ export const TriageFeedbackBody = zod.object({
 export const TriageFeedbackResponse = zod.object({
   "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
   "summary": zod.string(),
-  "guidance": zod.string().nullish()
+  "guidance": zod.string().nullish(),
+  "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
+})
+
+
+/**
+ * @summary Run or re-run AI triage against a feedback entry (admin only)
+ */
+export const RunFeedbackTriageParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RunFeedbackTriageResponse = zod.object({
+  "id": zod.string(),
+  "appKey": zod.string().nullish(),
+  "module": zod.string().nullish(),
+  "pagePath": zod.string().nullish(),
+  "category": zod.string(),
+  "message": zod.string(),
+  "triage": zod.union([zod.object({
+  "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
+  "summary": zod.string(),
+  "guidance": zod.string().nullish(),
+  "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
+}),zod.null()]).optional(),
+  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "createdAt": zod.coerce.date(),
+  "user": zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string()
+})
 })
 
 
@@ -943,13 +981,15 @@ export const UpdateFeedbackResolutionBody = zod.object({
 export const UpdateFeedbackResolutionResponse = zod.object({
   "id": zod.string(),
   "appKey": zod.string().nullish(),
+  "module": zod.string().nullish(),
   "pagePath": zod.string().nullish(),
   "category": zod.string(),
   "message": zod.string(),
   "triage": zod.union([zod.object({
   "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
   "summary": zod.string(),
-  "guidance": zod.string().nullish()
+  "guidance": zod.string().nullish(),
+  "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
   "resolution": zod.enum(['open', 'reviewing', 'resolved']),
   "createdAt": zod.coerce.date(),

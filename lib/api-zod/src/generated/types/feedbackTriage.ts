@@ -12,4 +12,9 @@ export interface FeedbackTriage {
   summary: string;
   /** @nullable */
   guidance?: string | null;
+  /**
+     * Suggested next step for the admin reviewing this feedback
+     * @nullable
+     */
+  resolutionSuggestion?: string | null;
 }

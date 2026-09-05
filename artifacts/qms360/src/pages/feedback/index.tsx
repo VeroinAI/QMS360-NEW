@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowLeft, Loader2, MessageSquarePlus } from 'lucide-react';
+import { ArrowLeft, Loader2, MessageSquarePlus, Sparkles } from 'lucide-react';
 import {
-  useGetCurrentUser, useListFeedbackEntries, useUpdateFeedbackResolution,
+  useGetCurrentUser, useListFeedbackEntries, useRunFeedbackTriage, useUpdateFeedbackResolution,
   type FeedbackEntry,
 } from '@workspace/api-client-react';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,13 @@ const verdictLabels: Record<string, string> = {
   awareness_gap: 'Awareness gap',
   suggestion: 'Suggestion',
   unclear: 'Unclear',
+};
+
+const moduleLabels: Record<string, string> = {
+  qaqc: 'QA/QC & Document Governance',
+  lessons: 'Lessons Learned',
+  audit: 'QMS Audit Management',
+  system: 'System / General',
 };
 
 function formatDateTime(value: string) {
@@ -40,6 +47,17 @@ export function FeedbackPage() {
       onError: (e) => toast({ title: 'Update failed', description: errorMessage(e), variant: 'destructive' }),
     },
   });
+  const triage = useRunFeedbackTriage({
+    mutation: {
+      onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/feedback'] }); toast({ title: 'AI triage completed' }); },
+      onError: (e) => toast({ title: 'AI triage unavailable', description: errorMessage(e), variant: 'destructive' }),
+    },
+  });
+  const [triagingId, setTriagingId] = useState<string | null>(null);
+  const runTriage = (id: string) => {
+    setTriagingId(id);
+    triage.mutate({ id }, { onSettled: () => setTriagingId(null) });
+  };
   const [expanded, setExpanded] = useState<string | null>(null);
 
   if (user.isLoading) return <div className="flex justify-center p-16"><Loader2 className="h-6 w-6 animate-spin" /></div>;
@@ -71,6 +89,7 @@ export function FeedbackPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="capitalize">{entry.category}</Badge>
+                  {entry.module && <Badge variant="secondary">{moduleLabels[entry.module] ?? entry.module}</Badge>}
                   {entry.triage && <Badge variant={entry.triage.verdict === 'valid_issue' ? 'destructive' : entry.triage.verdict === 'awareness_gap' ? 'secondary' : 'default'}>
                     AI: {verdictLabels[entry.triage.verdict] ?? entry.triage.verdict}
                   </Badge>}
@@ -87,9 +106,15 @@ export function FeedbackPage() {
                   {entry.triage.guidance && <p className="mt-1 whitespace-pre-line"><span className="font-semibold">Guidance shown to user:</span> {expanded === entry.id ? entry.triage.guidance : `${entry.triage.guidance.slice(0, 120)}${entry.triage.guidance.length > 120 ? '…' : ''}`}
                     {entry.triage.guidance.length > 120 && <button className="ml-1 text-primary underline" onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}>{expanded === entry.id ? 'Show less' : 'Show more'}</button>}
                   </p>}
+                  {entry.triage.resolutionSuggestion && <p className="mt-2 rounded-md bg-background p-2"><span className="font-semibold">Resolution suggestion:</span> {entry.triage.resolutionSuggestion}</p>}
                 </div>}
               </div>
-              <div className="w-40 shrink-0">
+              <div className="w-44 shrink-0 space-y-2">
+                <Button variant="secondary" size="sm" className="w-full" disabled={triagingId === entry.id}
+                  onClick={() => runTriage(entry.id)}>
+                  {triagingId === entry.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {entry.triage ? 'Re-run AI triage' : 'Run AI triage'}
+                </Button>
                 <Select value={entry.resolution} onValueChange={(value) => resolution.mutate({ id: entry.id, data: { resolution: value as 'open' | 'reviewing' | 'resolved' } })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>

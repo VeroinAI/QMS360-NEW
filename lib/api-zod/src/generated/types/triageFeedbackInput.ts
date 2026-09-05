@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { TriageFeedbackInputCategory } from './triageFeedbackInputCategory';
+import type { TriageFeedbackInputModule } from './triageFeedbackInputModule';
 
 export interface TriageFeedbackInput {
+  module?: TriageFeedbackInputModule;
   category: TriageFeedbackInputCategory;
   /**
      * @minLength 5

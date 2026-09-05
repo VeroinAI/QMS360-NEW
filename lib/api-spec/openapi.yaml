@@ -408,6 +408,15 @@ paths:
         - bearerAuth: []
       requestBody: {$ref: "#/components/requestBodies/FeedbackTriageRequest"}
       responses: {"200": {description: Triage result, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackTriage"}}}}, "401": {description: Authentication required}, "422": {description: Invalid request body}, "503": {description: AI assistance is temporarily unavailable}}
+  /feedback/{id}/triage:
+    post:
+      operationId: runFeedbackTriage
+      tags: [feedback]
+      summary: Run or re-run AI triage against a feedback entry (admin only)
+      security:
+        - bearerAuth: []
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses: {"200": {description: Triage result stored on the entry, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackEntry"}}}}, "401": {description: Authentication required}, "403": {description: Administrator access required}, "404": {description: Feedback entry not found}, "503": {description: AI assistance is temporarily unavailable}}
   /feedback/{id}/resolution:
     put:
       operationId: updateFeedbackResolution
@@ -1404,10 +1413,12 @@ components:
         verdict: {type: string, enum: [valid_issue, awareness_gap, suggestion, unclear]}
         summary: {type: string}
         guidance: {type: [string, "null"]}
+        resolutionSuggestion: {type: [string, "null"], description: "Suggested next step for the admin reviewing this feedback"}
     SubmitFeedbackInput:
       type: object
-      required: [category, message]
+      required: [module, category, message]
       properties:
+        module: {type: string, enum: [qaqc, lessons, audit, system], description: "Module or functionality the feedback relates to"}
         category: {type: string, enum: [issue, suggestion, question]}
         message: {type: string, minLength: 5, maxLength: 4000}
         appKey: {type: [string, "null"]}
@@ -1417,6 +1428,7 @@ components:
       type: object
       required: [category, message]
       properties:
+        module: {type: string, enum: [qaqc, lessons, audit, system]}
         category: {type: string, enum: [issue, suggestion, question]}
         message: {type: string, minLength: 5, maxLength: 4000}
         pagePath: {type: [string, "null"], maxLength: 500}
@@ -1426,6 +1438,7 @@ components:
       properties:
         id: {type: string}
         appKey: {type: [string, "null"]}
+        module: {type: [string, "null"]}
         pagePath: {type: [string, "null"]}
         category: {type: string}
         message: {type: string}

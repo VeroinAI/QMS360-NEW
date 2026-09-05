@@ -190,10 +190,11 @@ export const feedbackEntries = sharedSchema.table("feedback_entries", {
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   userId: uuid("user_id").notNull().references(() => users.id),
   appKey: text("app_key"),
+  module: text("module"),
   pagePath: text("page_path"),
   category: text("category").notNull().default("issue"),
   message: text("message").notNull(),
-  triage: jsonb("triage").$type<{ verdict: string; summary: string; guidance: string | null }>(),
+  triage: jsonb("triage").$type<{ verdict: string; summary: string; guidance: string | null; resolutionSuggestion: string | null }>(),
   resolution: text("resolution").notNull().default("open"),
   ...auditColumns,
 });

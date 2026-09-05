@@ -13,6 +13,14 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 
 type Category = 'issue' | 'suggestion' | 'question';
+type ModuleKey = 'qaqc' | 'lessons' | 'audit' | 'system';
+
+export const feedbackModules: { value: ModuleKey; label: string }[] = [
+  { value: 'qaqc', label: 'QA/QC & Document Governance' },
+  { value: 'lessons', label: 'Lessons Learned' },
+  { value: 'audit', label: 'QMS Audit Management' },
+  { value: 'system', label: 'System / General (access, navigation, settings)' },
+];
 
 const verdictLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   valid_issue: { label: 'Valid issue', variant: 'destructive' },
@@ -29,6 +37,8 @@ function errorMessage(error: unknown) {
 export function FeedbackWidget() {
   const [location] = useLocation();
   const [open, setOpen] = useState(false);
+  const [module, setModule] = useState<ModuleKey | ''>('');
+  const [moduleError, setModuleError] = useState(false);
   const [category, setCategory] = useState<Category>('issue');
   const [message, setMessage] = useState('');
   const [triage, setTriage] = useState<FeedbackTriage | null>(null);
@@ -36,6 +46,11 @@ export function FeedbackWidget() {
 
   const pagePath = location;
   const appKey = location.startsWith('/qaqc') ? 'qaqc' : location.startsWith('/lessons') ? 'lessons' : location.startsWith('/audit') ? 'audit' : null;
+  const openDialog = (value: boolean) => {
+    setOpen(value);
+    if (value) { setModule(appKey ?? ''); setModuleError(false); }
+    else { setTriage(null); }
+  };
   const canTriage = message.trim().length >= 10;
 
   const triageMutation = useTriageFeedback({
@@ -49,7 +64,7 @@ export function FeedbackWidget() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['/api/feedback'] });
         toast({ title: 'Feedback submitted', description: 'Thank you — the admin team can now review it.' });
-        setOpen(false); setMessage(''); setCategory('issue'); setTriage(null);
+        setOpen(false); setModule(''); setModuleError(false); setMessage(''); setCategory('issue'); setTriage(null);
       },
       onError: (e) => toast({ title: 'Unable to submit feedback', description: errorMessage(e), variant: 'destructive' }),
     },
@@ -59,14 +74,14 @@ export function FeedbackWidget() {
 
   return <>
     {createPortal(
-      <Button aria-label="Give feedback" onClick={() => setOpen(true)}
+      <Button aria-label="Give feedback" onClick={() => openDialog(true)}
         style={{ position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 50 }}
         className="h-12 w-12 rounded-full p-0 shadow-lg">
         <MessageSquarePlus className="h-5 w-5" />
       </Button>,
       document.body,
     )}
-    <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) { setTriage(null); } }}>
+    <Dialog open={open} onOpenChange={openDialog}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Report an issue or share feedback</DialogTitle>
@@ -75,6 +90,18 @@ export function FeedbackWidget() {
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          <div>
+            <Label className="mb-2 block">Module / Functionality <span className="text-destructive">*</span></Label>
+            <Select value={module} onValueChange={(value) => { setModule(value as ModuleKey); setModuleError(false); setTriage(null); }}>
+              <SelectTrigger className={moduleError ? 'border-destructive focus-visible:ring-destructive' : ''} aria-invalid={moduleError}>
+                <SelectValue placeholder="Select the module this relates to" />
+              </SelectTrigger>
+              <SelectContent>
+                {feedbackModules.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {moduleError && <p className="mt-1 text-sm font-medium text-destructive" role="alert">Please select a module or functionality.</p>}
+          </div>
           <div>
             <Label className="mb-2 block">Type</Label>
             <Select value={category} onValueChange={(value) => { setCategory(value as Category); setTriage(null); }}>
@@ -106,12 +133,15 @@ export function FeedbackWidget() {
         </div>
         <DialogFooter className="gap-2 sm:justify-between">
           <Button type="button" variant="secondary" disabled={!canTriage || triageMutation.isPending}
-            onClick={() => triageMutation.mutate({ data: { category, message: message.trim(), pagePath } })}>
+            onClick={() => triageMutation.mutate({ data: { module: module || undefined, category, message: message.trim(), pagePath } })}>
             {triageMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             AI Triage
           </Button>
           <Button type="button" disabled={message.trim().length < 5 || submit.isPending}
-            onClick={() => submit.mutate({ data: { category, message: message.trim(), appKey, pagePath, triage: triage ?? null } })}>
+            onClick={() => {
+              if (!module) { setModuleError(true); return; }
+              submit.mutate({ data: { module, category, message: message.trim(), appKey, pagePath, triage: triage ?? null } });
+            }}>
             {submit.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Submit feedback
           </Button>

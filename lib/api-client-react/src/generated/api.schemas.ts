@@ -873,7 +873,25 @@ export interface FeedbackTriage {
   summary: string;
   /** @nullable */
   guidance?: string | null;
+  /**
+     * Suggested next step for the admin reviewing this feedback
+     * @nullable
+     */
+  resolutionSuggestion?: string | null;
 }
+
+/**
+ * Module or functionality the feedback relates to
+ */
+export type SubmitFeedbackInputModule = typeof SubmitFeedbackInputModule[keyof typeof SubmitFeedbackInputModule];
+
+
+export const SubmitFeedbackInputModule = {
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+  system: 'system',
+} as const;
 
 export type SubmitFeedbackInputCategory = typeof SubmitFeedbackInputCategory[keyof typeof SubmitFeedbackInputCategory];
 
@@ -885,6 +903,8 @@ export const SubmitFeedbackInputCategory = {
 } as const;
 
 export interface SubmitFeedbackInput {
+  /** Module or functionality the feedback relates to */
+  module: SubmitFeedbackInputModule;
   category: SubmitFeedbackInputCategory;
   /**
      * @minLength 5
@@ -901,6 +921,16 @@ export interface SubmitFeedbackInput {
   triage?: FeedbackTriage | null;
 }
 
+export type TriageFeedbackInputModule = typeof TriageFeedbackInputModule[keyof typeof TriageFeedbackInputModule];
+
+
+export const TriageFeedbackInputModule = {
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+  system: 'system',
+} as const;
+
 export type TriageFeedbackInputCategory = typeof TriageFeedbackInputCategory[keyof typeof TriageFeedbackInputCategory];
 
 
@@ -911,6 +941,7 @@ export const TriageFeedbackInputCategory = {
 } as const;
 
 export interface TriageFeedbackInput {
+  module?: TriageFeedbackInputModule;
   category: TriageFeedbackInputCategory;
   /**
      * @minLength 5
@@ -943,6 +974,8 @@ export interface FeedbackEntry {
   id: string;
   /** @nullable */
   appKey?: string | null;
+  /** @nullable */
+  module?: string | null;
   /** @nullable */
   pagePath?: string | null;
   category: string;

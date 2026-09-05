@@ -1526,6 +1526,7 @@ CREATE TABLE IF NOT EXISTS "shared"."feedback_entries" (
 	"organization_id" uuid NOT NULL,
 	"user_id" uuid NOT NULL,
 	"app_key" text,
+	"module" text,
 	"page_path" text,
 	"category" text DEFAULT 'issue' NOT NULL,
 	"message" text NOT NULL,

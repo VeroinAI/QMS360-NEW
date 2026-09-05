@@ -14,6 +14,8 @@ export interface FeedbackEntry {
   /** @nullable */
   appKey?: string | null;
   /** @nullable */
+  module?: string | null;
+  /** @nullable */
   pagePath?: string | null;
   category: string;
   message: string;

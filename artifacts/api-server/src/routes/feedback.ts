@@ -15,6 +15,7 @@ function entryJson(row: EntryRow, user: { id: string; fullName: string; email: s
   return {
     id: row.id,
     appKey: row.appKey,
+    module: row.module,
     pagePath: row.pagePath,
     category: row.category,
     message: row.message,
@@ -47,10 +48,11 @@ router.post("/feedback", asyncHandler(async (req, res) => {
     organizationId: user.organizationId,
     userId: user.id,
     appKey: parsed.data.appKey ?? null,
+    module: parsed.data.module,
     pagePath: parsed.data.pagePath ?? null,
     category: parsed.data.category,
     message: parsed.data.message,
-    triage: parsed.data.triage ? { ...parsed.data.triage, guidance: parsed.data.triage.guidance ?? null } : null,
+    triage: parsed.data.triage ? { ...parsed.data.triage, guidance: parsed.data.triage.guidance ?? null, resolutionSuggestion: parsed.data.triage.resolutionSuggestion ?? null } : null,
   }).returning();
   res.status(201).json(entryJson(row!, { id: user.id, fullName: user.fullName, email: user.email }));
 }));
@@ -69,6 +71,31 @@ router.get("/feedback", requireAdmin, asyncHandler(async (req, res) => {
     rows.map((row) => entryJson(row.entry, { id: row.entry.userId, fullName: row.fullName, email: row.email })),
     Number(count[0]?.count ?? 0), page, limit,
   ));
+}));
+
+router.post("/feedback/:id/triage", requireAdmin, asyncHandler(async (req, res) => {
+  const [row] = await db.select().from(feedbackEntries).where(and(
+    eq(feedbackEntries.id, String(req.params.id)),
+    eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
+    isNull(feedbackEntries.deletedAt),
+  )).limit(1);
+  if (!row) notFound("Feedback entry not found");
+  const [author] = await db.select({ fullName: users.fullName, email: users.email }).from(users).where(eq(users.id, row!.userId)).limit(1);
+  try {
+    const result = await runTriage({
+      module: row!.module, category: row!.category, message: row!.message, pagePath: row!.pagePath,
+      organizationId: req.currentUser!.organizationId, actorId: req.currentUser!.id,
+    });
+    const validated = TriageFeedbackResponse.safeParse(result);
+    if (!validated.success) throw new AiUnavailableError("AI returned an unexpected triage result");
+    const [updated] = await db.update(feedbackEntries)
+      .set({ triage: { ...validated.data, guidance: validated.data.guidance ?? null, resolutionSuggestion: validated.data.resolutionSuggestion ?? null }, updatedAt: new Date() })
+      .where(eq(feedbackEntries.id, row!.id)).returning();
+    res.json(entryJson(updated!, { id: row!.userId, fullName: author?.fullName ?? "", email: author?.email ?? "" }));
+  } catch (error) {
+    if (error instanceof AiUnavailableError) { res.status(503).json({ error: error.message }); return; }
+    throw error;
+  }
 }));
 
 router.put("/feedback/:id/resolution", requireAdmin, asyncHandler(async (req, res) => {
