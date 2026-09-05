@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { PageHeader, errorMessage } from "./common";
 import { useLov } from "@/lib/use-lov";
+import { useFieldControls } from "@/lib/field-controls";
 
 type Extracted = Record<string, unknown>;
 const text = (value: unknown) => typeof value === "string" ? value : "";
@@ -24,6 +25,9 @@ export function AiEntryPage() {
   const [transaction, setTransaction] = useState<PromptTransaction | null>(null);
   const [extracted, setExtracted] = useState<Extracted>({});
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // The AI-assisted draft honors the same field matrix as the standard lesson form.
+  const fieldControls = useFieldControls("lessons", "lesson-form");
+  const fp = (key: string) => fieldControls.fieldProps(key);
   const refs = useGetLessonsReferenceData();
   const disciplines = useLov("disciplines");
   const categorisations = useLov("lesson_categorisations");
@@ -59,6 +63,9 @@ export function AiEntryPage() {
     const required = ["title","projectId","disciplineId","categorisationId","description","rootCause","correction","correctiveAction"];
     const missing = required.filter((field) => !text(extracted[field]).trim());
     if (missing.length) { toast({ title: "Complete the preview", description: `Required fields are missing: ${missing.join(", ")}`, variant: "destructive" }); return; }
+    const rendered = ["title","projectId","disciplineId","categorisationId","issueCategory","impact","description","rootCause","correction","correctiveAction"];
+    const mandatoryMissing = fieldControls.mandatoryFieldKeys().filter((field) => rendered.includes(field) && !required.includes(field) && !text(extracted[field]).trim());
+    if (mandatoryMissing.length) { toast({ title: "Complete the preview", description: `Required by your administrator: ${mandatoryMissing.join(", ")}`, variant: "destructive" }); return; }
     const data = {
       title: text(extracted.title), projectId: text(extracted.projectId), disciplineId: text(extracted.disciplineId),
       categorisationId: text(extracted.categorisationId), issueCategory: text(extracted.issueCategory) || "Minor",
@@ -80,13 +87,13 @@ export function AiEntryPage() {
 
     {transaction && <div className="mt-6 grid gap-6 xl:grid-cols-3">
       <Card className="xl:col-span-2"><CardHeader className="flex-row items-center justify-between"><CardTitle>Structured preview</CardTitle><Badge variant="secondary">AI assembled</Badge></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2">
-        <Edit label="Title" value={text(extracted.title)} onChange={(v) => update("title", v)} wide />
-        <Choice label="Project" value={text(extracted.projectId)} onChange={(v) => update("projectId", v)} options={refs.data?.projects.map((x) => ({ value: x.id, label: x.name })) ?? []} />
-        <Choice label="Discipline" value={text(extracted.disciplineId)} onChange={(v) => update("disciplineId", v)} options={disciplines.options} />
-        <Choice label="Categorisation" value={text(extracted.categorisationId)} onChange={(v) => update("categorisationId", v)} options={categorisations.options} />
-         <Choice label="Issue category" value={text(extracted.issueCategory)} onChange={(v) => update("issueCategory", v)} options={issueCategories.options} />
-         <Choice label="Impact" value={text(extracted.impact)} onChange={(v) => update("impact", v)} options={impacts.options} />
-        {["description","rootCause","correction","correctiveAction"].map((field) => <div className="sm:col-span-2" key={field}><Label className="mb-2 block capitalize">{field.replace(/([A-Z])/g, " $1")}</Label><Textarea rows={4} value={text(extracted[field])} onChange={(e) => update(field, e.target.value)} /></div>)}
+        <Edit label="Title" value={text(extracted.title)} onChange={(v) => update("title", v)} wide disabled={fp("title").disabled} required={fp("title").required} />
+        <Choice label="Project" value={text(extracted.projectId)} onChange={(v) => update("projectId", v)} options={refs.data?.projects.map((x) => ({ value: x.id, label: x.name })) ?? []} disabled={fp("projectId").disabled} required={fp("projectId").required} />
+        <Choice label="Discipline" value={text(extracted.disciplineId)} onChange={(v) => update("disciplineId", v)} options={disciplines.options} disabled={fp("disciplineId").disabled} required={fp("disciplineId").required} />
+        <Choice label="Categorisation" value={text(extracted.categorisationId)} onChange={(v) => update("categorisationId", v)} options={categorisations.options} disabled={fp("categorisationId").disabled} required={fp("categorisationId").required} />
+         <Choice label="Issue category" value={text(extracted.issueCategory)} onChange={(v) => update("issueCategory", v)} options={issueCategories.options} disabled={fp("issueCategory").disabled} required={fp("issueCategory").required} />
+         <Choice label="Impact" value={text(extracted.impact)} onChange={(v) => update("impact", v)} options={impacts.options} disabled={fp("impact").disabled} required={fp("impact").required} />
+        {["description","rootCause","correction","correctiveAction"].map((field) => <div className="sm:col-span-2" key={field}><Label className="mb-2 block capitalize">{field.replace(/([A-Z])/g, " $1")}{fp(field).required && <span className="ml-1 text-destructive">*</span>}</Label><Textarea rows={4} value={text(extracted[field])} onChange={(e) => update(field, e.target.value)} disabled={fp(field).disabled} /></div>)}
         <div className="sm:col-span-2"><Button className="w-full" onClick={createLesson} disabled={transaction.missing.length > 0 || create.isPending}>{create.isPending ? <Loader2 className="animate-spin" /> : <Check />} Create draft lesson</Button></div>
       </CardContent></Card>
       <Card><CardHeader><CardTitle>Follow-up questions</CardTitle></CardHeader><CardContent className="space-y-5">
@@ -96,9 +103,9 @@ export function AiEntryPage() {
   </div>;
 }
 
-function Edit({ label, value, onChange, wide }: { label: string; value: string; onChange: (value: string) => void; wide?: boolean }) {
-  return <div className={wide ? "sm:col-span-2" : ""}><Label className="mb-2 block">{label}</Label><Input value={value} onChange={(e) => onChange(e.target.value)} /></div>;
+function Edit({ label, value, onChange, wide, disabled, required }: { label: string; value: string; onChange: (value: string) => void; wide?: boolean; disabled?: boolean; required?: boolean }) {
+  return <div className={wide ? "sm:col-span-2" : ""}><Label className="mb-2 block">{label}{required && <span className="ml-1 text-destructive">*</span>}</Label><Input value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} /></div>;
 }
-function Choice({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) {
-  return <div><Label className="mb-2 block">{label}</Label><Select value={value} onValueChange={onChange}><SelectTrigger><SelectValue placeholder={`Select ${label.toLowerCase()}`} /></SelectTrigger><SelectContent>{options.map((x) => <SelectItem value={x.value} key={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>;
+function Choice({ label, value, onChange, options, disabled, required }: { label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; disabled?: boolean; required?: boolean }) {
+  return <div><Label className="mb-2 block">{label}{required && <span className="ml-1 text-destructive">*</span>}</Label><Select value={value} onValueChange={onChange} disabled={disabled}><SelectTrigger><SelectValue placeholder={`Select ${label.toLowerCase()}`} /></SelectTrigger><SelectContent>{options.map((x) => <SelectItem value={x.value} key={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>;
 }

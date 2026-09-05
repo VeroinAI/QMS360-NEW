@@ -6,3 +6,4 @@
 - [RBAC setup for testing non-admin writes](demo-seed-users.md) — seeded workspace roles start with zero permission grants, so non-admin writes 403 until granted; never store credentials in memory.
 - [Lessons API request-body quirks](lessons-api-quirks.md) — discipline/categorisation take master-data values not UUIDs; server assigns its own id on create.
 - [Wouter :rest* wildcard limitation](wouter-rest-wildcard.md) — :rest* matches one segment only; deep nested routes need explicit App.tsx routes.
+- [QMS360 typecheck baseline is red](qms360-typecheck-baseline.md) — qms360 typecheck fails on pre-existing stale api-client-react type exports; diff against baseline, trust the running Vite app instead.

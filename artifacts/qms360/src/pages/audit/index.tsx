@@ -62,6 +62,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useLov, withLegacyOption } from "@/lib/use-lov";
 import { useFieldAccess } from "@/lib/use-field-access";
+import { useFieldControls } from "@/lib/field-controls";
 
 const PAGE_SIZE = 10;
 const date = (value?: string | null) => value ? new Date(value).toLocaleDateString() : "—";
@@ -128,7 +129,7 @@ function Metric({ label, value, icon }: { label: string; value: number; icon: Re
 
 function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: () => void }) {
   const qc = useQueryClient(); const { toast } = useToast();
-  const fa = useFieldAccess("audit"); const ro = (key: string) => fa.readOnly("schedule", key);
+  const fc = useFieldControls("audit", "schedule"); const ro = (key: string) => fc.fieldProps(key).disabled; const req = (key: string) => fc.fieldProps(key).required;
   const [l1Files, setL1Files] = useState<File[]>([]);
   const [l2Files, setL2Files] = useState<File[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -170,6 +171,12 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
     if (form.l2ReviewStatus === "Send Back" && !form.l2ReviewComments?.trim()) missing.l2ReviewComments = "L2 Review Comments are required when sending back.";
     if (!form.memoDescription?.trim()) missing.memoDescription = "Memo Description is required.";
     if (!form.memoCirculation?.trim()) missing.memoCirculation = "Memo Circulation is required.";
+    for (const key of fc.mandatoryFieldKeys()) {
+      if (missing[key]) continue;
+      const value = (form as unknown as Record<string, unknown>)[key];
+      const empty = Array.isArray(value) ? value.length === 0 : value == null || (typeof value === "string" && !value.trim());
+      if (empty) missing[key] = "This field is required by your administrator.";
+    }
     if (Object.keys(missing).length) {
       setErrors(missing);
       const first = Object.keys(missing)[0];
@@ -219,7 +226,7 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
     <div><Label>9. Audit Number / Site Visit No. *</Label><Input readOnly value={form.auditNumber ?? ""}/></div>
     <div><Label>10. QA/QC Scope *</Label><Input readOnly value={form.qaqcScope ?? ""}/></div>
     <div><Label>11. QA/QC Clauses *</Label><Input readOnly value={form.qaqcClauses ?? ""}/></div>
-    <div><Label>12. Remarks</Label><Textarea value={form.remarks ?? ""} disabled={ro("remarks")} onChange={e => field("remarks", e.target.value)}/></div>
+    <div><Label>12. Remarks{req("remarks") ? " *" : ""}</Label><Textarea value={form.remarks ?? ""} disabled={ro("remarks")} onChange={e => field("remarks", e.target.value)}/></div>
     <div id="schedule-l1Name"><Label>13. Name of L1 *</Label><Input aria-invalid={!!errors.l1Name} className={invalid("l1Name")} value={form.l1Name ?? ""} disabled={ro("l1Name")} onChange={e => field("l1Name", e.target.value)}/>{error("l1Name")}</div>
     <div><Label>14. L1 Review Status *</Label><Select value={form.l1ReviewStatus ?? "Pending"} disabled={ro("l1ReviewStatus")} onValueChange={v => field("l1ReviewStatus", v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pending">Pending</SelectItem><SelectItem value="Accept">Accept</SelectItem><SelectItem value="Send Back">Send Back</SelectItem></SelectContent></Select></div>
     <div id="schedule-l1ReviewComments"><Label>15. L1 Review Comments {form.l1ReviewStatus === "Send Back" ? "*" : ""}</Label><Textarea aria-invalid={!!errors.l1ReviewComments} className={invalid("l1ReviewComments")} value={form.l1ReviewComments ?? ""} disabled={ro("l1ReviewComments")} onChange={e => field("l1ReviewComments", e.target.value)}/>{error("l1ReviewComments")}</div>
@@ -253,14 +260,16 @@ function Schedules() {
 
 function PlanForm({ schedules, onClose }: { schedules: AuditSchedule[]; onClose: () => void }) {
   const [form, setForm] = useState<AuditPlan>({ id: crypto.randomUUID(), scheduleId: "", scope: "", objectives: "", criteria: [], auditDate: "", location: "", leadAuditorId: "", teamMemberIds: [], processOwnerIds: [], feasibilityNotes: "", status: "Draft" });
-  const fa = useFieldAccess("audit"); const ro = (key: string) => fa.readOnly("plan", key);
+  const fc = useFieldControls("audit", "plan"); const ro = (key: string) => fc.fieldProps(key).disabled; const req = (key: string) => fc.fieldProps(key).required;
   const create = useCreateAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
   const set = (key: keyof AuditPlan, value: unknown) => setForm(v => ({ ...v, [key]: value }));
-  const save = () => { if (!form.scheduleId || !form.scope || !form.auditDate || !form.location || !form.criteria.length) { toast({ title: "Complete required fields", variant: "destructive" }); return; } create.mutate({ data: form }, { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/audit/plans"] }); toast({ title: "Audit plan created" }); onClose(); }, onError: e => { toast({ title: "Unable to save", description: errorText(e), variant: "destructive" }); } }); };
-  return <div className="grid gap-3"><div><Label>Approved schedule *</Label><Select value={form.scheduleId} onValueChange={v => set("scheduleId", v)}><SelectTrigger><SelectValue placeholder="Select schedule"/></SelectTrigger><SelectContent>{schedules.map(s => <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>)}</SelectContent></Select></div>
-    <div><Label>Scope *</Label><Textarea value={form.scope} disabled={ro("scope")} onChange={e => set("scope", e.target.value)}/></div><div><Label>Objectives</Label><Input value={form.objectives ?? ""} disabled={ro("objectives")} onChange={e => set("objectives", e.target.value)}/></div><div><Label>Criteria * (comma separated)</Label><Input value={form.criteria.join(", ")} disabled={ro("criteria")} onChange={e => set("criteria", e.target.value.split(",").map(x=>x.trim()).filter(Boolean))}/></div>
+  const save = () => {
+    const missing = fc.mandatoryFieldKeys().filter(key => { const value = (form as unknown as Record<string, unknown>)[key]; return Array.isArray(value) ? !value.length : value == null || (typeof value === "string" && !value.trim()); });
+    if (!form.scheduleId || !form.scope || !form.auditDate || !form.location || !form.criteria.length || missing.length) { toast({ title: "Complete required fields", description: missing.length ? `Required by your administrator: ${missing.join(", ")}` : undefined, variant: "destructive" }); return; } create.mutate({ data: form }, { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/audit/plans"] }); toast({ title: "Audit plan created" }); onClose(); }, onError: e => { toast({ title: "Unable to save", description: errorText(e), variant: "destructive" }); } }); };
+  return <div className="grid gap-3"><div><Label>Approved schedule *{req("scheduleId") ? "*" : ""}</Label><Select value={form.scheduleId} disabled={ro("scheduleId")} onValueChange={v => set("scheduleId", v)}><SelectTrigger><SelectValue placeholder="Select schedule"/></SelectTrigger><SelectContent>{schedules.map(s => <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>)}</SelectContent></Select></div>
+    <div><Label>Scope *</Label><Textarea value={form.scope} disabled={ro("scope")} onChange={e => set("scope", e.target.value)}/></div><div><Label>Objectives{req("objectives") ? " *" : ""}</Label><Input value={form.objectives ?? ""} disabled={ro("objectives")} onChange={e => set("objectives", e.target.value)}/></div><div><Label>Criteria * (comma separated)</Label><Input value={form.criteria.join(", ")} disabled={ro("criteria")} onChange={e => set("criteria", e.target.value.split(",").map(x=>x.trim()).filter(Boolean))}/></div>
     <div className="grid grid-cols-2 gap-3"><div><Label>Audit date *</Label><Input type="date" value={form.auditDate} disabled={ro("auditDate")} onChange={e => set("auditDate", e.target.value)}/></div><div><Label>Location *</Label><Input value={form.location} disabled={ro("location")} onChange={e => set("location", e.target.value)}/></div></div>
-    <div><Label>Audit team IDs (comma separated)</Label><Input disabled={ro("teamMemberIds")} onChange={e => set("teamMemberIds", e.target.value.split(",").map(x=>x.trim()).filter(Boolean))}/></div><div><Label>Timetable / feasibility notes</Label><Textarea value={form.feasibilityNotes ?? ""} disabled={ro("feasibilityNotes")} onChange={e => set("feasibilityNotes", e.target.value)}/></div>
+    <div><Label>Audit team IDs (comma separated){req("teamMemberIds") ? " *" : ""}</Label><Input disabled={ro("teamMemberIds")} onChange={e => set("teamMemberIds", e.target.value.split(",").map(x=>x.trim()).filter(Boolean))}/></div><div><Label>Timetable / feasibility notes{req("feasibilityNotes") ? " *" : ""}</Label><Textarea value={form.feasibilityNotes ?? ""} disabled={ro("feasibilityNotes")} onChange={e => set("feasibilityNotes", e.target.value)}/></div>
     <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save} disabled={create.isPending}>Create plan</Button></DialogFooter></div>;
 }
 
@@ -297,11 +306,11 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
 
 function FindingDialog({ auditId, initial, onClose }: { auditId: string; initial?: AuditFinding; onClose: () => void }) {
   const [form,setForm]=useState<AuditFinding>(initial ?? {id:crypto.randomUUID(),auditId,title:"",description:"",clause:"",classification:"Observation",priority:"P6",riskLevel:"Low",responsibleDepartments:[],status:"Open"});
-  const fa=useFieldAccess("audit"); const ro=(key:string)=>fa.readOnly("finding",key);
+  const fc=useFieldControls("audit","finding"); const ro=(key:string)=>fc.fieldProps(key).disabled; const req=(key:string)=>fc.fieldProps(key).required;
   const create=useCreateAuditFinding(); const update=useUpdateAuditFinding(); const qc=useQueryClient(); const {toast}=useToast(); const set=(k:keyof AuditFinding,v:unknown)=>setForm(x=>({...x,[k]:v}));
   const classifications=useLov("nc_classifications"); const priorities=useLov("finding_priorities"); const risks=useLov("risk_levels");
-  const save=()=>{if(!form.title||!form.description||!form.responsibleDepartments.length){toast({title:"Title, description and department are required",variant:"destructive"});return;}const cb={onSuccess:()=>{qc.invalidateQueries({queryKey:["/api/audit/findings"]});toast({title:"Finding saved"});onClose();}};initial?update.mutate({id:initial.id,data:form},cb):create.mutate({data:form},cb)};
-  return <div className="grid gap-3"><div><Label>Title *</Label><Input value={form.title} disabled={ro("title")} onChange={e=>set("title",e.target.value)}/></div><div><Label>Description *</Label><Textarea value={form.description} disabled={ro("description")} onChange={e=>set("description",e.target.value)}/></div><div><Label>Clause</Label><Input value={form.clause??""} disabled={ro("clause")} onChange={e=>set("clause",e.target.value)}/></div><div className="grid grid-cols-3 gap-2">{([[classifications,form.classification,"classification"],[priorities,form.priority,"priority"],[risks,form.riskLevel,"riskLevel"]] as const).map(([lov,current,key])=><Select key={key} value={current} disabled={lov.isLoading || ro(key)} onValueChange={v=>set(key,v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{withLegacyOption(lov.options,current).map(x=><SelectItem value={x.value} key={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>)}</div><div><Label>Responsible departments *</Label><Input value={form.responsibleDepartments.join(", ")} disabled={ro("responsibleDepartments")} onChange={e=>set("responsibleDepartments",e.target.value.split(",").map(x=>x.trim()).filter(Boolean))}/></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save}>Save finding</Button></DialogFooter></div>;
+  const save=()=>{if(!form.title||!form.description||!form.responsibleDepartments.length){toast({title:"Title, description and department are required",variant:"destructive"});return;}const missing=fc.mandatoryFieldKeys().filter(key=>{const value=(form as unknown as Record<string,unknown>)[key];return Array.isArray(value)?!value.length:value==null||(typeof value==="string"&&!value.trim());});if(missing.length){toast({title:"Complete mandatory fields",description:`Required by your administrator: ${missing.join(", ")}`,variant:"destructive"});return;}const cb={onSuccess:()=>{qc.invalidateQueries({queryKey:["/api/audit/findings"]});toast({title:"Finding saved"});onClose();}};initial?update.mutate({id:initial.id,data:form},cb):create.mutate({data:form},cb)};
+  return <div className="grid gap-3"><div><Label>Title *</Label><Input value={form.title} disabled={ro("title")} onChange={e=>set("title",e.target.value)}/></div><div><Label>Description *</Label><Textarea value={form.description} disabled={ro("description")} onChange={e=>set("description",e.target.value)}/></div><div><Label>Clause{req("clause") ? " *" : ""}</Label><Input value={form.clause??""} disabled={ro("clause")} onChange={e=>set("clause",e.target.value)}/></div><div className="grid grid-cols-3 gap-2">{([[classifications,form.classification,"classification"],[priorities,form.priority,"priority"],[risks,form.riskLevel,"riskLevel"]] as const).map(([lov,current,key])=><Select key={key} value={current} disabled={lov.isLoading || ro(key)} onValueChange={v=>set(key,v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{withLegacyOption(lov.options,current).map(x=><SelectItem value={x.value} key={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>)}</div><div><Label>Responsible departments *</Label><Input value={form.responsibleDepartments.join(", ")} disabled={ro("responsibleDepartments")} onChange={e=>set("responsibleDepartments",e.target.value.split(",").map(x=>x.trim()).filter(Boolean))}/></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save}>Save finding</Button></DialogFooter></div>;
 }
 
 function Findings({ auditId }: { auditId: string }) {
@@ -328,9 +337,9 @@ function AuditWorkspace() {
 
 function CarEditor({car,onClose}:{car:CorrectiveActionReport;onClose:()=>void}) {
   const [form,setForm]=useState(car);const mutation=useUpdateCorrectiveActionReport();const qc=useQueryClient();const {toast}=useToast();
-  const fa=useFieldAccess("audit"); const ro=(key:string)=>fa.readOnly("car",key);
-  const save=()=>mutation.mutate({id:car.id,data:form},{onSuccess:()=>{qc.invalidateQueries({queryKey:["/api/audit/cars"]});toast({title:"CAR updated"});onClose();}});
-  return <div className="space-y-3"><div><Label>Root cause</Label><Textarea value={form.rootCause??""} disabled={ro("rootCause")} onChange={e=>setForm(v=>({...v,rootCause:e.target.value}))}/></div><div><Label>Correction</Label><Textarea value={form.correction??""} disabled={ro("correction")} onChange={e=>setForm(v=>({...v,correction:e.target.value}))}/></div><div><Label>Corrective action</Label><Textarea value={form.correctiveAction??""} disabled={ro("correctiveAction")} onChange={e=>setForm(v=>({...v,correctiveAction:e.target.value}))}/></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save}>Save response</Button></DialogFooter></div>;
+  const fc=useFieldControls("audit","car"); const ro=(key:string)=>fc.fieldProps(key).disabled; const req=(key:string)=>fc.fieldProps(key).required;
+  const save=()=>{const missing=fc.mandatoryFieldKeys().filter(key=>{const value=(form as unknown as Record<string,unknown>)[key];return value==null||(typeof value==="string"&&!value.trim());});if(missing.length){toast({title:"Complete mandatory fields",description:`Required by your administrator: ${missing.join(", ")}`,variant:"destructive"});return;}mutation.mutate({id:car.id,data:form},{onSuccess:()=>{qc.invalidateQueries({queryKey:["/api/audit/cars"]});toast({title:"CAR updated"});onClose();}})};
+  return <div className="space-y-3"><div><Label>Root cause{req("rootCause") ? " *" : ""}</Label><Textarea value={form.rootCause??""} disabled={ro("rootCause")} onChange={e=>setForm(v=>({...v,rootCause:e.target.value}))}/></div><div><Label>Correction{req("correction") ? " *" : ""}</Label><Textarea value={form.correction??""} disabled={ro("correction")} onChange={e=>setForm(v=>({...v,correction:e.target.value}))}/></div><div><Label>Corrective action{req("correctiveAction") ? " *" : ""}</Label><Textarea value={form.correctiveAction??""} disabled={ro("correctiveAction")} onChange={e=>setForm(v=>({...v,correctiveAction:e.target.value}))}/></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save}>Save response</Button></DialogFooter></div>;
 }
 
 function Cars() {
