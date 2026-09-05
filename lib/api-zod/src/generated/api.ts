@@ -275,6 +275,121 @@ export const GetPlatformReferenceDataResponse = zod.object({
 
 
 /**
+ * @summary Get per-module reference numbering patterns with next-number previews
+ */
+export const GetNumberingConfigResponse = zod.object({
+  "modules": zod.object({
+  "qaqc": zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string(),
+  "suffix": zod.string(),
+  "separator": zod.string(),
+  "position": zod.enum(['after_prefix', 'after_suffix', 'before_prefix']),
+  "padding": zod.number(),
+  "startingNumber": zod.number(),
+  "nextNumber": zod.number()
+}),
+  "configured": zod.boolean(),
+  "preview": zod.string()
+}),
+  "lessons": zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string(),
+  "suffix": zod.string(),
+  "separator": zod.string(),
+  "position": zod.enum(['after_prefix', 'after_suffix', 'before_prefix']),
+  "padding": zod.number(),
+  "startingNumber": zod.number(),
+  "nextNumber": zod.number()
+}),
+  "configured": zod.boolean(),
+  "preview": zod.string()
+}),
+  "audit": zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string(),
+  "suffix": zod.string(),
+  "separator": zod.string(),
+  "position": zod.enum(['after_prefix', 'after_suffix', 'before_prefix']),
+  "padding": zod.number(),
+  "startingNumber": zod.number(),
+  "nextNumber": zod.number()
+}),
+  "configured": zod.boolean(),
+  "preview": zod.string()
+})
+})
+})
+
+
+/**
+ * @summary Save a module reference numbering pattern (admin)
+ */
+export const UpdateNumberingPatternParams = zod.object({
+  "module": zod.enum(['qaqc', 'lessons', 'audit'])
+})
+
+export const updateNumberingPatternBodyPrefixMax = 20;
+
+export const updateNumberingPatternBodySuffixMax = 20;
+
+export const updateNumberingPatternBodySeparatorMax = 3;
+
+export const updateNumberingPatternBodyPaddingMin = 0;
+export const updateNumberingPatternBodyPaddingMax = 12;
+
+export const updateNumberingPatternBodyStartingNumberMin = 0;
+export const updateNumberingPatternBodyStartingNumberMax = 1000000000000;
+
+
+
+export const UpdateNumberingPatternBody = zod.object({
+  "prefix": zod.string().max(updateNumberingPatternBodyPrefixMax),
+  "suffix": zod.string().max(updateNumberingPatternBodySuffixMax),
+  "separator": zod.string().max(updateNumberingPatternBodySeparatorMax),
+  "position": zod.enum(['after_prefix', 'after_suffix', 'before_prefix']),
+  "padding": zod.number().min(updateNumberingPatternBodyPaddingMin).max(updateNumberingPatternBodyPaddingMax),
+  "startingNumber": zod.number().min(updateNumberingPatternBodyStartingNumberMin).max(updateNumberingPatternBodyStartingNumberMax)
+})
+
+export const UpdateNumberingPatternResponse = zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string(),
+  "suffix": zod.string(),
+  "separator": zod.string(),
+  "position": zod.enum(['after_prefix', 'after_suffix', 'before_prefix']),
+  "padding": zod.number(),
+  "startingNumber": zod.number(),
+  "nextNumber": zod.number()
+}),
+  "configured": zod.boolean(),
+  "preview": zod.string()
+})
+
+
+/**
+ * @summary Reset a module numbering pattern to the default (admin)
+ */
+export const ResetNumberingPatternParams = zod.object({
+  "module": zod.enum(['qaqc', 'lessons', 'audit'])
+})
+
+export const ResetNumberingPatternResponse = zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string(),
+  "suffix": zod.string(),
+  "separator": zod.string(),
+  "position": zod.enum(['after_prefix', 'after_suffix', 'before_prefix']),
+  "padding": zod.number(),
+  "startingNumber": zod.number(),
+  "nextNumber": zod.number()
+}),
+  "configured": zod.boolean(),
+  "preview": zod.string()
+})
+
+
+/**
  * @summary Get organization settings
  */
 export const getOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMin = 0;
@@ -1282,6 +1397,7 @@ export const ListQaqcMetricsResponse = zod.object({
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
   "submittedById": zod.string().nullish(),
+  "referenceNumber": zod.string().nullish().describe('Generated from the org numbering pattern'),
   "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
   "variance": zod.number().optional(),
   "pqi": zod.number().optional(),
@@ -1345,6 +1461,7 @@ export const CreateQaqcMetricResponse = zod.object({
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
   "submittedById": zod.string().nullish(),
+  "referenceNumber": zod.string().nullish().describe('Generated from the org numbering pattern'),
   "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
   "variance": zod.number().optional(),
   "pqi": zod.number().optional(),
@@ -1411,6 +1528,7 @@ export const UpdateQaqcMetricResponse = zod.object({
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
   "submittedById": zod.string().nullish(),
+  "referenceNumber": zod.string().nullish().describe('Generated from the org numbering pattern'),
   "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
   "variance": zod.number().optional(),
   "pqi": zod.number().optional(),
@@ -1476,6 +1594,7 @@ export const SubmitQaqcMetricResponse = zod.object({
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
   "submittedById": zod.string().nullish(),
+  "referenceNumber": zod.string().nullish().describe('Generated from the org numbering pattern'),
   "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
   "variance": zod.number().optional(),
   "pqi": zod.number().optional(),
@@ -1520,6 +1639,7 @@ export const ReviewQaqcMetricResponse = zod.object({
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "approverId": zod.string().nullish().describe('Designated approver chosen at submission'),
   "submittedById": zod.string().nullish(),
+  "referenceNumber": zod.string().nullish().describe('Generated from the org numbering pattern'),
   "closureRate": zod.number().optional().describe('Returns 100 when issued and closed are both zero'),
   "variance": zod.number().optional(),
   "pqi": zod.number().optional(),

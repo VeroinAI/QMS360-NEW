@@ -162,6 +162,9 @@ import type {
   NotificationPageResponse,
   NotificationTemplateBody,
   NotificationTemplatePageResponse,
+  NumberingConfig,
+  NumberingModuleConfig,
+  NumberingPatternInput,
   OrganizationSettings,
   PQIResult,
   PlatformContext,
@@ -1172,6 +1175,226 @@ export function useGetPlatformReferenceData<TData = Awaited<ReturnType<typeof ge
 
 
 
+
+export const getGetNumberingConfigUrl = () => {
+
+
+
+
+  return `/api/platform/numbering`
+}
+
+/**
+ * @summary Get per-module reference numbering patterns with next-number previews
+ */
+export const getNumberingConfig = async ( options?: Parameters<typeof customFetch>[1]): Promise<NumberingConfig> => {
+
+  return customFetch<NumberingConfig>(getGetNumberingConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNumberingConfigQueryKey = () => {
+    return [
+    `/api/platform/numbering`
+    ] as const;
+    }
+
+
+export const getGetNumberingConfigQueryOptions = <TData = Awaited<ReturnType<typeof getNumberingConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNumberingConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNumberingConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNumberingConfig>>> = ({ signal }) => getNumberingConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNumberingConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNumberingConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getNumberingConfig>>>
+export type GetNumberingConfigQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get per-module reference numbering patterns with next-number previews
+ */
+
+export function useGetNumberingConfig<TData = Awaited<ReturnType<typeof getNumberingConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNumberingConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNumberingConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateNumberingPatternUrl = (module: 'qaqc' | 'lessons' | 'audit',) => {
+
+
+
+
+  return `/api/platform/numbering/${module}`
+}
+
+/**
+ * @summary Save a module reference numbering pattern (admin)
+ */
+export const updateNumberingPattern = async (module: 'qaqc' | 'lessons' | 'audit',
+    numberingPatternInput: NumberingPatternInput, options?: Parameters<typeof customFetch>[1]): Promise<NumberingModuleConfig> => {
+
+  return customFetch<NumberingModuleConfig>(getUpdateNumberingPatternUrl(module),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(numberingPatternInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateNumberingPatternMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>}, TContext> => {
+
+const mutationKey = ['updateNumberingPattern'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateNumberingPattern>>, {module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>}> = (props) => {
+          const {module,data} = props ?? {};
+
+          return  updateNumberingPattern(module,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateNumberingPatternMutationResult = NonNullable<Awaited<ReturnType<typeof updateNumberingPattern>>>
+    export type UpdateNumberingPatternMutationBody = BodyType<NumberingPatternInput>
+    export type UpdateNumberingPatternMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save a module reference numbering pattern (admin)
+ */
+export const useUpdateNumberingPattern = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateNumberingPattern>>,
+        TError,
+        {module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateNumberingPatternMutationOptions(options));
+    }
+
+export const getResetNumberingPatternUrl = (module: 'qaqc' | 'lessons' | 'audit',) => {
+
+
+
+
+  return `/api/platform/numbering/${module}`
+}
+
+/**
+ * @summary Reset a module numbering pattern to the default (admin)
+ */
+export const resetNumberingPattern = async (module: 'qaqc' | 'lessons' | 'audit', options?: Parameters<typeof customFetch>[1]): Promise<NumberingModuleConfig> => {
+
+  return customFetch<NumberingModuleConfig>(getResetNumberingPatternUrl(module),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getResetNumberingPatternMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit'}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit'}, TContext> => {
+
+const mutationKey = ['resetNumberingPattern'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetNumberingPattern>>, {module: 'qaqc' | 'lessons' | 'audit'}> = (props) => {
+          const {module} = props ?? {};
+
+          return  resetNumberingPattern(module,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetNumberingPatternMutationResult = NonNullable<Awaited<ReturnType<typeof resetNumberingPattern>>>
+
+    export type ResetNumberingPatternMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Reset a module numbering pattern to the default (admin)
+ */
+export const useResetNumberingPattern = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit'}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetNumberingPattern>>,
+        TError,
+        {module: 'qaqc' | 'lessons' | 'audit'},
+        TContext
+      > => {
+      return useMutation(getResetNumberingPatternMutationOptions(options));
+    }
 
 export const getGetOrganizationSettingsUrl = () => {
 

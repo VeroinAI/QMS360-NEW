@@ -10,6 +10,7 @@ import { confirmEvidence, createEvidenceIntent, deleteEvidence, listEvidence } f
 import {
   asyncHandler, HttpError, notify, notifyWithEmail, paginated, pagination, writeAuditLog,
 } from "../lib/workspace";
+import { allocateReferenceNumber } from "../lib/numbering";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg } from "../lib/tenancy";
@@ -217,12 +218,22 @@ router.get("/metrics", asyncHandler(async (req, res) => {
 }));
 router.post("/metrics", asyncHandler(async (req, res) => {
   const value: any = body(api.CreateQaqcMetricBody, req);
-  const [row] = await db.insert(qaqcMetricEntries).values({
-    organizationId: org(req), projectId: value.projectId, reportingPeriod: monthStart(value.period),
-    category: value.category, issuedCount: value.issuedCount, closedCount: value.closedCount,
-    ageing0To15: value.ageing0To15, ageing15To45: value.ageing15To45,
-    ageingOver45: value.ageingOver45, status: "draft",
-  }).returning();
+  let row: any;
+  for (let attempt = 0; attempt < 5 && !row; attempt++) {
+    // Reference numbers come from the org's QA/QC numbering pattern (Admin Settings → Numbering).
+    const referenceNumber = await allocateReferenceNumber(org(req), "qaqc");
+    try {
+      [row] = await db.insert(qaqcMetricEntries).values({
+        organizationId: org(req), projectId: value.projectId, reportingPeriod: monthStart(value.period),
+        category: value.category, issuedCount: value.issuedCount, closedCount: value.closedCount,
+        ageing0To15: value.ageing0To15, ageing15To45: value.ageing15To45,
+        ageingOver45: value.ageingOver45, status: "draft", referenceNumber,
+      }).returning();
+    } catch (error) {
+      if (!(error instanceof Error) || !String(error.message).includes("qaqc_metric_reference_active_idx")) throw error;
+    }
+  }
+  if (!row) throw new HttpError(409, "Unable to allocate a unique metric reference number");
   await audit(req, "create", "metric", row.id, undefined, row);
   res.status(201).json(mapMetric(row));
 }));

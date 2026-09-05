@@ -1,14 +1,19 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import {
-  GetApplicationAccessResponse, GetOrganizationSettingsResponse,
+  GetApplicationAccessResponse, GetNumberingConfigResponse, GetOrganizationSettingsResponse,
   GetPlatformContextResponse, GetPlatformReferenceDataResponse,
-  ListBusinessUnitsResponse, ListProjectsResponse, UpdateOrganizationSettingsBody,
+  ListBusinessUnitsResponse, ListProjectsResponse, ResetNumberingPatternResponse,
+  UpdateNumberingPatternBody, UpdateNumberingPatternResponse, UpdateOrganizationSettingsBody,
   UpdateOrganizationSettingsResponse,
 } from "@workspace/api-zod";
 import { applicationAccess, businessUnits, db, organizations, organizationSettings, projects } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { paginated, pagination } from "../lib/workspace";
+import {
+  effectivePattern, formatReferenceNumber, getNumberingMap, isConfigured, NUMBERING_MODULES,
+  resetNumberingPattern, saveNumberingPattern, type NumberingModule,
+} from "../lib/numbering";
 
 const router: IRouter = Router();
 
@@ -250,6 +255,41 @@ router.put("/platform/organization-settings", requireAuth, requireAdmin, async (
     eq(organizationSettings.organizationId, user.organizationId), isNull(organizationSettings.deletedAt),
   )).limit(1);
   res.json(UpdateOrganizationSettingsResponse.parse(settingsResponse(org!, settings)));
+});
+
+const moduleConfigDto = (map: Awaited<ReturnType<typeof getNumberingMap>>, module: NumberingModule) => {
+  const pattern = effectivePattern(map, module);
+  return { pattern, configured: isConfigured(map, module), preview: formatReferenceNumber(pattern, pattern.nextNumber) };
+};
+
+router.get("/platform/numbering", requireAuth, async (req, res): Promise<void> => {
+  const map = await getNumberingMap(req.currentUser!.organizationId);
+  const modules = Object.fromEntries(NUMBERING_MODULES.map((module) => [module, moduleConfigDto(map, module)]));
+  res.json(GetNumberingConfigResponse.parse({ modules }));
+});
+
+router.put("/platform/numbering/:module", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const module = String(req.params.module) as NumberingModule;
+  if (!NUMBERING_MODULES.includes(module)) { res.status(404).json({ error: "Unknown module" }); return; }
+  const parsed = UpdateNumberingPatternBody.safeParse(req.body);
+  if (!parsed.success) { res.status(422).json({ error: parsed.error.issues[0]?.message ?? "Invalid numbering pattern" }); return; }
+  // zod here accepts any bounded number (orval cannot emit .int()); counters must be integers.
+  if (!Number.isInteger(parsed.data.padding) || !Number.isInteger(parsed.data.startingNumber)) {
+    res.status(422).json({ error: "Padding and starting number must be whole numbers" });
+    return;
+  }
+  const pattern = await saveNumberingPattern(req.currentUser!.organizationId, module, parsed.data);
+  res.json(UpdateNumberingPatternResponse.parse({
+    pattern, configured: true, preview: formatReferenceNumber(pattern, pattern.nextNumber),
+  }));
+});
+
+router.delete("/platform/numbering/:module", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const module = String(req.params.module) as NumberingModule;
+  if (!NUMBERING_MODULES.includes(module)) { res.status(404).json({ error: "Unknown module" }); return; }
+  await resetNumberingPattern(req.currentUser!.organizationId, module);
+  const map = await getNumberingMap(req.currentUser!.organizationId);
+  res.json(ResetNumberingPatternResponse.parse(moduleConfigDto(map, module)));
 });
 
 export { appDefinitions, userHasAppAccess };

@@ -193,6 +193,22 @@ paths:
       parameters: [{$ref: "#/components/parameters/Since"}]
       responses:
         "200": {description: Reference data snapshot, content: {application/json: {schema: {$ref: "#/components/schemas/ReferenceDataSnapshot"}}}}
+  /platform/numbering:
+    get: {operationId: getNumberingConfig, tags: [platform], summary: Get per-module reference numbering patterns with next-number previews, responses: {"200": {description: Numbering config, content: {application/json: {schema: {$ref: "#/components/schemas/NumberingConfig"}}}}}}
+  /platform/numbering/{module}:
+    put:
+      operationId: updateNumberingPattern
+      tags: [platform]
+      summary: Save a module reference numbering pattern (admin)
+      parameters: [{name: module, in: path, required: true, schema: {type: string, enum: [qaqc, lessons, audit]}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/NumberingPatternInput"}}}}
+      responses: {"200": {description: Saved pattern, content: {application/json: {schema: {$ref: "#/components/schemas/NumberingModuleConfig"}}}}}
+    delete:
+      operationId: resetNumberingPattern
+      tags: [platform]
+      summary: Reset a module numbering pattern to the default (admin)
+      parameters: [{name: module, in: path, required: true, schema: {type: string, enum: [qaqc, lessons, audit]}}]
+      responses: {"200": {description: Reset pattern, content: {application/json: {schema: {$ref: "#/components/schemas/NumberingModuleConfig"}}}}}
   /platform/organization-settings:
     get:
       operationId: getOrganizationSettings
@@ -1354,6 +1370,7 @@ components:
         workflowState: {$ref: "#/components/schemas/WorkflowState"}
         approverId: {type: [string, "null"], description: Designated approver chosen at submission}
         submittedById: {type: [string, "null"], readOnly: true}
+        referenceNumber: {type: [string, "null"], readOnly: true, description: Generated from the org numbering pattern}
         closureRate: {type: number, readOnly: true, description: Returns 100 when issued and closed are both zero}
         variance: {type: number, readOnly: true}
         pqi: {type: number, readOnly: true}
@@ -1386,6 +1403,45 @@ components:
     SubmitForReview:
       type: object
       properties: {approverId: {type: string, description: Designated approver; defaults to the approver already stored on the record}}
+    NumberingPattern:
+      type: object
+      required: [prefix, suffix, separator, position, padding, startingNumber, nextNumber]
+      properties:
+        prefix: {type: string}
+        suffix: {type: string}
+        separator: {type: string}
+        position: {type: string, enum: [after_prefix, after_suffix, before_prefix]}
+        padding: {type: number}
+        startingNumber: {type: number}
+        nextNumber: {type: number, readOnly: true}
+    NumberingPatternInput:
+      type: object
+      required: [prefix, suffix, separator, position, padding, startingNumber]
+      properties:
+        prefix: {type: string, maxLength: 20}
+        suffix: {type: string, maxLength: 20}
+        separator: {type: string, maxLength: 3}
+        position: {type: string, enum: [after_prefix, after_suffix, before_prefix]}
+        padding: {type: number, minimum: 0, maximum: 12}
+        startingNumber: {type: number, minimum: 0, maximum: 1000000000000}
+    NumberingModuleConfig:
+      type: object
+      required: [pattern, configured, preview]
+      properties:
+        pattern: {$ref: "#/components/schemas/NumberingPattern"}
+        configured: {type: boolean}
+        preview: {type: string}
+    NumberingConfig:
+      type: object
+      required: [modules]
+      properties:
+        modules:
+          type: object
+          required: [qaqc, lessons, audit]
+          properties:
+            qaqc: {$ref: "#/components/schemas/NumberingModuleConfig"}
+            lessons: {$ref: "#/components/schemas/NumberingModuleConfig"}
+            audit: {$ref: "#/components/schemas/NumberingModuleConfig"}
     AIDraft:
       type: object
       required: [draft, suggestions]

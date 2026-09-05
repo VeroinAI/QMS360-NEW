@@ -42,6 +42,7 @@ import {
   users,
 } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
+import { allocateReferenceNumber } from "../lib/numbering";
 import { assertOwnerOrFull, requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertLovValue } from "../lib/lov";
 import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
@@ -272,10 +273,8 @@ router.post("/forms", asyncHandler(async (req, res) => {
   if (!project) notFound("Project not found");
   let created: typeof lessonLearnedForms.$inferSelect | undefined;
   for (let attempt = 0; attempt < 5 && !created; attempt++) {
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(lessonLearnedForms).where(and(
-      eq(lessonLearnedForms.organizationId, user.organizationId), eq(lessonLearnedForms.projectId, body.projectId),
-    ));
-    const referenceNumber = `LL-${project.code}-${Number(count ?? 0) + 1 + attempt}`;
+    // Reference numbers come from the org's lessons numbering pattern (Admin Settings → Numbering).
+    const referenceNumber = await allocateReferenceNumber(user.organizationId, "lessons");
     try {
       [created] = await db.insert(lessonLearnedForms).values({
         organizationId: user.organizationId, projectId: body.projectId,

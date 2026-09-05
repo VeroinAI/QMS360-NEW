@@ -31,6 +31,11 @@ export interface QAQCMetricEntry {
   approverId?: string | null;
   /** @nullable */
   readonly submittedById?: string | null;
+  /**
+     * Generated from the org numbering pattern
+     * @nullable
+     */
+  readonly referenceNumber?: string | null;
   /** Returns 100 when issued and closed are both zero */
   readonly closureRate?: number;
   readonly variance?: number;

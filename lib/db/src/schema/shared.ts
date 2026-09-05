@@ -156,6 +156,15 @@ export const organizationSettings = sharedSchema.table("organization_settings", 
     docMaxMb: 25,
     lessonPhotoCountMax: 5,
   }),
+  documentNumbering: jsonb("document_numbering").$type<Record<string, {
+    prefix: string;
+    suffix: string;
+    separator: string;
+    position: "after_prefix" | "after_suffix" | "before_prefix";
+    padding: number;
+    startingNumber: number;
+    nextNumber: number;
+  }>>().notNull().default({}),
   ...auditColumns,
 }, (table) => [
   uniqueIndex("organization_settings_org_active_idx").on(table.organizationId).where(sql`${table.deletedAt} IS NULL`),

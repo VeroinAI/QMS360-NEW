@@ -84,8 +84,12 @@ export const qaqcMetricEntries = app1QaqcSchema.table("qaqc_metric_entries", {
   ageingOver45: integer("ageing_over_45").notNull().default(0),
   approverId: uuid("approver_id").references(() => users.id),
   submittedById: uuid("submitted_by_id").references(() => users.id),
+  referenceNumber: text("reference_number"),
   ...auditColumns,
-}, (table) => [uniqueIndex("qaqc_metric_project_period_category_active_idx").on(table.projectId, table.reportingPeriod, table.category).where(sql`${table.deletedAt} IS NULL`)]);
+}, (table) => [
+  uniqueIndex("qaqc_metric_project_period_category_active_idx").on(table.projectId, table.reportingPeriod, table.category).where(sql`${table.deletedAt} IS NULL`),
+  uniqueIndex("qaqc_metric_reference_active_idx").on(table.organizationId, table.referenceNumber).where(sql`${table.deletedAt} IS NULL AND ${table.referenceNumber} IS NOT NULL`),
+]);
 
 export const materialInspectionEntries = app1QaqcSchema.table("material_inspection_entries", {
   id: uuid("id").defaultRandom().primaryKey(),

@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import * as Api from "@workspace/api-zod";
+import { allocateReferenceNumber, hasNumberingPattern } from "../lib/numbering";
 import {
   applicationAccess,
   auditAuditLogEntries,
@@ -312,13 +313,26 @@ router.post("/audits", asyncHandler(async (req, res) => {
       throw new HttpError(422, "Audit project must match the plan schedule");
     }
   }
-  try {
-    const [row] = await db.insert(audits).values({ organizationId: actor(req).organizationId, ...auditValues(data) }).returning();
-    await auditLog(req, "create", "audit", row.id, undefined, row); res.status(201).json(auditDto(row));
-  } catch (error: any) {
-    if (error?.code === "23505") throw new HttpError(409, "An active audit with this title already exists");
-    throw error;
+  // When an audit numbering pattern is configured, the reference number is
+  // generated from it; otherwise the manually supplied title remains the reference.
+  const usePattern = await hasNumberingPattern(actor(req).organizationId, "audit");
+  const values: Omit<typeof audits.$inferInsert, "organizationId"> = auditValues(data);
+  let row: typeof audits.$inferSelect | undefined;
+  for (let attempt = 0; attempt < 5 && !row; attempt++) {
+    if (usePattern) {
+      values.referenceNumber = await allocateReferenceNumber(actor(req).organizationId, "audit");
+      values.referenceGenerated = true;
+    }
+    try {
+      [row] = await db.insert(audits).values({ organizationId: actor(req).organizationId, ...values }).returning();
+    } catch (error: any) {
+      if (error?.code === "23505" && usePattern && String(error?.message ?? "").includes("audit_reference_active_idx")) continue;
+      if (error?.code === "23505") throw new HttpError(409, "An active audit with this title already exists");
+      throw error;
+    }
   }
+  if (!row) throw new HttpError(409, "Unable to allocate a unique audit reference number");
+  await auditLog(req, "create", "audit", row.id, undefined, row); res.status(201).json(auditDto(row));
 }));
 router.get("/audits/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
@@ -328,7 +342,10 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditBody, req);
   const [before] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit not found");
-  const [row] = await db.update(audits).set({ ...auditValues(data), id: undefined, updatedAt: new Date() }).where(eq(audits.id, before.id)).returning();
+  const values = auditValues(data);
+  // Generated reference numbers are immutable, regardless of the current pattern config.
+  if (before.referenceGenerated) values.referenceNumber = before.referenceNumber;
+  const [row] = await db.update(audits).set({ ...values, id: undefined, updatedAt: new Date() }).where(eq(audits.id, before.id)).returning();
   await auditLog(req, "update", "audit", row.id, before, row); res.json(auditDto(row));
 }));
 router.delete("/audits/:id", asyncHandler(async (req, res) => {

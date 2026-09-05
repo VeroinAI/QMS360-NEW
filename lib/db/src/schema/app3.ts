@@ -1,4 +1,4 @@
-import { date, integer, jsonb, pgSchema, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, integer, jsonb, pgSchema, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organizations, projects, users } from "./shared";
 import { createAppAdministration } from "./app-common";
@@ -63,6 +63,7 @@ export const audits = app3AuditSchema.table("audits", {
   auditPlanId: uuid("audit_plan_id").references(() => auditPlans.id),
   projectId: uuid("project_id").references(() => projects.id),
   referenceNumber: text("reference_number").notNull(),
+  referenceGenerated: boolean("reference_generated").notNull().default(false),
   openingMinutes: text("opening_minutes"),
   closingMinutes: text("closing_minutes"),
   openingMeetingMinutes: text("opening_meeting_minutes"),

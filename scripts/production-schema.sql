@@ -1575,3 +1575,11 @@ ALTER TABLE "app1_qaqc"."quality_assessment_briefs" ADD CONSTRAINT "quality_asse
 --   pnpm --filter @workspace/scripts run record-baseline
 -- Then verify no drift before future promotions:
 --   pnpm --filter @workspace/scripts run check-drift
+
+-- 0008_reference_numbering: per-module reference numbering config + QA/QC metric reference numbers
+ALTER TABLE "shared"."organization_settings" ADD COLUMN IF NOT EXISTS "document_numbering" jsonb DEFAULT '{}'::jsonb NOT NULL;
+ALTER TABLE "app1_qaqc"."qaqc_metric_entries" ADD COLUMN IF NOT EXISTS "reference_number" text;
+CREATE UNIQUE INDEX IF NOT EXISTS "qaqc_metric_reference_active_idx" ON "app1_qaqc"."qaqc_metric_entries" ("organization_id", "reference_number") WHERE "deleted_at" IS NULL AND "reference_number" IS NOT NULL;
+
+-- 0009_reference_generated: audits flag distinguishing generated reference numbers from manual ones
+ALTER TABLE "app3_audit"."audits" ADD COLUMN IF NOT EXISTS "reference_generated" boolean DEFAULT false NOT NULL;

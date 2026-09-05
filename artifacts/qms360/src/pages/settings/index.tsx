@@ -5,17 +5,17 @@ import {
   useAssignAuditUserRole, useAssignLessonsUserRole, useAssignQaqcUserRole,
   useCreateAuditDelegation, useCreateAuditRole, useCreateLessonsDelegation, useCreateLessonsRole, useCreateQaqcDelegation, useCreateQaqcRole,
   useDecideAuditAccessRequest, useDecideLessonsAccessRequest, useDecideQaqcAccessRequest,
-  useGetLessonsAiSettings, useGetQaqcAiSettings,
+  useGetLessonsAiSettings, useGetNumberingConfig, useGetQaqcAiSettings,
   useListAuditAccessQueue, useListAuditDelegations, useListAuditEscalationRules, useListAuditNotificationTemplates, useListAuditRoles, useListAuditUsers, useListAuditWorkspaceAuditLog,
   useListLessonsAccessQueue, useListLessonsAuditLog, useListLessonsDelegations, useListLessonsEscalationRules, useListLessonsNotificationTemplates, useListLessonsRoles, useListLessonsUsers,
   useListQaqcAccessQueue, useListQaqcAuditLog, useListQaqcDelegations, useListQaqcEscalationRules, useListQaqcNotificationTemplates, useListQaqcRoles, useListQaqcUsers,
-  useRevokeAuditDelegation, useRevokeLessonsDelegation, useRevokeQaqcDelegation,
-  useUpdateAuditEscalationRules, useUpdateAuditNotificationTemplate, useUpdateAuditRole,
+  useResetNumberingPattern, useRevokeAuditDelegation, useRevokeLessonsDelegation, useRevokeQaqcDelegation,
+  useUpdateAuditEscalationRules, useUpdateAuditNotificationTemplate, useUpdateAuditRole, useUpdateNumberingPattern,
   useUpdateLessonsAiSettings, useUpdateLessonsEscalationRules, useUpdateLessonsNotificationTemplate, useUpdateLessonsRole,
   useUpdateQaqcAiSettings, useUpdateQaqcEscalationRules, useUpdateQaqcNotificationTemplate, useUpdateQaqcRole,
 } from '@workspace/api-client-react';
-import type { AISettings, EscalationRule, NotificationTemplate, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
-import { AlertCircle, ArrowLeft, Bell, Bot, Check, ChevronLeft, ChevronRight, Clock, FileClock, KeyRound, Plus, Save, Search, Settings2, ShieldCheck, Trash2, Users } from 'lucide-react';
+import type { AISettings, EscalationRule, NotificationTemplate, NumberingModuleConfig, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
+import { AlertCircle, ArrowLeft, Bell, Bot, Check, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Plus, Save, Search, Settings2, ShieldCheck, Trash2, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,10 +31,10 @@ import { useToast } from '@/hooks/use-toast';
 import { CockpitPage } from '../cockpit';
 
 type AppKey = 'qaqc' | 'lessons' | 'audit';
-type TabKey = 'overview' | 'access' | 'roles' | 'escalation' | 'ai' | 'notifications' | 'audit-log';
+type TabKey = 'overview' | 'numbering' | 'access' | 'roles' | 'escalation' | 'ai' | 'notifications' | 'audit-log';
 const names: Record<AppKey, string> = { qaqc: 'QA/QC & Document Governance', lessons: 'Lesson Learned Management', audit: 'QMS Audit Management' };
 const tabs: { key: TabKey; label: string; icon: typeof Settings2 }[] = [
-  { key: 'overview', label: 'Overview', icon: Settings2 }, { key: 'access', label: 'Users & Access', icon: Users },
+  { key: 'overview', label: 'Overview', icon: Settings2 }, { key: 'numbering', label: 'Numbering', icon: Hash }, { key: 'access', label: 'Users & Access', icon: Users },
   { key: 'roles', label: 'Roles & Permissions', icon: ShieldCheck }, { key: 'escalation', label: 'Escalation', icon: Clock },
   { key: 'ai', label: 'AI Settings', icon: Bot }, { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'audit-log', label: 'Audit Log', icon: FileClock },
@@ -178,12 +178,59 @@ function AuditLog({ app }: { app: AppKey }) {
   return <><Card className="mb-5"><CardHeader><CardTitle>Audit log filters</CardTitle><CardDescription>Read-only, immutable administrative history.</CardDescription></CardHeader><CardContent className="grid gap-3 md:grid-cols-5"><Input type="date" value={draft.from} onChange={e => setDraft({ ...draft, from: e.target.value })} /><Input type="date" value={draft.to} onChange={e => setDraft({ ...draft, to: e.target.value })} /><Input placeholder="Actor ID" value={draft.actorId} onChange={e => setDraft({ ...draft, actorId: e.target.value })} /><Input placeholder="Action" value={draft.action} onChange={e => setDraft({ ...draft, action: e.target.value })} /><Button onClick={() => { setPage(1); setFilters(Object.fromEntries(Object.entries(draft).filter(([,v]) => v))); }}><Search className="mr-2 h-4 w-4" />Apply</Button></CardContent></Card><PageState loading={api.log.isLoading} error={api.log.error} empty={!entries.length} onRetry={api.log.refetch}><Card><CardContent className="pt-6"><Table><TableHeader><TableRow><TableHead>Date & time</TableHead><TableHead>Actor</TableHead><TableHead>Action</TableHead><TableHead>Entity</TableHead><TableHead>IP address</TableHead></TableRow></TableHeader><TableBody>{entries.map(e => <TableRow key={e.id}><TableCell>{new Date(e.occurredAt).toLocaleString()}</TableCell><TableCell>{e.actorId}</TableCell><TableCell><Badge variant="outline">{e.action}</Badge></TableCell><TableCell>{e.entityType} · {e.entityId}</TableCell><TableCell>{e.ipAddress ?? '—'}</TableCell></TableRow>)}</TableBody></Table><div className="mt-5 flex items-center justify-between"><p className="text-sm text-muted-foreground">Page {page} · {api.log.data?.total ?? 0} entries</p><div className="flex gap-2"><Button size="icon" variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}><ChevronLeft /></Button><Button size="icon" variant="outline" disabled={page * 20 >= (api.log.data?.total ?? 0)} onClick={() => setPage(p => p + 1)}><ChevronRight /></Button></div></div></CardContent></Card></PageState></>;
 }
 
+type NumberingPosition = 'after_prefix' | 'after_suffix' | 'before_prefix';
+interface NumberingFormState { prefix: string; suffix: string; separator: string; position: NumberingPosition; padding: number; startingNumber: number; }
+
+// Mirrors the server formatter in api-server/src/lib/numbering.ts — keep in sync.
+function formatNumberPreview(p: NumberingFormState, n: number) {
+  const running = String(n).padStart(p.padding, '0');
+  const parts = p.position === 'before_prefix' ? [running, p.prefix, p.suffix]
+    : p.position === 'after_suffix' ? [p.prefix, p.suffix, running]
+    : [p.prefix, running, p.suffix];
+  return parts.filter(part => part !== '').join(p.separator);
+}
+
+function NumberingForm({ app, module, onSaved }: { app: AppKey; module: NumberingModuleConfig; onSaved: (title: string) => void }) {
+  const [form, setForm] = useState<NumberingFormState>({
+    prefix: module.pattern.prefix, suffix: module.pattern.suffix, separator: module.pattern.separator,
+    position: module.pattern.position, padding: module.pattern.padding, startingNumber: module.pattern.startingNumber,
+  });
+  const update = useUpdateNumberingPattern(); const reset = useResetNumberingPattern();
+  const set = <K extends keyof NumberingFormState>(key: K, value: NumberingFormState[K]) => setForm(f => ({ ...f, [key]: value }));
+  const busy = update.isPending || reset.isPending;
+  const fail = (error: unknown) => onSaved(`Could not save: ${error instanceof Error ? error.message : 'unknown error'}`);
+  return <Card><CardHeader><div className="flex items-center justify-between"><div><CardTitle>Reference numbers</CardTitle><CardDescription>Pattern used when new {names[app]} records are created. Existing records keep their numbers.</CardDescription></div><Badge variant={module.configured ? 'default' : 'secondary'}>{module.configured ? 'Custom' : 'Default'}</Badge></div></CardHeader><CardContent className="space-y-4">
+    <div className="grid gap-3 sm:grid-cols-3">
+      <div><Label>Prefix</Label><Input maxLength={20} value={form.prefix} onChange={e => set('prefix', e.target.value)} /></div>
+      <div><Label>Suffix</Label><Input maxLength={20} value={form.suffix} onChange={e => set('suffix', e.target.value)} /></div>
+      <div><Label>Separator</Label><Input maxLength={3} value={form.separator} onChange={e => set('separator', e.target.value)} /></div>
+    </div>
+    <div className="grid gap-3 sm:grid-cols-3">
+      <div><Label>Running number position</Label><Select value={form.position} onValueChange={v => set('position', v as NumberingPosition)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="after_prefix">After prefix</SelectItem><SelectItem value="after_suffix">After suffix</SelectItem><SelectItem value="before_prefix">Before prefix</SelectItem></SelectContent></Select></div>
+      <div><Label>Padding (digits)</Label><Input type="number" min={0} max={12} value={form.padding} onChange={e => set('padding', Math.max(0, Math.min(12, Number(e.target.value) || 0)))} /></div>
+      <div><Label>Starting number</Label><Input type="number" min={0} value={form.startingNumber} onChange={e => set('startingNumber', Math.max(0, Number(e.target.value) || 0))} /></div>
+    </div>
+    <div className="rounded-lg border bg-muted/40 px-4 py-3"><p className="text-xs uppercase tracking-widest text-muted-foreground">Next reference number</p><p className="mt-1 font-mono text-lg font-semibold">{formatNumberPreview(form, Math.max(module.pattern.nextNumber, form.startingNumber))}</p><p className="mt-1 text-xs text-muted-foreground">The counter continues from {module.pattern.nextNumber}; the starting number applies only before the first number is issued.</p></div>
+    <div className="flex gap-2"><Button disabled={busy} onClick={() => update.mutate({ module: app, data: form }, { onSuccess: () => onSaved('Numbering pattern saved'), onError: fail })}><Save className="mr-2 h-4 w-4" />Save pattern</Button>{module.configured && <Button variant="outline" disabled={busy} onClick={() => reset.mutate({ module: app }, { onSuccess: () => onSaved('Numbering reset to default'), onError: fail })}>Reset to default</Button>}</div>
+  </CardContent></Card>;
+}
+
+function NumberingTab({ app }: { app: AppKey }) {
+  const config = useGetNumberingConfig();
+  const { toast } = useToast();
+  const notify = (title: string) => { toast({ title }); config.refetch(); };
+  if (config.isLoading) return <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Loading numbering settings…</CardContent></Card>;
+  const module = config.data?.modules?.[app];
+  if (!module) return <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Numbering settings unavailable.</CardContent></Card>;
+  return <NumberingForm key={`${app}-${config.dataUpdatedAt}`} app={app} module={module} onSaved={notify} />;
+}
+
 function SettingsPage() {
   const params = useParams<{ app: string; tab?: string }>(); const [, navigate] = useLocation();
   const app = (['qaqc','lessons','audit'].includes(params.app) ? params.app : 'qaqc') as AppKey;
   const tab = (params.tab || 'overview') as TabKey;
   const visibleTabs = tabs.filter(t => !(app === 'audit' && t.key === 'ai'));
-  const content = tab === 'overview' ? <Overview app={app} /> : tab === 'access' ? <UsersAccess app={app} /> : tab === 'roles' ? <Roles app={app} /> : tab === 'escalation' ? <Escalations app={app} /> : tab === 'ai' && app !== 'audit' ? <AiSettings app={app} /> : tab === 'notifications' ? <Notifications app={app} /> : <AuditLog app={app} />;
+  const content = tab === 'overview' ? <Overview app={app} /> : tab === 'numbering' ? <NumberingTab app={app} /> : tab === 'access' ? <UsersAccess app={app} /> : tab === 'roles' ? <Roles app={app} /> : tab === 'escalation' ? <Escalations app={app} /> : tab === 'ai' && app !== 'audit' ? <AiSettings app={app} /> : tab === 'notifications' ? <Notifications app={app} /> : <AuditLog app={app} />;
   return <main className="min-h-screen bg-background"><header className="bg-primary px-5 py-8 text-primary-foreground md:px-10"><div className="mx-auto max-w-7xl"><Link href={`/${app}`} className="mb-5 inline-flex items-center gap-2 text-sm opacity-80 hover:opacity-100"><ArrowLeft className="h-4 w-4" />Back to application</Link><p className="text-sm font-semibold uppercase tracking-widest opacity-70">Independent workspace administration</p><h1 className="mt-2 font-display text-3xl font-bold">{names[app]} Settings</h1><p className="mt-2 max-w-2xl opacity-80">Configure access, governance and operational controls for this application only.</p></div></header><div className="mx-auto max-w-7xl px-5 py-6 md:px-10"><nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl border bg-card p-1.5">{visibleTabs.map(({ key, label, icon: Icon }) => <button key={key} onClick={() => navigate(`/settings/${app}/${key}`)} className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${tab === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}><Icon className="h-4 w-4" />{label}</button>)}</nav>{content}</div></main>;
 }
 

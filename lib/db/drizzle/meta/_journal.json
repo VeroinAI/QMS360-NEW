@@ -57,6 +57,20 @@
       "when": 1788600002000,
       "tag": "0007_add_qaqc_approvers",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788600003000,
+      "tag": "0008_reference_numbering",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788600004000,
+      "tag": "0009_reference_generated",
+      "breakpoints": true
     }
   ]
 }

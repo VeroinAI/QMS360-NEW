@@ -504,6 +504,11 @@ export interface QAQCMetricEntry {
   approverId?: string | null;
   /** @nullable */
   readonly submittedById?: string | null;
+  /**
+     * Generated from the org numbering pattern
+     * @nullable
+     */
+  readonly referenceNumber?: string | null;
   /** Returns 100 when issued and closed are both zero */
   readonly closureRate?: number;
   readonly variance?: number;
@@ -640,6 +645,70 @@ export interface ApprovalReview {
 export interface SubmitForReview {
   /** Designated approver; defaults to the approver already stored on the record */
   approverId?: string;
+}
+
+export type NumberingPatternPosition = typeof NumberingPatternPosition[keyof typeof NumberingPatternPosition];
+
+
+export const NumberingPatternPosition = {
+  after_prefix: 'after_prefix',
+  after_suffix: 'after_suffix',
+  before_prefix: 'before_prefix',
+} as const;
+
+export interface NumberingPattern {
+  prefix: string;
+  suffix: string;
+  separator: string;
+  position: NumberingPatternPosition;
+  padding: number;
+  startingNumber: number;
+  readonly nextNumber: number;
+}
+
+export type NumberingPatternInputPosition = typeof NumberingPatternInputPosition[keyof typeof NumberingPatternInputPosition];
+
+
+export const NumberingPatternInputPosition = {
+  after_prefix: 'after_prefix',
+  after_suffix: 'after_suffix',
+  before_prefix: 'before_prefix',
+} as const;
+
+export interface NumberingPatternInput {
+  /** @maxLength 20 */
+  prefix: string;
+  /** @maxLength 20 */
+  suffix: string;
+  /** @maxLength 3 */
+  separator: string;
+  position: NumberingPatternInputPosition;
+  /**
+     * @minimum 0
+     * @maximum 12
+     */
+  padding: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000000000
+     */
+  startingNumber: number;
+}
+
+export interface NumberingModuleConfig {
+  pattern: NumberingPattern;
+  configured: boolean;
+  preview: string;
+}
+
+export type NumberingConfigModules = {
+  qaqc: NumberingModuleConfig;
+  lessons: NumberingModuleConfig;
+  audit: NumberingModuleConfig;
+};
+
+export interface NumberingConfig {
+  modules: NumberingConfigModules;
 }
 
 export interface AIDraft {
