@@ -153,11 +153,55 @@ function Roles({ app }: { app: AppKey }) {
   </PageState>;
 }
 
+// Triggers the background escalation engine (artifacts/api-server/src/lib/escalation.ts)
+// actually evaluates per application — keep in sync with evaluateEscalations.
+const triggerMeta: Record<string, { label: string; description: string }> = {
+  approval_delay: { label: 'Approval delay', description: 'A record waits too long for approval' },
+  lesson_sla: { label: 'Lesson SLA breach', description: 'A lesson stays unresolved past its SLA' },
+  performance: { label: 'Performance below target', description: 'Closure rate stays under the benchmark' },
+  finding_priority: { label: 'Finding priority ageing', description: 'Open findings age and climb priority' },
+};
+const appTriggers: Record<AppKey, string[]> = {
+  qaqc: ['approval_delay', 'performance'],
+  lessons: ['lesson_sla'],
+  audit: ['approval_delay', 'finding_priority'],
+};
+const levelOptions = ['P2', 'P1', 'L1', 'L2', 'L3'];
+const recommendedRules: Record<AppKey, Omit<EscalationRule, 'id'>[]> = {
+  qaqc: [
+    { triggerType: 'approval_delay', priority: 'P2', level: 'P2', slaWorkingDays: 3, recipientRoles: ['Quality Manager'], repeatCadenceDays: 2, enabled: true },
+    { triggerType: 'performance', priority: 'L1', level: 'L1', slaWorkingDays: 0, recipientRoles: ['Quality Manager'], repeatCadenceDays: 2, enabled: true },
+  ],
+  lessons: [{ triggerType: 'lesson_sla', priority: 'P1', level: 'P1', slaWorkingDays: 5, recipientRoles: ['Quality Manager'], repeatCadenceDays: 3, enabled: true }],
+  audit: [
+    { triggerType: 'approval_delay', priority: 'P2', level: 'P2', slaWorkingDays: 3, recipientRoles: ['Audit Manager'], repeatCadenceDays: 2, enabled: true },
+    { triggerType: 'finding_priority', priority: 'P1', level: 'P1', slaWorkingDays: 2, recipientRoles: ['Audit Manager'], repeatCadenceDays: 2, enabled: true },
+  ],
+};
+
 function Escalations({ app }: { app: AppKey }) {
   const api = useAdmin(app); const act = useActions(app); const [draft, setDraft] = useState<EscalationRule[]>();
   const rows = draft ?? api.escalations.data?.items ?? [];
   const patch = (id: string, value: Partial<EscalationRule>) => setDraft(rows.map(r => r.id === id ? { ...r, ...value } : r));
-  return <PageState loading={api.escalations.isLoading} error={api.escalations.error} empty={!rows.length} onRetry={api.escalations.refetch}><Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Escalation rules</CardTitle><CardDescription>Configure trigger, threshold, target level, cadence and availability.</CardDescription></div><Button disabled={!draft || act.escalation.isPending} onClick={() => act.escalation.mutate({ data: rows }, { onSuccess: () => { act.done('Escalation rules saved'); setDraft(undefined); }, onError: act.fail })}><Save className="mr-2 h-4 w-4" />Save changes</Button></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Trigger type</TableHead><TableHead>Priority / level</TableHead><TableHead>Threshold days</TableHead><TableHead>Target roles</TableHead><TableHead>Repeat</TableHead><TableHead>Enabled</TableHead></TableRow></TableHeader><TableBody>{rows.map(r => <TableRow key={r.id}><TableCell><Input value={r.triggerType} onChange={e => patch(r.id, { triggerType: e.target.value })} /></TableCell><TableCell><Select value={r.priority ?? r.level ?? ''} onValueChange={v => patch(r.id, { priority: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{['L1','L2','L3','P1','P2'].map(v => <SelectItem value={v} key={v}>{v}</SelectItem>)}</SelectContent></Select></TableCell><TableCell><Input type="number" min={0} value={r.slaWorkingDays} onChange={e => patch(r.id, { slaWorkingDays: Number(e.target.value) })} /></TableCell><TableCell><Input value={r.recipientRoles.join(', ')} onChange={e => patch(r.id, { recipientRoles: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })} /></TableCell><TableCell><Input type="number" min={1} value={r.repeatCadenceDays} onChange={e => patch(r.id, { repeatCadenceDays: Number(e.target.value) })} /></TableCell><TableCell><Toggle checked={r.enabled} onCheckedChange={enabled => patch(r.id, { enabled })} /></TableCell></TableRow>)}</TableBody></Table></CardContent></Card></PageState>;
+  const addRule = () => setDraft([...rows, { id: crypto.randomUUID(), triggerType: appTriggers[app][0]!, priority: 'L1', level: 'L1', slaWorkingDays: 3, recipientRoles: [], repeatCadenceDays: 2, enabled: true }]);
+  const removeRule = (id: string) => setDraft(rows.filter(r => r.id !== id));
+  const loadDefaults = () => setDraft(recommendedRules[app].map(r => ({ ...r, id: crypto.randomUUID(), recipientRoles: [...r.recipientRoles] })));
+  const save = () => act.escalation.mutate({ data: rows }, { onSuccess: () => { act.done('Escalation rules saved'); setDraft(undefined); }, onError: act.fail });
+  return <PageState loading={api.escalations.isLoading} error={api.escalations.error} onRetry={api.escalations.refetch}>
+    <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Escalation rules</CardTitle><CardDescription>The workflow engine checks these rules every 15 minutes. When a record breaches its threshold, the target roles are notified in-app and by email, and the escalation advances through levels until resolved.</CardDescription></div><div className="flex shrink-0 gap-2"><Button variant="outline" onClick={loadDefaults}>Load recommended</Button><Button variant="outline" onClick={addRule}><Plus className="mr-2 h-4 w-4" />Add rule</Button><Button disabled={!draft || act.escalation.isPending} onClick={save}><Save className="mr-2 h-4 w-4" />Save changes</Button></div></CardHeader>
+      <CardContent>{!rows.length ? <div className="py-12 text-center"><Clock className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p className="font-semibold">No escalation rules yet</p><p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Nothing escalates until at least one rule is enabled. Add a rule or load the recommended set for {names[app]}.</p><div className="mt-4 flex justify-center gap-2"><Button variant="outline" onClick={loadDefaults}>Load recommended</Button><Button onClick={addRule}><Plus className="mr-2 h-4 w-4" />Add rule</Button></div></div> :
+        <Table><TableHeader><TableRow><TableHead>Trigger</TableHead><TableHead>First level</TableHead><TableHead>Threshold (working days)</TableHead><TableHead>Target roles</TableHead><TableHead>Repeat (days)</TableHead><TableHead>Enabled</TableHead><TableHead /></TableRow></TableHeader>
+          <TableBody>{rows.map(r => <TableRow key={r.id}>
+            <TableCell><Select value={r.triggerType} onValueChange={v => patch(r.id, { triggerType: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{appTriggers[app].map(v => <SelectItem value={v} key={v}>{triggerMeta[v]?.label ?? v}</SelectItem>)}</SelectContent></Select><p className="mt-1 text-xs text-muted-foreground">{triggerMeta[r.triggerType]?.description}</p></TableCell>
+            <TableCell><Select value={r.priority ?? r.level ?? 'L1'} onValueChange={v => patch(r.id, { priority: v, level: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{levelOptions.map(v => <SelectItem value={v} key={v}>{v}</SelectItem>)}</SelectContent></Select></TableCell>
+            <TableCell><Input type="number" min={0} value={r.slaWorkingDays} onChange={e => patch(r.id, { slaWorkingDays: Math.max(0, Number(e.target.value) || 0) })} /></TableCell>
+            <TableCell><Input value={r.recipientRoles.join(', ')} placeholder="Quality Manager" onChange={e => patch(r.id, { recipientRoles: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })} /><p className="mt-1 text-xs text-muted-foreground">Workspace role names, comma separated</p></TableCell>
+            <TableCell><Input type="number" min={1} value={r.repeatCadenceDays} onChange={e => patch(r.id, { repeatCadenceDays: Math.max(1, Number(e.target.value) || 1) })} /></TableCell>
+            <TableCell><Toggle checked={r.enabled} onCheckedChange={enabled => patch(r.id, { enabled })} /></TableCell>
+            <TableCell><Button size="icon" variant="ghost" onClick={() => removeRule(r.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+          </TableRow>)}</TableBody></Table>}
+      </CardContent></Card>
+  </PageState>;
 }
 
 function AiSettings({ app }: { app: Exclude<AppKey, 'audit'> }) {
