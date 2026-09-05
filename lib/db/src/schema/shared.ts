@@ -86,6 +86,9 @@ export const projects = sharedSchema.table("projects", {
   code: text("code").notNull(),
   name: text("name").notNull(),
   location: text("location"),
+  // Extra columns arriving from source-system pulls or Excel imports whose
+  // template goes beyond the core fields (template field key → value).
+  customFields: jsonb("custom_fields").$type<Record<string, unknown>>().notNull().default({}),
   ...auditColumns,
 }, (table) => [
   uniqueIndex("projects_org_code_active_idx").on(table.organizationId, table.code).where(sql`${table.deletedAt} IS NULL`),
@@ -105,6 +108,8 @@ export const users = sharedSchema.table("users", {
   authSource: text("auth_source").notNull().default("local"),
   accessStatus: text("access_status").notNull().default("active"),
   lastAccessAt: timestamp("last_access_at", { withTimezone: true }),
+  // Same extension point as projects.custom_fields for synced/imported users.
+  customFields: jsonb("custom_fields").$type<Record<string, unknown>>().notNull().default({}),
   ...auditColumns,
 }, (table) => [
   uniqueIndex("users_org_email_active_idx").on(table.organizationId, table.email).where(sql`${table.deletedAt} IS NULL`),
@@ -206,6 +211,21 @@ export const connectorFieldMappings = sharedSchema.table("connector_field_mappin
   ...auditColumns,
 }, (table) => [
   index("connector_field_mappings_connector_idx").on(table.connectorId),
+]);
+
+// Excel import templates for the Integration Cockpit file-drop fallback. Each
+// template declares the spreadsheet columns an admin expects; `field` is a core
+// entity key (e.g. code, email) or `custom.<key>` routed into custom_fields.
+export const importTemplates = sharedSchema.table("import_templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  entity: text("entity").notNull(),
+  name: text("name").notNull(),
+  isDefault: boolean("is_default").notNull().default(false),
+  columns: jsonb("columns").$type<Array<{ header: string; field: string; required: boolean }>>().notNull().default([]),
+  ...auditColumns,
+}, (table) => [
+  index("import_templates_org_entity_idx").on(table.organizationId, table.entity),
 ]);
 
 export const feedbackEntries = sharedSchema.table("feedback_entries", {

@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type IntegrationConnectorFamily = typeof IntegrationConnectorFamily[keyof typeof IntegrationConnectorFamily];
+export type IntegrationConnectorCreateInputFamily = typeof IntegrationConnectorCreateInputFamily[keyof typeof IntegrationConnectorCreateInputFamily];
 
 
-export const IntegrationConnectorFamily = {
+export const IntegrationConnectorCreateInputFamily = {
   platform: 'platform',
   email: 'email',
   ai: 'ai',

@@ -49,6 +49,7 @@ import {
   Trash2, Upload, XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useGetAuditEscalations } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -108,6 +109,8 @@ function Dashboard() {
   const findings = ["Conformity", "Observation", "Minor NC", "Major NC"].map(k => ({ name: k, value: Number((metrics.findingsByClassification as Record<string, number> | undefined)?.[k] ?? metrics[k] ?? 0) }));
   const cars = ["Open", "Submitted", "Accepted", "Rejected", "Closed"].map(k => ({ name: k, value: Number((metrics.carsByStatus as Record<string, number> | undefined)?.[k] ?? 0) }));
   const overdue = (metrics.overdueCars as Array<Record<string, unknown>> | undefined) ?? [];
+  const escalations = useGetAuditEscalations({ page: 1, limit: 20 });
+  const openEscalations = (escalations.data?.items ?? []).filter((e) => e.status === "open");
   if (query.isLoading || query.error) return <State loading={query.isLoading} error={query.error} empty={false}/>;
   return <div className="space-y-6">
     <PageHeader title="Audit dashboard" description={`Live operational view · refreshed ${date(query.data?.generatedAt)}`}/>
@@ -120,6 +123,7 @@ function Dashboard() {
       <Card><CardHeader><CardTitle>CAR status pipeline</CardTitle><CardDescription>Progress from open to verified closure</CardDescription></CardHeader><CardContent className="space-y-4">{cars.map(item => <div key={item.name}><div className="mb-1 flex justify-between text-sm"><span>{item.name}</span><b>{item.value}</b></div><Progress value={Math.min(100, item.value * 10)}/></div>)}</CardContent></Card>
     </div>
     <Card className={overdue.length ? "border-destructive" : ""}><CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="size-5"/>Overdue CAR alerts</CardTitle></CardHeader><CardContent>{overdue.length ? <div className="space-y-2">{overdue.map((item, i) => <div key={String(item.id ?? i)} className="flex justify-between rounded-md bg-muted p-3 text-sm"><span>{String(item.responsibleDepartment ?? item.title ?? `CAR ${i + 1}`)}</span><Badge variant="destructive">{date(item.dueDate as string)}</Badge></div>)}</div> : <p className="text-sm text-muted-foreground">No overdue CARs.</p>}</CardContent></Card>
+    <Card><CardHeader><CardTitle>Open escalations</CardTitle><CardDescription>Records that breached an escalation rule</CardDescription></CardHeader><CardContent>{openEscalations.length ? <div className="space-y-2">{openEscalations.map((e) => <div key={e.id} className="flex justify-between rounded-md bg-muted p-3 text-sm"><span className="capitalize">{e.recordType.replaceAll("_", " ")}</span><Badge variant="destructive">{e.level} · due {date(e.dueAt)}</Badge></div>)}</div> : <p className="text-sm text-muted-foreground">No open escalations.</p>}</CardContent></Card>
   </div>;
 }
 

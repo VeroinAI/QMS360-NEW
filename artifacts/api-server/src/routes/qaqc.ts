@@ -8,7 +8,7 @@ import {
 } from "../lib/ai";
 import { confirmEvidence, createEvidenceIntent, deleteEvidence, listEvidence } from "../lib/evidence";
 import {
-  asyncHandler, HttpError, notify, notifyWithEmail, paginated, pagination, writeAuditLog,
+  asyncHandler, HttpError, notify, notifyWithEmail, paginated, pagination, staffedRoleNames, writeAuditLog,
 } from "../lib/workspace";
 import { allocateReferenceNumber } from "../lib/numbering";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
@@ -20,7 +20,7 @@ import { readFieldControls, writeFieldControls, type FieldControlsMatrix } from 
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
-  documentGovernanceLogEntries, escalationRules,
+  documentGovernanceLogEntries, escalationInstances, escalationRules,
   materialInspectionEntries, notificationTemplates, notifications,
   organizationSettings, permissions, platformRoles, qaqcMetricEntries,
   qualityAssessmentBriefs, qtbtEntries, targetBenchmarks, users,
@@ -710,9 +710,29 @@ router.post("/admin/delegations", asyncHandler(async (req, res) => {
   await audit(req, "create", "delegation", row.id, undefined, row); res.status(201).json(row);
 }));
 router.delete("/admin/delegations/:id", asyncHandler((req, res) => softDelete(req, res, delegations, "delegation")));
+// Open/resolved escalation instances for dashboard surfacing — mirrors the
+// lessons module's GET /lessons/escalations shape (EscalationSummary).
+router.get("/escalations", asyncHandler(async (req, res) => {
+  const { page, limit, offset } = pagination(req);
+  const where = and(eq(escalationInstances.organizationId, org(req)), isNull(escalationInstances.deletedAt));
+  const [rows, count, rules] = await Promise.all([
+    db.select().from(escalationInstances).where(where).orderBy(desc(escalationInstances.startedAt)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(escalationInstances).where(where),
+    db.select().from(escalationRules).where(and(eq(escalationRules.organizationId, org(req)), isNull(escalationRules.deletedAt))),
+  ]);
+  res.json(paginated(rows.map((row) => {
+    const rule = rules.find((r) => r.id === row.ruleId);
+    return { id: row.id, recordType: row.recordType, recordId: row.recordId, priority: rule?.priority ?? "P1", level: row.currentLevel ?? String((rule?.configuration as any)?.level ?? "P1"), dueAt: row.breachedAt ?? new Date(row.startedAt.getTime() + (rule?.slaWorkingDays ?? 0) * 86400000), status: row.status, lastNotifiedAt: row.breachedAt };
+  }), Number(count[0]?.count ?? 0), page, limit));
+}));
 router.get("/admin/escalation-rules", asyncHandler(async (req, res) => {
-  const result = await pageTable(req, escalationRules);
-  res.json({ ...result, items: result.items.map((r: any) => ({ id: r.id, triggerType: r.triggerKey, priority: r.priority, level: (r.configuration as any)?.level ?? null, slaWorkingDays: r.slaWorkingDays, recipientRoles: [r.recipientRole], repeatCadenceDays: r.repeatCadenceDays ?? 1, enabled: r.status === "active" })) });
+  const [result, staffed] = await Promise.all([pageTable(req, escalationRules), staffedRoleNames(org(req), workspaceRoles, userWorkspaceRoles)]);
+  res.json({
+    ...result, items: result.items.map((r: any) => {
+      const recipientRoles = String(r.recipientRole ?? "").split(",").map((v: string) => v.trim()).filter(Boolean);
+      return { id: r.id, triggerType: r.triggerKey, priority: r.priority, level: (r.configuration as any)?.level ?? null, slaWorkingDays: r.slaWorkingDays, recipientRoles, unstaffedRoles: recipientRoles.filter((n: string) => !staffed.has(n)), repeatCadenceDays: r.repeatCadenceDays ?? 1, enabled: r.status === "active" };
+    }),
+  });
 }));
 router.put("/admin/escalation-rules", asyncHandler(async (req, res) => {
   const values: any[] = body(api.UpdateQaqcEscalationRulesBody, req);

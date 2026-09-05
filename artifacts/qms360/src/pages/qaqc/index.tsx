@@ -28,6 +28,7 @@ import {
 } from '@workspace/api-client-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { useGetQaqcEscalations } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -102,6 +103,8 @@ function DashboardPage() {
   const dashboard = useGetQaqcDashboard({ period });
   const pqi = useGetQaqcPqi({ period });
   const approvals = useListQaqcApprovals({ page: 1, limit: 5 });
+  const escalations = useGetQaqcEscalations({ page: 1, limit: 20 });
+  const openEscalations = (escalations.data?.items ?? []).filter((e) => e.status === 'open');
   const metrics = (dashboard.data?.metrics || {}) as Record<string, unknown>;
   const num = (key: string) => Number(metrics[key] ?? 0);
   const trend = (dashboard.data?.series || []).map((row, i) => ({ name: String(row.category ?? row.period ?? `Period ${i + 1}`), value: Number(row.value ?? row.count ?? 0), ageing: Number(row.ageing ?? row.over45 ?? 0) }));
@@ -124,6 +127,7 @@ function DashboardPage() {
         ['/qaqc/documents', 'Document governance', FileText], ['/qaqc/briefs', 'AI quality briefs', Bot],
       ].map(([href, text, Icon]) => <Link key={href as string} href={href as string}><Button variant="outline" className="h-auto w-full justify-start gap-3 py-4"><Icon className="size-5 text-primary" />{text as string}</Button></Link>)}</CardContent></Card>
       <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Pending approvals</CardTitle><CardDescription>Items waiting for your review</CardDescription></div><Link href="/qaqc/approvals"><Button variant="outline" size="sm">Open inbox</Button></Link></CardHeader><CardContent className="space-y-2">{approvals.data?.items.length ? approvals.data.items.map(a => <Link key={a.id} href={a.recordType.toLowerCase().includes('brief') ? `/qaqc/briefs/${a.recordId}` : '/qaqc/metrics'}><div className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50"><div><p className="font-medium">{a.title}</p><p className="text-xs text-muted-foreground">{a.recordType} · {new Date(a.submittedAt).toLocaleDateString()}</p></div><ChevronRight className="size-4" /></div></Link>) : <p className="py-5 text-center text-sm text-muted-foreground">No pending approvals.</p>}</CardContent></Card>
+      <Card><CardHeader><CardTitle>Open escalations</CardTitle><CardDescription>Records that breached an escalation rule</CardDescription></CardHeader><CardContent className="space-y-2">{openEscalations.length ? openEscalations.map((e) => <Link key={e.id} href={e.recordType === 'quality_brief' ? `/qaqc/briefs/${e.recordId}` : '/qaqc/metrics'}><div className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50"><div><p className="font-medium capitalize">{e.recordType.replaceAll('_', ' ')}</p><p className="text-xs text-muted-foreground">Due {new Date(e.dueAt).toLocaleDateString()}</p></div><Badge variant="destructive">{e.level}</Badge></div></Link>) : <p className="py-5 text-center text-sm text-muted-foreground">No open escalations.</p>}</CardContent></Card>
     </QueryState>
   </Page>;
 }

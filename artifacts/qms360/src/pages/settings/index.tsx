@@ -1,16 +1,18 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { useLov } from '@/lib/use-lov';
 import { Link, Route, Switch, useLocation, useParams } from 'wouter';
 import {
   useAssignAuditUserRole, useAssignLessonsUserRole, useAssignQaqcUserRole,
   useCreateAuditDelegation, useCreateAuditRole, useCreateLessonsDelegation, useCreateLessonsRole, useCreateQaqcDelegation, useCreateQaqcRole,
   useDecideAuditAccessRequest, useDecideLessonsAccessRequest, useDecideQaqcAccessRequest,
-  useGetAuditAdminFieldControls, useGetFieldSettings, useGetLessonsAdminFieldControls, useGetLessonsAiSettings, useGetNumberingConfig, useGetQaqcAdminFieldControls, useGetQaqcAiSettings,
+  useGetAuditAdminFieldControls, useGetLessonsAdminFieldControls, useGetLessonsAiSettings, useGetNumberingConfig, useGetQaqcAdminFieldControls, useGetQaqcAiSettings,
+  useCreateApproverScope, useDeleteApproverScope, useGetLessonsReferenceData, useListApproverScopes, useListLessonApprovers,
   useListAuditAccessQueue, useListAuditDelegations, useListAuditEscalationRules, useListAuditNotificationTemplates, useListAuditRoles, useListAuditUsers, useListAuditWorkspaceAuditLog,
   useListLessonsAccessQueue, useListLessonsAuditLog, useListLessonsDelegations, useListLessonsEscalationRules, useListLessonsNotificationTemplates, useListLessonsRoles, useListLessonsUsers,
   useListQaqcAccessQueue, useListQaqcAuditLog, useListQaqcDelegations, useListQaqcEscalationRules, useListQaqcNotificationTemplates, useListQaqcRoles, useListQaqcUsers,
   useResetNumberingPattern, useRevokeAuditDelegation, useRevokeLessonsDelegation, useRevokeQaqcDelegation,
   useUpdateAuditEscalationRules, useUpdateAuditNotificationTemplate, useUpdateAuditRole, useUpdateNumberingPattern,
-  useUpdateAuditAdminFieldControls, useUpdateFieldSettings, useUpdateLessonsAdminFieldControls, useUpdateLessonsAiSettings, useUpdateLessonsEscalationRules, useUpdateLessonsNotificationTemplate, useUpdateLessonsRole,
+  useUpdateAuditAdminFieldControls, useUpdateLessonsAdminFieldControls, useUpdateLessonsAiSettings, useUpdateLessonsEscalationRules, useUpdateLessonsNotificationTemplate, useUpdateLessonsRole,
   useUpdateQaqcAdminFieldControls, useUpdateQaqcAiSettings, useUpdateQaqcEscalationRules, useUpdateQaqcNotificationTemplate, useUpdateQaqcRole,
 } from '@workspace/api-client-react';
 import { Badge } from '@/components/ui/badge';
@@ -26,18 +28,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { CockpitPage } from '../cockpit';
-import type { AISettings, EscalationRule, FieldAccessLevel, FieldControlSetting, NotificationTemplate, NumberingModuleConfig, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
-import { AlertCircle, ArrowLeft, Bell, Bot, Check, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Lock, Plus, Save, Search, Settings2, ShieldCheck, SlidersHorizontal, Trash2, Users } from 'lucide-react';
+import type { AISettings, EscalationRule, FieldControlSetting, NotificationTemplate, NumberingModuleConfig, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
+import { AlertCircle, ArrowLeft, Bell, Bot, Check, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Plus, Save, Search, Settings2, ShieldCheck, SlidersHorizontal, Trash2, Users } from 'lucide-react';
 import { fieldControlRegistry } from '@/lib/field-controls';
 import { useEffect, useState } from 'react';
 
 type AppKey = 'qaqc' | 'lessons' | 'audit';
-type TabKey = 'overview' | 'numbering' | 'access' | 'roles' | 'escalation' | 'ai' | 'fields' | 'form-fields' | 'notifications' | 'audit-log';
+type TabKey = 'overview' | 'numbering' | 'access' | 'roles' | 'escalation' | 'ai' | 'form-fields' | 'notifications' | 'audit-log';
 const names: Record<AppKey, string> = { qaqc: 'QA/QC & Document Governance', lessons: 'Lesson Learned Management', audit: 'QMS Audit Management' };
 const tabs: { key: TabKey; label: string; icon: typeof Settings2 }[] = [
   { key: 'overview', label: 'Overview', icon: Settings2 }, { key: 'numbering', label: 'Numbering', icon: Hash }, { key: 'access', label: 'Users & Access', icon: Users },
   { key: 'roles', label: 'Roles & Permissions', icon: ShieldCheck }, { key: 'escalation', label: 'Escalation', icon: Clock },
-  { key: 'ai', label: 'AI Settings', icon: Bot }, { key: 'fields', label: 'Fields', icon: Lock }, { key: 'form-fields', label: 'Form Fields', icon: SlidersHorizontal },
+  { key: 'ai', label: 'AI Settings', icon: Bot }, { key: 'form-fields', label: 'Form Fields', icon: SlidersHorizontal },
   { key: 'notifications', label: 'Notifications', icon: Bell },
   { key: 'audit-log', label: 'Audit Log', icon: FileClock },
 ];
@@ -106,6 +108,37 @@ function Overview({ app }: { app: AppKey }) {
   </PageState>;
 }
 
+// Scoped approver assignments for lesson forms. A blank dimension matches
+// everything; once any row exists, only approvers with a matching row qualify.
+function ApproverScopes() {
+  const { toast } = useToast(); const client = useQueryClient();
+  const scopes = useListApproverScopes();
+  const approvers = useListLessonApprovers({ includeSelf: 'true' });
+  const refs = useGetLessonsReferenceData();
+  const categorisations = useLov('lesson_categorisations');
+  const create = useCreateApproverScope(); const remove = useDeleteApproverScope();
+  const [open, setOpen] = useState(false);
+  const blank = { userId: '', projectId: 'all', disciplineId: 'all', categorisation: 'all' };
+  const [form, setForm] = useState(blank);
+  const invalidate = () => client.invalidateQueries({ queryKey: ['/api/lessons/admin/approver-scopes'] });
+  const fail = (title: string) => (error: unknown) => toast({ title, description: errorText(error), variant: 'destructive' });
+  const save = () => {
+    if (!form.userId) return;
+    create.mutate({ data: { userId: form.userId, ...(form.projectId !== 'all' ? { projectId: form.projectId } : {}), ...(form.disciplineId !== 'all' ? { disciplineId: form.disciplineId } : {}), ...(form.categorisation !== 'all' ? { categorisation: form.categorisation } : {}) } }, { onSuccess: () => { toast({ title: 'Approver scope saved' }); setOpen(false); setForm(blank); invalidate(); }, onError: fail('Unable to save approver scope') });
+  };
+  const rows = scopes.data ?? [];
+  return <Card className="mt-5"><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Approver scope</CardTitle><CardDescription>Control which lesson forms an approver may review. Blank dimensions match everything: a row with no project, discipline or categorisation allows approving all lessons. Once at least one row exists, only approvers with a matching row can be designated.</CardDescription></div><Button onClick={() => setOpen(true)}><Plus className="mr-2 h-4 w-4" />Approver scope</Button></CardHeader>
+    <CardContent><Table><TableHeader><TableRow><TableHead>Approver</TableHead><TableHead>Project</TableHead><TableHead>Discipline</TableHead><TableHead>Categorisation</TableHead><TableHead /></TableRow></TableHeader><TableBody>{rows.map(s => <TableRow key={s.id}><TableCell><p className="font-medium">{s.userName}</p><p className="text-xs text-muted-foreground">{s.userEmail}</p></TableCell><TableCell>{s.projectName ?? 'All projects'}</TableCell><TableCell>{s.disciplineName ?? 'All disciplines'}</TableCell><TableCell>{s.categorisation ?? 'All categorisations'}</TableCell><TableCell><Button size="icon" variant="ghost" onClick={() => remove.mutate({ id: s.id }, { onSuccess: () => { toast({ title: 'Approver scope removed' }); invalidate(); }, onError: fail('Unable to remove approver scope') })}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>)}</TableBody></Table>
+      {!rows.length && <p className="py-8 text-center text-sm text-muted-foreground">No approver scopes — every eligible approver can approve any lesson.</p>}</CardContent>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>Assign approver scope</DialogTitle><DialogDescription>Leave a dimension on "All" to match every value; combine dimensions to narrow the scope.</DialogDescription></DialogHeader><div className="grid gap-3">
+      <div><Label>Approver</Label><Select value={form.userId} onValueChange={v => setForm({ ...form, userId: v })}><SelectTrigger><SelectValue placeholder="Select approver" /></SelectTrigger><SelectContent>{(approvers.data ?? []).map(a => <SelectItem key={a.id} value={a.id}>{a.fullName}</SelectItem>)}</SelectContent></Select></div>
+      <div><Label>Project</Label><Select value={form.projectId} onValueChange={v => setForm({ ...form, projectId: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All projects</SelectItem>{(refs.data?.projects ?? []).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select></div>
+      <div><Label>Discipline</Label><Select value={form.disciplineId} onValueChange={v => setForm({ ...form, disciplineId: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All disciplines</SelectItem>{(refs.data?.disciplines ?? []).map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent></Select></div>
+      <div><Label>Categorisation</Label><Select value={form.categorisation} onValueChange={v => setForm({ ...form, categorisation: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All categorisations</SelectItem>{categorisations.options.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
+    </div><DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button disabled={!form.userId || create.isPending} onClick={save}>Save scope</Button></DialogFooter></DialogContent></Dialog>
+  </Card>;
+}
+
 function UsersAccess({ app }: { app: AppKey }) {
   const api = useAdmin(app); const act = useActions(app); const [search, setSearch] = useState('');
   const [roleDialog, setRoleDialog] = useState<string>(); const [roleId, setRoleId] = useState('');
@@ -130,6 +163,7 @@ function UsersAccess({ app }: { app: AppKey }) {
       {!users.length && <p className="py-10 text-center text-sm text-muted-foreground">No users match this search.</p>}</CardContent></Card>
     <div className="mt-5 grid gap-5 xl:grid-cols-2"><Card><CardHeader><CardTitle>Access request queue</CardTitle><CardDescription>Approve or reject pending requests.</CardDescription></CardHeader><CardContent className="space-y-3">{pending.map(r => <div key={r.id} className="flex items-center gap-3 rounded-lg border p-3"><div className="flex-1"><p className="font-medium">User {r.userId}</p><p className="text-xs text-muted-foreground">Requested {new Date(r.requestedAt).toLocaleDateString()}</p></div><Button size="sm" onClick={() => act.decide.mutate({ id: r.id, data: { decision: 'approve' } }, { onSuccess: () => act.done('Access approved'), onError: act.fail })}><Check className="mr-1 h-4 w-4" />Approve</Button><Button size="sm" variant="outline" onClick={() => act.decide.mutate({ id: r.id, data: { decision: 'reject' } }, { onSuccess: () => act.done('Access rejected'), onError: act.fail })}>Reject</Button></div>)}{!pending.length && <p className="py-8 text-center text-sm text-muted-foreground">No pending access requests.</p>}</CardContent></Card>
       <Card><CardHeader><CardTitle>Delegations</CardTitle><CardDescription>Access expires automatically at the end date.</CardDescription></CardHeader><CardContent className="space-y-3">{api.delegations.data?.items.map(d => <div key={d.id} className="flex items-center gap-3 rounded-lg border p-3"><div className="flex-1"><p className="font-medium">{d.delegatorId} → {d.delegateId}</p><p className="text-xs text-muted-foreground">{d.scope} · expires {new Date(d.endDate).toLocaleDateString()}</p></div><Badge variant={d.status === 'active' ? 'default' : 'secondary'}>{d.status}</Badge>{['active', 'pending'].includes(d.status) && <Button size="icon" variant="ghost" onClick={() => act.revoke.mutate({ id: d.id }, { onSuccess: () => act.done('Delegation revoked'), onError: act.fail })}><Trash2 className="h-4 w-4" /></Button>}</div>)}{!api.delegations.data?.items.length && <p className="py-8 text-center text-sm text-muted-foreground">No delegations configured.</p>}</CardContent></Card></div>
+    {app === 'lessons' && <ApproverScopes />}
     <Dialog open={!!roleDialog} onOpenChange={open => !open && setRoleDialog(undefined)}><DialogContent><DialogHeader><DialogTitle>Assign workspace role</DialogTitle><DialogDescription>Assignment applies only to {names[app]}.</DialogDescription></DialogHeader><Label>Role</Label><Select value={roleId} onValueChange={setRoleId}><SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger><SelectContent>{api.roles.data?.items.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent></Select><DialogFooter><Button variant="outline" onClick={() => setRoleDialog(undefined)}>Cancel</Button><Button disabled={!roleId || act.assign.isPending} onClick={saveRole}>Assign</Button></DialogFooter></DialogContent></Dialog>
     <Dialog open={delegateOpen} onOpenChange={setDelegateOpen}><DialogContent><DialogHeader><DialogTitle>Create delegation</DialogTitle><DialogDescription>Delegate access for a fixed period. It expires automatically.</DialogDescription></DialogHeader><div className="grid gap-3"><Label>Delegator user ID</Label><Input value={delegation.delegatorId} onChange={e => setDelegation({ ...delegation, delegatorId: e.target.value })} /><Label>Delegate user ID</Label><Input value={delegation.delegateId} onChange={e => setDelegation({ ...delegation, delegateId: e.target.value })} /><Label>Scope</Label><Input value={delegation.scope} onChange={e => setDelegation({ ...delegation, scope: e.target.value })} /><div className="grid grid-cols-2 gap-3"><div><Label>Starts</Label><Input type="date" value={delegation.startDate} onChange={e => setDelegation({ ...delegation, startDate: e.target.value })} /></div><div><Label>Expires</Label><Input type="date" value={delegation.endDate} onChange={e => setDelegation({ ...delegation, endDate: e.target.value })} /></div></div></div><DialogFooter><Button onClick={createDelegation}>Create delegation</Button></DialogFooter></DialogContent></Dialog>
   </PageState>;
@@ -186,7 +220,11 @@ function Escalations({ app }: { app: AppKey }) {
   const addRule = () => setDraft([...rows, { id: crypto.randomUUID(), triggerType: appTriggers[app][0]!, priority: 'L1', level: 'L1', slaWorkingDays: 3, recipientRoles: [], repeatCadenceDays: 2, enabled: true }]);
   const removeRule = (id: string) => setDraft(rows.filter(r => r.id !== id));
   const loadDefaults = () => setDraft(recommendedRules[app].map(r => ({ ...r, id: crypto.randomUUID(), recipientRoles: [...r.recipientRoles] })));
-  const save = () => act.escalation.mutate({ data: rows }, { onSuccess: () => { act.done('Escalation rules saved'); setDraft(undefined); }, onError: act.fail });
+  // unstaffedRoles is computed server-side from active role memberships; the
+  // name-existence fallback covers unsaved draft rows.
+  const roleNames = new Set((api.roles.data?.items ?? []).map((role) => role.name as string));
+  const unstaffed = (r: EscalationRule) => r.unstaffedRoles ?? (roleNames.size ? r.recipientRoles.filter((n) => !roleNames.has(n)) : []);
+  const save = () => act.escalation.mutate({ data: rows }, { onSuccess: () => { act.done('Escalation rules saved'); setDraft(undefined); api.escalations.refetch(); }, onError: act.fail });
   return <PageState loading={api.escalations.isLoading} error={api.escalations.error} onRetry={api.escalations.refetch}>
     <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Escalation rules</CardTitle><CardDescription>The workflow engine checks these rules every 15 minutes. When a record breaches its threshold, the target roles are notified in-app and by email, and the escalation advances through levels until resolved.</CardDescription></div><div className="flex shrink-0 gap-2"><Button variant="outline" onClick={loadDefaults}>Load recommended</Button><Button variant="outline" onClick={addRule}><Plus className="mr-2 h-4 w-4" />Add rule</Button><Button disabled={!draft || act.escalation.isPending} onClick={save}><Save className="mr-2 h-4 w-4" />Save changes</Button></div></CardHeader>
       <CardContent>{!rows.length ? <div className="py-12 text-center"><Clock className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p className="font-semibold">No escalation rules yet</p><p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Nothing escalates until at least one rule is enabled. Add a rule or load the recommended set for {names[app]}.</p><div className="mt-4 flex justify-center gap-2"><Button variant="outline" onClick={loadDefaults}>Load recommended</Button><Button onClick={addRule}><Plus className="mr-2 h-4 w-4" />Add rule</Button></div></div> :
@@ -195,7 +233,7 @@ function Escalations({ app }: { app: AppKey }) {
             <TableCell><Select value={r.triggerType} onValueChange={v => patch(r.id, { triggerType: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{appTriggers[app].map(v => <SelectItem value={v} key={v}>{triggerMeta[v]?.label ?? v}</SelectItem>)}</SelectContent></Select><p className="mt-1 text-xs text-muted-foreground">{triggerMeta[r.triggerType]?.description}</p></TableCell>
             <TableCell><Select value={r.priority ?? r.level ?? 'L1'} onValueChange={v => patch(r.id, { priority: v, level: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{levelOptions.map(v => <SelectItem value={v} key={v}>{v}</SelectItem>)}</SelectContent></Select></TableCell>
             <TableCell><Input type="number" min={0} value={r.slaWorkingDays} onChange={e => patch(r.id, { slaWorkingDays: Math.max(0, Number(e.target.value) || 0) })} /></TableCell>
-            <TableCell><Input value={r.recipientRoles.join(', ')} placeholder="Quality Manager" onChange={e => patch(r.id, { recipientRoles: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })} /><p className="mt-1 text-xs text-muted-foreground">Workspace role names, comma separated</p></TableCell>
+            <TableCell><Input value={r.recipientRoles.join(', ')} placeholder="Quality Manager" onChange={e => patch(r.id, { recipientRoles: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })} /><p className="mt-1 text-xs text-muted-foreground">Workspace role names, comma separated</p>{unstaffed(r).length > 0 && <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">No active members for: {unstaffed(r).join(', ')} — escalations fall back to the initial admins.</p>}</TableCell>
             <TableCell><Input type="number" min={1} value={r.repeatCadenceDays} onChange={e => patch(r.id, { repeatCadenceDays: Math.max(1, Number(e.target.value) || 1) })} /></TableCell>
             <TableCell><Toggle checked={r.enabled} onCheckedChange={enabled => patch(r.id, { enabled })} /></TableCell>
             <TableCell><Button size="icon" variant="ghost" onClick={() => removeRule(r.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
@@ -218,22 +256,6 @@ function Notifications({ app }: { app: AppKey }) {
 }
 
 const accessOptions = [{ value: 'editable', label: 'Editable' }, { value: 'read_only', label: 'Read-only' }] as const;
-
-function FieldSettings({ app }: { app: AppKey }) {
-  const query = useGetFieldSettings(); const save = useUpdateFieldSettings(); const client = useQueryClient(); const { toast } = useToast();
-  const [draft, setDraft] = useState<Record<string, FieldAccessLevel>>();
-  const module = query.data?.modules.find(m => m.module === app);
-  const accessOf = (formKey: string, fieldKey: string, current: FieldAccessLevel) => draft?.[`${formKey}.${fieldKey}`] ?? current;
-  const submit = () => {
-    if (!module) return;
-    const settings = module.forms.flatMap(form => form.fields.map(field => ({ module: app, formKey: form.formKey, fieldKey: field.fieldKey, access: accessOf(form.formKey, field.fieldKey, field.access) })));
-    save.mutate({ data: { settings } }, { onSuccess: () => { client.invalidateQueries(); toast({ title: 'Field settings saved' }); setDraft(undefined); }, onError: error => toast({ title: 'Unable to save field settings', description: errorText(error), variant: 'destructive' }) });
-  };
-  return <PageState loading={query.isLoading} error={query.error} onRetry={() => query.refetch()}>
-    <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Field access control</CardTitle><CardDescription>Read-only fields are disabled on this application's create and edit forms for non-administrator users, and the API rejects changes to them. System-generated fields always stay read-only. Unconfigured fields remain editable.</CardDescription></div><Button disabled={!draft || save.isPending} onClick={submit}><Save className="mr-2 h-4 w-4" />Save changes</Button></CardHeader>
-      <CardContent className="space-y-8">{module?.forms.map(form => <div key={form.formKey}><p className="mb-2 font-semibold">{form.label}</p><Table><TableHeader><TableRow><TableHead>Field</TableHead><TableHead className="w-44">Access</TableHead></TableRow></TableHeader><TableBody>{form.fields.map(field => { const access = accessOf(form.formKey, field.fieldKey, field.access); return <TableRow key={field.fieldKey}><TableCell>{field.label}<span className="ml-2 text-xs text-muted-foreground">{field.fieldKey}</span></TableCell><TableCell><Select value={access} onValueChange={value => setDraft({ ...(draft ?? {}), [`${form.formKey}.${field.fieldKey}`]: value as FieldAccessLevel })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="editable">Editable</SelectItem><SelectItem value="read_only">Read-only</SelectItem></SelectContent></Select></TableCell></TableRow>; })}</TableBody></Table></div>)}</CardContent></Card>
-  </PageState>;
-}
 function AuditLog({ app }: { app: AppKey }) {
   const [page, setPage] = useState(1); const [draft, setDraft] = useState({ from: '', to: '', actorId: '', action: '' }); const [filters, setFilters] = useState<Record<string, string>>({});
   const api = useAdmin(app, page, filters);
@@ -293,7 +315,7 @@ function SettingsPage() {
   const app = (['qaqc','lessons','audit'].includes(params.app) ? params.app : 'qaqc') as AppKey;
   const tab = (params.tab || 'overview') as TabKey;
   const visibleTabs = tabs.filter(t => !(app === 'audit' && t.key === 'ai'));
-  const content = tab === 'overview' ? <Overview app={app} /> : tab === 'numbering' ? <NumberingTab app={app} /> : tab === 'access' ? <UsersAccess app={app} /> : tab === 'roles' ? <Roles app={app} /> : tab === 'escalation' ? <Escalations app={app} /> : tab === 'ai' && app !== 'audit' ? <AiSettings app={app} /> : tab === 'fields' ? <FieldSettings app={app} /> : tab === 'form-fields' ? <FormFields app={app} /> : tab === 'notifications' ? <Notifications app={app} /> : <AuditLog app={app} />;
+  const content = tab === 'overview' ? <Overview app={app} /> : tab === 'numbering' ? <NumberingTab app={app} /> : tab === 'access' ? <UsersAccess app={app} /> : tab === 'roles' ? <Roles app={app} /> : tab === 'escalation' ? <Escalations app={app} /> : tab === 'ai' && app !== 'audit' ? <AiSettings app={app} /> : tab === 'form-fields' ? <FormFields app={app} /> : tab === 'notifications' ? <Notifications app={app} /> : <AuditLog app={app} />;
   return <main className="min-h-screen bg-background"><header className="bg-primary px-5 py-8 text-primary-foreground md:px-10"><div className="mx-auto max-w-7xl"><Link href={`/${app}`} className="mb-5 inline-flex items-center gap-2 text-sm opacity-80 hover:opacity-100"><ArrowLeft className="h-4 w-4" />Back to application</Link><p className="text-sm font-semibold uppercase tracking-widest opacity-70">Independent workspace administration</p><h1 className="mt-2 font-display text-3xl font-bold">{names[app]} Settings</h1><p className="mt-2 max-w-2xl opacity-80">Configure access, governance and operational controls for this application only.</p></div></header><div className="mx-auto max-w-7xl px-5 py-6 md:px-10"><nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl border bg-card p-1.5">{visibleTabs.map(({ key, label, icon: Icon }) => <button key={key} onClick={() => navigate(`/settings/${app}/${key}`)} className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${tab === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}><Icon className="h-4 w-4" />{label}</button>)}</nav>{content}</div></main>;
 }
 

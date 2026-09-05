@@ -1602,3 +1602,40 @@ CREATE UNIQUE INDEX IF NOT EXISTS "qaqc_metric_reference_active_idx" ON "app1_qa
 
 -- 0009_reference_generated: audits flag distinguishing generated reference numbers from manual ones
 ALTER TABLE "app3_audit"."audits" ADD COLUMN IF NOT EXISTS "reference_generated" boolean DEFAULT false NOT NULL;
+
+-- 0011_lesson_approver_scopes
+CREATE TABLE IF NOT EXISTS "app2_lessons"."lesson_approver_scopes" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"project_id" uuid,
+	"discipline_id" uuid,
+	"categorisation" text,
+	"status" text DEFAULT 'active' NOT NULL,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE "app2_lessons"."lesson_approver_scopes" ADD CONSTRAINT "lesson_approver_scopes_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id");
+ALTER TABLE "app2_lessons"."lesson_approver_scopes" ADD CONSTRAINT "lesson_approver_scopes_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "shared"."users"("id");
+ALTER TABLE "app2_lessons"."lesson_approver_scopes" ADD CONSTRAINT "lesson_approver_scopes_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "shared"."projects"("id");
+ALTER TABLE "app2_lessons"."lesson_approver_scopes" ADD CONSTRAINT "lesson_approver_scopes_discipline_id_disciplines_id_fk" FOREIGN KEY ("discipline_id") REFERENCES "app2_lessons"."disciplines"("id");
+CREATE UNIQUE INDEX IF NOT EXISTS "lesson_approver_scope_unique_active_idx" ON "app2_lessons"."lesson_approver_scopes" USING btree ("organization_id","user_id","project_id","discipline_id","categorisation") WHERE "app2_lessons"."lesson_approver_scopes"."deleted_at" IS NULL;
+
+-- 0012_integration_cockpit
+ALTER TABLE "shared"."projects" ADD COLUMN IF NOT EXISTS "custom_fields" jsonb DEFAULT '{}'::jsonb NOT NULL;
+ALTER TABLE "shared"."users" ADD COLUMN IF NOT EXISTS "custom_fields" jsonb DEFAULT '{}'::jsonb NOT NULL;
+CREATE TABLE IF NOT EXISTS "shared"."import_templates" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"entity" text NOT NULL,
+	"name" text NOT NULL,
+	"is_default" boolean DEFAULT false NOT NULL,
+	"columns" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE "shared"."import_templates" ADD CONSTRAINT "import_templates_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id");
+CREATE INDEX IF NOT EXISTS "import_templates_org_entity_idx" ON "shared"."import_templates" USING btree ("organization_id","entity");

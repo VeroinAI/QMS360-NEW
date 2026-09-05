@@ -19,4 +19,5 @@ export interface EscalationRule {
   /** @minimum 1 */
   repeatCadenceDays: number;
   enabled: boolean;
+  unstaffedRoles?: string[];
 }

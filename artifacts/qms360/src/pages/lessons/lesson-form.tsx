@@ -74,7 +74,10 @@ export function LessonFormPage({ id }: { id?: string }) {
   const [review, setReview] = useState<"approve" | "send_back" | null>(null);
   const [reviewRemarks, setReviewRemarks] = useState("");
   const refs = useGetLessonsReferenceData();
-  const approvers = useListLessonApprovers();
+  // Scope-aware: once the org defines approver scopes (Settings → Users &
+  // Access), only approvers matching this lesson's project/discipline/
+  // categorisation are offered.
+  const approvers = useListLessonApprovers({ projectId: draft.projectId || undefined, discipline: draft.disciplineId || undefined, categorisation: draft.categorisationId || undefined });
   const disciplines = useLov("disciplines");
   const categorisations = useLov("lesson_categorisations");
   const issueCategories = useLov("lesson_issue_categories");

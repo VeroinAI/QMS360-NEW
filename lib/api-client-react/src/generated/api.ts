@@ -33,6 +33,8 @@ import type {
   ApprovalItemPageResponse,
   ApprovalReviewBody,
   ApproveRejectBody,
+  ApproverScope,
+  ApproverScopeInput,
   Audit,
   AuditBody,
   AuditFinding,
@@ -52,6 +54,7 @@ import type {
   CarBody,
   CarPageResponse,
   ChecklistBody,
+  ConnectorConnectionTestResult,
   ContainerSsoInput,
   CreateCarsBody,
   CreateMasterDataGroupInput,
@@ -91,15 +94,21 @@ import type {
   FieldSettingsUpdate,
   GeneratedAuditReport,
   GetAuditDashboardParams,
+  GetAuditEscalationsParams,
   GetAuditFindingsLogReportParams,
   GetAuditOpenVsClosedReportParams,
   GetLessonsEscalationsParams,
   GetLessonsReferenceDataParams,
   GetPlatformReferenceDataParams,
   GetQaqcDashboardParams,
+  GetQaqcEscalationsParams,
   GetQaqcPqiParams,
   HealthStatus,
+  ImportTemplate,
+  ImportTemplateDownload,
+  ImportTemplateInput,
   IntegrationConnector,
+  IntegrationConnectorCreateInput,
   IntegrationConnectorPageResponse,
   IntegrationHealth,
   LessonApproverOption,
@@ -125,7 +134,9 @@ import type {
   ListCustomerSatisfactionEntriesParams,
   ListDocumentGovernanceLogParams,
   ListFeedbackEntriesParams,
+  ListImportTemplatesParams,
   ListIntegrationConnectorsParams,
+  ListLessonApproversParams,
   ListLessonFormsParams,
   ListLessonsAccessQueueParams,
   ListLessonsAuditLogParams,
@@ -177,6 +188,8 @@ import type {
   PromptAnswerBody,
   PromptBody,
   PromptTransaction,
+  PullConnectorBody,
+  PullResult,
   QAQCMetricEntry,
   QAQCMetricPageResponse,
   QTBTEntry,
@@ -2363,6 +2376,77 @@ export function useListIntegrationConnectors<TData = Awaited<ReturnType<typeof l
 
 
 
+export const getCreateIntegrationConnectorUrl = () => {
+
+
+
+
+  return `/api/integrations/connectors`
+}
+
+/**
+ * @summary Create an integration connector (admin only)
+ */
+export const createIntegrationConnector = async (integrationConnectorCreateInput: IntegrationConnectorCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<IntegrationConnector> => {
+
+  return customFetch<IntegrationConnector>(getCreateIntegrationConnectorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(integrationConnectorCreateInput)
+  }
+);}
+
+
+
+
+
+export const getCreateIntegrationConnectorMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIntegrationConnector>>, TError,{data: BodyType<IntegrationConnectorCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createIntegrationConnector>>, TError,{data: BodyType<IntegrationConnectorCreateInput>}, TContext> => {
+
+const mutationKey = ['createIntegrationConnector'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createIntegrationConnector>>, {data: BodyType<IntegrationConnectorCreateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createIntegrationConnector(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateIntegrationConnectorMutationResult = NonNullable<Awaited<ReturnType<typeof createIntegrationConnector>>>
+    export type CreateIntegrationConnectorMutationBody = BodyType<IntegrationConnectorCreateInput>
+    export type CreateIntegrationConnectorMutationError = ErrorType<void>
+
+    /**
+ * @summary Create an integration connector (admin only)
+ */
+export const useCreateIntegrationConnector = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIntegrationConnector>>, TError,{data: BodyType<IntegrationConnectorCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createIntegrationConnector>>,
+        TError,
+        {data: BodyType<IntegrationConnectorCreateInput>},
+        TContext
+      > => {
+      return useMutation(getCreateIntegrationConnectorMutationOptions(options));
+    }
+
 export const getUpdateIntegrationConnectorUrl = (id: string,) => {
 
 
@@ -2434,6 +2518,595 @@ export const useUpdateIntegrationConnector = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getUpdateIntegrationConnectorMutationOptions(options));
     }
+
+export const getDeleteIntegrationConnectorUrl = (id: string,) => {
+
+
+
+
+  return `/api/integrations/connectors/${id}`
+}
+
+/**
+ * @summary Delete a connector (admin only)
+ */
+export const deleteIntegrationConnector = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteIntegrationConnectorUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteIntegrationConnectorMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteIntegrationConnector>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteIntegrationConnector>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteIntegrationConnector'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteIntegrationConnector>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteIntegrationConnector(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteIntegrationConnectorMutationResult = NonNullable<Awaited<ReturnType<typeof deleteIntegrationConnector>>>
+
+    export type DeleteIntegrationConnectorMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a connector (admin only)
+ */
+export const useDeleteIntegrationConnector = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteIntegrationConnector>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteIntegrationConnector>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteIntegrationConnectorMutationOptions(options));
+    }
+
+export const getTestConnectorConnectionUrl = (id: string,) => {
+
+
+
+
+  return `/api/integrations/connectors/${id}/test`
+}
+
+/**
+ * @summary Test a source-system connector connection (admin only)
+ */
+export const testConnectorConnection = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ConnectorConnectionTestResult> => {
+
+  return customFetch<ConnectorConnectionTestResult>(getTestConnectorConnectionUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTestConnectorConnectionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testConnectorConnection>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testConnectorConnection>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['testConnectorConnection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testConnectorConnection>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  testConnectorConnection(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestConnectorConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof testConnectorConnection>>>
+
+    export type TestConnectorConnectionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Test a source-system connector connection (admin only)
+ */
+export const useTestConnectorConnection = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testConnectorConnection>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof testConnectorConnection>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getTestConnectorConnectionMutationOptions(options));
+    }
+
+export const getPullConnectorDataUrl = (id: string,) => {
+
+
+
+
+  return `/api/integrations/connectors/${id}/pull`
+}
+
+/**
+ * @summary Pull project or user data from a source connector now (admin only)
+ */
+export const pullConnectorData = async (id: string,
+    pullConnectorBody: PullConnectorBody, options?: Parameters<typeof customFetch>[1]): Promise<PullResult> => {
+
+  return customFetch<PullResult>(getPullConnectorDataUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pullConnectorBody)
+  }
+);}
+
+
+
+
+
+export const getPullConnectorDataMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pullConnectorData>>, TError,{id: string;data: BodyType<PullConnectorBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof pullConnectorData>>, TError,{id: string;data: BodyType<PullConnectorBody>}, TContext> => {
+
+const mutationKey = ['pullConnectorData'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pullConnectorData>>, {id: string;data: BodyType<PullConnectorBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  pullConnectorData(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PullConnectorDataMutationResult = NonNullable<Awaited<ReturnType<typeof pullConnectorData>>>
+    export type PullConnectorDataMutationBody = BodyType<PullConnectorBody>
+    export type PullConnectorDataMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Pull project or user data from a source connector now (admin only)
+ */
+export const usePullConnectorData = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pullConnectorData>>, TError,{id: string;data: BodyType<PullConnectorBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof pullConnectorData>>,
+        TError,
+        {id: string;data: BodyType<PullConnectorBody>},
+        TContext
+      > => {
+      return useMutation(getPullConnectorDataMutationOptions(options));
+    }
+
+export const getListImportTemplatesUrl = (params?: ListImportTemplatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/integrations/import-templates?${stringifiedParams}` : `/api/integrations/import-templates`
+}
+
+/**
+ * @summary List Excel import templates, seeding the defaults on first use
+ */
+export const listImportTemplates = async (params?: ListImportTemplatesParams, options?: Parameters<typeof customFetch>[1]): Promise<ImportTemplate[]> => {
+
+  return customFetch<ImportTemplate[]>(getListImportTemplatesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListImportTemplatesQueryKey = (params?: ListImportTemplatesParams,) => {
+    return [
+    `/api/integrations/import-templates`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListImportTemplatesQueryOptions = <TData = Awaited<ReturnType<typeof listImportTemplates>>, TError = ErrorType<unknown>>(params?: ListImportTemplatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImportTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListImportTemplatesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listImportTemplates>>> = ({ signal }) => listImportTemplates(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listImportTemplates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListImportTemplatesQueryResult = NonNullable<Awaited<ReturnType<typeof listImportTemplates>>>
+export type ListImportTemplatesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List Excel import templates, seeding the defaults on first use
+ */
+
+export function useListImportTemplates<TData = Awaited<ReturnType<typeof listImportTemplates>>, TError = ErrorType<unknown>>(
+ params?: ListImportTemplatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImportTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListImportTemplatesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateImportTemplateUrl = () => {
+
+
+
+
+  return `/api/integrations/import-templates`
+}
+
+/**
+ * @summary Create an import template (admin only)
+ */
+export const createImportTemplate = async (importTemplateInput: ImportTemplateInput, options?: Parameters<typeof customFetch>[1]): Promise<ImportTemplate> => {
+
+  return customFetch<ImportTemplate>(getCreateImportTemplateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(importTemplateInput)
+  }
+);}
+
+
+
+
+
+export const getCreateImportTemplateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createImportTemplate>>, TError,{data: BodyType<ImportTemplateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createImportTemplate>>, TError,{data: BodyType<ImportTemplateInput>}, TContext> => {
+
+const mutationKey = ['createImportTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createImportTemplate>>, {data: BodyType<ImportTemplateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createImportTemplate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateImportTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof createImportTemplate>>>
+    export type CreateImportTemplateMutationBody = BodyType<ImportTemplateInput>
+    export type CreateImportTemplateMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create an import template (admin only)
+ */
+export const useCreateImportTemplate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createImportTemplate>>, TError,{data: BodyType<ImportTemplateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createImportTemplate>>,
+        TError,
+        {data: BodyType<ImportTemplateInput>},
+        TContext
+      > => {
+      return useMutation(getCreateImportTemplateMutationOptions(options));
+    }
+
+export const getUpdateImportTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/integrations/import-templates/${id}`
+}
+
+/**
+ * @summary Update a non-default import template (admin only)
+ */
+export const updateImportTemplate = async (id: string,
+    importTemplateInput: ImportTemplateInput, options?: Parameters<typeof customFetch>[1]): Promise<ImportTemplate> => {
+
+  return customFetch<ImportTemplate>(getUpdateImportTemplateUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(importTemplateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateImportTemplateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateImportTemplate>>, TError,{id: string;data: BodyType<ImportTemplateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateImportTemplate>>, TError,{id: string;data: BodyType<ImportTemplateInput>}, TContext> => {
+
+const mutationKey = ['updateImportTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateImportTemplate>>, {id: string;data: BodyType<ImportTemplateInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateImportTemplate(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateImportTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof updateImportTemplate>>>
+    export type UpdateImportTemplateMutationBody = BodyType<ImportTemplateInput>
+    export type UpdateImportTemplateMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a non-default import template (admin only)
+ */
+export const useUpdateImportTemplate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateImportTemplate>>, TError,{id: string;data: BodyType<ImportTemplateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateImportTemplate>>,
+        TError,
+        {id: string;data: BodyType<ImportTemplateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateImportTemplateMutationOptions(options));
+    }
+
+export const getDeleteImportTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/integrations/import-templates/${id}`
+}
+
+/**
+ * @summary Delete a non-default import template (admin only)
+ */
+export const deleteImportTemplate = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteImportTemplateUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteImportTemplateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteImportTemplate>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteImportTemplate>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteImportTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteImportTemplate>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteImportTemplate(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteImportTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof deleteImportTemplate>>>
+
+    export type DeleteImportTemplateMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a non-default import template (admin only)
+ */
+export const useDeleteImportTemplate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteImportTemplate>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteImportTemplate>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteImportTemplateMutationOptions(options));
+    }
+
+export const getDownloadImportTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/integrations/import-templates/${id}/download`
+}
+
+/**
+ * @summary Download an Excel template file as base64
+ */
+export const downloadImportTemplate = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ImportTemplateDownload> => {
+
+  return customFetch<ImportTemplateDownload>(getDownloadImportTemplateUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadImportTemplateQueryKey = (id: string,) => {
+    return [
+    `/api/integrations/import-templates/${id}/download`
+    ] as const;
+    }
+
+
+export const getDownloadImportTemplateQueryOptions = <TData = Awaited<ReturnType<typeof downloadImportTemplate>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadImportTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadImportTemplateQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadImportTemplate>>> = ({ signal }) => downloadImportTemplate(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadImportTemplate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadImportTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof downloadImportTemplate>>>
+export type DownloadImportTemplateQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download an Excel template file as base64
+ */
+
+export function useDownloadImportTemplate<TData = Awaited<ReturnType<typeof downloadImportTemplate>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadImportTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadImportTemplateQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getSendConnectorTestEmailUrl = (id: string,) => {
 
@@ -8911,20 +9584,27 @@ export function useGetLessonsReferenceData<TData = Awaited<ReturnType<typeof get
 
 
 
-export const getListLessonApproversUrl = () => {
+export const getListLessonApproversUrl = (params?: ListLessonApproversParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/lessons/approvers`
+  return stringifiedParams.length > 0 ? `/api/lessons/approvers?${stringifiedParams}` : `/api/lessons/approvers`
 }
 
 /**
- * @summary List eligible active lesson approvers (excludes the requester)
+ * @summary List eligible active lesson approvers, optionally filtered by approver scope
  */
-export const listLessonApprovers = async ( options?: Parameters<typeof customFetch>[1]): Promise<LessonApproverOption[]> => {
+export const listLessonApprovers = async (params?: ListLessonApproversParams, options?: Parameters<typeof customFetch>[1]): Promise<LessonApproverOption[]> => {
 
-  return customFetch<LessonApproverOption[]>(getListLessonApproversUrl(),
+  return customFetch<LessonApproverOption[]>(getListLessonApproversUrl(params),
   {
     ...options,
     method: 'GET'
@@ -8937,23 +9617,23 @@ export const listLessonApprovers = async ( options?: Parameters<typeof customFet
 
 
 
-export const getListLessonApproversQueryKey = () => {
+export const getListLessonApproversQueryKey = (params?: ListLessonApproversParams,) => {
     return [
-    `/api/lessons/approvers`
+    `/api/lessons/approvers`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListLessonApproversQueryOptions = <TData = Awaited<ReturnType<typeof listLessonApprovers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonApprovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListLessonApproversQueryOptions = <TData = Awaited<ReturnType<typeof listLessonApprovers>>, TError = ErrorType<unknown>>(params?: ListLessonApproversParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonApprovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListLessonApproversQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListLessonApproversQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLessonApprovers>>> = ({ signal }) => listLessonApprovers({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLessonApprovers>>> = ({ signal }) => listLessonApprovers(params, { signal, ...requestOptions });
 
 
 
@@ -8967,15 +9647,15 @@ export type ListLessonApproversQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List eligible active lesson approvers (excludes the requester)
+ * @summary List eligible active lesson approvers, optionally filtered by approver scope
  */
 
 export function useListLessonApprovers<TData = Awaited<ReturnType<typeof listLessonApprovers>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonApprovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListLessonApproversParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonApprovers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListLessonApproversQueryOptions(options)
+  const queryOptions = getListLessonApproversQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -10102,6 +10782,174 @@ export function useGetLessonsEscalations<TData = Awaited<ReturnType<typeof getLe
 
 
 
+export const getGetQaqcEscalationsUrl = (params?: GetQaqcEscalationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/escalations?${stringifiedParams}` : `/api/qaqc/escalations`
+}
+
+/**
+ * @summary Get QA/QC escalation summary
+ */
+export const getQaqcEscalations = async (params?: GetQaqcEscalationsParams, options?: Parameters<typeof customFetch>[1]): Promise<EscalationSummaryPageResponse> => {
+
+  return customFetch<EscalationSummaryPageResponse>(getGetQaqcEscalationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcEscalationsQueryKey = (params?: GetQaqcEscalationsParams,) => {
+    return [
+    `/api/qaqc/escalations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetQaqcEscalationsQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcEscalations>>, TError = ErrorType<unknown>>(params?: GetQaqcEscalationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcEscalations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcEscalationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcEscalations>>> = ({ signal }) => getQaqcEscalations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcEscalations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcEscalationsQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcEscalations>>>
+export type GetQaqcEscalationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get QA/QC escalation summary
+ */
+
+export function useGetQaqcEscalations<TData = Awaited<ReturnType<typeof getQaqcEscalations>>, TError = ErrorType<unknown>>(
+ params?: GetQaqcEscalationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcEscalations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcEscalationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAuditEscalationsUrl = (params?: GetAuditEscalationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/escalations?${stringifiedParams}` : `/api/audit/escalations`
+}
+
+/**
+ * @summary Get audit escalation summary
+ */
+export const getAuditEscalations = async (params?: GetAuditEscalationsParams, options?: Parameters<typeof customFetch>[1]): Promise<EscalationSummaryPageResponse> => {
+
+  return customFetch<EscalationSummaryPageResponse>(getGetAuditEscalationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditEscalationsQueryKey = (params?: GetAuditEscalationsParams,) => {
+    return [
+    `/api/audit/escalations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAuditEscalationsQueryOptions = <TData = Awaited<ReturnType<typeof getAuditEscalations>>, TError = ErrorType<unknown>>(params?: GetAuditEscalationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditEscalations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditEscalationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditEscalations>>> = ({ signal }) => getAuditEscalations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditEscalations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditEscalationsQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditEscalations>>>
+export type GetAuditEscalationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get audit escalation summary
+ */
+
+export function useGetAuditEscalations<TData = Awaited<ReturnType<typeof getAuditEscalations>>, TError = ErrorType<unknown>>(
+ params?: GetAuditEscalationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditEscalations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditEscalationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getExportLessonsLogUrl = (params?: ExportLessonsLogParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -10339,6 +11187,225 @@ export function useGetLessonsFieldControls<TData = Awaited<ReturnType<typeof get
 
 
 
+
+export const getListApproverScopesUrl = () => {
+
+
+
+
+  return `/api/lessons/admin/approver-scopes`
+}
+
+/**
+ * @summary List scoped approver assignments
+ */
+export const listApproverScopes = async ( options?: Parameters<typeof customFetch>[1]): Promise<ApproverScope[]> => {
+
+  return customFetch<ApproverScope[]>(getListApproverScopesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApproverScopesQueryKey = () => {
+    return [
+    `/api/lessons/admin/approver-scopes`
+    ] as const;
+    }
+
+
+export const getListApproverScopesQueryOptions = <TData = Awaited<ReturnType<typeof listApproverScopes>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApproverScopes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApproverScopesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApproverScopes>>> = ({ signal }) => listApproverScopes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApproverScopes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApproverScopesQueryResult = NonNullable<Awaited<ReturnType<typeof listApproverScopes>>>
+export type ListApproverScopesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List scoped approver assignments
+ */
+
+export function useListApproverScopes<TData = Awaited<ReturnType<typeof listApproverScopes>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApproverScopes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApproverScopesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateApproverScopeUrl = () => {
+
+
+
+
+  return `/api/lessons/admin/approver-scopes`
+}
+
+/**
+ * @summary Assign a scoped approver (blank scope fields match everything)
+ */
+export const createApproverScope = async (approverScopeInput: ApproverScopeInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getCreateApproverScopeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(approverScopeInput)
+  }
+);}
+
+
+
+
+
+export const getCreateApproverScopeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApproverScope>>, TError,{data: BodyType<ApproverScopeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createApproverScope>>, TError,{data: BodyType<ApproverScopeInput>}, TContext> => {
+
+const mutationKey = ['createApproverScope'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createApproverScope>>, {data: BodyType<ApproverScopeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createApproverScope(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateApproverScopeMutationResult = NonNullable<Awaited<ReturnType<typeof createApproverScope>>>
+    export type CreateApproverScopeMutationBody = BodyType<ApproverScopeInput>
+    export type CreateApproverScopeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Assign a scoped approver (blank scope fields match everything)
+ */
+export const useCreateApproverScope = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApproverScope>>, TError,{data: BodyType<ApproverScopeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createApproverScope>>,
+        TError,
+        {data: BodyType<ApproverScopeInput>},
+        TContext
+      > => {
+      return useMutation(getCreateApproverScopeMutationOptions(options));
+    }
+
+export const getDeleteApproverScopeUrl = (id: string,) => {
+
+
+
+
+  return `/api/lessons/admin/approver-scopes/${id}`
+}
+
+/**
+ * @summary Remove an approver scope
+ */
+export const deleteApproverScope = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteApproverScopeUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteApproverScopeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApproverScope>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteApproverScope>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteApproverScope'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteApproverScope>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteApproverScope(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteApproverScopeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteApproverScope>>>
+
+    export type DeleteApproverScopeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove an approver scope
+ */
+export const useDeleteApproverScope = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApproverScope>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteApproverScope>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteApproverScopeMutationOptions(options));
+    }
 
 export const getListLessonsRolesUrl = (params?: ListLessonsRolesParams,) => {
   const normalizedParams = new URLSearchParams();

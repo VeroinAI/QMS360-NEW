@@ -1,18 +1,24 @@
-import { Router, type IRouter } from "express";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { Router, raw, type IRouter } from "express";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import {
-  GetConnectorFieldMappingsResponse, GetIntegrationsHealthResponse, ListIntegrationConnectorsResponse,
-  ListSyncJobsResponse, RetrySyncJobResponse, SaveConnectorFieldMappingsBody, SendConnectorTestEmailResponse,
-  UpdateIntegrationConnectorBody, UpdateIntegrationConnectorResponse,
+  CreateImportTemplateBody, CreateIntegrationConnectorBody, GetConnectorFieldMappingsResponse,
+  GetIntegrationsHealthResponse, ListIntegrationConnectorsResponse, ListSyncJobsResponse,
+  PullConnectorDataBody, RetrySyncJobResponse, SaveConnectorFieldMappingsBody, SendConnectorTestEmailResponse,
+  UpdateImportTemplateBody, UpdateIntegrationConnectorBody, UpdateIntegrationConnectorResponse,
 } from "@workspace/api-zod";
-import { connectorFieldMappings, db, integrationConnectors, syncJobs } from "@workspace/db";
+import { connectorFieldMappings, db, importTemplates, integrationConnectors, syncJobs } from "@workspace/db";
 import { deliverEmail, sendConnectorTestEmail } from "../lib/email";
-import { encryptConfigSecrets } from "../lib/secrets";
+import { encryptConfigSecrets, encryptSecret } from "../lib/secrets";
+import {
+  CUSTOM_FIELD_PATTERN, ENTITY_CATALOG, applyEntityRows, buildTemplateFile, ensureDefaultTemplates,
+  fetchEntityRows, mapSourceRows, parseImportFile, recordSyncJob, validateTemplateColumns,
+  type SyncEntity,
+} from "../lib/source-sync";
 import { paginated, pagination } from "../lib/workspace";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
-const families = new Set(["platform", "email", "ai", "oracle_adw", "bi"]);
+const families = new Set(["platform", "email", "ai", "oracle_adw", "bi", "source_api"]);
 const statuses = new Set(["Connected", "Degraded", "Failed", "Disabled"]);
 
 function maskConfig(value: Record<string, unknown>): Record<string, unknown> {
@@ -22,8 +28,13 @@ function maskConfig(value: Record<string, unknown>): Record<string, unknown> {
   ]));
 }
 function connectorDto(row: typeof integrationConnectors.$inferSelect, lastSuccessfulSyncAt: Date | null = null) {
-  const config = maskConfig(row.configuration);
   const family = families.has(row.connectorType) ? row.connectorType : "platform";
+  const config = maskConfig(row.configuration);
+  // Basic-auth usernames are credentials too — the generic secret-key pattern
+  // does not match "username", so mask them explicitly for source connectors.
+  if (family === "source_api" && config.authType === "basic" && typeof config.username === "string" && config.username) {
+    config.username = "********";
+  }
   const configuredStatus = typeof row.configuration.status === "string" ? row.configuration.status : undefined;
   const status = !row.isEnabled ? "Disabled" : statuses.has(configuredStatus ?? "") ? configuredStatus! : "Degraded";
   return { id: row.id, name: row.name, family, status, enabled: row.isEnabled, config, lastSuccessfulSyncAt };
@@ -31,24 +42,38 @@ function connectorDto(row: typeof integrationConnectors.$inferSelect, lastSucces
 function syncDto(row: typeof syncJobs.$inferSelect) {
   const status = row.outcome === "success" || row.outcome === "succeeded" ? "succeeded"
     : row.outcome === "running" ? "running" : row.outcome === "failed" ? "failed" : "queued";
-  const error = row.errorQueue[0];
+  const entries = Array.isArray(row.errorQueue) ? row.errorQueue as Array<Record<string, unknown>> : [];
+  // Pull/import jobs store record counts in a trailing `summary` entry so the
+  // first real error stays visible as `error`.
+  const summary = entries.find((entry) => entry?.kind === "summary");
+  const firstError = entries.find((entry) => entry?.kind !== "summary");
   return {
     id: row.id, connectorId: row.connectorId ?? "", status, schedule: row.schedule,
     startedAt: row.lastRunAt ?? row.createdAt,
     completedAt: status === "running" || status === "queued" ? null : row.updatedAt,
     durationMs: row.durationMs,
-    error: error ? String(error.message ?? error.error ?? "Synchronization failed") : null,
+    sourceCount: typeof summary?.sourceCount === "number" ? summary.sourceCount : 0,
+    targetCount: typeof summary?.targetCount === "number" ? summary.targetCount : 0,
+    error: firstError ? String(firstError.message ?? firstError.error ?? "Synchronization failed") : null,
   };
 }
 
 router.get("/integrations/connectors", requireAuth, async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = and(eq(integrationConnectors.organizationId, req.currentUser!.organizationId), isNull(integrationConnectors.deletedAt));
-  const [rows, counts] = await Promise.all([
+  const [rows, counts, syncs] = await Promise.all([
     db.select().from(integrationConnectors).where(where).orderBy(integrationConnectors.name).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(integrationConnectors).where(where),
+    db.select({ connectorId: syncJobs.connectorId, last: sql<Date | null>`max(${syncJobs.lastRunAt})` })
+      .from(syncJobs)
+      .where(and(eq(syncJobs.organizationId, req.currentUser!.organizationId), isNull(syncJobs.deletedAt), eq(syncJobs.outcome, "success")))
+      .groupBy(syncJobs.connectorId),
   ]);
-  res.json(ListIntegrationConnectorsResponse.parse(paginated(rows.map((row) => connectorDto(row)), Number(counts[0]?.count ?? 0), page, limit)));
+  const lastSyncByConnector = new Map(syncs.map((entry) => [entry.connectorId ?? "", entry.last]));
+  res.json(ListIntegrationConnectorsResponse.parse(paginated(
+    rows.map((row) => connectorDto(row, lastSyncByConnector.get(row.id) ?? null)),
+    Number(counts[0]?.count ?? 0), page, limit,
+  )));
 });
 
 router.put("/integrations/connectors/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
@@ -60,7 +85,13 @@ router.put("/integrations/connectors/:id", requireAuth, requireAdmin, async (req
   )).limit(1);
   const old = oldRows[0];
   if (!old) { res.status(404).json({ error: "Connector not found" }); return; }
-  const incoming = parsed.data.config ?? {};
+  const incoming = { ...(parsed.data.config ?? {}) };
+  // Basic-auth usernames are credentials; encrypt them like other secrets
+  // (the generic secret-key pattern does not match "username").
+  if (typeof incoming.username === "string" && incoming.username && incoming.username !== "********"
+    && (incoming.authType ?? old.configuration.authType) === "basic") {
+    incoming.username = encryptSecret(incoming.username);
+  }
   // Secret values (passwords, tokens, ...) are encrypted at rest; masked
   // placeholders keep the previously stored value. Legacy plaintext secrets
   // already stored are re-encrypted by encryptConfigSecrets on this save.
@@ -144,30 +175,7 @@ router.get("/integrations/health", requireAuth, async (req, res) => {
   res.json(GetIntegrationsHealthResponse.parse({ status, connectors, checkedAt: new Date() }));
 });
 
-const MAPPABLE_FAMILIES = new Set(["platform", "oracle_adw", "bi"]);
-const ENTITY_CATALOG = [
-  {
-    entity: "projects", label: "Projects",
-    sourceSuggestions: ["project_code", "project_name", "business_unit", "region", "status", "start_date", "end_date"],
-    targetFields: [
-      { key: "code", label: "Project code", required: true },
-      { key: "name", label: "Project name", required: true },
-      { key: "businessUnit", label: "Business unit", required: false },
-      { key: "status", label: "Status", required: false },
-      { key: "startDate", label: "Start date", required: false },
-    ],
-  },
-  {
-    entity: "employees", label: "Employees",
-    sourceSuggestions: ["employee_no", "full_name", "email", "department", "job_title", "manager_email"],
-    targetFields: [
-      { key: "fullName", label: "Full name", required: true },
-      { key: "email", label: "Email", required: true },
-      { key: "department", label: "Department", required: false },
-      { key: "jobTitle", label: "Job title", required: false },
-    ],
-  },
-];
+const MAPPABLE_FAMILIES = new Set(["platform", "oracle_adw", "bi", "source_api"]);
 
 async function loadConnector(organizationId: string, id: string) {
   const [row] = await db.select().from(integrationConnectors).where(and(
@@ -208,7 +216,10 @@ router.put("/integrations/connectors/:id/field-mappings", requireAuth, requireAd
   const mapped = new Set<string>();
   for (const mapping of parsed.data.mappings) {
     if (!mapping.sourceField.trim()) { res.status(422).json({ error: "Source fields cannot be blank" }); return; }
-    if (!validTargets.has(mapping.targetField)) { res.status(422).json({ error: `Unknown target field "${mapping.targetField}" for ${catalog.label}` }); return; }
+    // Beyond the catalog, custom.<key> targets land in the entity's custom_fields.
+    if (!validTargets.has(mapping.targetField) && !CUSTOM_FIELD_PATTERN.test(mapping.targetField)) {
+      res.status(422).json({ error: `Unknown target field "${mapping.targetField}" for ${catalog.label}` }); return;
+    }
     if (mapped.has(mapping.targetField)) { res.status(422).json({ error: `Target field "${mapping.targetField}" is mapped more than once` }); return; }
     mapped.add(mapping.targetField);
   }
@@ -237,6 +248,184 @@ router.put("/integrations/connectors/:id/field-mappings", requireAuth, requireAd
       .where(eq(integrationConnectors.id, connector.id));
   });
   res.json(await mappingWorkspace(orgId, connector.id));
+});
+
+// ---------------------------------------------------------------------------
+// Connector lifecycle + source-system pulls
+
+router.post("/integrations/connectors", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const parsed = CreateIntegrationConnectorBody.safeParse(req.body);
+  if (!parsed.success) { res.status(422).json({ error: "Invalid connector", details: parsed.error.issues }); return; }
+  const config = { ...(parsed.data.config ?? {}) };
+  // Basic-auth usernames are credentials; encrypt them like other secrets.
+  if (typeof config.username === "string" && config.username && config.authType === "basic") {
+    config.username = encryptSecret(config.username);
+  }
+  const [row] = await db.insert(integrationConnectors).values({
+    organizationId: req.currentUser!.organizationId,
+    name: parsed.data.name.trim(),
+    connectorType: parsed.data.family,
+    isEnabled: parsed.data.enabled,
+    configuration: encryptConfigSecrets(config),
+  }).returning();
+  res.status(201).json(connectorDto(row!));
+});
+
+router.delete("/integrations/connectors/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const orgId = req.currentUser!.organizationId;
+  const [row] = await db.update(integrationConnectors).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(
+    eq(integrationConnectors.id, String(req.params.id)), eq(integrationConnectors.organizationId, orgId),
+    isNull(integrationConnectors.deletedAt),
+  )).returning();
+  if (!row) { res.status(404).json({ error: "Connector not found" }); return; }
+  await db.update(connectorFieldMappings).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(
+    eq(connectorFieldMappings.connectorId, row.id), eq(connectorFieldMappings.organizationId, orgId),
+    isNull(connectorFieldMappings.deletedAt),
+  ));
+  res.status(204).end();
+});
+
+router.post("/integrations/connectors/:id/test", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const connector = await loadConnector(req.currentUser!.organizationId, String(req.params.id));
+  if (!connector) { res.status(404).json({ error: "Connector not found" }); return; }
+  if (connector.connectorType !== "source_api") { res.status(422).json({ error: "Only source API connectors support connection tests" }); return; }
+  try {
+    const config = connector.configuration as Record<string, unknown>;
+    const endpoints = (config.endpoints ?? {}) as Record<string, { path?: unknown } | undefined>;
+    const entity = typeof endpoints.projects?.path === "string" && endpoints.projects.path ? "projects" : "users";
+    const rows = await fetchEntityRows(connector, entity);
+    res.json({ ok: true, message: `Connected — ${rows.length} ${entity} record(s) reachable`, sampleCount: rows.length });
+  } catch (error) {
+    res.json({ ok: false, message: error instanceof Error ? error.message : "Connection failed", sampleCount: 0 });
+  }
+});
+
+router.post("/integrations/connectors/:id/pull", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const parsed = PullConnectorDataBody.safeParse(req.body);
+  if (!parsed.success) { res.status(422).json({ error: "Invalid pull request", details: parsed.error.issues }); return; }
+  const orgId = req.currentUser!.organizationId;
+  const connector = await loadConnector(orgId, String(req.params.id));
+  if (!connector) { res.status(404).json({ error: "Connector not found" }); return; }
+  if (connector.connectorType !== "source_api") { res.status(422).json({ error: "Only source API connectors can pull data" }); return; }
+  if (!connector.isEnabled) { res.status(422).json({ error: "Enable the connector before pulling data" }); return; }
+  const entity = parsed.data.entity as SyncEntity;
+  const mappings = await db.select().from(connectorFieldMappings).where(and(
+    eq(connectorFieldMappings.connectorId, connector.id), eq(connectorFieldMappings.organizationId, orgId),
+    eq(connectorFieldMappings.entity, entity), eq(connectorFieldMappings.isActive, true),
+    isNull(connectorFieldMappings.deletedAt),
+  ));
+  if (!mappings.length) {
+    res.status(422).json({ error: `No active field mappings for ${entity} — save and activate mappings first` }); return;
+  }
+  const startedAt = Date.now();
+  try {
+    const rows = await fetchEntityRows(connector, entity);
+    const result = await applyEntityRows(orgId, entity, "api", mapSourceRows(mappings, rows));
+    await recordSyncJob(orgId, connector.id, `pull_${entity}`, startedAt, result);
+    await db.update(integrationConnectors).set({
+      configuration: { ...connector.configuration, status: "Connected" }, updatedAt: new Date(),
+    }).where(eq(integrationConnectors.id, connector.id));
+    res.json({
+      status: result.errors.length && result.targetCount === 0 ? "failed" : "succeeded",
+      sourceCount: result.sourceCount, targetCount: result.targetCount,
+      errorCount: result.errors.length, errors: result.errors,
+    });
+  } catch (error) {
+    await recordSyncJob(orgId, connector.id, `pull_${entity}`, startedAt, {
+      sourceCount: 0, targetCount: 0,
+      errors: [{ row: 0, message: error instanceof Error ? error.message : "Pull failed" }],
+    });
+    await db.update(integrationConnectors).set({
+      configuration: { ...connector.configuration, status: "Failed" }, updatedAt: new Date(),
+    }).where(eq(integrationConnectors.id, connector.id));
+    throw error;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Excel import templates + file drop (fallback channel when no live API exists)
+
+function templateDto(row: typeof importTemplates.$inferSelect) {
+  return { id: row.id, entity: row.entity, name: row.name, isDefault: row.isDefault, columns: row.columns, updatedAt: row.updatedAt };
+}
+
+async function loadTemplate(organizationId: string, id: string) {
+  const [row] = await db.select().from(importTemplates).where(and(
+    eq(importTemplates.id, id), eq(importTemplates.organizationId, organizationId), isNull(importTemplates.deletedAt),
+  )).limit(1);
+  return row;
+}
+
+router.get("/integrations/import-templates", requireAuth, async (req, res) => {
+  const orgId = req.currentUser!.organizationId;
+  await ensureDefaultTemplates(orgId);
+  const entity = typeof req.query.entity === "string" ? req.query.entity : undefined;
+  const rows = await db.select().from(importTemplates).where(and(
+    eq(importTemplates.organizationId, orgId), isNull(importTemplates.deletedAt),
+    entity ? eq(importTemplates.entity, entity) : undefined,
+  )).orderBy(desc(importTemplates.isDefault), asc(importTemplates.name));
+  res.json(rows.map(templateDto));
+});
+
+router.post("/integrations/import-templates", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const parsed = CreateImportTemplateBody.safeParse(req.body);
+  if (!parsed.success) { res.status(422).json({ error: "Invalid template", details: parsed.error.issues }); return; }
+  const invalid = validateTemplateColumns(parsed.data.entity as SyncEntity, parsed.data.columns);
+  if (invalid) { res.status(422).json({ error: invalid }); return; }
+  const [row] = await db.insert(importTemplates).values({
+    organizationId: req.currentUser!.organizationId,
+    entity: parsed.data.entity, name: parsed.data.name.trim(), isDefault: false, columns: parsed.data.columns,
+  }).returning();
+  res.status(201).json(templateDto(row!));
+});
+
+router.put("/integrations/import-templates/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const parsed = UpdateImportTemplateBody.safeParse(req.body);
+  if (!parsed.success) { res.status(422).json({ error: "Invalid template", details: parsed.error.issues }); return; }
+  const template = await loadTemplate(req.currentUser!.organizationId, String(req.params.id));
+  if (!template) { res.status(404).json({ error: "Template not found" }); return; }
+  if (template.isDefault) { res.status(422).json({ error: "Default templates cannot be edited — copy them first" }); return; }
+  if (parsed.data.entity !== template.entity) { res.status(422).json({ error: "A template's entity cannot change" }); return; }
+  const invalid = validateTemplateColumns(template.entity as SyncEntity, parsed.data.columns);
+  if (invalid) { res.status(422).json({ error: invalid }); return; }
+  const [row] = await db.update(importTemplates).set({
+    name: parsed.data.name.trim(), columns: parsed.data.columns, updatedAt: new Date(),
+  }).where(eq(importTemplates.id, template.id)).returning();
+  res.json(templateDto(row!));
+});
+
+router.delete("/integrations/import-templates/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const template = await loadTemplate(req.currentUser!.organizationId, String(req.params.id));
+  if (!template) { res.status(404).json({ error: "Template not found" }); return; }
+  if (template.isDefault) { res.status(422).json({ error: "Default templates cannot be deleted" }); return; }
+  await db.update(importTemplates).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(importTemplates.id, template.id));
+  res.status(204).end();
+});
+
+router.get("/integrations/import-templates/:id/download", requireAuth, async (req, res): Promise<void> => {
+  const template = await loadTemplate(req.currentUser!.organizationId, String(req.params.id));
+  if (!template) { res.status(404).json({ error: "Template not found" }); return; }
+  res.json(buildTemplateFile(template));
+});
+
+// The global JSON parser skips non-JSON bodies, so the raw parser here receives
+// the untouched workbook bytes (Content-Type: application/octet-stream).
+router.post("/integrations/import-templates/:id/import", requireAuth, requireAdmin, raw({ type: "*/*", limit: "25mb" }), async (req, res): Promise<void> => {
+  const orgId = req.currentUser!.organizationId;
+  const template = await loadTemplate(orgId, String(req.params.id));
+  if (!template) { res.status(404).json({ error: "Template not found" }); return; }
+  if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+    res.status(422).json({ error: "Upload the workbook as the request body (application/octet-stream)" }); return;
+  }
+  const startedAt = Date.now();
+  const rows = parseImportFile(req.body, template);
+  const result = await applyEntityRows(orgId, template.entity as SyncEntity, "excel", rows);
+  await recordSyncJob(orgId, null, `excel_import_${template.entity}`, startedAt, result);
+  res.json({
+    status: result.errors.length && result.targetCount === 0 ? "failed" : "succeeded",
+    sourceCount: result.sourceCount, targetCount: result.targetCount,
+    errorCount: result.errors.length, errors: result.errors,
+  });
 });
 
 export default router;

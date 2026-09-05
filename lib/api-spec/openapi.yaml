@@ -322,6 +322,14 @@ paths:
       parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
       responses:
         "200": {$ref: "#/components/responses/IntegrationConnectorPage"}
+    post:
+      operationId: createIntegrationConnector
+      tags: [integrations]
+      summary: Create an integration connector (admin only)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/IntegrationConnectorCreateInput"}}}}
+      responses:
+        "201": {description: Created connector, content: {application/json: {schema: {$ref: "#/components/schemas/IntegrationConnector"}}}}
+        "403": {description: Administrator access required}
   /integrations/connectors/{id}:
     put:
       operationId: updateIntegrationConnector
@@ -331,6 +339,70 @@ paths:
       requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/IntegrationConnector"}}}}
       responses:
         "200": {description: Updated connector, content: {application/json: {schema: {$ref: "#/components/schemas/IntegrationConnector"}}}}
+    delete:
+      operationId: deleteIntegrationConnector
+      tags: [integrations]
+      summary: Delete a connector (admin only)
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "204": {description: Deleted}
+        "403": {description: Administrator access required}
+  /integrations/connectors/{id}/test:
+    post:
+      operationId: testConnectorConnection
+      tags: [integrations]
+      summary: Test a source-system connector connection (admin only)
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200": {description: Connection test result, content: {application/json: {schema: {$ref: "#/components/schemas/ConnectorConnectionTestResult"}}}}
+  /integrations/connectors/{id}/pull:
+    post:
+      operationId: pullConnectorData
+      tags: [integrations]
+      summary: Pull project or user data from a source connector now (admin only)
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/PullConnectorBody"}}}}
+      responses:
+        "200": {description: Pull result, content: {application/json: {schema: {$ref: "#/components/schemas/PullResult"}}}}
+  /integrations/import-templates:
+    get:
+      operationId: listImportTemplates
+      tags: [integrations]
+      summary: List Excel import templates, seeding the defaults on first use
+      parameters: [{name: entity, in: query, schema: {type: string, enum: [projects, users]}}]
+      responses:
+        "200": {description: Import templates, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ImportTemplate"}}}}}
+    post:
+      operationId: createImportTemplate
+      tags: [integrations]
+      summary: Create an import template (admin only)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ImportTemplateInput"}}}}
+      responses:
+        "201": {description: Created template, content: {application/json: {schema: {$ref: "#/components/schemas/ImportTemplate"}}}}
+  /integrations/import-templates/{id}:
+    put:
+      operationId: updateImportTemplate
+      tags: [integrations]
+      summary: Update a non-default import template (admin only)
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ImportTemplateInput"}}}}
+      responses:
+        "200": {description: Updated template, content: {application/json: {schema: {$ref: "#/components/schemas/ImportTemplate"}}}}
+    delete:
+      operationId: deleteImportTemplate
+      tags: [integrations]
+      summary: Delete a non-default import template (admin only)
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "204": {description: Deleted}
+  /integrations/import-templates/{id}/download:
+    get:
+      operationId: downloadImportTemplate
+      tags: [integrations]
+      summary: Download an Excel template file as base64
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200": {description: Template file, content: {application/json: {schema: {$ref: "#/components/schemas/ImportTemplateDownload"}}}}
   /integrations/connectors/{id}/test-email:
     post:
       operationId: sendConnectorTestEmail
@@ -664,7 +736,16 @@ paths:
   /lessons/reference-data:
     get: {operationId: getLessonsReferenceData, tags: [lessons], summary: Get cacheable lessons reference snapshot, parameters: [{$ref: "#/components/parameters/Since"}], responses: {"200": {description: Snapshot, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsReferenceData"}}}}}}
   /lessons/approvers:
-    get: {operationId: listLessonApprovers, tags: [lessons], summary: List eligible active lesson approvers (excludes the requester), responses: {"200": {description: Approvers, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/LessonApproverOption"}}}}}}}
+    get:
+      operationId: listLessonApprovers
+      tags: [lessons]
+      summary: List eligible active lesson approvers, optionally filtered by approver scope
+      parameters:
+        - {name: projectId, in: query, schema: {type: string}}
+        - {name: discipline, in: query, schema: {type: string}, description: Discipline LOV value}
+        - {name: categorisation, in: query, schema: {type: string}, description: Categorisation LOV value}
+        - {name: includeSelf, in: query, schema: {type: string, enum: ["true"]}}
+      responses: {"200": {description: Approvers, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/LessonApproverOption"}}}}}}
   /lessons/forms:
     get: {operationId: listLessonForms, tags: [lessons], summary: List lesson learned forms, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/LessonFormPage"}}}
     post: {operationId: createLessonForm, tags: [lessons], summary: Create lesson learned form, requestBody: {$ref: "#/components/requestBodies/LessonForm"}, responses: {"201": {description: Created}}}
@@ -706,12 +787,21 @@ paths:
     post: {operationId: answerLessonPromptQuestion, tags: [lessons], summary: Answer a prompt clarification, parameters: [{$ref: "#/components/parameters/SessionId"}], requestBody: {$ref: "#/components/requestBodies/PromptAnswer"}, responses: {"200": {description: Extraction, content: {application/json: {schema: {$ref: "#/components/schemas/PromptTransaction"}}}}}}
   /lessons/escalations:
     get: {operationId: getLessonsEscalations, tags: [lessons], summary: Get lesson escalation summary, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/EscalationSummaryPage"}}}
+  /qaqc/escalations:
+    get: {operationId: getQaqcEscalations, tags: [qaqc], summary: Get QA/QC escalation summary, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/EscalationSummaryPage"}}}
+  /audit/escalations:
+    get: {operationId: getAuditEscalations, tags: [audit], summary: Get audit escalation summary, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/EscalationSummaryPage"}}}
   /lessons/reports/log:
     get: {operationId: exportLessonsLog, tags: [lessons], summary: Export lesson learned log, parameters: [{$ref: "#/components/parameters/ReportFormat"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
   /lessons/forms/{id}/report:
     get: {operationId: exportLessonFormReport, tags: [lessons], summary: Export one lesson learned form using Accept for format negotiation, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
   /lessons/field-controls:
     get: {operationId: getLessonsFieldControls, tags: [lessons], summary: Get field control configuration for forms, responses: {"200": {description: Field controls, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
+  /lessons/admin/approver-scopes:
+    get: {operationId: listApproverScopes, tags: [lessons-admin], summary: List scoped approver assignments, responses: {"200": {description: Approver scopes, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ApproverScope"}}}}}}}
+    post: {operationId: createApproverScope, tags: [lessons-admin], summary: Assign a scoped approver (blank scope fields match everything), requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ApproverScopeInput"}}}}, responses: {"201": {description: Created}}}
+  /lessons/admin/approver-scopes/{id}:
+    delete: {operationId: deleteApproverScope, tags: [lessons-admin], summary: Remove an approver scope, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Deleted}}}
   /lessons/admin/roles:
     get: {operationId: listLessonsRoles, tags: [lessons-admin], summary: List roles, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/RolePage"}}}
     post: {operationId: createLessonsRole, tags: [lessons-admin], summary: Create role, requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"201": {description: Created}}}
@@ -1403,7 +1493,7 @@ components:
       properties:
         id: {type: string}
         name: {type: string}
-        family: {type: string, enum: [platform, email, ai, oracle_adw, bi]}
+        family: {type: string, enum: [platform, email, ai, oracle_adw, bi, source_api]}
         status: {type: string, enum: [Connected, Degraded, Failed, Disabled]}
         enabled: {type: boolean}
         config: {type: object, additionalProperties: true}
@@ -1416,6 +1506,46 @@ components:
       type: object
       required: [status, connectors]
       properties: {status: {type: string, enum: [healthy, degraded, failed]}, connectors: {type: array, items: {$ref: "#/components/schemas/IntegrationConnector"}}, checkedAt: {type: string, format: date-time}}
+    IntegrationConnectorCreateInput:
+      type: object
+      required: [name, family, enabled]
+      properties:
+        name: {type: string, minLength: 1}
+        family: {type: string, enum: [platform, email, ai, oracle_adw, bi, source_api]}
+        enabled: {type: boolean}
+        config: {type: object, additionalProperties: true}
+    ConnectorConnectionTestResult:
+      type: object
+      required: [ok, message, sampleCount]
+      properties: {ok: {type: boolean}, message: {type: string}, sampleCount: {type: number}}
+    PullConnectorBody:
+      type: object
+      required: [entity]
+      properties: {entity: {type: string, enum: [projects, users]}}
+    PullError:
+      type: object
+      required: [row, message]
+      properties: {row: {type: number}, message: {type: string}}
+    PullResult:
+      type: object
+      required: [status, sourceCount, targetCount, errorCount, errors]
+      properties: {status: {type: string, enum: [succeeded, failed]}, sourceCount: {type: number}, targetCount: {type: number}, errorCount: {type: number}, errors: {type: array, items: {$ref: "#/components/schemas/PullError"}}}
+    ImportTemplateColumn:
+      type: object
+      required: [header, field, required]
+      properties: {header: {type: string, minLength: 1}, field: {type: string, minLength: 1}, required: {type: boolean}}
+    ImportTemplate:
+      type: object
+      required: [id, entity, name, isDefault, columns, updatedAt]
+      properties: {id: {type: string}, entity: {type: string, enum: [projects, users]}, name: {type: string}, isDefault: {type: boolean}, columns: {type: array, items: {$ref: "#/components/schemas/ImportTemplateColumn"}}, updatedAt: {type: string, format: date-time}}
+    ImportTemplateInput:
+      type: object
+      required: [entity, name, columns]
+      properties: {entity: {type: string, enum: [projects, users]}, name: {type: string, minLength: 1}, columns: {type: array, items: {$ref: "#/components/schemas/ImportTemplateColumn"}}}
+    ImportTemplateDownload:
+      type: object
+      required: [fileName, contentBase64]
+      properties: {fileName: {type: string}, contentBase64: {type: string}}
     ExecutiveSummary:
       type: object
       required: [id, appKey, period, publishedAt, metrics]
@@ -1606,7 +1736,7 @@ components:
     EscalationRule:
       type: object
       required: [id, triggerType, slaWorkingDays, recipientRoles, repeatCadenceDays, enabled]
-      properties: {id: {type: string}, triggerType: {type: string}, priority: {type: [string, "null"]}, level: {type: [string, "null"]}, slaWorkingDays: {type: number, minimum: 0}, recipientRoles: {type: array, items: {type: string}}, repeatCadenceDays: {type: number, minimum: 1}, enabled: {type: boolean}}
+      properties: {id: {type: string}, triggerType: {type: string}, priority: {type: [string, "null"]}, level: {type: [string, "null"]}, slaWorkingDays: {type: number, minimum: 0}, recipientRoles: {type: array, items: {type: string}}, repeatCadenceDays: {type: number, minimum: 1}, enabled: {type: boolean}, unstaffedRoles: {type: array, items: {type: string}}}
     AISettings:
       type: object
       required: [enabled, features, provider, model, timeoutSeconds]
@@ -1695,6 +1825,27 @@ components:
         fullName: {type: string}
         email: {type: string}
         roles: {type: array, items: {type: string}}
+    ApproverScope:
+      type: object
+      required: [id, userId, userName, userEmail, projectId, projectName, disciplineId, disciplineName, categorisation]
+      properties:
+        id: {type: string}
+        userId: {type: string}
+        userName: {type: string}
+        userEmail: {type: string}
+        projectId: {type: [string, "null"]}
+        projectName: {type: [string, "null"]}
+        disciplineId: {type: [string, "null"]}
+        disciplineName: {type: [string, "null"]}
+        categorisation: {type: [string, "null"]}
+    ApproverScopeInput:
+      type: object
+      required: [userId]
+      properties:
+        userId: {type: string}
+        projectId: {type: string}
+        disciplineId: {type: string}
+        categorisation: {type: string}
     LessonLearnedForm:
       type: object
       required: [id, referenceNumber, projectId, title, disciplineId, categorisationId, issueCategory, impact, description, rootCause, correction, correctiveAction, capturedAt, version, conflictFlag, workflowState]

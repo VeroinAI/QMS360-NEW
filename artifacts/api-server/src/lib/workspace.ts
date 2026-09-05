@@ -1,8 +1,10 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
+import { and, eq, isNull } from "drizzle-orm";
 import {
   auditAuditLogEntries,
   auditLogEntries,
   auditNotifications,
+  db,
   lessonNotifications,
   lessonsAuditLogEntries,
   notifications,
@@ -10,6 +12,17 @@ import {
 import { deliverEmail } from "./email";
 
 export type AppKey = "qaqc" | "lessons" | "audit";
+
+// Names of an app's workspace roles that have at least one active member.
+// Mirrors resolveRecipients() in lib/escalation.ts exactly (active role +
+// active assignment); used to warn admins when an escalation rule targets an
+// unstaffed role, since the engine falls back to initial admins in that case.
+export async function staffedRoleNames(organizationId: string, rolesTable: any, assignmentsTable: any): Promise<Set<string>> {
+  const rows = await db.select({ name: rolesTable.name }).from(assignmentsTable)
+    .innerJoin(rolesTable, and(eq(assignmentsTable.workspaceRoleId, rolesTable.id), eq(rolesTable.status, "active"), isNull(rolesTable.deletedAt)))
+    .where(and(eq(assignmentsTable.organizationId, organizationId), eq(assignmentsTable.status, "active"), isNull(assignmentsTable.deletedAt)));
+  return new Set(rows.map((r) => r.name));
+}
 
 export function pagination(req: Request) {
   const page = Math.max(1, Number.parseInt(String(req.query.page ?? "1"), 10) || 1);

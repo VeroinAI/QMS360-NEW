@@ -419,6 +419,7 @@ export const IntegrationConnectorFamily = {
   ai: 'ai',
   oracle_adw: 'oracle_adw',
   bi: 'bi',
+  source_api: 'source_api',
 } as const;
 
 export type IntegrationConnectorStatus = typeof IntegrationConnectorStatus[keyof typeof IntegrationConnectorStatus];
@@ -484,6 +485,112 @@ export interface IntegrationHealth {
   status: IntegrationHealthStatus;
   connectors: IntegrationConnector[];
   checkedAt?: string;
+}
+
+export type IntegrationConnectorCreateInputFamily = typeof IntegrationConnectorCreateInputFamily[keyof typeof IntegrationConnectorCreateInputFamily];
+
+
+export const IntegrationConnectorCreateInputFamily = {
+  platform: 'platform',
+  email: 'email',
+  ai: 'ai',
+  oracle_adw: 'oracle_adw',
+  bi: 'bi',
+  source_api: 'source_api',
+} as const;
+
+export type IntegrationConnectorCreateInputConfig = { [key: string]: unknown };
+
+export interface IntegrationConnectorCreateInput {
+  /** @minLength 1 */
+  name: string;
+  family: IntegrationConnectorCreateInputFamily;
+  enabled: boolean;
+  config?: IntegrationConnectorCreateInputConfig;
+}
+
+export interface ConnectorConnectionTestResult {
+  ok: boolean;
+  message: string;
+  sampleCount: number;
+}
+
+export type PullConnectorBodyEntity = typeof PullConnectorBodyEntity[keyof typeof PullConnectorBodyEntity];
+
+
+export const PullConnectorBodyEntity = {
+  projects: 'projects',
+  users: 'users',
+} as const;
+
+export interface PullConnectorBody {
+  entity: PullConnectorBodyEntity;
+}
+
+export interface PullError {
+  row: number;
+  message: string;
+}
+
+export type PullResultStatus = typeof PullResultStatus[keyof typeof PullResultStatus];
+
+
+export const PullResultStatus = {
+  succeeded: 'succeeded',
+  failed: 'failed',
+} as const;
+
+export interface PullResult {
+  status: PullResultStatus;
+  sourceCount: number;
+  targetCount: number;
+  errorCount: number;
+  errors: PullError[];
+}
+
+export interface ImportTemplateColumn {
+  /** @minLength 1 */
+  header: string;
+  /** @minLength 1 */
+  field: string;
+  required: boolean;
+}
+
+export type ImportTemplateEntity = typeof ImportTemplateEntity[keyof typeof ImportTemplateEntity];
+
+
+export const ImportTemplateEntity = {
+  projects: 'projects',
+  users: 'users',
+} as const;
+
+export interface ImportTemplate {
+  id: string;
+  entity: ImportTemplateEntity;
+  name: string;
+  isDefault: boolean;
+  columns: ImportTemplateColumn[];
+  updatedAt: string;
+}
+
+export type ImportTemplateInputEntity = typeof ImportTemplateInputEntity[keyof typeof ImportTemplateInputEntity];
+
+
+export const ImportTemplateInputEntity = {
+  projects: 'projects',
+  users: 'users',
+} as const;
+
+export interface ImportTemplateInput {
+  entity: ImportTemplateInputEntity;
+  /** @minLength 1 */
+  name: string;
+  columns: ImportTemplateColumn[];
+}
+
+export interface ImportTemplateDownload {
+  fileName: string;
+  contentBase64: string;
 }
 
 export type ExecutiveSummaryMetrics = {[key: string]: number};
@@ -1018,6 +1125,7 @@ export interface EscalationRule {
   /** @minimum 1 */
   repeatCadenceDays: number;
   enabled: boolean;
+  unstaffedRoles?: string[];
 }
 
 export type AISettingsFeatures = {[key: string]: boolean};
@@ -1294,6 +1402,30 @@ export interface LessonApproverOption {
   fullName: string;
   email: string;
   roles: string[];
+}
+
+export interface ApproverScope {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  /** @nullable */
+  projectId: string | null;
+  /** @nullable */
+  projectName: string | null;
+  /** @nullable */
+  disciplineId: string | null;
+  /** @nullable */
+  disciplineName: string | null;
+  /** @nullable */
+  categorisation: string | null;
+}
+
+export interface ApproverScopeInput {
+  userId: string;
+  projectId?: string;
+  disciplineId?: string;
+  categorisation?: string;
 }
 
 export interface LessonLearnedForm {
@@ -2082,6 +2214,18 @@ page?: PageParameter;
 limit?: LimitParameter;
 };
 
+export type ListImportTemplatesParams = {
+entity?: ListImportTemplatesEntity;
+};
+
+export type ListImportTemplatesEntity = typeof ListImportTemplatesEntity[keyof typeof ListImportTemplatesEntity];
+
+
+export const ListImportTemplatesEntity = {
+  projects: 'projects',
+  users: 'users',
+} as const;
+
 export type SendConnectorTestEmail200 = {
   sent: boolean;
   message: string;
@@ -2405,6 +2549,26 @@ export type GetLessonsReferenceDataParams = {
 since?: SinceParameter;
 };
 
+export type ListLessonApproversParams = {
+projectId?: string;
+/**
+ * Discipline LOV value
+ */
+discipline?: string;
+/**
+ * Categorisation LOV value
+ */
+categorisation?: string;
+includeSelf?: ListLessonApproversIncludeSelf;
+};
+
+export type ListLessonApproversIncludeSelf = typeof ListLessonApproversIncludeSelf[keyof typeof ListLessonApproversIncludeSelf];
+
+
+export const ListLessonApproversIncludeSelf = {
+  true: 'true',
+} as const;
+
 export type ListLessonFormsParams = {
 /**
  * @minimum 1
@@ -2445,6 +2609,30 @@ export const SearchLessonsLogImpact = {
 } as const;
 
 export type GetLessonsEscalationsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type GetQaqcEscalationsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type GetAuditEscalationsParams = {
 /**
  * @minimum 1
  */

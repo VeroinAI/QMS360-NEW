@@ -8,3 +8,9 @@ The lessons create/update API validates `disciplineId`/`categorisationId` agains
 **Why:** both produce misleading failures — 422s that look like validation bugs, and 404s when you keep using the client-generated id for follow-up PUT/DELETE calls.
 
 **How to apply:** pass master-data values for those two fields and always continue with the id returned by the create response.
+
+Read endpoints must never mutate reference data.
+
+**Why:** lessons' discipline resolution on the write path auto-creates unknown master-data values; a GET that routed through it silently corrupted reference data and failed to match UUID-shaped input.
+
+**How to apply:** any new read endpoint accepting a discipline/category value resolves it read-only (name or UUID); auto-creating resolvers are for create/update writes only.

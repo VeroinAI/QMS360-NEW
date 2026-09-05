@@ -20,12 +20,14 @@ import {
   UpdateLessonsEscalationRulesBody,
   UpdateLessonsNotificationTemplateBody,
   UpdateLessonsRoleBody,
+  CreateApproverScopeBody,
 } from "@workspace/api-zod";
 import {
   applicationAccess,
   db,
   lessonDelegations,
   lessonEscalationInstances,
+  lessonApproverScopes,
   lessonEscalationRules,
   lessonLearnedForms,
   lessonNotifications,
@@ -54,7 +56,7 @@ import { confirmEvidence, createEvidenceIntent as createIntent, deleteEvidence, 
 import {
   asyncHandler, HttpError, notFound, notify, paginated, pagination, writeAuditLog,
 } from "../lib/workspace";
-import { notifyWithEmail } from "../lib/workspace";
+import { notifyWithEmail, staffedRoleNames } from "../lib/workspace";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -155,6 +157,19 @@ async function audit(req: any, action: string, entityType: string, entityId?: st
   });
 }
 
+// Read-only discipline lookup for query-time scope filtering: accepts either
+// the discipline name (LOV value) or its UUID. Unlike resolveLessonsDisciplineId
+// it never creates reference rows — a GET must not mutate master data.
+async function findLessonsDisciplineId(organizationId: string, value: string): Promise<string | null> {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+  const [row] = await db.select({ id: lessonsDisciplines.id }).from(lessonsDisciplines).where(and(
+    eq(lessonsDisciplines.organizationId, organizationId),
+    isUuid ? or(eq(lessonsDisciplines.name, value), eq(lessonsDisciplines.id, value)) : eq(lessonsDisciplines.name, value),
+    isNull(lessonsDisciplines.deletedAt),
+  )).limit(1);
+  return row?.id ?? null;
+}
+
 async function resolveLessonsDisciplineId(organizationId: string, masterValue: string) {
   const [existing] = await db.select().from(lessonsDisciplines).where(and(
     eq(lessonsDisciplines.organizationId, organizationId),
@@ -227,18 +242,56 @@ async function eligibleApprovers(organizationId: string): Promise<EligibleApprov
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
 
+type ApproverScopeCtx = { projectId?: string | null; disciplineId?: string | null; categorisation?: string | null };
+
+function scopeMatches(rule: { projectId: string | null; disciplineId: string | null; categorisation: string | null }, ctx: ApproverScopeCtx) {
+  return (!rule.projectId || rule.projectId === (ctx.projectId ?? null))
+    && (!rule.disciplineId || rule.disciplineId === (ctx.disciplineId ?? null))
+    && (!rule.categorisation || rule.categorisation === (ctx.categorisation ?? null));
+}
+
+// Null means the organization has no scope rules — every eligible approver may
+// approve anything (legacy behavior). Once at least one active rule exists,
+// only users with a matching rule qualify; blank rule dimensions match all.
+async function scopedApproverIds(organizationId: string, ctx: ApproverScopeCtx): Promise<Set<string> | null> {
+  const rules = await db.select().from(lessonApproverScopes).where(and(
+    eq(lessonApproverScopes.organizationId, organizationId),
+    eq(lessonApproverScopes.status, "active"),
+    isNull(lessonApproverScopes.deletedAt),
+  ));
+  if (!rules.length) return null;
+  return new Set(rules.filter((rule) => scopeMatches(rule, ctx)).map((rule) => rule.userId));
+}
+
 router.get("/approvers", asyncHandler(async (req, res) => {
-  const approvers = await eligibleApprovers(req.currentUser!.organizationId);
-  res.json(approvers.filter((approver) => approver.id !== req.currentUser!.id));
+  const organizationId = req.currentUser!.organizationId;
+  const ctx: ApproverScopeCtx = {
+    projectId: typeof req.query.projectId === "string" && req.query.projectId ? req.query.projectId : null,
+    categorisation: typeof req.query.categorisation === "string" && req.query.categorisation ? req.query.categorisation : null,
+    disciplineId: typeof req.query.discipline === "string" && req.query.discipline
+      ? await findLessonsDisciplineId(organizationId, req.query.discipline)
+      : null,
+  };
+  const scoped = await scopedApproverIds(organizationId, ctx);
+  let approvers = await eligibleApprovers(organizationId);
+  if (req.query.includeSelf !== "true") approvers = approvers.filter((approver) => approver.id !== req.currentUser!.id);
+  if (scoped) approvers = approvers.filter((approver) => scoped.has(approver.id));
+  res.json(approvers);
 }));
 
-async function assertEligibleApprover(req: any, approverId: string, creatorId: string | null) {
+async function assertEligibleApprover(req: any, approverId: string, creatorId: string | null, ctx: ApproverScopeCtx = {}) {
   if (creatorId && approverId === creatorId && !req.permissionAdminBypass) {
     throw new HttpError(422, "The approver must be different from the creator");
   }
   const approvers = await eligibleApprovers(req.currentUser!.organizationId);
   if (!approvers.some((approver) => approver.id === approverId)) {
     throw new HttpError(422, "Selected approver is not an active Lesson approver");
+  }
+  const scoped = await scopedApproverIds(req.currentUser!.organizationId, ctx);
+  // Scope rules are explicit admin-set policy — no admin bypass, same as the
+  // creator self-approval prohibition.
+  if (scoped && !scoped.has(approverId)) {
+    throw new HttpError(422, "Selected approver is not scoped to this project, discipline and categorisation");
   }
 }
 
@@ -264,7 +317,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
     assertLovValue(db, user.organizationId, "lesson_impacts", body.impact),
   ]);
   const disciplineId = await resolveLessonsDisciplineId(user.organizationId, body.disciplineId);
-  if (body.approverId) await assertEligibleApprover(req, body.approverId, user.id);
+  if (body.approverId) await assertEligibleApprover(req, body.approverId, user.id, { projectId: body.projectId, disciplineId, categorisation: body.categorisationId });
   const clientReference = body.id;
   const [existing] = await db.select().from(lessonLearnedForms).where(and(
     eq(lessonLearnedForms.organizationId, user.organizationId),
@@ -325,7 +378,7 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
   const disciplineId = body.disciplineId === before.disciplineId
     ? before.disciplineId
     : await resolveLessonsDisciplineId(req.currentUser!.organizationId, body.disciplineId);
-  if (body.approverId) await assertEligibleApprover(req, body.approverId, before.creatorId);
+  if (body.approverId) await assertEligibleApprover(req, body.approverId, before.creatorId, { projectId: body.projectId, disciplineId, categorisation: body.categorisationId });
   const [row] = await db.update(lessonLearnedForms).set({
     projectId: body.projectId, disciplineId, title: body.title, reference: body.reference,
     categorisation: body.categorisationId, issueCategory: body.issueCategory, impact: body.impact,
@@ -372,6 +425,10 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
   // Self-approval is never allowed — not even for admins with review bypass.
   if (before.creatorId === req.currentUser!.id) {
     throw new HttpError(403, "You cannot review a lesson you created");
+  }
+  const scoped = await scopedApproverIds(before.organizationId, { projectId: before.projectId, disciplineId: before.disciplineId, categorisation: before.categorisation });
+  if (scoped && !scoped.has(req.currentUser!.id)) {
+    throw new HttpError(403, "Your approver scope does not cover this lesson's project, discipline and categorisation");
   }
   if (before.workflowState !== "submitted") throw new HttpError(409, "Only submitted forms may be reviewed");
   const state = body.decision === "approve" ? "approved" : "sent_back";
@@ -505,7 +562,7 @@ router.get("/escalations", asyncHandler(async (req, res) => {
   ]);
   res.json(paginated(rows.map((row) => {
     const rule = rules.find((r) => r.id === row.ruleId);
-    return { id: row.id, recordType: row.recordType, recordId: row.recordId, priority: rule?.priority ?? "P1", level: String(rule?.configuration?.level ?? "P1"), dueAt: new Date(row.startedAt.getTime() + (rule?.slaWorkingDays ?? 0) * 86400000), status: row.status, lastNotifiedAt: row.breachedAt };
+    return { id: row.id, recordType: row.recordType, recordId: row.recordId, priority: rule?.priority ?? "P1", level: row.currentLevel ?? String(rule?.configuration?.level ?? "P1"), dueAt: row.breachedAt ?? new Date(row.startedAt.getTime() + (rule?.slaWorkingDays ?? 0) * 86400000), status: row.status, lastNotifiedAt: row.breachedAt };
   }), Number(count[0]?.count ?? 0), page, limit));
 }));
 
@@ -670,12 +727,76 @@ router.delete("/admin/delegations/:id", asyncHandler(async (req, res) => {
   res.status(204).end();
 }));
 
-function escalationRuleJson(r: typeof lessonEscalationRules.$inferSelect) {
-  return { id: r.id, triggerType: r.triggerKey, priority: r.priority, level: typeof r.configuration.level === "string" ? r.configuration.level : null, slaWorkingDays: r.slaWorkingDays, recipientRoles: [r.recipientRole], repeatCadenceDays: r.repeatCadenceDays ?? 2, enabled: r.status === "active" };
+function escalationRuleJson(r: typeof lessonEscalationRules.$inferSelect, staffed?: Set<string>) {
+  const recipientRoles = String(r.recipientRole ?? "").split(",").map((v) => v.trim()).filter(Boolean);
+  return { id: r.id, triggerType: r.triggerKey, priority: r.priority, level: typeof r.configuration.level === "string" ? r.configuration.level : null, slaWorkingDays: r.slaWorkingDays, recipientRoles, unstaffedRoles: staffed ? recipientRoles.filter((n) => !staffed.has(n)) : undefined, repeatCadenceDays: r.repeatCadenceDays ?? 2, enabled: r.status === "active" };
 }
+// Scoped approver assignments — blank scope dimensions act as wildcards, so a
+// row with all three blank means "may approve any lesson".
+router.get("/admin/approver-scopes", asyncHandler(async (req, res) => {
+  const orgId = req.currentUser!.organizationId;
+  const rows = await db.select({
+    scope: lessonApproverScopes,
+    userName: users.fullName,
+    userEmail: users.email,
+    projectName: projects.name,
+    disciplineName: lessonsDisciplines.name,
+  }).from(lessonApproverScopes)
+    .innerJoin(users, eq(users.id, lessonApproverScopes.userId))
+    .leftJoin(projects, eq(projects.id, lessonApproverScopes.projectId))
+    .leftJoin(lessonsDisciplines, eq(lessonsDisciplines.id, lessonApproverScopes.disciplineId))
+    .where(and(eq(lessonApproverScopes.organizationId, orgId), isNull(lessonApproverScopes.deletedAt)))
+    .orderBy(asc(users.fullName));
+  res.json(rows.map((r) => ({
+    id: r.scope.id, userId: r.scope.userId, userName: r.userName, userEmail: r.userEmail,
+    projectId: r.scope.projectId, projectName: r.projectName,
+    disciplineId: r.scope.disciplineId, disciplineName: r.disciplineName,
+    categorisation: r.scope.categorisation,
+  })));
+}));
+
+router.post("/admin/approver-scopes", asyncHandler(async (req, res) => {
+  const body = parseBody(CreateApproverScopeBody, req, res); if (!body) return;
+  const orgId = req.currentUser!.organizationId;
+  await assertUserInOrg(db, orgId, body.userId);
+  // Scoping a user who is not an eligible approver would activate restrictive
+  // scope matching while yielding no usable approver — reject it.
+  const eligible = await eligibleApprovers(orgId);
+  if (!eligible.some((approver) => approver.id === body.userId)) {
+    throw new HttpError(422, "User is not an eligible lesson approver");
+  }
+  if (body.projectId) await assertProjectInOrg(db, orgId, body.projectId);
+  if (body.disciplineId) {
+    const [discipline] = await db.select({ id: lessonsDisciplines.id }).from(lessonsDisciplines).where(and(
+      eq(lessonsDisciplines.id, body.disciplineId), eq(lessonsDisciplines.organizationId, orgId), isNull(lessonsDisciplines.deletedAt),
+    ));
+    if (!discipline) throw new HttpError(422, "Unknown discipline");
+  }
+  if (body.categorisation) await assertLovValue(db, orgId, "lesson_categorisations", body.categorisation);
+  const [row] = await db.insert(lessonApproverScopes).values({
+    organizationId: orgId, userId: body.userId,
+    projectId: body.projectId ?? null, disciplineId: body.disciplineId ?? null, categorisation: body.categorisation ?? null,
+  }).returning();
+  await audit(req, "create", "approver_scope", row!.id, undefined, row);
+  res.status(201).json({ id: row!.id });
+}));
+
+router.delete("/admin/approver-scopes/:id", asyncHandler(async (req, res) => {
+  const orgId = req.currentUser!.organizationId;
+  const [row] = await db.update(lessonApproverScopes).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(
+    eq(lessonApproverScopes.id, String(req.params.id)), eq(lessonApproverScopes.organizationId, orgId), isNull(lessonApproverScopes.deletedAt),
+  )).returning();
+  if (!row) notFound("Approver scope not found");
+  await audit(req, "delete", "approver_scope", row.id, row, undefined);
+  res.status(204).end();
+}));
+
 router.get("/admin/escalation-rules", asyncHandler(async (req, res) => {
-  const rows = await db.select().from(lessonEscalationRules).where(and(eq(lessonEscalationRules.organizationId, req.currentUser!.organizationId), isNull(lessonEscalationRules.deletedAt))).orderBy(asc(lessonEscalationRules.slaWorkingDays));
-  res.json(paginated(rows.map(escalationRuleJson), rows.length, 1, Math.max(1, rows.length)));
+  const [rows, staffed] = await Promise.all([
+    db.select().from(lessonEscalationRules).where(and(eq(lessonEscalationRules.organizationId, req.currentUser!.organizationId), isNull(lessonEscalationRules.deletedAt))).orderBy(asc(lessonEscalationRules.slaWorkingDays)),
+    staffedRoleNames(req.currentUser!.organizationId, lessonsWorkspaceRoles, lessonsUserWorkspaceRoles),
+  ]);
+  res.json(paginated(rows.map((r) => escalationRuleJson(r, staffed)), rows.length, 1, Math.max(1, rows.length)));
 }));
 router.put("/admin/escalation-rules", asyncHandler(async (req, res) => {
   const body = parseBody(UpdateLessonsEscalationRulesBody, req, res); if (!body) return;
@@ -683,7 +804,7 @@ router.put("/admin/escalation-rules", asyncHandler(async (req, res) => {
   await db.update(lessonEscalationRules).set({ deletedAt: new Date(), status: "deleted", updatedAt: new Date() }).where(and(eq(lessonEscalationRules.organizationId, org), isNull(lessonEscalationRules.deletedAt)));
   const rows = body.length ? await db.insert(lessonEscalationRules).values(body.map((r) => ({ organizationId: org, triggerKey: r.triggerType, priority: r.priority, slaWorkingDays: r.slaWorkingDays, recipientRole: r.recipientRoles.join(","), repeatCadenceDays: r.repeatCadenceDays, configuration: { level: r.level }, status: r.enabled ? "active" : "inactive" }))).returning() : [];
   await audit(req, "replace", "escalation_rules", undefined, undefined, { count: rows.length });
-  res.json(rows.map(escalationRuleJson));
+  res.json(rows.map((r) => escalationRuleJson(r)));
 }));
 
 function getAiSettings(org: string) {

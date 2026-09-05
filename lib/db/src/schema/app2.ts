@@ -61,6 +61,19 @@ export const lessonsDistributionLists = app2LessonsSchema.table("distribution_li
   ...auditColumns,
 });
 
+// Scoped approver assignments: a blank dimension matches everything, so a row
+// with all three blank means "may approve any lesson". When an organization
+// has at least one active row, only users with a matching row are approvable.
+export const lessonApproverScopes = app2LessonsSchema.table("lesson_approver_scopes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  projectId: uuid("project_id").references(() => projects.id),
+  disciplineId: uuid("discipline_id").references(() => lessonsDisciplines.id),
+  categorisation: text("categorisation"),
+  ...auditColumns,
+}, (table) => [uniqueIndex("lesson_approver_scope_unique_active_idx").on(table.organizationId, table.userId, table.projectId, table.disciplineId, table.categorisation).where(sql`${table.deletedAt} IS NULL`)]);
+
 export const lessonLearnedForms = app2LessonsSchema.table("lesson_learned_forms", {
   id: uuid("id").defaultRandom().primaryKey(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),

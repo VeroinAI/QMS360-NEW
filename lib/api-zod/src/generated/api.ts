@@ -748,13 +748,37 @@ export const ListIntegrationConnectorsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi']),
+  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi', 'source_api']),
   "status": zod.enum(['Connected', 'Degraded', 'Failed', 'Disabled']),
   "enabled": zod.boolean(),
   "config": zod.record(zod.string(), zod.unknown()).optional(),
   "lastSuccessfulSyncAt": zod.coerce.date().nullish()
 }))
 }))
+
+
+/**
+ * @summary Create an integration connector (admin only)
+ */
+
+
+
+export const CreateIntegrationConnectorBody = zod.object({
+  "name": zod.string().min(1),
+  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi', 'source_api']),
+  "enabled": zod.boolean(),
+  "config": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const CreateIntegrationConnectorResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi', 'source_api']),
+  "status": zod.enum(['Connected', 'Degraded', 'Failed', 'Disabled']),
+  "enabled": zod.boolean(),
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "lastSuccessfulSyncAt": zod.coerce.date().nullish()
+})
 
 
 /**
@@ -767,7 +791,7 @@ export const UpdateIntegrationConnectorParams = zod.object({
 export const UpdateIntegrationConnectorBody = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi']),
+  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi', 'source_api']),
   "status": zod.enum(['Connected', 'Degraded', 'Failed', 'Disabled']),
   "enabled": zod.boolean(),
   "config": zod.record(zod.string(), zod.unknown()).optional(),
@@ -777,11 +801,183 @@ export const UpdateIntegrationConnectorBody = zod.object({
 export const UpdateIntegrationConnectorResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi']),
+  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi', 'source_api']),
   "status": zod.enum(['Connected', 'Degraded', 'Failed', 'Disabled']),
   "enabled": zod.boolean(),
   "config": zod.record(zod.string(), zod.unknown()).optional(),
   "lastSuccessfulSyncAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Delete a connector (admin only)
+ */
+export const DeleteIntegrationConnectorParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteIntegrationConnectorResponse = zod.void()
+
+
+/**
+ * @summary Test a source-system connector connection (admin only)
+ */
+export const TestConnectorConnectionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const TestConnectorConnectionResponse = zod.object({
+  "ok": zod.boolean(),
+  "message": zod.string(),
+  "sampleCount": zod.number()
+})
+
+
+/**
+ * @summary Pull project or user data from a source connector now (admin only)
+ */
+export const PullConnectorDataParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const PullConnectorDataBody = zod.object({
+  "entity": zod.enum(['projects', 'users'])
+})
+
+export const PullConnectorDataResponse = zod.object({
+  "status": zod.enum(['succeeded', 'failed']),
+  "sourceCount": zod.number(),
+  "targetCount": zod.number(),
+  "errorCount": zod.number(),
+  "errors": zod.array(zod.object({
+  "row": zod.number(),
+  "message": zod.string()
+}))
+})
+
+
+/**
+ * @summary List Excel import templates, seeding the defaults on first use
+ */
+export const ListImportTemplatesQueryParams = zod.object({
+  "entity": zod.enum(['projects', 'users']).optional()
+})
+
+
+
+
+
+export const ListImportTemplatesResponseItem = zod.object({
+  "id": zod.string(),
+  "entity": zod.enum(['projects', 'users']),
+  "name": zod.string(),
+  "isDefault": zod.boolean(),
+  "columns": zod.array(zod.object({
+  "header": zod.string().min(1),
+  "field": zod.string().min(1),
+  "required": zod.boolean()
+})),
+  "updatedAt": zod.coerce.date()
+})
+export const ListImportTemplatesResponse = zod.array(ListImportTemplatesResponseItem)
+
+
+/**
+ * @summary Create an import template (admin only)
+ */
+
+
+
+
+
+export const CreateImportTemplateBody = zod.object({
+  "entity": zod.enum(['projects', 'users']),
+  "name": zod.string().min(1),
+  "columns": zod.array(zod.object({
+  "header": zod.string().min(1),
+  "field": zod.string().min(1),
+  "required": zod.boolean()
+}))
+})
+
+
+
+
+
+export const CreateImportTemplateResponse = zod.object({
+  "id": zod.string(),
+  "entity": zod.enum(['projects', 'users']),
+  "name": zod.string(),
+  "isDefault": zod.boolean(),
+  "columns": zod.array(zod.object({
+  "header": zod.string().min(1),
+  "field": zod.string().min(1),
+  "required": zod.boolean()
+})),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a non-default import template (admin only)
+ */
+export const UpdateImportTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+
+
+export const UpdateImportTemplateBody = zod.object({
+  "entity": zod.enum(['projects', 'users']),
+  "name": zod.string().min(1),
+  "columns": zod.array(zod.object({
+  "header": zod.string().min(1),
+  "field": zod.string().min(1),
+  "required": zod.boolean()
+}))
+})
+
+
+
+
+
+export const UpdateImportTemplateResponse = zod.object({
+  "id": zod.string(),
+  "entity": zod.enum(['projects', 'users']),
+  "name": zod.string(),
+  "isDefault": zod.boolean(),
+  "columns": zod.array(zod.object({
+  "header": zod.string().min(1),
+  "field": zod.string().min(1),
+  "required": zod.boolean()
+})),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a non-default import template (admin only)
+ */
+export const DeleteImportTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteImportTemplateResponse = zod.void()
+
+
+/**
+ * @summary Download an Excel template file as base64
+ */
+export const DownloadImportTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DownloadImportTemplateResponse = zod.object({
+  "fileName": zod.string(),
+  "contentBase64": zod.string()
 })
 
 
@@ -940,7 +1136,7 @@ export const GetIntegrationsHealthResponse = zod.object({
   "connectors": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi']),
+  "family": zod.enum(['platform', 'email', 'ai', 'oracle_adw', 'bi', 'source_api']),
   "status": zod.enum(['Connected', 'Degraded', 'Failed', 'Disabled']),
   "enabled": zod.boolean(),
   "config": zod.record(zod.string(), zod.unknown()).optional(),
@@ -2962,7 +3158,8 @@ export const ListQaqcEscalationRulesResponse = zod.object({
   "slaWorkingDays": zod.number().min(listQaqcEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
   "repeatCadenceDays": zod.number().min(1),
-  "enabled": zod.boolean()
+  "enabled": zod.boolean(),
+  "unstaffedRoles": zod.array(zod.string()).optional()
 }))
 }))
 
@@ -2983,7 +3180,8 @@ export const UpdateQaqcEscalationRulesBodyItem = zod.object({
   "slaWorkingDays": zod.number().min(updateQaqcEscalationRulesBodySlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
   "repeatCadenceDays": zod.number().min(1),
-  "enabled": zod.boolean()
+  "enabled": zod.boolean(),
+  "unstaffedRoles": zod.array(zod.string()).optional()
 })
 export const UpdateQaqcEscalationRulesBody = zod.array(UpdateQaqcEscalationRulesBodyItem)
 
@@ -3240,8 +3438,15 @@ export const GetLessonsReferenceDataResponse = zod.object({
 
 
 /**
- * @summary List eligible active lesson approvers (excludes the requester)
+ * @summary List eligible active lesson approvers, optionally filtered by approver scope
  */
+export const ListLessonApproversQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "discipline": zod.coerce.string().optional().describe('Discipline LOV value'),
+  "categorisation": zod.coerce.string().optional().describe('Categorisation LOV value'),
+  "includeSelf": zod.enum(['true']).optional()
+})
+
 export const ListLessonApproversResponseItem = zod.object({
   "id": zod.string(),
   "fullName": zod.string(),
@@ -3773,6 +3978,84 @@ export const GetLessonsEscalationsResponse = zod.object({
 
 
 /**
+ * @summary Get QA/QC escalation summary
+ */
+export const getQaqcEscalationsQueryPageDefault = 1;
+
+export const getQaqcEscalationsQueryLimitDefault = 20;
+export const getQaqcEscalationsQueryLimitMax = 200;
+
+
+
+export const GetQaqcEscalationsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(getQaqcEscalationsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(getQaqcEscalationsQueryLimitMax).default(getQaqcEscalationsQueryLimitDefault)
+})
+
+export const getQaqcEscalationsResponseOneTotalMin = 0;
+
+
+
+
+
+export const GetQaqcEscalationsResponse = zod.object({
+  "total": zod.number().min(getQaqcEscalationsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "priority": zod.string(),
+  "level": zod.string(),
+  "dueAt": zod.coerce.date(),
+  "status": zod.enum(['open', 'resolved', 'paused']),
+  "lastNotifiedAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
+ * @summary Get audit escalation summary
+ */
+export const getAuditEscalationsQueryPageDefault = 1;
+
+export const getAuditEscalationsQueryLimitDefault = 20;
+export const getAuditEscalationsQueryLimitMax = 200;
+
+
+
+export const GetAuditEscalationsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(getAuditEscalationsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(getAuditEscalationsQueryLimitMax).default(getAuditEscalationsQueryLimitDefault)
+})
+
+export const getAuditEscalationsResponseOneTotalMin = 0;
+
+
+
+
+
+export const GetAuditEscalationsResponse = zod.object({
+  "total": zod.number().min(getAuditEscalationsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "priority": zod.string(),
+  "level": zod.string(),
+  "dueAt": zod.coerce.date(),
+  "status": zod.enum(['open', 'resolved', 'paused']),
+  "lastNotifiedAt": zod.coerce.date().nullish()
+}))
+}))
+
+
+/**
  * @summary Export lesson learned log
  */
 export const ExportLessonsLogQueryParams = zod.object({
@@ -3809,6 +4092,46 @@ export const GetLessonsFieldControlsResponse = zod.record(zod.string(), zod.reco
   "access": zod.enum(['editable', 'read_only']),
   "requirement": zod.enum(['optional', 'mandatory'])
 }))).describe('Field control matrix for one application, keyed by form key then field key')
+
+
+/**
+ * @summary List scoped approver assignments
+ */
+export const ListApproverScopesResponseItem = zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "userName": zod.string(),
+  "userEmail": zod.string(),
+  "projectId": zod.string().nullable(),
+  "projectName": zod.string().nullable(),
+  "disciplineId": zod.string().nullable(),
+  "disciplineName": zod.string().nullable(),
+  "categorisation": zod.string().nullable()
+})
+export const ListApproverScopesResponse = zod.array(ListApproverScopesResponseItem)
+
+
+/**
+ * @summary Assign a scoped approver (blank scope fields match everything)
+ */
+export const CreateApproverScopeBody = zod.object({
+  "userId": zod.string(),
+  "projectId": zod.string().optional(),
+  "disciplineId": zod.string().optional(),
+  "categorisation": zod.string().optional()
+})
+
+export const CreateApproverScopeResponse = zod.void()
+
+
+/**
+ * @summary Remove an approver scope
+ */
+export const DeleteApproverScopeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteApproverScopeResponse = zod.void()
 
 
 /**
@@ -4104,7 +4427,8 @@ export const ListLessonsEscalationRulesResponse = zod.object({
   "slaWorkingDays": zod.number().min(listLessonsEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
   "repeatCadenceDays": zod.number().min(1),
-  "enabled": zod.boolean()
+  "enabled": zod.boolean(),
+  "unstaffedRoles": zod.array(zod.string()).optional()
 }))
 }))
 
@@ -4125,7 +4449,8 @@ export const UpdateLessonsEscalationRulesBodyItem = zod.object({
   "slaWorkingDays": zod.number().min(updateLessonsEscalationRulesBodySlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
   "repeatCadenceDays": zod.number().min(1),
-  "enabled": zod.boolean()
+  "enabled": zod.boolean(),
+  "unstaffedRoles": zod.array(zod.string()).optional()
 })
 export const UpdateLessonsEscalationRulesBody = zod.array(UpdateLessonsEscalationRulesBodyItem)
 
@@ -5935,7 +6260,8 @@ export const ListAuditEscalationRulesResponse = zod.object({
   "slaWorkingDays": zod.number().min(listAuditEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
   "repeatCadenceDays": zod.number().min(1),
-  "enabled": zod.boolean()
+  "enabled": zod.boolean(),
+  "unstaffedRoles": zod.array(zod.string()).optional()
 }))
 }))
 
@@ -5956,7 +6282,8 @@ export const UpdateAuditEscalationRulesBodyItem = zod.object({
   "slaWorkingDays": zod.number().min(updateAuditEscalationRulesBodySlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
   "repeatCadenceDays": zod.number().min(1),
-  "enabled": zod.boolean()
+  "enabled": zod.boolean(),
+  "unstaffedRoles": zod.array(zod.string()).optional()
 })
 export const UpdateAuditEscalationRulesBody = zod.array(UpdateAuditEscalationRulesBodyItem)
 

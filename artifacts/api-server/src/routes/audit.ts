@@ -6,6 +6,7 @@ import {
   applicationAccess,
   auditAuditLogEntries,
   auditDelegations,
+  auditEscalationInstances,
   auditEscalationRules,
   auditEvidenceFiles,
   auditFindings,
@@ -28,7 +29,7 @@ import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
 import { readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
-import { asyncHandler, HttpError, notify, paginated, pagination, writeAuditLog } from "../lib/workspace";
+import { asyncHandler, HttpError, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
 
 const router = Router();
 router.use(requireAuth);
@@ -823,14 +824,36 @@ router.delete("/admin/delegations/:id", asyncHandler(async (req, res) => {
     .where(and(active(auditDelegations, actor(req).organizationId), eq(auditDelegations.id, String(req.params.id)))).returning();
   if (!row) throw new HttpError(404, "Delegation not found"); await auditLog(req, "revoke", "delegation", row.id, row); res.status(204).end();
 }));
-const ruleDto = (x: AnyRow) => ({
-  id: x.id, triggerType: x.triggerKey, priority: x.priority, level: x.configuration?.level ?? null,
-  slaWorkingDays: x.slaWorkingDays, recipientRoles: x.configuration?.recipientRoles ?? [x.recipientRole],
-  repeatCadenceDays: x.repeatCadenceDays ?? 1, enabled: x.status === "active",
-});
+const ruleDto = (x: AnyRow, staffed?: Set<string>) => {
+  const recipientRoles = (x.configuration?.recipientRoles ?? String(x.recipientRole ?? "").split(",").map((v: string) => v.trim()).filter(Boolean)) as string[];
+  return {
+    id: x.id, triggerType: x.triggerKey, priority: x.priority, level: x.configuration?.level ?? null,
+    slaWorkingDays: x.slaWorkingDays, recipientRoles,
+    unstaffedRoles: staffed ? recipientRoles.filter((n) => !staffed.has(n)) : undefined,
+    repeatCadenceDays: x.repeatCadenceDays ?? 1, enabled: x.status === "active",
+  };
+};
+// Open/resolved escalation instances for dashboard surfacing — mirrors the
+// lessons module's GET /lessons/escalations shape (EscalationSummary).
+router.get("/escalations", asyncHandler(async (req, res) => {
+  const { page, limit, offset } = pagination(req);
+  const where = and(eq(auditEscalationInstances.organizationId, actor(req).organizationId), isNull(auditEscalationInstances.deletedAt));
+  const [rows, count, rules] = await Promise.all([
+    db.select().from(auditEscalationInstances).where(where).orderBy(desc(auditEscalationInstances.startedAt)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(auditEscalationInstances).where(where),
+    db.select().from(auditEscalationRules).where(active(auditEscalationRules, actor(req).organizationId)),
+  ]);
+  res.json(paginated(rows.map((row) => {
+    const rule = rules.find((r) => r.id === row.ruleId);
+    return { id: row.id, recordType: row.recordType, recordId: row.recordId, priority: rule?.priority ?? "P1", level: row.currentLevel ?? String((rule?.configuration as any)?.level ?? "P1"), dueAt: row.breachedAt ?? new Date(row.startedAt.getTime() + (rule?.slaWorkingDays ?? 0) * 86400000), status: row.status, lastNotifiedAt: row.breachedAt };
+  }), Number(count[0]?.count ?? 0), page, limit));
+}));
 router.get("/admin/escalation-rules", asyncHandler(async (req, res) => {
-  const rows = await db.select().from(auditEscalationRules).where(active(auditEscalationRules, actor(req).organizationId)).orderBy(asc(auditEscalationRules.priority));
-  res.json(paginated(rows.map(ruleDto), rows.length, 1, Math.max(1, rows.length)));
+  const [rows, staffed] = await Promise.all([
+    db.select().from(auditEscalationRules).where(active(auditEscalationRules, actor(req).organizationId)).orderBy(asc(auditEscalationRules.priority)),
+    staffedRoleNames(actor(req).organizationId, auditWorkspaceRoles, auditUserWorkspaceRoles),
+  ]);
+  res.json(paginated(rows.map((r) => ruleDto(r, staffed)), rows.length, 1, Math.max(1, rows.length)));
 }));
 router.put("/admin/escalation-rules", asyncHandler(async (req, res) => {
   const data = body<AnyRow[]>(Api.UpdateAuditEscalationRulesBody, req);
@@ -843,7 +866,7 @@ router.put("/admin/escalation-rules", asyncHandler(async (req, res) => {
     status: x.enabled ? "active" : "inactive",
   }))).returning() : [];
   await auditLog(req, "replace", "escalation_rules", rows[0]?.id ?? actor(req).id, { rules: before }, { rules: rows });
-  res.json(paginated(rows.map(ruleDto), rows.length, 1, Math.max(1, rows.length)));
+  res.json(paginated(rows.map((x) => ruleDto(x)), rows.length, 1, Math.max(1, rows.length)));
 }));
 router.get("/admin/audit-log", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);

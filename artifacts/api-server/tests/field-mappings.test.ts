@@ -138,7 +138,7 @@ describe("workspace reads", () => {
     expect(res.status).toBe(200);
     expect(res.json.connectorId).toBe(connectorAId);
     const entities: string[] = res.json.entities.map((entry: any) => entry.entity);
-    expect(entities).toEqual(expect.arrayContaining(["projects", "employees"]));
+    expect(entities).toEqual(expect.arrayContaining(["projects", "users"]));
     const projects = res.json.entities.find((entry: any) => entry.entity === "projects");
     expect(projects.targetFields.some((field: any) => field.key === "code" && field.required)).toBe(true);
     expect(Array.isArray(res.json.mappings)).toBe(true);
@@ -210,12 +210,12 @@ describe("save and activation", () => {
   it("keeps mappings for other entities and other connectors untouched", async () => {
     const employees = await api("PUT", `/integrations/connectors/${connectorAId}/field-mappings`, {
       token: adminA.token,
-      body: { entity: "employees", active: true, mappings: [{ sourceField: "full_name", targetField: "fullName" }, { sourceField: "email", targetField: "email" }] },
+      body: { entity: "users", active: true, mappings: [{ sourceField: "full_name", targetField: "fullName" }, { sourceField: "email", targetField: "email" }] },
     });
     expect(employees.status).toBe(200);
     const read = await api("GET", `/integrations/connectors/${connectorAId}/field-mappings`, { token: adminA.token });
     expect(read.json.mappings.filter((mapping: any) => mapping.entity === "projects")).toHaveLength(2);
-    expect(read.json.mappings.filter((mapping: any) => mapping.entity === "employees")).toHaveLength(2);
+    expect(read.json.mappings.filter((mapping: any) => mapping.entity === "users")).toHaveLength(2);
 
     const readB = await api("GET", `/integrations/connectors/${connectorBId}/field-mappings`, { token: adminB.token });
     expect(readB.status).toBe(200);
