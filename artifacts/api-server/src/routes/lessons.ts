@@ -340,7 +340,10 @@ router.get("/approvers", asyncHandler(async (req, res) => {
 }));
 
 async function assertEligibleApprover(req: any, approverId: string, creatorId: string | null, ctx: ApproverScopeCtx = {}) {
-  if (creatorId && approverId === creatorId && !req.permissionAdminBypass) {
+  // Self-approval is never allowed — not even for admins (permissionAdminBypass).
+  // Allowing it would create lessons the review endpoint can never approve,
+  // since reviewing your own lesson is blocked there too.
+  if (creatorId && approverId === creatorId) {
     throw new HttpError(422, "The approver must be different from the creator");
   }
   const approvers = await eligibleApprovers(req.currentUser!.organizationId);

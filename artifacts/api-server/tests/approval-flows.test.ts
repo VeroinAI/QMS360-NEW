@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
 import express, { type Express } from "express";
 import type { Server } from "node:http";
 import { and, eq, inArray } from "drizzle-orm";
 import {
   applicationAccess, auditLogEntries, db, integrationConnectors, lessonLearnedForms,
-  lessonNotifications, lessonsAuditLogEntries, notifications, organizations, permissions, platformRoles,
+  lessonNotifications, lessonsAuditLogEntries, lessonsDisciplines, masterDataGroups, masterDataValues,
+  notifications, organizations, organizationSettings, permissions, platformRoles,
   projects, qaqcMetricEntries, qualityAssessmentBriefs, syncJobs, users, userWorkspaceRoles,
   workspaceRolePermissions, workspaceRoles,
 } from "@workspace/db";
@@ -124,6 +126,19 @@ beforeAll(async () => {
     creatorId: adminA.id, approverId: approverA.id, workflowState: "submitted",
   }).returning();
   lessonId = lesson!.id;
+
+  // Master-data values the lesson create/update routes validate against.
+  for (const [code, values] of [
+    ["disciplines", ["Civil"]],
+    ["lesson_categorisations", ["Process"]],
+    ["lesson_issue_categories", ["Process"]],
+    ["lesson_impacts", ["Medium"]],
+  ] as Array<[string, string[]]>) {
+    const [group] = await db.insert(masterDataGroups).values({ organizationId: orgId, code, name: code }).returning();
+    for (const value of values) {
+      await db.insert(masterDataValues).values({ organizationId: orgId, groupId: group!.id, value, label: value });
+    }
+  }
 });
 
 afterAll(async () => {
@@ -137,6 +152,9 @@ afterAll(async () => {
   await db.delete(qaqcMetricEntries).where(eq(qaqcMetricEntries.organizationId, orgId));
   await db.delete(qualityAssessmentBriefs).where(eq(qualityAssessmentBriefs.organizationId, orgId));
   await db.delete(lessonLearnedForms).where(eq(lessonLearnedForms.organizationId, orgId));
+  await db.delete(lessonsDisciplines).where(eq(lessonsDisciplines.organizationId, orgId));
+  await db.delete(masterDataValues).where(eq(masterDataValues.organizationId, orgId));
+  await db.delete(masterDataGroups).where(eq(masterDataGroups.organizationId, orgId));
   await db.delete(applicationAccess).where(eq(applicationAccess.organizationId, orgId));
   await db.delete(userWorkspaceRoles).where(eq(userWorkspaceRoles.organizationId, orgId));
   await db.delete(workspaceRolePermissions).where(eq(workspaceRolePermissions.organizationId, orgId));
@@ -146,6 +164,7 @@ afterAll(async () => {
   await db.delete(projects).where(eq(projects.organizationId, orgId));
   await db.delete(users).where(eq(users.organizationId, orgId));
   await db.delete(platformRoles).where(eq(platformRoles.organizationId, orgId));
+  await db.delete(organizationSettings).where(eq(organizationSettings.organizationId, orgId));
   await db.delete(organizations).where(eq(organizations.id, orgId));
 });
 
@@ -220,6 +239,41 @@ describe("lesson creator self-approval (#20)", () => {
 
     const byApprover = await api("POST", `/lessons/forms/${lessonId}/review`, { token: approverA.token, body: { decision: "approve" } });
     expect(byApprover.status).toBe(200);
+  });
+
+  const draftLessonBody = (approverId: string | null) => ({
+    id: randomUUID(), projectId, title: "Admin self-approval guard",
+    disciplineId: "Civil", categorisationId: "Process", issueCategory: "Process", impact: "Medium",
+    description: "desc", rootCause: "cause", correction: "fix", correctiveAction: "action",
+    version: 1, conflictFlag: false, workflowState: "Draft", approverId,
+  });
+
+  it("rejects approverId === creatorId on create even for platform admins", async () => {
+    const selfAssigned = await api("POST", "/lessons/forms", { token: adminA.token, body: draftLessonBody(adminA.id) });
+    expect(selfAssigned.status).toBe(422);
+    expect(selfAssigned.json.error).toContain("different from the creator");
+
+    // Admins can still create lessons with a different approver.
+    const assigned = await api("POST", "/lessons/forms", { token: adminA.token, body: draftLessonBody(approverA.id) });
+    expect(assigned.status).toBe(201);
+    expect(assigned.json.approverId).toBe(approverA.id);
+  });
+
+  it("rejects approverId === creatorId on update even for platform admins", async () => {
+    const created = await api("POST", "/lessons/forms", { token: adminA.token, body: draftLessonBody(approverA.id) });
+    expect(created.status).toBe(201);
+
+    const selfAssigned = await api("PUT", `/lessons/forms/${created.json.id}`, {
+      token: adminA.token, body: draftLessonBody(adminA.id),
+    });
+    expect(selfAssigned.status).toBe(422);
+    expect(selfAssigned.json.error).toContain("different from the creator");
+
+    const reassigned = await api("PUT", `/lessons/forms/${created.json.id}`, {
+      token: adminA.token, body: draftLessonBody(approverA.id),
+    });
+    expect(reassigned.status).toBe(200);
+    expect(reassigned.json.approverId).toBe(approverA.id);
   });
 });
 
