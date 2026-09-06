@@ -16,7 +16,7 @@ import { requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess, filterReadOnlyValues, readOnlyFields } from "../lib/field-access";
-import { assertFieldControls, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
+import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
@@ -655,6 +655,7 @@ router.get("/admin/field-controls", asyncHandler(async (req, res) => {
 }));
 router.put("/admin/field-controls", asyncHandler(async (req, res) => {
   const v = body<FieldControlsMatrix>(api.UpdateQaqcAdminFieldControlsBody, req);
+  assertKnownFieldControlKeys("qaqc", v);
   const before = await writeFieldControls(org(req), "qaqc", v);
   await audit(req, "update", "field_controls", org(req), before, v);
   res.json(v);

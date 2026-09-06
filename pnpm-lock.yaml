@@ -184,6 +184,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/field-controls':
+        specifier: workspace:*
+        version: link:../../lib/field-controls
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
@@ -437,6 +440,9 @@ importers:
 
   artifacts/qms360:
     dependencies:
+      '@workspace/field-controls':
+        specifier: workspace:*
+        version: link:../../lib/field-controls
       xlsx:
         specifier: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
         version: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
@@ -742,6 +748,8 @@ importers:
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
+
+  lib/field-controls: {}
 
   scripts:
     dependencies:

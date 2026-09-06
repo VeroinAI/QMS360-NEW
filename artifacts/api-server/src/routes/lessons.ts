@@ -50,7 +50,7 @@ import { allocateReferenceNumber } from "../lib/numbering";
 import { assertOwnerOrFull, requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
-import { assertFieldControls, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
+import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
 import { AiUnavailableError, promptToTransaction, rephraseText } from "../lib/ai";
 import { confirmEvidence, createEvidenceIntent as createIntent, deleteEvidence, listEvidence } from "../lib/evidence";
@@ -721,6 +721,7 @@ router.get("/admin/field-controls", asyncHandler(async (req, res) => {
 
 router.put("/admin/field-controls", asyncHandler(async (req, res) => {
   const body = parseBody<FieldControlsMatrix>(UpdateLessonsAdminFieldControlsBody, req, res); if (!body) return;
+  assertKnownFieldControlKeys("lessons", body);
   const before = await writeFieldControls(req.currentUser!.organizationId, "lessons", body);
   await audit(req, "update", "field_controls", undefined, before, body);
   res.json(body);

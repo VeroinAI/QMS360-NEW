@@ -1,11 +1,22 @@
 import type { Request } from "express";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, organizationSettings } from "@workspace/db";
+import { unknownFieldControlKeys } from "@workspace/field-controls";
 import { FIELD_CATALOG, isAdminUser, resolveDefault, valuesEqual } from "./field-access";
 import { HttpError, type AppKey } from "./workspace";
 
 export type FieldControlSetting = { access: "editable" | "read_only"; requirement: "optional" | "mandatory" };
 export type FieldControlsMatrix = Record<string, Record<string, FieldControlSetting>>;
+
+// Reject a field-control matrix that references form or field keys outside the
+// shared registry (a mistyped key would otherwise be stored and silently never
+// apply, leaving the admin believing a form is locked when it is not).
+export function assertKnownFieldControlKeys(appKey: AppKey, matrix: FieldControlsMatrix): void {
+  const unknown = unknownFieldControlKeys(appKey, matrix);
+  if (unknown.length) {
+    throw new HttpError(422, `Unknown field control key(s): ${unknown.join(", ")}`);
+  }
+}
 
 // Field-control matrices live in the shared organization_settings.branding JSON payload
 // under the `fieldControls` key, shaped { [appKey]: { [formKey]: { [fieldKey]: setting } } }.

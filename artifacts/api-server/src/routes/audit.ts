@@ -27,7 +27,7 @@ import { requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
-import { assertFieldControls, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
+import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
 import { asyncHandler, HttpError, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
 
@@ -765,6 +765,7 @@ router.get("/admin/field-controls", asyncHandler(async (req, res) => {
 }));
 router.put("/admin/field-controls", asyncHandler(async (req, res) => {
   const data = body<FieldControlsMatrix>(Api.UpdateAuditAdminFieldControlsBody, req);
+  assertKnownFieldControlKeys("audit", data);
   const before = await writeFieldControls(actor(req).organizationId, "audit", data);
   await auditLog(req, "update", "field_controls", actor(req).organizationId, before, data);
   res.json(data);
