@@ -29,7 +29,8 @@ app.use(
 app.use(cors());
 // Evidence uploads are raw bytes and must be parsed before the global JSON middleware.
 app.use("/api/files", filesRouter);
-app.use(express.json());
+// 2MB accommodates base64-encoded signature uploads (512KB decoded) on the user profile route.
+app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);

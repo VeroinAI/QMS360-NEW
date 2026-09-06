@@ -1050,11 +1050,25 @@ export interface WorkspaceUser {
   username: string;
   /** @nullable */
   email?: string | null;
+  /** @nullable */
+  designation?: string | null;
+  /** @nullable */
+  signatureUrl?: string | null;
   platformRole: string;
   workspaceRoles: Role[];
   status: WorkspaceUserStatus;
   /** @nullable */
   lastAccessAt?: string | null;
+}
+
+export interface UserProfileUpdate {
+  /** @nullable */
+  designation?: string | null;
+  /**
+     * data:image/... base64 payload; null clears the signature
+     * @nullable
+     */
+  signatureDataUrl?: string | null;
 }
 
 export type AccessRequestStatus = typeof AccessRequestStatus[keyof typeof AccessRequestStatus];
@@ -1353,6 +1367,8 @@ export interface AuditLogEntry {
   id: string;
   actorId: string;
   /** @nullable */
+  actorName?: string | null;
+  /** @nullable */
   delegatedForId?: string | null;
   action: string;
   entityType: string;
@@ -1473,6 +1489,26 @@ export interface LessonLearnedForm {
   /** @nullable */
   remarks?: string | null;
   photos?: EvidenceFile[];
+  /** @nullable */
+  readonly submittedAt?: string | null;
+  /** @nullable */
+  readonly submittedByName?: string | null;
+  /** @nullable */
+  readonly submittedByDesignation?: string | null;
+  /** @nullable */
+  readonly submittedBySignatureUrl?: string | null;
+  /** @nullable */
+  readonly reviewedAt?: string | null;
+  /** @nullable */
+  readonly reviewedByName?: string | null;
+  /** @nullable */
+  readonly reviewedByDesignation?: string | null;
+  /** @nullable */
+  readonly reviewedBySignatureUrl?: string | null;
+  /** @nullable */
+  readonly reviewDecision?: string | null;
+  /** @nullable */
+  readonly reviewComments?: string | null;
 }
 
 export type LessonPhotoIntentRequestCategory = typeof LessonPhotoIntentRequestCategory[keyof typeof LessonPhotoIntentRequestCategory];
@@ -2134,6 +2170,8 @@ export type FeedbackResolutionUpdateBody = {
 
 export type SaveFieldMappingsBody = SaveFieldMappingsInput;
 
+export type EntityIdParameter = string;
+
 export type PageParameter = number;
 
 export type LimitParameter = number;
@@ -2701,6 +2739,7 @@ from?: FromParameter;
 to?: ToParameter;
 actorId?: ActorIdParameter;
 action?: ActionParameter;
+entityId?: EntityIdParameter;
 /**
  * @minimum 1
  */

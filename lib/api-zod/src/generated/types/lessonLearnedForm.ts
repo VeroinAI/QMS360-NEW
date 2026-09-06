@@ -53,4 +53,24 @@ export interface LessonLearnedForm {
   /** @nullable */
   remarks?: string | null;
   photos?: EvidenceFile[];
+  /** @nullable */
+  readonly submittedAt?: Date | null;
+  /** @nullable */
+  readonly submittedByName?: string | null;
+  /** @nullable */
+  readonly submittedByDesignation?: string | null;
+  /** @nullable */
+  readonly submittedBySignatureUrl?: string | null;
+  /** @nullable */
+  readonly reviewedAt?: Date | null;
+  /** @nullable */
+  readonly reviewedByName?: string | null;
+  /** @nullable */
+  readonly reviewedByDesignation?: string | null;
+  /** @nullable */
+  readonly reviewedBySignatureUrl?: string | null;
+  /** @nullable */
+  readonly reviewDecision?: string | null;
+  /** @nullable */
+  readonly reviewComments?: string | null;
 }

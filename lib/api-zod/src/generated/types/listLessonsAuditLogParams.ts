@@ -7,6 +7,7 @@
  */
 import type { ActionParameter } from './actionParameter';
 import type { ActorIdParameter } from './actorIdParameter';
+import type { EntityIdParameter } from './entityIdParameter';
 import type { FromParameter } from './fromParameter';
 import type { LimitParameter } from './limitParameter';
 import type { PageParameter } from './pageParameter';
@@ -17,6 +18,7 @@ from?: FromParameter;
 to?: ToParameter;
 actorId?: ActorIdParameter;
 action?: ActionParameter;
+entityId?: EntityIdParameter;
 /**
  * @minimum 1
  */

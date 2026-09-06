@@ -213,6 +213,7 @@ import type {
   UpdateMasterDataGroupInput,
   UpdateMasterDataValueInput,
   UploadIntent,
+  UserProfileUpdate,
   WorkspaceUserPageResponse
 } from './api.schemas';
 
@@ -9763,9 +9764,9 @@ export const getCreateLessonFormUrl = () => {
 /**
  * @summary Create lesson learned form
  */
-export const createLessonForm = async (lessonFormBody: LessonFormBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+export const createLessonForm = async (lessonFormBody: LessonFormBody, options?: Parameters<typeof customFetch>[1]): Promise<LessonLearnedForm> => {
 
-  return customFetch<void>(getCreateLessonFormUrl(),
+  return customFetch<LessonLearnedForm>(getCreateLessonFormUrl(),
   {
     ...options,
     method: 'POST',
@@ -10185,6 +10186,83 @@ export const useReviewLessonForm = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getReviewLessonFormMutationOptions(options));
     }
+
+export const getListLessonFormActivityUrl = (id: string,) => {
+
+
+
+
+  return `/api/lessons/forms/${id}/activity`
+}
+
+/**
+ * @summary List the audit activity for one lesson (most recent 50)
+ */
+export const listLessonFormActivity = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<AuditLogPageResponse> => {
+
+  return customFetch<AuditLogPageResponse>(getListLessonFormActivityUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLessonFormActivityQueryKey = (id: string,) => {
+    return [
+    `/api/lessons/forms/${id}/activity`
+    ] as const;
+    }
+
+
+export const getListLessonFormActivityQueryOptions = <TData = Awaited<ReturnType<typeof listLessonFormActivity>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonFormActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLessonFormActivityQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLessonFormActivity>>> = ({ signal }) => listLessonFormActivity(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLessonFormActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListLessonFormActivityQueryResult = NonNullable<Awaited<ReturnType<typeof listLessonFormActivity>>>
+export type ListLessonFormActivityQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the audit activity for one lesson (most recent 50)
+ */
+
+export function useListLessonFormActivity<TData = Awaited<ReturnType<typeof listLessonFormActivity>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonFormActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListLessonFormActivityQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getCreateLessonPhotoIntentUrl = (id: string,) => {
 
@@ -11789,6 +11867,155 @@ export const useAssignLessonsUserRole = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getAssignLessonsUserRoleMutationOptions(options));
     }
+
+export const getUpdateLessonsUserProfileUrl = (userId: string,) => {
+
+
+
+
+  return `/api/lessons/admin/users/${userId}/profile`
+}
+
+/**
+ * @summary Update a user's designation and signature (admin)
+ */
+export const updateLessonsUserProfile = async (userId: string,
+    userProfileUpdate: UserProfileUpdate, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getUpdateLessonsUserProfileUrl(userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userProfileUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateLessonsUserProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLessonsUserProfile>>, TError,{userId: string;data: BodyType<UserProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLessonsUserProfile>>, TError,{userId: string;data: BodyType<UserProfileUpdate>}, TContext> => {
+
+const mutationKey = ['updateLessonsUserProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLessonsUserProfile>>, {userId: string;data: BodyType<UserProfileUpdate>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updateLessonsUserProfile(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLessonsUserProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateLessonsUserProfile>>>
+    export type UpdateLessonsUserProfileMutationBody = BodyType<UserProfileUpdate>
+    export type UpdateLessonsUserProfileMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a user's designation and signature (admin)
+ */
+export const useUpdateLessonsUserProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLessonsUserProfile>>, TError,{userId: string;data: BodyType<UserProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLessonsUserProfile>>,
+        TError,
+        {userId: string;data: BodyType<UserProfileUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateLessonsUserProfileMutationOptions(options));
+    }
+
+export const getGetUserSignatureUrl = (userId: string,) => {
+
+
+
+
+  return `/api/lessons/users/${userId}/signature`
+}
+
+/**
+ * @summary Stream a user's signature image
+ */
+export const getUserSignature = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetUserSignatureUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUserSignatureQueryKey = (userId: string,) => {
+    return [
+    `/api/lessons/users/${userId}/signature`
+    ] as const;
+    }
+
+
+export const getGetUserSignatureQueryOptions = <TData = Awaited<ReturnType<typeof getUserSignature>>, TError = ErrorType<unknown>>(userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserSignature>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserSignatureQueryKey(userId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserSignature>>> = ({ signal }) => getUserSignature(userId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: userId !== null && userId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserSignature>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUserSignatureQueryResult = NonNullable<Awaited<ReturnType<typeof getUserSignature>>>
+export type GetUserSignatureQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Stream a user's signature image
+ */
+
+export function useGetUserSignature<TData = Awaited<ReturnType<typeof getUserSignature>>, TError = ErrorType<unknown>>(
+ userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUserSignature>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUserSignatureQueryOptions(userId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListLessonsAccessQueueUrl = (params?: ListLessonsAccessQueueParams,) => {
   const normalizedParams = new URLSearchParams();

@@ -104,6 +104,9 @@ export const users = sharedSchema.table("users", {
   email: text("email").notNull(),
   username: text("username").notNull(),
   fullName: text("full_name").notNull(),
+  designation: text("designation"),
+  // Object-storage key of the user's signature image (used on approval records).
+  signaturePath: text("signature_path"),
   passwordHash: text("password_hash"),
   authSource: text("auth_source").notNull().default("local"),
   accessStatus: text("access_status").notNull().default("active"),

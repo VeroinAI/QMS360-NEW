@@ -13,6 +13,10 @@ export interface WorkspaceUser {
   username: string;
   /** @nullable */
   email?: string | null;
+  /** @nullable */
+  designation?: string | null;
+  /** @nullable */
+  signatureUrl?: string | null;
   platformRole: string;
   workspaceRoles: Role[];
   status: WorkspaceUserStatus;

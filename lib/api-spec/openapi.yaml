@@ -748,7 +748,7 @@ paths:
       responses: {"200": {description: Approvers, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/LessonApproverOption"}}}}}}
   /lessons/forms:
     get: {operationId: listLessonForms, tags: [lessons], summary: List lesson learned forms, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/LessonFormPage"}}}
-    post: {operationId: createLessonForm, tags: [lessons], summary: Create lesson learned form, requestBody: {$ref: "#/components/requestBodies/LessonForm"}, responses: {"201": {description: Created}}}
+    post: {operationId: createLessonForm, tags: [lessons], summary: Create lesson learned form, requestBody: {$ref: "#/components/requestBodies/LessonForm"}, responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/LessonLearnedForm"}}}}}}
   /lessons/forms/{id}:
     get: {operationId: getLessonForm, tags: [lessons], summary: Get lesson learned form, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Form, content: {application/json: {schema: {$ref: "#/components/schemas/LessonLearnedForm"}}}}}}
     put: {operationId: updateLessonForm, tags: [lessons], summary: Update lesson learned form, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/LessonForm"}, responses: {"200": {description: Updated}}}
@@ -757,6 +757,8 @@ paths:
     post: {operationId: submitLessonForm, tags: [lessons], summary: Submit lesson learned form, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
   /lessons/forms/{id}/review:
     post: {operationId: reviewLessonForm, tags: [lessons], summary: Review form; remarks are required when sent back, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed}}}
+  /lessons/forms/{id}/activity:
+    get: {operationId: listLessonFormActivity, tags: [lessons], summary: List the audit activity for one lesson (most recent 50), parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {$ref: "#/components/responses/AuditLogPage"}}}
   /lessons/forms/{id}/photos:
     post: {operationId: createLessonPhotoIntent, tags: [lessons], summary: Create photo upload intent; maximum five per category, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/LessonPhotoIntent"}, responses: {"201": {description: Upload intent, content: {application/json: {schema: {$ref: "#/components/schemas/UploadIntent"}}}}}}
   /lessons/photos/{id}/confirm:
@@ -811,6 +813,10 @@ paths:
     get: {operationId: listLessonsUsers, tags: [lessons-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
   /lessons/admin/users/{userId}/roles:
     post: {operationId: assignLessonsUserRole, tags: [lessons-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
+  /lessons/admin/users/{userId}/profile:
+    put: {operationId: updateLessonsUserProfile, tags: [lessons-admin], summary: Update a user's designation and signature (admin), parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/UserProfileUpdate"}}}}, responses: {"200": {description: Updated}}}
+  /lessons/users/{userId}/signature:
+    get: {operationId: getUserSignature, tags: [lessons], summary: Stream a user's signature image, parameters: [{$ref: "#/components/parameters/UserId"}], responses: {"200": {description: Signature image, content: {image/png: {}, image/jpeg: {}, image/webp: {}}}}}
   /lessons/admin/access-queue:
     get: {operationId: listLessonsAccessQueue, tags: [lessons-admin], summary: List access queue, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
   /lessons/admin/access-queue/{id}/decision:
@@ -830,7 +836,7 @@ paths:
     get: {operationId: getLessonsAdminFieldControls, tags: [lessons-admin], summary: Get field control configuration (admin), responses: {"200": {description: Field controls, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
     put: {operationId: updateLessonsAdminFieldControls, tags: [lessons-admin], summary: Replace field control configuration, requestBody: {$ref: "#/components/requestBodies/FieldControls"}, responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
   /lessons/admin/audit-log:
-    get: {operationId: listLessonsAuditLog, tags: [lessons-admin], summary: List immutable audit log, parameters: [{$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}, {$ref: "#/components/parameters/ActorId"}, {$ref: "#/components/parameters/Action"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditLogPage"}}}
+    get: {operationId: listLessonsAuditLog, tags: [lessons-admin], summary: List immutable audit log, parameters: [{$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}, {$ref: "#/components/parameters/ActorId"}, {$ref: "#/components/parameters/Action"}, {$ref: "#/components/parameters/EntityId"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditLogPage"}}}
   /lessons/admin/notification-templates:
     get: {operationId: listLessonsNotificationTemplates, tags: [lessons-admin], summary: List notification templates, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/NotificationTemplatePage"}}}
   /lessons/admin/notification-templates/{id}:
@@ -974,6 +980,7 @@ components:
         $ref: "#/components/schemas/AppKey"
     Id: {name: id, in: path, required: true, schema: {type: string}}
     UserId: {name: userId, in: path, required: true, schema: {type: string}}
+    EntityId: {name: entityId, in: query, required: false, schema: {type: string}}
     SessionId: {name: sessionId, in: path, required: true, schema: {type: string}}
     Page: {name: page, in: query, schema: {type: number, minimum: 1, default: 1}}
     Limit: {name: limit, in: query, schema: {type: number, minimum: 1, maximum: 200, default: 20}}
@@ -1720,7 +1727,12 @@ components:
     WorkspaceUser:
       type: object
       required: [id, username, platformRole, workspaceRoles, status]
-      properties: {id: {type: string}, username: {type: string}, email: {type: [string, "null"]}, platformRole: {type: string}, workspaceRoles: {type: array, items: {$ref: "#/components/schemas/Role"}}, status: {type: string, enum: [Not Requested, Active, Deactivated]}, lastAccessAt: {type: [string, "null"], format: date-time}}
+      properties: {id: {type: string}, username: {type: string}, email: {type: [string, "null"]}, designation: {type: [string, "null"]}, signatureUrl: {type: [string, "null"]}, platformRole: {type: string}, workspaceRoles: {type: array, items: {$ref: "#/components/schemas/Role"}}, status: {type: string, enum: [Not Requested, Active, Deactivated]}, lastAccessAt: {type: [string, "null"], format: date-time}}
+    UserProfileUpdate:
+      type: object
+      properties:
+        designation: {type: [string, "null"]}
+        signatureDataUrl: {type: [string, "null"], description: "data:image/... base64 payload; null clears the signature"}
     AccessRequest:
       type: object
       required: [id, userId, requestedRoleId, status, requestedAt]
@@ -1808,7 +1820,7 @@ components:
     AuditLogEntry:
       type: object
       required: [id, actorId, action, entityType, entityId, occurredAt]
-      properties: {id: {type: string}, actorId: {type: string}, delegatedForId: {type: [string, "null"]}, action: {type: string}, entityType: {type: string}, entityId: {type: string}, before: {type: [object, "null"], additionalProperties: true}, after: {type: [object, "null"], additionalProperties: true}, ipAddress: {type: [string, "null"]}, occurredAt: {type: string, format: date-time}}
+      properties: {id: {type: string}, actorId: {type: string}, actorName: {type: [string, "null"]}, delegatedForId: {type: [string, "null"]}, action: {type: string}, entityType: {type: string}, entityId: {type: string}, before: {type: [object, "null"], additionalProperties: true}, after: {type: [object, "null"], additionalProperties: true}, ipAddress: {type: [string, "null"]}, occurredAt: {type: string, format: date-time}}
     AISuggestionLog:
       type: object
       required: [id, userId, feature, prompt, status, createdAt]
@@ -1876,6 +1888,16 @@ components:
         workflowState: {$ref: "#/components/schemas/WorkflowState"}
         remarks: {type: [string, "null"]}
         photos: {type: array, items: {$ref: "#/components/schemas/EvidenceFile"}}
+        submittedAt: {type: [string, "null"], format: date-time, readOnly: true}
+        submittedByName: {type: [string, "null"], readOnly: true}
+        submittedByDesignation: {type: [string, "null"], readOnly: true}
+        submittedBySignatureUrl: {type: [string, "null"], readOnly: true}
+        reviewedAt: {type: [string, "null"], format: date-time, readOnly: true}
+        reviewedByName: {type: [string, "null"], readOnly: true}
+        reviewedByDesignation: {type: [string, "null"], readOnly: true}
+        reviewedBySignatureUrl: {type: [string, "null"], readOnly: true}
+        reviewDecision: {type: [string, "null"], readOnly: true}
+        reviewComments: {type: [string, "null"], readOnly: true}
     LessonPhotoIntentRequest:
       type: object
       required: [category, fileName, mimeType, sizeBytes, clientReference]

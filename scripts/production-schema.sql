@@ -464,6 +464,12 @@ CREATE TABLE "app2_lessons"."lesson_learned_forms" (
 	"workflow_state" text DEFAULT 'draft' NOT NULL,
 	"creator_id" uuid NOT NULL,
 	"approver_id" uuid,
+	"submitted_at" timestamp with time zone,
+	"submitted_by_id" uuid,
+	"reviewed_at" timestamp with time zone,
+	"reviewed_by_id" uuid,
+	"review_decision" text,
+	"review_comments" text,
 	"status" text DEFAULT 'active' NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -1115,6 +1121,8 @@ CREATE TABLE "shared"."users" (
 	"email" text NOT NULL,
 	"username" text NOT NULL,
 	"full_name" text NOT NULL,
+	"designation" text,
+	"signature_path" text,
 	"password_hash" text,
 	"auth_source" text DEFAULT 'local' NOT NULL,
 	"access_status" text DEFAULT 'active' NOT NULL,
@@ -1238,6 +1246,8 @@ ALTER TABLE "app2_lessons"."escalation_rules" ADD CONSTRAINT "escalation_rules_o
 ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD CONSTRAINT "lesson_learned_forms_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;
 
 ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD CONSTRAINT "lesson_learned_forms_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "shared"."projects"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD CONSTRAINT "lesson_learned_forms_submitted_by_id_users_id_fk" FOREIGN KEY ("submitted_by_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD CONSTRAINT "lesson_learned_forms_reviewed_by_id_users_id_fk" FOREIGN KEY ("reviewed_by_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;
 
 ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD CONSTRAINT "lesson_learned_forms_discipline_id_disciplines_id_fk" FOREIGN KEY ("discipline_id") REFERENCES "app2_lessons"."disciplines"("id") ON DELETE no action ON UPDATE no action;
 

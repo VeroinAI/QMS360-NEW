@@ -134,6 +134,30 @@ const scheduleValues = (data: AnyRow) => ({
   }),
 });
 
+/** Validate schedule fields against audit-scope master data; blank values are allowed (field controls govern requiredness). */
+async function assertScheduleLovs(organizationId: string, data: AnyRow, legacy?: ScheduleMeta) {
+  const checks: Array<[string, unknown, string | null | undefined]> = [
+    ["locations", data.location, legacy?.location],
+    ["process_product_owners", data.processProductOwner, legacy?.processProductOwner],
+    ["audit_levels", data.l1Name, legacy?.l1Name],
+    ["audit_levels", data.l2Name, legacy?.l2Name],
+  ];
+  for (const [group, value, legacyValue] of checks) {
+    if (typeof value === "string" && value.trim()) {
+      await assertLovValue(db, organizationId, group, value, { allowLegacy: legacyValue });
+    }
+  }
+}
+
+/** Business rule: the To date may not be before the From date. Inputs may be ISO strings or zod-coerced Dates. */
+function assertScheduleDates(data: AnyRow) {
+  const from = data.plannedStartDate ? new Date(data.plannedStartDate) : null;
+  const to = data.plannedEndDate ? new Date(data.plannedEndDate) : null;
+  if (from && to && !Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime()) && to.getTime() < from.getTime()) {
+    throw new HttpError(422, "To Date must be on or after From Date");
+  }
+}
+
 router.get("/schedules", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = active(auditSchedules, actor(req).organizationId);
@@ -149,6 +173,8 @@ router.post("/schedules", asyncHandler(async (req, res) => {
   await Promise.all((data.auditTypes ?? []).map((value: string) =>
     assertLovValue(db, actor(req).organizationId, "audit_types", value)));
   await assertLovValue(db, actor(req).organizationId, "audit_categories", data.auditCategory);
+  assertScheduleDates(data);
+  await assertScheduleLovs(actor(req).organizationId, data);
   const [row] = await db.insert(auditSchedules).values({ organizationId: actor(req).organizationId, ...scheduleValues(data) }).returning();
   await auditLog(req, "create", "audit_schedule", row.id, undefined, row);
   res.status(201).json(scheduleDto(row));
@@ -167,6 +193,8 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
   await Promise.all((data.auditTypes ?? []).map((value: string) =>
     assertLovValue(db, actor(req).organizationId, "audit_types", value, { allowLegacy: scheduleMeta(before).auditTypes })));
   await assertLovValue(db, actor(req).organizationId, "audit_categories", data.auditCategory, { allowLegacy: [scheduleMeta(before).auditCategory ?? ""] });
+  assertScheduleDates(data);
+  await assertScheduleLovs(actor(req).organizationId, data, scheduleMeta(before));
   const [row] = await db.update(auditSchedules).set({ ...scheduleValues(data), id: undefined, updatedAt: new Date() })
     .where(eq(auditSchedules.id, before.id)).returning();
   await auditLog(req, "update", "audit_schedule", row.id, before, row);

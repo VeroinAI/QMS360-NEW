@@ -20,6 +20,7 @@ import {
   UpdateLessonsEscalationRulesBody,
   UpdateLessonsNotificationTemplateBody,
   UpdateLessonsRoleBody,
+  UpdateLessonsUserProfileBody,
   CreateApproverScopeBody,
 } from "@workspace/api-zod";
 import {
@@ -51,8 +52,9 @@ import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
 import { readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
-import { promptToTransaction, rephraseText } from "../lib/ai";
+import { AiUnavailableError, promptToTransaction, rephraseText } from "../lib/ai";
 import { confirmEvidence, createEvidenceIntent as createIntent, deleteEvidence, listEvidence } from "../lib/evidence";
+import { getObject, storeObject } from "../lib/objectStorage";
 import {
   asyncHandler, HttpError, notFound, notify, paginated, pagination, writeAuditLog,
 } from "../lib/workspace";
@@ -101,14 +103,15 @@ function publicState(state: string) {
   return state === "sent_back" ? "Sent Back" : state.charAt(0).toUpperCase() + state.slice(1);
 }
 
-function formJson(row: typeof lessonLearnedForms.$inferSelect, photos?: Array<typeof lessonsEvidenceFiles.$inferSelect>) {
+function formJson(row: typeof lessonLearnedForms.$inferSelect, photos?: Array<typeof lessonsEvidenceFiles.$inferSelect>, disciplineName?: string) {
   return {
     id: row.id,
     referenceNumber: row.referenceNumber,
     reference: row.reference,
     projectId: row.projectId,
     title: row.title,
-    disciplineId: row.disciplineId ?? "",
+    // Clients bind discipline to the LOV value (name), not the internal UUID.
+    disciplineId: disciplineName ?? row.disciplineId ?? "",
     categorisationId: row.categorisation ?? "",
     issueCategory: row.issueCategory,
     impact: row.impact,
@@ -148,6 +151,63 @@ async function getForm(id: string, organizationId: string) {
     isNull(lessonLearnedForms.deletedAt),
   )).limit(1);
   return row ?? null;
+}
+
+/** Internal discipline UUID -> LOV name shown to clients. Undefined when unknown, so callers fall back to the raw value. */
+async function disciplineNameById(disciplineId: string | null): Promise<string | undefined> {
+  if (!disciplineId) return undefined;
+  const [row] = await db.select({ name: lessonsDisciplines.name }).from(lessonsDisciplines).where(and(
+    eq(lessonsDisciplines.id, disciplineId), isNull(lessonsDisciplines.deletedAt),
+  )).limit(1);
+  return row?.name;
+}
+
+/** Approval-record user details (name, designation, signature URL) for submitter and reviewer. */
+async function approvalPeopleJson(row: typeof lessonLearnedForms.$inferSelect) {
+  const ids = [row.submittedById, row.reviewedById].filter((v): v is string => Boolean(v));
+  const rows = ids.length
+    ? await db.select().from(users).where(and(inArray(users.id, ids), isNull(users.deletedAt)))
+    : [];
+  const byId = new Map(rows.map((u) => [u.id, u]));
+  const person = (id: string | null) => {
+    const u = id ? byId.get(id) : undefined;
+    return {
+      name: u?.fullName ?? null,
+      designation: u?.designation ?? null,
+      signatureUrl: u?.signaturePath ? `/api/lessons/users/${u.id}/signature` : null,
+    };
+  };
+  const submitter = person(row.submittedById);
+  const reviewer = person(row.reviewedById);
+  return {
+    submittedAt: row.submittedAt,
+    submittedByName: submitter.name,
+    submittedByDesignation: submitter.designation,
+    submittedBySignatureUrl: submitter.signatureUrl,
+    reviewedAt: row.reviewedAt,
+    reviewedByName: reviewer.name,
+    reviewedByDesignation: reviewer.designation,
+    reviewedBySignatureUrl: reviewer.signatureUrl,
+    reviewDecision: row.reviewDecision,
+    reviewComments: row.reviewComments,
+  };
+}
+
+async function formJsonNamed(row: typeof lessonLearnedForms.$inferSelect, photos?: Array<typeof lessonsEvidenceFiles.$inferSelect>) {
+  const [disciplineName, approval] = await Promise.all([disciplineNameById(row.disciplineId), approvalPeopleJson(row)]);
+  return { ...formJson(row, photos, disciplineName), ...approval };
+}
+
+async function disciplineNameMap(organizationId: string): Promise<Map<string, string>> {
+  const rows = await db.select({ id: lessonsDisciplines.id, name: lessonsDisciplines.name }).from(lessonsDisciplines).where(and(
+    eq(lessonsDisciplines.organizationId, organizationId), isNull(lessonsDisciplines.deletedAt),
+  ));
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+/** formJson for list endpoints: resolves discipline UUIDs to LOV names with one query. */
+function formJsonList(rows: Array<typeof lessonLearnedForms.$inferSelect>, names: Map<string, string>) {
+  return rows.map((row) => formJson(row, undefined, row.disciplineId ? names.get(row.disciplineId) : undefined));
 }
 
 async function audit(req: any, action: string, entityType: string, entityId?: string, before?: Record<string, unknown>, after?: Record<string, unknown>) {
@@ -302,7 +362,8 @@ router.get("/forms", asyncHandler(async (req, res) => {
     db.select().from(lessonLearnedForms).where(where).orderBy(desc(lessonLearnedForms.createdAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(lessonLearnedForms).where(where),
   ]);
-  res.json(paginated(rows.map((row) => formJson(row)), Number(count[0]?.count ?? 0), page, limit));
+  const names = await disciplineNameMap(req.currentUser!.organizationId);
+  res.json(paginated(formJsonList(rows, names), Number(count[0]?.count ?? 0), page, limit));
 }));
 
 router.post("/forms", asyncHandler(async (req, res) => {
@@ -323,7 +384,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
     eq(lessonLearnedForms.organizationId, user.organizationId),
     eq(lessonLearnedForms.clientReference, clientReference), isNull(lessonLearnedForms.deletedAt),
   )).limit(1);
-  if (existing) { res.status(200).json(formJson(existing)); return; }
+  if (existing) { res.status(200).json(await formJsonNamed(existing)); return; }
   const [project] = await db.select().from(projects).where(and(
     eq(projects.id, body.projectId), eq(projects.organizationId, user.organizationId), isNull(projects.deletedAt),
   )).limit(1);
@@ -350,15 +411,16 @@ router.post("/forms", asyncHandler(async (req, res) => {
     }
   }
   if (!created) throw new HttpError(409, "Unable to allocate a unique reference number");
-  await audit(req, "create", "lesson_form", created.id, undefined, formJson(created));
-  res.status(201).json(formJson(created));
+  const createdJson = await formJsonNamed(created);
+  await audit(req, "create", "lesson_form", created.id, undefined, createdJson);
+  res.status(201).json(createdJson);
 }));
 
 router.get("/forms/:id", asyncHandler(async (req, res) => {
   const row = await getForm(String(req.params.id), req.currentUser!.organizationId);
   if (!row) notFound("Lesson form not found");
   const photos = await listEvidence(db, "lessons", req.currentUser!.organizationId, "lesson_form", row.id);
-  res.json(formJson(row, photos));
+  res.json(await formJsonNamed(row, photos));
 }));
 
 router.put("/forms/:id", asyncHandler(async (req, res) => {
@@ -368,7 +430,7 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
   if (!before) notFound("Lesson form not found");
   assertOwnerOrFull(req, before.creatorId);
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back forms may be edited");
-  await assertFieldAccess(req, "lessons", "lesson-form", { mode: "update", current: formJson(before) });
+  await assertFieldAccess(req, "lessons", "lesson-form", { mode: "update", current: await formJsonNamed(before) });
   await Promise.all([
     assertLovValue(db, req.currentUser!.organizationId, "disciplines", body.disciplineId, { allowLegacy: before.disciplineId }),
     assertLovValue(db, req.currentUser!.organizationId, "lesson_categorisations", body.categorisationId, { allowLegacy: before.categorisation }),
@@ -388,8 +450,9 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
     remarks: body.remarks, approverId: body.approverId, version: before.workflowState === "sent_back" ? before.version + 1 : before.version,
     workflowState: before.workflowState === "sent_back" ? "draft" : before.workflowState, updatedAt: new Date(),
   }).where(eq(lessonLearnedForms.id, before.id)).returning();
-  await audit(req, "update", "lesson_form", row!.id, formJson(before), formJson(row!));
-  res.json(formJson(row!));
+  const [beforeJson, rowJson] = await Promise.all([formJsonNamed(before), formJsonNamed(row!)]);
+  await audit(req, "update", "lesson_form", row!.id, beforeJson, rowJson);
+  res.json(rowJson);
 }));
 
 router.delete("/forms/:id", asyncHandler(async (req, res) => {
@@ -397,7 +460,7 @@ router.delete("/forms/:id", asyncHandler(async (req, res) => {
   if (!before) notFound("Lesson form not found");
   assertOwnerOrFull(req, before.creatorId);
   await db.update(lessonLearnedForms).set({ deletedAt: new Date(), status: "deleted", updatedAt: new Date() }).where(eq(lessonLearnedForms.id, before.id));
-  await audit(req, "delete", "lesson_form", before.id, formJson(before));
+  await audit(req, "delete", "lesson_form", before.id, await formJsonNamed(before));
   res.status(204).end();
 }));
 
@@ -407,10 +470,16 @@ router.post("/forms/:id/submit", asyncHandler(async (req, res) => {
   assertOwnerOrFull(req, before.creatorId);
   if (before.workflowState !== "draft") throw new HttpError(409, "Only draft forms may be submitted");
   if (!before.approverId) throw new HttpError(422, "An approver is required before submission");
-  const [row] = await db.update(lessonLearnedForms).set({ workflowState: "submitted", updatedAt: new Date() }).where(eq(lessonLearnedForms.id, before.id)).returning();
-  await audit(req, "submit", "lesson_form", before.id, formJson(before), formJson(row!));
+  // Before/after evidence photos are mandatory for submission.
+  const evidence = await listEvidence(db, "lessons", before.organizationId, "lesson_form", before.id);
+  const stored = (evidence as Array<typeof lessonsEvidenceFiles.$inferSelect>).filter((p) => p.status === "stored");
+  if (!stored.some((p) => p.category === "before") || !stored.some((p) => p.category === "after")) {
+    throw new HttpError(422, "At least one before and one after photo are required before submitting for approval");
+  }
+  const [row] = await db.update(lessonLearnedForms).set({ workflowState: "submitted", submittedAt: new Date(), submittedById: req.currentUser!.id, updatedAt: new Date() }).where(eq(lessonLearnedForms.id, before.id)).returning();
+  await audit(req, "submit", "lesson_form", before.id, await formJsonNamed(before), await formJsonNamed(row!));
   await notifyWithEmail(db, "lessons", { organizationId: before.organizationId, userId: before.approverId, type: "lesson_submitted", title: "Lesson awaiting approval", body: `${before.referenceNumber} is ready for review.`, entityType: "lesson_form", entityId: before.id });
-  res.json(formJson(row!));
+  res.json(await formJsonNamed(row!));
 }));
 
 router.post("/forms/:id/review", asyncHandler(async (req, res) => {
@@ -419,12 +488,13 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
   if (body.decision === "send_back" && !body.comments?.trim()) throw new HttpError(422, "Comments are required when sending a form back");
   const before = await getForm(String(req.params.id), req.currentUser!.organizationId);
   if (!before) notFound("Lesson form not found");
-  if (!req.permissionAdminBypass && before.approverId !== req.currentUser!.id) {
-    throw new HttpError(403, "Only the designated approver may review this form");
-  }
-  // Self-approval is never allowed — not even for admins with review bypass.
+  // Self-approval is never allowed — not even for admins.
   if (before.creatorId === req.currentUser!.id) {
     throw new HttpError(403, "You cannot review a lesson you created");
+  }
+  // Only the designated approver may review — there is no admin bypass.
+  if (before.approverId !== req.currentUser!.id) {
+    throw new HttpError(403, "Only the designated approver may review this form");
   }
   const scoped = await scopedApproverIds(before.organizationId, { projectId: before.projectId, disciplineId: before.disciplineId, categorisation: before.categorisation });
   if (scoped && !scoped.has(req.currentUser!.id)) {
@@ -432,7 +502,14 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
   }
   if (before.workflowState !== "submitted") throw new HttpError(409, "Only submitted forms may be reviewed");
   const state = body.decision === "approve" ? "approved" : "sent_back";
-  const [row] = await db.update(lessonLearnedForms).set({ workflowState: state, updatedAt: new Date() }).where(eq(lessonLearnedForms.id, before.id)).returning();
+  const [row] = await db.update(lessonLearnedForms).set({
+    workflowState: state,
+    reviewedAt: new Date(),
+    reviewedById: req.currentUser!.id,
+    reviewDecision: body.decision,
+    reviewComments: body.comments?.trim() || null,
+    updatedAt: new Date(),
+  }).where(eq(lessonLearnedForms.id, before.id)).returning();
   await db.update(lessonEscalationInstances).set({
     status: body.decision === "approve" ? "resolved" : "open",
     resolvedAt: body.decision === "approve" ? new Date() : null,
@@ -446,9 +523,10 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
     eq(lessonEscalationInstances.status, "open"),
     isNull(lessonEscalationInstances.deletedAt),
   ));
-  await audit(req, body.decision, "lesson_form", before.id, formJson(before), { ...formJson(row!), remarks: body.comments });
+  const [beforeJson, rowJson] = await Promise.all([formJsonNamed(before), formJsonNamed(row!)]);
+  await audit(req, body.decision, "lesson_form", before.id, beforeJson, { ...rowJson, remarks: body.comments });
   await notifyWithEmail(db, "lessons", { organizationId: before.organizationId, userId: before.creatorId, type: `lesson_${state}`, title: `Lesson ${publicState(state)}`, body: body.comments?.trim() || `${before.referenceNumber} was approved.`, entityType: "lesson_form", entityId: before.id });
-  res.json({ ...formJson(row!), remarks: body.comments });
+  res.json({ ...rowJson, remarks: body.comments });
 }));
 
 async function createEvidenceIntent(req: any, body: { recordType: string; recordId: string; category: string; fileName: string; mimeType: string; sizeBytes: number; clientReference: string }) {
@@ -492,17 +570,23 @@ router.delete("/photos/:id", asyncHandler(async (req, res) => {
   res.status(204).end();
 }));
 
-function logWhere(req: any) {
+async function logWhere(req: any) {
   const q = req.query;
   const term = typeof q.search === "string" && q.search.trim() ? `%${q.search.trim()}%` : null;
   const from = typeof q.from === "string" ? new Date(q.from) : null;
   const to = typeof q.to === "string" ? new Date(q.to) : null;
   if ((from && Number.isNaN(from.valueOf())) || (to && Number.isNaN(to.valueOf()))) throw new HttpError(422, "Invalid date filter");
+  // Clients filter by the discipline LOV value (name); the column stores the UUID.
+  let disciplineId: string | null = null;
+  if (typeof q.disciplineId === "string") {
+    disciplineId = await findLessonsDisciplineId(req.currentUser.organizationId, q.disciplineId);
+    if (!disciplineId) disciplineId = "00000000-0000-0000-0000-000000000000";
+  }
   return and(
     eq(lessonLearnedForms.organizationId, req.currentUser.organizationId), isNull(lessonLearnedForms.deletedAt),
     term ? or(ilike(lessonLearnedForms.title, term), ilike(lessonLearnedForms.description, term), ilike(lessonLearnedForms.rootCause, term), ilike(lessonLearnedForms.correctiveAction, term)) : undefined,
     typeof q.projectId === "string" ? eq(lessonLearnedForms.projectId, q.projectId) : undefined,
-    typeof q.disciplineId === "string" ? eq(lessonLearnedForms.disciplineId, q.disciplineId) : undefined,
+    disciplineId ? eq(lessonLearnedForms.disciplineId, disciplineId) : undefined,
     typeof q.category === "string" ? eq(lessonLearnedForms.categorisation, q.category) : undefined,
     typeof q.impact === "string" ? eq(lessonLearnedForms.impact, q.impact) : undefined,
     from ? gte(lessonLearnedForms.capturedAt, from) : undefined, to ? lte(lessonLearnedForms.capturedAt, to) : undefined,
@@ -511,20 +595,26 @@ function logWhere(req: any) {
 
 router.get("/log", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const where = logWhere(req);
+  const where = await logWhere(req);
   const [rows, count] = await Promise.all([
     db.select().from(lessonLearnedForms).where(where).orderBy(desc(lessonLearnedForms.capturedAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(lessonLearnedForms).where(where),
   ]);
-  res.json(paginated(rows.map((row) => formJson(row)), Number(count[0]?.count ?? 0), page, limit));
+  const names = await disciplineNameMap(req.currentUser!.organizationId);
+  res.json(paginated(formJsonList(rows, names), Number(count[0]?.count ?? 0), page, limit));
 }));
 
 router.post("/ai/rephrase", asyncHandler(async (req, res) => {
   const body = parseBody(RephraseLessonFieldBody, req, res);
   if (!body) return;
   if (!["description", "rootCause", "correction", "correctiveAction"].includes(body.field)) throw new HttpError(422, "Unsupported lesson field");
-  const suggestion = await rephraseText({ app: "lessons", organizationId: req.currentUser!.organizationId, actorId: req.currentUser!.id, field: body.field, text: body.text, tone: "clear and concise" });
-  res.json({ suggestion });
+  try {
+    const suggestion = await rephraseText({ app: "lessons", organizationId: req.currentUser!.organizationId, actorId: req.currentUser!.id, field: body.field, text: body.text, tone: "clear and concise" });
+    res.json({ suggestion });
+  } catch (error) {
+    if (error instanceof AiUnavailableError) throw new HttpError(503, "AI rephrasing is temporarily unavailable. Please try again later.");
+    throw error;
+  }
 }));
 
 const lessonSchema = "Fields: title, projectId, disciplineId, categorisationId, issueCategory (Minor|Moderate|Major), impact (Positive|Negative), description, rootCause, correction, correctiveAction. Infer values stated in a site incident paragraph; ask concise questions only for required fields that cannot be inferred.";
@@ -581,7 +671,9 @@ router.get("/reports/log", asyncHandler(async (req, res) => {
   if (format !== "csv" && format !== "json") throw new HttpError(422, "Only CSV and JSON exports are supported");
   const rows = await db.select().from(lessonLearnedForms).where(and(eq(lessonLearnedForms.organizationId, req.currentUser!.organizationId), isNull(lessonLearnedForms.deletedAt))).orderBy(asc(lessonLearnedForms.referenceNumber));
   const fileName = `lessons-log.${format}`;
-  const content = format === "csv" ? csv(rows.map((r) => formJson(r))) : JSON.stringify(rows.map((r) => formJson(r)), null, 2);
+  const names = await disciplineNameMap(req.currentUser!.organizationId);
+  const json = formJsonList(rows, names);
+  const content = format === "csv" ? csv(json) : JSON.stringify(json, null, 2);
   res.json({ delivery: "download", fileName, downloadUrl: `data:${format === "csv" ? "text/csv" : "application/json"};charset=utf-8,${encodeURIComponent(content)}`, message: null });
 }));
 
@@ -589,10 +681,26 @@ router.get("/forms/:id/report", asyncHandler(async (req, res) => {
   const row = await getForm(String(req.params.id), req.currentUser!.organizationId);
   if (!row) notFound("Lesson form not found");
   const format = req.accepts(["json", "csv"]) ?? "json";
-  const data = formJson(row);
-  const content = format === "csv" ? csv([data]) : JSON.stringify(data, null, 2);
+  const photos = (await listEvidence(db, "lessons", row.organizationId, "lesson_form", row.id)) as Array<typeof lessonsEvidenceFiles.$inferSelect>;
+  const data = await formJsonNamed(row, photos);
+  const content = format === "csv" ? csv([{ ...data, photos: undefined, photoSummary: photos.map((p) => `${p.category}:${p.fileName}`).join("; ") }]) : JSON.stringify(data, null, 2);
   const fileName = `${row.referenceNumber}.${format}`;
   res.json({ delivery: "download", fileName, downloadUrl: `data:${format === "csv" ? "text/csv" : "application/json"};charset=utf-8,${encodeURIComponent(content)}`, message: null });
+}));
+
+/** Per-lesson activity timeline (audit log filtered to this form). Visible to anyone who can see the form. */
+router.get("/forms/:id/activity", asyncHandler(async (req, res) => {
+  const form = await getForm(String(req.params.id), req.currentUser!.organizationId);
+  if (!form) notFound("Lesson form not found");
+  const where = and(eq(lessonsAuditLogEntries.organizationId, req.currentUser!.organizationId), eq(lessonsAuditLogEntries.entityId, form.id));
+  const [rows, count] = await Promise.all([
+    db.select().from(lessonsAuditLogEntries).where(where).orderBy(desc(lessonsAuditLogEntries.createdAt)).limit(50),
+    db.select({ count: sql<number>`count(*)` }).from(lessonsAuditLogEntries).where(where),
+  ]);
+  const actorIds = [...new Set(rows.map((r) => r.actorId).filter((v): v is string => Boolean(v)))];
+  const actors = actorIds.length ? await db.select().from(users).where(and(inArray(users.id, actorIds), isNull(users.deletedAt))) : [];
+  const actorName = new Map(actors.map((u) => [u.id, u.fullName]));
+  res.json(paginated(rows.map((r) => ({ id: r.id, actorId: r.actorId ?? "", actorName: actorName.get(r.actorId ?? "") ?? null, delegatedForId: null, action: r.action, entityType: r.entityType, entityId: r.entityId ?? "", before: null, after: r.after, ipAddress: null, occurredAt: r.createdAt })), Number(count[0]?.count ?? 0), 1, 50));
 }));
 
 router.get("/field-controls", asyncHandler(async (req, res) => {
@@ -667,7 +775,46 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
     db.select().from(platformRoles),
   ]);
   const rolePayload = new Map((await Promise.all(roles.map(roleJson))).map((r) => [r.id, r]));
-  res.json(paginated(rows.map((u) => ({ id: u.id, username: u.username, email: u.email, platformRole: platform.find((p) => p.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: assignments.filter((a) => a.userId === u.id).map((a) => rolePayload.get(a.workspaceRoleId)).filter(Boolean), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt })), Number(count[0]?.count ?? 0), page, limit));
+  res.json(paginated(rows.map((u) => ({ id: u.id, username: u.username, email: u.email, designation: u.designation, signatureUrl: u.signaturePath ? `/api/lessons/users/${u.id}/signature` : null, platformRole: platform.find((p) => p.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: assignments.filter((a) => a.userId === u.id).map((a) => rolePayload.get(a.workspaceRoleId)).filter(Boolean), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt })), Number(count[0]?.count ?? 0), page, limit));
+}));
+
+/** Admin: update a user's designation and signature image (used on lesson approval records). */
+router.put("/admin/users/:userId/profile", asyncHandler(async (req, res) => {
+  const body = parseBody(UpdateLessonsUserProfileBody, req, res);
+  if (!body) return;
+  const [target] = await db.select().from(users).where(and(eq(users.id, String(req.params.userId)), eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt))).limit(1);
+  if (!target) notFound("User not found");
+  let signaturePath = target.signaturePath;
+  if (body.signatureDataUrl) {
+    // base64 inflates ~4/3; bound the encoded payload so the decoded 512KB cap is enforceable.
+    if (body.signatureDataUrl.length > 720 * 1024) throw new HttpError(422, "Signature image exceeds the 512KB limit");
+    const match = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/.exec(body.signatureDataUrl);
+    if (!match) throw new HttpError(422, "Signature must be a PNG, JPEG or WebP image");
+    const bytes = Buffer.from(match[2]!, "base64");
+    if (bytes.length > 512 * 1024) throw new HttpError(422, "Signature image exceeds the 512KB limit");
+    signaturePath = `gcs:${await storeObject(`qms360/signatures/${target.id}`, bytes, match[1]!)}`;
+  } else if (body.signatureDataUrl === null) {
+    signaturePath = null;
+  }
+  const [row] = await db.update(users).set({
+    designation: body.designation === undefined ? target.designation : (body.designation?.trim() || null),
+    signaturePath,
+    updatedAt: new Date(),
+  }).where(eq(users.id, target.id)).returning();
+  await audit(req, "update", "user_profile", row!.id, { designation: target.designation, hasSignature: Boolean(target.signaturePath) }, { designation: row!.designation, hasSignature: Boolean(row!.signaturePath) });
+  res.json({ id: row!.id, designation: row!.designation, signatureUrl: row!.signaturePath ? `/api/lessons/users/${row!.id}/signature` : null });
+}));
+
+/** Stream a user's signature image to anyone in the same organization (shown on approval records). */
+router.get("/users/:userId/signature", asyncHandler(async (req, res) => {
+  const [target] = await db.select().from(users).where(and(eq(users.id, String(req.params.userId)), eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt))).limit(1);
+  if (!target?.signaturePath) throw new HttpError(404, "Signature not found");
+  const signaturePath: string = target.signaturePath;
+  const object = await getObject(signaturePath.startsWith("gcs:") ? signaturePath.slice(4) : signaturePath);
+  res.setHeader("content-type", object.headers.get("content-type") ?? "image/png");
+  res.setHeader("cache-control", "private, max-age=60");
+  const { Readable } = await import("node:stream");
+  Readable.fromWeb(object.body as any).pipe(res);
 }));
 
 router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
@@ -822,7 +969,7 @@ router.get("/admin/audit-log", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const from = typeof req.query.from === "string" ? new Date(req.query.from) : null;
   const to = typeof req.query.to === "string" ? new Date(req.query.to) : null;
-  const where = and(eq(lessonsAuditLogEntries.organizationId, req.currentUser!.organizationId), typeof req.query.actorId === "string" ? eq(lessonsAuditLogEntries.actorId, req.query.actorId) : undefined, typeof req.query.action === "string" ? eq(lessonsAuditLogEntries.action, req.query.action) : undefined, from ? gte(lessonsAuditLogEntries.createdAt, from) : undefined, to ? lte(lessonsAuditLogEntries.createdAt, to) : undefined);
+  const where = and(eq(lessonsAuditLogEntries.organizationId, req.currentUser!.organizationId), typeof req.query.actorId === "string" ? eq(lessonsAuditLogEntries.actorId, req.query.actorId) : undefined, typeof req.query.action === "string" ? eq(lessonsAuditLogEntries.action, req.query.action) : undefined, typeof req.query.entityId === "string" ? eq(lessonsAuditLogEntries.entityId, req.query.entityId) : undefined, from ? gte(lessonsAuditLogEntries.createdAt, from) : undefined, to ? lte(lessonsAuditLogEntries.createdAt, to) : undefined);
   const [rows, count] = await Promise.all([db.select().from(lessonsAuditLogEntries).where(where).orderBy(desc(lessonsAuditLogEntries.createdAt)).limit(limit).offset(offset), db.select({ count: sql<number>`count(*)` }).from(lessonsAuditLogEntries).where(where)]);
   res.json(paginated(rows.map((r) => ({ id: r.id, actorId: r.actorId ?? "", delegatedForId: null, action: r.action, entityType: r.entityType, entityId: r.entityId ?? "", before: r.before, after: r.after, ipAddress: typeof r.after?._requestIp === "string" ? r.after._requestIp : null, occurredAt: r.createdAt })), Number(count[0]?.count ?? 0), page, limit));
 }));

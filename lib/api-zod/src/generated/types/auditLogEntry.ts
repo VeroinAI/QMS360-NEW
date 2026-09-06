@@ -12,6 +12,8 @@ export interface AuditLogEntry {
   id: string;
   actorId: string;
   /** @nullable */
+  actorName?: string | null;
+  /** @nullable */
   delegatedForId?: string | null;
   action: string;
   entityType: string;

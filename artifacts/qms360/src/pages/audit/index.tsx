@@ -8,6 +8,7 @@ import {
   useCreateAuditFinding,
   useCreateAuditPlan,
   useCreateAuditSchedule,
+  useListProjects,
   useCreateFindingCars,
   useDeleteAuditPlan,
   useDeleteAuditSchedule,
@@ -150,6 +151,11 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   const evidenceIntent = useCreateAuditEvidenceIntent(); const confirmEvidence = useConfirmAuditEvidence();
   const auditTypes = useLov("audit_types");
   const auditCategories = useLov("audit_categories");
+  const locations = useLov("locations");
+  const processOwners = useLov("process_product_owners");
+  const auditLevels = useLov("audit_levels");
+  const projects = useListProjects();
+  const projectOptions = useMemo(() => (projects.data ?? []).map((p) => ({ value: p.name, label: p.code ? `${p.name} (${p.code})` : p.name })), [projects.data]);
   const uploadAttachment = async (file: File, category: "l1-review" | "l2-review") => {
     const intent = await evidenceIntent.mutateAsync({ data: {
       recordType: "audit_schedule", recordId: form.id, category, fileName: file.name,
@@ -169,6 +175,7 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
     if (!form.processProductOwner?.trim()) missing.processProductOwner = "Process / Product Owner is required.";
     if (!form.plannedStartDate) missing.plannedStartDate = "From Date is required.";
     if (!form.plannedEndDate) missing.plannedEndDate = "To Date is required.";
+    if (!missing.plannedStartDate && !missing.plannedEndDate && form.plannedEndDate.slice(0, 10) < form.plannedStartDate.slice(0, 10)) missing.plannedEndDate = "To Date must be on or after From Date.";
     if (!form.l1Name?.trim()) missing.l1Name = "Name of L1 is required.";
     if (form.l1ReviewStatus === "Send Back" && !form.l1ReviewComments?.trim()) missing.l1ReviewComments = "L1 Review Comments are required when sending back.";
     if (!form.l2Name?.trim()) missing.l2Name = "Name of L2 is required.";
@@ -208,7 +215,9 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
     setErrors(current => {
       const related = key === "l1ReviewStatus" ? "l1ReviewComments" : key === "l2ReviewStatus" ? "l2ReviewComments" : undefined;
       if (!current[key] && (!related || !current[related])) return current;
-      const next = { ...current }; delete next[key]; if (related) delete next[related]; return next;
+      const next = { ...current }; delete next[key]; if (related) delete next[related];
+      if (key === "plannedStartDate" || key === "plannedEndDate") { delete next.plannedStartDate; delete next.plannedEndDate; }
+      return next;
     });
   };
   const error = (key: keyof AuditSchedule) => errors[key] ? <p className="mt-1 text-sm font-medium text-destructive" role="alert">{errors[key]}</p> : null;
@@ -221,24 +230,24 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   return <div className="grid gap-4 py-2">
     <div id="schedule-auditTypes"><Label>1. Audit Type *</Label><Select value={form.auditTypes?.[0] ?? ""} disabled={auditTypes.isLoading || ro("auditTypes")} onValueChange={v => field("auditTypes", [v])}><SelectTrigger aria-invalid={!!errors.auditTypes} className={invalid("auditTypes")}><SelectValue placeholder="Select audit type"/></SelectTrigger><SelectContent>{withLegacyOption(auditTypes.options, form.auditTypes?.[0]).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditTypes")}</div>
     <div id="schedule-auditCategory"><Label>2. Audit Category *</Label><Select value={form.auditCategory ?? ""} disabled={auditCategories.isLoading || ro("auditCategory")} onValueChange={v => field("auditCategory", v)}><SelectTrigger aria-invalid={!!errors.auditCategory} className={invalid("auditCategory")}><SelectValue placeholder="Select category"/></SelectTrigger><SelectContent>{withLegacyOption(auditCategories.options, form.auditCategory).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditCategory")}</div>
-    <div id="schedule-departmentProject"><Label>3. Department / Project *</Label><Input aria-invalid={!!errors.departmentProject} className={invalid("departmentProject")} value={form.departmentProject ?? ""} disabled={ro("departmentProject")} onChange={e => field("departmentProject", e.target.value)}/>{error("departmentProject")}</div>
-    <div id="schedule-location"><Label>4. Location *</Label><Input aria-invalid={!!errors.location} className={invalid("location")} value={form.location ?? ""} placeholder="GPS / site location" disabled={ro("location")} onChange={e => field("location", e.target.value)}/>{error("location")}</div>
+    <div id="schedule-departmentProject"><Label>3. Department / Project *</Label><Select value={form.departmentProject ?? ""} disabled={projects.isLoading || ro("departmentProject")} onValueChange={v => field("departmentProject", v)}><SelectTrigger aria-invalid={!!errors.departmentProject} className={invalid("departmentProject")}><SelectValue placeholder="Select department or project"/></SelectTrigger><SelectContent>{withLegacyOption(projectOptions, form.departmentProject).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("departmentProject")}</div>
+    <div id="schedule-location"><Label>4. Location *</Label><Select value={form.location ?? ""} disabled={locations.isLoading || ro("location")} onValueChange={v => field("location", v)}><SelectTrigger aria-invalid={!!errors.location} className={invalid("location")}><SelectValue placeholder="Select location"/></SelectTrigger><SelectContent>{withLegacyOption(locations.options, form.location).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("location")}</div>
     <div id="schedule-title"><Label>5. Audit Title *</Label><Input aria-invalid={!!errors.title} className={invalid("title")} value={form.title} disabled={ro("title")} onChange={e => field("title", e.target.value)}/>{error("title")}</div>
-    <div id="schedule-processProductOwner"><Label>6. Process / Product Owner *</Label><Input aria-invalid={!!errors.processProductOwner} className={invalid("processProductOwner")} value={form.processProductOwner ?? ""} disabled={ro("processProductOwner")} onChange={e => field("processProductOwner", e.target.value)}/>{error("processProductOwner")}</div>
+    <div id="schedule-processProductOwner"><Label>6. Process / Product Owner *</Label><Select value={form.processProductOwner ?? ""} disabled={processOwners.isLoading || ro("processProductOwner")} onValueChange={v => field("processProductOwner", v)}><SelectTrigger aria-invalid={!!errors.processProductOwner} className={invalid("processProductOwner")}><SelectValue placeholder="Select owner"/></SelectTrigger><SelectContent>{withLegacyOption(processOwners.options, form.processProductOwner).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("processProductOwner")}</div>
     <div className="grid grid-cols-2 gap-3"><div id="schedule-plannedStartDate"><Label>7. From Date *</Label><Input aria-invalid={!!errors.plannedStartDate} className={invalid("plannedStartDate")} type="date" value={form.plannedStartDate.slice(0,10)} disabled={ro("plannedStartDate")} onChange={e => field("plannedStartDate", e.target.value)}/>{error("plannedStartDate")}</div><div id="schedule-plannedEndDate"><Label>To Date *</Label><Input aria-invalid={!!errors.plannedEndDate} className={invalid("plannedEndDate")} type="date" value={form.plannedEndDate.slice(0,10)} disabled={ro("plannedEndDate")} onChange={e => field("plannedEndDate", e.target.value)}/>{error("plannedEndDate")}</div></div>
     <div><Label>8. QA/QC Reference *</Label><Input readOnly value={form.qaqcReference ?? ""}/></div>
     <div><Label>9. Audit Number / Site Visit No. *</Label><Input readOnly value={form.auditNumber ?? ""}/></div>
     <div><Label>10. QA/QC Scope *</Label><Input readOnly value={form.qaqcScope ?? ""}/></div>
     <div><Label>11. QA/QC Clauses *</Label><Input readOnly value={form.qaqcClauses ?? ""}/></div>
     <div><Label>12. Remarks{req("remarks") ? " *" : ""}</Label><Textarea value={form.remarks ?? ""} disabled={ro("remarks")} onChange={e => field("remarks", e.target.value)}/></div>
-    <div id="schedule-l1Name"><Label>13. Name of L1 *</Label><Input aria-invalid={!!errors.l1Name} className={invalid("l1Name")} value={form.l1Name ?? ""} disabled={ro("l1Name")} onChange={e => field("l1Name", e.target.value)}/>{error("l1Name")}</div>
+    <div id="schedule-l1Name"><Label>13. Name of L1 *</Label><Select value={form.l1Name ?? ""} disabled={auditLevels.isLoading || ro("l1Name")} onValueChange={v => field("l1Name", v)}><SelectTrigger aria-invalid={!!errors.l1Name} className={invalid("l1Name")}><SelectValue placeholder="Select L1 name"/></SelectTrigger><SelectContent>{withLegacyOption(auditLevels.options, form.l1Name).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("l1Name")}</div>
     <div><Label>14. L1 Review Status *</Label><Select value={form.l1ReviewStatus ?? "Pending"} disabled={ro("l1ReviewStatus")} onValueChange={v => field("l1ReviewStatus", v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pending">Pending</SelectItem><SelectItem value="Accept">Accept</SelectItem><SelectItem value="Send Back">Send Back</SelectItem></SelectContent></Select></div>
     <div id="schedule-l1ReviewComments"><Label>15. L1 Review Comments {form.l1ReviewStatus === "Send Back" ? "*" : ""}</Label><Textarea aria-invalid={!!errors.l1ReviewComments} className={invalid("l1ReviewComments")} value={form.l1ReviewComments ?? ""} disabled={ro("l1ReviewComments")} onChange={e => field("l1ReviewComments", e.target.value)}/>{error("l1ReviewComments")}</div>
-    <div><Label>16. L1 Attachments</Label><Input type="file" multiple onChange={e => files("l1Attachments", e.target.files)}/></div>
-    <div id="schedule-l2Name"><Label>17. Name of L2 *</Label><Input aria-invalid={!!errors.l2Name} className={invalid("l2Name")} value={form.l2Name ?? ""} disabled={ro("l2Name")} onChange={e => field("l2Name", e.target.value)}/>{error("l2Name")}</div>
+    <div><Label>16. L1 Attachments</Label><div className="flex items-center gap-3"><Button type="button" size="sm" variant="outline" asChild><label><Upload className="mr-2 h-4 w-4" />Add files<input type="file" multiple className="hidden" onChange={e => files("l1Attachments", e.target.files)}/></label></Button>{l1Files.length > 0 && <span className="text-xs text-muted-foreground">{l1Files.length} file{l1Files.length > 1 ? "s" : ""} selected — uploaded on save</span>}</div></div>
+    <div id="schedule-l2Name"><Label>17. Name of L2 *</Label><Select value={form.l2Name ?? ""} disabled={auditLevels.isLoading || ro("l2Name")} onValueChange={v => field("l2Name", v)}><SelectTrigger aria-invalid={!!errors.l2Name} className={invalid("l2Name")}><SelectValue placeholder="Select L2 name"/></SelectTrigger><SelectContent>{withLegacyOption(auditLevels.options, form.l2Name).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("l2Name")}</div>
     <div><Label>18. L2 Review Status *</Label><Select value={form.l2ReviewStatus ?? "Pending"} disabled={ro("l2ReviewStatus")} onValueChange={v => field("l2ReviewStatus", v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pending">Pending</SelectItem><SelectItem value="Accept">Accept</SelectItem><SelectItem value="Send Back">Send Back</SelectItem></SelectContent></Select></div>
     <div id="schedule-l2ReviewComments"><Label>19. L2 Review Comments {form.l2ReviewStatus === "Send Back" ? "*" : ""}</Label><Textarea aria-invalid={!!errors.l2ReviewComments} className={invalid("l2ReviewComments")} value={form.l2ReviewComments ?? ""} disabled={ro("l2ReviewComments")} onChange={e => field("l2ReviewComments", e.target.value)}/>{error("l2ReviewComments")}</div>
-    <div><Label>20. L2 Attachments</Label><Input type="file" multiple onChange={e => files("l2Attachments", e.target.files)}/></div>
+    <div><Label>20. L2 Attachments</Label><div className="flex items-center gap-3"><Button type="button" size="sm" variant="outline" asChild><label><Upload className="mr-2 h-4 w-4" />Add files<input type="file" multiple className="hidden" onChange={e => files("l2Attachments", e.target.files)}/></label></Button>{l2Files.length > 0 && <span className="text-xs text-muted-foreground">{l2Files.length} file{l2Files.length > 1 ? "s" : ""} selected — uploaded on save</span>}</div></div>
     <div id="schedule-memoDescription"><Label>21. Memo Description *</Label><Textarea aria-invalid={!!errors.memoDescription} className={invalid("memoDescription")} value={form.memoDescription ?? ""} disabled={ro("memoDescription")} onChange={e => field("memoDescription", e.target.value)}/>{error("memoDescription")}</div>
     <div id="schedule-memoCirculation"><Label>22. Memo Circulation *</Label><Input aria-invalid={!!errors.memoCirculation} className={invalid("memoCirculation")} value={form.memoCirculation ?? ""} disabled={ro("memoCirculation")} onChange={e => field("memoCirculation", e.target.value)}/>{error("memoCirculation")}</div>
     <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={() => void save()} disabled={create.isPending || update.isPending || evidenceIntent.isPending || confirmEvidence.isPending}>Save schedule</Button></DialogFooter>

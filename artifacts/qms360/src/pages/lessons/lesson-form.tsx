@@ -13,6 +13,7 @@ import {
   useGetLessonForm,
   useGetLessonsReferenceData,
   useListLessonApprovers,
+  useListLessonFormActivity,
   useRephraseLessonField,
   useReviewLessonForm,
   useSubmitLessonForm,
@@ -31,7 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { LoadState, PageHeader, StateBadge, errorMessage } from "./common";
-import { useLov } from "@/lib/use-lov";
+import { useLov, withLegacyOption } from "@/lib/use-lov";
 import { useFieldControls } from "@/lib/field-controls";
 import { useFieldAccess } from "@/lib/use-field-access";
 
@@ -43,7 +44,7 @@ type Draft = {
   description: string; rootCause: string; correction: string; correctiveAction: string;
   capturedAt: string; gpsLat?: number; gpsLng?: number;
 };
-type UploadItem = { key: string; category: "before" | "after"; name: string; preview: string; progress: number; status: "uploading" | "failed" | "done" };
+type UploadItem = { key: string; category: "before" | "after"; name: string; preview: string; progress: number; status: "queued" | "uploading" | "failed" | "done"; file?: File };
 
 const initialDraft = (): Draft => ({ title: "", projectId: "", disciplineId: "", categorisationId: "", reference: "", issueCategory: "Minor", impact: "Positive", approverId: "", isRepeatedIssue: false, repeatCount: 0, repeatLocation: "", remarks: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: new Date().toISOString().slice(0, 16) });
 
@@ -61,8 +62,26 @@ async function resizeImage(file: File): Promise<File> {
   return new File([blob], file.name, { type: blob.type });
 }
 
+/** Evidence endpoints require the Bearer token, which an <img> tag cannot send — load bytes via the API client and render an object URL. */
+function AuthImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    setUrl(null); setFailed(false);
+    customFetch<Blob>(src, { responseType: "blob" })
+      .then((blob) => { if (cancelled) return; objectUrl = URL.createObjectURL(blob); setUrl(objectUrl); })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [src]);
+  if (failed) return <div className="flex aspect-video items-center justify-center bg-muted text-xs text-muted-foreground">Preview unavailable</div>;
+  if (!url) return <div className="aspect-video w-full animate-pulse bg-muted" />;
+  return <img src={url} alt={alt} className={className} />;
+}
+
 function PhotoGallery({ title, photos }: { title: string; photos: NonNullable<LessonLearnedForm["photos"]> }) {
-  return <div><h3 className="mb-3 font-semibold">{title}</h3>{photos.length ? <div className="grid grid-cols-2 gap-3">{photos.map((photo) => <div key={photo.id} className="overflow-hidden rounded-lg border border-border">{photo.storageUrl ? <img src={photo.storageUrl} alt={photo.fileName} className="aspect-video w-full object-cover" /> : <div className="flex aspect-video items-center justify-center bg-muted text-sm text-muted-foreground">Processing</div>}<p className="truncate p-2 text-xs">{photo.fileName}</p></div>)}</div> : <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No {title.toLowerCase()} photos</p>}</div>;
+  return <div><h3 className="mb-3 font-semibold">{title}</h3>{photos.length ? <div className="grid grid-cols-2 gap-3">{photos.map((photo) => <div key={photo.id} className="overflow-hidden rounded-lg border border-border">{photo.storageUrl ? <AuthImage src={photo.storageUrl} alt={photo.fileName} className="aspect-video w-full object-cover" /> : <div className="flex aspect-video items-center justify-center bg-muted text-sm text-muted-foreground">Processing</div>}<p className="truncate p-2 text-xs">{photo.fileName}</p></div>)}</div> : <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No {title.toLowerCase()} photos</p>}</div>;
 }
 
 export function LessonFormPage({ id }: { id?: string }) {
@@ -83,13 +102,15 @@ export function LessonFormPage({ id }: { id?: string }) {
   const issueCategories = useLov("lesson_issue_categories");
   const impacts = useLov("lesson_impacts");
   const detail = useGetLessonForm(id ?? "", { query: { enabled: Boolean(id), queryKey: [`/api/lessons/forms/${id ?? ""}`] } });
+  const activity = useListLessonFormActivity(id ?? "", { query: { enabled: Boolean(id), queryKey: [`/api/lessons/forms/${id ?? ""}/activity`] } });
   const user = useGetCurrentUser();
   const fieldControls = useFieldControls("lessons", "lesson-form");
   const fieldAccess = useFieldAccess("lessons");
   const queryClient = useQueryClient();
   const invalidate = () => { queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] }); if (id) queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}`] }); };
-  const commonMutation = { onSuccess: () => { invalidate(); toast({ title: "Changes saved" }); if (isNew) navigate("/lessons/log"); }, onError: (e: unknown) => toast({ title: "Unable to save", description: errorMessage(e), variant: "destructive" as const }) };
-  const create = useCreateLessonForm({ mutation: commonMutation });
+  const commonMutation = { onSuccess: () => { invalidate(); toast({ title: "Changes saved" }); }, onError: (e: unknown) => toast({ title: "Unable to save", description: errorMessage(e), variant: "destructive" as const }) };
+  // Create is driven from save() so photos queued before the first save can be uploaded once the record id exists.
+  const create = useCreateLessonForm();
   const update = useUpdateLessonForm({ mutation: commonMutation });
   const submit = useSubmitLessonForm({ mutation: { onSuccess: () => { invalidate(); toast({ title: "Lesson submitted for approval" }); }, onError: (e) => toast({ title: "Submit failed", description: errorMessage(e), variant: "destructive" }) } });
   const reviewMutation = useReviewLessonForm({ mutation: { onSuccess: () => { invalidate(); setReview(null); setReviewRemarks(""); toast({ title: review === "approve" ? "Lesson approved" : "Lesson sent back" }); }, onError: (e) => toast({ title: "Review failed", description: errorMessage(e), variant: "destructive" }) } });
@@ -109,11 +130,13 @@ export function LessonFormPage({ id }: { id?: string }) {
   const readOnly = Boolean(detail.data && !["Draft", "Sent Back"].includes(detail.data.workflowState));
   const fp = (key: string) => fieldControls.fieldProps(key);
   const disabled = (key: string) => readOnly || fp(key).disabled || fieldAccess.readOnly("lesson-form", key);
-  const isApprover = user.data?.workspaceRoles.some((role) => /approver|admin/i.test(role)) ?? false;
-  const isPlatformAdmin = ["Super Admin", "Org Admin"].includes(user.data?.platformRole ?? "");
   const isCreator = detail.data?.creatorId != null && detail.data.creatorId === user.data?.id;
-  const canReview = !isCreator && (isPlatformAdmin || (isApprover && detail.data?.approverId != null && detail.data.approverId === user.data?.id));
-  const uploadBlocking = uploads.some((x) => x.status !== "done");
+  // Only the designated approver sees review actions — there is no admin bypass.
+  const canReview = !isCreator && detail.data?.approverId != null && detail.data.approverId === user.data?.id;
+  const uploadBlocking = uploads.some((x) => x.status === "uploading" || x.status === "failed");
+  const hasBeforePhoto = Boolean(detail.data?.photos?.some((p) => p.category === "before" && p.status === "confirmed"));
+  const hasAfterPhoto = Boolean(detail.data?.photos?.some((p) => p.category === "after" && p.status === "confirmed"));
+  const photosReady = hasBeforePhoto && hasAfterPhoto;
   const approverOptions = useMemo(() => {
     const options = approvers.data ?? [];
     return draft.approverId && !options.some((x) => x.id === draft.approverId)
@@ -152,13 +175,38 @@ export function LessonFormPage({ id }: { id?: string }) {
       capturedAt: new Date(draft.capturedAt).toISOString(),
     } as LessonLearnedForm;
   }
-  function save() { if (!validate() || uploadBlocking) return; if (id) update.mutate({ id, data: body() }); else create.mutate({ data: body() }); }
+  async function uploadPhoto(recordId: string, item: UploadItem) {
+    const file = item.file;
+    if (!file) return;
+    const intent = await createLessonPhotoIntent(recordId, { category: item.category, fileName: file.name, mimeType: file.type, sizeBytes: file.size, clientReference: `${clientReference}-${item.key}` });
+    setUploads((u) => u.map((x) => x.key === item.key ? { ...x, progress: 55, status: "uploading" } : x));
+    await customFetch(intent.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+    setUploads((u) => u.map((x) => x.key === item.key ? { ...x, progress: 85 } : x));
+    await confirmLessonPhoto(intent.id);
+    setUploads((u) => u.map((x) => x.key === item.key ? { ...x, progress: 100, status: "done" } : x));
+  }
+  async function save() {
+    if (!validate() || uploadBlocking) return;
+    if (id) { update.mutate({ id, data: body() }); return; }
+    const queued = uploads.filter((x) => x.status === "queued");
+    try {
+      const created = await create.mutateAsync({ data: body() });
+      if (queued.length) {
+        const results = await Promise.allSettled(queued.map((item) => uploadPhoto(created.id, item)));
+        const failed = results.filter((r) => r.status === "rejected").length;
+        if (failed) toast({ title: "Lesson saved; some photos failed", description: `${failed} photo(s) did not upload. Reopen the lesson to retry.`, variant: "destructive" });
+        else toast({ title: "Changes saved" });
+      } else toast({ title: "Changes saved" });
+      invalidate();
+      navigate("/lessons/log");
+    } catch (e) { toast({ title: "Unable to save", description: errorMessage(e), variant: "destructive" }); }
+  }
   function captureGps() {
     if (!navigator.geolocation) { toast({ title: "Location unavailable", description: "This browser does not support location.", variant: "destructive" }); return; }
     navigator.geolocation.getCurrentPosition((p) => { setDraft((d) => ({ ...d, gpsLat: p.coords.latitude, gpsLng: p.coords.longitude })); toast({ title: "Location captured" }); }, () => toast({ title: "Location permission denied", description: "You can continue without GPS.", variant: "destructive" }), { enableHighAccuracy: true });
   }
   async function choosePhotos(files: FileList | null, category: "before" | "after") {
-    if (!files || !id) return;
+    if (!files) return;
     const existing = detail.data?.photos?.filter((p) => p.category === category).length ?? 0;
     const current = uploads.filter((p) => p.category === category).length;
     if (existing + current + files.length > 5) { toast({ title: "Photo limit reached", description: "A maximum of 5 photos is allowed per category.", variant: "destructive" }); return; }
@@ -167,13 +215,10 @@ export function LessonFormPage({ id }: { id?: string }) {
       try {
         const file = await resizeImage(original);
         const preview = URL.createObjectURL(file);
-        setUploads((u) => [...u, { key, category, name: file.name, preview, progress: 20, status: "uploading" }]);
-        const intent = await createLessonPhotoIntent(id, { category, fileName: file.name, mimeType: file.type, sizeBytes: file.size, clientReference: `${clientReference}-${key}` });
-        setUploads((u) => u.map((x) => x.key === key ? { ...x, progress: 55 } : x));
-        await customFetch(intent.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
-        setUploads((u) => u.map((x) => x.key === key ? { ...x, progress: 85 } : x));
-        await confirmLessonPhoto(intent.id);
-        setUploads((u) => u.map((x) => x.key === key ? { ...x, progress: 100, status: "done" } : x));
+        // Before the first save there is no record id, so queue locally and upload on save.
+        if (!id) { setUploads((u) => [...u, { key, category, name: file.name, preview, progress: 0, status: "queued", file }]); continue; }
+        setUploads((u) => [...u, { key, category, name: file.name, preview, progress: 20, status: "uploading", file }]);
+        await uploadPhoto(id, { key, category, name: file.name, preview, progress: 20, status: "uploading", file });
         invalidate();
       } catch (e) {
         setUploads((u) => u.some((x) => x.key === key) ? u.map((x) => x.key === key ? { ...x, status: "failed" } : x) : [...u, { key, category, name: original.name, preview: "", progress: 0, status: "failed" }]);
@@ -185,7 +230,21 @@ export function LessonFormPage({ id }: { id?: string }) {
     if (!draft[field].trim()) { toast({ title: "Enter text first" }); return; }
     try { const result = await rephrase.mutateAsync({ data: { field, text: draft[field] } }); setSuggestion({ field, text: result.suggestion }); } catch (e) { toast({ title: "AI rephrase failed", description: errorMessage(e), variant: "destructive" }); }
   }
-  async function report() { if (!id) return; try { const result = await exportLessonFormReport(id); if (result.downloadUrl) window.open(result.downloadUrl, "_blank", "noopener,noreferrer"); else toast({ title: "Report queued", description: result.message ?? "Your report will be delivered when ready." }); } catch (e) { toast({ title: "Report failed", description: errorMessage(e), variant: "destructive" }); } }
+  async function report() {
+    if (!id) return;
+    try {
+      const result = await exportLessonFormReport(id);
+      if (result.downloadUrl) {
+        // Download via an anchor so popup blockers do not swallow the data URL.
+        const a = document.createElement("a");
+        a.href = result.downloadUrl;
+        a.download = result.fileName ?? "lesson-report.json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else toast({ title: "Report queued", description: result.message ?? "Your report will be delivered when ready." });
+    } catch (e) { toast({ title: "Report failed", description: errorMessage(e), variant: "destructive" }); }
+  }
 
   if (!isNew) return <LoadState loading={detail.isLoading} error={detail.error} empty={!detail.data}>{detail.data && render()}</LoadState>;
   return render();
@@ -200,9 +259,10 @@ export function LessonFormPage({ id }: { id?: string }) {
             <Field label="Project Name" error={errors.projectId} required={fp("projectId").required}><Select value={draft.projectId} onValueChange={(v) => set("projectId", v)} disabled={disabled("projectId")}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger><SelectContent>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></Field>
             <Field label="Reference Number"><Input value={record?.referenceNumber ?? "Generated after first save"} disabled /></Field>
             <Field label="Title" error={errors.title} required={fp("title").required} className="sm:col-span-2"><Input value={draft.title} onChange={(e) => set("title", e.target.value)} disabled={disabled("title")} /></Field>
-            <Field label="Discipline" error={errors.disciplineId} required={fp("disciplineId").required}><Select value={draft.disciplineId} onValueChange={(v) => set("disciplineId", v)} disabled={disabled("disciplineId") || disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Select discipline" /></SelectTrigger><SelectContent>{disciplines.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
-            <Field label="Categorization" error={errors.categorisationId} required={fp("categorisationId").required}><Select value={draft.categorisationId} onValueChange={(v) => set("categorisationId", v)} disabled={disabled("categorisationId") || categorisations.isLoading}><SelectTrigger><SelectValue placeholder="Select categorization" /></SelectTrigger><SelectContent>{categorisations.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
-            <Field label="Date" required={fp("capturedAt").required}><Input type="datetime-local" value={draft.capturedAt} onChange={(e) => set("capturedAt", e.target.value)} disabled={disabled("capturedAt")} /></Field>
+            <Field label="Discipline" error={errors.disciplineId} required={fp("disciplineId").required}><Select value={draft.disciplineId} onValueChange={(v) => set("disciplineId", v)} disabled={disabled("disciplineId") || disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Select discipline" /></SelectTrigger><SelectContent>{withLegacyOption(disciplines.options, draft.disciplineId).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
+            <Field label="Categorization" error={errors.categorisationId} required={fp("categorisationId").required}><Select value={draft.categorisationId} onValueChange={(v) => set("categorisationId", v)} disabled={disabled("categorisationId") || categorisations.isLoading}><SelectTrigger><SelectValue placeholder="Select categorization" /></SelectTrigger><SelectContent>{withLegacyOption(categorisations.options, draft.categorisationId).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
+            <Field label="Date" required={fp("capturedAt").required}><Input value={new Date(draft.capturedAt).toLocaleString()} disabled readOnly /></Field>
+            <Field label="Time Zone"><Input value={Intl.DateTimeFormat().resolvedOptions().timeZone} disabled readOnly /></Field>
             <Field label="Location" error={errors.gps} required={fp("gps").required}>
               <Button type="button" variant="outline" className="w-full" onClick={captureGps} disabled={disabled("gps")}><MapPin /> Capture GPS</Button>
               {draft.gpsLat != null && <p className="mt-2 text-xs text-muted-foreground">{draft.gpsLat.toFixed(5)}, {draft.gpsLng?.toFixed(5)}</p>}
@@ -235,19 +295,24 @@ export function LessonFormPage({ id }: { id?: string }) {
           <Card><CardHeader><CardTitle>Workflow</CardTitle></CardHeader><CardContent><Field label="Approver" error={errors.approverId} required={fp("approverId").required}><Select value={draft.approverId} onValueChange={(v) => set("approverId", v)} disabled={disabled("approverId") || approvers.isLoading}><SelectTrigger><SelectValue placeholder="Select approver" /></SelectTrigger><SelectContent>{approverOptions.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent></Select>{!readOnly && <p className="mt-1 text-xs text-muted-foreground">Routes the lesson to this person for review. You cannot select yourself.</p>}</Field></CardContent></Card>
           {!readOnly && <Button className="w-full" onClick={save} disabled={create.isPending || update.isPending || uploadBlocking}>{(create.isPending || update.isPending) && <Loader2 className="animate-spin" />} Save lesson</Button>}
           {record?.workflowState === "Draft" || record?.workflowState === "Sent Back" ? <div>
-            <Button variant="secondary" className="w-full" disabled={uploadBlocking || submit.isPending || !record.approverId || approverUnsaved} onClick={() => submit.mutate({ id: record.id })}>Submit for approval</Button>
+            <Button variant="secondary" className="w-full" disabled={uploadBlocking || submit.isPending || !record.approverId || approverUnsaved || !photosReady} onClick={() => submit.mutate({ id: record.id })}>Submit for approval</Button>
             {(!record.approverId || approverUnsaved) && <p className="mt-2 text-center text-xs text-muted-foreground">{!record.approverId && !draft.approverId ? "Choose an approver above, then save, before submitting." : "Save the lesson so the selected approver is stored before submitting."}</p>}
+            {!photosReady && <p className="mt-2 text-center text-xs text-muted-foreground">Add at least one before and one after photo, then save, before submitting.</p>}
           </div> : null}
           {record?.workflowState === "Submitted" && canReview && <div className="grid grid-cols-2 gap-2"><Button onClick={() => setReview("approve")}>Approve</Button><Button variant="destructive" onClick={() => setReview("send_back")}>Send back</Button></div>}
+          {record?.submittedAt && <Card><CardHeader><CardTitle>Approval record</CardTitle></CardHeader><CardContent className="space-y-4">
+            <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Submitted by</p><p className="font-medium">{record.submittedByName ?? "Unknown"}{record.submittedByDesignation ? ` — ${record.submittedByDesignation}` : ""}</p><p className="text-xs text-muted-foreground">{new Date(record.submittedAt).toLocaleString()}</p>{record.submittedBySignatureUrl && <AuthImage src={record.submittedBySignatureUrl} alt="Submitter signature" className="mt-2 h-12 rounded border border-border bg-white object-contain p-1" />}</div>
+            {record.reviewedAt && <div className="border-t border-border pt-4"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{record.reviewDecision === "approve" ? "Approved by" : "Sent back by"}</p><p className="font-medium">{record.reviewedByName ?? "Unknown"}{record.reviewedByDesignation ? ` — ${record.reviewedByDesignation}` : ""}</p><p className="text-xs text-muted-foreground">{new Date(record.reviewedAt).toLocaleString()}</p>{record.reviewComments && <p className="mt-1 text-sm italic">&ldquo;{record.reviewComments}&rdquo;</p>}{record.reviewedBySignatureUrl && <AuthImage src={record.reviewedBySignatureUrl} alt="Reviewer signature" className="mt-2 h-12 rounded border border-border bg-white object-contain p-1" />}</div>}
+          </CardContent></Card>}
         </div>
       </div>
       {record?.photos?.length ? <Card className="mt-6"><CardHeader><CardTitle>Before & after</CardTitle></CardHeader><CardContent className="grid gap-6 md:grid-cols-2"><PhotoGallery title="Before" photos={record.photos.filter((p) => p.category === "before")} /><PhotoGallery title="After" photos={record.photos.filter((p) => p.category === "after")} /></CardContent></Card> : null}
+      {record && activity.data && activity.data.items.length > 0 && <Card className="mt-6"><CardHeader><CardTitle>Activity</CardTitle></CardHeader><CardContent><ol className="relative space-y-4 border-l border-border pl-5">{activity.data.items.map((entry) => <li key={entry.id} className="relative"><span className="absolute -left-[26px] top-1 h-2.5 w-2.5 rounded-full bg-primary" /><p className="text-sm font-medium capitalize">{entry.action.replace(/_/g, " ")}</p><p className="text-xs text-muted-foreground">{entry.actorName ?? "Someone"} · {new Date(entry.occurredAt).toLocaleString()}</p></li>)}</ol></CardContent></Card>}
       <Dialog open={review !== null} onOpenChange={(open) => !open && setReview(null)}><DialogContent><DialogHeader><DialogTitle>{review === "approve" ? "Approve lesson" : "Send lesson back"}</DialogTitle><DialogDescription>{review === "send_back" ? "Remarks are required so the creator knows what to change." : "Optionally add an approval remark."}</DialogDescription></DialogHeader><Textarea value={reviewRemarks} onChange={(e) => setReviewRemarks(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" onClick={() => setReview(null)}>Cancel</Button><Button disabled={review === "send_back" && !reviewRemarks.trim()} onClick={() => record && reviewMutation.mutate({ id: record.id, data: { decision: review!, comments: reviewRemarks || undefined } })}>Confirm</Button></DialogFooter></DialogContent></Dialog>
     </div>;
 
     function PhotoInput({ category }: { category: "before" | "after" }) {
-      if (!id) return <p className="text-sm text-muted-foreground">Save the lesson first, then reopen it to add {category} photos.</p>;
-      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => choosePhotos(e.target.files, category)} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="overflow-hidden rounded border border-border">{p.storageUrl ? <img src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}<Progress value={p.progress} className="absolute bottom-0 rounded-none" /></div>)}</div>{uploadBlocking && <p className="mt-2 text-xs text-destructive">Resolve pending or failed uploads before saving or submitting.</p>}</div>;
+      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => choosePhotos(e.target.files, category)} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="overflow-hidden rounded border border-border">{p.storageUrl ? <AuthImage src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}{p.status !== "queued" ? <Progress value={p.progress} className="absolute bottom-0 rounded-none" /> : <p className="absolute bottom-0 w-full bg-background/80 text-center text-[10px] text-muted-foreground">Uploads on save</p>}</div>)}</div>{!id && uploads.some((p) => p.status === "queued") && <p className="mt-2 text-xs text-muted-foreground">Photos will be uploaded when you save the lesson.</p>}{uploadBlocking && <p className="mt-2 text-xs text-destructive">Resolve pending or failed uploads before saving or submitting.</p>}</div>;
     }
   }
 }

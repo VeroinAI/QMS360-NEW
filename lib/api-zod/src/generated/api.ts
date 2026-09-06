@@ -2975,6 +2975,8 @@ export const ListQaqcUsersResponse = zod.object({
   "id": zod.string(),
   "username": zod.string(),
   "email": zod.string().nullish(),
+  "designation": zod.string().nullish(),
+  "signatureUrl": zod.string().nullish(),
   "platformRole": zod.string(),
   "workspaceRoles": zod.array(zod.object({
   "id": zod.string(),
@@ -3282,6 +3284,7 @@ export const ListQaqcAuditLogResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "actorId": zod.string(),
+  "actorName": zod.string().nullish(),
   "delegatedForId": zod.string().nullish(),
   "action": zod.string(),
   "entityType": zod.string(),
@@ -3531,7 +3534,17 @@ export const ListLessonFormsResponse = zod.object({
   "gpsLat": zod.number().nullish(),
   "gpsLng": zod.number().nullish(),
   "createdAt": zod.coerce.date().optional()
-})).optional()
+})).optional(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "submittedByName": zod.string().nullish(),
+  "submittedByDesignation": zod.string().nullish(),
+  "submittedBySignatureUrl": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedByDesignation": zod.string().nullish(),
+  "reviewedBySignatureUrl": zod.string().nullish(),
+  "reviewDecision": zod.string().nullish(),
+  "reviewComments": zod.string().nullish()
 }))
 }))
 
@@ -3591,7 +3604,69 @@ export const CreateLessonFormBody = zod.object({
 })).optional()
 })
 
-export const CreateLessonFormResponse = zod.void()
+export const createLessonFormResponseRepeatCountMin = 0;
+
+export const createLessonFormResponseGpsLatMin = -90;
+export const createLessonFormResponseGpsLatMax = 90;
+
+export const createLessonFormResponseGpsLngMin = -180;
+export const createLessonFormResponseGpsLngMax = 180;
+
+
+
+
+export const CreateLessonFormResponse = zod.object({
+  "id": zod.string(),
+  "referenceNumber": zod.string(),
+  "reference": zod.string().nullish(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "disciplineId": zod.string(),
+  "categorisationId": zod.string(),
+  "issueCategory": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_issue_categories'),
+  "impact": zod.string().describe('Values managed via \/platform\/master-data\/lov\/lesson_impacts'),
+  "description": zod.string(),
+  "rootCause": zod.string(),
+  "correction": zod.string(),
+  "correctiveAction": zod.string(),
+  "isRepeatedIssue": zod.boolean().optional(),
+  "repeatCount": zod.number().min(createLessonFormResponseRepeatCountMin).optional(),
+  "repeatLocation": zod.string().nullish(),
+  "capturedAt": zod.coerce.date(),
+  "gpsLat": zod.number().min(createLessonFormResponseGpsLatMin).max(createLessonFormResponseGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(createLessonFormResponseGpsLngMin).max(createLessonFormResponseGpsLngMax).nullish(),
+  "creatorId": zod.string().optional(),
+  "approverId": zod.string().nullish(),
+  "version": zod.number().min(1),
+  "conflictFlag": zod.boolean(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "remarks": zod.string().nullish(),
+  "photos": zod.array(zod.object({
+  "id": zod.string(),
+  "recordType": zod.string(),
+  "recordId": zod.string(),
+  "category": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['pending', 'confirmed', 'failed', 'deleted']),
+  "clientReference": zod.string(),
+  "storageUrl": zod.string().nullish(),
+  "gpsLat": zod.number().nullish(),
+  "gpsLng": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional()
+})).optional(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "submittedByName": zod.string().nullish(),
+  "submittedByDesignation": zod.string().nullish(),
+  "submittedBySignatureUrl": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedByDesignation": zod.string().nullish(),
+  "reviewedBySignatureUrl": zod.string().nullish(),
+  "reviewDecision": zod.string().nullish(),
+  "reviewComments": zod.string().nullish()
+})
 
 
 /**
@@ -3652,7 +3727,17 @@ export const GetLessonFormResponse = zod.object({
   "gpsLat": zod.number().nullish(),
   "gpsLng": zod.number().nullish(),
   "createdAt": zod.coerce.date().optional()
-})).optional()
+})).optional(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "submittedByName": zod.string().nullish(),
+  "submittedByDesignation": zod.string().nullish(),
+  "submittedBySignatureUrl": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedByDesignation": zod.string().nullish(),
+  "reviewedBySignatureUrl": zod.string().nullish(),
+  "reviewDecision": zod.string().nullish(),
+  "reviewComments": zod.string().nullish()
 })
 
 
@@ -3751,6 +3836,40 @@ export const ReviewLessonFormBody = zod.object({
 })
 
 export const ReviewLessonFormResponse = zod.unknown()
+
+
+/**
+ * @summary List the audit activity for one lesson (most recent 50)
+ */
+export const ListLessonFormActivityParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const listLessonFormActivityResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListLessonFormActivityResponse = zod.object({
+  "total": zod.number().min(listLessonFormActivityResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "actorId": zod.string(),
+  "actorName": zod.string().nullish(),
+  "delegatedForId": zod.string().nullish(),
+  "action": zod.string(),
+  "entityType": zod.string(),
+  "entityId": zod.string(),
+  "before": zod.record(zod.string(), zod.unknown()).nullish(),
+  "after": zod.record(zod.string(), zod.unknown()).nullish(),
+  "ipAddress": zod.string().nullish(),
+  "occurredAt": zod.coerce.date()
+}))
+}))
 
 
 /**
@@ -3879,7 +3998,17 @@ export const SearchLessonsLogResponse = zod.object({
   "gpsLat": zod.number().nullish(),
   "gpsLng": zod.number().nullish(),
   "createdAt": zod.coerce.date().optional()
-})).optional()
+})).optional(),
+  "submittedAt": zod.coerce.date().nullish(),
+  "submittedByName": zod.string().nullish(),
+  "submittedByDesignation": zod.string().nullish(),
+  "submittedBySignatureUrl": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedByDesignation": zod.string().nullish(),
+  "reviewedBySignatureUrl": zod.string().nullish(),
+  "reviewDecision": zod.string().nullish(),
+  "reviewComments": zod.string().nullish()
 }))
 }))
 
@@ -4244,6 +4373,8 @@ export const ListLessonsUsersResponse = zod.object({
   "id": zod.string(),
   "username": zod.string(),
   "email": zod.string().nullish(),
+  "designation": zod.string().nullish(),
+  "signatureUrl": zod.string().nullish(),
   "platformRole": zod.string(),
   "workspaceRoles": zod.array(zod.object({
   "id": zod.string(),
@@ -4276,6 +4407,31 @@ export const AssignLessonsUserRoleBody = zod.object({
 })
 
 export const AssignLessonsUserRoleResponse = zod.unknown()
+
+
+/**
+ * @summary Update a user's designation and signature (admin)
+ */
+export const UpdateLessonsUserProfileParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const UpdateLessonsUserProfileBody = zod.object({
+  "designation": zod.string().nullish(),
+  "signatureDataUrl": zod.string().nullish().describe('data:image\/... base64 payload; null clears the signature')
+})
+
+export const UpdateLessonsUserProfileResponse = zod.unknown()
+
+
+/**
+ * @summary Stream a user's signature image
+ */
+export const GetUserSignatureParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const GetUserSignatureResponse = zod.unknown()
 
 
 /**
@@ -4533,6 +4689,7 @@ export const ListLessonsAuditLogQueryParams = zod.object({
   "to": zod.date().optional(),
   "actorId": zod.coerce.string().optional(),
   "action": zod.coerce.string().optional(),
+  "entityId": zod.coerce.string().optional(),
   "page": zod.coerce.number().min(1).default(listLessonsAuditLogQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listLessonsAuditLogQueryLimitMax).default(listLessonsAuditLogQueryLimitDefault)
 })
@@ -4551,6 +4708,7 @@ export const ListLessonsAuditLogResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "actorId": zod.string(),
+  "actorName": zod.string().nullish(),
   "delegatedForId": zod.string().nullish(),
   "action": zod.string(),
   "entityType": zod.string(),
@@ -6077,6 +6235,8 @@ export const ListAuditUsersResponse = zod.object({
   "id": zod.string(),
   "username": zod.string(),
   "email": zod.string().nullish(),
+  "designation": zod.string().nullish(),
+  "signatureUrl": zod.string().nullish(),
   "platformRole": zod.string(),
   "workspaceRoles": zod.array(zod.object({
   "id": zod.string(),
@@ -6346,6 +6506,7 @@ export const ListAuditWorkspaceAuditLogResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "actorId": zod.string(),
+  "actorName": zod.string().nullish(),
   "delegatedForId": zod.string().nullish(),
   "action": zod.string(),
   "entityType": zod.string(),

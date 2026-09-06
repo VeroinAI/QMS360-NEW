@@ -103,6 +103,13 @@ export const lessonLearnedForms = app2LessonsSchema.table("lesson_learned_forms"
   workflowState: text("workflow_state").notNull().default("draft"),
   creatorId: uuid("creator_id").notNull().references(() => users.id),
   approverId: uuid("approver_id").references(() => users.id),
+  // Approval record: who submitted, who decided, when, and the outcome.
+  submittedAt: timestamp("submitted_at", { withTimezone: true }),
+  submittedById: uuid("submitted_by_id").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  reviewedById: uuid("reviewed_by_id").references(() => users.id),
+  reviewDecision: text("review_decision"),
+  reviewComments: text("review_comments"),
   ...auditColumns,
 }, (table) => [
   uniqueIndex("lesson_reference_active_idx").on(table.organizationId, table.referenceNumber).where(sql`${table.deletedAt} IS NULL`),
