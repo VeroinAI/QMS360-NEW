@@ -16,7 +16,7 @@ import { requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess, filterReadOnlyValues, readOnlyFields } from "../lib/field-access";
-import { readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
+import { assertFieldControls, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
@@ -221,6 +221,7 @@ router.get("/metrics", asyncHandler(async (req, res) => {
 router.post("/metrics", asyncHandler(async (req, res) => {
   const value: any = body(api.CreateQaqcMetricBody, req);
   await assertFieldAccess(req, "qaqc", "metric-entry", { mode: "create" });
+  await assertFieldControls(req, "qaqc", "metric", { mode: "create" });
   let row: any;
   for (let attempt = 0; attempt < 5 && !row; attempt++) {
     // Reference numbers come from the org's QA/QC numbering pattern (Admin Settings → Numbering).
@@ -245,6 +246,7 @@ router.put("/metrics/:id", asyncHandler(async (req, res) => {
   const before: any = await activeRow(req, qaqcMetricEntries, String(req.params.id));
   if (!["draft", "sent_back"].includes(before.status)) throw new HttpError(409, "Only draft or sent-back metrics can be edited");
   await assertFieldAccess(req, "qaqc", "metric-entry", { mode: "update", current: mapMetric(before) });
+  await assertFieldControls(req, "qaqc", "metric", { mode: "update", current: mapMetric(before) });
   const [row] = await db.update(qaqcMetricEntries).set({
     projectId: value.projectId, reportingPeriod: monthStart(value.period), category: value.category,
     issuedCount: value.issuedCount, closedCount: value.closedCount, ageing0To15: value.ageing0To15,
@@ -301,6 +303,7 @@ router.get("/material-inspections", asyncHandler(async (req, res) => {
 router.post("/material-inspections", asyncHandler(async (req, res) => {
   const value: any = body(api.CreateMaterialInspectionBody, req); validateInspection(value);
   await assertFieldAccess(req, "qaqc", "material-inspection", { mode: "create" });
+  await assertFieldControls(req, "qaqc", "material-inspection", { mode: "create" });
   const [row] = await db.insert(materialInspectionEntries).values({ organizationId: org(req), ...inspectionValues(value) }).returning();
   await audit(req, "create", "material_inspection", row.id, undefined, row); res.status(201).json(mapMaterial(row));
 }));
@@ -308,6 +311,7 @@ router.put("/material-inspections/:id", asyncHandler(async (req, res) => {
   const value: any = body(api.UpdateMaterialInspectionBody, req); validateInspection(value);
   const before: any = await activeRow(req, materialInspectionEntries, String(req.params.id));
   await assertFieldAccess(req, "qaqc", "material-inspection", { mode: "update", current: mapMaterial(before) });
+  await assertFieldControls(req, "qaqc", "material-inspection", { mode: "update", current: mapMaterial(before) });
   const [row] = await db.update(materialInspectionEntries).set({ ...inspectionValues(value), updatedAt: new Date() }).where(eq(materialInspectionEntries.id, before.id)).returning();
   await audit(req, "update", "material_inspection", row.id, before, row); res.json(mapMaterial(row));
 }));
@@ -319,12 +323,14 @@ router.get("/qtbt", asyncHandler(async (req, res) => {
 router.post("/qtbt", asyncHandler(async (req, res) => {
   const v: any = body(api.CreateQtbtEntryBody, req);
   await assertFieldAccess(req, "qaqc", "qtbt", { mode: "create" });
+  await assertFieldControls(req, "qaqc", "qtbt", { mode: "create" });
   const [row] = await db.insert(qtbtEntries).values({ organizationId: org(req), projectId: v.projectId, reportingPeriod: v.period, talkCount: v.talkCount, attendanceCount: v.attendance, durationMinutes: v.durationMinutes }).returning();
   await audit(req, "create", "qtbt", row.id, undefined, row); res.status(201).json(mapQtbt(row));
 }));
 router.put("/qtbt/:id", asyncHandler(async (req, res) => {
   const v: any = body(api.UpdateQtbtEntryBody, req); const before: any = await activeRow(req, qtbtEntries, String(req.params.id));
   await assertFieldAccess(req, "qaqc", "qtbt", { mode: "update", current: mapQtbt(before) });
+  await assertFieldControls(req, "qaqc", "qtbt", { mode: "update", current: mapQtbt(before) });
   const [row] = await db.update(qtbtEntries).set({ projectId: v.projectId, reportingPeriod: v.period, talkCount: v.talkCount, attendanceCount: v.attendance, durationMinutes: v.durationMinutes, updatedAt: new Date() }).where(eq(qtbtEntries.id, before.id)).returning();
   await audit(req, "update", "qtbt", row.id, before, row); res.json(mapQtbt(row));
 }));
@@ -336,12 +342,14 @@ router.get("/customer-satisfaction", asyncHandler(async (req, res) => {
 router.post("/customer-satisfaction", asyncHandler(async (req, res) => {
   const v: any = body(api.CreateCustomerSatisfactionEntryBody, req);
   await assertFieldAccess(req, "qaqc", "customer-satisfaction", { mode: "create" });
+  await assertFieldControls(req, "qaqc", "customer-satisfaction", { mode: "create" });
   const [row] = await db.insert(customerSatisfactionEntries).values({ organizationId: org(req), projectId: v.projectId, reportingPeriod: v.period, dimensions: v.serviceRatings, outcomes: v.outcomes ?? [], feedback: v.feedback }).returning();
   await audit(req, "create", "customer_satisfaction", row.id, undefined, row); res.status(201).json(mapCustomer(row));
 }));
 router.put("/customer-satisfaction/:id", asyncHandler(async (req, res) => {
   const v: any = body(api.UpdateCustomerSatisfactionEntryBody, req); const before: any = await activeRow(req, customerSatisfactionEntries, String(req.params.id));
   await assertFieldAccess(req, "qaqc", "customer-satisfaction", { mode: "update", current: mapCustomer(before) });
+  await assertFieldControls(req, "qaqc", "customer-satisfaction", { mode: "update", current: mapCustomer(before) });
   const [row] = await db.update(customerSatisfactionEntries).set({ projectId: v.projectId, reportingPeriod: v.period, dimensions: v.serviceRatings, outcomes: v.outcomes ?? [], feedback: v.feedback, updatedAt: new Date() }).where(eq(customerSatisfactionEntries.id, before.id)).returning();
   await audit(req, "update", "customer_satisfaction", row.id, before, row); res.json(mapCustomer(row));
 }));
@@ -356,6 +364,7 @@ router.get("/document-governance-log", asyncHandler(async (req, res) => {
 router.post("/document-governance-log", asyncHandler(async (req, res) => {
   const v: any = body(api.CreateDocumentGovernanceEntryBody, req);
   await assertFieldAccess(req, "qaqc", "document-governance-log", { mode: "create" });
+  await assertFieldControls(req, "qaqc", "document-log", { mode: "create" });
   await Promise.all([
     assertLovValue(db, org(req), "document_types", v.documentType),
     assertLovValue(db, org(req), "document_statuses", v.status),
@@ -367,6 +376,7 @@ router.post("/document-governance-log", asyncHandler(async (req, res) => {
 router.put("/document-governance-log/:id", asyncHandler(async (req, res) => {
   const v: any = body(api.UpdateDocumentGovernanceEntryBody, req); const before: any = await activeRow(req, documentGovernanceLogEntries, String(req.params.id));
   await assertFieldAccess(req, "qaqc", "document-governance-log", { mode: "update", current: mapDocument(before) });
+  await assertFieldControls(req, "qaqc", "document-log", { mode: "update", current: mapDocument(before) });
   await Promise.all([
     assertLovValue(db, org(req), "document_types", v.documentType, { allowLegacy: before.entity }),
     assertLovValue(db, org(req), "document_statuses", v.status, { allowLegacy: before.statusValue }),
@@ -384,6 +394,7 @@ router.get("/quality-briefs", asyncHandler(async (req, res) => {
 router.post("/quality-briefs", asyncHandler(async (req, res) => {
   const v: any = body(api.CreateQualityBriefBody, req);
   await assertFieldAccess(req, "qaqc", "quality-brief", { mode: "create" });
+  await assertFieldControls(req, "qaqc", "quality-brief", { mode: "create" });
   const [row] = await db.insert(qualityAssessmentBriefs).values({ organizationId: org(req), projectId: v.projectId, reportingPeriod: v.period, narrative: v.narrative, aiDraft: v.aiDraft, aiReviewState: v.aiReviewDecision, workflowState: "draft" }).returning();
   await audit(req, "create", "quality_brief", row.id, undefined, row); res.status(201).json(mapBrief(row));
 }));
@@ -391,6 +402,7 @@ router.put("/quality-briefs/:id", asyncHandler(async (req, res) => {
   const v: any = body(api.UpdateQualityBriefBody, req); const before: any = await activeRow(req, qualityAssessmentBriefs, String(req.params.id));
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back briefs can be edited");
   await assertFieldAccess(req, "qaqc", "quality-brief", { mode: "update", current: mapBrief(before) });
+  await assertFieldControls(req, "qaqc", "quality-brief", { mode: "update", current: mapBrief(before) });
   const [row] = await db.update(qualityAssessmentBriefs).set({ projectId: v.projectId, reportingPeriod: v.period, narrative: v.narrative, aiDraft: v.aiDraft, aiReviewState: v.aiReviewDecision, updatedAt: new Date() }).where(eq(qualityAssessmentBriefs.id, before.id)).returning();
   await audit(req, "update", "quality_brief", row.id, before, row); res.json(mapBrief(row));
 }));

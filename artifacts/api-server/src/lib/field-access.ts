@@ -225,7 +225,7 @@ export function isAdminUser(user: { platformRole: string; workspaceRoles: string
   return user.workspaceRoles.some((role) => /\b(admin|administrator)\b/i.test(role));
 }
 
-function resolveDefault(value: unknown): unknown {
+export function resolveDefault(value: unknown): unknown {
   if (value === "current-month") return new Date().toISOString().slice(0, 7);
   if (value === "today") return new Date().toISOString().slice(0, 10);
   return value;

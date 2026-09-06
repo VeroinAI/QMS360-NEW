@@ -27,7 +27,7 @@ import { requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
-import { readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
+import { assertFieldControls, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
 import { asyncHandler, HttpError, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
 
@@ -170,6 +170,7 @@ router.get("/schedules", asyncHandler(async (req, res) => {
 router.post("/schedules", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditScheduleBody, req);
   await assertFieldAccess(req, "audit", "schedule", { mode: "create" });
+  await assertFieldControls(req, "audit", "schedule", { mode: "create" });
   await Promise.all((data.auditTypes ?? []).map((value: string) =>
     assertLovValue(db, actor(req).organizationId, "audit_types", value)));
   await assertLovValue(db, actor(req).organizationId, "audit_categories", data.auditCategory);
@@ -190,6 +191,7 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
   if (!before) throw new HttpError(404, "Audit schedule not found");
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back schedules may be edited");
   await assertFieldAccess(req, "audit", "schedule", { mode: "update", current: scheduleDto(before) });
+  await assertFieldControls(req, "audit", "schedule", { mode: "update", current: scheduleDto(before) });
   await Promise.all((data.auditTypes ?? []).map((value: string) =>
     assertLovValue(db, actor(req).organizationId, "audit_types", value, { allowLegacy: scheduleMeta(before).auditTypes })));
   await assertLovValue(db, actor(req).organizationId, "audit_categories", data.auditCategory, { allowLegacy: [scheduleMeta(before).auditCategory ?? ""] });
@@ -269,6 +271,7 @@ router.get("/plans", asyncHandler(async (req, res) => {
 router.post("/plans", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditPlanBody, req);
   await assertFieldAccess(req, "audit", "plan", { mode: "create" });
+  await assertFieldControls(req, "audit", "plan", { mode: "create" });
   const [schedule] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, data.scheduleId)));
   if (!schedule) throw new HttpError(404, "Audit schedule not found");
   const [row] = await db.insert(auditPlans).values({ organizationId: actor(req).organizationId, projectId: schedule.projectId, ...planValues(data) }).returning();
@@ -283,6 +286,7 @@ router.put("/plans/:id", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit plan not found");
   await assertFieldAccess(req, "audit", "plan", { mode: "update", current: planDto(before) });
+  await assertFieldControls(req, "audit", "plan", { mode: "update", current: planDto(before) });
   const [row] = await db.update(auditPlans).set({ ...planValues(data), id: undefined, updatedAt: new Date() }).where(eq(auditPlans.id, before.id)).returning();
   await auditLog(req, "update", "audit_plan", row.id, before, row); res.json(planDto(row));
 }));
@@ -450,6 +454,7 @@ router.get("/findings", asyncHandler(async (req, res) => {
 router.post("/findings", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditFindingBody, req);
   await assertFieldAccess(req, "audit", "finding", { mode: "create" });
+  await assertFieldControls(req, "audit", "finding", { mode: "create" });
   await Promise.all([
     assertLovValue(db, actor(req).organizationId, "nc_classifications", data.classification),
     assertLovValue(db, actor(req).organizationId, "finding_priorities", data.priority),
@@ -469,6 +474,7 @@ router.put("/findings/:id", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditFindings).where(and(active(auditFindings, actor(req).organizationId), eq(auditFindings.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit finding not found");
   await assertFieldAccess(req, "audit", "finding", { mode: "update", current: findingDto(before) });
+  await assertFieldControls(req, "audit", "finding", { mode: "update", current: findingDto(before) });
   await Promise.all([
     assertLovValue(db, actor(req).organizationId, "nc_classifications", data.classification, { allowLegacy: before.classification }),
     assertLovValue(db, actor(req).organizationId, "finding_priorities", data.priority, { allowLegacy: before.priority }),
@@ -560,6 +566,7 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
   if (!before) throw new HttpError(404, "CAR not found");
   if (!["open", "draft", "rejected"].includes(before.workflowState)) throw new HttpError(409, "CAR cannot be edited in its current state");
   await assertFieldAccess(req, "audit", "car", { mode: "update", current: carDto(before) });
+  await assertFieldControls(req, "audit", "car", { mode: "update", current: carDto(before) });
   const [row] = await db.update(correctiveActionReports).set({
     rootCause: data.rootCause, correction: data.correction, correctiveAction: data.correctiveAction,
     ownerId: data.ownerId, dueDate: dateOnly(data.dueDate), workflowState: "draft", updatedAt: new Date(),
