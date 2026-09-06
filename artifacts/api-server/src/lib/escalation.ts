@@ -156,9 +156,11 @@ async function reconcileApp(
   app: AppTables,
   candidates: Candidate[],
   calendars: Map<string, Calendar>,
+  organizationId?: string,
 ) {
   const rules = await database.select().from(app.rules).where(and(
     eq(app.rules.status, "active"), isNull(app.rules.deletedAt),
+    orgScope(app.rules.organizationId, organizationId),
   ));
   let created = 0;
   const now = new Date();
@@ -239,10 +241,10 @@ async function reconcileApp(
   return created;
 }
 
-async function performanceCandidates(database: typeof db): Promise<Candidate[]> {
+async function performanceCandidates(database: typeof db, organizationId?: string): Promise<Candidate[]> {
   const [entries, benchmarks] = await Promise.all([
-    database.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.status, "active"), isNull(qaqcMetricEntries.deletedAt))),
-    database.select().from(targetBenchmarks).where(and(eq(targetBenchmarks.status, "active"), isNull(targetBenchmarks.deletedAt))),
+    database.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.status, "active"), isNull(qaqcMetricEntries.deletedAt), orgScope(qaqcMetricEntries.organizationId, organizationId))),
+    database.select().from(targetBenchmarks).where(and(eq(targetBenchmarks.status, "active"), isNull(targetBenchmarks.deletedAt), orgScope(targetBenchmarks.organizationId, organizationId))),
   ]);
   const targets = new Map(benchmarks.filter((row) => row.metricKey === "closure_rate")
     .map((row) => [row.organizationId, Number(row.targetValue)]));
@@ -275,13 +277,15 @@ async function performanceCandidates(database: typeof db): Promise<Candidate[]> 
   return result;
 }
 
-async function upgradeFindingPriorities(database: typeof db, calendars: Map<string, Calendar>) {
+async function upgradeFindingPriorities(database: typeof db, calendars: Map<string, Calendar>, organizationId?: string) {
   const rules = await database.select().from(auditEscalationRules).where(and(
     eq(auditEscalationRules.triggerKey, "finding_priority"),
     eq(auditEscalationRules.status, "active"), isNull(auditEscalationRules.deletedAt),
+    orgScope(auditEscalationRules.organizationId, organizationId),
   ));
   const findings = await database.select().from(auditFindings).where(and(
     eq(auditFindings.status, "active"), isNull(auditFindings.deletedAt),
+    orgScope(auditFindings.organizationId, organizationId),
   ));
   const prioritySla: Record<string, number> = { P1: 2, P2: 2, P3: 2, P4: 2, P5: 3, P6: 3 };
   for (const row of findings) {
@@ -310,28 +314,38 @@ async function upgradeFindingPriorities(database: typeof db, calendars: Map<stri
   });
 }
 
-export async function evaluateEscalations(database: typeof db = db) {
+// When set, only this organization's rules, records, and instances are
+// evaluated — a tenant-scoped manual sweep must never touch other tenants.
+function orgScope(column: any, organizationId?: string) {
+  return organizationId ? eq(column, organizationId) : undefined;
+}
+
+export async function evaluateEscalations(database: typeof db = db, organizationId?: string) {
   const [settings, briefs, lessons, activeLessonInstances, actions, performance] = await Promise.all([
-    database.select().from(organizationSettings).where(and(eq(organizationSettings.status, "active"), isNull(organizationSettings.deletedAt))),
+    database.select().from(organizationSettings).where(and(eq(organizationSettings.status, "active"), isNull(organizationSettings.deletedAt), orgScope(organizationSettings.organizationId, organizationId))),
     database.select().from(qualityAssessmentBriefs).where(and(
       eq(qualityAssessmentBriefs.workflowState, "submitted"), isNull(qualityAssessmentBriefs.deletedAt),
+      orgScope(qualityAssessmentBriefs.organizationId, organizationId),
     )),
     database.select().from(lessonLearnedForms).where(and(
       inArray(lessonLearnedForms.workflowState, ["submitted", "sent_back", "draft"]),
       isNull(lessonLearnedForms.deletedAt),
+      orgScope(lessonLearnedForms.organizationId, organizationId),
     )),
     database.select({ recordId: lessonEscalationInstances.recordId }).from(lessonEscalationInstances).where(and(
       eq(lessonEscalationInstances.status, "open"), isNull(lessonEscalationInstances.deletedAt),
+      orgScope(lessonEscalationInstances.organizationId, organizationId),
     )),
     database.select().from(correctiveActionReports).where(and(
       inArray(correctiveActionReports.workflowState, ["open", "submitted", "draft", "extension_requested"]),
       isNull(correctiveActionReports.deletedAt),
+      orgScope(correctiveActionReports.organizationId, organizationId),
     )),
-    performanceCandidates(database),
+    performanceCandidates(database, organizationId),
   ]);
   const calendars = new Map(settings.map((row) => [row.organizationId, normalizedCalendar(row.workingCalendar)]));
   const activeLessonIds = new Set(activeLessonInstances.map((row) => row.recordId));
-  const findingCandidates = await upgradeFindingPriorities(database, calendars);
+  const findingCandidates = await upgradeFindingPriorities(database, calendars, organizationId);
   const [qaqc, lessonCount, audit] = await Promise.all([
     reconcileApp(database, appTables[0]!, [
       ...briefs.map((row) => ({
@@ -340,14 +354,14 @@ export async function evaluateEscalations(database: typeof db = db) {
       })),
       ...performance,
       // missing_submission needs a persisted deadline/expected-submission signal; skip until one exists.
-    ], calendars),
+    ], calendars, organizationId),
     reconcileApp(database, appTables[1]!, lessons
       .filter((row) => row.workflowState !== "draft" || activeLessonIds.has(row.id))
       .map((row) => ({
       id: row.id, organizationId: row.organizationId, anchorAt: row.createdAt,
       recordType: "lesson", triggerType: "lesson_sla" as const,
       slaOverride: row.issueCategory.toLowerCase() === "major" && row.impact.toLowerCase() === "negative" ? 2 : 5,
-    })), calendars),
+    })), calendars, organizationId),
     reconcileApp(database, appTables[2]!, [
       ...actions.map((row) => ({
       id: row.id, organizationId: row.organizationId, anchorAt: row.createdAt,
@@ -355,26 +369,44 @@ export async function evaluateEscalations(database: typeof db = db) {
       dueAt: row.extensionDueDate || row.dueDate ? new Date((row.extensionDueDate ?? row.dueDate)!) : null,
       })),
       ...findingCandidates,
-    ], calendars),
+    ], calendars, organizationId),
   ]);
   return { qaqc, lessons: lessonCount, audit };
 }
 
+// Module-level in-flight guard shared by the scheduler and the admin sweep
+// endpoint: overlapping sweeps could double-advance a due instance and send
+// duplicate notifications/emails, so a second trigger while one runs is
+// refused (returns null) instead of queued.
+let sweepInFlight = false;
+
+/**
+ * Runs one escalation evaluation, serialized with the 15-minute scheduler.
+ * Returns null when a sweep is already in flight. When `organizationId` is
+ * given (manual admin trigger), only that organization's rules and records
+ * are evaluated so a tenant admin can never act on other tenants.
+ */
+export async function runEscalationSweep(organizationId?: string) {
+  if (sweepInFlight) return null;
+  sweepInFlight = true;
+  try {
+    return await evaluateEscalations(db, organizationId);
+  } finally {
+    sweepInFlight = false;
+  }
+}
+
 export function startEscalationScheduler(app: Express) {
   const logger = (app as Express & { logger?: { info: (value: unknown, message?: string) => void; error: (value: unknown, message?: string) => void } }).logger;
-  let sweeping = false;
   const run = async () => {
-    if (sweeping) return; // previous sweep still in flight; never overlap
-    sweeping = true;
     try {
-      const result = await evaluateEscalations();
+      const result = await runEscalationSweep();
+      if (result === null) return; // a sweep is already in flight; skip this tick
       if (logger) logger.info(result, "Escalation reconciliation sweep completed");
       else console.info("Escalation reconciliation sweep completed", result);
     } catch (error) {
       if (logger) logger.error({ error }, "Escalation reconciliation sweep failed");
       else console.error("Escalation reconciliation sweep failed", error);
-    } finally {
-      sweeping = false;
     }
   };
   const timer = setInterval(() => { void run(); }, 15 * 60 * 1000);

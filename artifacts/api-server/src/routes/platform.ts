@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-zod";
 import { applicationAccess, businessUnits, db, moduleFieldSettings, organizations, organizationSettings, projects } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
+import { runEscalationSweep } from "../lib/escalation";
 import { paginated, pagination, type AppKey } from "../lib/workspace";
 import { catalogKeys, FIELD_CATALOG } from "../lib/field-access";
 import {
@@ -207,6 +208,22 @@ function settingsResponse(org: typeof organizations.$inferSelect, settings?: typ
     allowedEmailDomains: settings?.allowedEmailDomains,
   };
 }
+
+// Admin-triggered escalation sweep — runs the same evaluation the 15-minute
+// scheduler performs, so admins can verify rules without waiting for the
+// interval. Scoped to the caller's organization (a tenant admin can never
+// trigger escalation work for other tenants) and serialized with the
+// scheduler via the shared in-flight guard, so overlapping manual/scheduled
+// sweeps cannot double-advance an instance or duplicate notifications.
+// Returns the per-app count of new escalation instances created.
+router.post("/platform/escalations/sweep", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const created = await runEscalationSweep(req.currentUser!.organizationId);
+  if (created === null) {
+    res.status(409).json({ error: "An escalation sweep is already in progress; try again shortly" });
+    return;
+  }
+  res.json({ ranAt: new Date(), created });
+});
 
 router.get("/platform/organization-settings", requireAuth, async (req, res): Promise<void> => {
   const user = req.currentUser!;
