@@ -1,4 +1,5 @@
 kind = "design"
+videoAspectRatio = "16:9"
 previewPath = "/__mockup"
 title = "Canvas"
 version = "1.0.0"
