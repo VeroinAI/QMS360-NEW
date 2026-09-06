@@ -16,14 +16,14 @@ import { db } from "@workspace/db";
  *   1. A drizzle enum type or label is missing from the live database.
  *   2. A drizzle table or column is missing from the live database.
  *   3. A drizzle enum type/label or table is missing from the migration SQL.
- * Warnings (printed, non-fatal): objects present in the database under our four
- * schemas but not in the drizzle schema.
+ * Warnings (printed, non-fatal): objects present in the database under our
+ * managed schemas but not in the drizzle schema.
  *
  * Run before promoting schema changes to production:
  *   pnpm --filter @workspace/scripts run check-drift
  */
 
-const SCHEMAS = ["shared", "app1_qaqc", "app2_lessons", "app3_audit"];
+const SCHEMAS = ["public", "shared", "app1_qaqc", "app2_lessons", "app3_audit"];
 const here = dirname(fileURLToPath(import.meta.url));
 
 const errors: string[] = [];
@@ -145,6 +145,13 @@ for (const statement of statements) {
   if (m) {
     // Column type may itself be quoted (enum-typed columns like "channel" "app1_qaqc"."notification_channel").
     for (const col of m[3]!.matchAll(/^\s*"([^"]+)"\s+[\w"]/gm)) collect(sqlTableColumns, `${m[1]}.${m[2]}`, col[1]!);
+    continue;
+  }
+  // PostgreSQL's default namespace is public, and drizzle-kit emits public
+  // tables without a schema qualifier.
+  m = statement.match(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"([^"]+)"\s*\(([\s\S]*)$/i);
+  if (m) {
+    for (const col of m[2]!.matchAll(/^\s*"([^"]+)"\s+[\w"]/gm)) collect(sqlTableColumns, `public.${m[1]}`, col[1]!);
     continue;
   }
   m = statement.match(/^ALTER\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"([^"]+)"\."([^"]+)"\s+ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?"([^"]+)"/i);

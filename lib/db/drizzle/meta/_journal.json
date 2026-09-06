@@ -15,6 +15,13 @@
       "when": 1788705095372,
       "tag": "0001_audit_master_data",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788711302628,
+      "tag": "0002_public_provisioning_probe",
+      "breakpoints": true
     }
   ]
 }
