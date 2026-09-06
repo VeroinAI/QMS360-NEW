@@ -3,7 +3,7 @@ import express, { type Express } from "express";
 import type { Server } from "node:http";
 import { eq } from "drizzle-orm";
 import {
-  applicationAccess, auditLogEntries, db, moduleFieldSettings, organizations, organizationSettings,
+  aiSuggestionLogs, applicationAccess, auditLogEntries, db, moduleFieldSettings, organizations, organizationSettings,
   permissions, platformRoles, projects, qaqcMetricEntries, users, userWorkspaceRoles,
   workspaceRolePermissions, workspaceRoles,
 } from "@workspace/db";
@@ -105,6 +105,7 @@ afterAll(async () => {
   await new Promise((resolve) => setTimeout(resolve, 300));
   await new Promise((resolve) => server.close(resolve));
   await db.delete(moduleFieldSettings).where(eq(moduleFieldSettings.organizationId, orgId));
+  await db.delete(aiSuggestionLogs).where(eq(aiSuggestionLogs.organizationId, orgId));
   await db.delete(auditLogEntries).where(eq(auditLogEntries.organizationId, orgId));
   await db.delete(qaqcMetricEntries).where(eq(qaqcMetricEntries.organizationId, orgId));
   await db.delete(applicationAccess).where(eq(applicationAccess.organizationId, orgId));
@@ -170,6 +171,48 @@ describe("field access enforcement", () => {
     const res = await api("PUT", `/qaqc/metrics/${baseMetric.id}`, { token: admin.token, body: { ...baseMetric, closedCount: 3, issuedCount: 8 } });
     expect(res.status).toBe(200);
   });
+
+  it("strips read-only fields from AI-extracted values (filterReadOnlyValues)", async () => {
+    const { filterReadOnlyValues } = await import("../src/lib/field-access");
+    const memberUser = { organizationId: orgId, platformRole: "Member", workspaceRoles: [] };
+    const stripped = await filterReadOnlyValues(memberUser, "qaqc", "metric-entry", {
+      projectId, period: "2026-08", issuedCount: 12, closedCount: 4,
+    });
+    expect(stripped.skipped).toEqual(["issuedCount"]);
+    expect(stripped.values.issuedCount).toBeUndefined();
+    expect(stripped.values.closedCount).toBe(4);
+    // Values equal to the create default are not writes and survive.
+    const defaults = await filterReadOnlyValues(memberUser, "qaqc", "metric-entry", { issuedCount: 0 });
+    expect(defaults.skipped).toEqual([]);
+    expect(defaults.values.issuedCount).toBe(0);
+    // Admins are exempt, matching the interactive API behaviour.
+    const adminUser = { organizationId: orgId, platformRole: "Org Admin", workspaceRoles: [] };
+    const kept = await filterReadOnlyValues(adminUser, "qaqc", "metric-entry", { issuedCount: 12 });
+    expect(kept.skipped).toEqual([]);
+    expect(kept.values.issuedCount).toBe(12);
+  });
+
+  it("rejects AI quick-entry answers that target a read-only field", async () => {
+    const start = await api("POST", "/qaqc/ai/prompt-to-transaction", {
+      token: member.token,
+      body: { prompt: `External NCR for project ${projectId} in 2026-08: 12 issued, 9 closed` },
+    });
+    if (start.status === 503) return; // AI provider unavailable in this environment
+    expect(start.status).toBe(200);
+    // The locked field must never be seeded into the draft, even if the AI extracted it.
+    expect(start.json.extracted.issuedCount).toBeUndefined();
+    expect(start.json.missing.map((m: any) => m.field)).not.toContain("issuedCount");
+    const rejected = await api("POST", `/qaqc/ai/prompt-to-transaction/${start.json.sessionId}/answer`, {
+      token: member.token, body: { field: "issuedCount", value: 5 },
+    });
+    expect(rejected.status).toBe(422);
+    expect(rejected.json.error).toContain("issuedCount");
+    const allowed = await api("POST", `/qaqc/ai/prompt-to-transaction/${start.json.sessionId}/answer`, {
+      token: member.token, body: { field: "closedCount", value: 5 },
+    });
+    expect(allowed.status).toBe(200);
+    expect(allowed.json.extracted.closedCount).toBe(5);
+  }, 30_000);
 
   it("applies the same rules to bulk import rows", async () => {
     const res = await api("POST", "/qaqc/metrics/import", {

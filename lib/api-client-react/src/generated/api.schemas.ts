@@ -938,6 +938,7 @@ export interface PromptTransaction {
   extracted: PromptTransactionExtracted;
   missing: MissingField[];
   sessionId: string;
+  warnings?: string[];
 }
 
 export interface PromptAnswer {

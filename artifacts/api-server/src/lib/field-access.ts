@@ -294,6 +294,43 @@ async function readOnlyFieldKeys(organizationId: string, module: AppKey, formKey
   return new Set(rows.map((row) => row.fieldKey));
 }
 
+type FieldAccessUser = { organizationId: string; platformRole: string; workspaceRoles: string[] };
+
+// Read-only field keys for a user, with the same admin exemption as
+// assertFieldAccess. Used by non-request write paths (AI extraction, bulk
+// channels) that need the lock set rather than an HTTP rejection.
+export async function readOnlyFields(user: FieldAccessUser, module: AppKey, formKey: string): Promise<Set<string>> {
+  if (isAdminUser(user)) return new Set();
+  return readOnlyFieldKeys(user.organizationId, module, formKey);
+}
+
+// Strip writes to read-only fields from an extracted/imported value bag,
+// returning the surviving values plus the skipped field keys. A field is
+// skipped when its value differs from the catalog create default — matching
+// the create-mode rule in assertFieldAccess. Admins keep everything.
+export async function filterReadOnlyValues(
+  user: FieldAccessUser,
+  module: AppKey,
+  formKey: string,
+  values: Record<string, unknown>,
+): Promise<{ values: Record<string, unknown>; skipped: string[] }> {
+  const readOnly = await readOnlyFields(user, module, formKey);
+  if (!readOnly.size) return { values, skipped: [] };
+  const form = FIELD_CATALOG[module].find((entry) => entry.formKey === formKey);
+  const kept: Record<string, unknown> = { ...values };
+  const skipped: string[] = [];
+  for (const fieldKey of readOnly) {
+    if (!(fieldKey in kept)) continue;
+    const catalogField = form?.fields.find((entry) => entry.fieldKey === fieldKey);
+    if (catalogField?.serverManaged) continue;
+    const fallback = catalogField ? resolveDefault(catalogField.createDefault) : undefined;
+    if (fallback !== undefined ? valuesEqual(kept[fieldKey], fallback) : isBlank(kept[fieldKey])) continue;
+    delete kept[fieldKey];
+    skipped.push(fieldKey);
+  }
+  return { values: kept, skipped };
+}
+
 // Reject the request with a 422 naming any read-only field it tries to write.
 // - update: rejects fields whose submitted value differs from the stored one
 //   (`current` must be the record mapped into body-key space).

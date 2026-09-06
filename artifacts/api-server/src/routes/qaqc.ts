@@ -15,7 +15,7 @@ import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { requireAppAccess, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
-import { assertFieldAccess } from "../lib/field-access";
+import { assertFieldAccess, filterReadOnlyValues, readOnlyFields } from "../lib/field-access";
 import { readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
@@ -547,16 +547,26 @@ router.post("/ai/prompt-to-transaction", asyncHandler(async (req, res) => {
   const v: any = body(api.PromptToQaqcTransactionBody, req);
   try {
     const result = await promptToTransaction({ app: "qaqc", organizationId: org(req), actorId: actor(req), prompt: v.prompt, schemaDescription: "QA/QC metric or quality transaction with projectId, period, category and applicable counts" });
+    // Admin-locked (read-only) fields must not enter through AI extraction:
+    // drop extracted values for them and never ask the user to supply them.
+    const filtered = await filterReadOnlyValues(req.currentUser!, "qaqc", "metric-entry", result.extracted ?? {});
+    const readOnly = await readOnlyFields(req.currentUser!, "qaqc", "metric-entry");
+    const warnings = [
+      ...filtered.skipped.map((field) => `Field "${field}" is read-only and was skipped`),
+      ...result.missing.filter((m) => readOnly.has(m.field)).map((m) => `Field "${m.field}" is read-only; no answer is needed`),
+    ];
+    const missing = result.missing.filter((m) => !readOnly.has(m.field)).map((m) => ({ ...m, options: m.options ?? [] }));
     const sessionId = randomUUID();
-    const missing = result.missing.map((m) => ({ ...m, options: m.options ?? [] }));
-    promptSessions.set(sessionId, { organizationId: org(req), extracted: result.extracted, missing, expiresAt: Date.now() + 15 * 60_000 });
-    res.json({ ...result, missing, sessionId });
+    promptSessions.set(sessionId, { organizationId: org(req), extracted: filtered.values, missing, expiresAt: Date.now() + 15 * 60_000 });
+    res.json({ ...result, extracted: filtered.values, missing, sessionId, warnings });
   } catch (error) { if (error instanceof AiUnavailableError) { res.status(503).json({ error: error.message }); return; } throw error; }
 }));
 router.post("/ai/prompt-to-transaction/:sessionId/answer", asyncHandler(async (req, res) => {
   const v: any = body(api.AnswerQaqcPromptQuestionBody, req); const id = String(req.params.sessionId);
   const session = promptSessions.get(id);
   if (!session || session.organizationId !== org(req) || session.expiresAt < Date.now()) { promptSessions.delete(id); throw new HttpError(404, "Prompt session not found or expired"); }
+  // Answers are writes too: apply the same read-only field rules as the form APIs.
+  await assertFieldAccess(req, "qaqc", "metric-entry", { mode: "create", body: { [v.field]: v.value } });
   session.extracted[v.field] = v.value; session.missing = session.missing.filter((m) => m.field !== v.field); session.expiresAt = Date.now() + 15 * 60_000;
   res.json({ sessionId: id, extracted: session.extracted, missing: session.missing, ready: session.missing.length === 0 });
 }));

@@ -1695,7 +1695,7 @@ components:
     PromptTransaction:
       type: object
       required: [extracted, missing, sessionId]
-      properties: {extracted: {type: object, additionalProperties: true}, missing: {type: array, items: {$ref: "#/components/schemas/MissingField"}}, sessionId: {type: string}}
+      properties: {extracted: {type: object, additionalProperties: true}, missing: {type: array, items: {$ref: "#/components/schemas/MissingField"}}, sessionId: {type: string}, warnings: {type: array, items: {type: string}}}
     PromptAnswer:
       type: object
       required: [field, value]
