@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "B4WdNar_MNvF-SAwVoBRm"
+uri = "file://artifacts/qms360-video/public/audio/bg_music.mp3"
+type = "audio"
+title = "background music"
+description = "Generated music: Cinematic uplifting orchestral instrumental background music scoring an enterprise corporate platform brand film for a construction quality-management system. Strings, soft piano, su…"

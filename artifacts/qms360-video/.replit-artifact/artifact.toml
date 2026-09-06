@@ -1,0 +1,28 @@
+kind = "video"
+previewPath = "/qms360-video/"
+title = "QMS360 Platform Video"
+description = "A ~60-second animated overview video of the QMS360 quality management platform for Algihaz Holding, covering the QA/QC, Lessons Learned, and Audit modules plus cross-cutting capabilities. Built for client stakeholders."
+version = "1.0.0"
+id = "artifacts/qms360-video"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/qms360-video/" ]
+localPort = 18287
+
+[services.development]
+run = "pnpm --filter @workspace/qms360-video run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/qms360-video", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/qms360-video/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18287"
+BASE_PATH = "/qms360-video/"
