@@ -7,18 +7,21 @@
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed.ts",
     "record-baseline": "tsx ./src/record-baseline.ts",
+    "migrate": "tsx ./src/migrate.ts",
     "check-drift": "tsx ./src/check-schema-drift.ts",
     "test-drift-guard": "tsx ./src/check-schema-drift.regression.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
+    "@types/pg": "^8.20.0",
     "@types/node": "catalog:",
     "tsx": "catalog:"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
     "bcryptjs": "^3.0.3",
-    "drizzle-orm": "catalog:"
+    "drizzle-orm": "catalog:",
+    "pg": "^8.22.0"
   }
 }

@@ -8,14 +8,14 @@ import { db } from "@workspace/db";
 
 /**
  * Schema drift guard. Fails loudly (exit 1) when the live database or
- * scripts/production-schema.sql has drifted from the drizzle schema in
+ * the versioned migrations in lib/db/drizzle have drifted from the drizzle schema in
  * lib/db/src/schema — the failure mode that used to let enum types declared in
  * app-common.ts factory helpers slip past database change scripts silently.
  *
  * Errors (exit 1):
  *   1. A drizzle enum type or label is missing from the live database.
  *   2. A drizzle table or column is missing from the live database.
- *   3. A drizzle enum type/label or table is missing from production-schema.sql.
+ *   3. A drizzle enum type/label or table is missing from the migration SQL.
  * Warnings (printed, non-fatal): objects present in the database under our four
  * schemas but not in the drizzle schema.
  *
@@ -97,15 +97,32 @@ for (const key of dbColumns.keys()) {
   if (!tables.some((t) => `${t.schema}.${t.name}` === key)) warnings.push(`Table in database but not in drizzle schema: ${key}`);
 }
 
-// ---- production-schema.sql comparisons ------------------------------------------
+// ---- migration SQL comparisons ---------------------------------------------------
 // Scoped parsing, not substring matching: every drizzle column must appear in that
 // exact table's CREATE TABLE block or an ALTER TABLE ... ADD COLUMN for it, and
 // every enum label inside that exact enum's CREATE TYPE list or an ALTER TYPE ...
 // ADD VALUE for it. Global substring matching would let a label on one enum mask
 // a missing label on another, and would never notice a missing column at all.
+//
+// The versioned migrations in lib/db/drizzle are the source of truth for standing
+// up a database Replit does not manage (the Algihaz production Postgres). They are
+// concatenated in journal order so a later ALTER counts towards the object an
+// earlier CREATE introduced.
 // An alternate SQL file can be passed as argv[2] (used by the regression test).
-const prodSqlPath = process.argv[2] ?? join(here, "../production-schema.sql");
-const prodSql = readFileSync(prodSqlPath, "utf8")
+const MIGRATIONS_DIR = join(here, "../../lib/db/drizzle");
+
+function readMigrationSql(): string {
+  const journal = JSON.parse(readFileSync(join(MIGRATIONS_DIR, "meta/_journal.json"), "utf8")) as {
+    entries: Array<{ tag: string }>;
+  };
+  return journal.entries.map((e) => readFileSync(join(MIGRATIONS_DIR, `${e.tag}.sql`), "utf8")).join("\n");
+}
+
+const overridePath = process.argv[2];
+const prodSql = (overridePath ? readFileSync(overridePath, "utf8") : readMigrationSql())
+  // drizzle-kit emits `;--> statement-breakpoint` on the same line as the statement
+  // terminator, so the marker has to go before statements are split on `;`.
+  .replaceAll("--> statement-breakpoint", "")
   .split("\n").filter((line) => !line.trimStart().startsWith("--")).join("\n");
 const statements = prodSql.split(/;\s*(?:\n|$)/).map((s) => s.trim()).filter(Boolean);
 
@@ -137,17 +154,17 @@ for (const statement of statements) {
 for (const e of enums) {
   const key = `${e.schema}.${e.name}`;
   const labels = sqlEnumLabels.get(key);
-  if (!labels) { errors.push(`production-schema.sql has no CREATE TYPE for ${key}`); continue; }
+  if (!labels) { errors.push(`migrations have no CREATE TYPE for ${key}`); continue; }
   for (const value of e.values) {
-    if (!labels.has(value)) errors.push(`production-schema.sql missing enum label '${value}' on ${key}`);
+    if (!labels.has(value)) errors.push(`migrations missing enum label '${value}' on ${key}`);
   }
 }
 for (const t of tables) {
   const key = `${t.schema}.${t.name}`;
   const columns = sqlTableColumns.get(key);
-  if (!columns) { errors.push(`production-schema.sql missing table ${key}`); continue; }
+  if (!columns) { errors.push(`migrations missing table ${key}`); continue; }
   for (const column of t.columns) {
-    if (!columns.has(column)) errors.push(`production-schema.sql missing column ${key}.${column}`);
+    if (!columns.has(column)) errors.push(`migrations missing column ${key}.${column}`);
   }
 }
 
@@ -156,7 +173,7 @@ console.log(`Checked ${enums.length} enum type(s) and ${tables.length} table(s) 
 for (const warning of warnings) console.log(`WARNING: ${warning}`);
 if (errors.length) {
   for (const error of errors) console.error(`DRIFT: ${error}`);
-  console.error(`\n${errors.length} drift error(s) found. Reconcile the database and scripts/production-schema.sql before promoting.`);
+  console.error(`\n${errors.length} drift error(s) found. Reconcile the database and the lib/db/drizzle migrations before promoting.`);
   process.exit(1);
 }
 console.log("No schema drift detected.");

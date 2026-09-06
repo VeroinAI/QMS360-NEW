@@ -1,14 +1,51 @@
 ---
-name: Drizzle multi-schema push/generate quirks
-description: How to apply multi-pgSchema Drizzle changes to the dev DB when drizzle-kit generate/push fail non-interactively
+name: Drizzle multi-schema migration quirks
+description: How drizzle-kit tracks state in this multi-schema project, why hand-written migrations silently desync it, and who owns the production schema.
 ---
 
-When `lib/db` uses multiple `pgSchema()` schemas (QMS360: shared, app1_qaqc, app2_lessons, app3_audit), `drizzle-kit generate` and `push` are unreliable in this environment.
+## drizzle-kit's state is meta/*_snapshot.json, NOT the .sql files
 
-**Why:** `generate` blocks on interactive create-vs-rename prompts (needs a TTY; piping/`script` don't satisfy it). `push --force` fails with "schema does not exist" if schemas aren't pre-created, and with "type X already exists" if a previous partial push left enum types behind; it can also report "Changes applied" while creating nothing when its snapshot state mismatches.
+Adding a hand-written `.sql` file to the migrations folder (and a `_journal.json`
+entry) does **not** teach drizzle-kit anything. Its diff engine reads only the
+newest `meta/*_snapshot.json`. Hand-authored migrations therefore accumulate
+invisibly: the folder grows, the snapshot stays frozen, and the next
+`drizzle-kit generate` emits a migration that re-creates every object added since
+the last real generate — objects that already exist in the database.
 
-**How to apply:**
-1. Pre-create/drop schemas manually with pg (`CREATE SCHEMA` / `DROP SCHEMA ... CASCADE`) — also drop leftover enum types inside them.
-2. Apply `pnpm exec drizzle-kit export --config ./drizzle.config.ts` output directly in one transaction. Note: enums declared inside a per-schema factory function (e.g. app-common.ts helper creating evidence_status/notification_channel per schema) are MISSING from BOTH `export` and `generate` output — inject their `CREATE TYPE` statements manually before applying, and strip `CREATE SCHEMA` lines if schemas already exist. The versioned baseline migration (lib/db/drizzle/0000_*.sql) and scripts/production-schema.sql each carry a manually maintained block of six CREATE TYPE statements that must stay in sync; regenerating the migration re-drops them.
-3. To (re)generate the baseline migration non-interactively, move the existing lib/db/drizzle/ directory aside first — with no prior snapshot, `generate` produces a full create-everything migration with zero prompts.
-3. Never run `pkill -f drizzle-kit` from a shell whose own command line contains that string — pkill matches the invoking shell and kills it (silent exit -1, no output).
+**Why:** this project reached 15 migration files with only a `0000` snapshot.
+`generate` then wanted to create 7 enums and 5 tables that were already live.
+
+**How to apply:** always create migrations with
+`pnpm --filter @workspace/db run generate`. Never hand-write a `.sql` file into
+`lib/db/drizzle/`. To check for this desync, run `generate` on a clean tree — a
+healthy repo prints "No schema changes, nothing to migrate".
+
+If the snapshot has already desynced, it cannot be repaired incrementally
+(intermediate snapshots never existed). Squash: delete `drizzle/*.sql` and
+`drizzle/meta/*`, write an empty journal (`{"version":"7","dialect":"postgresql","entries":[]}`
+— `generate` errors with ENOENT without it), regenerate one baseline, then
+re-record the ledger on every existing database via the `record-baseline` script
+so the baseline is marked applied rather than replayed.
+
+## Enums declared inside a per-schema factory ARE collected
+
+An earlier version of this note claimed drizzle-kit misses enums created by a
+factory helper (`schema.enum(...)` inside a shared `createAppAdministration`
+function), requiring hand-maintained `CREATE TYPE` blocks. **That is no longer
+true** on drizzle-kit 0.31.x — `generate` emits all 9 enums across the four
+schemas correctly. Do not re-add manual enum blocks.
+
+`generate` also does not need an interactive TTY; `--name <tag>` runs clean under
+`< /dev/null`.
+
+## Who owns which database
+
+- **Development** — `drizzle-kit push` (and the post-merge script). Fine to mutate.
+- **Replit production** — owned by the Publish flow, which diffs dev against prod
+  and applies the change itself. Never wire schema DDL into a deploy build hook,
+  an artifact's `[services.production]`, or the server entrypoint; the database
+  skill names all three as unsafe patterns.
+- **A Postgres Replit does not manage** (the client's own production instance) —
+  the versioned migrations are the source of truth, applied by an operator-run
+  migrate command that requires an explicit target connection string and refuses
+  to run against the development database.

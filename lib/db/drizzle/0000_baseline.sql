@@ -6,17 +6,15 @@ CREATE SCHEMA "app3_audit";
 --> statement-breakpoint
 CREATE SCHEMA "shared";
 --> statement-breakpoint
-CREATE TYPE "app3_audit"."car_extension_status" AS ENUM('none', 'requested', 'approved', 'rejected');--> statement-breakpoint
-CREATE TYPE "shared"."executive_app_key" AS ENUM('qaqc', 'lessons', 'audit');--> statement-breakpoint
--- drizzle-kit does not collect pgSchema enums declared inside the app-common.ts
--- factory function; the six CREATE TYPE statements below are maintained manually
--- and must stay in sync with scripts/production-schema.sql.
 CREATE TYPE "app1_qaqc"."evidence_status" AS ENUM('uploading', 'stored', 'failed');--> statement-breakpoint
 CREATE TYPE "app1_qaqc"."notification_channel" AS ENUM('in_app', 'email');--> statement-breakpoint
 CREATE TYPE "app2_lessons"."evidence_status" AS ENUM('uploading', 'stored', 'failed');--> statement-breakpoint
 CREATE TYPE "app2_lessons"."notification_channel" AS ENUM('in_app', 'email');--> statement-breakpoint
 CREATE TYPE "app3_audit"."evidence_status" AS ENUM('uploading', 'stored', 'failed');--> statement-breakpoint
 CREATE TYPE "app3_audit"."notification_channel" AS ENUM('in_app', 'email');--> statement-breakpoint
+CREATE TYPE "app3_audit"."car_extension_status" AS ENUM('none', 'requested', 'approved', 'rejected');--> statement-breakpoint
+CREATE TYPE "shared"."executive_app_key" AS ENUM('qaqc', 'lessons', 'audit');--> statement-breakpoint
+CREATE TYPE "shared"."field_access_level" AS ENUM('editable', 'read_only');--> statement-breakpoint
 CREATE TABLE "app1_qaqc"."ai_suggestion_logs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
@@ -277,6 +275,9 @@ CREATE TABLE "app1_qaqc"."qaqc_metric_entries" (
 	"ageing_0_to_15" integer DEFAULT 0 NOT NULL,
 	"ageing_15_to_45" integer DEFAULT 0 NOT NULL,
 	"ageing_over_45" integer DEFAULT 0 NOT NULL,
+	"approver_id" uuid,
+	"submitted_by_id" uuid,
+	"reference_number" text,
 	"status" text DEFAULT 'active' NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -308,6 +309,7 @@ CREATE TABLE "app1_qaqc"."quality_assessment_briefs" (
 	"workflow_state" text DEFAULT 'draft' NOT NULL,
 	"submitted_by_id" uuid,
 	"approved_by_id" uuid,
+	"approver_id" uuid,
 	"status" text DEFAULT 'active' NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -368,6 +370,19 @@ CREATE TABLE "app1_qaqc"."workspace_roles" (
 	"name" text NOT NULL,
 	"description" text,
 	"is_system" boolean DEFAULT false NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "app2_lessons"."lesson_approver_scopes" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"project_id" uuid,
+	"discipline_id" uuid,
+	"categorisation" text,
 	"status" text DEFAULT 'active' NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -436,7 +451,7 @@ CREATE TABLE "app2_lessons"."lesson_learned_forms" (
 	"gps_lat" numeric(10, 7),
 	"gps_lng" numeric(10, 7),
 	"client_reference" varchar(255),
-"reference" text,
+	"reference" text,
 	"version" integer DEFAULT 1 NOT NULL,
 	"conflict_flag" boolean DEFAULT false NOT NULL,
 	"description" text,
@@ -446,10 +461,16 @@ CREATE TABLE "app2_lessons"."lesson_learned_forms" (
 	"is_repeated" boolean DEFAULT false NOT NULL,
 	"repeat_count" integer DEFAULT 0 NOT NULL,
 	"repeat_location" text,
-"remarks" text,
+	"remarks" text,
 	"workflow_state" text DEFAULT 'draft' NOT NULL,
 	"creator_id" uuid NOT NULL,
 	"approver_id" uuid,
+	"submitted_at" timestamp with time zone,
+	"submitted_by_id" uuid,
+	"reviewed_at" timestamp with time zone,
+	"reviewed_by_id" uuid,
+	"review_decision" text,
+	"review_comments" text,
 	"status" text DEFAULT 'active' NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -911,6 +932,7 @@ CREATE TABLE "app3_audit"."audits" (
 	"audit_plan_id" uuid,
 	"project_id" uuid,
 	"reference_number" text NOT NULL,
+	"reference_generated" boolean DEFAULT false NOT NULL,
 	"opening_minutes" text,
 	"closing_minutes" text,
 	"opening_meeting_minutes" text,
@@ -974,6 +996,20 @@ CREATE TABLE "shared"."business_units" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "shared"."connector_field_mappings" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"connector_id" uuid NOT NULL,
+	"entity" text NOT NULL,
+	"source_field" text NOT NULL,
+	"target_field" text NOT NULL,
+	"is_active" boolean DEFAULT false NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "shared"."executive_summary_snapshots" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
@@ -982,6 +1018,36 @@ CREATE TABLE "shared"."executive_summary_snapshots" (
 	"payload" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"published_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"published_by_id" uuid,
+	"status" text DEFAULT 'active' NOT NULL,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "shared"."feedback_entries" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"app_key" text,
+	"module" text,
+	"page_path" text,
+	"category" text DEFAULT 'issue' NOT NULL,
+	"message" text NOT NULL,
+	"triage" jsonb,
+	"resolution" text DEFAULT 'open' NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "shared"."import_templates" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"entity" text NOT NULL,
+	"name" text NOT NULL,
+	"is_default" boolean DEFAULT false NOT NULL,
+	"columns" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -1032,6 +1098,19 @@ CREATE TABLE "shared"."master_data_values" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "shared"."module_field_settings" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"module" "shared"."executive_app_key" NOT NULL,
+	"form_key" text NOT NULL,
+	"field_key" text NOT NULL,
+	"access" "shared"."field_access_level" DEFAULT 'editable' NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "shared"."organization_settings" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
@@ -1043,6 +1122,7 @@ CREATE TABLE "shared"."organization_settings" (
 	"export_threshold_months" integer DEFAULT 6 NOT NULL,
 	"export_threshold_rows" integer DEFAULT 10000 NOT NULL,
 	"evidence_limits" jsonb DEFAULT '{"photoMaxMb":8,"photoMaxWidth":1920,"photoMaxHeight":1080,"videoMaxMb":200,"videoMaxMinutes":3,"docMaxMb":25,"lessonPhotoCountMax":5}'::jsonb NOT NULL,
+	"document_numbering" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -1071,6 +1151,7 @@ CREATE TABLE "shared"."projects" (
 	"code" text NOT NULL,
 	"name" text NOT NULL,
 	"location" text,
+	"custom_fields" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -1101,10 +1182,13 @@ CREATE TABLE "shared"."users" (
 	"email" text NOT NULL,
 	"username" text NOT NULL,
 	"full_name" text NOT NULL,
+	"designation" text,
+	"signature_path" text,
 	"password_hash" text,
 	"auth_source" text DEFAULT 'local' NOT NULL,
 	"access_status" text DEFAULT 'active' NOT NULL,
 	"last_access_at" timestamp with time zone,
+	"custom_fields" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -1145,12 +1229,15 @@ ALTER TABLE "app1_qaqc"."platform_role_permissions" ADD CONSTRAINT "platform_rol
 ALTER TABLE "app1_qaqc"."platform_roles" ADD CONSTRAINT "platform_roles_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."qaqc_metric_entries" ADD CONSTRAINT "qaqc_metric_entries_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."qaqc_metric_entries" ADD CONSTRAINT "qaqc_metric_entries_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "shared"."projects"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app1_qaqc"."qaqc_metric_entries" ADD CONSTRAINT "qaqc_metric_entries_approver_id_users_id_fk" FOREIGN KEY ("approver_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app1_qaqc"."qaqc_metric_entries" ADD CONSTRAINT "qaqc_metric_entries_submitted_by_id_users_id_fk" FOREIGN KEY ("submitted_by_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."qtbt_entries" ADD CONSTRAINT "qtbt_entries_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."qtbt_entries" ADD CONSTRAINT "qtbt_entries_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "shared"."projects"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."quality_assessment_briefs" ADD CONSTRAINT "quality_assessment_briefs_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."quality_assessment_briefs" ADD CONSTRAINT "quality_assessment_briefs_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "shared"."projects"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."quality_assessment_briefs" ADD CONSTRAINT "quality_assessment_briefs_submitted_by_id_users_id_fk" FOREIGN KEY ("submitted_by_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."quality_assessment_briefs" ADD CONSTRAINT "quality_assessment_briefs_approved_by_id_users_id_fk" FOREIGN KEY ("approved_by_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app1_qaqc"."quality_assessment_briefs" ADD CONSTRAINT "quality_assessment_briefs_approver_id_users_id_fk" FOREIGN KEY ("approver_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."report_templates" ADD CONSTRAINT "report_templates_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."target_benchmarks" ADD CONSTRAINT "target_benchmarks_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."user_workspace_roles" ADD CONSTRAINT "user_workspace_roles_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1160,6 +1247,10 @@ ALTER TABLE "app1_qaqc"."workspace_role_permissions" ADD CONSTRAINT "workspace_r
 ALTER TABLE "app1_qaqc"."workspace_role_permissions" ADD CONSTRAINT "workspace_role_permissions_workspace_role_id_workspace_roles_id_fk" FOREIGN KEY ("workspace_role_id") REFERENCES "app1_qaqc"."workspace_roles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."workspace_role_permissions" ADD CONSTRAINT "workspace_role_permissions_permission_id_permissions_id_fk" FOREIGN KEY ("permission_id") REFERENCES "app1_qaqc"."permissions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app1_qaqc"."workspace_roles" ADD CONSTRAINT "workspace_roles_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app2_lessons"."lesson_approver_scopes" ADD CONSTRAINT "lesson_approver_scopes_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app2_lessons"."lesson_approver_scopes" ADD CONSTRAINT "lesson_approver_scopes_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app2_lessons"."lesson_approver_scopes" ADD CONSTRAINT "lesson_approver_scopes_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "shared"."projects"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app2_lessons"."lesson_approver_scopes" ADD CONSTRAINT "lesson_approver_scopes_discipline_id_disciplines_id_fk" FOREIGN KEY ("discipline_id") REFERENCES "app2_lessons"."disciplines"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app2_lessons"."delegations" ADD CONSTRAINT "delegations_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app2_lessons"."delegations" ADD CONSTRAINT "delegations_delegator_id_users_id_fk" FOREIGN KEY ("delegator_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app2_lessons"."delegations" ADD CONSTRAINT "delegations_delegate_id_users_id_fk" FOREIGN KEY ("delegate_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1171,6 +1262,8 @@ ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD CONSTRAINT "lesson_learned
 ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD CONSTRAINT "lesson_learned_forms_discipline_id_disciplines_id_fk" FOREIGN KEY ("discipline_id") REFERENCES "app2_lessons"."disciplines"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD CONSTRAINT "lesson_learned_forms_creator_id_users_id_fk" FOREIGN KEY ("creator_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD CONSTRAINT "lesson_learned_forms_approver_id_users_id_fk" FOREIGN KEY ("approver_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD CONSTRAINT "lesson_learned_forms_submitted_by_id_users_id_fk" FOREIGN KEY ("submitted_by_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD CONSTRAINT "lesson_learned_forms_reviewed_by_id_users_id_fk" FOREIGN KEY ("reviewed_by_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app2_lessons"."lesson_learned_photos" ADD CONSTRAINT "lesson_learned_photos_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app2_lessons"."lesson_learned_photos" ADD CONSTRAINT "lesson_learned_photos_lesson_learned_form_id_lesson_learned_forms_id_fk" FOREIGN KEY ("lesson_learned_form_id") REFERENCES "app2_lessons"."lesson_learned_forms"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "app2_lessons"."notifications" ADD CONSTRAINT "notifications_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1244,12 +1337,18 @@ ALTER TABLE "app3_audit"."corrective_action_reports" ADD CONSTRAINT "corrective_
 ALTER TABLE "shared"."application_access" ADD CONSTRAINT "application_access_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shared"."application_access" ADD CONSTRAINT "application_access_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "shared"."projects"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shared"."business_units" ADD CONSTRAINT "business_units_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shared"."connector_field_mappings" ADD CONSTRAINT "connector_field_mappings_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shared"."connector_field_mappings" ADD CONSTRAINT "connector_field_mappings_connector_id_integration_connectors_id_fk" FOREIGN KEY ("connector_id") REFERENCES "shared"."integration_connectors"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shared"."executive_summary_snapshots" ADD CONSTRAINT "executive_summary_snapshots_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shared"."executive_summary_snapshots" ADD CONSTRAINT "executive_summary_snapshots_published_by_id_users_id_fk" FOREIGN KEY ("published_by_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shared"."feedback_entries" ADD CONSTRAINT "feedback_entries_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shared"."feedback_entries" ADD CONSTRAINT "feedback_entries_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "shared"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shared"."import_templates" ADD CONSTRAINT "import_templates_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shared"."integration_connectors" ADD CONSTRAINT "integration_connectors_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shared"."master_data_groups" ADD CONSTRAINT "master_data_groups_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shared"."master_data_values" ADD CONSTRAINT "master_data_values_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shared"."master_data_values" ADD CONSTRAINT "master_data_values_group_id_master_data_groups_id_fk" FOREIGN KEY ("group_id") REFERENCES "shared"."master_data_groups"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "shared"."module_field_settings" ADD CONSTRAINT "module_field_settings_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shared"."organization_settings" ADD CONSTRAINT "organization_settings_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shared"."projects" ADD CONSTRAINT "projects_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "shared"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shared"."projects" ADD CONSTRAINT "projects_business_unit_id_business_units_id_fk" FOREIGN KEY ("business_unit_id") REFERENCES "shared"."business_units"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1267,10 +1366,12 @@ CREATE UNIQUE INDEX "permissions_org_key_active_idx" ON "app1_qaqc"."permissions
 CREATE UNIQUE INDEX "platform_role_permission_active_idx" ON "app1_qaqc"."platform_role_permissions" USING btree ("platform_role_id","permission_id") WHERE "app1_qaqc"."platform_role_permissions"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "platform_roles_org_name_active_idx" ON "app1_qaqc"."platform_roles" USING btree ("organization_id","name") WHERE "app1_qaqc"."platform_roles"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "qaqc_metric_project_period_category_active_idx" ON "app1_qaqc"."qaqc_metric_entries" USING btree ("project_id","reporting_period","category") WHERE "app1_qaqc"."qaqc_metric_entries"."deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "qaqc_metric_reference_active_idx" ON "app1_qaqc"."qaqc_metric_entries" USING btree ("organization_id","reference_number") WHERE "app1_qaqc"."qaqc_metric_entries"."deleted_at" IS NULL AND "app1_qaqc"."qaqc_metric_entries"."reference_number" IS NOT NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "target_benchmarks_org_metric_active_idx" ON "app1_qaqc"."target_benchmarks" USING btree ("organization_id","metric_key") WHERE "app1_qaqc"."target_benchmarks"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "user_workspace_role_active_idx" ON "app1_qaqc"."user_workspace_roles" USING btree ("user_id","workspace_role_id") WHERE "app1_qaqc"."user_workspace_roles"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "workspace_role_permission_active_idx" ON "app1_qaqc"."workspace_role_permissions" USING btree ("workspace_role_id","permission_id") WHERE "app1_qaqc"."workspace_role_permissions"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "workspace_roles_org_name_active_idx" ON "app1_qaqc"."workspace_roles" USING btree ("organization_id","name") WHERE "app1_qaqc"."workspace_roles"."deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "lesson_approver_scope_unique_active_idx" ON "app2_lessons"."lesson_approver_scopes" USING btree ("organization_id","user_id","project_id","discipline_id","categorisation") WHERE "app2_lessons"."lesson_approver_scopes"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "escalation_instance_rule_record_active_idx" ON "app2_lessons"."escalation_instances" USING btree ("rule_id","record_id") WHERE "app2_lessons"."escalation_instances"."deleted_at" IS NULL AND "app2_lessons"."escalation_instances"."status" = 'open';--> statement-breakpoint
 CREATE UNIQUE INDEX "lesson_reference_active_idx" ON "app2_lessons"."lesson_learned_forms" USING btree ("organization_id","reference_number") WHERE "app2_lessons"."lesson_learned_forms"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "lesson_client_reference_active_idx" ON "app2_lessons"."lesson_learned_forms" USING btree ("organization_id","client_reference") WHERE "app2_lessons"."lesson_learned_forms"."deleted_at" IS NULL AND "app2_lessons"."lesson_learned_forms"."client_reference" IS NOT NULL;--> statement-breakpoint
@@ -1300,9 +1401,12 @@ CREATE UNIQUE INDEX "workspace_roles_org_name_active_idx" ON "app3_audit"."works
 CREATE UNIQUE INDEX "audit_reference_active_idx" ON "app3_audit"."audits" USING btree ("organization_id","reference_number") WHERE "app3_audit"."audits"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "application_access_org_username_project_active_idx" ON "shared"."application_access" USING btree ("organization_id","username","project_id") WHERE "shared"."application_access"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "business_units_org_code_active_idx" ON "shared"."business_units" USING btree ("organization_id","code") WHERE "shared"."business_units"."deleted_at" IS NULL;--> statement-breakpoint
+CREATE INDEX "connector_field_mappings_connector_idx" ON "shared"."connector_field_mappings" USING btree ("connector_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "executive_summary_org_app_period_active_idx" ON "shared"."executive_summary_snapshots" USING btree ("organization_id","app_key","period_label") WHERE "shared"."executive_summary_snapshots"."deleted_at" IS NULL;--> statement-breakpoint
+CREATE INDEX "import_templates_org_entity_idx" ON "shared"."import_templates" USING btree ("organization_id","entity");--> statement-breakpoint
 CREATE UNIQUE INDEX "master_data_groups_org_code_active_idx" ON "shared"."master_data_groups" USING btree ("organization_id","code") WHERE "shared"."master_data_groups"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "master_data_values_group_value_active_idx" ON "shared"."master_data_values" USING btree ("group_id","value") WHERE "shared"."master_data_values"."deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "module_field_settings_org_module_form_field_active_idx" ON "shared"."module_field_settings" USING btree ("organization_id","module","form_key","field_key") WHERE "shared"."module_field_settings"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "organization_settings_org_active_idx" ON "shared"."organization_settings" USING btree ("organization_id") WHERE "shared"."organization_settings"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "organizations_code_active_idx" ON "shared"."organizations" USING btree ("code") WHERE "shared"."organizations"."deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "projects_org_code_active_idx" ON "shared"."projects" USING btree ("organization_id","code") WHERE "shared"."projects"."deleted_at" IS NULL;--> statement-breakpoint

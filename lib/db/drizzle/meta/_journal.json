@@ -5,106 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1788417716602,
-      "tag": "0000_wealthy_risque",
+      "when": 1788704830300,
+      "tag": "0000_baseline",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1788432000000,
-      "tag": "0001_add_lesson_remarks",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1788432600000,
-      "tag": "0002_add_lesson_reference",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1788433200000,
-      "tag": "0003_add_feedback_entries",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1788517200000,
-      "tag": "0004_add_feedback_module",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1788600000000,
-      "tag": "0005_add_connector_field_mappings",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1788600001000,
-      "tag": "0006_field_mapping_unique_target",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1788600002000,
-      "tag": "0007_add_qaqc_approvers",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1788600003000,
-      "tag": "0008_reference_numbering",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1788600004000,
-      "tag": "0009_reference_generated",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1788600005000,
-      "tag": "0010_add_module_field_settings",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1788604378625,
-      "tag": "0011_lesson_approver_scopes",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1788605672302,
-      "tag": "0012_integration_cockpit",
-      "breakpoints": true
-    },
-    {
-      "idx": 13,
-      "version": "7",
-      "when": 1788700000000,
-      "tag": "0013_lesson_approval_record",
-      "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "7",
-      "when": 1788701000000,
-      "tag": "0014_audit_master_data",
+      "when": 1788705095372,
+      "tag": "0001_audit_master_data",
       "breakpoints": true
     }
   ]

@@ -5,16 +5,24 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * Regression test for the drift guard's production-schema.sql parsing. Proves
- * the check exits 1 when a column or enum label goes missing from the SQL file —
- * including the scoped-matching case where the label still exists on OTHER enums
- * (which naive global substring matching would silently pass).
+ * Regression test for the drift guard's parsing of the versioned migrations in
+ * lib/db/drizzle. Proves the check exits 1 when a column or enum label goes
+ * missing from the migration SQL — including the scoped-matching case where the
+ * label still exists on OTHER enums (which naive global substring matching would
+ * silently pass).
  *
  *   pnpm --filter @workspace/scripts run test-drift-guard
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
-const prod = readFileSync(join(here, "../production-schema.sql"), "utf8");
+const MIGRATIONS_DIR = join(here, "../../lib/db/drizzle");
+
+const journal = JSON.parse(readFileSync(join(MIGRATIONS_DIR, "meta/_journal.json"), "utf8")) as {
+  entries: Array<{ tag: string }>;
+};
+const migrationSql = journal.entries
+  .map((e) => readFileSync(join(MIGRATIONS_DIR, `${e.tag}.sql`), "utf8"))
+  .join("\n");
 
 function runCheck(sqlText: string): { status: number; output: string } {
   const file = join(mkdtempSync(join(tmpdir(), "drift-guard-")), "schema.sql");
@@ -35,23 +43,35 @@ function expectCase(name: string, sqlText: string, expectedStatus: number, expec
   console.log(`PASS: ${name}`);
 }
 
-// 1. The real file must pass.
-expectCase("untampered production-schema.sql passes", prod, 0);
+/** Rewrites a single CREATE TABLE block, leaving identically-named columns on other tables intact. */
+function editTableBlock(sql: string, qualifiedTable: string, edit: (block: string) => string): string {
+  const start = sql.indexOf(`CREATE TABLE ${qualifiedTable} (`);
+  if (start === -1) throw new Error(`could not locate CREATE TABLE ${qualifiedTable}`);
+  const end = sql.indexOf("\n);", start);
+  if (end === -1) throw new Error(`could not locate end of ${qualifiedTable}`);
+  const block = sql.slice(start, end);
+  return sql.slice(0, start) + edit(block) + sql.slice(end);
+}
 
-// 2. Removing a migration-appended column must fail.
-const noColumn = prod.split("\n")
-  .filter((line) => !(line.includes('"qaqc_metric_entries"') && line.includes("ADD COLUMN") && line.includes('"approver_id"')))
-  .join("\n");
-if (noColumn === prod) { console.error("FAIL: column tamper did not change the file"); process.exit(1); }
+// 1. The real migration set must pass.
+expectCase("untampered migration SQL passes", migrationSql, 0);
+
+// 2. Removing a column from one table must fail — even though other tables keep a
+//    column of the same name (scoped, not global, matching).
+const noColumn = editTableBlock(migrationSql, '"app1_qaqc"."qaqc_metric_entries"', (block) =>
+  block.split("\n").filter((line) => !/^"approver_id"\s/.test(line.trim())).join("\n"),
+);
+if (noColumn === migrationSql) { console.error("FAIL: column tamper did not change the SQL"); process.exit(1); }
+if (!noColumn.includes('"approver_id" uuid,')) { console.error("FAIL: tamper removed approver_id from every table, not just one"); process.exit(1); }
 expectCase("removed approver_id column detected", noColumn, 1, "qaqc_metric_entries.approver_id");
 
 // 3. Removing 'email' from ONE enum must fail even though 'email' remains on the
-//    other two notification_channel enums (scoped, not global, matching).
-const noLabel = prod.replace(
+//    other two notification_channel enums.
+const noLabel = migrationSql.replace(
   `CREATE TYPE "app1_qaqc"."notification_channel" AS ENUM('in_app', 'email')`,
   `CREATE TYPE "app1_qaqc"."notification_channel" AS ENUM('in_app')`,
 );
-if (noLabel === prod) { console.error("FAIL: label tamper did not change the file"); process.exit(1); }
+if (noLabel === migrationSql) { console.error("FAIL: label tamper did not change the SQL"); process.exit(1); }
 expectCase("label removed from one enum detected despite others keeping it", noLabel, 1, "'email' on app1_qaqc.notification_channel");
 
 console.log("All drift-guard regressions pass.");

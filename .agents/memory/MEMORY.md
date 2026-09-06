@@ -1,6 +1,6 @@
 # Memory Index
 
-- [Drizzle multi-schema push/generate quirks](drizzle-multischema-quirks.md) — drizzle-kit generate/push need an interactive TTY here; use export SQL + manual schema creation instead.
+- [Drizzle multi-schema migration quirks](drizzle-multischema-quirks.md) — drizzle-kit's state is meta/*_snapshot.json, not the .sql files; hand-written migrations silently desync the diff engine.
 - [Optional UUID input normalization](optional-uuid-normalization.md) — normalize blank optional UUID form values to null at API boundaries before database writes.
 - [Orval codegen rejects format: uuid](openapi-format-uuid-quirk.md) — `format: uuid` in openapi.yaml emits `zod.uuid()` (unsupported here); use plain `{type: string}`.
 - [RBAC setup for testing non-admin writes](demo-seed-users.md) — seeded workspace roles start with zero permission grants, so non-admin writes 403 until granted; never store credentials in memory.
