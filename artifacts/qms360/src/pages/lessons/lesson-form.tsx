@@ -278,7 +278,7 @@ export function LessonFormPage({ id }: { id?: string }) {
     } catch (e) { toast({ title: "Report failed", description: errorMessage(e), variant: "destructive" }); }
   }
 
-  if (!isNew) return <LoadState loading={detail.isLoading} error={detail.error} empty={!detail.data}>{detail.data && render()}</LoadState>;
+  if (!isNew) return <LoadState loading={detail.isLoading} error={detail.error} empty={!detail.data} resource="this lesson">{detail.data && render()}</LoadState>;
   return render();
 
   function render() {

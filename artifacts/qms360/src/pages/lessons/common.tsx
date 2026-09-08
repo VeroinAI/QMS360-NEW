@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { lessonLoadError } from "./load-error";
 
 export function PageHeader({ title, description, actions, back }: { title: string; description?: string; actions?: ReactNode; back?: string }) {
   return (
@@ -24,9 +25,12 @@ export function StateBadge({ state }: { state: string }) {
   return <Badge variant={variant}>{state}</Badge>;
 }
 
-export function LoadState({ loading, error, empty, children }: { loading: boolean; error: unknown; empty: boolean; children: ReactNode }) {
+export function LoadState({ loading, error, empty, children, resource }: { loading: boolean; error: unknown; empty: boolean; children: ReactNode; resource?: string }) {
   if (loading) return <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>;
-  if (error) return <Card><CardContent className="flex items-center gap-3 py-10 text-destructive"><AlertCircle /><div><p className="font-semibold">Unable to load lessons</p><p className="text-sm">Please refresh and try again.</p></div></CardContent></Card>;
+  if (error) {
+    const message = lessonLoadError(error, resource);
+    return <Card><CardContent role="alert" className="flex items-start gap-3 py-10 text-destructive"><AlertCircle className="mt-0.5 shrink-0" aria-hidden="true" /><div><p className="font-semibold">{message.title}</p><p className="mt-1 text-sm">{message.description}</p></div></CardContent></Card>;
+  }
   if (empty) return <Card><CardContent className="flex flex-col items-center py-12 text-center"><BookOpen className="mb-3 size-9 text-muted-foreground" /><p className="font-semibold">No lessons found</p><p className="text-sm text-muted-foreground">Try changing the filters or create a new lesson.</p></CardContent></Card>;
   return <>{children}</>;
 }
