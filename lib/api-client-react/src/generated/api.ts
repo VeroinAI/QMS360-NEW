@@ -147,6 +147,7 @@ import type {
   ListLessonsRolesParams,
   ListLessonsUsersParams,
   ListMaterialInspectionsParams,
+  ListMyFeedbackEntriesParams,
   ListPlatformProjectsParams,
   ListPublishedExecutiveSummariesParams,
   ListQaqcAccessQueueParams,
@@ -4030,6 +4031,90 @@ export const useSubmitFeedback = <TError = ErrorType<void>,
       > => {
       return useMutation(getSubmitFeedbackMutationOptions(options));
     }
+
+export const getListMyFeedbackEntriesUrl = (params?: ListMyFeedbackEntriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/feedback/mine?${stringifiedParams}` : `/api/feedback/mine`
+}
+
+/**
+ * @summary List feedback submitted by the current user
+ */
+export const listMyFeedbackEntries = async (params?: ListMyFeedbackEntriesParams, options?: Parameters<typeof customFetch>[1]): Promise<FeedbackPage> => {
+
+  return customFetch<FeedbackPage>(getListMyFeedbackEntriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyFeedbackEntriesQueryKey = (params?: ListMyFeedbackEntriesParams,) => {
+    return [
+    `/api/feedback/mine`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMyFeedbackEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listMyFeedbackEntries>>, TError = ErrorType<void>>(params?: ListMyFeedbackEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyFeedbackEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyFeedbackEntriesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyFeedbackEntries>>> = ({ signal }) => listMyFeedbackEntries(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyFeedbackEntries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyFeedbackEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof listMyFeedbackEntries>>>
+export type ListMyFeedbackEntriesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List feedback submitted by the current user
+ */
+
+export function useListMyFeedbackEntries<TData = Awaited<ReturnType<typeof listMyFeedbackEntries>>, TError = ErrorType<void>>(
+ params?: ListMyFeedbackEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyFeedbackEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyFeedbackEntriesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getTriageFeedbackUrl = () => {
 

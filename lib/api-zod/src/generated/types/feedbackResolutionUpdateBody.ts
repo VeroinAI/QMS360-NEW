@@ -9,4 +9,10 @@ import type { FeedbackResolutionUpdateBodyResolution } from './feedbackResolutio
 
 export type FeedbackResolutionUpdateBody = {
   resolution: FeedbackResolutionUpdateBodyResolution;
+  /**
+     * Optional response explaining what was reviewed or resolved
+     * @maxLength 4000
+     * @nullable
+     */
+  response?: string | null;
 };

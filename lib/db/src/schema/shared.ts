@@ -242,6 +242,7 @@ export const feedbackEntries = sharedSchema.table("feedback_entries", {
   message: text("message").notNull(),
   triage: jsonb("triage").$type<{ verdict: string; summary: string; guidance: string | null; resolutionSuggestion: string | null }>(),
   resolution: text("resolution").notNull().default("open"),
+  resolutionResponse: text("resolution_response"),
   ...auditColumns,
 });
 

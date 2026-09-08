@@ -6,10 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LimitParameter } from './limitParameter';
-import type { ListFeedbackEntriesModule } from './listFeedbackEntriesModule';
 import type { PageParameter } from './pageParameter';
 
-export type ListFeedbackEntriesParams = {
+export type ListMyFeedbackEntriesParams = {
 /**
  * @minimum 1
  */
@@ -19,5 +18,4 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
-module?: ListFeedbackEntriesModule;
 };

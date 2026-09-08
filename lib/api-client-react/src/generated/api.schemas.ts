@@ -1307,6 +1307,8 @@ export interface FeedbackEntry {
   message: string;
   triage?: FeedbackTriage | null;
   resolution: FeedbackEntryResolution;
+  /** @nullable */
+  resolutionResponse?: string | null;
   createdAt: string;
   user: FeedbackEntryUser;
 }
@@ -2167,6 +2169,12 @@ export const FeedbackResolutionUpdateBodyResolution = {
 
 export type FeedbackResolutionUpdateBody = {
   resolution: FeedbackResolutionUpdateBodyResolution;
+  /**
+     * Optional response explaining what was reviewed or resolved
+     * @maxLength 4000
+     * @nullable
+     */
+  response?: string | null;
 };
 
 export type SaveFieldMappingsBody = SaveFieldMappingsInput;
@@ -2295,6 +2303,29 @@ limit?: LimitParameter;
 };
 
 export type ListFeedbackEntriesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+module?: ListFeedbackEntriesModule;
+};
+
+export type ListFeedbackEntriesModule = typeof ListFeedbackEntriesModule[keyof typeof ListFeedbackEntriesModule];
+
+
+export const ListFeedbackEntriesModule = {
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+  system: 'system',
+} as const;
+
+export type ListMyFeedbackEntriesParams = {
 /**
  * @minimum 1
  */

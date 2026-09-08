@@ -1277,7 +1277,8 @@ export const listFeedbackEntriesQueryLimitMax = 200;
 
 export const ListFeedbackEntriesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listFeedbackEntriesQueryPageDefault),
-  "limit": zod.coerce.number().min(1).max(listFeedbackEntriesQueryLimitMax).default(listFeedbackEntriesQueryLimitDefault)
+  "limit": zod.coerce.number().min(1).max(listFeedbackEntriesQueryLimitMax).default(listFeedbackEntriesQueryLimitDefault),
+  "module": zod.enum(['qaqc', 'lessons', 'audit', 'system']).optional()
 })
 
 export const ListFeedbackEntriesResponse = zod.object({
@@ -1295,6 +1296,7 @@ export const ListFeedbackEntriesResponse = zod.object({
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
   "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "resolutionResponse": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "user": zod.object({
   "id": zod.string(),
@@ -1346,12 +1348,57 @@ export const SubmitFeedbackResponse = zod.object({
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
   "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "resolutionResponse": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "user": zod.object({
   "id": zod.string(),
   "fullName": zod.string(),
   "email": zod.string()
 })
+})
+
+
+/**
+ * @summary List feedback submitted by the current user
+ */
+export const listMyFeedbackEntriesQueryPageDefault = 1;
+
+export const listMyFeedbackEntriesQueryLimitDefault = 20;
+export const listMyFeedbackEntriesQueryLimitMax = 200;
+
+
+
+export const ListMyFeedbackEntriesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listMyFeedbackEntriesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listMyFeedbackEntriesQueryLimitMax).default(listMyFeedbackEntriesQueryLimitDefault)
+})
+
+export const ListMyFeedbackEntriesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "appKey": zod.string().nullish(),
+  "module": zod.string().nullish(),
+  "pagePath": zod.string().nullish(),
+  "category": zod.string(),
+  "message": zod.string(),
+  "triage": zod.union([zod.object({
+  "verdict": zod.enum(['valid_issue', 'awareness_gap', 'suggestion', 'unclear']),
+  "summary": zod.string(),
+  "guidance": zod.string().nullish(),
+  "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
+}),zod.null()]).optional(),
+  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "resolutionResponse": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "user": zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string()
+})
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number()
 })
 
 
@@ -1401,6 +1448,7 @@ export const RunFeedbackTriageResponse = zod.object({
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
   "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "resolutionResponse": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "user": zod.object({
   "id": zod.string(),
@@ -1417,8 +1465,13 @@ export const UpdateFeedbackResolutionParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const updateFeedbackResolutionBodyResponseMax = 4000;
+
+
+
 export const UpdateFeedbackResolutionBody = zod.object({
-  "resolution": zod.enum(['open', 'reviewing', 'resolved'])
+  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "response": zod.string().max(updateFeedbackResolutionBodyResponseMax).nullish().describe('Optional response explaining what was reviewed or resolved')
 })
 
 export const UpdateFeedbackResolutionResponse = zod.object({
@@ -1435,6 +1488,7 @@ export const UpdateFeedbackResolutionResponse = zod.object({
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
   "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "resolutionResponse": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "user": zod.object({
   "id": zod.string(),

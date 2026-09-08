@@ -145,16 +145,25 @@ describe("authorization", () => {
     expect(res.status).toBe(403);
   });
 
-  it("lets a same-organization admin update the resolution and persists it", async () => {
+  it("lets a same-organization admin update the resolution and response, which the author can read", async () => {
     const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "qaqc", category: "issue", message: "Filter dropdown is empty" } });
     expect(created.status).toBe(201);
-    const updated = await api("PUT", `/feedback/${created.json.id}/resolution`, { token: adminA.token, body: { resolution: "resolved" } });
+    const updated = await api("PUT", `/feedback/${created.json.id}/resolution`, {
+      token: adminA.token,
+      body: { resolution: "resolved", response: "The dropdown options were restored." },
+    });
     expect(updated.status).toBe(200);
     expect(updated.json.resolution).toBe("resolved");
+    expect(updated.json.resolutionResponse).toBe("The dropdown options were restored.");
     expect(updated.json.user).toMatchObject({ id: memberA.id, fullName: "Member A" });
     const list = await api("GET", "/feedback", { token: adminA.token });
     const entry = list.json.items.find((item: any) => item.id === created.json.id);
     expect(entry.resolution).toBe("resolved");
+    expect(entry.resolutionResponse).toBe("The dropdown options were restored.");
+    const mine = await api("GET", "/feedback/mine", { token: memberA.token });
+    expect(mine.status).toBe(200);
+    expect(mine.json.items.find((item: any) => item.id === created.json.id)?.resolutionResponse)
+      .toBe("The dropdown options were restored.");
   });
 
   it("rejects an invalid resolution value with 422", async () => {
@@ -299,5 +308,24 @@ describe("happy path", () => {
     expect(listB.status).toBe(200);
     const emails: string[] = listB.json.items.map((item: any) => item.user.email);
     expect(emails.some((email) => email.endsWith(`.${suffix}@example.test`))).toBe(false);
+  });
+
+  it("filters the admin list by module", async () => {
+    const lessons = await api("POST", "/feedback", {
+      token: memberA.token,
+      body: { module: "lessons", category: "issue", message: "Lesson photo is unavailable" },
+    });
+    const audit = await api("POST", "/feedback", {
+      token: memberA.token,
+      body: { module: "audit", category: "issue", message: "Audit report is unavailable" },
+    });
+    expect(lessons.status).toBe(201);
+    expect(audit.status).toBe(201);
+
+    const filtered = await api("GET", "/feedback?module=lessons", { token: adminA.token });
+    expect(filtered.status).toBe(200);
+    expect(filtered.json.items.some((item: any) => item.id === lessons.json.id)).toBe(true);
+    expect(filtered.json.items.some((item: any) => item.id === audit.json.id)).toBe(false);
+    expect(filtered.json.items.every((item: any) => item.module === "lessons")).toBe(true);
   });
 });

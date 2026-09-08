@@ -22,6 +22,13 @@
       "when": 1788711302628,
       "tag": "0002_public_provisioning_probe",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788836608067,
+      "tag": "0003_free_machine_man",
+      "breakpoints": true
     }
   ]
 }

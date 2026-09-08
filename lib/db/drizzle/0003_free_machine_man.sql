@@ -1,0 +1,1 @@
+ALTER TABLE "shared"."feedback_entries" ADD COLUMN "resolution_response" text;

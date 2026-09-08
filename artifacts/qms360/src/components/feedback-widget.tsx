@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, MessageSquarePlus, Sparkles } from 'lucide-react';
-import { useSubmitFeedback, useTriageFeedback, type FeedbackTriage } from '@workspace/api-client-react';
+import { getListMyFeedbackEntriesQueryKey, useListMyFeedbackEntries, useSubmitFeedback, useTriageFeedback, type FeedbackTriage } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -43,6 +43,8 @@ export function FeedbackWidget() {
   const [message, setMessage] = useState('');
   const [triage, setTriage] = useState<FeedbackTriage | null>(null);
   const queryClient = useQueryClient();
+  const myFeedbackParams = { page: 1, limit: 5 };
+  const myFeedback = useListMyFeedbackEntries(myFeedbackParams, { query: { enabled: open, queryKey: getListMyFeedbackEntriesQueryKey(myFeedbackParams) } });
 
   const pagePath = location;
   const appKey = location.startsWith('/qaqc') ? 'qaqc' : location.startsWith('/lessons') ? 'lessons' : location.startsWith('/audit') ? 'audit' : null;
@@ -63,6 +65,7 @@ export function FeedbackWidget() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['/api/feedback'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/feedback/mine'] });
         toast({ title: 'Feedback submitted', description: 'Thank you — the admin team can now review it.' });
         setOpen(false); setModule(''); setModuleError(false); setMessage(''); setCategory('issue'); setTriage(null);
       },
@@ -129,6 +132,20 @@ export function FeedbackWidget() {
             {triage.verdict === 'awareness_gap' && triage.guidance && (
               <div className="mt-2 rounded-md bg-background p-2 text-sm whitespace-pre-line">{triage.guidance}</div>
             )}
+          </div>}
+          {(myFeedback.data?.items.length ?? 0) > 0 && <div className="border-t pt-4">
+            <p className="mb-2 text-sm font-semibold">Your recent feedback</p>
+            <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
+              {myFeedback.data?.items.map((entry) => <div key={entry.id} className="rounded-md border bg-muted/30 p-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-medium">{entry.message}</span>
+                  <Badge variant={entry.resolution === 'resolved' ? 'default' : 'outline'} className="shrink-0 capitalize">{entry.resolution}</Badge>
+                </div>
+                {entry.resolutionResponse && <p className="mt-2 whitespace-pre-line rounded bg-background p-2 text-muted-foreground">
+                  <span className="font-medium text-foreground">Admin response:</span> {entry.resolutionResponse}
+                </p>}
+              </div>)}
+            </div>
           </div>}
         </div>
         <DialogFooter className="gap-2 sm:justify-between">

@@ -21,6 +21,8 @@ export interface FeedbackEntry {
   message: string;
   triage?: FeedbackTriage | null;
   resolution: FeedbackEntryResolution;
+  /** @nullable */
+  resolutionResponse?: string | null;
   createdAt: Date;
   user: FeedbackEntryUser;
 }

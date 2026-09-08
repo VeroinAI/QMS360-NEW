@@ -521,7 +521,7 @@ paths:
       summary: List feedback entries with user details (admin only)
       security:
         - bearerAuth: []
-      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: module, in: query, required: false, schema: {type: string, enum: [qaqc, lessons, audit, system]}}]
       responses: {"200": {description: Feedback entries, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackPage"}}}}, "401": {description: Authentication required}, "403": {description: Administrator access required}}
     post:
       operationId: submitFeedback
@@ -531,6 +531,15 @@ paths:
         - bearerAuth: []
       requestBody: {$ref: "#/components/requestBodies/FeedbackSubmission"}
       responses: {"201": {description: Recorded, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackEntry"}}}}, "401": {description: Authentication required}, "422": {description: Invalid request body}}
+  /feedback/mine:
+    get:
+      operationId: listMyFeedbackEntries
+      tags: [feedback]
+      summary: List feedback submitted by the current user
+      security:
+        - bearerAuth: []
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses: {"200": {description: Current user's feedback entries, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackPage"}}}}, "401": {description: Authentication required}}
   /feedback/triage:
     post:
       operationId: triageFeedback
@@ -1059,7 +1068,7 @@ components:
     Extension: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ExtensionRequest"}}}}
     FeedbackSubmission: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SubmitFeedbackInput"}}}}
     FeedbackTriageRequest: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/TriageFeedbackInput"}}}}
-    FeedbackResolutionUpdate: {required: true, content: {application/json: {schema: {type: object, required: [resolution], properties: {resolution: {type: string, enum: [open, reviewing, resolved]}}}}}}
+    FeedbackResolutionUpdate: {required: true, content: {application/json: {schema: {type: object, required: [resolution], properties: {resolution: {type: string, enum: [open, reviewing, resolved]}, response: {type: [string, "null"], maxLength: 4000, description: "Optional response explaining what was reviewed or resolved"}}}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
     FieldAccessLevel:
@@ -1803,6 +1812,7 @@ components:
         message: {type: string}
         triage: {anyOf: [{$ref: "#/components/schemas/FeedbackTriage"}, {type: "null"}]}
         resolution: {type: string, enum: [open, reviewing, resolved]}
+        resolutionResponse: {type: [string, "null"]}
         createdAt: {type: string, format: date-time}
         user: {type: object, required: [id, fullName, email], properties: {id: {type: string}, fullName: {type: string}, email: {type: string}}}
     FeedbackPage:

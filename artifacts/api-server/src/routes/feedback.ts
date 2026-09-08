@@ -21,6 +21,7 @@ function entryJson(row: EntryRow, user: { id: string; fullName: string; email: s
     message: row.message,
     triage: row.triage ?? null,
     resolution: row.resolution,
+    resolutionResponse: row.resolutionResponse ?? null,
     createdAt: row.createdAt,
     user: { id: user.id, fullName: user.fullName, email: user.email },
   };
@@ -59,7 +60,15 @@ router.post("/feedback", asyncHandler(async (req, res) => {
 
 router.get("/feedback", requireAdmin, asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const where = and(eq(feedbackEntries.organizationId, req.currentUser!.organizationId), isNull(feedbackEntries.deletedAt));
+  const module = typeof req.query.module === "string" ? req.query.module : undefined;
+  if (module && !["qaqc", "lessons", "audit", "system"].includes(module)) {
+    throw new HttpError(422, "Invalid feedback module");
+  }
+  const where = and(
+    eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
+    isNull(feedbackEntries.deletedAt),
+    module ? eq(feedbackEntries.module, module) : undefined,
+  );
   const [rows, count] = await Promise.all([
     db.select({ entry: feedbackEntries, fullName: users.fullName, email: users.email })
       .from(feedbackEntries)
@@ -69,6 +78,25 @@ router.get("/feedback", requireAdmin, asyncHandler(async (req, res) => {
   ]);
   res.json(paginated(
     rows.map((row) => entryJson(row.entry, { id: row.entry.userId, fullName: row.fullName, email: row.email })),
+    Number(count[0]?.count ?? 0), page, limit,
+  ));
+}));
+
+router.get("/feedback/mine", asyncHandler(async (req, res) => {
+  const { page, limit, offset } = pagination(req);
+  const user = req.currentUser!;
+  const where = and(
+    eq(feedbackEntries.organizationId, user.organizationId),
+    eq(feedbackEntries.userId, user.id),
+    isNull(feedbackEntries.deletedAt),
+  );
+  const [rows, count] = await Promise.all([
+    db.select().from(feedbackEntries).where(where)
+      .orderBy(desc(feedbackEntries.createdAt)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(feedbackEntries).where(where),
+  ]);
+  res.json(paginated(
+    rows.map((row) => entryJson(row, { id: user.id, fullName: user.fullName, email: user.email })),
     Number(count[0]?.count ?? 0), page, limit,
   ));
 }));
@@ -102,7 +130,11 @@ router.put("/feedback/:id/resolution", requireAdmin, asyncHandler(async (req, re
   const parsed = UpdateFeedbackResolutionBody.safeParse(req.body);
   if (!parsed.success) throw new HttpError(422, parsed.error.issues[0]?.message ?? "Invalid request body");
   const [row] = await db.update(feedbackEntries)
-    .set({ resolution: parsed.data.resolution, updatedAt: new Date() })
+    .set({
+      resolution: parsed.data.resolution,
+      resolutionResponse: parsed.data.response?.trim() || null,
+      updatedAt: new Date(),
+    })
     .where(and(
       eq(feedbackEntries.id, String(req.params.id)),
       eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
