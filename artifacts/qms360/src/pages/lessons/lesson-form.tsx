@@ -118,7 +118,9 @@ export function LessonFormPage({ id }: { id?: string }) {
   const create = useCreateLessonForm();
   const update = useUpdateLessonForm({ mutation: commonMutation });
   const submit = useSubmitLessonForm();
-  const reviewMutation = useReviewLessonForm({ mutation: { onSuccess: () => { invalidate(); setReview(null); setReviewRemarks(""); toast({ title: review === "approve" ? "Lesson approved" : "Lesson sent back" }); }, onError: (e) => toast({ title: "Review failed", description: errorMessage(e), variant: "destructive" }) } });
+  const fromApprovals = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("from") === "approvals" : false;
+  const backLink = fromApprovals ? "/lessons/approvals" : (isNew ? "/lessons" : "/lessons/log");
+  const reviewMutation = useReviewLessonForm({ mutation: { onSuccess: () => { invalidate(); setReview(null); setReviewRemarks(""); toast({ title: review === "approve" ? "Lesson approved" : "Lesson sent back" }); if (fromApprovals) navigate("/lessons/approvals"); }, onError: (e) => toast({ title: "Review failed", description: errorMessage(e), variant: "destructive" }) } });
   const rephrase = useRephraseLessonField();
   const [suggestion, setSuggestion] = useState<{ field: FieldName; text: string } | null>(null);
   const clientReferenceStorageKey = `lessons-draft-ref-v2-${id ?? "new"}`;
@@ -284,7 +286,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   function render() {
     const record = detail.data;
     return <div>
-      <PageHeader title={isNew ? "New Lesson Learned" : record?.title ?? "Lesson"} description={isNew ? "Capture an experience for the shared knowledge base." : record?.referenceNumber} back={isNew ? "/lessons" : "/lessons/log"} actions={record && <><StateBadge state={record.workflowState} />{record.version > 1 && <Badge variant="outline">Version {record.version}</Badge>}<Button variant="outline" onClick={report}><Download /> Report</Button></>} />
+      <PageHeader title={isNew ? "New Lesson Learned" : record?.title ?? "Lesson"} description={isNew ? "Capture an experience for the shared knowledge base." : record?.referenceNumber} back={backLink} actions={record && <><StateBadge state={record.workflowState} />{record.version > 1 && <Badge variant="outline">Version {record.version}</Badge>}<Button variant="outline" onClick={report}><Download /> Report</Button></>} />
       <div className="grid gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2"><CardHeader><CardTitle>Lesson details</CardTitle></CardHeader><CardContent className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -323,7 +325,7 @@ export function LessonFormPage({ id }: { id?: string }) {
           <Card><CardHeader><CardTitle>After Photo</CardTitle></CardHeader><CardContent><PhotoInput category="after" /></CardContent></Card>
           <Field label="Remarks" error={errors.remarks} required={fp("remarks").required}><Textarea rows={3} value={draft.remarks} onChange={(e) => set("remarks", e.target.value)} disabled={disabled("remarks")} placeholder="Add any additional remarks" /></Field>
         </CardContent></Card>
-        <div className="hidden space-y-6 xl:sticky xl:top-6 xl:block xl:self-start">
+        <div className={`${readOnly ? "block" : "hidden xl:block"} space-y-6 xl:sticky xl:top-6 xl:self-start`}>
           <WorkflowControls />
           {record?.workflowState === "Submitted" && canReview && <div className="grid grid-cols-2 gap-2"><Button onClick={() => setReview("approve")}>Approve</Button><Button variant="destructive" onClick={() => setReview("send_back")}>Send back</Button></div>}
           {record?.submittedAt && <Card><CardHeader><CardTitle>Approval record</CardTitle></CardHeader><CardContent className="space-y-4">
@@ -335,7 +337,7 @@ export function LessonFormPage({ id }: { id?: string }) {
       {!readOnly && <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background p-3 shadow-lg xl:hidden"><WorkflowControls mobile /></div>}
       {record?.photos?.length ? <Card className="mt-6"><CardHeader><CardTitle>Before & after</CardTitle></CardHeader><CardContent className="grid gap-6 md:grid-cols-2"><PhotoGallery title="Before" photos={record.photos.filter((p) => p.category === "before")} /><PhotoGallery title="After" photos={record.photos.filter((p) => p.category === "after")} /></CardContent></Card> : null}
       {record && activity.data && activity.data.items.length > 0 && <Card className="mt-6"><CardHeader><CardTitle>Activity</CardTitle></CardHeader><CardContent><ol className="relative space-y-4 border-l border-border pl-5">{activity.data.items.map((entry) => <li key={entry.id} className="relative"><span className="absolute -left-[26px] top-1 h-2.5 w-2.5 rounded-full bg-primary" /><p className="text-sm font-medium capitalize">{entry.action.replace(/_/g, " ")}</p><p className="text-xs text-muted-foreground">{entry.actorName ?? "Someone"} · {new Date(entry.occurredAt).toLocaleString()}</p></li>)}</ol></CardContent></Card>}
-      <Dialog open={review !== null} onOpenChange={(open) => !open && setReview(null)}><DialogContent><DialogHeader><DialogTitle>{review === "approve" ? "Approve lesson" : "Send lesson back"}</DialogTitle><DialogDescription>{review === "send_back" ? "Remarks are required so the creator knows what to change." : "Optionally add an approval remark."}</DialogDescription></DialogHeader><Textarea value={reviewRemarks} onChange={(e) => setReviewRemarks(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" onClick={() => setReview(null)}>Cancel</Button><Button disabled={review === "send_back" && !reviewRemarks.trim()} onClick={() => record && reviewMutation.mutate({ id: record.id, data: { decision: review!, comments: reviewRemarks || undefined } })}>Confirm</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={review !== null} onOpenChange={(open) => !open && !reviewMutation.isPending && setReview(null)}><DialogContent><DialogHeader><DialogTitle>{review === "approve" ? "Approve lesson" : "Send lesson back"}</DialogTitle><DialogDescription>{review === "send_back" ? "Remarks are required so the creator knows what to change." : "Optionally add an approval remark."}</DialogDescription></DialogHeader><Textarea value={reviewRemarks} onChange={(e) => setReviewRemarks(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" disabled={reviewMutation.isPending} onClick={() => setReview(null)}>Cancel</Button><Button disabled={reviewMutation.isPending || (review === "send_back" && !reviewRemarks.trim())} onClick={() => record && reviewMutation.mutate({ id: record.id, data: { decision: review!, comments: reviewRemarks || undefined } })}>{reviewMutation.isPending ? "Saving decision…" : "Confirm"}</Button></DialogFooter></DialogContent></Dialog>
     </div>;
 
     function PhotoInput({ category }: { category: "before" | "after" }) {

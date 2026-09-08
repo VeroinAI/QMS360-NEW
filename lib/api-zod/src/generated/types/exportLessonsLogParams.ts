@@ -5,8 +5,25 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { ExportLessonsLogImpact } from './exportLessonsLogImpact';
+import type { ExportLessonsLogWorkflowState } from './exportLessonsLogWorkflowState';
+import type { FromParameter } from './fromParameter';
+import type { ProjectIdParameter } from './projectIdParameter';
 import type { ReportFormatParameter } from './reportFormatParameter';
+import type { ToParameter } from './toParameter';
 
 export type ExportLessonsLogParams = {
+search?: string;
+projectId?: ProjectIdParameter;
+disciplineId?: string;
+category?: string;
+impact?: ExportLessonsLogImpact;
+from?: FromParameter;
+to?: ToParameter;
+/**
+ * Return only submitted lessons assigned to the current user for approval
+ */
+pendingApproval?: boolean;
+workflowState?: ExportLessonsLogWorkflowState;
 format?: ReportFormatParameter;
 };

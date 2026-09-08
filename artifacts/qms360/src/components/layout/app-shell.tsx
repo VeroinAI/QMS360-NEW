@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   BarChart3, Bell, Blocks, ChevronDown, ClipboardCheck, Download, FileText,
   Globe2, LayoutDashboard, Lightbulb, LogOut, Menu, MessageSquarePlus, Network,
@@ -7,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   useGetOrganizationSettings, useListAuditNotifications, useListLessonsNotifications,
-  useListPlatformProjects, useListQaqcNotifications,
+  useListPlatformProjects, useListQaqcNotifications, useSearchLessonsLog
 } from '@workspace/api-client-react';
 import type { CurrentUser } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,8 @@ const appNav = {
     ['Inspections', '/qaqc/material-inspections', ClipboardCheck], ['Documents', '/qaqc/documents', FileText],
   ],
   lessons: [
-    ['Overview', '/lessons', LayoutDashboard], ['Lesson log', '/lessons/log', Lightbulb],
+    ['Overview', '/lessons', LayoutDashboard], ['My approvals', '/lessons/approvals', ClipboardCheck],
+    ['Lesson log', '/lessons/log', Lightbulb],
     ['New lesson', '/lessons/new', FileText], ['Notifications', '/lessons/notifications', Bell],
   ],
   audit: [
@@ -36,6 +38,7 @@ const systemNav = [
 ] as const;
 
 export function AppShell({ children, user }: { children: ReactNode; user: CurrentUser }) {
+  const queryClient = useQueryClient();
   const [location, setLocation] = useLocation();
   const section = location.startsWith('/qaqc') ? 'qaqc' : (location.startsWith('/lessons') || location.startsWith('/settings/lessons')) ? 'lessons' : location.startsWith('/audit') ? 'audit' : null;
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -53,6 +56,11 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
     ...(auditNotifications.data?.items ?? []),
   ].filter(item => !item.read).length, [qaqcNotifications.data, lessonNotifications.data, auditNotifications.data]);
 
+  const userPendingQuery = useSearchLessonsLog(
+    { pendingApproval: true, limit: 1 },
+    { query: { enabled: section === 'lessons' && !!user.id, refetchInterval: 30000, queryKey: ['/api/lessons/log', 'pendingApproval', user.id, { limit: 1 }] } }
+  );
+
   useEffect(() => {
     const listener = (event: Event) => { event.preventDefault(); setInstallEvent(event as InstallEvent); };
     window.addEventListener('beforeinstallprompt', listener);
@@ -69,6 +77,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
   const orgName = organization.data?.organizationName ?? user.organizationName;
   const logout = () => {
     localStorage.removeItem('qms360_token');
+    queryClient.clear();
     setLocation('/login');
   };
   const install = async () => {
@@ -90,12 +99,18 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
           <button className="md:hidden" onClick={() => setMobileOpen(false)}><X className="h-5 w-5" /></button>
         </div>
         <nav className="flex-1 space-y-1 p-3">
-          {nav.map(([label, href, Icon]) => (
-            <Link key={href} href={href} onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${location === href ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}`}>
-              <Icon className="h-4 w-4 shrink-0" />{!collapsed && label}
+          {nav.map(([label, href, Icon]) => {
+            const isApprovals = href === '/lessons/approvals';
+            const count = isApprovals ? userPendingQuery.data?.total : null;
+            const isError = isApprovals && userPendingQuery.isError;
+            return (
+            <Link key={href as string} href={href as string} onClick={() => setMobileOpen(false)}
+              className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm ${location === href ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}`}>
+              <div className="flex items-center gap-3"><Icon className="h-4 w-4 shrink-0" />{!collapsed && label}</div>
+              {!collapsed && isApprovals && count !== undefined && count !== null && count > 0 && <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-destructive-foreground">{count}</span>}
+              {!collapsed && isApprovals && isError && <span className="text-[10px] font-bold text-destructive" title="Count unavailable">!</span>}
             </Link>
-          ))}
+          )})}
           {section && isAdmin && <Link href={`/settings/${section}`} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent"><Settings className="h-4 w-4" />{!collapsed && 'Settings'}</Link>}
         </nav>
         <button className="m-3 hidden items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground/70 hover:bg-sidebar-accent md:flex" onClick={() => setCollapsed(value => !value)}>

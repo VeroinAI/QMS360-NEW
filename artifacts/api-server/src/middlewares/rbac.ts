@@ -86,10 +86,10 @@ export function requirePermission(appKey: AppKey, module: string, action: Permis
       req.permissionScope = "full"; req.permissionAdminBypass = true; return next();
     }
     const capability = req.method === "GET" || req.method === "HEAD"
-      ? ["view_all", "view_own"]
+      ? ["view_all", "view_own", ...(appKey === "lessons" ? ["view_own_scope"] : [])]
       : /\/(review|decision)(?:\/|$)/.test(req.path) ? ["approve_reject"]
       : /\/submit(?:\/|$)/.test(req.path) ? ["submit"]
-      : ["create_edit"];
+      : ["create_edit", ...(appKey === "lessons" ? ["data_entry"] : [])];
     const matching = rows.filter((r: any) => {
       const key = String(r.key ?? "").toLowerCase();
       const normalized = module.toLowerCase();
@@ -99,8 +99,14 @@ export function requirePermission(appKey: AppKey, module: string, action: Permis
     const rank: Record<string, number> = { select: 1, own: 2, full: 3 };
     const granted = matching.reduce<PermissionAction | undefined>((best, row: any) => {
       const key = String(row.key ?? "").toLowerCase();
-      const inferred = key.endsWith("view_own") ? "own" : key.endsWith("view_all") ? "full" : action;
-      const grant = (["full", "own", "select"].includes(row.grant) ? row.grant : inferred) as PermissionAction;
+      // The Lessons admin UI historically persists view_own_scope with a
+      // default `full` grant. The capability name is the security boundary:
+      // never let that legacy default turn an own-scope reader into a reader
+      // of every record.
+      const isOwnView = /(?:^|[._])view_own(?:_scope)?$/.test(key)
+        && (appKey === "lessons" || !key.endsWith("view_own_scope"));
+      const inferred = isOwnView ? "own" : key.endsWith("view_all") ? "full" : action;
+      const grant = (isOwnView ? "own" : ["full", "own", "select"].includes(row.grant) ? row.grant : inferred) as PermissionAction;
       return !best || rank[grant] > rank[best] ? grant : best;
     }, undefined);
     if (!granted || rank[granted] < rank[action]) {

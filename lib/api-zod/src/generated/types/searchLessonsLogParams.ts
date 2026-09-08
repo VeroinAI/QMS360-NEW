@@ -10,6 +10,7 @@ import type { LimitParameter } from './limitParameter';
 import type { PageParameter } from './pageParameter';
 import type { ProjectIdParameter } from './projectIdParameter';
 import type { SearchLessonsLogImpact } from './searchLessonsLogImpact';
+import type { SearchLessonsLogWorkflowState } from './searchLessonsLogWorkflowState';
 import type { ToParameter } from './toParameter';
 
 export type SearchLessonsLogParams = {
@@ -20,6 +21,11 @@ category?: string;
 impact?: SearchLessonsLogImpact;
 from?: FromParameter;
 to?: ToParameter;
+/**
+ * Return only submitted lessons assigned to the current user for approval
+ */
+pendingApproval?: boolean;
+workflowState?: SearchLessonsLogWorkflowState;
 /**
  * @minimum 1
  */

@@ -40,7 +40,8 @@ function LoginPage() {
     login.mutate({ data: { email, password } }, {
       onSuccess: session => {
         localStorage.setItem('qms360_token', session.token);
-        void queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+        queryClient.clear();
+        queryClient.setQueryData(getGetCurrentUserQueryKey(), session.user);
         setLocation(session.user.mustChangePassword ? '/change-password' : '/');
       },
       onError: loginError => {

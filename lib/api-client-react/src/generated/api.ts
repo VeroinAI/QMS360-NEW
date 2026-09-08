@@ -11347,7 +11347,7 @@ export const getExportLessonsLogUrl = (params?: ExportLessonsLogParams,) => {
 }
 
 /**
- * @summary Export lesson learned log
+ * @summary Export every lesson matching the lesson-log filters
  */
 export const exportLessonsLog = async (params?: ExportLessonsLogParams, options?: Parameters<typeof customFetch>[1]): Promise<ReportFileResponse> => {
 
@@ -11394,7 +11394,7 @@ export type ExportLessonsLogQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Export lesson learned log
+ * @summary Export every lesson matching the lesson-log filters
  */
 
 export function useExportLessonsLog<TData = Awaited<ReturnType<typeof exportLessonsLog>>, TError = ErrorType<unknown>>(

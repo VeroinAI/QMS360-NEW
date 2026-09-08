@@ -825,6 +825,8 @@ paths:
         - {name: impact, in: query, schema: {type: string, enum: [Positive, Negative]}}
         - {$ref: "#/components/parameters/From"}
         - {$ref: "#/components/parameters/To"}
+        - {name: pendingApproval, in: query, description: Return only submitted lessons assigned to the current user for approval, schema: {type: boolean}}
+        - {name: workflowState, in: query, schema: {type: string, enum: [Draft, Submitted, Approved, Sent Back]}}
         - {$ref: "#/components/parameters/Page"}
         - {$ref: "#/components/parameters/Limit"}
       responses: {"200": {$ref: "#/components/responses/LessonFormPage"}}
@@ -841,7 +843,22 @@ paths:
   /audit/escalations:
     get: {operationId: getAuditEscalations, tags: [audit], summary: Get audit escalation summary, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/EscalationSummaryPage"}}}
   /lessons/reports/log:
-    get: {operationId: exportLessonsLog, tags: [lessons], summary: Export lesson learned log, parameters: [{$ref: "#/components/parameters/ReportFormat"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
+    get:
+      operationId: exportLessonsLog
+      tags: [lessons]
+      summary: Export every lesson matching the lesson-log filters
+      parameters:
+        - {name: search, in: query, schema: {type: string}}
+        - {$ref: "#/components/parameters/ProjectId"}
+        - {name: disciplineId, in: query, schema: {type: string}}
+        - {name: category, in: query, schema: {type: string}}
+        - {name: impact, in: query, schema: {type: string, enum: [Positive, Negative]}}
+        - {$ref: "#/components/parameters/From"}
+        - {$ref: "#/components/parameters/To"}
+        - {name: pendingApproval, in: query, description: Return only submitted lessons assigned to the current user for approval, schema: {type: boolean}}
+        - {name: workflowState, in: query, schema: {type: string, enum: [Draft, Submitted, Approved, Sent Back]}}
+        - {$ref: "#/components/parameters/ReportFormat"}
+      responses: {"200": {$ref: "#/components/responses/ReportFile"}}
   /lessons/forms/{id}/report:
     get: {operationId: exportLessonFormReport, tags: [lessons], summary: Export one lesson learned form using Accept for format negotiation, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
   /lessons/field-controls:

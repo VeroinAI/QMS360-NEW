@@ -4050,6 +4050,8 @@ export const SearchLessonsLogQueryParams = zod.object({
   "impact": zod.enum(['Positive', 'Negative']).optional(),
   "from": zod.date().optional(),
   "to": zod.date().optional(),
+  "pendingApproval": zod.coerce.boolean().optional().describe('Return only submitted lessons assigned to the current user for approval'),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back']).optional(),
   "page": zod.coerce.number().min(1).default(searchLessonsLogQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(searchLessonsLogQueryLimitMax).default(searchLessonsLogQueryLimitDefault)
 })
@@ -4303,9 +4305,18 @@ export const GetAuditEscalationsResponse = zod.object({
 
 
 /**
- * @summary Export lesson learned log
+ * @summary Export every lesson matching the lesson-log filters
  */
 export const ExportLessonsLogQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "projectId": zod.coerce.string().optional(),
+  "disciplineId": zod.coerce.string().optional(),
+  "category": zod.coerce.string().optional(),
+  "impact": zod.enum(['Positive', 'Negative']).optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional(),
+  "pendingApproval": zod.coerce.boolean().optional().describe('Return only submitted lessons assigned to the current user for approval'),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back']).optional(),
   "format": zod.enum(['json', 'pdf', 'csv', 'xlsx']).optional()
 })
 

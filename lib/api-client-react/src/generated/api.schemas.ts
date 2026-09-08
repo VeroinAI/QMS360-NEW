@@ -2678,6 +2678,11 @@ impact?: SearchLessonsLogImpact;
 from?: FromParameter;
 to?: ToParameter;
 /**
+ * Return only submitted lessons assigned to the current user for approval
+ */
+pendingApproval?: boolean;
+workflowState?: SearchLessonsLogWorkflowState;
+/**
  * @minimum 1
  */
 page?: PageParameter;
@@ -2694,6 +2699,16 @@ export type SearchLessonsLogImpact = typeof SearchLessonsLogImpact[keyof typeof 
 export const SearchLessonsLogImpact = {
   Positive: 'Positive',
   Negative: 'Negative',
+} as const;
+
+export type SearchLessonsLogWorkflowState = typeof SearchLessonsLogWorkflowState[keyof typeof SearchLessonsLogWorkflowState];
+
+
+export const SearchLessonsLogWorkflowState = {
+  Draft: 'Draft',
+  Submitted: 'Submitted',
+  Approved: 'Approved',
+  Sent_Back: 'Sent Back',
 } as const;
 
 export type GetLessonsEscalationsParams = {
@@ -2733,8 +2748,38 @@ limit?: LimitParameter;
 };
 
 export type ExportLessonsLogParams = {
+search?: string;
+projectId?: ProjectIdParameter;
+disciplineId?: string;
+category?: string;
+impact?: ExportLessonsLogImpact;
+from?: FromParameter;
+to?: ToParameter;
+/**
+ * Return only submitted lessons assigned to the current user for approval
+ */
+pendingApproval?: boolean;
+workflowState?: ExportLessonsLogWorkflowState;
 format?: ReportFormatParameter;
 };
+
+export type ExportLessonsLogImpact = typeof ExportLessonsLogImpact[keyof typeof ExportLessonsLogImpact];
+
+
+export const ExportLessonsLogImpact = {
+  Positive: 'Positive',
+  Negative: 'Negative',
+} as const;
+
+export type ExportLessonsLogWorkflowState = typeof ExportLessonsLogWorkflowState[keyof typeof ExportLessonsLogWorkflowState];
+
+
+export const ExportLessonsLogWorkflowState = {
+  Draft: 'Draft',
+  Submitted: 'Submitted',
+  Approved: 'Approved',
+  Sent_Back: 'Sent Back',
+} as const;
 
 export type ListLessonsRolesParams = {
 /**

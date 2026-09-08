@@ -3,7 +3,7 @@ import express, { type Express } from "express";
 import type { Server } from "node:http";
 import { eq } from "drizzle-orm";
 import {
-  db, lessonLearnedForms, lessonsDisciplines, organizations, platformRoles, projects, users,
+  db, lessonLearnedForms, lessonNotifications, lessonsAuditLogEntries, lessonsDisciplines, organizations, platformRoles, projects, users,
 } from "@workspace/db";
 import lessonsRouter from "../src/routes/lessons";
 import { issueToken } from "../src/lib/auth";
@@ -18,9 +18,13 @@ let creatorId: string;
 let projectId: string;
 let disciplineId: string;
 
-async function api(path: string) {
-  const response = await fetch(`${baseUrl}${path}`, { headers: { authorization: `Bearer ${token}` } });
-  return { status: response.status, json: await response.json() as { items: Array<{ id: string }>; total: number } };
+async function api(path: string, options: { method?: string; body?: unknown } = {}) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: options.method ?? "GET",
+    headers: { authorization: `Bearer ${token}`, ...(options.body === undefined ? {} : { "content-type": "application/json" }) },
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+  return { status: response.status, json: await response.json() as any };
 }
 
 beforeAll(async () => {
@@ -46,6 +50,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
+  await db.delete(lessonNotifications).where(eq(lessonNotifications.organizationId, orgId));
+  await db.delete(lessonsAuditLogEntries).where(eq(lessonsAuditLogEntries.organizationId, orgId));
   await db.delete(lessonLearnedForms).where(eq(lessonLearnedForms.organizationId, orgId));
   await db.delete(lessonsDisciplines).where(eq(lessonsDisciplines.organizationId, orgId));
   await db.delete(projects).where(eq(projects.organizationId, orgId));
@@ -93,5 +99,40 @@ describe("GET /api/lessons/log search", () => {
     expect(byDiscipline.status).toBe(200);
     expect(byDiscipline.json.items.map(item => item.id)).toContain(matching!.id);
     expect(byDiscipline.json.items.map(item => item.id)).not.toContain(other!.id);
+  });
+
+  it("derives pending approvals for the current assignee, counts before pagination, and exports the same rows", async () => {
+    const [submitter, otherApprover] = await db.insert(users).values([
+      { organizationId: orgId, email: `submitter.${suffix}@example.test`, username: `submitter.${suffix}`, fullName: "Submitter" },
+      { organizationId: orgId, email: `other.${suffix}@example.test`, username: `other.${suffix}`, fullName: "Other approver" },
+    ]).returning();
+    const now = new Date("2026-02-01T10:00:00.000Z");
+    const [oldest, newest, otherAssigned, draft, selfAssigned] = await db.insert(lessonLearnedForms).values([
+      { organizationId: orgId, projectId, disciplineId, referenceNumber: `LL-PENDING-OLD-${suffix}`, title: "Old pending", issueCategory: "Minor", impact: "Positive", creatorId: submitter!.id, approverId: creatorId, workflowState: "submitted", submittedAt: now },
+      { organizationId: orgId, projectId, disciplineId, referenceNumber: `LL-PENDING-NEW-${suffix}`, title: "New pending", issueCategory: "Minor", impact: "Positive", creatorId: submitter!.id, approverId: creatorId, workflowState: "submitted", submittedAt: new Date(now.getTime() + 1_000) },
+      { organizationId: orgId, projectId, disciplineId, referenceNumber: `LL-OTHER-ASSIGNEE-${suffix}`, title: "Other assignee", issueCategory: "Minor", impact: "Positive", creatorId: submitter!.id, approverId: otherApprover!.id, workflowState: "submitted", submittedAt: now },
+      { organizationId: orgId, projectId, disciplineId, referenceNumber: `LL-DRAFT-${suffix}`, title: "Draft", issueCategory: "Minor", impact: "Positive", creatorId: submitter!.id, approverId: creatorId, workflowState: "draft" },
+      { organizationId: orgId, projectId, disciplineId, referenceNumber: `LL-SELF-${suffix}`, title: "Self assigned", issueCategory: "Minor", impact: "Positive", creatorId, approverId: creatorId, workflowState: "submitted", submittedAt: now },
+    ]).returning();
+
+    const page = await api("/log?pendingApproval=true&limit=1&page=1");
+    expect(page.status).toBe(200);
+    expect(page.json.total).toBe(2);
+    expect(page.json.items.map((item: { id: string }) => item.id)).toEqual([oldest!.id]);
+
+    const exported = await api("/reports/log?pendingApproval=true&format=json");
+    expect(exported.status).toBe(200);
+    const payload = JSON.parse(decodeURIComponent(exported.json.downloadUrl.split(",")[1]));
+    expect(payload.map((item: { id: string }) => item.id)).toEqual([oldest!.id, newest!.id]);
+    expect(payload.map((item: { id: string }) => item.id)).not.toContain(otherAssigned!.id);
+    expect(payload.map((item: { id: string }) => item.id)).not.toContain(draft!.id);
+    expect(payload.map((item: { id: string }) => item.id)).not.toContain(selfAssigned!.id);
+
+    const reviewed = await api(`/forms/${oldest!.id}/review`, { method: "POST", body: { decision: "approve" } });
+    expect(reviewed.status).toBe(200);
+    const afterReview = await api("/log?pendingApproval=true");
+    expect(afterReview.json.items.map((item: { id: string }) => item.id)).not.toContain(oldest!.id);
+    const repeatedReview = await api(`/forms/${oldest!.id}/review`, { method: "POST", body: { decision: "send_back", comments: "too late" } });
+    expect(repeatedReview.status).toBe(409);
   });
 });

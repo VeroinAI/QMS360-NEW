@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Router, type IRouter } from "express";
 import {
-  and, asc, desc, eq, getTableColumns, gte, gt, ilike, inArray, isNull, lte, or, sql,
+  and, asc, desc, eq, getTableColumns, gte, gt, ilike, inArray, isNull, lte, ne, or, sql,
 } from "drizzle-orm";
 import {
   AnswerLessonPromptQuestionBody,
@@ -129,6 +129,10 @@ function formJson(row: typeof lessonLearnedForms.$inferSelect, photos?: Array<ty
     repeatCount: row.repeatCount,
     repeatLocation: row.repeatLocation,
     capturedAt: row.capturedAt,
+    submittedAt: row.submittedAt,
+    reviewedAt: row.reviewedAt,
+    reviewDecision: row.reviewDecision,
+    reviewComments: row.reviewComments,
     gpsLat: row.gpsLat === null ? null : Number(row.gpsLat),
     gpsLng: row.gpsLng === null ? null : Number(row.gpsLng),
     creatorId: row.creatorId,
@@ -329,6 +333,38 @@ async function scopedApproverIds(organizationId: string, ctx: ApproverScopeCtx):
   return new Set(rules.filter((rule) => scopeMatches(rule, ctx)).map((rule) => rule.userId));
 }
 
+async function canReadLesson(req: any, row: typeof lessonLearnedForms.$inferSelect): Promise<boolean> {
+  if (req.permissionAdminBypass || req.permissionScope === "full") return true;
+  const user = req.currentUser!;
+  if (row.creatorId === user.id) return true;
+  if (row.approverId !== user.id) return false;
+  const scoped = await scopedApproverIds(row.organizationId, {
+    projectId: row.projectId, disciplineId: row.disciplineId, categorisation: row.categorisation,
+  });
+  return !scoped || scoped.has(user.id);
+}
+
+async function lessonVisibilityWhere(req: any, base: any, requireApproverScope = false) {
+  const user = req.currentUser!;
+  // Pending queues remain scope-bound even for full readers: assignment does
+  // not override explicitly configured approver policy.
+  if (!requireApproverScope && (req.permissionAdminBypass || req.permissionScope === "full")) return base;
+  const rules = await db.select().from(lessonApproverScopes).where(and(
+    eq(lessonApproverScopes.organizationId, user.organizationId),
+    eq(lessonApproverScopes.status, "active"),
+    isNull(lessonApproverScopes.deletedAt),
+  ));
+  const matchingScope = !rules.length ? undefined : or(...rules
+    .filter((rule) => rule.userId === user.id)
+    .map((rule) => and(
+      rule.projectId ? eq(lessonLearnedForms.projectId, rule.projectId) : undefined,
+      rule.disciplineId ? eq(lessonLearnedForms.disciplineId, rule.disciplineId) : undefined,
+      rule.categorisation ? eq(lessonLearnedForms.categorisation, rule.categorisation) : undefined,
+    ))) ?? sql`false`;
+  const assigned = and(eq(lessonLearnedForms.approverId, user.id), matchingScope);
+  return and(base, requireApproverScope ? assigned : or(eq(lessonLearnedForms.creatorId, user.id), assigned));
+}
+
 router.get("/approvers", asyncHandler(async (req, res) => {
   const organizationId = req.currentUser!.organizationId;
   const ctx: ApproverScopeCtx = {
@@ -367,9 +403,10 @@ async function assertEligibleApprover(req: any, approverId: string, creatorId: s
 router.get("/forms", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = and(eq(lessonLearnedForms.organizationId, req.currentUser!.organizationId), isNull(lessonLearnedForms.deletedAt));
+  const visibleWhere = await lessonVisibilityWhere(req, where);
   const [rows, count] = await Promise.all([
-    db.select().from(lessonLearnedForms).where(where).orderBy(desc(lessonLearnedForms.createdAt)).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(lessonLearnedForms).where(where),
+    db.select().from(lessonLearnedForms).where(visibleWhere).orderBy(desc(lessonLearnedForms.createdAt), asc(lessonLearnedForms.id)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(lessonLearnedForms).where(visibleWhere),
   ]);
   const names = await disciplineNameMap(req.currentUser!.organizationId);
   res.json(paginated(formJsonList(rows, names), Number(count[0]?.count ?? 0), page, limit));
@@ -431,6 +468,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
 router.get("/forms/:id", asyncHandler(async (req, res) => {
   const row = await getForm(String(req.params.id), req.currentUser!.organizationId);
   if (!row) notFound("Lesson form not found");
+  if (!await canReadLesson(req, row)) throw new HttpError(403, "You do not have permission to view this lesson");
   const photos = await listEvidence(db, "lessons", req.currentUser!.organizationId, "lesson_form", row.id);
   res.json(await formJsonNamed(row, photos));
 }));
@@ -465,7 +503,14 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
     repeatCount: body.repeatCount ?? 0, repeatLocation: body.repeatLocation,
     remarks: body.remarks, approverId: body.approverId, capturedAt, version: before.workflowState === "sent_back" ? before.version + 1 : before.version,
     workflowState: before.workflowState === "sent_back" ? "draft" : before.workflowState, updatedAt: new Date(),
-  }).where(eq(lessonLearnedForms.id, before.id)).returning();
+  }).where(and(
+    eq(lessonLearnedForms.id, before.id),
+    eq(lessonLearnedForms.organizationId, before.organizationId),
+    eq(lessonLearnedForms.workflowState, before.workflowState),
+    eq(lessonLearnedForms.version, before.version),
+    isNull(lessonLearnedForms.deletedAt),
+  )).returning();
+  if (!row) throw new HttpError(409, "This lesson has changed. Refresh before editing it again");
   const rowJson = await formJsonNamed(row!);
   await audit(req, "update", "lesson_form", row!.id, beforeJson, rowJson);
   res.json(rowJson);
@@ -525,7 +570,15 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
     reviewDecision: body.decision,
     reviewComments: body.comments?.trim() || null,
     updatedAt: new Date(),
-  }).where(eq(lessonLearnedForms.id, before.id)).returning();
+  }).where(and(
+    eq(lessonLearnedForms.id, before.id),
+    eq(lessonLearnedForms.organizationId, before.organizationId),
+    eq(lessonLearnedForms.workflowState, "submitted"),
+    eq(lessonLearnedForms.approverId, req.currentUser!.id),
+    ne(lessonLearnedForms.creatorId, req.currentUser!.id),
+    isNull(lessonLearnedForms.deletedAt),
+  )).returning();
+  if (!row) throw new HttpError(409, "This lesson has already been reviewed or is no longer available for review");
   await db.update(lessonEscalationInstances).set({
     status: body.decision === "approve" ? "resolved" : "open",
     resolvedAt: body.decision === "approve" ? new Date() : null,
@@ -592,6 +645,11 @@ async function logWhere(req: any) {
   const from = typeof q.from === "string" ? new Date(q.from) : null;
   const to = typeof q.to === "string" ? new Date(q.to) : null;
   if ((from && Number.isNaN(from.valueOf())) || (to && Number.isNaN(to.valueOf()))) throw new HttpError(422, "Invalid date filter");
+  const workflowStates: Record<string, string> = {
+    Draft: "draft", Submitted: "submitted", Approved: "approved", "Sent Back": "sent_back",
+  };
+  const workflowState = typeof q.workflowState === "string" ? workflowStates[q.workflowState] : undefined;
+  if (typeof q.workflowState === "string" && !workflowState) throw new HttpError(422, "Invalid workflow state filter");
   // Clients filter by the discipline LOV value (name); the column stores the UUID.
   let disciplineId: string | null = null;
   if (typeof q.disciplineId === "string") {
@@ -613,15 +671,26 @@ async function logWhere(req: any) {
     typeof q.category === "string" ? eq(lessonLearnedForms.categorisation, q.category) : undefined,
     typeof q.impact === "string" ? eq(lessonLearnedForms.impact, q.impact) : undefined,
     from ? gte(lessonLearnedForms.capturedAt, from) : undefined, to ? lte(lessonLearnedForms.capturedAt, to) : undefined,
+    workflowState ? eq(lessonLearnedForms.workflowState, workflowState) : undefined,
+    q.pendingApproval === "true" ? and(
+      eq(lessonLearnedForms.approverId, req.currentUser.id),
+      eq(lessonLearnedForms.workflowState, "submitted"),
+      ne(lessonLearnedForms.creatorId, req.currentUser.id),
+    ) : undefined,
   );
 }
 
-router.get("/log", asyncHandler(async (req, res) => {
+router.get("/log", requirePermission("lessons", "lessons", "select"), asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = await logWhere(req);
+  const pending = req.query.pendingApproval === "true";
+  const visibleWhere = await lessonVisibilityWhere(req, where, pending);
+  const order = pending
+    ? [asc(lessonLearnedForms.submittedAt), asc(lessonLearnedForms.id)]
+    : [desc(lessonLearnedForms.capturedAt), asc(lessonLearnedForms.id)];
   const [rows, count] = await Promise.all([
-    db.select().from(lessonLearnedForms).where(where).orderBy(desc(lessonLearnedForms.capturedAt)).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(lessonLearnedForms).where(where),
+    db.select().from(lessonLearnedForms).where(visibleWhere).orderBy(...order).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(lessonLearnedForms).where(visibleWhere),
   ]);
   const names = await disciplineNameMap(req.currentUser!.organizationId);
   res.json(paginated(formJsonList(rows, names), Number(count[0]?.count ?? 0), page, limit));
@@ -689,10 +758,15 @@ function csv(rows: Array<Record<string, unknown>>) {
   return `${keys.map(csvCell).join(",")}\n${rows.map((row) => keys.map((key) => csvCell(row[key])).join(",")).join("\n")}\n`;
 }
 
-router.get("/reports/log", asyncHandler(async (req, res) => {
+router.get("/reports/log", requirePermission("lessons", "lessons", "select"), asyncHandler(async (req, res) => {
   const format = typeof req.query.format === "string" ? req.query.format : "csv";
   if (format !== "csv" && format !== "json") throw new HttpError(422, "Only CSV and JSON exports are supported");
-  const rows = await db.select().from(lessonLearnedForms).where(and(eq(lessonLearnedForms.organizationId, req.currentUser!.organizationId), isNull(lessonLearnedForms.deletedAt))).orderBy(asc(lessonLearnedForms.referenceNumber));
+  const where = await logWhere(req);
+  const pending = req.query.pendingApproval === "true";
+  const visibleWhere = await lessonVisibilityWhere(req, where, pending);
+  const rows = await db.select().from(lessonLearnedForms).where(visibleWhere).orderBy(
+    ...(pending ? [asc(lessonLearnedForms.submittedAt), asc(lessonLearnedForms.id)] : [asc(lessonLearnedForms.referenceNumber), asc(lessonLearnedForms.id)]),
+  );
   const fileName = `lessons-log.${format}`;
   const names = await disciplineNameMap(req.currentUser!.organizationId);
   const json = formJsonList(rows, names);
@@ -703,6 +777,7 @@ router.get("/reports/log", asyncHandler(async (req, res) => {
 router.get("/forms/:id/report", asyncHandler(async (req, res) => {
   const row = await getForm(String(req.params.id), req.currentUser!.organizationId);
   if (!row) notFound("Lesson form not found");
+  if (!await canReadLesson(req, row)) throw new HttpError(403, "You do not have permission to view this lesson");
   const format = req.accepts(["json", "csv"]) ?? "json";
   const photos = (await listEvidence(db, "lessons", row.organizationId, "lesson_form", row.id)) as Array<typeof lessonsEvidenceFiles.$inferSelect>;
   const data = await formJsonNamed(row, photos);
@@ -715,6 +790,7 @@ router.get("/forms/:id/report", asyncHandler(async (req, res) => {
 router.get("/forms/:id/activity", asyncHandler(async (req, res) => {
   const form = await getForm(String(req.params.id), req.currentUser!.organizationId);
   if (!form) notFound("Lesson form not found");
+  if (!await canReadLesson(req, form)) throw new HttpError(403, "You do not have permission to view this lesson");
   const where = and(eq(lessonsAuditLogEntries.organizationId, req.currentUser!.organizationId), eq(lessonsAuditLogEntries.entityId, form.id));
   const [rows, count] = await Promise.all([
     db.select().from(lessonsAuditLogEntries).where(where).orderBy(desc(lessonsAuditLogEntries.createdAt)).limit(50),
