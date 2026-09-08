@@ -86,14 +86,14 @@ export function FeedbackWidget() {
       document.body,
     )}
     <Dialog open={open} onOpenChange={openDialog}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-xl overflow-x-hidden p-4 sm:p-6">
-        <DialogHeader>
+      <DialogContent className="flex h-[calc(100dvh-2rem)] max-h-[760px] w-[calc(100vw-2rem)] max-w-xl grid-rows-none flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="shrink-0 border-b px-4 py-4 pr-10 sm:px-6">
           <DialogTitle>Report an issue or share feedback</DialogTitle>
           <DialogDescription>
             Tell us what happened while testing. You can optionally run AI Triage before submitting — it checks whether the capability already exists and shows you how to use it. Your feedback is logged either way.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6">
           <div>
             <Label className="mb-2 block">Module / Functionality <span className="text-destructive">*</span></Label>
             <Select value={module} onValueChange={(value) => { setModule(value as ModuleKey); setModuleError(false); setTriage(null); }}>
@@ -136,7 +136,7 @@ export function FeedbackWidget() {
           </div>}
           {(myFeedback.data?.items.length ?? 0) > 0 && <div className="border-t pt-4">
             <p className="mb-2 text-sm font-semibold">Your recent feedback</p>
-            <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
+            <div className="space-y-2">
               {myFeedback.data?.items.map((entry) => <div key={entry.id} className="rounded-md border bg-muted/30 p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate font-medium">{entry.message}</span>
@@ -149,13 +149,13 @@ export function FeedbackWidget() {
             </div>
           </div>}
         </div>
-        <DialogFooter className="gap-2 sm:justify-between">
+        <DialogFooter className="z-10 shrink-0 gap-2 border-t bg-background px-4 py-4 sm:justify-between sm:px-6">
           <Button type="button" variant="secondary" disabled={!canTriage || triageMutation.isPending}
             onClick={() => triageMutation.mutate({ data: { module: module || undefined, category, message: message.trim(), pagePath } })}>
             {triageMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             AI Triage
           </Button>
-          <Button type="button" disabled={message.trim().length < 5 || submit.isPending}
+          <Button type="button" className="min-w-36" disabled={message.trim().length < 5 || submit.isPending}
             onClick={() => {
               if (!module) { setModuleError(true); return; }
               submit.mutate({ data: { module, category, message: message.trim(), appKey, pagePath, triage: triage ?? null } });
