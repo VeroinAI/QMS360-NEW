@@ -113,7 +113,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   const fieldAccess = useFieldAccess("lessons");
   const queryClient = useQueryClient();
   const invalidate = () => { queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] }); if (id) queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}`] }); };
-  const commonMutation = { onSuccess: () => { invalidate(); toast({ title: "Changes saved" }); }, onError: (e: unknown) => toast({ title: "Unable to save", description: errorMessage(e), variant: "destructive" as const }) };
+  const commonMutation = { onSuccess: () => { invalidate(); toast({ title: `Lesson ${detail.data?.referenceNumber ?? ""} saved`.replace("  ", " ") }); }, onError: (e: unknown) => toast({ title: "Unable to save", description: errorMessage(e), variant: "destructive" as const }) };
   // Create is driven from save() so photos queued before the first save can be uploaded once the record id exists.
   const create = useCreateLessonForm();
   const update = useUpdateLessonForm({ mutation: commonMutation });
@@ -121,10 +121,10 @@ export function LessonFormPage({ id }: { id?: string }) {
   const reviewMutation = useReviewLessonForm({ mutation: { onSuccess: () => { invalidate(); setReview(null); setReviewRemarks(""); toast({ title: review === "approve" ? "Lesson approved" : "Lesson sent back" }); }, onError: (e) => toast({ title: "Review failed", description: errorMessage(e), variant: "destructive" }) } });
   const rephrase = useRephraseLessonField();
   const [suggestion, setSuggestion] = useState<{ field: FieldName; text: string } | null>(null);
+  const clientReferenceStorageKey = `lessons-draft-ref-v2-${id ?? "new"}`;
   const clientReference = useMemo(() => {
-    const key = `lessons-draft-ref-${id ?? "new"}`;
-    let value = sessionStorage.getItem(key); if (!value) { value = crypto.randomUUID(); sessionStorage.setItem(key, value); } return value;
-  }, [id]);
+    let value = sessionStorage.getItem(clientReferenceStorageKey); if (!value) { value = crypto.randomUUID(); sessionStorage.setItem(clientReferenceStorageKey, value); } return value;
+  }, [clientReferenceStorageKey]);
 
   useEffect(() => {
     if (!detail.data) return;
@@ -199,7 +199,7 @@ export function LessonFormPage({ id }: { id?: string }) {
         await update.mutateAsync({ id, data: body() });
         return id;
       }
-    const queued = uploads.filter((x) => x.status === "queued" || x.status === "failed");
+      const queued = uploads.filter((x) => x.status === "queued" || x.status === "failed");
       const created = await create.mutateAsync({ data: body() });
       if (queued.length) {
         const results = await Promise.allSettled(queued.map((item) => uploadPhoto(created.id, item)));
@@ -207,10 +207,14 @@ export function LessonFormPage({ id }: { id?: string }) {
         if (failed) {
           const failedKeys = new Set(queued.filter((_, index) => results[index]?.status === "rejected").map((item) => item.key));
           setUploads((current) => current.map((item) => failedKeys.has(item.key) ? { ...item, status: "failed" } : item));
-          throw new Error(`${failed} photo(s) did not upload. Retry Save draft after resolving the upload issue.`);
+          sessionStorage.removeItem(clientReferenceStorageKey);
+          toast({ title: `Lesson ${created.referenceNumber} saved`, description: `${failed} photo(s) did not upload. The draft is safe; open it and retry the failed photos.`, variant: "destructive" });
+          navigate(`/lessons/${created.id}`);
+          return null;
         }
       }
-      toast({ title: "Changes saved" });
+      sessionStorage.removeItem(clientReferenceStorageKey);
+      toast({ title: `Lesson ${created.referenceNumber} saved` });
       invalidate();
       if (navigateAfterSave) navigate("/lessons/log");
       return created.id;
@@ -226,6 +230,7 @@ export function LessonFormPage({ id }: { id?: string }) {
       navigate("/lessons/log");
     } catch (e) {
       toast({ title: "Saved as draft; submit failed", description: errorMessage(e), variant: "destructive" });
+      navigate(`/lessons/${recordId}`);
     }
   }
   function captureGps() {

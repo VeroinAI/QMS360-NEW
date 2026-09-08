@@ -13,3 +13,4 @@
 - [Video scaffold controls & tsconfig](video-scaffold-controls.md) — video-js scaffold ships workspace-driven controls (supersedes scene-selectors.md); artifact tsconfig needs DOM lib override or typecheck is red.
 - [Field-access enforcement landscape](field-access-enforcement-landscape.md) — two field-control stores, both API-enforced; register new controllable fields in both catalogs; pg enum blocks locks on platform entities (projects/users).
 - [Artifact API startup probe](artifact-api-startup-probe.md) — publish may probe an API artifact's preview path despite a more specific configured startup health path.
+- [Create-form idempotency keys](create-form-idempotency-keys.md) — browser-stored create keys must rotate after success or later “new” forms silently replay the first record.
