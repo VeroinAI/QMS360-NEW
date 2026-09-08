@@ -38,7 +38,7 @@ export const FIELD_CATALOG: Record<AppKey, CatalogForm[]> = {
         f("title", "Title", ""),
         f("disciplineId", "Discipline", ""),
         f("categorisationId", "Categorisation", ""),
-        f("capturedAt", "Captured at", undefined, true),
+        f("capturedAt", "Captured at"),
         f("issueCategory", "Issue category", "Minor"),
         f("impact", "Impact", "Positive"),
         f("description", "Description", ""),

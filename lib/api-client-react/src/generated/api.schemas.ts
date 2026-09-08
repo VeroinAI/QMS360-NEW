@@ -1486,7 +1486,8 @@ export interface LessonLearnedForm {
   repeatCount?: number;
   /** @nullable */
   repeatLocation?: string | null;
-  readonly capturedAt: string;
+  /** User-editable date and time at which the lesson was captured */
+  capturedAt: string;
   /**
      * @minimum -90
      * @maximum 90

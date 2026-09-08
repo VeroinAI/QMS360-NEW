@@ -17,7 +17,7 @@ import { HttpError } from "../src/lib/workspace";
 // must reject non-admin create/update writes with a 422 naming the field, a
 // field configured mandatory must reject blank non-admin submissions, and
 // administrators keep full access — matching the UI bypass. The lessons
-// special cases (GPS lat/lng pair, server-managed capturedAt, conditional
+// special cases (GPS lat/lng pair, editable capturedAt, conditional
 // repeat fields) are exercised by calling assertFieldControls directly.
 // Runs against the real development database with a throwaway organization.
 
@@ -77,13 +77,13 @@ async function expectBlocked(promise: Promise<unknown>, field: string) {
 }
 
 // Base lesson-form matrix: title and the GPS pair are read-only, capturedAt is
-// read-only + mandatory (but server-managed), and the repeat fields are
+// editable + mandatory, and the repeat fields are
 // mandatory (only applied once the issue is marked repeated).
 const lessonMatrix: FieldControlsMatrix = {
   "lesson-form": {
     title: { access: "read_only", requirement: "optional" },
     gps: { access: "read_only", requirement: "optional" },
-    capturedAt: { access: "read_only", requirement: "mandatory" },
+    capturedAt: { access: "editable", requirement: "mandatory" },
     repeatLocation: { access: "editable", requirement: "mandatory" },
     repeatCount: { access: "editable", requirement: "mandatory" },
   },
@@ -220,8 +220,8 @@ describe("assertFieldControls lesson-form semantics", () => {
   const asAdmin = (body: Record<string, unknown>) => reqFor(adminContext, body);
 
   it("accepts an update that resubmits a read-only field unchanged", async () => {
-    await expect(assertFieldControls(asMember({ title: "Safety win" }), "lessons", "lesson-form",
-      { mode: "update", current: { title: "Safety win" } })).resolves.toBeUndefined();
+    await expect(assertFieldControls(asMember({ title: "Safety win", capturedAt: "2020-01-01T00:00:00.000Z" }), "lessons", "lesson-form",
+      { mode: "update", current: { title: "Safety win", capturedAt: "2020-01-01T00:00:00.000Z" } })).resolves.toBeUndefined();
   });
 
   it("rejects an update that changes a read-only field", async () => {
@@ -233,8 +233,8 @@ describe("assertFieldControls lesson-form semantics", () => {
     await expectBlocked(assertFieldControls(asMember({ gpsLat: 25.1, gpsLng: 55.2 }), "lessons", "lesson-form", { mode: "create" }), "gps");
   });
 
-  it("ignores server-managed capturedAt even when configured read-only and mandatory", async () => {
-    // capturedAt is skipped entirely: a create that only sets it passes both rules.
+  it("enforces capturedAt as an editable, mandatory field", async () => {
+    await expectBlocked(assertFieldControls(asMember({ isRepeatedIssue: false }), "lessons", "lesson-form", { mode: "create" }), "capturedAt");
     await expect(assertFieldControls(asMember({ capturedAt: "2020-01-01T00:00:00.000Z", isRepeatedIssue: false }), "lessons", "lesson-form", { mode: "create" }))
       .resolves.toBeUndefined();
   });
@@ -254,14 +254,14 @@ describe("assertFieldControls lesson-form semantics", () => {
   });
 
   it("skips conditional mandatory repeat fields when the issue is not repeated", async () => {
-    await expect(assertFieldControls(asMember({ isRepeatedIssue: false }), "lessons", "lesson-form", { mode: "create" }))
+    await expect(assertFieldControls(asMember({ capturedAt: "2020-01-01T00:00:00.000Z", isRepeatedIssue: false }), "lessons", "lesson-form", { mode: "create" }))
       .resolves.toBeUndefined();
   });
 
   it("requires repeat location and count once the issue is marked repeated", async () => {
-    await expectBlocked(assertFieldControls(asMember({ isRepeatedIssue: true, repeatLocation: "" }), "lessons", "lesson-form", { mode: "create" }), "repeatLocation");
-    await expectBlocked(assertFieldControls(asMember({ isRepeatedIssue: true, repeatLocation: "Site B", repeatCount: 0 }), "lessons", "lesson-form", { mode: "create" }), "repeatCount");
-    await expect(assertFieldControls(asMember({ isRepeatedIssue: true, repeatLocation: "Site B", repeatCount: 2 }), "lessons", "lesson-form", { mode: "create" }))
+    await expectBlocked(assertFieldControls(asMember({ capturedAt: "2020-01-01T00:00:00.000Z", isRepeatedIssue: true, repeatLocation: "" }), "lessons", "lesson-form", { mode: "create" }), "repeatLocation");
+    await expectBlocked(assertFieldControls(asMember({ capturedAt: "2020-01-01T00:00:00.000Z", isRepeatedIssue: true, repeatLocation: "Site B", repeatCount: 0 }), "lessons", "lesson-form", { mode: "create" }), "repeatCount");
+    await expect(assertFieldControls(asMember({ capturedAt: "2020-01-01T00:00:00.000Z", isRepeatedIssue: true, repeatLocation: "Site B", repeatCount: 2 }), "lessons", "lesson-form", { mode: "create" }))
       .resolves.toBeUndefined();
   });
 

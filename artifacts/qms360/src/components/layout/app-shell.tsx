@@ -22,7 +22,7 @@ const appNav = {
   ],
   lessons: [
     ['Overview', '/lessons', LayoutDashboard], ['Lesson log', '/lessons/log', Lightbulb],
-    ['New lesson', '/lessons/new', FileText],
+    ['New lesson', '/lessons/new', FileText], ['Notifications', '/lessons/notifications', Bell],
   ],
   audit: [
     ['Overview', '/audit', LayoutDashboard], ['Programme', '/audit/schedules', ClipboardCheck],
@@ -37,7 +37,7 @@ const systemNav = [
 
 export function AppShell({ children, user }: { children: ReactNode; user: CurrentUser }) {
   const [location, setLocation] = useLocation();
-  const section = location.startsWith('/qaqc') ? 'qaqc' : location.startsWith('/lessons') ? 'lessons' : location.startsWith('/audit') ? 'audit' : null;
+  const section = location.startsWith('/qaqc') ? 'qaqc' : (location.startsWith('/lessons') || location.startsWith('/settings/lessons')) ? 'lessons' : location.startsWith('/audit') ? 'audit' : null;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
@@ -110,7 +110,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
             <option value="">All projects</option>
             {(projects.data?.items ?? []).map(project => <option key={project.id} value={project.id}>{project.code} · {project.name}</option>)}
           </select>
-          <Link href="/notifications" className="relative rounded-md p-2 hover:bg-muted" aria-label={`${unread} unread notifications`}>
+          <Link href={section === 'lessons' ? '/lessons/notifications' : '/notifications'} className="relative rounded-md p-2 hover:bg-muted" aria-label={`${unread} unread notifications`}>
             <Bell className="h-5 w-5" />
             {unread > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">{unread > 99 ? '99+' : unread}</span>}
           </Link>

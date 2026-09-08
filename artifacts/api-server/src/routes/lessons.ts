@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Router, type IRouter } from "express";
 import {
-  and, asc, desc, eq, gte, gt, ilike, inArray, isNull, lte, or, sql,
+  and, asc, desc, eq, getTableColumns, gte, gt, ilike, inArray, isNull, lte, or, sql,
 } from "drizzle-orm";
 import {
   AnswerLessonPromptQuestionBody,
@@ -61,6 +61,12 @@ import {
 import { notifyWithEmail, staffedRoleNames } from "../lib/workspace";
 
 const router: IRouter = Router();
+const { mustChangePassword: _mustChangePassword, ...compatibleUserColumns } = getTableColumns(users);
+const compatibleUserSelection = {
+  ...compatibleUserColumns,
+  mustChangePassword: sql<boolean>`coalesce((to_jsonb("users") ->> 'must_change_password')::boolean, false)`,
+};
+
 router.use(requireAuth);
 router.use(requireAppAccess("lessons"));
 router.use("/forms", (req, res, next) =>
@@ -166,7 +172,7 @@ async function disciplineNameById(disciplineId: string | null): Promise<string |
 async function approvalPeopleJson(row: typeof lessonLearnedForms.$inferSelect) {
   const ids = [row.submittedById, row.reviewedById].filter((v): v is string => Boolean(v));
   const rows = ids.length
-    ? await db.select().from(users).where(and(inArray(users.id, ids), isNull(users.deletedAt)))
+    ? await db.select(compatibleUserSelection).from(users).where(and(inArray(users.id, ids), isNull(users.deletedAt)))
     : [];
   const byId = new Map(rows.map((u) => [u.id, u]));
   const person = (id: string | null) => {
@@ -373,6 +379,8 @@ router.post("/forms", asyncHandler(async (req, res) => {
   const body = parseBody(CreateLessonFormBody, req, res);
   if (!body) return;
   const user = req.currentUser!;
+  const capturedAt = new Date(body.capturedAt);
+  if (Number.isNaN(capturedAt.valueOf())) throw new HttpError(422, "Captured at must be a valid date and time");
   await assertFieldAccess(req, "lessons", "lesson-form", { mode: "create" });
   await assertFieldControls(req, "lessons", "lesson-form", { mode: "create" });
   await Promise.all([
@@ -402,7 +410,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
         organizationId: user.organizationId, projectId: body.projectId,
         disciplineId, referenceNumber, title: body.title,
         categorisation: body.categorisationId, issueCategory: body.issueCategory, impact: body.impact,
-        capturedAt: new Date(), gpsLat: body.gpsLat?.toString(), gpsLng: body.gpsLng?.toString(),
+        capturedAt, gpsLat: body.gpsLat?.toString(), gpsLng: body.gpsLng?.toString(),
         gpsLocation: body.gpsLat != null && body.gpsLng != null ? { lat: body.gpsLat, lng: body.gpsLng } : undefined,
         clientReference, reference: body.reference, version: 1, conflictFlag: false, description: body.description,
         rootCause: body.rootCause, correction: body.correction, correctiveAction: body.correctiveAction,
@@ -432,6 +440,8 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
   if (!body) return;
   const before = await getForm(String(req.params.id), req.currentUser!.organizationId);
   if (!before) notFound("Lesson form not found");
+  const capturedAt = new Date(body.capturedAt);
+  if (Number.isNaN(capturedAt.valueOf())) throw new HttpError(422, "Captured at must be a valid date and time");
   assertOwnerOrFull(req, before.creatorId);
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back forms may be edited");
   const beforeJson = await formJsonNamed(before);
@@ -453,7 +463,7 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
     description: body.description, rootCause: body.rootCause, correction: body.correction,
     correctiveAction: body.correctiveAction, isRepeated: body.isRepeatedIssue ?? false,
     repeatCount: body.repeatCount ?? 0, repeatLocation: body.repeatLocation,
-    remarks: body.remarks, approverId: body.approverId, version: before.workflowState === "sent_back" ? before.version + 1 : before.version,
+    remarks: body.remarks, approverId: body.approverId, capturedAt, version: before.workflowState === "sent_back" ? before.version + 1 : before.version,
     workflowState: before.workflowState === "sent_back" ? "draft" : before.workflowState, updatedAt: new Date(),
   }).where(eq(lessonLearnedForms.id, before.id)).returning();
   const rowJson = await formJsonNamed(row!);
@@ -590,7 +600,14 @@ async function logWhere(req: any) {
   }
   return and(
     eq(lessonLearnedForms.organizationId, req.currentUser.organizationId), isNull(lessonLearnedForms.deletedAt),
-    term ? or(ilike(lessonLearnedForms.title, term), ilike(lessonLearnedForms.description, term), ilike(lessonLearnedForms.rootCause, term), ilike(lessonLearnedForms.correctiveAction, term)) : undefined,
+    term ? or(
+      ilike(lessonLearnedForms.referenceNumber, term),
+      ilike(lessonLearnedForms.reference, term),
+      ilike(lessonLearnedForms.title, term),
+      ilike(lessonLearnedForms.description, term),
+      ilike(lessonLearnedForms.rootCause, term),
+      ilike(lessonLearnedForms.correctiveAction, term),
+    ) : undefined,
     typeof q.projectId === "string" ? eq(lessonLearnedForms.projectId, q.projectId) : undefined,
     disciplineId ? eq(lessonLearnedForms.disciplineId, disciplineId) : undefined,
     typeof q.category === "string" ? eq(lessonLearnedForms.categorisation, q.category) : undefined,
@@ -704,7 +721,7 @@ router.get("/forms/:id/activity", asyncHandler(async (req, res) => {
     db.select({ count: sql<number>`count(*)` }).from(lessonsAuditLogEntries).where(where),
   ]);
   const actorIds = [...new Set(rows.map((r) => r.actorId).filter((v): v is string => Boolean(v)))];
-  const actors = actorIds.length ? await db.select().from(users).where(and(inArray(users.id, actorIds), isNull(users.deletedAt))) : [];
+  const actors = actorIds.length ? await db.select(compatibleUserSelection).from(users).where(and(inArray(users.id, actorIds), isNull(users.deletedAt))) : [];
   const actorName = new Map(actors.map((u) => [u.id, u.fullName]));
   res.json(paginated(rows.map((r) => ({ id: r.id, actorId: r.actorId ?? "", actorName: actorName.get(r.actorId ?? "") ?? null, delegatedForId: null, action: r.action, entityType: r.entityType, entityId: r.entityId ?? "", before: null, after: r.after, ipAddress: null, occurredAt: r.createdAt })), Number(count[0]?.count ?? 0), 1, 50));
 }));
@@ -775,7 +792,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = and(eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt));
   const [rows, count, assignments, roles, platform] = await Promise.all([
-    db.select().from(users).where(where).orderBy(asc(users.username)).limit(limit).offset(offset),
+    db.select(compatibleUserSelection).from(users).where(where).orderBy(asc(users.username)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(users).where(where),
     db.select().from(lessonsUserWorkspaceRoles).where(and(eq(lessonsUserWorkspaceRoles.organizationId, req.currentUser!.organizationId), isNull(lessonsUserWorkspaceRoles.deletedAt))),
     db.select().from(lessonsWorkspaceRoles).where(and(eq(lessonsWorkspaceRoles.organizationId, req.currentUser!.organizationId), isNull(lessonsWorkspaceRoles.deletedAt))),
@@ -789,7 +806,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
 router.put("/admin/users/:userId/profile", asyncHandler(async (req, res) => {
   const body = parseBody(UpdateLessonsUserProfileBody, req, res);
   if (!body) return;
-  const [target] = await db.select().from(users).where(and(eq(users.id, String(req.params.userId)), eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt))).limit(1);
+  const [target] = await db.select(compatibleUserSelection).from(users).where(and(eq(users.id, String(req.params.userId)), eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt))).limit(1);
   if (!target) notFound("User not found");
   let signaturePath = target.signaturePath;
   if (body.signatureDataUrl) {
@@ -814,7 +831,7 @@ router.put("/admin/users/:userId/profile", asyncHandler(async (req, res) => {
 
 /** Stream a user's signature image to anyone in the same organization (shown on approval records). */
 router.get("/users/:userId/signature", asyncHandler(async (req, res) => {
-  const [target] = await db.select().from(users).where(and(eq(users.id, String(req.params.userId)), eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt))).limit(1);
+  const [target] = await db.select(compatibleUserSelection).from(users).where(and(eq(users.id, String(req.params.userId)), eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt))).limit(1);
   if (!target?.signaturePath) throw new HttpError(404, "Signature not found");
   const signaturePath: string = target.signaturePath;
   const object = await getObject(signaturePath.startsWith("gcs:") ? signaturePath.slice(4) : signaturePath);
@@ -827,7 +844,7 @@ router.get("/users/:userId/signature", asyncHandler(async (req, res) => {
 router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   const body = parseBody(AssignLessonsUserRoleBody, req, res); if (!body) return;
   const [target, role] = await Promise.all([
-    db.select().from(users).where(and(eq(users.id, String(req.params.userId)), eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt))).limit(1),
+    db.select(compatibleUserSelection).from(users).where(and(eq(users.id, String(req.params.userId)), eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt))).limit(1),
     db.select().from(lessonsWorkspaceRoles).where(and(eq(lessonsWorkspaceRoles.id, body.roleId), eq(lessonsWorkspaceRoles.organizationId, req.currentUser!.organizationId), isNull(lessonsWorkspaceRoles.deletedAt))).limit(1),
   ]);
   if (!target[0] || !role[0]) notFound("User or role not found");
@@ -846,7 +863,7 @@ router.get("/admin/access-queue", asyncHandler(async (req, res) => {
     db.select({ count: sql<number>`count(*)` }).from(applicationAccess).where(where),
     db.select().from(lessonsWorkspaceRoles).where(and(eq(lessonsWorkspaceRoles.organizationId, req.currentUser!.organizationId), isNull(lessonsWorkspaceRoles.deletedAt))).limit(1),
   ]);
-  const userRows = rows.length ? await db.select().from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId), inArray(users.username, rows.map((r) => r.username)))) : [];
+  const userRows = rows.length ? await db.select(compatibleUserSelection).from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId), inArray(users.username, rows.map((r) => r.username)))) : [];
   res.json(paginated(rows.map((r) => ({ id: r.id, userId: userRows.find((u) => u.username === r.username)?.id ?? r.id, requestedRoleId: role[0]?.id ?? r.id, status: "pending", requestedAt: r.createdAt })), Number(count[0]?.count ?? 0), page, limit));
 }));
 

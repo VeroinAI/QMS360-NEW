@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -22,6 +23,7 @@ import { LessonFormPage } from "./lesson-form";
 import { AiEntryPage } from "./ai-entry";
 import { LoadState, PageHeader, StateBadge, errorMessage } from "./common";
 import { useLov } from "@/lib/use-lov";
+import { LessonsNotificationsPage } from "@/pages/notifications";
 
 const PAGE_SIZE = 10;
 
@@ -92,6 +94,7 @@ function LogPage() {
   const disciplines = useLov("disciplines");
   const escalations = useGetLessonsEscalations({ page: 1, limit: 200 });
   const queryClient = useQueryClient();
+  const projectNames = new Map(refs.data?.projects.map((project) => [project.id, project.name]) ?? []);
   const remove = useDeleteLessonForm({ mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] }); toast({ title: "Lesson deleted" }); }, onError: (e) => toast({ title: "Delete failed", description: errorMessage(e), variant: "destructive" }) } });
   const activeIds = new Set(escalations.data?.items.filter((e) => e.status === "open").map((e) => e.recordId));
   async function exportCsv() { try { download((await exportLessonsLog({ format: "csv" })).downloadUrl); } catch (e) { toast({ title: "Export failed", description: errorMessage(e), variant: "destructive" }); } }
@@ -99,16 +102,16 @@ function LogPage() {
     <PageHeader title="Lesson Learned Log" description="Search the organisation's shared knowledge base." back="/lessons" actions={<><Button variant="outline" onClick={exportCsv}><Download /> Export CSV</Button><LessonActions /></>} />
     <Card className="mb-5"><CardContent className="grid gap-3 pt-6 md:grid-cols-2 xl:grid-cols-4">
       <div className="relative md:col-span-2"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input className="pl-9" placeholder="Search title, reference or content…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
-      <Select value={projectId} onValueChange={(v) => { setProjectId(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger><SelectContent><SelectItem value="all">All projects</SelectItem>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select>
-      <Select value={disciplineId} onValueChange={(v) => { setDisciplineId(v); setPage(1); }} disabled={disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Discipline" /></SelectTrigger><SelectContent><SelectItem value="all">All disciplines</SelectItem>{disciplines.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>
+      <div className="space-y-1.5"><Label>Project</Label><Select value={projectId} onValueChange={(v) => { setProjectId(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger><SelectContent><SelectItem value="all">All projects</SelectItem>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></div>
+      <div className="space-y-1.5"><Label>Discipline</Label><Select value={disciplineId} onValueChange={(v) => { setDisciplineId(v); setPage(1); }} disabled={disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Discipline" /></SelectTrigger><SelectContent><SelectItem value="all">All disciplines</SelectItem>{disciplines.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
        <Select value={category} onValueChange={(v) => { setCategory(v); setPage(1); }} disabled={categories.isLoading}><SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger><SelectContent><SelectItem value="all">All categories</SelectItem>{categories.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>
        <Select value={impact} onValueChange={(v) => { setImpact(v); setPage(1); }} disabled={impacts.isLoading}><SelectTrigger><SelectValue placeholder="Impact" /></SelectTrigger><SelectContent><SelectItem value="all">All impacts</SelectItem>{impacts.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>
       <Input type="date" aria-label="From date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
       <Input type="date" aria-label="To date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
     </CardContent></Card>
     <LoadState loading={log.isLoading} error={log.error} empty={!log.data?.items.length}>
-      <Card><Table><TableHeader><TableRow><TableHead>Lesson</TableHead><TableHead>Category</TableHead><TableHead>Impact</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="w-12" /></TableRow></TableHeader><TableBody>
-        {log.data?.items.map((lesson) => <TableRow key={lesson.id}><TableCell><Link href={`/lessons/${lesson.id}`} className="font-semibold text-primary hover:underline">{lesson.title}</Link><p className="text-xs text-muted-foreground">{lesson.referenceNumber}{activeIds.has(lesson.id) && <Badge variant="destructive" className="ml-2">Escalated</Badge>}</p></TableCell><TableCell>{lesson.issueCategory}</TableCell><TableCell>{lesson.impact}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{new Date(lesson.capturedAt).toLocaleDateString()}</TableCell><TableCell>
+      <Card><Table><TableHeader><TableRow><TableHead>Lesson</TableHead><TableHead>Project</TableHead><TableHead>Discipline</TableHead><TableHead>Category</TableHead><TableHead>Impact</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="w-12" /></TableRow></TableHeader><TableBody>
+        {log.data?.items.map((lesson) => <TableRow key={lesson.id}><TableCell><Link href={`/lessons/${lesson.id}`} className="font-semibold text-primary hover:underline">{lesson.title}</Link><p className="text-xs text-muted-foreground">{lesson.referenceNumber}{activeIds.has(lesson.id) && <Badge variant="destructive" className="ml-2">Escalated</Badge>}</p></TableCell><TableCell>{projectNames.get(lesson.projectId) ?? "Unknown project"}</TableCell><TableCell>{lesson.disciplineId || "—"}</TableCell><TableCell>{lesson.issueCategory}</TableCell><TableCell>{lesson.impact}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{new Date(lesson.capturedAt).toLocaleDateString()}</TableCell><TableCell>
           <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" aria-label="Delete lesson"><Trash2 /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this lesson?</AlertDialogTitle><AlertDialogDescription>This soft-deletes the lesson and removes it from active lists.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => remove.mutate({ id: lesson.id })}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         </TableCell></TableRow>)}
       </TableBody></Table></Card>
@@ -121,6 +124,7 @@ export function LessonsRoutes() {
   return <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8"><Switch>
     <Route path="/lessons" component={HomePage} />
     <Route path="/lessons/log" component={LogPage} />
+    <Route path="/lessons/notifications" component={LessonsNotificationsPage} />
     <Route path="/lessons/new"><LessonFormPage /></Route>
     <Route path="/lessons/ai-entry" component={AiEntryPage} />
     <Route path="/lessons/:id">{(params) => <LessonFormPage id={params.id} />}</Route>

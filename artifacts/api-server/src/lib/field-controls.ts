@@ -75,8 +75,6 @@ const EXTRA_FIELD_SPECS: Record<string, ExtraFieldSpec> = {
     bodyKeys: ["gpsLat", "gpsLng"],
     isEmpty: (value) => !Array.isArray(value) || value.some((part) => part === null || part === undefined || part === ""),
   },
-  // Assigned by the server on create and never persisted from the request body.
-  "lessons.lesson-form.capturedAt": { serverManaged: true },
   // Repeat details only apply once the issue is marked as repeated (mirrors the UI's conditional checks).
   "lessons.lesson-form.repeatCount": {
     mandatoryWhen: (body) => body.isRepeatedIssue === true,

@@ -30,7 +30,8 @@ export interface LessonLearnedForm {
   repeatCount?: number;
   /** @nullable */
   repeatLocation?: string | null;
-  readonly capturedAt: Date;
+  /** User-editable date and time at which the lesson was captured */
+  capturedAt: Date;
   /**
      * @minimum -90
      * @maximum 90

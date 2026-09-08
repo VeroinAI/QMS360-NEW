@@ -73,6 +73,7 @@ const lessonBody = (overrides: Record<string, unknown> = {}) => ({
   rootCause: "Root cause analysis",
   correction: "Immediate fix",
   correctiveAction: "Prevention plan",
+  capturedAt: "2026-04-15T09:30:00.000Z",
   version: 1,
   conflictFlag: false,
   workflowState: "Draft",
@@ -273,9 +274,11 @@ describe("field-controls enforcement over HTTP (lessons form)", () => {
     await expectUnprocessable(res, "rootCause");
   });
 
-  it("accepts a non-admin update that respects both rules", async () => {
-    const res = await api("PUT", `/lessons/forms/${lessonId}`, { token: member.token, body: lessonBody({ id: lessonId, title: "Locked-valve lesson (revised)" }) });
+  it("accepts a non-admin update that respects both rules and persists capturedAt", async () => {
+    const capturedAt = "2026-05-16T14:45:00.000Z";
+    const res = await api("PUT", `/lessons/forms/${lessonId}`, { token: member.token, body: lessonBody({ id: lessonId, title: "Locked-valve lesson (revised)", capturedAt }) });
     expect(res.status).toBe(200);
+    expect(new Date(res.json.capturedAt).toISOString()).toBe(capturedAt);
   });
 
   it("lets an admin create despite both rules (bypass)", async () => {

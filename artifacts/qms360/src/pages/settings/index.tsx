@@ -33,6 +33,7 @@ import { CockpitPage } from '../cockpit';
 import type { AISettings, EscalationRule, FieldControlSetting, NotificationTemplate, NumberingModuleConfig, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
 import { AlertCircle, ArrowLeft, Bell, Bot, Check, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Plus, Save, Search, Settings2, ShieldCheck, SlidersHorizontal, Trash2, Users } from 'lucide-react';
 import { fieldControlRegistry } from '@/lib/field-controls';
+import { userFacingApiError } from '@/lib/api-error';
 import { useEffect, useState } from 'react';
 
 type AppKey = 'qaqc' | 'lessons' | 'audit';
@@ -47,7 +48,8 @@ const tabs: { key: TabKey; label: string; icon: typeof Settings2 }[] = [
 ];
 
 function errorText(error: unknown) {
-  return error instanceof Error ? error.message : 'The service could not complete this request.';
+  const details = userFacingApiError(error, 'Administration could not be loaded.');
+  return `${details.message} (${details.technicalCode})`;
 }
 
 function PageState({ loading, error, empty, onRetry, children }: { loading: boolean; error: unknown; empty?: boolean; onRetry: () => void; children: React.ReactNode }) {

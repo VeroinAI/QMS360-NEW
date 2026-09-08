@@ -46,7 +46,12 @@ type Draft = {
 };
 type UploadItem = { key: string; category: "before" | "after"; name: string; preview: string; progress: number; status: "queued" | "uploading" | "failed" | "done"; file?: File };
 
-const initialDraft = (): Draft => ({ title: "", projectId: "", disciplineId: "", categorisationId: "", reference: "", issueCategory: "Minor", impact: "Positive", approverId: "", isRepeatedIssue: false, repeatCount: 0, repeatLocation: "", remarks: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: new Date().toISOString().slice(0, 16) });
+function toDatetimeLocal(value: Date) {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
+}
+
+const initialDraft = (): Draft => ({ title: "", projectId: "", disciplineId: "", categorisationId: "", reference: "", issueCategory: "Minor", impact: "Positive", approverId: "", isRepeatedIssue: false, repeatCount: 0, repeatLocation: "", remarks: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: toDatetimeLocal(new Date()) });
 
 async function resizeImage(file: File): Promise<File> {
   if (file.size > 8 * 1024 * 1024) throw new Error(`${file.name} exceeds the 8 MB limit.`);
@@ -112,7 +117,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   // Create is driven from save() so photos queued before the first save can be uploaded once the record id exists.
   const create = useCreateLessonForm();
   const update = useUpdateLessonForm({ mutation: commonMutation });
-  const submit = useSubmitLessonForm({ mutation: { onSuccess: () => { invalidate(); toast({ title: "Lesson submitted for approval" }); }, onError: (e) => toast({ title: "Submit failed", description: errorMessage(e), variant: "destructive" }) } });
+  const submit = useSubmitLessonForm();
   const reviewMutation = useReviewLessonForm({ mutation: { onSuccess: () => { invalidate(); setReview(null); setReviewRemarks(""); toast({ title: review === "approve" ? "Lesson approved" : "Lesson sent back" }); }, onError: (e) => toast({ title: "Review failed", description: errorMessage(e), variant: "destructive" }) } });
   const rephrase = useRephraseLessonField();
   const [suggestion, setSuggestion] = useState<{ field: FieldName; text: string } | null>(null);
@@ -124,7 +129,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   useEffect(() => {
     if (!detail.data) return;
     const x = detail.data;
-    setDraft({ title: x.title, projectId: x.projectId, disciplineId: x.disciplineId, categorisationId: x.categorisationId, reference: x.reference ?? "", issueCategory: x.issueCategory, impact: x.impact, approverId: x.approverId ?? "", isRepeatedIssue: x.isRepeatedIssue ?? false, repeatCount: x.repeatCount ?? 0, repeatLocation: x.repeatLocation ?? "", remarks: x.remarks ?? "", description: x.description, rootCause: x.rootCause, correction: x.correction, correctiveAction: x.correctiveAction, capturedAt: x.capturedAt.slice(0, 16), gpsLat: x.gpsLat ?? undefined, gpsLng: x.gpsLng ?? undefined });
+    setDraft({ title: x.title, projectId: x.projectId, disciplineId: x.disciplineId, categorisationId: x.categorisationId, reference: x.reference ?? "", issueCategory: x.issueCategory, impact: x.impact, approverId: x.approverId ?? "", isRepeatedIssue: x.isRepeatedIssue ?? false, repeatCount: x.repeatCount ?? 0, repeatLocation: x.repeatLocation ?? "", remarks: x.remarks ?? "", description: x.description, rootCause: x.rootCause, correction: x.correction, correctiveAction: x.correctiveAction, capturedAt: toDatetimeLocal(new Date(x.capturedAt)), gpsLat: x.gpsLat ?? undefined, gpsLng: x.gpsLng ?? undefined });
   }, [detail.data]);
 
   const readOnly = Boolean(detail.data && !["Draft", "Sent Back"].includes(detail.data.workflowState));
@@ -133,7 +138,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   const isCreator = detail.data?.creatorId != null && detail.data.creatorId === user.data?.id;
   // Only the designated approver sees review actions — there is no admin bypass.
   const canReview = !isCreator && detail.data?.approverId != null && detail.data.approverId === user.data?.id;
-  const uploadBlocking = uploads.some((x) => x.status === "uploading" || x.status === "failed");
+  const uploadBlocking = uploads.some((x) => x.status === "uploading");
   const hasBeforePhoto = Boolean(detail.data?.photos?.some((p) => p.category === "before" && p.status === "confirmed"));
   const hasAfterPhoto = Boolean(detail.data?.photos?.some((p) => p.category === "after" && p.status === "confirmed"));
   const photosReady = hasBeforePhoto && hasAfterPhoto;
@@ -145,10 +150,12 @@ export function LessonFormPage({ id }: { id?: string }) {
   }, [approvers.data, draft.approverId]);
   const approverUnsaved = Boolean(detail.data) && draft.approverId !== (detail.data?.approverId ?? "");
   function set<K extends keyof Draft>(key: K, value: Draft[K]) { setDraft((d) => ({ ...d, [key]: value })); setErrors((e) => ({ ...e, [key]: "" })); }
-  function validate() {
+  function validate(requireApprover = true) {
     const next: Record<string, string> = {};
     (["title","projectId","disciplineId","categorisationId","description","rootCause","correction","correctiveAction"] as const).forEach((key) => { if (!draft[key]?.trim()) next[key] = "This field is required."; });
-    if (!draft.approverId) next.approverId = "Choose an approver before submitting.";
+    if (requireApprover && !draft.approverId) next.approverId = "Choose an approver before submitting.";
+    if (!draft.capturedAt) next.capturedAt = "Enter when this lesson was captured.";
+    else if (Number.isNaN(new Date(draft.capturedAt).valueOf())) next.capturedAt = "Enter a valid date and time.";
     if (draft.isRepeatedIssue && draft.repeatCount < 1) next.repeatCount = "Enter how many times this issue was repeated.";
     if (draft.isRepeatedIssue && !draft.repeatLocation.trim()) next.repeatLocation = "Enter where this issue was repeated.";
     for (const key of fieldControls.mandatoryFieldKeys()) {
@@ -185,21 +192,41 @@ export function LessonFormPage({ id }: { id?: string }) {
     await confirmLessonPhoto(intent.id);
     setUploads((u) => u.map((x) => x.key === item.key ? { ...x, progress: 100, status: "done" } : x));
   }
-  async function save() {
-    if (!validate() || uploadBlocking) return;
-    if (id) { update.mutate({ id, data: body() }); return; }
-    const queued = uploads.filter((x) => x.status === "queued");
+  async function saveDraft({ navigateAfterSave = isNew, requireApprover = false }: { navigateAfterSave?: boolean; requireApprover?: boolean } = {}): Promise<string | null> {
+    if (!validate(requireApprover) || uploadBlocking) return null;
     try {
+      if (id) {
+        await update.mutateAsync({ id, data: body() });
+        return id;
+      }
+    const queued = uploads.filter((x) => x.status === "queued" || x.status === "failed");
       const created = await create.mutateAsync({ data: body() });
       if (queued.length) {
         const results = await Promise.allSettled(queued.map((item) => uploadPhoto(created.id, item)));
         const failed = results.filter((r) => r.status === "rejected").length;
-        if (failed) toast({ title: "Lesson saved; some photos failed", description: `${failed} photo(s) did not upload. Reopen the lesson to retry.`, variant: "destructive" });
-        else toast({ title: "Changes saved" });
-      } else toast({ title: "Changes saved" });
+        if (failed) {
+          const failedKeys = new Set(queued.filter((_, index) => results[index]?.status === "rejected").map((item) => item.key));
+          setUploads((current) => current.map((item) => failedKeys.has(item.key) ? { ...item, status: "failed" } : item));
+          throw new Error(`${failed} photo(s) did not upload. Retry Save draft after resolving the upload issue.`);
+        }
+      }
+      toast({ title: "Changes saved" });
       invalidate();
+      if (navigateAfterSave) navigate("/lessons/log");
+      return created.id;
+    } catch (e) { toast({ title: "Unable to save", description: errorMessage(e), variant: "destructive" }); return null; }
+  }
+  async function saveAndSubmit() {
+    const recordId = await saveDraft({ navigateAfterSave: false, requireApprover: true });
+    if (!recordId) return;
+    try {
+      await submit.mutateAsync({ id: recordId });
+      invalidate();
+      toast({ title: "Lesson submitted for approval" });
       navigate("/lessons/log");
-    } catch (e) { toast({ title: "Unable to save", description: errorMessage(e), variant: "destructive" }); }
+    } catch (e) {
+      toast({ title: "Saved as draft; submit failed", description: errorMessage(e), variant: "destructive" });
+    }
   }
   function captureGps() {
     if (!navigator.geolocation) { toast({ title: "Location unavailable", description: "This browser does not support location.", variant: "destructive" }); return; }
@@ -261,7 +288,7 @@ export function LessonFormPage({ id }: { id?: string }) {
             <Field label="Title" error={errors.title} required={fp("title").required} className="sm:col-span-2"><Input value={draft.title} onChange={(e) => set("title", e.target.value)} disabled={disabled("title")} /></Field>
             <Field label="Discipline" error={errors.disciplineId} required={fp("disciplineId").required}><Select value={draft.disciplineId} onValueChange={(v) => set("disciplineId", v)} disabled={disabled("disciplineId") || disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Select discipline" /></SelectTrigger><SelectContent>{withLegacyOption(disciplines.options, draft.disciplineId).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
             <Field label="Categorization" error={errors.categorisationId} required={fp("categorisationId").required}><Select value={draft.categorisationId} onValueChange={(v) => set("categorisationId", v)} disabled={disabled("categorisationId") || categorisations.isLoading}><SelectTrigger><SelectValue placeholder="Select categorization" /></SelectTrigger><SelectContent>{withLegacyOption(categorisations.options, draft.categorisationId).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
-            <Field label="Date" required={fp("capturedAt").required}><Input value={new Date(draft.capturedAt).toLocaleString()} disabled readOnly /></Field>
+             <Field label="Captured at" error={errors.capturedAt} required={fp("capturedAt").required}><Input type="datetime-local" value={draft.capturedAt} onChange={(e) => set("capturedAt", e.target.value)} disabled={disabled("capturedAt")} /></Field>
             <Field label="Time Zone"><Input value={Intl.DateTimeFormat().resolvedOptions().timeZone} disabled readOnly /></Field>
             <Field label="Location" error={errors.gps} required={fp("gps").required}>
               <Button type="button" variant="outline" className="w-full" onClick={captureGps} disabled={disabled("gps")}><MapPin /> Capture GPS</Button>
@@ -291,14 +318,8 @@ export function LessonFormPage({ id }: { id?: string }) {
           <Card><CardHeader><CardTitle>After Photo</CardTitle></CardHeader><CardContent><PhotoInput category="after" /></CardContent></Card>
           <Field label="Remarks" error={errors.remarks} required={fp("remarks").required}><Textarea rows={3} value={draft.remarks} onChange={(e) => set("remarks", e.target.value)} disabled={disabled("remarks")} placeholder="Add any additional remarks" /></Field>
         </CardContent></Card>
-        <div className="space-y-6">
-          <Card><CardHeader><CardTitle>Workflow</CardTitle></CardHeader><CardContent><Field label="Approver" error={errors.approverId} required={fp("approverId").required}><Select value={draft.approverId} onValueChange={(v) => set("approverId", v)} disabled={disabled("approverId") || approvers.isLoading}><SelectTrigger><SelectValue placeholder="Select approver" /></SelectTrigger><SelectContent>{approverOptions.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent></Select>{!readOnly && <p className="mt-1 text-xs text-muted-foreground">Routes the lesson to this person for review. You cannot select yourself.</p>}</Field></CardContent></Card>
-          {!readOnly && <Button className="w-full" onClick={save} disabled={create.isPending || update.isPending || uploadBlocking}>{(create.isPending || update.isPending) && <Loader2 className="animate-spin" />} Save lesson</Button>}
-          {record?.workflowState === "Draft" || record?.workflowState === "Sent Back" ? <div>
-            <Button variant="secondary" className="w-full" disabled={uploadBlocking || submit.isPending || !record.approverId || approverUnsaved || !photosReady} onClick={() => submit.mutate({ id: record.id })}>Submit for approval</Button>
-            {(!record.approverId || approverUnsaved) && <p className="mt-2 text-center text-xs text-muted-foreground">{!record.approverId && !draft.approverId ? "Choose an approver above, then save, before submitting." : "Save the lesson so the selected approver is stored before submitting."}</p>}
-            {!photosReady && <p className="mt-2 text-center text-xs text-muted-foreground">Add at least one before and one after photo, then save, before submitting.</p>}
-          </div> : null}
+        <div className="hidden space-y-6 xl:sticky xl:top-6 xl:block xl:self-start">
+          <WorkflowControls />
           {record?.workflowState === "Submitted" && canReview && <div className="grid grid-cols-2 gap-2"><Button onClick={() => setReview("approve")}>Approve</Button><Button variant="destructive" onClick={() => setReview("send_back")}>Send back</Button></div>}
           {record?.submittedAt && <Card><CardHeader><CardTitle>Approval record</CardTitle></CardHeader><CardContent className="space-y-4">
             <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Submitted by</p><p className="font-medium">{record.submittedByName ?? "Unknown"}{record.submittedByDesignation ? ` — ${record.submittedByDesignation}` : ""}</p><p className="text-xs text-muted-foreground">{new Date(record.submittedAt).toLocaleString()}</p>{record.submittedBySignatureUrl && <AuthImage src={record.submittedBySignatureUrl} alt="Submitter signature" className="mt-2 h-12 rounded border border-border bg-white object-contain p-1" />}</div>
@@ -306,13 +327,24 @@ export function LessonFormPage({ id }: { id?: string }) {
           </CardContent></Card>}
         </div>
       </div>
+      {!readOnly && <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background p-3 shadow-lg xl:hidden"><WorkflowControls mobile /></div>}
       {record?.photos?.length ? <Card className="mt-6"><CardHeader><CardTitle>Before & after</CardTitle></CardHeader><CardContent className="grid gap-6 md:grid-cols-2"><PhotoGallery title="Before" photos={record.photos.filter((p) => p.category === "before")} /><PhotoGallery title="After" photos={record.photos.filter((p) => p.category === "after")} /></CardContent></Card> : null}
       {record && activity.data && activity.data.items.length > 0 && <Card className="mt-6"><CardHeader><CardTitle>Activity</CardTitle></CardHeader><CardContent><ol className="relative space-y-4 border-l border-border pl-5">{activity.data.items.map((entry) => <li key={entry.id} className="relative"><span className="absolute -left-[26px] top-1 h-2.5 w-2.5 rounded-full bg-primary" /><p className="text-sm font-medium capitalize">{entry.action.replace(/_/g, " ")}</p><p className="text-xs text-muted-foreground">{entry.actorName ?? "Someone"} · {new Date(entry.occurredAt).toLocaleString()}</p></li>)}</ol></CardContent></Card>}
       <Dialog open={review !== null} onOpenChange={(open) => !open && setReview(null)}><DialogContent><DialogHeader><DialogTitle>{review === "approve" ? "Approve lesson" : "Send lesson back"}</DialogTitle><DialogDescription>{review === "send_back" ? "Remarks are required so the creator knows what to change." : "Optionally add an approval remark."}</DialogDescription></DialogHeader><Textarea value={reviewRemarks} onChange={(e) => setReviewRemarks(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" onClick={() => setReview(null)}>Cancel</Button><Button disabled={review === "send_back" && !reviewRemarks.trim()} onClick={() => record && reviewMutation.mutate({ id: record.id, data: { decision: review!, comments: reviewRemarks || undefined } })}>Confirm</Button></DialogFooter></DialogContent></Dialog>
     </div>;
 
     function PhotoInput({ category }: { category: "before" | "after" }) {
-      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => choosePhotos(e.target.files, category)} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="overflow-hidden rounded border border-border">{p.storageUrl ? <AuthImage src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}{p.status !== "queued" ? <Progress value={p.progress} className="absolute bottom-0 rounded-none" /> : <p className="absolute bottom-0 w-full bg-background/80 text-center text-[10px] text-muted-foreground">Uploads on save</p>}</div>)}</div>{!id && uploads.some((p) => p.status === "queued") && <p className="mt-2 text-xs text-muted-foreground">Photos will be uploaded when you save the lesson.</p>}{uploadBlocking && <p className="mt-2 text-xs text-destructive">Resolve pending or failed uploads before saving or submitting.</p>}</div>;
+      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => choosePhotos(e.target.files, category)} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="overflow-hidden rounded border border-border">{p.storageUrl ? <AuthImage src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}{p.status !== "queued" ? <Progress value={p.progress} className="absolute bottom-0 rounded-none" /> : <p className="absolute bottom-0 w-full bg-background/80 text-center text-[10px] text-muted-foreground">Uploads on save</p>}</div>)}</div>{!id && uploads.some((p) => p.status === "queued") && <p className="mt-2 text-xs text-muted-foreground">Photos will be uploaded when you save the lesson.</p>}{uploads.some((p) => p.status === "failed") && <p className="mt-2 text-xs text-destructive">A photo upload failed. Save again to retry it before submitting.</p>}{uploadBlocking && <p className="mt-2 text-xs text-destructive">Wait for pending uploads before saving or submitting.</p>}</div>;
+    }
+
+    function WorkflowControls({ mobile = false }: { mobile?: boolean }) {
+      const editableState = isNew || record?.workflowState === "Draft" || record?.workflowState === "Sent Back";
+      const pending = create.isPending || update.isPending || submit.isPending;
+      return <Card className={mobile ? "border-0 shadow-none" : undefined}><CardHeader className={mobile ? "hidden" : undefined}><CardTitle>Workflow</CardTitle></CardHeader><CardContent className={mobile ? "p-0" : undefined}>
+        <Field label="Approver" error={errors.approverId} required={fp("approverId").required}><Select value={draft.approverId} onValueChange={(v) => set("approverId", v)} disabled={disabled("approverId") || approvers.isLoading}><SelectTrigger><SelectValue placeholder="Select approver" /></SelectTrigger><SelectContent>{approverOptions.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent></Select>{!readOnly && !mobile && <p className="mt-1 text-xs text-muted-foreground">Routes the lesson to this person for review. You cannot select yourself.</p>}</Field>
+        {!readOnly && <div className="mt-4 grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => void saveDraft()} disabled={pending || uploadBlocking}>{(create.isPending || update.isPending) && <Loader2 className="animate-spin" />} Save draft</Button>{editableState && <Button onClick={() => void saveAndSubmit()} disabled={pending || uploadBlocking}><Loader2 className={pending ? "animate-spin" : "hidden"} /> Save & submit</Button>}</div>}
+        {editableState && !mobile && <p className="mt-2 text-center text-xs text-muted-foreground">Submission requires an approver and at least one confirmed before and after photo.</p>}
+      </CardContent></Card>;
     }
   }
 }

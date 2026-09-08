@@ -1936,7 +1936,7 @@ components:
         isRepeatedIssue: {type: boolean}
         repeatCount: {type: number, minimum: 0}
         repeatLocation: {type: [string, "null"]}
-        capturedAt: {type: string, format: date-time, readOnly: true}
+        capturedAt: {type: string, format: date-time, description: User-editable date and time at which the lesson was captured}
         gpsLat: {type: [number, "null"], minimum: -90, maximum: 90}
         gpsLng: {type: [number, "null"], minimum: -180, maximum: 180}
         creatorId: {type: string}

@@ -245,6 +245,7 @@ describe("lesson creator self-approval (#20)", () => {
     id: randomUUID(), projectId, title: "Admin self-approval guard",
     disciplineId: "Civil", categorisationId: "Process", issueCategory: "Process", impact: "Medium",
     description: "desc", rootCause: "cause", correction: "fix", correctiveAction: "action",
+    capturedAt: "2026-04-15T09:30:00.000Z",
     version: 1, conflictFlag: false, workflowState: "Draft", approverId,
   });
 
