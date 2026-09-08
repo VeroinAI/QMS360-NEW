@@ -410,9 +410,7 @@ async function upsertUser(organizationId: string, source: string, row: Record<st
     eq(users.organizationId, organizationId), eq(users.username, username), isNull(users.deletedAt),
   )).limit(1);
   if (usernameTaken) throw new ImportRowError(`Username "${username}" is already in use`);
-  // Drizzle's table insert includes all declared columns, even omitted fields
-  // with DEFAULT values. Keep this import independent of newer auth columns
-  // (such as must_change_password) until the production schema catches up.
+  // Keep the import independent of unrelated account-management columns.
   await db.execute(sql`
     insert into shared.users (
       organization_id, email, username, full_name, project_id,

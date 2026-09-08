@@ -3,6 +3,7 @@
 - [Drizzle multi-schema migration quirks](drizzle-multischema-quirks.md) — drizzle-kit's state is meta/*_snapshot.json, not the .sql files; hand-written migrations silently desync the diff engine.
 - [Drizzle insert compatibility](drizzle-insert-compatibility.md) — omitted values may still emit DEFAULT columns; check INSERT SQL when supporting an older production schema.
 - [Optional UUID input normalization](optional-uuid-normalization.md) — normalize blank optional UUID form values to null at API boundaries before database writes.
+- [Password rotation policy](password-rotation-policy.md) — administrator-assigned passwords remain valid; do not add a forced password-change gate or session flag.
 - [Orval codegen rejects format: uuid](openapi-format-uuid-quirk.md) — `format: uuid` in openapi.yaml emits `zod.uuid()` (unsupported here); use plain `{type: string}`.
 - [RBAC setup for testing non-admin writes](demo-seed-users.md) — seeded workspace roles start with zero permission grants, so non-admin writes 403 until granted; never store credentials in memory.
 - [Lessons API request-body quirks](lessons-api-quirks.md) — discipline/categorisation take master-data values not UUIDs; server assigns its own id on create.

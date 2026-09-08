@@ -253,7 +253,6 @@ export interface CurrentUser {
   platformRole: string;
   organizationName: string;
   workspaceRoles: string[];
-  mustChangePassword: boolean;
 }
 
 export interface AuthResponse {

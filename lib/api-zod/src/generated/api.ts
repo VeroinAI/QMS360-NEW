@@ -38,8 +38,7 @@ export const LoginResponse = zod.object({
   "fullName": zod.string(),
   "platformRole": zod.string(),
   "organizationName": zod.string(),
-  "workspaceRoles": zod.array(zod.string()),
-  "mustChangePassword": zod.boolean()
+  "workspaceRoles": zod.array(zod.string())
 })
 })
 
@@ -71,8 +70,7 @@ export const RegisterResponse = zod.object({
   "fullName": zod.string(),
   "platformRole": zod.string(),
   "organizationName": zod.string(),
-  "workspaceRoles": zod.array(zod.string()),
-  "mustChangePassword": zod.boolean()
+  "workspaceRoles": zod.array(zod.string())
 })
 })
 
@@ -100,8 +98,7 @@ export const ContainerSsoResponse = zod.object({
   "fullName": zod.string(),
   "platformRole": zod.string(),
   "organizationName": zod.string(),
-  "workspaceRoles": zod.array(zod.string()),
-  "mustChangePassword": zod.boolean()
+  "workspaceRoles": zod.array(zod.string())
 })
 })
 
@@ -116,13 +113,12 @@ export const GetCurrentUserResponse = zod.object({
   "fullName": zod.string(),
   "platformRole": zod.string(),
   "organizationName": zod.string(),
-  "workspaceRoles": zod.array(zod.string()),
-  "mustChangePassword": zod.boolean()
+  "workspaceRoles": zod.array(zod.string())
 })
 
 
 /**
- * @summary Replace the current user's temporary password
+ * @summary Change the current user's password
  */
 export const changePasswordBodyPasswordMin = 8;
 export const changePasswordBodyPasswordMax = 128;
@@ -140,8 +136,7 @@ export const ChangePasswordResponse = zod.object({
   "fullName": zod.string(),
   "platformRole": zod.string(),
   "organizationName": zod.string(),
-  "workspaceRoles": zod.array(zod.string()),
-  "mustChangePassword": zod.boolean()
+  "workspaceRoles": zod.array(zod.string())
 })
 
 
@@ -277,7 +272,7 @@ export const GetApplicationAccessResponse = zod.object({
 
 
 /**
- * @summary Set or replace a user's temporary password
+ * @summary Set or replace a user's sign-in password
  */
 export const SetUserTemporaryPasswordParams = zod.object({
   "userId": zod.coerce.string()

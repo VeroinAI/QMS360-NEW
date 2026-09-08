@@ -129,7 +129,7 @@ paths:
     put:
       operationId: changePassword
       tags: [auth]
-      summary: Replace the current user's temporary password
+      summary: Change the current user's password
       security:
         - bearerAuth: []
       requestBody:
@@ -213,12 +213,12 @@ paths:
     put:
       operationId: setUserTemporaryPassword
       tags: [platform]
-      summary: Set or replace a user's temporary password
+      summary: Set or replace a user's sign-in password
       security: [{bearerAuth: []}]
       parameters: [{$ref: "#/components/parameters/UserId"}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/TemporaryPasswordInput"}}}}
       responses:
-        "204": {description: Temporary password set}
+        "204": {description: Sign-in password set}
         "403": {description: Administrator access required}
         "404": {description: User not found}
   /platform/field-settings:
@@ -1341,7 +1341,7 @@ components:
           $ref: "#/components/schemas/CurrentUser"
     CurrentUser:
       type: object
-      required: [id, email, username, fullName, platformRole, organizationName, workspaceRoles, mustChangePassword]
+      required: [id, email, username, fullName, platformRole, organizationName, workspaceRoles]
       properties:
         id:
           type: string
@@ -1359,8 +1359,6 @@ components:
           type: array
           items:
             type: string
-        mustChangePassword:
-          type: boolean
     PasswordChangeInput:
       type: object
       required: [password]

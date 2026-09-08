@@ -26,11 +26,6 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
     req.auth = token;
     req.currentUser = user;
-    const passwordChangeAllowed = req.path === "/auth/me" || req.path === "/auth/change-password";
-    if (user.mustChangePassword && !passwordChangeAllowed) {
-      res.status(403).json({ error: "Password change required", code: "PASSWORD_CHANGE_REQUIRED" });
-      return;
-    }
     next();
   } catch (error) {
     req.log.warn({ error }, "Rejected invalid authentication token");

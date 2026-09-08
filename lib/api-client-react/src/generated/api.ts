@@ -652,7 +652,7 @@ export const getChangePasswordUrl = () => {
 }
 
 /**
- * @summary Replace the current user's temporary password
+ * @summary Change the current user's password
  */
 export const changePassword = async (passwordChangeInput: PasswordChangeInput, options?: Parameters<typeof customFetch>[1]): Promise<CurrentUser> => {
 
@@ -701,7 +701,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ChangePasswordMutationError = ErrorType<void>
 
     /**
- * @summary Replace the current user's temporary password
+ * @summary Change the current user's password
  */
 export const useChangePassword = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changePassword>>, TError,{data: BodyType<PasswordChangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1193,7 +1193,7 @@ export const getSetUserTemporaryPasswordUrl = (userId: string,) => {
 }
 
 /**
- * @summary Set or replace a user's temporary password
+ * @summary Set or replace a user's sign-in password
  */
 export const setUserTemporaryPassword = async (userId: string,
     temporaryPasswordInput: TemporaryPasswordInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
@@ -1243,7 +1243,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SetUserTemporaryPasswordMutationError = ErrorType<void>
 
     /**
- * @summary Set or replace a user's temporary password
+ * @summary Set or replace a user's sign-in password
  */
 export const useSetUserTemporaryPassword = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUserTemporaryPassword>>, TError,{userId: string;data: BodyType<TemporaryPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
