@@ -125,6 +125,30 @@ paths:
                 $ref: "#/components/schemas/CurrentUser"
         "401":
           description: Authentication required
+  /auth/change-password:
+    put:
+      operationId: changePassword
+      tags: [auth]
+      summary: Replace the current user's temporary password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordChangeInput"
+      responses:
+        "200":
+          description: Updated user context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "401":
+          description: Authentication required
+        "422":
+          description: Invalid password
   /auth/logout:
     post:
       operationId: logout
@@ -1294,7 +1318,7 @@ components:
           $ref: "#/components/schemas/CurrentUser"
     CurrentUser:
       type: object
-      required: [id, email, username, fullName, platformRole, organizationName, workspaceRoles]
+      required: [id, email, username, fullName, platformRole, organizationName, workspaceRoles, mustChangePassword]
       properties:
         id:
           type: string
@@ -1312,6 +1336,13 @@ components:
           type: array
           items:
             type: string
+        mustChangePassword:
+          type: boolean
+    PasswordChangeInput:
+      type: object
+      required: [password]
+      properties:
+        password: {type: string, minLength: 8, maxLength: 128}
     TemporaryPasswordInput:
       type: object
       required: [password]

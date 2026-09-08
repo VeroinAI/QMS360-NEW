@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LockKeyhole } from 'lucide-react';
 import { Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
 import {
-  getGetCurrentUserQueryKey, setAuthTokenGetter, useGetCurrentUser, useLogin,
+  getGetCurrentUserQueryKey, setAuthTokenGetter, useChangePassword, useGetCurrentUser, useLogin,
 } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppShell } from '@/components/layout/app-shell';
@@ -40,7 +40,7 @@ function LoginPage() {
       onSuccess: session => {
         localStorage.setItem('qms360_token', session.token);
         void queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
-        setLocation('/');
+        setLocation(session.user.mustChangePassword ? '/change-password' : '/');
       },
       onError: () => setError('Those credentials did not match. Please try again.'),
     });
@@ -68,10 +68,48 @@ function LoginPage() {
   </div>;
 }
 
+function ChangePasswordPage() {
+  const [, setLocation] = useLocation();
+  const changePassword = useChangePassword();
+  const [password, setPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [error, setError] = useState('');
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    if (password !== confirmation) {
+      setError('The passwords do not match.');
+      return;
+    }
+    changePassword.mutate({ data: { password } }, {
+      onSuccess: user => {
+        queryClient.setQueryData(getGetCurrentUserQueryKey(), user);
+        setLocation('/');
+      },
+      onError: () => setError('We could not update your password. Please try again.'),
+    });
+  };
+  return <div className="flex min-h-dvh items-center justify-center bg-muted/40 p-6">
+    <div className="w-full max-w-md rounded-2xl border border-border bg-card p-7 shadow-lg">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground"><LockKeyhole className="h-6 w-6" /></div>
+      <p className="mt-6 text-xs font-bold uppercase tracking-widest text-accent">Account security</p>
+      <h1 className="mt-2 text-3xl font-bold">Choose a new password</h1>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">Your administrator issued a temporary password. Replace it before continuing to QMS360.</p>
+      {error && <div className="mt-5 rounded-lg bg-destructive p-3 text-sm text-destructive-foreground">{error}</div>}
+      <form onSubmit={submit} className="mt-6 space-y-4">
+        <div className="space-y-2"><Label htmlFor="new-password">New password</Label><Input id="new-password" type="password" minLength={8} maxLength={128} required value={password} onChange={event => setPassword(event.target.value)} autoComplete="new-password" /></div>
+        <div className="space-y-2"><Label htmlFor="confirm-password">Confirm new password</Label><Input id="confirm-password" type="password" minLength={8} maxLength={128} required value={confirmation} onChange={event => setConfirmation(event.target.value)} autoComplete="new-password" /></div>
+        <Button className="w-full" type="submit" disabled={changePassword.isPending}>{changePassword.isPending ? 'Updating password…' : 'Update password and continue'}</Button>
+      </form>
+    </div>
+  </div>;
+}
+
 function AuthenticatedRouter() {
   const [location, setLocation] = useLocation();
   const token = typeof window === 'undefined' ? null : localStorage.getItem('qms360_token');
   const isLogin = location === '/login';
+  const isPasswordChange = location === '/change-password';
   const session = useGetCurrentUser({ query: { enabled: Boolean(token) && !isLogin, queryKey: getGetCurrentUserQueryKey() } });
   useEffect(() => {
     if (!isLogin && (!token || session.isError)) {
@@ -79,9 +117,12 @@ function AuthenticatedRouter() {
       setLocation('/login');
     }
     if (isLogin && token) setLocation('/');
-  }, [isLogin, token, session.isError, setLocation]);
+    if (session.data?.mustChangePassword && !isPasswordChange) setLocation('/change-password');
+    if (session.data && !session.data.mustChangePassword && isPasswordChange) setLocation('/');
+  }, [isLogin, isPasswordChange, token, session.data, session.isError, setLocation]);
   if (isLogin) return <LoginPage />;
   if (!token || session.isLoading || !session.data) return <div className="flex min-h-dvh items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>;
+  if (session.data.mustChangePassword) return <ChangePasswordPage />;
   return <AppShell user={session.data}><ErrorBoundary resetKey={location}><Switch>
     <Route path="/" component={LandingPage} />
     <Route path="/executive" component={ExecutivePage} />

@@ -253,11 +253,20 @@ export interface CurrentUser {
   platformRole: string;
   organizationName: string;
   workspaceRoles: string[];
+  mustChangePassword: boolean;
 }
 
 export interface AuthResponse {
   token: string;
   user: CurrentUser;
+}
+
+export interface PasswordChangeInput {
+  /**
+     * @minLength 8
+     * @maxLength 128
+     */
+  password: string;
 }
 
 export interface TemporaryPasswordInput {

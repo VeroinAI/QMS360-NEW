@@ -29,6 +29,7 @@ router.put("/platform/users/:userId/temporary-password", requireAuth, requireAdm
   }
   const [updated] = await db.update(users).set({
     passwordHash: await hashPassword(parsed.data.password),
+    mustChangePassword: true,
     authSource: "local",
     updatedAt: new Date(),
   }).where(and(

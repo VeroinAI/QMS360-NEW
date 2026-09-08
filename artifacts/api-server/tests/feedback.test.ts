@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import express, { type Express } from "express";
 import type { Server } from "node:http";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, feedbackEntries, organizations, platformRoles, users } from "@workspace/db";
 import feedbackRouter from "../src/routes/feedback";
 import authRouter from "../src/routes/auth";
@@ -137,25 +137,53 @@ describe("authentication", () => {
 });
 
 describe("imported user activation", () => {
-  it("lets an administrator set a password that the imported user can use to sign in", async () => {
+  it("requires an imported user to replace the administrator-set password before continuing", async () => {
     const password = "ImportedUser9!";
-    const forbidden = await api("PUT", `/platform/users/${memberA.id}/temporary-password`, {
-      token: memberA.token,
-      body: { password },
-    });
-    expect(forbidden.status).toBe(403);
+    try {
+      const forbidden = await api("PUT", `/platform/users/${memberA.id}/temporary-password`, {
+        token: memberA.token,
+        body: { password },
+      });
+      expect(forbidden.status).toBe(403);
 
-    const activated = await api("PUT", `/platform/users/${memberA.id}/temporary-password`, {
-      token: adminA.token,
-      body: { password },
-    });
-    expect(activated.status).toBe(204);
+      const activated = await api("PUT", `/platform/users/${memberA.id}/temporary-password`, {
+        token: adminA.token,
+        body: { password },
+      });
+      expect(activated.status).toBe(204);
 
-    const login = await api("POST", "/auth/login", {
-      body: { email: `member.a.${suffix}@example.test`, password },
-    });
-    expect(login.status).toBe(200);
-    expect(login.json.user.id).toBe(memberA.id);
+      const login = await api("POST", "/auth/login", {
+        body: { email: `member.a.${suffix}@example.test`, password },
+      });
+      expect(login.status).toBe(200);
+      expect(login.json.user).toMatchObject({ id: memberA.id, mustChangePassword: true });
+
+      const me = await api("GET", "/auth/me", { token: login.json.token });
+      expect(me.status).toBe(200);
+      expect(me.json.mustChangePassword).toBe(true);
+
+      const blocked = await api("POST", "/feedback", {
+        token: login.json.token,
+        body: { module: "system", category: "issue", message: "Must not be created yet" },
+      });
+      expect(blocked.status).toBe(403);
+      expect(blocked.json.code).toBe("PASSWORD_CHANGE_REQUIRED");
+
+      const changed = await api("PUT", "/auth/change-password", {
+        token: login.json.token,
+        body: { password: "PrivateReplacement9!" },
+      });
+      expect(changed.status).toBe(200);
+      expect(changed.json.mustChangePassword).toBe(false);
+
+      const unblocked = await api("POST", "/feedback", {
+        token: login.json.token,
+        body: { module: "system", category: "issue", message: "Access restored after replacement" },
+      });
+      expect(unblocked.status).toBe(201);
+    } finally {
+      await db.update(users).set({ mustChangePassword: false }).where(eq(users.id, memberA.id));
+    }
   });
 });
 

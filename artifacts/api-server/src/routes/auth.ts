@@ -3,6 +3,8 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { eq, and } from "drizzle-orm";
 import {
   ContainerSsoBody,
+  ChangePasswordBody,
+  ChangePasswordResponse,
   GetCurrentUserResponse,
   LoginBody,
   LoginResponse,
@@ -126,6 +128,25 @@ router.get("/auth/me", requireAuth, (req, res): void => {
     return;
   }
   res.json(GetCurrentUserResponse.parse(req.currentUser));
+});
+
+router.put("/auth/change-password", requireAuth, async (req, res): Promise<void> => {
+  const parsed = ChangePasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({ error: parsed.error.message });
+    return;
+  }
+  await db.update(users).set({
+    passwordHash: await hashPassword(parsed.data.password),
+    mustChangePassword: false,
+    updatedAt: new Date(),
+  }).where(eq(users.id, req.currentUser!.id));
+  const context = await getUserContext(req.currentUser!.id);
+  if (!context) {
+    res.status(401).json({ error: "Unable to load user context" });
+    return;
+  }
+  res.json(ChangePasswordResponse.parse(context));
 });
 
 export default router;

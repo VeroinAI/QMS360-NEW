@@ -287,6 +287,7 @@ export * from './overviewMetricTone';
 export * from './overviewRecord';
 export * from './pageMeta';
 export * from './pageParameter';
+export * from './passwordChangeInput';
 export * from './periodParameter';
 export * from './permission';
 export * from './permissionKey';

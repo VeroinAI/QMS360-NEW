@@ -54,6 +54,7 @@ export async function getUserContext(userId: string) {
       organizationId: users.organizationId,
       organizationName: organizations.name,
       platformRole: platformRoles.name,
+      mustChangePassword: users.mustChangePassword,
     })
     .from(users)
     .innerJoin(organizations, eq(users.organizationId, organizations.id))
@@ -89,6 +90,7 @@ export async function getUserContext(userId: string) {
     platformRole: user.platformRole ?? "Employee",
     organizationName: user.organizationName,
     workspaceRoles: roleRows.map((row) => row.name),
+    mustChangePassword: user.mustChangePassword,
     organizationId: user.organizationId,
   };
 }
