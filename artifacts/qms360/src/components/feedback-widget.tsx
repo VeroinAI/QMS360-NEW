@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
+import { userFacingApiError } from '@/lib/api-error';
 
 type Category = 'issue' | 'suggestion' | 'question';
 type ModuleKey = 'qaqc' | 'lessons' | 'audit' | 'system';
@@ -30,8 +31,8 @@ const verdictLabels: Record<string, { label: string; variant: 'default' | 'secon
 };
 
 function errorMessage(error: unknown) {
-  return (error as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
-    ?? (error as { message?: string })?.message ?? 'Something went wrong';
+  const details = userFacingApiError(error, 'The server could not complete the request.');
+  return `${details.message} (${details.technicalCode})`;
 }
 
 export function FeedbackWidget() {
@@ -85,7 +86,7 @@ export function FeedbackWidget() {
       document.body,
     )}
     <Dialog open={open} onOpenChange={openDialog}>
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-xl overflow-x-hidden p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Report an issue or share feedback</DialogTitle>
           <DialogDescription>
@@ -99,7 +100,7 @@ export function FeedbackWidget() {
               <SelectTrigger className={moduleError ? 'border-destructive focus-visible:ring-destructive' : ''} aria-invalid={moduleError}>
                 <SelectValue placeholder="Select the module this relates to" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)]">
                 {feedbackModules.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -109,7 +110,7 @@ export function FeedbackWidget() {
             <Label className="mb-2 block">Type</Label>
             <Select value={category} onValueChange={(value) => { setCategory(value as Category); setTriage(null); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)]">
                 <SelectItem value="issue">Issue / bug</SelectItem>
                 <SelectItem value="suggestion">Suggestion</SelectItem>
                 <SelectItem value="question">Question</SelectItem>

@@ -64,16 +64,25 @@ router.post("/feedback", asyncHandler(async (req, res) => {
   const parsed = SubmitFeedbackBody.safeParse(req.body);
   if (!parsed.success) throw new HttpError(422, parsed.error.issues[0]?.message ?? "Invalid request body");
   const user = req.currentUser!;
-  const [row] = await db.insert(feedbackEntries).values({
-    organizationId: user.organizationId,
-    userId: user.id,
-    appKey: parsed.data.appKey ?? null,
-    module: parsed.data.module,
-    pagePath: parsed.data.pagePath ?? null,
-    category: parsed.data.category,
-    message: parsed.data.message,
-    triage: parsed.data.triage ? { ...parsed.data.triage, guidance: parsed.data.triage.guidance ?? null, resolutionSuggestion: parsed.data.triage.resolutionSuggestion ?? null } : null,
-  }).returning(feedbackEntrySelection);
+  const triage = parsed.data.triage
+    ? { ...parsed.data.triage, guidance: parsed.data.triage.guidance ?? null, resolutionSuggestion: parsed.data.triage.resolutionSuggestion ?? null }
+    : null;
+  // Name only the stable columns so production can accept feedback while the
+  // optional resolution_response column is still pending its schema rollout.
+  const inserted = await db.execute<{ id: string }>(sql`
+    insert into "shared"."feedback_entries" (
+      "organization_id", "user_id", "app_key", "module", "page_path",
+      "category", "message", "triage"
+    ) values (
+      ${user.organizationId}, ${user.id}, ${parsed.data.appKey ?? null},
+      ${parsed.data.module}, ${parsed.data.pagePath ?? null},
+      ${parsed.data.category}, ${parsed.data.message},
+      ${triage ? JSON.stringify(triage) : null}::jsonb
+    )
+    returning "id"
+  `);
+  const [row] = await db.select(feedbackEntrySelection).from(feedbackEntries)
+    .where(eq(feedbackEntries.id, inserted.rows[0]!.id)).limit(1);
   res.status(201).json(entryJson(row!, { id: user.id, fullName: user.fullName, email: user.email }));
 }));
 
