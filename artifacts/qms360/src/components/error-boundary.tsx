@@ -36,6 +36,7 @@ function toError(value: unknown): Error {
 }
 
 function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
+  const technicalCode = error.name || 'UI_ERROR';
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-6">
       <div className="max-w-lg w-full text-center">
@@ -45,6 +46,9 @@ function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
         <p className="mt-2 text-sm text-gray-600">
           This part of the app hit an error. The rest of the app is still
           running.
+        </p>
+        <p className="mt-2 text-xs font-medium text-gray-500">
+          Technical code: {technicalCode}
         </p>
         {/* Dev only: messages can carry API responses and other internals. */}
         {import.meta.env.DEV ? (

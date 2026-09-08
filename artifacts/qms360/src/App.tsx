@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { userFacingApiError } from '@/lib/api-error';
 import { LandingPage } from '@/pages/landing';
 import { SyncPage } from '@/pages/landing/sync';
 import { ExecutivePage } from '@/pages/executive';
@@ -42,7 +43,12 @@ function LoginPage() {
         void queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
         setLocation(session.user.mustChangePassword ? '/change-password' : '/');
       },
-      onError: () => setError('Those credentials did not match. Please try again.'),
+      onError: loginError => {
+        const details = userFacingApiError(loginError, 'Sign-in could not be completed.');
+        setError(details.technicalCode === 'HTTP 401'
+          ? 'Email or password is incorrect. Please try again.'
+          : `${details.message} (${details.technicalCode})`);
+      },
     });
   };
   return <div className="grid min-h-dvh lg:grid-cols-[1.05fr_.95fr]">
