@@ -13,6 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { db, users, platformRoles } from "@workspace/db";
 import { ensureOrganization, getUserContext, hashPassword, issueToken, verifyPassword } from "../lib/auth";
+import { hasMustChangePasswordColumn } from "../lib/user-schema-compat";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -140,11 +141,15 @@ router.put("/auth/change-password", requireAuth, async (req, res): Promise<void>
     res.status(422).json({ error: parsed.error.message });
     return;
   }
-  await db.update(users).set({
+  const passwordUpdate = {
     passwordHash: await hashPassword(parsed.data.password),
-    mustChangePassword: false,
     updatedAt: new Date(),
-  }).where(eq(users.id, req.currentUser!.id));
+  };
+  await db.update(users).set(
+    await hasMustChangePasswordColumn()
+      ? { ...passwordUpdate, mustChangePassword: false }
+      : passwordUpdate,
+  ).where(eq(users.id, req.currentUser!.id));
   const context = await getUserContext(req.currentUser!.id);
   if (!context) {
     res.status(401).json({ error: "Unable to load user context" });

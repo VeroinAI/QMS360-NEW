@@ -62,3 +62,16 @@ deployed code that queried the absent production column and all logins returned 
 **How to apply:** after merges that add schema, verify the column or table in the
 live development database before publishing. For rollout-sensitive reads, prefer a
 backward-compatible query until production migration is confirmed.
+
+Rollout-sensitive writes also need compatibility when a newly added column is not
+yet present. Check column availability before constructing the update rather than
+catching a failed transaction after it references the missing column.
+
+**Why:** administrator-set temporary passwords failed entirely while production
+lacked the password-reset flag column. The compatible fallback can still update
+the password, but forced replacement cannot be enforced until Publish installs
+the column.
+
+**How to apply:** keep the fallback narrow and temporary, preserve full behavior
+when the column exists, and complete the supported production schema rollout as
+the durable fix.

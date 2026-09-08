@@ -12,6 +12,7 @@ import { applicationAccess, businessUnits, db, moduleFieldSettings, organization
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { hashPassword } from "../lib/auth";
 import { runEscalationSweep } from "../lib/escalation";
+import { hasMustChangePasswordColumn } from "../lib/user-schema-compat";
 import { paginated, pagination, type AppKey } from "../lib/workspace";
 import { catalogKeys, FIELD_CATALOG } from "../lib/field-access";
 import {
@@ -27,12 +28,16 @@ router.put("/platform/users/:userId/temporary-password", requireAuth, requireAdm
     res.status(422).json({ error: parsed.error.message });
     return;
   }
-  const [updated] = await db.update(users).set({
+  const passwordUpdate = {
     passwordHash: await hashPassword(parsed.data.password),
-    mustChangePassword: true,
     authSource: "local",
     updatedAt: new Date(),
-  }).where(and(
+  };
+  const [updated] = await db.update(users).set(
+    await hasMustChangePasswordColumn()
+      ? { ...passwordUpdate, mustChangePassword: true }
+      : passwordUpdate,
+  ).where(and(
     eq(users.id, String(req.params.userId)),
     eq(users.organizationId, req.currentUser!.organizationId),
     isNull(users.deletedAt),
