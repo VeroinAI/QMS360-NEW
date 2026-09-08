@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
 import { db, feedbackEntries, users } from "@workspace/db";
 import { SubmitFeedbackBody, TriageFeedbackBody, TriageFeedbackResponse, UpdateFeedbackResolutionBody } from "@workspace/api-zod";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
@@ -10,6 +10,13 @@ const router: IRouter = Router();
 router.use(requireAuth);
 
 type EntryRow = typeof feedbackEntries.$inferSelect;
+
+const { resolutionResponse: _resolutionResponse, ...feedbackEntryColumns } = getTableColumns(feedbackEntries);
+const feedbackEntrySelection = {
+  ...feedbackEntryColumns,
+  // Production may temporarily lag the development schema during rollout.
+  resolutionResponse: sql<string | null>`to_jsonb("feedback_entries") ->> 'resolution_response'`,
+};
 
 function entryJson(row: EntryRow, user: { id: string; fullName: string; email: string }) {
   return {
@@ -54,7 +61,7 @@ router.post("/feedback", asyncHandler(async (req, res) => {
     category: parsed.data.category,
     message: parsed.data.message,
     triage: parsed.data.triage ? { ...parsed.data.triage, guidance: parsed.data.triage.guidance ?? null, resolutionSuggestion: parsed.data.triage.resolutionSuggestion ?? null } : null,
-  }).returning();
+  }).returning(feedbackEntrySelection);
   res.status(201).json(entryJson(row!, { id: user.id, fullName: user.fullName, email: user.email }));
 }));
 
@@ -70,7 +77,7 @@ router.get("/feedback", requireAdmin, asyncHandler(async (req, res) => {
     module ? eq(feedbackEntries.module, module) : undefined,
   );
   const [rows, count] = await Promise.all([
-    db.select({ entry: feedbackEntries, fullName: users.fullName, email: users.email })
+    db.select({ entry: feedbackEntrySelection, fullName: users.fullName, email: users.email })
       .from(feedbackEntries)
       .innerJoin(users, eq(users.id, feedbackEntries.userId))
       .where(where).orderBy(desc(feedbackEntries.createdAt)).limit(limit).offset(offset),
@@ -91,7 +98,7 @@ router.get("/feedback/mine", asyncHandler(async (req, res) => {
     isNull(feedbackEntries.deletedAt),
   );
   const [rows, count] = await Promise.all([
-    db.select().from(feedbackEntries).where(where)
+    db.select(feedbackEntrySelection).from(feedbackEntries).where(where)
       .orderBy(desc(feedbackEntries.createdAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(feedbackEntries).where(where),
   ]);
@@ -102,7 +109,7 @@ router.get("/feedback/mine", asyncHandler(async (req, res) => {
 }));
 
 router.post("/feedback/:id/triage", requireAdmin, asyncHandler(async (req, res) => {
-  const [row] = await db.select().from(feedbackEntries).where(and(
+  const [row] = await db.select(feedbackEntrySelection).from(feedbackEntries).where(and(
     eq(feedbackEntries.id, String(req.params.id)),
     eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
     isNull(feedbackEntries.deletedAt),
@@ -118,7 +125,7 @@ router.post("/feedback/:id/triage", requireAdmin, asyncHandler(async (req, res) 
     if (!validated.success) throw new AiUnavailableError("AI returned an unexpected triage result");
     const [updated] = await db.update(feedbackEntries)
       .set({ triage: { ...validated.data, guidance: validated.data.guidance ?? null, resolutionSuggestion: validated.data.resolutionSuggestion ?? null }, updatedAt: new Date() })
-      .where(eq(feedbackEntries.id, row!.id)).returning();
+      .where(eq(feedbackEntries.id, row!.id)).returning(feedbackEntrySelection);
     res.json(entryJson(updated!, { id: row!.userId, fullName: author?.fullName ?? "", email: author?.email ?? "" }));
   } catch (error) {
     if (error instanceof AiUnavailableError) { res.status(503).json({ error: error.message }); return; }
