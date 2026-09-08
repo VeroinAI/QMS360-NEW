@@ -125,9 +125,14 @@ export function LessonFormPage({ id }: { id?: string }) {
   const rephrase = useRephraseLessonField();
   const [suggestion, setSuggestion] = useState<{ field: FieldName; text: string } | null>(null);
   const clientReferenceStorageKey = `lessons-draft-ref-v2-${id ?? "new"}`;
-  const clientReference = useMemo(() => {
+  const [clientReference, setClientReference] = useState(() => {
     let value = sessionStorage.getItem(clientReferenceStorageKey); if (!value) { value = crypto.randomUUID(); sessionStorage.setItem(clientReferenceStorageKey, value); } return value;
-  }, [clientReferenceStorageKey]);
+  });
+  function rotateClientReference() {
+    const next = crypto.randomUUID();
+    sessionStorage.setItem(clientReferenceStorageKey, next);
+    setClientReference(next);
+  }
 
   useEffect(() => {
     if (!detail.data) return;
@@ -159,6 +164,7 @@ export function LessonFormPage({ id }: { id?: string }) {
     if (requireApprover && !draft.approverId) next.approverId = "Choose an approver before submitting.";
     if (!draft.capturedAt) next.capturedAt = "Enter when this lesson was captured.";
     else if (Number.isNaN(new Date(draft.capturedAt).valueOf())) next.capturedAt = "Enter a valid date and time.";
+    else if (new Date(draft.capturedAt).getTime() > Date.now()) next.capturedAt = "Captured at cannot be in the future.";
     if (draft.isRepeatedIssue && draft.repeatCount < 1) next.repeatCount = "Enter how many times this issue was repeated.";
     if (draft.isRepeatedIssue && !draft.repeatLocation.trim()) next.repeatLocation = "Enter where this issue was repeated.";
     for (const key of fieldControls.mandatoryFieldKeys()) {
@@ -211,13 +217,13 @@ export function LessonFormPage({ id }: { id?: string }) {
         if (failed) {
           const failedKeys = new Set(queued.filter((_, index) => results[index]?.status === "rejected").map((item) => item.key));
           setUploads((current) => current.map((item) => failedKeys.has(item.key) ? { ...item, status: "failed" } : item));
-          sessionStorage.removeItem(clientReferenceStorageKey);
+          rotateClientReference();
           toast({ title: `Lesson ${created.referenceNumber} saved`, description: `${failed} photo(s) did not upload. The draft is safe; open it and retry the failed photos.`, variant: "destructive" });
           navigate(`/lessons/${created.id}`);
           return null;
         }
       }
-      sessionStorage.removeItem(clientReferenceStorageKey);
+      rotateClientReference();
       toast({ title: `Lesson ${created.referenceNumber} saved` });
       invalidate();
       if (navigateAfterSave) navigate("/lessons/log");
@@ -314,7 +320,7 @@ export function LessonFormPage({ id }: { id?: string }) {
             <Field label="Title" error={errors.title} required={fp("title").required} className="sm:col-span-2"><Input value={draft.title} onChange={(e) => set("title", e.target.value)} disabled={disabled("title")} /></Field>
             <Field label="Discipline" error={errors.disciplineId} required={fp("disciplineId").required}><Select value={draft.disciplineId} onValueChange={(v) => set("disciplineId", v)} disabled={disabled("disciplineId") || disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Select discipline" /></SelectTrigger><SelectContent>{withLegacyOption(disciplines.options, draft.disciplineId).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
             <Field label="Categorization" error={errors.categorisationId} required={fp("categorisationId").required}><Select value={draft.categorisationId} onValueChange={(v) => set("categorisationId", v)} disabled={disabled("categorisationId") || categorisations.isLoading}><SelectTrigger><SelectValue placeholder="Select categorization" /></SelectTrigger><SelectContent>{withLegacyOption(categorisations.options, draft.categorisationId).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
-             <Field label="Captured at" error={errors.capturedAt} required={fp("capturedAt").required}><Input type="datetime-local" value={draft.capturedAt} onChange={(e) => set("capturedAt", e.target.value)} disabled={disabled("capturedAt")} /></Field>
+             <Field label="Captured at" error={errors.capturedAt} required={fp("capturedAt").required}><Input type="datetime-local" max={toDatetimeLocal(new Date())} value={draft.capturedAt} onChange={(e) => set("capturedAt", e.target.value)} disabled={disabled("capturedAt")} /></Field>
             <Field label="Time Zone"><Input value={Intl.DateTimeFormat().resolvedOptions().timeZone} disabled readOnly /></Field>
             <Field label="Location" error={errors.gps} required={fp("gps").required}>
               <Button type="button" variant="outline" className="w-full" onClick={captureGps} disabled={disabled("gps")}><MapPin /> Capture GPS</Button>

@@ -412,6 +412,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
   const user = req.currentUser!;
   const capturedAt = new Date(body.capturedAt);
   if (Number.isNaN(capturedAt.valueOf())) throw new HttpError(422, "Captured at must be a valid date and time");
+  if (capturedAt.getTime() > Date.now()) throw new HttpError(422, "Captured at cannot be in the future");
   await assertFieldAccess(req, "lessons", "lesson-form", { mode: "create" });
   await assertFieldControls(req, "lessons", "lesson-form", { mode: "create" });
   await Promise.all([
@@ -474,6 +475,7 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
   if (!before) notFound("Lesson form not found");
   const capturedAt = new Date(body.capturedAt);
   if (Number.isNaN(capturedAt.valueOf())) throw new HttpError(422, "Captured at must be a valid date and time");
+  if (capturedAt.getTime() > Date.now()) throw new HttpError(422, "Captured at cannot be in the future");
   assertOwnerOrFull(req, before.creatorId);
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back forms may be edited");
   const beforeJson = await formJsonNamed(before);
