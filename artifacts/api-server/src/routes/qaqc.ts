@@ -709,6 +709,17 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   const [row] = existing ? await db.update(userWorkspaceRoles).set({ ...scopes, updatedAt: new Date() }).where(eq(userWorkspaceRoles.id, existing.id)).returning() : await db.insert(userWorkspaceRoles).values({ organizationId: org(req), userId: String(req.params.userId), workspaceRoleId: v.roleId, ...scopes }).returning();
   await audit(req, "assign_role", "user_workspace_role", row.id, existing, row); res.json(row);
 }));
+router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) => {
+  const user: any = await activeRow(req, users, String(req.params.userId));
+  const [assignment] = await db.select().from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.organizationId, org(req)), eq(userWorkspaceRoles.userId, user.id), eq(userWorkspaceRoles.workspaceRoleId, String(req.params.id)), isNull(userWorkspaceRoles.deletedAt))).limit(1);
+  if (!assignment) throw new HttpError(404, "Role assignment not found");
+  const now = new Date();
+  await db.update(userWorkspaceRoles).set({ deletedAt: now, status: "deleted", updatedAt: now }).where(eq(userWorkspaceRoles.id, assignment.id));
+  const remaining = await db.select({ id: userWorkspaceRoles.id }).from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.organizationId, org(req)), eq(userWorkspaceRoles.userId, user.id), isNull(userWorkspaceRoles.deletedAt))).limit(1);
+  if (!remaining.length) await db.update(applicationAccess).set({ canOpenQaqc: false, updatedAt: now }).where(and(eq(applicationAccess.organizationId, org(req)), eq(applicationAccess.username, user.username), isNull(applicationAccess.deletedAt)));
+  await audit(req, "remove_role", "user_workspace_role", assignment.id, assignment, { userId: user.id, roleId: String(req.params.id) });
+  res.status(204).end();
+}));
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
   const result = await pageTable(req, applicationAccess, [eq(applicationAccess.status, "pending")]);
   const userRows = await db.select().from(users).where(eq(users.organizationId, org(req)));

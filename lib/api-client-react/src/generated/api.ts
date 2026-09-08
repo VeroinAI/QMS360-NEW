@@ -8510,6 +8510,79 @@ export const useAssignQaqcUserRole = <TError = ErrorType<unknown>,
       return useMutation(getAssignQaqcUserRoleMutationOptions(options));
     }
 
+export const getRemoveQaqcUserRoleUrl = (userId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/qaqc/admin/users/${userId}/roles/${id}`
+}
+
+/**
+ * @summary Remove an assigned role
+ */
+export const removeQaqcUserRole = async (userId: string,
+    id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRemoveQaqcUserRoleUrl(userId,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveQaqcUserRoleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeQaqcUserRole>>, TError,{userId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeQaqcUserRole>>, TError,{userId: string;id: string}, TContext> => {
+
+const mutationKey = ['removeQaqcUserRole'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeQaqcUserRole>>, {userId: string;id: string}> = (props) => {
+          const {userId,id} = props ?? {};
+
+          return  removeQaqcUserRole(userId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveQaqcUserRoleMutationResult = NonNullable<Awaited<ReturnType<typeof removeQaqcUserRole>>>
+
+    export type RemoveQaqcUserRoleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove an assigned role
+ */
+export const useRemoveQaqcUserRole = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeQaqcUserRole>>, TError,{userId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeQaqcUserRole>>,
+        TError,
+        {userId: string;id: string},
+        TContext
+      > => {
+      return useMutation(getRemoveQaqcUserRoleMutationOptions(options));
+    }
+
 export const getListQaqcAccessQueueUrl = (params?: ListQaqcAccessQueueParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -12096,6 +12169,79 @@ export const useAssignLessonsUserRole = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAssignLessonsUserRoleMutationOptions(options));
+    }
+
+export const getRemoveLessonsUserRoleUrl = (userId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/lessons/admin/users/${userId}/roles/${id}`
+}
+
+/**
+ * @summary Remove an assigned role
+ */
+export const removeLessonsUserRole = async (userId: string,
+    id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRemoveLessonsUserRoleUrl(userId,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveLessonsUserRoleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeLessonsUserRole>>, TError,{userId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeLessonsUserRole>>, TError,{userId: string;id: string}, TContext> => {
+
+const mutationKey = ['removeLessonsUserRole'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeLessonsUserRole>>, {userId: string;id: string}> = (props) => {
+          const {userId,id} = props ?? {};
+
+          return  removeLessonsUserRole(userId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveLessonsUserRoleMutationResult = NonNullable<Awaited<ReturnType<typeof removeLessonsUserRole>>>
+
+    export type RemoveLessonsUserRoleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove an assigned role
+ */
+export const useRemoveLessonsUserRole = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeLessonsUserRole>>, TError,{userId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeLessonsUserRole>>,
+        TError,
+        {userId: string;id: string},
+        TContext
+      > => {
+      return useMutation(getRemoveLessonsUserRoleMutationOptions(options));
     }
 
 export const getUpdateLessonsUserProfileUrl = (userId: string,) => {
@@ -17596,6 +17742,79 @@ export const useAssignAuditUserRole = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAssignAuditUserRoleMutationOptions(options));
+    }
+
+export const getRemoveAuditUserRoleUrl = (userId: string,
+    id: string,) => {
+
+
+
+
+  return `/api/audit/admin/users/${userId}/roles/${id}`
+}
+
+/**
+ * @summary Remove an assigned role
+ */
+export const removeAuditUserRole = async (userId: string,
+    id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRemoveAuditUserRoleUrl(userId,id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveAuditUserRoleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeAuditUserRole>>, TError,{userId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeAuditUserRole>>, TError,{userId: string;id: string}, TContext> => {
+
+const mutationKey = ['removeAuditUserRole'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeAuditUserRole>>, {userId: string;id: string}> = (props) => {
+          const {userId,id} = props ?? {};
+
+          return  removeAuditUserRole(userId,id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveAuditUserRoleMutationResult = NonNullable<Awaited<ReturnType<typeof removeAuditUserRole>>>
+
+    export type RemoveAuditUserRoleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove an assigned role
+ */
+export const useRemoveAuditUserRole = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeAuditUserRole>>, TError,{userId: string;id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeAuditUserRole>>,
+        TError,
+        {userId: string;id: string},
+        TContext
+      > => {
+      return useMutation(getRemoveAuditUserRoleMutationOptions(options));
     }
 
 export const getListAuditAccessQueueUrl = (params?: ListAuditAccessQueueParams,) => {

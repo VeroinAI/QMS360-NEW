@@ -818,6 +818,21 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   const [row] = existing ? await db.update(auditUserWorkspaceRoles).set(values).where(eq(auditUserWorkspaceRoles.id, existing.id)).returning() : await db.insert(auditUserWorkspaceRoles).values(values).returning();
   await auditLog(req, "assign_role", "user_workspace_role", row.id, existing, row); res.json(row);
 }));
+router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) => {
+  const userId = String(req.params.userId);
+  const roleId = String(req.params.id);
+  const [user, assignment] = await Promise.all([
+    db.select().from(users).where(and(eq(users.id, userId), eq(users.organizationId, actor(req).organizationId), isNull(users.deletedAt))).then((x) => x[0]),
+    db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), eq(auditUserWorkspaceRoles.userId, userId), eq(auditUserWorkspaceRoles.workspaceRoleId, roleId), isNull(auditUserWorkspaceRoles.deletedAt))).then((x) => x[0]),
+  ]);
+  if (!user || !assignment) throw new HttpError(404, "Role assignment not found");
+  const now = new Date();
+  await db.update(auditUserWorkspaceRoles).set({ deletedAt: now, status: "deleted", updatedAt: now }).where(eq(auditUserWorkspaceRoles.id, assignment.id));
+  const remaining = await db.select({ id: auditUserWorkspaceRoles.id }).from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), eq(auditUserWorkspaceRoles.userId, userId), isNull(auditUserWorkspaceRoles.deletedAt))).limit(1);
+  if (!remaining.length) await db.update(applicationAccess).set({ canOpenAudit: false, updatedAt: now }).where(and(eq(applicationAccess.organizationId, actor(req).organizationId), eq(applicationAccess.username, user.username), isNull(applicationAccess.deletedAt)));
+  await auditLog(req, "remove_role", "user_workspace_role", assignment.id, assignment, { userId, roleId });
+  res.status(204).end();
+}));
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = and(eq(applicationAccess.organizationId, actor(req).organizationId), eq(applicationAccess.canOpenAudit, false), isNull(applicationAccess.deletedAt));

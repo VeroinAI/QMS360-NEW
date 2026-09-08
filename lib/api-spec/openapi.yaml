@@ -750,6 +750,8 @@ paths:
     get: {operationId: listQaqcUsers, tags: [qaqc-admin], summary: List workspace users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
   /qaqc/admin/users/{userId}/roles:
     post: {operationId: assignQaqcUserRole, tags: [qaqc-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
+  /qaqc/admin/users/{userId}/roles/{id}:
+    delete: {operationId: removeQaqcUserRole, tags: [qaqc-admin], summary: Remove an assigned role, parameters: [{$ref: "#/components/parameters/UserId"}, {$ref: "#/components/parameters/Id"}], responses: {"204": {description: Removed}}}
   /qaqc/admin/access-queue:
     get: {operationId: listQaqcAccessQueue, tags: [qaqc-admin], summary: List pending access requests, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
   /qaqc/admin/access-queue/{id}/decision:
@@ -858,6 +860,8 @@ paths:
     get: {operationId: listLessonsUsers, tags: [lessons-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
   /lessons/admin/users/{userId}/roles:
     post: {operationId: assignLessonsUserRole, tags: [lessons-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
+  /lessons/admin/users/{userId}/roles/{id}:
+    delete: {operationId: removeLessonsUserRole, tags: [lessons-admin], summary: Remove an assigned role, parameters: [{$ref: "#/components/parameters/UserId"}, {$ref: "#/components/parameters/Id"}], responses: {"204": {description: Removed}}}
   /lessons/admin/users/{userId}/profile:
     put: {operationId: updateLessonsUserProfile, tags: [lessons-admin], summary: Update a user's designation and signature (admin), parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/UserProfileUpdate"}}}}, responses: {"200": {description: Updated}}}
   /lessons/users/{userId}/signature:
@@ -985,6 +989,8 @@ paths:
     get: {operationId: listAuditUsers, tags: [audit-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
   /audit/admin/users/{userId}/roles:
     post: {operationId: assignAuditUserRole, tags: [audit-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
+  /audit/admin/users/{userId}/roles/{id}:
+    delete: {operationId: removeAuditUserRole, tags: [audit-admin], summary: Remove an assigned role, parameters: [{$ref: "#/components/parameters/UserId"}, {$ref: "#/components/parameters/Id"}], responses: {"204": {description: Removed}}}
   /audit/admin/access-queue:
     get: {operationId: listAuditAccessQueue, tags: [audit-admin], summary: List access queue, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
   /audit/admin/access-queue/{id}/decision:

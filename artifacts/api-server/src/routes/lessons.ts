@@ -874,6 +874,24 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   res.json(row);
 }));
 
+router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) => {
+  const userId = String(req.params.userId);
+  const roleId = String(req.params.id);
+  const [target, assignment] = await Promise.all([
+    db.select(compatibleUserSelection).from(users).where(and(eq(users.id, userId), eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt))).limit(1),
+    db.select().from(lessonsUserWorkspaceRoles).where(and(eq(lessonsUserWorkspaceRoles.organizationId, req.currentUser!.organizationId), eq(lessonsUserWorkspaceRoles.userId, userId), eq(lessonsUserWorkspaceRoles.workspaceRoleId, roleId), isNull(lessonsUserWorkspaceRoles.deletedAt))).limit(1),
+  ]);
+  if (!target[0] || !assignment[0]) notFound("Role assignment not found");
+  const now = new Date();
+  await db.update(lessonsUserWorkspaceRoles).set({ deletedAt: now, status: "deleted", updatedAt: now }).where(eq(lessonsUserWorkspaceRoles.id, assignment[0]!.id));
+  const remaining = await db.select({ id: lessonsUserWorkspaceRoles.id }).from(lessonsUserWorkspaceRoles).where(and(eq(lessonsUserWorkspaceRoles.organizationId, req.currentUser!.organizationId), eq(lessonsUserWorkspaceRoles.userId, userId), isNull(lessonsUserWorkspaceRoles.deletedAt))).limit(1);
+  if (!remaining.length) {
+    await db.update(applicationAccess).set({ canOpenLessons: false, updatedAt: now }).where(and(eq(applicationAccess.organizationId, req.currentUser!.organizationId), eq(applicationAccess.username, target[0]!.username), isNull(applicationAccess.deletedAt)));
+  }
+  await audit(req, "remove_role", "user_role", assignment[0]!.id, assignment[0], { userId, roleId });
+  res.status(204).end();
+}));
+
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = and(eq(applicationAccess.organizationId, req.currentUser!.organizationId), eq(applicationAccess.canOpenLessons, false), isNull(applicationAccess.deletedAt));

@@ -3115,6 +3115,17 @@ export const AssignQaqcUserRoleResponse = zod.unknown()
 
 
 /**
+ * @summary Remove an assigned role
+ */
+export const RemoveQaqcUserRoleParams = zod.object({
+  "userId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const RemoveQaqcUserRoleResponse = zod.void()
+
+
+/**
  * @summary List pending access requests
  */
 export const listQaqcAccessQueueQueryPageDefault = 1;
@@ -4514,6 +4525,17 @@ export const AssignLessonsUserRoleBody = zod.object({
 })
 
 export const AssignLessonsUserRoleResponse = zod.unknown()
+
+
+/**
+ * @summary Remove an assigned role
+ */
+export const RemoveLessonsUserRoleParams = zod.object({
+  "userId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const RemoveLessonsUserRoleResponse = zod.void()
 
 
 /**
@@ -6376,6 +6398,17 @@ export const AssignAuditUserRoleBody = zod.object({
 })
 
 export const AssignAuditUserRoleResponse = zod.unknown()
+
+
+/**
+ * @summary Remove an assigned role
+ */
+export const RemoveAuditUserRoleParams = zod.object({
+  "userId": zod.coerce.string(),
+  "id": zod.coerce.string()
+})
+
+export const RemoveAuditUserRoleResponse = zod.void()
 
 
 /**
