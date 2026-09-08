@@ -1,7 +1,7 @@
 import dns from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import {
   connectorFieldMappings, db, importTemplates, integrationConnectors, projects, syncJobs, users,
@@ -19,6 +19,10 @@ export type SyncEntity = "projects" | "users";
 export type TemplateColumn = { header: string; field: string; required: boolean };
 export type RowError = { row: number; message: string };
 export type ApplyResult = { sourceCount: number; targetCount: number; errors: RowError[] };
+
+// Only deliberate, user-facing validation messages may leave the importer.
+// Database errors can contain full SQL statements and bound row values.
+class ImportRowError extends Error {}
 
 export const SYNC_ENTITIES = new Set<SyncEntity>(["projects", "users"]);
 
@@ -336,7 +340,7 @@ function pickCustomFields(row: Record<string, unknown>): Record<string, unknown>
 
 async function upsertProject(organizationId: string, source: string, row: Record<string, unknown>): Promise<void> {
   const code = text(row.code);
-  if (!code) throw new Error("Missing project code");
+  if (!code) throw new ImportRowError("Missing project code");
   const name = text(row.name) ?? code;
   const custom = pickCustomFields(row);
   const location = text(row.location);
@@ -367,7 +371,7 @@ async function upsertProject(organizationId: string, source: string, row: Record
 
 async function upsertUser(organizationId: string, source: string, row: Record<string, unknown>): Promise<void> {
   const email = text(row.email)?.toLowerCase();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Missing or invalid email");
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ImportRowError("Missing or invalid email");
   const fullName = text(row.fullName) ?? email.split("@")[0]!;
   const username = text(row.username) ?? email.split("@")[0]!;
   const custom = pickCustomFields(row);
@@ -377,10 +381,12 @@ async function upsertUser(organizationId: string, source: string, row: Record<st
     const [project] = await db.select({ id: projects.id }).from(projects).where(and(
       eq(projects.organizationId, organizationId), eq(projects.code, projectCode), isNull(projects.deletedAt),
     )).limit(1);
-    if (!project) throw new Error(`Unknown project code "${projectCode}"`);
+    if (!project) throw new ImportRowError(`Unknown project code "${projectCode}"`);
     projectId = project.id;
   }
-  const [existing] = await db.select().from(users).where(and(
+  const [existing] = await db.select({
+    id: users.id, username: users.username, customFields: users.customFields,
+  }).from(users).where(and(
     eq(users.organizationId, organizationId), eq(users.email, email), isNull(users.deletedAt),
   )).limit(1);
   if (existing) {
@@ -389,7 +395,7 @@ async function upsertUser(organizationId: string, source: string, row: Record<st
       const [taken] = await db.select({ id: users.id }).from(users).where(and(
         eq(users.organizationId, organizationId), eq(users.username, wantedUsername), isNull(users.deletedAt),
       )).limit(1);
-      if (taken) throw new Error(`Username "${wantedUsername}" is already in use`);
+      if (taken) throw new ImportRowError(`Username "${wantedUsername}" is already in use`);
     }
     await db.update(users).set({
       fullName,
@@ -403,11 +409,19 @@ async function upsertUser(organizationId: string, source: string, row: Record<st
   const [usernameTaken] = await db.select({ id: users.id }).from(users).where(and(
     eq(users.organizationId, organizationId), eq(users.username, username), isNull(users.deletedAt),
   )).limit(1);
-  if (usernameTaken) throw new Error(`Username "${username}" is already in use`);
-  await db.insert(users).values({
-    organizationId, email, username, fullName, projectId: projectId ?? null,
-    passwordHash: null, authSource: source, customFields: custom,
-  });
+  if (usernameTaken) throw new ImportRowError(`Username "${username}" is already in use`);
+  // Drizzle's table insert includes all declared columns, even omitted fields
+  // with DEFAULT values. Keep this import independent of newer auth columns
+  // (such as must_change_password) until the production schema catches up.
+  await db.execute(sql`
+    insert into shared.users (
+      organization_id, email, username, full_name, project_id,
+      password_hash, auth_source, custom_fields
+    ) values (
+      ${organizationId}, ${email}, ${username}, ${fullName}, ${projectId ?? null},
+      null, ${source}, ${JSON.stringify(custom)}::jsonb
+    )
+  `);
 }
 
 /**
@@ -425,7 +439,7 @@ export async function applyEntityRows(
       else await upsertUser(organizationId, source, keyedRows[index]!);
       targetCount += 1;
     } catch (error) {
-      errors.push({ row: index + 1, message: error instanceof Error ? error.message : "Row failed" });
+      errors.push({ row: index + 1, message: error instanceof ImportRowError ? error.message : "Row could not be imported" });
     }
   }
   return { sourceCount: keyedRows.length, targetCount, errors };
