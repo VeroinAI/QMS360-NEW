@@ -28,4 +28,4 @@ packages = ["glib", "nss", "nspr", "atk", "at-spi2-atk", "dbus", "mesa", "libxkb
 [userenv.shared]
 
 [objectStorage]
-defaultBucketID = "replit-objstore-31093bfb-c9c9-4053-9b4b-f086fcf9b40f"
+defaultBucketID = "replit-objstore-097341e0-ad10-4a0b-b540-eb56803c5c6c"
