@@ -24,7 +24,11 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email.toLowerCase())).limit(1);
+  const [user] = await db.select({
+    id: users.id,
+    organizationId: users.organizationId,
+    passwordHash: users.passwordHash,
+  }).from(users).where(eq(users.email, parsed.data.email.toLowerCase())).limit(1);
   if (!user?.passwordHash || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
     res.status(401).json({ error: "Email or password is incorrect" });
     return;

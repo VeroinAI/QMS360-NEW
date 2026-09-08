@@ -49,3 +49,16 @@ schemas correctly. Do not re-add manual enum blocks.
   the versioned migrations are the source of truth, applied by an operator-run
   migrate command that requires an explicit target connection string and refuses
   to run against the development database.
+
+Publishing compares the live development schema, not migration files or snapshots.
+A generated migration merged without a successful development-schema application
+does not produce a production diff, so publishing new code can leave production
+missing the column that code expects.
+
+**Why:** a merged authentication column existed in both the Drizzle schema and
+generated migration, but not in the live development database; repeated publishes
+deployed code that queried the absent production column and all logins returned 500.
+
+**How to apply:** after merges that add schema, verify the column or table in the
+live development database before publishing. For rollout-sensitive reads, prefer a
+backward-compatible query until production migration is confirmed.

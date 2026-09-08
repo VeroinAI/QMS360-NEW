@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   auditUserWorkspaceRoles,
   auditWorkspaceRoles,
@@ -54,7 +54,9 @@ export async function getUserContext(userId: string) {
       organizationId: users.organizationId,
       organizationName: organizations.name,
       platformRole: platformRoles.name,
-      mustChangePassword: users.mustChangePassword,
+      // Read through the JSON row so deployments remain compatible while a newly
+      // published column is still being applied to the production database.
+      mustChangePassword: sql<boolean>`coalesce((to_jsonb("users") ->> 'must_change_password')::boolean, false)`,
     })
     .from(users)
     .innerJoin(organizations, eq(users.organizationId, organizations.id))
