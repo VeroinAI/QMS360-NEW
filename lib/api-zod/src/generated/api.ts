@@ -249,6 +249,25 @@ export const GetApplicationAccessResponse = zod.object({
 
 
 /**
+ * @summary Set or replace a user's temporary password
+ */
+export const SetUserTemporaryPasswordParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const setUserTemporaryPasswordBodyPasswordMin = 8;
+export const setUserTemporaryPasswordBodyPasswordMax = 128;
+
+
+
+export const SetUserTemporaryPasswordBody = zod.object({
+  "password": zod.string().min(setUserTemporaryPasswordBodyPasswordMin).max(setUserTemporaryPasswordBodyPasswordMax)
+})
+
+export const SetUserTemporaryPasswordResponse = zod.void()
+
+
+/**
  * @summary Get the configurable field catalog per module with current editable/read-only access
  */
 export const GetFieldSettingsResponse = zod.object({

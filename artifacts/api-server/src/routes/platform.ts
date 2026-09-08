@@ -4,11 +4,13 @@ import {
   GetApplicationAccessResponse, GetFieldSettingsResponse, GetNumberingConfigResponse, GetOrganizationSettingsResponse,
   GetPlatformContextResponse, GetPlatformReferenceDataResponse,
   ListBusinessUnitsResponse, ListProjectsResponse, ResetNumberingPatternResponse,
+  SetUserTemporaryPasswordBody,
   UpdateFieldSettingsBody, UpdateFieldSettingsResponse, UpdateNumberingPatternBody, UpdateNumberingPatternResponse, UpdateOrganizationSettingsBody,
   UpdateOrganizationSettingsResponse,
 } from "@workspace/api-zod";
-import { applicationAccess, businessUnits, db, moduleFieldSettings, organizations, organizationSettings, projects } from "@workspace/db";
+import { applicationAccess, businessUnits, db, moduleFieldSettings, organizations, organizationSettings, projects, users } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
+import { hashPassword } from "../lib/auth";
 import { runEscalationSweep } from "../lib/escalation";
 import { paginated, pagination, type AppKey } from "../lib/workspace";
 import { catalogKeys, FIELD_CATALOG } from "../lib/field-access";
@@ -18,6 +20,28 @@ import {
 } from "../lib/numbering";
 
 const router: IRouter = Router();
+
+router.put("/platform/users/:userId/temporary-password", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const parsed = SetUserTemporaryPasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({ error: parsed.error.message });
+    return;
+  }
+  const [updated] = await db.update(users).set({
+    passwordHash: await hashPassword(parsed.data.password),
+    authSource: "local",
+    updatedAt: new Date(),
+  }).where(and(
+    eq(users.id, String(req.params.userId)),
+    eq(users.organizationId, req.currentUser!.organizationId),
+    isNull(users.deletedAt),
+  )).returning({ id: users.id });
+  if (!updated) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  res.status(204).send();
+});
 
 const appDefinitions = [
   {

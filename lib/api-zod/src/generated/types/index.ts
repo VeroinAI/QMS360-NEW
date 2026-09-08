@@ -359,6 +359,7 @@ export * from './syncJob';
 export * from './syncJobPage';
 export * from './syncJobPageResponse';
 export * from './syncJobStatus';
+export * from './temporaryPasswordInput';
 export * from './toParameter';
 export * from './triageFeedbackInput';
 export * from './triageFeedbackInputCategory';

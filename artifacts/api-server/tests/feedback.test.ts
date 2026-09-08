@@ -4,6 +4,8 @@ import type { Server } from "node:http";
 import { inArray } from "drizzle-orm";
 import { db, feedbackEntries, organizations, platformRoles, users } from "@workspace/db";
 import feedbackRouter from "../src/routes/feedback";
+import authRouter from "../src/routes/auth";
+import platformRouter from "../src/routes/platform";
 import { issueToken } from "../src/lib/auth";
 
 // Route tests for the in-app feedback feature (submit, AI triage, admin review).
@@ -66,6 +68,8 @@ afterEach(() => {
 beforeAll(async () => {
   app = express();
   app.use(express.json());
+  app.use("/api", authRouter);
+  app.use("/api", platformRouter);
   app.use("/api", feedbackRouter);
   await new Promise<void>((resolve) => {
     server = app.listen(0, "127.0.0.1", () => resolve());
@@ -129,6 +133,29 @@ describe("authentication", () => {
   it("rejects unauthenticated AI triage with 401", async () => {
     const res = await api("POST", "/feedback/triage", { body: { category: "issue", message: "Something is broken" } });
     expect(res.status).toBe(401);
+  });
+});
+
+describe("imported user activation", () => {
+  it("lets an administrator set a password that the imported user can use to sign in", async () => {
+    const password = "ImportedUser9!";
+    const forbidden = await api("PUT", `/platform/users/${memberA.id}/temporary-password`, {
+      token: memberA.token,
+      body: { password },
+    });
+    expect(forbidden.status).toBe(403);
+
+    const activated = await api("PUT", `/platform/users/${memberA.id}/temporary-password`, {
+      token: adminA.token,
+      body: { password },
+    });
+    expect(activated.status).toBe(204);
+
+    const login = await api("POST", "/auth/login", {
+      body: { email: `member.a.${suffix}@example.test`, password },
+    });
+    expect(login.status).toBe(200);
+    expect(login.json.user.id).toBe(memberA.id);
   });
 });
 

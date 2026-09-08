@@ -185,6 +185,18 @@ paths:
       summary: Get current user's application access flags
       responses:
         "200": {description: Application access, content: {application/json: {schema: {$ref: "#/components/schemas/ApplicationAccess"}}}}
+  /platform/users/{userId}/temporary-password:
+    put:
+      operationId: setUserTemporaryPassword
+      tags: [platform]
+      summary: Set or replace a user's temporary password
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: "#/components/parameters/UserId"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/TemporaryPasswordInput"}}}}
+      responses:
+        "204": {description: Temporary password set}
+        "403": {description: Administrator access required}
+        "404": {description: User not found}
   /platform/field-settings:
     get:
       operationId: getFieldSettings
@@ -1300,6 +1312,11 @@ components:
           type: array
           items:
             type: string
+    TemporaryPasswordInput:
+      type: object
+      required: [password]
+      properties:
+        password: {type: string, minLength: 8, maxLength: 128}
     Project:
       type: object
       required: [id, code, name, businessUnit, status]

@@ -211,6 +211,7 @@ import type {
   SubmitForReviewBody,
   SyncJob,
   SyncJobPageResponse,
+  TemporaryPasswordInput,
   UpdateMasterDataGroupInput,
   UpdateMasterDataValueInput,
   UploadIntent,
@@ -1110,6 +1111,78 @@ export function useGetApplicationAccess<TData = Awaited<ReturnType<typeof getApp
 
 
 
+
+export const getSetUserTemporaryPasswordUrl = (userId: string,) => {
+
+
+
+
+  return `/api/platform/users/${userId}/temporary-password`
+}
+
+/**
+ * @summary Set or replace a user's temporary password
+ */
+export const setUserTemporaryPassword = async (userId: string,
+    temporaryPasswordInput: TemporaryPasswordInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getSetUserTemporaryPasswordUrl(userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(temporaryPasswordInput)
+  }
+);}
+
+
+
+
+
+export const getSetUserTemporaryPasswordMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUserTemporaryPassword>>, TError,{userId: string;data: BodyType<TemporaryPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setUserTemporaryPassword>>, TError,{userId: string;data: BodyType<TemporaryPasswordInput>}, TContext> => {
+
+const mutationKey = ['setUserTemporaryPassword'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setUserTemporaryPassword>>, {userId: string;data: BodyType<TemporaryPasswordInput>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  setUserTemporaryPassword(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetUserTemporaryPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof setUserTemporaryPassword>>>
+    export type SetUserTemporaryPasswordMutationBody = BodyType<TemporaryPasswordInput>
+    export type SetUserTemporaryPasswordMutationError = ErrorType<void>
+
+    /**
+ * @summary Set or replace a user's temporary password
+ */
+export const useSetUserTemporaryPassword = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUserTemporaryPassword>>, TError,{userId: string;data: BodyType<TemporaryPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setUserTemporaryPassword>>,
+        TError,
+        {userId: string;data: BodyType<TemporaryPasswordInput>},
+        TContext
+      > => {
+      return useMutation(getSetUserTemporaryPasswordMutationOptions(options));
+    }
 
 export const getGetFieldSettingsUrl = () => {
 

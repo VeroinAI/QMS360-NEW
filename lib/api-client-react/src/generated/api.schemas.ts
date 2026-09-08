@@ -260,6 +260,14 @@ export interface AuthResponse {
   user: CurrentUser;
 }
 
+export interface TemporaryPasswordInput {
+  /**
+     * @minLength 8
+     * @maxLength 128
+     */
+  password: string;
+}
+
 export interface Project {
   id: string;
   code: string;
