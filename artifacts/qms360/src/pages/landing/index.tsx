@@ -1,6 +1,6 @@
 import { Link } from 'wouter';
 import { ArrowRight, BarChart3, Blocks, Database, FileCheck2, Lightbulb, Lock, Network } from 'lucide-react';
-import { useGetApplicationAccess, useGetAppOverview } from '@workspace/api-client-react';
+import { useGetApplicationAccess, useGetAppOverview, useGetCurrentUser } from '@workspace/api-client-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,11 +12,14 @@ const apps = [
 ];
 
 export function LandingPage() {
+  const session = useGetCurrentUser();
   const access = useGetApplicationAccess();
   const qaqc = useGetAppOverview('qaqc');
   const lessons = useGetAppOverview('lessons');
   const audit = useGetAppOverview('audit');
   const overviews = { qaqc, lessons, audit };
+  const isAdmin = ['Super Admin', 'Org Admin'].includes(session.data?.platformRole ?? '')
+    || (session.data?.workspaceRoles?.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
   const loading = access.isLoading || qaqc.isLoading || lessons.isLoading || audit.isLoading;
   const failed = access.isError || qaqc.isError || lessons.isError || audit.isError;
 
@@ -58,7 +61,7 @@ export function LandingPage() {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <Secondary href="/executive" title="Executive Page" detail="Cross-application performance" icon={BarChart3} />
           <Secondary href="/sync" title="Project Sync View" detail="Project and master-data jobs" icon={Network} />
-          <Secondary href="/cockpit" title="Integration Cockpit" detail="Connector health and configuration" icon={Blocks} />
+          {isAdmin && <Secondary href="/cockpit" title="Integration Cockpit" detail="Connector health and configuration" icon={Blocks} />}
           <Secondary href="/master-data" title="Master Data" detail="Global application value lists" icon={Database} />
         </div>
       </section>

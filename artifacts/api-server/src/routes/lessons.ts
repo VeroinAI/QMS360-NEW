@@ -851,6 +851,25 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   const [existing] = await db.select().from(lessonsUserWorkspaceRoles).where(and(eq(lessonsUserWorkspaceRoles.userId, target[0]!.id), eq(lessonsUserWorkspaceRoles.workspaceRoleId, role[0]!.id), isNull(lessonsUserWorkspaceRoles.deletedAt))).limit(1);
   const scope = { businessUnitIds: body.scopeType === "business_unit" ? body.scopeIds : [], projectIds: body.scopeType === "project" ? body.scopeIds : [] };
   const [row] = existing ? await db.update(lessonsUserWorkspaceRoles).set({ ...scope, updatedAt: new Date() }).where(eq(lessonsUserWorkspaceRoles.id, existing.id)).returning() : await db.insert(lessonsUserWorkspaceRoles).values({ organizationId: req.currentUser!.organizationId, userId: target[0]!.id, workspaceRoleId: role[0]!.id, ...scope }).returning();
+  const accessRows = await db.select({ id: applicationAccess.id }).from(applicationAccess).where(and(
+    eq(applicationAccess.organizationId, req.currentUser!.organizationId),
+    eq(applicationAccess.username, target[0]!.username),
+    isNull(applicationAccess.deletedAt),
+  ));
+  if (accessRows.length) {
+    await db.update(applicationAccess).set({
+      canOpenLessons: true,
+      status: "active",
+      updatedAt: new Date(),
+    }).where(inArray(applicationAccess.id, accessRows.map((access) => access.id)));
+  } else {
+    await db.insert(applicationAccess).values({
+      organizationId: req.currentUser!.organizationId,
+      username: target[0]!.username,
+      canOpenLessons: true,
+      status: "active",
+    });
+  }
   await audit(req, "assign_role", "user_role", row!.id, undefined, { userId: target[0]!.id, ...body });
   res.json(row);
 }));

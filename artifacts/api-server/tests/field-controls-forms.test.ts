@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express, { type Express } from "express";
 import type { Server } from "node:http";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   applicationAccess, auditAuditLogEntries, auditFindings, auditPermissions, auditPlans,
   auditSchedules, audits, auditUserWorkspaceRoles, auditWorkspaceRolePermissions, auditWorkspaceRoles,
@@ -243,6 +243,30 @@ afterAll(async () => {
   await db.delete(platformRoles).where(eq(platformRoles.organizationId, orgId));
   await db.delete(organizationSettings).where(eq(organizationSettings.organizationId, orgId));
   await db.delete(organizations).where(eq(organizations.id, orgId));
+});
+
+describe("Lessons application access", () => {
+  it("enables the application when an administrator assigns a Lessons role", async () => {
+    const [target] = await db.insert(users).values({
+      organizationId: orgId,
+      email: `new.creator.${suffix}@example.test`,
+      username: `new.creator.${suffix}`,
+      fullName: "New Lesson Creator",
+    }).returning();
+    const [role] = await db.select().from(lessonsWorkspaceRoles).where(eq(lessonsWorkspaceRoles.organizationId, orgId)).limit(1);
+
+    const assigned = await api("POST", `/lessons/admin/users/${target!.id}/roles`, {
+      token: admin.token,
+      body: { roleId: role!.id, scopeType: "organization", scopeIds: [] },
+    });
+    expect(assigned.status).toBe(200);
+
+    const [access] = await db.select().from(applicationAccess).where(and(
+      eq(applicationAccess.organizationId, orgId),
+      eq(applicationAccess.username, target!.username),
+    )).limit(1);
+    expect(access).toMatchObject({ canOpenLessons: true, status: "active" });
+  });
 });
 
 describe("field-controls enforcement over HTTP (lessons form)", () => {

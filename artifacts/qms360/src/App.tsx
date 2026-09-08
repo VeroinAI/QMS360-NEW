@@ -129,6 +129,8 @@ function AuthenticatedRouter() {
   if (isLogin) return <LoginPage />;
   if (!token || session.isLoading || !session.data) return <div className="flex min-h-dvh items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>;
   if (session.data.mustChangePassword) return <ChangePasswordPage />;
+  const isAdmin = ['Super Admin', 'Org Admin'].includes(session.data.platformRole ?? '')
+    || (session.data.workspaceRoles?.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
   return <AppShell user={session.data}><ErrorBoundary resetKey={location}><Switch>
     <Route path="/" component={LandingPage} />
     <Route path="/executive" component={ExecutivePage} />
@@ -139,8 +141,8 @@ function AuthenticatedRouter() {
     <Route path="/audit/audits/:id/report"><AuditRoutes /></Route>
     <Route path="/audit/audits/:id"><AuditRoutes /></Route>
     <Route path="/audit"><AuditRoutes /></Route><Route path="/audit/:rest*"><AuditRoutes /></Route>
-    <Route path="/cockpit"><AdminRoutes /></Route><Route path="/cockpit/:rest*"><AdminRoutes /></Route>
-    <Route path="/settings/:app/:tab"><AdminRoutes /></Route><Route path="/settings/:rest*"><AdminRoutes /></Route>
+    <Route path="/cockpit">{isAdmin ? <AdminRoutes /> : <NotFound />}</Route><Route path="/cockpit/:rest*">{isAdmin ? <AdminRoutes /> : <NotFound />}</Route>
+    <Route path="/settings/:app/:tab">{isAdmin ? <AdminRoutes /> : <NotFound />}</Route><Route path="/settings/:rest*">{isAdmin ? <AdminRoutes /> : <NotFound />}</Route>
     <Route path="/master-data"><MasterDataRoutes /></Route>
     <Route path="/feedback" component={FeedbackPage} />
     <Route component={NotFound} />

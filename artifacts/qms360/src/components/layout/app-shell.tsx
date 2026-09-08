@@ -32,7 +32,7 @@ const appNav = {
 
 const systemNav = [
   ['System Overview', '/', Globe2], ['Executive Page', '/executive', BarChart3],
-  ['Project Sync View', '/sync', Network], ['Integration Cockpit', '/cockpit', Blocks],
+  ['Project Sync View', '/sync', Network],
 ] as const;
 
 export function AppShell({ children, user }: { children: ReactNode; user: CurrentUser }) {
@@ -62,7 +62,10 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
   const isAdmin = ['Super Admin', 'Org Admin'].includes(user.platformRole ?? '')
     || (user.workspaceRoles?.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
   const nav = section ? appNav[section]
-    : [...systemNav, ...(isAdmin ? [['User Feedback', '/feedback', MessageSquarePlus] as const] : [])];
+    : [...systemNav, ...(isAdmin ? [
+      ['Integration Cockpit', '/cockpit', Blocks] as const,
+      ['User Feedback', '/feedback', MessageSquarePlus] as const,
+    ] : [])];
   const orgName = organization.data?.organizationName ?? user.organizationName;
   const logout = () => {
     localStorage.removeItem('qms360_token');
@@ -93,7 +96,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
               <Icon className="h-4 w-4 shrink-0" />{!collapsed && label}
             </Link>
           ))}
-          {section && <Link href={`/settings/${section}`} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent"><Settings className="h-4 w-4" />{!collapsed && 'Settings'}</Link>}
+          {section && isAdmin && <Link href={`/settings/${section}`} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent"><Settings className="h-4 w-4" />{!collapsed && 'Settings'}</Link>}
         </nav>
         <button className="m-3 hidden items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground/70 hover:bg-sidebar-accent md:flex" onClick={() => setCollapsed(value => !value)}>
           {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <><PanelLeftClose className="h-4 w-4" />Collapse</>}
