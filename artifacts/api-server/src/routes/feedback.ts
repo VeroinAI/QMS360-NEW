@@ -15,8 +15,20 @@ const { resolutionResponse: _resolutionResponse, ...feedbackEntryColumns } = get
 const feedbackEntrySelection = {
   ...feedbackEntryColumns,
   // Production may temporarily lag the development schema during rollout.
-  resolutionResponse: sql<string | null>`to_jsonb("feedback_entries") ->> 'resolution_response'`,
+  resolutionResponse: sql<string | null>`coalesce(
+    to_jsonb("feedback_entries") ->> 'resolution_response',
+    "feedback_entries"."triage" ->> 'resolutionResponse'
+  )`,
 };
+
+function hasPostgresCode(error: unknown, expectedCode: string): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth < 6 && current && typeof current === "object"; depth += 1) {
+    if ((current as { code?: unknown }).code === expectedCode) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
 
 function entryJson(row: EntryRow, user: { id: string; fullName: string; email: string }) {
   return {
@@ -136,17 +148,27 @@ router.post("/feedback/:id/triage", requireAdmin, asyncHandler(async (req, res) 
 router.put("/feedback/:id/resolution", requireAdmin, asyncHandler(async (req, res) => {
   const parsed = UpdateFeedbackResolutionBody.safeParse(req.body);
   if (!parsed.success) throw new HttpError(422, parsed.error.issues[0]?.message ?? "Invalid request body");
-  const [row] = await db.update(feedbackEntries)
-    .set({
-      resolution: parsed.data.resolution,
-      resolutionResponse: parsed.data.response?.trim() || null,
-      updatedAt: new Date(),
-    })
-    .where(and(
-      eq(feedbackEntries.id, String(req.params.id)),
-      eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
-      isNull(feedbackEntries.deletedAt),
-    )).returning();
+  const response = parsed.data.response?.trim() || null;
+  const where = and(
+    eq(feedbackEntries.id, String(req.params.id)),
+    eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
+    isNull(feedbackEntries.deletedAt),
+  );
+  let row: EntryRow | undefined;
+  try {
+    [row] = await db.update(feedbackEntries)
+      .set({ resolution: parsed.data.resolution, resolutionResponse: response, updatedAt: new Date() })
+      .where(where).returning(feedbackEntrySelection);
+  } catch (error) {
+    if (!hasPostgresCode(error, "42703")) throw error;
+    // Preserve responses while production temporarily lacks resolution_response.
+    const fallbackTriage = response
+      ? sql`jsonb_set(coalesce(${feedbackEntries.triage}, '{}'::jsonb), '{resolutionResponse}', to_jsonb(${response}::text), true)`
+      : sql`coalesce(${feedbackEntries.triage}, '{}'::jsonb) - 'resolutionResponse'`;
+    [row] = await db.update(feedbackEntries)
+      .set({ resolution: parsed.data.resolution, triage: fallbackTriage, updatedAt: new Date() })
+      .where(where).returning(feedbackEntrySelection);
+  }
   if (!row) notFound("Feedback entry not found");
   const [author] = await db.select({ fullName: users.fullName, email: users.email }).from(users).where(eq(users.id, row!.userId)).limit(1);
   res.json(entryJson(row!, { id: row!.userId, fullName: author?.fullName ?? "", email: author?.email ?? "" }));

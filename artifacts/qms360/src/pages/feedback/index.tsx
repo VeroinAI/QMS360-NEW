@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
+import { userFacingApiError } from '@/lib/api-error';
 
 const verdictLabels: Record<string, string> = {
   valid_issue: 'Valid issue',
@@ -37,11 +38,6 @@ type Resolution = 'open' | 'reviewing' | 'resolved';
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-function errorMessage(error: unknown) {
-  return (error as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
-    ?? (error as { message?: string })?.message ?? 'Something went wrong';
 }
 
 export function FeedbackPage() {
@@ -68,7 +64,10 @@ export function FeedbackPage() {
         setResolutionEntry(null);
         toast({ title: 'Resolution updated', description: 'The person who raised this feedback can now see your response.' });
       },
-      onError: (error) => toast({ title: 'Update failed', description: errorMessage(error), variant: 'destructive' }),
+      onError: (error) => {
+        const details = userFacingApiError(error, 'The resolution could not be updated.');
+        toast({ title: details.title, description: `${details.message} (${details.technicalCode})`, variant: 'destructive' });
+      },
     },
   });
   const triage = useRunFeedbackTriage({
@@ -77,7 +76,10 @@ export function FeedbackPage() {
         queryClient.invalidateQueries({ queryKey: ['/api/feedback'] });
         toast({ title: 'AI triage completed' });
       },
-      onError: (error) => toast({ title: 'AI triage unavailable', description: errorMessage(error), variant: 'destructive' }),
+      onError: (error) => {
+        const details = userFacingApiError(error, 'AI triage could not be completed.');
+        toast({ title: details.title, description: `${details.message} (${details.technicalCode})`, variant: 'destructive' });
+      },
     },
   });
 
