@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import type { ReactNode } from "react";
-import { Download, Loader2, MapPin, Sparkles, Upload, X } from "lucide-react";
+import { Download, Loader2, MapPin, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   confirmLessonPhoto,
   createLessonPhotoIntent,
+  deleteLessonPhoto,
   customFetch,
   exportLessonFormReport,
   useCreateLessonForm,
@@ -192,7 +193,8 @@ export function LessonFormPage({ id }: { id?: string }) {
     await customFetch(intent.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
     setUploads((u) => u.map((x) => x.key === item.key ? { ...x, progress: 85 } : x));
     await confirmLessonPhoto(intent.id);
-    setUploads((u) => u.map((x) => x.key === item.key ? { ...x, progress: 100, status: "done" } : x));
+    if (item.preview) URL.revokeObjectURL(item.preview);
+    setUploads((u) => u.filter((x) => x.key !== item.key));
   }
   async function saveDraft({ navigateAfterSave = isNew, requireApprover = false }: { navigateAfterSave?: boolean; requireApprover?: boolean } = {}): Promise<string | null> {
     if (!validate(requireApprover) || uploadBlocking) return null;
@@ -258,6 +260,23 @@ export function LessonFormPage({ id }: { id?: string }) {
         setUploads((u) => u.some((x) => x.key === key) ? u.map((x) => x.key === key ? { ...x, status: "failed" } : x) : [...u, { key, category, name: original.name, preview: "", progress: 0, status: "failed" }]);
         toast({ title: "Photo upload failed", description: errorMessage(e), variant: "destructive" });
       }
+    }
+  }
+  function removeQueuedPhoto(key: string) {
+    setUploads((current) => {
+      const item = current.find((photo) => photo.key === key);
+      if (item?.preview) URL.revokeObjectURL(item.preview);
+      return current.filter((photo) => photo.key !== key);
+    });
+  }
+  async function removeSavedPhoto(photoId: string) {
+    try {
+      await deleteLessonPhoto(photoId);
+      invalidate();
+      await detail.refetch();
+      toast({ title: "Photo removed" });
+    } catch (e) {
+      toast({ title: "Unable to remove photo", description: errorMessage(e), variant: "destructive" });
     }
   }
   async function askRephrase(field: FieldName) {
@@ -330,18 +349,23 @@ export function LessonFormPage({ id }: { id?: string }) {
           {record?.workflowState === "Submitted" && canReview && <div className="grid grid-cols-2 gap-2"><Button onClick={() => setReview("approve")}>Approve</Button><Button variant="destructive" onClick={() => setReview("send_back")}>Send back</Button></div>}
           {record?.submittedAt && <Card><CardHeader><CardTitle>Approval record</CardTitle></CardHeader><CardContent className="space-y-4">
             <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Submitted by</p><p className="font-medium">{record.submittedByName ?? "Unknown"}{record.submittedByDesignation ? ` — ${record.submittedByDesignation}` : ""}</p><p className="text-xs text-muted-foreground">{new Date(record.submittedAt).toLocaleString()}</p>{record.submittedBySignatureUrl && <AuthImage src={record.submittedBySignatureUrl} alt="Submitter signature" className="mt-2 h-12 rounded border border-border bg-white object-contain p-1" />}</div>
-            {record.reviewedAt && <div className="border-t border-border pt-4"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{record.reviewDecision === "approve" ? "Approved by" : "Sent back by"}</p><p className="font-medium">{record.reviewedByName ?? "Unknown"}{record.reviewedByDesignation ? ` — ${record.reviewedByDesignation}` : ""}</p><p className="text-xs text-muted-foreground">{new Date(record.reviewedAt).toLocaleString()}</p>{record.reviewComments && <p className="mt-1 text-sm italic">&ldquo;{record.reviewComments}&rdquo;</p>}{record.reviewedBySignatureUrl && <AuthImage src={record.reviewedBySignatureUrl} alt="Reviewer signature" className="mt-2 h-12 rounded border border-border bg-white object-contain p-1" />}</div>}
+            {record.reviewedAt && <div className="border-t border-border pt-4"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{record.reviewDecision === "approve" ? "Approved by" : "Sent back by"}</p><p className="font-medium">{record.reviewedByName ?? "Unknown"}{record.reviewedByDesignation ? ` — ${record.reviewedByDesignation}` : ""}</p><p className="text-xs text-muted-foreground">{new Date(record.reviewedAt).toLocaleString()}</p>{record.reviewComments && <p className="mt-1 rounded-md bg-muted p-2 text-sm"><span className="font-medium">Comments: </span>{record.reviewComments}</p>}{record.reviewedBySignatureUrl && <AuthImage src={record.reviewedBySignatureUrl} alt="Reviewer signature" className="mt-2 h-12 rounded border border-border bg-white object-contain p-1" />}</div>}
           </CardContent></Card>}
         </div>
       </div>
       {!readOnly && <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background p-3 shadow-lg xl:hidden"><WorkflowControls mobile /></div>}
       {record?.photos?.length ? <Card className="mt-6"><CardHeader><CardTitle>Before & after</CardTitle></CardHeader><CardContent className="grid gap-6 md:grid-cols-2"><PhotoGallery title="Before" photos={record.photos.filter((p) => p.category === "before")} /><PhotoGallery title="After" photos={record.photos.filter((p) => p.category === "after")} /></CardContent></Card> : null}
-      {record && activity.data && activity.data.items.length > 0 && <Card className="mt-6"><CardHeader><CardTitle>Activity</CardTitle></CardHeader><CardContent><ol className="relative space-y-4 border-l border-border pl-5">{activity.data.items.map((entry) => <li key={entry.id} className="relative"><span className="absolute -left-[26px] top-1 h-2.5 w-2.5 rounded-full bg-primary" /><p className="text-sm font-medium capitalize">{entry.action.replace(/_/g, " ")}</p><p className="text-xs text-muted-foreground">{entry.actorName ?? "Someone"} · {new Date(entry.occurredAt).toLocaleString()}</p></li>)}</ol></CardContent></Card>}
+      {record && activity.data && activity.data.items.length > 0 && <Card className="mt-6"><CardHeader><CardTitle>Activity</CardTitle></CardHeader><CardContent><ol className="relative space-y-4 border-l border-border pl-5">{activity.data.items.map((entry) => {
+        const comments = entry.action === "send_back" && entry.after && typeof entry.after === "object"
+          ? String(entry.after.reviewComments ?? entry.after.remarks ?? "")
+          : "";
+        return <li key={entry.id} className="relative"><span className="absolute -left-[26px] top-1 h-2.5 w-2.5 rounded-full bg-primary" /><p className="text-sm font-medium capitalize">{entry.action.replace(/_/g, " ")}</p><p className="text-xs text-muted-foreground">{entry.actorName ?? "Someone"} · {new Date(entry.occurredAt).toLocaleString()}</p>{comments && <p className="mt-1 rounded-md bg-muted p-2 text-sm"><span className="font-medium">Comments: </span>{comments}</p>}</li>;
+      })}</ol></CardContent></Card>}
       <Dialog open={review !== null} onOpenChange={(open) => !open && !reviewMutation.isPending && setReview(null)}><DialogContent><DialogHeader><DialogTitle>{review === "approve" ? "Approve lesson" : "Send lesson back"}</DialogTitle><DialogDescription>{review === "send_back" ? "Remarks are required so the creator knows what to change." : "Optionally add an approval remark."}</DialogDescription></DialogHeader><Textarea value={reviewRemarks} onChange={(e) => setReviewRemarks(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" disabled={reviewMutation.isPending} onClick={() => setReview(null)}>Cancel</Button><Button disabled={reviewMutation.isPending || (review === "send_back" && !reviewRemarks.trim())} onClick={() => record && reviewMutation.mutate({ id: record.id, data: { decision: review!, comments: reviewRemarks || undefined } })}>{reviewMutation.isPending ? "Saving decision…" : "Confirm"}</Button></DialogFooter></DialogContent></Dialog>
     </div>;
 
     function PhotoInput({ category }: { category: "before" | "after" }) {
-      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => choosePhotos(e.target.files, category)} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="overflow-hidden rounded border border-border">{p.storageUrl ? <AuthImage src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}{p.status !== "queued" ? <Progress value={p.progress} className="absolute bottom-0 rounded-none" /> : <p className="absolute bottom-0 w-full bg-background/80 text-center text-[10px] text-muted-foreground">Uploads on save</p>}</div>)}</div>{!id && uploads.some((p) => p.status === "queued") && <p className="mt-2 text-xs text-muted-foreground">Photos will be uploaded when you save the lesson.</p>}{uploads.some((p) => p.status === "failed") && <p className="mt-2 text-xs text-destructive">A photo upload failed. Save again to retry it before submitting.</p>}{uploadBlocking && <p className="mt-2 text-xs text-destructive">Wait for pending uploads before saving or submitting.</p>}</div>;
+      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { void choosePhotos(e.target.files, category); e.currentTarget.value = ""; }} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="relative overflow-hidden rounded border border-border">{p.storageUrl ? <AuthImage src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}{!readOnly && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 size-8" aria-label={`Remove ${p.fileName}`} onClick={() => void removeSavedPhoto(p.id)}><Trash2 className="size-4" /></Button>}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}{!["uploading", "done"].includes(p.status) && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 size-8" aria-label={`Remove ${p.name}`} onClick={() => removeQueuedPhoto(p.key)}><Trash2 className="size-4" /></Button>}{p.status !== "queued" ? <Progress value={p.progress} className="absolute bottom-0 rounded-none" /> : <p className="absolute bottom-0 w-full bg-background/80 text-center text-[10px] text-muted-foreground">Uploads on save</p>}</div>)}</div>{!id && uploads.some((p) => p.status === "queued") && <p className="mt-2 text-xs text-muted-foreground">Photos will be uploaded when you save the lesson.</p>}{uploads.some((p) => p.status === "failed") && <p className="mt-2 text-xs text-destructive">A photo upload failed. Save again to retry it before submitting.</p>}{uploadBlocking && <p className="mt-2 text-xs text-destructive">Wait for pending uploads before saving or submitting.</p>}</div>;
     }
 
     function WorkflowControls({ mobile = false }: { mobile?: boolean }) {

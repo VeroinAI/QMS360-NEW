@@ -66,7 +66,7 @@ function HomePage() {
 
   const metrics = [
     { label: "Total lessons", value: log.isLoading ? null : (log.data?.total ?? 0), Icon: BookOpen, href: null },
-    { label: "Pending my approval", value: userPendingQuery.isLoading ? null : (userPendingQuery.isError ? "Unavailable" : (pendingMyApproval ?? 0)), Icon: ClipboardCheck, href: "/lessons/approvals" },
+    { label: "For my Action", value: userPendingQuery.isLoading ? null : (userPendingQuery.isError ? "Unavailable" : (pendingMyApproval ?? 0)), Icon: ClipboardCheck, href: "/lessons/approvals" },
     { label: "Major + Negative open (recent)", value: log.isLoading ? null : lessons.filter((x) => x.issueCategory === "Major" && x.impact === "Negative" && x.workflowState !== "Approved").length, Icon: AlertTriangle, href: null },
     { label: "Active escalations (recent)", value: escalations.isLoading ? null : active.length, Icon: AlertTriangle, href: null },
   ];
@@ -89,8 +89,8 @@ function HomePage() {
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
           {pendingLessons.length > 0 && (
-            <Card><CardHeader className="flex-row items-center justify-between"><CardTitle>Pending my approval</CardTitle><Button variant="ghost" asChild><Link href="/lessons/approvals">View all</Link></Button></CardHeader><CardContent>
-              <div className="space-y-3">{pendingLessons.map((lesson) => <LessonRow key={lesson.id} lesson={lesson} escalated={active.some((e) => e.recordId === lesson.id)} action="Review" href={`/lessons/${lesson.id}?from=approvals`} />)}</div>
+            <Card><CardHeader className="flex-row items-center justify-between"><CardTitle>For my Action</CardTitle><Button variant="ghost" asChild><Link href="/lessons/approvals">View all</Link></Button></CardHeader><CardContent>
+              <div className="space-y-3">{pendingLessons.map((lesson) => <LessonRow key={lesson.id} lesson={lesson} escalated={active.some((e) => e.recordId === lesson.id)} action={lesson.workflowState === "Sent Back" ? "Update" : "Review"} href={`/lessons/${lesson.id}?from=approvals`} />)}</div>
             </CardContent></Card>
           )}
           <Card><CardHeader className="flex-row items-center justify-between"><CardTitle>Recent lessons</CardTitle><Button variant="ghost" asChild><Link href="/lessons/log">View knowledge base</Link></Button></CardHeader><CardContent>
@@ -157,7 +157,7 @@ function ApprovalsPage() {
   const filtered = !!search || projectId !== "all" || category !== "all";
 
   return <div>
-    <PageHeader title="Pending My Approval" description="Lessons awaiting your review." back="/lessons" actions={<Button variant="outline" onClick={exportCsv}><Download /> Export CSV</Button>} />
+    <PageHeader title="For my Action" description="Lessons awaiting your review or updates after being sent back." back="/lessons" actions={<Button variant="outline" onClick={exportCsv}><Download /> Export CSV</Button>} />
     <Card className="mb-5"><CardContent className="grid gap-3 pt-6 md:grid-cols-2 xl:grid-cols-4">
       <div className="relative md:col-span-2"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input className="pl-9" placeholder="Search title or reference…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
       <div className="space-y-1.5"><Label>Project</Label><Select value={projectId} onValueChange={(v) => { setProjectId(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger><SelectContent><SelectItem value="all">All projects</SelectItem>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></div>
@@ -166,10 +166,10 @@ function ApprovalsPage() {
     <LoadState loading={log.isLoading} error={log.error} empty={false}>
       <Card>
         {isEmpty ? (
-          <CardContent className="flex flex-col items-center py-12 text-center"><ClipboardCheck className="mb-3 size-9 text-muted-foreground" /><p className="font-semibold">{page > 1 ? "No approvals on this page" : filtered ? "No matching pending approvals" : "No lessons pending your approval"}</p><p className="text-sm text-muted-foreground">{page > 1 ? "Return to the previous page to see remaining approvals." : filtered ? "Change or clear your filters to see other pending approvals." : "You are all caught up."}</p></CardContent>
+          <CardContent className="flex flex-col items-center py-12 text-center"><ClipboardCheck className="mb-3 size-9 text-muted-foreground" /><p className="font-semibold">{page > 1 ? "No actions on this page" : filtered ? "No matching pending actions" : "No lessons require your action"}</p><p className="text-sm text-muted-foreground">{page > 1 ? "Return to the previous page to see remaining actions." : filtered ? "Change or clear your filters to see other pending actions." : "You are all caught up."}</p></CardContent>
         ) : (
           <Table><TableHeader><TableRow><TableHead>Lesson</TableHead><TableHead>Project</TableHead><TableHead>Category</TableHead><TableHead>Status</TableHead><TableHead>Submitted on</TableHead><TableHead className="w-24 text-right">Action</TableHead></TableRow></TableHeader><TableBody>
-            {log.data?.items.map((lesson) => <TableRow key={lesson.id}><TableCell><Link href={`/lessons/${lesson.id}?from=approvals`} className="font-semibold text-primary hover:underline">{lesson.title}</Link><p className="text-xs text-muted-foreground">{lesson.referenceNumber}</p></TableCell><TableCell>{projectNames.get(lesson.projectId) ?? "Unknown project"}</TableCell><TableCell>{lesson.issueCategory}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{lesson.submittedAt ? new Date(lesson.submittedAt).toLocaleDateString() : "—"}</TableCell><TableCell className="text-right"><Button size="sm" asChild><Link href={`/lessons/${lesson.id}?from=approvals`}>Review</Link></Button></TableCell></TableRow>)}
+            {log.data?.items.map((lesson) => <TableRow key={lesson.id}><TableCell><Link href={`/lessons/${lesson.id}?from=approvals`} className="font-semibold text-primary hover:underline">{lesson.title}</Link><p className="text-xs text-muted-foreground">{lesson.referenceNumber}</p></TableCell><TableCell>{projectNames.get(lesson.projectId) ?? "Unknown project"}</TableCell><TableCell>{lesson.issueCategory}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{lesson.submittedAt ? new Date(lesson.submittedAt).toLocaleDateString() : "—"}</TableCell><TableCell className="text-right"><Button size="sm" asChild><Link href={`/lessons/${lesson.id}?from=approvals`}>{lesson.workflowState === "Sent Back" ? "Update" : "Review"}</Link></Button></TableCell></TableRow>)}
           </TableBody></Table>
         )}
       </Card>

@@ -610,6 +610,8 @@ router.post("/forms/:id/photos", asyncHandler(async (req, res) => {
   if (!body) return;
   const form = await getForm(String(req.params.id), req.currentUser!.organizationId);
   if (!form) notFound("Lesson form not found");
+  assertOwnerOrFull(req, form.creatorId);
+  if (!["draft", "sent_back"].includes(form.workflowState)) throw new HttpError(409, "Photos may only be changed before the lesson is submitted");
   if (!body.mimeType.startsWith("image/")) throw new HttpError(422, "Lesson photos must use an image MIME type");
   if (body.sizeBytes > MAX_PHOTO_BYTES) throw new HttpError(422, "Photo exceeds the 8MB limit");
   const current = await listEvidence(db, "lessons", form.organizationId, "lesson_form", form.id);
@@ -620,6 +622,16 @@ router.post("/forms/:id/photos", asyncHandler(async (req, res) => {
 }));
 
 router.put("/photos/:id/confirm", asyncHandler(async (req, res) => {
+  const [pendingPhoto] = await db.select().from(lessonsEvidenceFiles).where(and(
+    eq(lessonsEvidenceFiles.id, String(req.params.id)),
+    eq(lessonsEvidenceFiles.organizationId, req.currentUser!.organizationId),
+    isNull(lessonsEvidenceFiles.deletedAt),
+  )).limit(1);
+  if (!pendingPhoto) notFound("Photo not found");
+  const form = await getForm(pendingPhoto!.recordId, req.currentUser!.organizationId);
+  if (!form) notFound("Lesson form not found");
+  assertOwnerOrFull(req, form.creatorId);
+  if (!["draft", "sent_back"].includes(form.workflowState)) throw new HttpError(409, "Photos may only be changed before the lesson is submitted");
   const row = await confirmEvidence(db, "lessons", String(req.params.id), req.currentUser!.organizationId);
   if (!row) notFound("Photo not found");
   await audit(req, "confirm", "evidence", row.id);
@@ -627,6 +639,16 @@ router.put("/photos/:id/confirm", asyncHandler(async (req, res) => {
 }));
 
 router.delete("/photos/:id", asyncHandler(async (req, res) => {
+  const [photo] = await db.select().from(lessonsEvidenceFiles).where(and(
+    eq(lessonsEvidenceFiles.id, String(req.params.id)),
+    eq(lessonsEvidenceFiles.organizationId, req.currentUser!.organizationId),
+    isNull(lessonsEvidenceFiles.deletedAt),
+  )).limit(1);
+  if (!photo) notFound("Photo not found");
+  const form = await getForm(photo!.recordId, req.currentUser!.organizationId);
+  if (!form) notFound("Lesson form not found");
+  assertOwnerOrFull(req, form.creatorId);
+  if (!["draft", "sent_back"].includes(form.workflowState)) throw new HttpError(409, "Photos may only be changed before the lesson is submitted");
   const row = await deleteEvidence(db, "lessons", String(req.params.id), req.currentUser!.organizationId);
   if (!row) notFound("Photo not found");
   await audit(req, "delete", "evidence", row.id);
@@ -666,10 +688,16 @@ async function logWhere(req: any) {
     typeof q.impact === "string" ? eq(lessonLearnedForms.impact, q.impact) : undefined,
     from ? gte(lessonLearnedForms.capturedAt, from) : undefined, to ? lte(lessonLearnedForms.capturedAt, to) : undefined,
     workflowState ? eq(lessonLearnedForms.workflowState, workflowState) : undefined,
-    q.pendingApproval === "true" ? and(
-      eq(lessonLearnedForms.approverId, req.currentUser.id),
-      eq(lessonLearnedForms.workflowState, "submitted"),
-      ne(lessonLearnedForms.creatorId, req.currentUser.id),
+    q.pendingApproval === "true" ? or(
+      and(
+        eq(lessonLearnedForms.approverId, req.currentUser.id),
+        eq(lessonLearnedForms.workflowState, "submitted"),
+        ne(lessonLearnedForms.creatorId, req.currentUser.id),
+      ),
+      and(
+        eq(lessonLearnedForms.creatorId, req.currentUser.id),
+        eq(lessonLearnedForms.workflowState, "sent_back"),
+      ),
     ) : undefined,
   );
 }
@@ -678,7 +706,7 @@ router.get("/log", requirePermission("lessons", "lessons", "select"), asyncHandl
   const { page, limit, offset } = pagination(req);
   const where = await logWhere(req);
   const pending = req.query.pendingApproval === "true";
-  const visibleWhere = await lessonVisibilityWhere(req, where, pending);
+  const visibleWhere = await lessonVisibilityWhere(req, where, false);
   const order = pending
     ? [asc(lessonLearnedForms.submittedAt), asc(lessonLearnedForms.id)]
     : [desc(lessonLearnedForms.capturedAt), asc(lessonLearnedForms.id)];
@@ -757,7 +785,7 @@ router.get("/reports/log", requirePermission("lessons", "lessons", "select"), as
   if (format !== "csv" && format !== "json") throw new HttpError(422, "Only CSV and JSON exports are supported");
   const where = await logWhere(req);
   const pending = req.query.pendingApproval === "true";
-  const visibleWhere = await lessonVisibilityWhere(req, where, pending);
+  const visibleWhere = await lessonVisibilityWhere(req, where, false);
   const rows = await db.select().from(lessonLearnedForms).where(visibleWhere).orderBy(
     ...(pending ? [asc(lessonLearnedForms.submittedAt), asc(lessonLearnedForms.id)] : [asc(lessonLearnedForms.referenceNumber), asc(lessonLearnedForms.id)]),
   );

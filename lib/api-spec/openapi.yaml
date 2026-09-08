@@ -825,7 +825,7 @@ paths:
         - {name: impact, in: query, schema: {type: string, enum: [Positive, Negative]}}
         - {$ref: "#/components/parameters/From"}
         - {$ref: "#/components/parameters/To"}
-        - {name: pendingApproval, in: query, description: Return only submitted lessons assigned to the current user for approval, schema: {type: boolean}}
+        - {name: pendingApproval, in: query, description: Return lessons requiring the current user's action (submitted for their review or sent back for their updates), schema: {type: boolean}}
         - {name: workflowState, in: query, schema: {type: string, enum: [Draft, Submitted, Approved, Sent Back]}}
         - {$ref: "#/components/parameters/Page"}
         - {$ref: "#/components/parameters/Limit"}
@@ -855,7 +855,7 @@ paths:
         - {name: impact, in: query, schema: {type: string, enum: [Positive, Negative]}}
         - {$ref: "#/components/parameters/From"}
         - {$ref: "#/components/parameters/To"}
-        - {name: pendingApproval, in: query, description: Return only submitted lessons assigned to the current user for approval, schema: {type: boolean}}
+        - {name: pendingApproval, in: query, description: Return lessons requiring the current user's action (submitted for their review or sent back for their updates), schema: {type: boolean}}
         - {name: workflowState, in: query, schema: {type: string, enum: [Draft, Submitted, Approved, Sent Back]}}
         - {$ref: "#/components/parameters/ReportFormat"}
       responses: {"200": {$ref: "#/components/responses/ReportFile"}}

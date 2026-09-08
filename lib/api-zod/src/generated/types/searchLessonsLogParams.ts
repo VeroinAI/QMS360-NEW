@@ -22,7 +22,7 @@ impact?: SearchLessonsLogImpact;
 from?: FromParameter;
 to?: ToParameter;
 /**
- * Return only submitted lessons assigned to the current user for approval
+ * Return lessons requiring the current user's action (submitted for their review or sent back for their updates)
  */
 pendingApproval?: boolean;
 workflowState?: SearchLessonsLogWorkflowState;

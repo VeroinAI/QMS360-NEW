@@ -22,7 +22,7 @@ const appNav = {
     ['Inspections', '/qaqc/material-inspections', ClipboardCheck], ['Documents', '/qaqc/documents', FileText],
   ],
   lessons: [
-    ['Overview', '/lessons', LayoutDashboard], ['My approvals', '/lessons/approvals', ClipboardCheck],
+    ['Overview', '/lessons', LayoutDashboard], ['For my Action', '/lessons/approvals', ClipboardCheck],
     ['Lesson log', '/lessons/log', Lightbulb],
     ['New lesson', '/lessons/new', FileText], ['Notifications', '/lessons/notifications', Bell],
   ],
