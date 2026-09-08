@@ -69,7 +69,10 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
 
   const isAdmin = ['Super Admin', 'Org Admin'].includes(user.platformRole ?? '')
     || (user.workspaceRoles?.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
-  const nav = section ? appNav[section]
+  const nav = section
+    ? [...appNav[section], ...(isAdmin ? [
+      ['User Feedback', '/feedback', MessageSquarePlus] as const,
+    ] : [])]
     : [...systemNav, ...(isAdmin ? [
       ['Integration Cockpit', '/cockpit', Blocks] as const,
       ['User Feedback', '/feedback', MessageSquarePlus] as const,
