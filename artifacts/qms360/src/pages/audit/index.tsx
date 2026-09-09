@@ -20,6 +20,7 @@ import {
   useListAuditSchedules,
   useListAudits,
   useListCorrectiveActionReports,
+  useListProjects,
   useCancelCarExtension,
   useRequestCarExtension,
   useReviewAuditSchedule,
@@ -152,7 +153,11 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   const auditCategories = useLov("audit_categories");
   const processOwners = useLov("process_product_owners");
   const auditLevels = useLov("audit_levels");
-  const departments = useLov("departments");
+  const projects = useListProjects();
+  const projectOptions = (projects.data ?? []).map(project => ({
+    value: project.name,
+    label: project.code ? `${project.code} — ${project.name}` : project.name,
+  }));
   const uploadAttachment = async (file: File, category: "l1-review" | "l2-review") => {
     const intent = await evidenceIntent.mutateAsync({ data: {
       recordType: "audit_schedule", recordId: form.id, category, fileName: file.name,
@@ -249,7 +254,27 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   return <div className="grid gap-4 py-2">
     <div id="schedule-auditTypes"><Label>1. Audit Type *</Label><Select value={form.auditTypes?.[0] ?? ""} disabled={auditTypes.isLoading || ro("auditTypes")} onValueChange={v => field("auditTypes", [v])}><SelectTrigger aria-invalid={!!errors.auditTypes} className={invalid("auditTypes")}><SelectValue placeholder="Select audit type"/></SelectTrigger><SelectContent>{withLegacyOption(auditTypes.options, form.auditTypes?.[0]).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditTypes")}</div>
     <div id="schedule-auditCategory"><Label>2. Audit Category *</Label><Select value={form.auditCategory ?? ""} disabled={auditCategories.isLoading || ro("auditCategory")} onValueChange={v => field("auditCategory", v)}><SelectTrigger aria-invalid={!!errors.auditCategory} className={invalid("auditCategory")}><SelectValue placeholder="Select category"/></SelectTrigger><SelectContent>{withLegacyOption(auditCategories.options, form.auditCategory).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditCategory")}</div>
-    <div id="schedule-departmentProject"><Label>3. Department / Project *</Label><Select value={form.departmentProject ?? ""} disabled={departments.isLoading || ro("departmentProject")} onValueChange={v => field("departmentProject", v)}><SelectTrigger aria-invalid={!!errors.departmentProject} className={invalid("departmentProject")}><SelectValue placeholder="Select department or project"/></SelectTrigger><SelectContent>{withLegacyOption(departments.options, form.departmentProject).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("departmentProject")}</div>
+    <div id="schedule-departmentProject">
+      <Label>3. Department / Project *</Label>
+      <Select
+        value={form.departmentProject ?? ""}
+        disabled={projects.isLoading || projects.isError || projectOptions.length === 0 || ro("departmentProject")}
+        onValueChange={v => field("departmentProject", v)}
+      >
+        <SelectTrigger aria-invalid={!!errors.departmentProject} className={invalid("departmentProject")}>
+          <SelectValue placeholder={projects.isLoading ? "Loading projects…" : "Select project"} />
+        </SelectTrigger>
+        <SelectContent>
+          {withLegacyOption(projectOptions, form.departmentProject).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      {projects.isError
+        ? <p className="mt-1 text-sm text-destructive" role="alert">Projects could not be loaded. Please try again or contact an administrator.</p>
+        : !projects.isLoading && projectOptions.length === 0
+          ? <p className="mt-1 text-sm text-muted-foreground">No active projects are available. Ask an administrator to add a project in organization settings.</p>
+          : null}
+      {error("departmentProject")}
+    </div>
      <div id="schedule-location"><Label>4. Location (GPS) *</Label><Button type="button" variant="outline" className={`w-full justify-start ${invalid("location")}`} onClick={captureGps} disabled={ro("location")}><MapPin className="mr-2 size-4" />Capture GPS</Button>{form.gpsLat != null && form.gpsLng != null && <p className="mt-2 text-xs text-muted-foreground">{form.gpsLat.toFixed(5)}, {form.gpsLng.toFixed(5)}</p>}{error("location")}</div>
     <div id="schedule-title"><Label>5. Audit Title *</Label><Input aria-invalid={!!errors.title} className={invalid("title")} value={form.title} disabled={ro("title")} onChange={e => field("title", e.target.value)}/>{error("title")}</div>
     <div id="schedule-processProductOwner"><Label>6. Process / Product Owner *</Label><Select value={form.processProductOwner ?? ""} disabled={processOwners.isLoading || ro("processProductOwner")} onValueChange={v => field("processProductOwner", v)}><SelectTrigger aria-invalid={!!errors.processProductOwner} className={invalid("processProductOwner")}><SelectValue placeholder="Select owner"/></SelectTrigger><SelectContent>{withLegacyOption(processOwners.options, form.processProductOwner).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("processProductOwner")}</div>

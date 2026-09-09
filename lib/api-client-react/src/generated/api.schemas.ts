@@ -1078,6 +1078,22 @@ export interface WorkspaceUser {
   lastAccessAt?: string | null;
 }
 
+export interface PlatformRole {
+  id: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface PlatformRoleUpdate {
+  roleId: string;
+}
+
+export interface PlatformRoleUpdateResult {
+  userId: string;
+  platformRole: string;
+}
+
 export interface UserProfileUpdate {
   /** @nullable */
   designation?: string | null;

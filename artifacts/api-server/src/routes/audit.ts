@@ -20,6 +20,7 @@ import {
   correctiveActionReports,
   db,
   organizationSettings,
+  platformRoles,
   users,
 } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
@@ -796,14 +797,15 @@ router.put("/admin/roles/:id", asyncHandler(async (req, res) => {
 }));
 router.get("/admin/users", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const where = and(eq(users.organizationId, actor(req).organizationId), isNull(users.deletedAt));
-  const [rows, [{ count }]] = await Promise.all([
+  const [rows, [{ count }], availablePlatformRoles] = await Promise.all([
     db.select().from(users).where(where).orderBy(asc(users.username)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(users).where(where),
+    db.select({ id: platformRoles.id, name: platformRoles.name }).from(platformRoles).where(and(eq(platformRoles.organizationId, actor(req).organizationId), isNull(platformRoles.deletedAt))),
   ]);
   const assignments = rows.length ? await db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), inArray(auditUserWorkspaceRoles.userId, rows.map((x) => x.id)), isNull(auditUserWorkspaceRoles.deletedAt))) : [];
   const roles = assignments.length ? await db.select().from(auditWorkspaceRoles).where(inArray(auditWorkspaceRoles.id, assignments.map((x) => x.workspaceRoleId))) : [];
   res.json(paginated(rows.map((x) => ({
-    id: x.id, username: x.username, email: x.email, platformRole: "Employee",
+    id: x.id, username: x.username, email: x.email, platformRole: availablePlatformRoles.find((role) => role.id === x.platformRoleId)?.name ?? "Employee",
     workspaceRoles: roles.filter((role) => assignments.some((a) => a.userId === x.id && a.workspaceRoleId === role.id)).map((role) => ({ id: role.id, name: role.name, description: role.description, permissions: [], active: role.status === "active", systemDefault: role.isSystem })),
     status: x.accessStatus === "active" ? "Active" : x.accessStatus === "deactivated" ? "Deactivated" : "Not Requested", lastAccessAt: x.lastAccessAt,
   })), Number(count), page, limit));

@@ -691,13 +691,14 @@ router.put("/admin/roles/:id", asyncHandler(async (req, res) => {
 }));
 router.get("/admin/users", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const [rows, totals] = await Promise.all([
+  const [rows, totals, availablePlatformRoles] = await Promise.all([
     db.select().from(users).where(and(eq(users.organizationId, org(req)), isNull(users.deletedAt))).orderBy(asc(users.fullName)).limit(limit).offset(offset),
     db.select({ value: count() }).from(users).where(and(eq(users.organizationId, org(req)), isNull(users.deletedAt))),
+    db.select({ id: platformRoles.id, name: platformRoles.name }).from(platformRoles).where(and(eq(platformRoles.organizationId, org(req)), isNull(platformRoles.deletedAt))),
   ]);
   const items = await Promise.all(rows.map(async (u) => {
     const assigned = await db.select({ role: workspaceRoles }).from(userWorkspaceRoles).innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id)).where(and(eq(userWorkspaceRoles.userId, u.id), isNull(userWorkspaceRoles.deletedAt), isNull(workspaceRoles.deletedAt)));
-    return { id: u.id, username: u.username, email: u.email, platformRole: "Employee", workspaceRoles: await Promise.all(assigned.map((r) => roleResponse(r.role))), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt };
+    return { id: u.id, username: u.username, email: u.email, platformRole: availablePlatformRoles.find((role) => role.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: await Promise.all(assigned.map((r) => roleResponse(r.role))), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt };
   }));
   res.json(paginated(items, Number(totals[0]?.value ?? 0), page, limit));
 }));

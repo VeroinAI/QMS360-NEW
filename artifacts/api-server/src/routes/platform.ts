@@ -1,18 +1,18 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   GetApplicationAccessResponse, GetFieldSettingsResponse, GetNumberingConfigResponse, GetOrganizationSettingsResponse,
   GetPlatformContextResponse, GetPlatformReferenceDataResponse,
   ListBusinessUnitsResponse, ListProjectsResponse, ResetNumberingPatternResponse,
-  SetUserTemporaryPasswordBody,
+  SetUserTemporaryPasswordBody, UpdateUserPlatformRoleBody, UpdateUserPlatformRoleResponse,
   UpdateFieldSettingsBody, UpdateFieldSettingsResponse, UpdateNumberingPatternBody, UpdateNumberingPatternResponse, UpdateOrganizationSettingsBody,
   UpdateOrganizationSettingsResponse,
 } from "@workspace/api-zod";
-import { applicationAccess, businessUnits, db, moduleFieldSettings, organizations, organizationSettings, projects, users } from "@workspace/db";
-import { requireAdmin, requireAuth } from "../middlewares/auth";
+import { applicationAccess, businessUnits, db, moduleFieldSettings, organizations, organizationSettings, platformRoles, projects, users } from "@workspace/db";
+import { requireAdmin, requireAuth, requirePlatformRole } from "../middlewares/auth";
 import { hashPassword } from "../lib/auth";
 import { runEscalationSweep } from "../lib/escalation";
-import { paginated, pagination, type AppKey } from "../lib/workspace";
+import { paginated, pagination, writeAuditLog, type AppKey } from "../lib/workspace";
 import { catalogKeys, FIELD_CATALOG } from "../lib/field-access";
 import {
   effectivePattern, formatReferenceNumber, getNumberingMap, isConfigured, NUMBERING_MODULES,
@@ -20,6 +20,100 @@ import {
 } from "../lib/numbering";
 
 const router: IRouter = Router();
+const platformAdmin = requirePlatformRole("Super Admin", "Org Admin");
+
+router.get("/platform/roles", requireAuth, platformAdmin, async (req, res): Promise<void> => {
+  const rows = await db.select({
+    id: platformRoles.id,
+    name: platformRoles.name,
+    description: platformRoles.description,
+  }).from(platformRoles).where(and(
+    eq(platformRoles.organizationId, req.currentUser!.organizationId),
+    eq(platformRoles.status, "active"),
+    isNull(platformRoles.deletedAt),
+  )).orderBy(platformRoles.name);
+  res.json(rows);
+});
+
+router.put("/platform/users/:userId/role", requireAuth, platformAdmin, async (req, res): Promise<void> => {
+  const parsed = UpdateUserPlatformRoleBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({ error: parsed.error.issues[0]?.message ?? "Invalid platform role" });
+    return;
+  }
+  const actor = req.currentUser!;
+  const targetId = String(req.params.userId);
+  if (targetId === actor.id) {
+    res.status(422).json({ error: "You cannot change your own platform role" });
+    return;
+  }
+  const [target, role] = await Promise.all([
+    db.select({
+      id: users.id,
+      platformRoleId: users.platformRoleId,
+      accessStatus: users.accessStatus,
+    }).from(users).where(and(
+      eq(users.id, targetId),
+      eq(users.organizationId, actor.organizationId),
+      isNull(users.deletedAt),
+    )).limit(1).then((rows) => rows[0]),
+    db.select({
+      id: platformRoles.id,
+      name: platformRoles.name,
+    }).from(platformRoles).where(and(
+      eq(platformRoles.id, parsed.data.roleId),
+      eq(platformRoles.organizationId, actor.organizationId),
+      eq(platformRoles.status, "active"),
+      isNull(platformRoles.deletedAt),
+    )).limit(1).then((rows) => rows[0]),
+  ]);
+  if (!target || !role) {
+    res.status(404).json({ error: "User or platform role not found" });
+    return;
+  }
+  if (role.name === "Super Admin" && actor.platformRole !== "Super Admin") {
+    res.status(403).json({ error: "Only a Super Admin can assign the Super Admin role" });
+    return;
+  }
+  const currentRoles = await db.select({ id: platformRoles.id, name: platformRoles.name })
+    .from(platformRoles).where(and(
+      eq(platformRoles.organizationId, actor.organizationId),
+      inArray(platformRoles.name, ["Super Admin", "Org Admin"]),
+      isNull(platformRoles.deletedAt),
+    ));
+  const currentRole = currentRoles.find((item) => item.id === target.platformRoleId)?.name ?? "Employee";
+  if (["Super Admin", "Org Admin"].includes(currentRole) && !["Super Admin", "Org Admin"].includes(role.name) && target.accessStatus === "active") {
+    const adminRoleIds = currentRoles.map((item) => item.id);
+    const [{ count }] = adminRoleIds.length
+      ? await db.select({ count: sql<number>`count(*)` }).from(users).where(and(
+        eq(users.organizationId, actor.organizationId),
+        inArray(users.platformRoleId, adminRoleIds),
+        eq(users.accessStatus, "active"),
+        isNull(users.deletedAt),
+      ))
+      : [{ count: 0 }];
+    if (Number(count) <= 1) {
+      res.status(409).json({ error: "The organization must retain at least one active platform administrator" });
+      return;
+    }
+  }
+  await db.transaction(async (tx) => {
+    await tx.update(users).set({ platformRoleId: role.id, updatedAt: new Date() }).where(eq(users.id, target.id));
+    for (const app of ["qaqc", "lessons", "audit"] as const) {
+      await writeAuditLog(tx, app, {
+        organizationId: actor.organizationId,
+        actorId: actor.id,
+        action: "update_platform_role",
+        entityType: "user",
+        entityId: target.id,
+        before: { platformRole: currentRole },
+        after: { platformRole: role.name },
+        ipAddress: req.ip,
+      });
+    }
+  });
+  res.json(UpdateUserPlatformRoleResponse.parse({ userId: target.id, platformRole: role.name }));
+});
 
 router.put("/platform/users/:userId/temporary-password", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const parsed = SetUserTemporaryPasswordBody.safeParse(req.body);

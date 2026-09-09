@@ -291,6 +291,34 @@ export const SetUserTemporaryPasswordResponse = zod.void()
 
 
 /**
+ * @summary List assignable platform roles
+ */
+export const ListPlatformRolesResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish()
+})
+export const ListPlatformRolesResponse = zod.array(ListPlatformRolesResponseItem)
+
+
+/**
+ * @summary Change a user's platform role
+ */
+export const UpdateUserPlatformRoleParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const UpdateUserPlatformRoleBody = zod.object({
+  "roleId": zod.string()
+})
+
+export const UpdateUserPlatformRoleResponse = zod.object({
+  "userId": zod.string(),
+  "platformRole": zod.string()
+})
+
+
+/**
  * @summary Get the configurable field catalog per module with current editable/read-only access
  */
 export const GetFieldSettingsResponse = zod.object({

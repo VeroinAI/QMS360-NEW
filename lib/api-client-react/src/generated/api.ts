@@ -187,6 +187,9 @@ import type {
   PQIResult,
   PasswordChangeInput,
   PlatformContext,
+  PlatformRole,
+  PlatformRoleUpdate,
+  PlatformRoleUpdateResult,
   Project,
   ProjectPageResponse,
   PromptAnswerBody,
@@ -1256,6 +1259,155 @@ export const useSetUserTemporaryPassword = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSetUserTemporaryPasswordMutationOptions(options));
+    }
+
+export const getListPlatformRolesUrl = () => {
+
+
+
+
+  return `/api/platform/roles`
+}
+
+/**
+ * @summary List assignable platform roles
+ */
+export const listPlatformRoles = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlatformRole[]> => {
+
+  return customFetch<PlatformRole[]>(getListPlatformRolesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlatformRolesQueryKey = () => {
+    return [
+    `/api/platform/roles`
+    ] as const;
+    }
+
+
+export const getListPlatformRolesQueryOptions = <TData = Awaited<ReturnType<typeof listPlatformRoles>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformRoles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlatformRolesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlatformRoles>>> = ({ signal }) => listPlatformRoles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlatformRoles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlatformRolesQueryResult = NonNullable<Awaited<ReturnType<typeof listPlatformRoles>>>
+export type ListPlatformRolesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List assignable platform roles
+ */
+
+export function useListPlatformRoles<TData = Awaited<ReturnType<typeof listPlatformRoles>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformRoles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlatformRolesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateUserPlatformRoleUrl = (userId: string,) => {
+
+
+
+
+  return `/api/platform/users/${userId}/role`
+}
+
+/**
+ * @summary Change a user's platform role
+ */
+export const updateUserPlatformRole = async (userId: string,
+    platformRoleUpdate: PlatformRoleUpdate, options?: Parameters<typeof customFetch>[1]): Promise<PlatformRoleUpdateResult> => {
+
+  return customFetch<PlatformRoleUpdateResult>(getUpdateUserPlatformRoleUrl(userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(platformRoleUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateUserPlatformRoleMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserPlatformRole>>, TError,{userId: string;data: BodyType<PlatformRoleUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateUserPlatformRole>>, TError,{userId: string;data: BodyType<PlatformRoleUpdate>}, TContext> => {
+
+const mutationKey = ['updateUserPlatformRole'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUserPlatformRole>>, {userId: string;data: BodyType<PlatformRoleUpdate>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updateUserPlatformRole(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateUserPlatformRoleMutationResult = NonNullable<Awaited<ReturnType<typeof updateUserPlatformRole>>>
+    export type UpdateUserPlatformRoleMutationBody = BodyType<PlatformRoleUpdate>
+    export type UpdateUserPlatformRoleMutationError = ErrorType<void>
+
+    /**
+ * @summary Change a user's platform role
+ */
+export const useUpdateUserPlatformRole = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserPlatformRole>>, TError,{userId: string;data: BodyType<PlatformRoleUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateUserPlatformRole>>,
+        TError,
+        {userId: string;data: BodyType<PlatformRoleUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateUserPlatformRoleMutationOptions(options));
     }
 
 export const getGetFieldSettingsUrl = () => {
