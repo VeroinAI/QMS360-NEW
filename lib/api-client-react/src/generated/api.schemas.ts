@@ -1296,6 +1296,66 @@ export interface TriageFeedbackInput {
   pagePath?: string | null;
 }
 
+export type FeedbackResolutionInputResolution = typeof FeedbackResolutionInputResolution[keyof typeof FeedbackResolutionInputResolution];
+
+
+export const FeedbackResolutionInputResolution = {
+  open: 'open',
+  reviewing: 'reviewing',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
+export interface FeedbackResolutionInput {
+  resolution: FeedbackResolutionInputResolution;
+  /**
+     * Optional response explaining what was reviewed, resolved, or closed
+     * @maxLength 4000
+     * @nullable
+     */
+  response?: string | null;
+}
+
+export interface FeedbackAttachmentInput {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  fileName: string;
+  /**
+     * @minLength 1
+     * @maxLength 150
+     */
+  mimeType: string;
+  /**
+     * @minimum 1
+     * @maximum 10485760
+     */
+  sizeBytes: number;
+}
+
+export type FeedbackAttachmentStatus = typeof FeedbackAttachmentStatus[keyof typeof FeedbackAttachmentStatus];
+
+
+export const FeedbackAttachmentStatus = {
+  uploading: 'uploading',
+  stored: 'stored',
+  failed: 'failed',
+} as const;
+
+export interface FeedbackAttachment {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  status: FeedbackAttachmentStatus;
+}
+
+export interface FeedbackAttachmentUploadIntent {
+  attachment: FeedbackAttachment;
+  uploadUrl: string;
+}
+
 export type FeedbackEntryResolution = typeof FeedbackEntryResolution[keyof typeof FeedbackEntryResolution];
 
 
@@ -1303,6 +1363,7 @@ export const FeedbackEntryResolution = {
   open: 'open',
   reviewing: 'reviewing',
   resolved: 'resolved',
+  closed: 'closed',
 } as const;
 
 export type FeedbackEntryUser = {
@@ -1325,6 +1386,7 @@ export interface FeedbackEntry {
   resolution: FeedbackEntryResolution;
   /** @nullable */
   resolutionResponse?: string | null;
+  attachments?: FeedbackAttachment[];
   createdAt: string;
   user: FeedbackEntryUser;
 }
@@ -2188,24 +2250,9 @@ export type FeedbackSubmissionBody = SubmitFeedbackInput;
 
 export type FeedbackTriageRequestBody = TriageFeedbackInput;
 
-export type FeedbackResolutionUpdateBodyResolution = typeof FeedbackResolutionUpdateBodyResolution[keyof typeof FeedbackResolutionUpdateBodyResolution];
+export type FeedbackResolutionUpdateBody = FeedbackResolutionInput;
 
-
-export const FeedbackResolutionUpdateBodyResolution = {
-  open: 'open',
-  reviewing: 'reviewing',
-  resolved: 'resolved',
-} as const;
-
-export type FeedbackResolutionUpdateBody = {
-  resolution: FeedbackResolutionUpdateBodyResolution;
-  /**
-     * Optional response explaining what was reviewed or resolved
-     * @maxLength 4000
-     * @nullable
-     */
-  response?: string | null;
-};
+export type FeedbackAttachmentUploadBody = FeedbackAttachmentInput;
 
 export type SaveFieldMappingsBody = SaveFieldMappingsInput;
 

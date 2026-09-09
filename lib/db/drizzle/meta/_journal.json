@@ -36,6 +36,13 @@
       "when": 1788837751429,
       "tag": "0004_bizarre_deathbird",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788972701484,
+      "tag": "0005_lazy_inhumans",
+      "breakpoints": true
     }
   ]
 }

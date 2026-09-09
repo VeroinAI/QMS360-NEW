@@ -1337,8 +1337,15 @@ export const ListFeedbackEntriesResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['uploading', 'stored', 'failed'])
+})).optional(),
   "createdAt": zod.coerce.date(),
   "user": zod.object({
   "id": zod.string(),
@@ -1389,8 +1396,15 @@ export const SubmitFeedbackResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['uploading', 'stored', 'failed'])
+})).optional(),
   "createdAt": zod.coerce.date(),
   "user": zod.object({
   "id": zod.string(),
@@ -1429,8 +1443,15 @@ export const ListMyFeedbackEntriesResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['uploading', 'stored', 'failed'])
+})).optional(),
   "createdAt": zod.coerce.date(),
   "user": zod.object({
   "id": zod.string(),
@@ -1489,8 +1510,15 @@ export const RunFeedbackTriageResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['uploading', 'stored', 'failed'])
+})).optional(),
   "createdAt": zod.coerce.date(),
   "user": zod.object({
   "id": zod.string(),
@@ -1512,8 +1540,8 @@ export const updateFeedbackResolutionBodyResponseMax = 4000;
 
 
 export const UpdateFeedbackResolutionBody = zod.object({
-  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
-  "response": zod.string().max(updateFeedbackResolutionBodyResponseMax).nullish().describe('Optional response explaining what was reviewed or resolved')
+  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
+  "response": zod.string().max(updateFeedbackResolutionBodyResponseMax).nullish().describe('Optional response explaining what was reviewed, resolved, or closed')
 })
 
 export const UpdateFeedbackResolutionResponse = zod.object({
@@ -1529,8 +1557,15 @@ export const UpdateFeedbackResolutionResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'resolved']),
+  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['uploading', 'stored', 'failed'])
+})).optional(),
   "createdAt": zod.coerce.date(),
   "user": zod.object({
   "id": zod.string(),
@@ -1538,6 +1573,49 @@ export const UpdateFeedbackResolutionResponse = zod.object({
   "email": zod.string()
 })
 })
+
+
+/**
+ * @summary Create a reference-file upload intent for feedback
+ */
+export const CreateFeedbackAttachmentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const createFeedbackAttachmentBodyFileNameMax = 255;
+
+export const createFeedbackAttachmentBodyMimeTypeMax = 150;
+
+export const createFeedbackAttachmentBodySizeBytesMax = 10485760;
+
+
+
+export const CreateFeedbackAttachmentBody = zod.object({
+  "fileName": zod.string().min(1).max(createFeedbackAttachmentBodyFileNameMax),
+  "mimeType": zod.string().min(1).max(createFeedbackAttachmentBodyMimeTypeMax),
+  "sizeBytes": zod.number().min(1).max(createFeedbackAttachmentBodySizeBytesMax)
+})
+
+export const CreateFeedbackAttachmentResponse = zod.object({
+  "attachment": zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number(),
+  "status": zod.enum(['uploading', 'stored', 'failed'])
+}),
+  "uploadUrl": zod.string()
+})
+
+
+/**
+ * @summary Download a feedback reference file
+ */
+export const DownloadFeedbackAttachmentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DownloadFeedbackAttachmentResponse = zod.unknown()
 
 
 /**

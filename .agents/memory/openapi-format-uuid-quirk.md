@@ -1,6 +1,6 @@
 ---
-name: Orval codegen rejects format: uuid
-description: Using `format: uuid` on string fields in lib/api-spec/openapi.yaml makes orval emit `zod.uuid()`, which the workspace zod version does not have — typecheck:libs fails and the whole codegen command exits non-zero.
+name: Orval Zod format quirks
+description: UUID formats and integer types in OpenAPI make Orval emit Zod APIs unavailable in this workspace.
 ---
 
 In `lib/api-spec/openapi.yaml`, never write `format: uuid` on string fields. The orval zod generator emits `zod.uuid()` for it, but the pinned zod (3.25.76) has no such export, so `pnpm --filter @workspace/api-spec run codegen` fails at its `typecheck:libs` step with TS2339.

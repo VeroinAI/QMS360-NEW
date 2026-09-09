@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowLeft, Loader2, MessageSquarePlus, Sparkles } from 'lucide-react';
+import { ArrowLeft, Loader2, MessageSquarePlus, Paperclip, Sparkles } from 'lucide-react';
 import {
+  downloadFeedbackAttachment,
   useGetCurrentUser,
   getListFeedbackEntriesQueryKey,
   useListFeedbackEntries,
@@ -34,7 +35,7 @@ const moduleLabels: Record<string, string> = {
   system: 'System / General',
 };
 
-type Resolution = 'open' | 'reviewing' | 'resolved';
+type Resolution = 'open' | 'reviewing' | 'resolved' | 'closed';
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -94,6 +95,19 @@ export function FeedbackPage() {
     setResolutionResponse(entry.resolutionResponse ?? '');
   };
 
+  const downloadAttachment = async (id: string, name: string) => {
+    try {
+      const blob = await downloadFeedbackAttachment(id);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url; anchor.download = name; anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      const details = userFacingApiError(error, 'The attachment could not be downloaded.');
+      toast({ title: details.title, description: `${details.message} (${details.technicalCode})`, variant: 'destructive' });
+    }
+  };
+
   if (user.isLoading) return <div className="flex justify-center p-16"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   if (!isAdmin) return <main className="mx-auto max-w-3xl p-10 text-center">
     <h1 className="text-xl font-bold">Administrator access required</h1>
@@ -138,7 +152,7 @@ export function FeedbackPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="capitalize">{entry.category}</Badge>
                   {entry.module && <Badge variant="secondary">{moduleLabels[entry.module] ?? entry.module}</Badge>}
-                  <Badge variant={entry.resolution === 'resolved' ? 'default' : 'outline'} className="capitalize">{entry.resolution}</Badge>
+                  <Badge variant={entry.resolution === 'closed' ? 'secondary' : entry.resolution === 'resolved' ? 'default' : 'outline'} className="capitalize">{entry.resolution}</Badge>
                   {entry.triage && <Badge variant={entry.triage.verdict === 'valid_issue' ? 'destructive' : entry.triage.verdict === 'awareness_gap' ? 'secondary' : 'default'}>
                     AI: {verdictLabels[entry.triage.verdict] ?? entry.triage.verdict}
                   </Badge>}
@@ -160,6 +174,15 @@ export function FeedbackPage() {
                 {entry.resolutionResponse && <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
                   <p className="font-semibold">Response to user</p>
                   <p className="mt-1 whitespace-pre-line text-muted-foreground">{entry.resolutionResponse}</p>
+                </div>}
+                {(entry.attachments?.length ?? 0) > 0 && <div className="mt-3">
+                  <p className="mb-2 text-sm font-semibold">Reference files</p>
+                  <div className="flex flex-wrap gap-2">
+                    {entry.attachments?.map((attachment) => <Button key={attachment.id} type="button" variant="outline" size="sm"
+                      onClick={() => downloadAttachment(attachment.id, attachment.fileName)}>
+                      <Paperclip className="h-4 w-4" /><span className="max-w-64 truncate">{attachment.fileName}</span>
+                    </Button>)}
+                  </div>
                 </div>}
               </div>
               <div className="w-44 shrink-0 space-y-2">
@@ -191,6 +214,7 @@ export function FeedbackPage() {
                 <SelectItem value="open">Open</SelectItem>
                 <SelectItem value="reviewing">Reviewing</SelectItem>
                 <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="closed" disabled={resolutionEntry?.resolution !== 'resolved' && resolutionEntry?.resolution !== 'closed'}>Closed</SelectItem>
               </SelectContent>
             </Select>
           </div>

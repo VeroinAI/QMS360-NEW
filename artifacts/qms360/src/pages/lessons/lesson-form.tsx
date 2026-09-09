@@ -96,6 +96,11 @@ export function LessonFormPage({ id }: { id?: string }) {
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [saveError, setSaveError] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("photoUploadError") === "1"
+      ? "A photo failed to upload. Remove the failed photo, add it again, and save the lesson."
+      : "");
+  const [removingPhotoIds, setRemovingPhotoIds] = useState<Set<string>>(() => new Set());
   const [review, setReview] = useState<"approve" | "send_back" | null>(null);
   const [reviewRemarks, setReviewRemarks] = useState("");
   const refs = useGetLessonsReferenceData();
@@ -114,10 +119,9 @@ export function LessonFormPage({ id }: { id?: string }) {
   const fieldAccess = useFieldAccess("lessons");
   const queryClient = useQueryClient();
   const invalidate = () => { queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] }); if (id) queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}`] }); };
-  const commonMutation = { onSuccess: () => { invalidate(); toast({ title: `Lesson ${detail.data?.referenceNumber ?? ""} saved`.replace("  ", " ") }); }, onError: (e: unknown) => toast({ title: "Unable to save", description: errorMessage(e), variant: "destructive" as const }) };
   // Create is driven from save() so photos queued before the first save can be uploaded once the record id exists.
   const create = useCreateLessonForm();
-  const update = useUpdateLessonForm({ mutation: commonMutation });
+  const update = useUpdateLessonForm();
   const submit = useSubmitLessonForm();
   const fromApprovals = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("from") === "approvals" : false;
   const backLink = fromApprovals ? "/lessons/approvals" : (isNew ? "/lessons" : "/lessons/log");
@@ -193,7 +197,8 @@ export function LessonFormPage({ id }: { id?: string }) {
   }
   async function uploadPhoto(recordId: string, item: UploadItem) {
     const file = item.file;
-    if (!file) return;
+    if (!file) throw new Error(`${item.name} must be selected again before it can be uploaded.`);
+    setUploads((u) => u.map((x) => x.key === item.key ? { ...x, progress: Math.max(x.progress, 20), status: "uploading" } : x));
     const intent = await createLessonPhotoIntent(recordId, { category: item.category, fileName: file.name, mimeType: file.type, sizeBytes: file.size, clientReference: `${clientReference}-${item.key}` });
     setUploads((u) => u.map((x) => x.key === item.key ? { ...x, progress: 55, status: "uploading" } : x));
     await customFetch(intent.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
@@ -204,31 +209,54 @@ export function LessonFormPage({ id }: { id?: string }) {
   }
   async function saveDraft({ navigateAfterSave = isNew, requireApprover = false }: { navigateAfterSave?: boolean; requireApprover?: boolean } = {}): Promise<string | null> {
     if (!validate(requireApprover) || uploadBlocking) return null;
+    const unretryable = uploads.filter((item) => item.status === "failed" && !item.file);
+    if (unretryable.length) {
+      const message = "A failed photo must be removed and selected again before the lesson can be saved.";
+      setSaveError(message);
+      toast({ title: "Unable to save lesson", description: message, variant: "destructive" });
+      return null;
+    }
+    setSaveError("");
     try {
+      let recordId = id;
+      let referenceNumber = detail.data?.referenceNumber ?? "";
       if (id) {
         await update.mutateAsync({ id, data: body() });
-        return id;
+      } else {
+        const created = await create.mutateAsync({ data: body() });
+        recordId = created.id;
+        referenceNumber = created.referenceNumber;
       }
       const queued = uploads.filter((x) => x.status === "queued" || x.status === "failed");
-      const created = await create.mutateAsync({ data: body() });
       if (queued.length) {
-        const results = await Promise.allSettled(queued.map((item) => uploadPhoto(created.id, item)));
+        const results = await Promise.allSettled(queued.map((item) => uploadPhoto(recordId!, item)));
         const failed = results.filter((r) => r.status === "rejected").length;
         if (failed) {
           const failedKeys = new Set(queued.filter((_, index) => results[index]?.status === "rejected").map((item) => item.key));
           setUploads((current) => current.map((item) => failedKeys.has(item.key) ? { ...item, status: "failed" } : item));
-          rotateClientReference();
-          toast({ title: `Lesson ${created.referenceNumber} saved`, description: `${failed} photo(s) did not upload. The draft is safe; open it and retry the failed photos.`, variant: "destructive" });
-          navigate(`/lessons/${created.id}`);
+          const message = `${failed} photo${failed === 1 ? "" : "s"} failed to upload. The lesson remains a draft; remove or retry the failed photo before saving again.`;
+          setSaveError(message);
+          if (!id) {
+            rotateClientReference();
+            navigate(`/lessons/${recordId}?photoUploadError=1`);
+          } else {
+            invalidate();
+          }
+          toast({ title: "Unable to complete lesson save", description: message, variant: "destructive" });
           return null;
         }
       }
-      rotateClientReference();
-      toast({ title: `Lesson ${created.referenceNumber} saved` });
+      if (!id) rotateClientReference();
+      toast({ title: `Lesson ${referenceNumber} saved`.replace("  ", " ") });
       invalidate();
       if (navigateAfterSave) navigate("/lessons/log");
-      return created.id;
-    } catch (e) { toast({ title: "Unable to save", description: errorMessage(e), variant: "destructive" }); return null; }
+      return recordId!;
+    } catch (e) {
+      const message = errorMessage(e);
+      setSaveError(message);
+      toast({ title: "Unable to save", description: message, variant: "destructive" });
+      return null;
+    }
   }
   async function saveAndSubmit() {
     const recordId = await saveDraft({ navigateAfterSave: false, requireApprover: true });
@@ -264,11 +292,13 @@ export function LessonFormPage({ id }: { id?: string }) {
         invalidate();
       } catch (e) {
         setUploads((u) => u.some((x) => x.key === key) ? u.map((x) => x.key === key ? { ...x, status: "failed" } : x) : [...u, { key, category, name: original.name, preview: "", progress: 0, status: "failed" }]);
+        setSaveError("A photo upload failed. Remove it or save again to retry before submitting.");
         toast({ title: "Photo upload failed", description: errorMessage(e), variant: "destructive" });
       }
     }
   }
   function removeQueuedPhoto(key: string) {
+    if (!uploads.some((photo) => photo.key !== key && photo.status === "failed")) setSaveError("");
     setUploads((current) => {
       const item = current.find((photo) => photo.key === key);
       if (item?.preview) URL.revokeObjectURL(item.preview);
@@ -276,13 +306,23 @@ export function LessonFormPage({ id }: { id?: string }) {
     });
   }
   async function removeSavedPhoto(photoId: string) {
+    setRemovingPhotoIds((current) => new Set(current).add(photoId));
     try {
       await deleteLessonPhoto(photoId);
-      invalidate();
-      await detail.refetch();
+      queryClient.setQueryData<LessonLearnedForm>([`/api/lessons/forms/${id ?? ""}`], (current) =>
+        current ? { ...current, photos: current.photos?.filter((photo) => photo.id !== photoId) } : current);
+      queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] });
+      if (id) queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}/activity`] });
+      setSaveError("");
       toast({ title: "Photo removed" });
     } catch (e) {
       toast({ title: "Unable to remove photo", description: errorMessage(e), variant: "destructive" });
+    } finally {
+      setRemovingPhotoIds((current) => {
+        const next = new Set(current);
+        next.delete(photoId);
+        return next;
+      });
     }
   }
   async function askRephrase(field: FieldName) {
@@ -371,7 +411,7 @@ export function LessonFormPage({ id }: { id?: string }) {
     </div>;
 
     function PhotoInput({ category }: { category: "before" | "after" }) {
-      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { void choosePhotos(e.target.files, category); e.currentTarget.value = ""; }} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="relative overflow-hidden rounded border border-border">{p.storageUrl ? <AuthImage src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}{!readOnly && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 size-8" aria-label={`Remove ${p.fileName}`} onClick={() => void removeSavedPhoto(p.id)}><Trash2 className="size-4" /></Button>}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}{!["uploading", "done"].includes(p.status) && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 size-8" aria-label={`Remove ${p.name}`} onClick={() => removeQueuedPhoto(p.key)}><Trash2 className="size-4" /></Button>}{p.status !== "queued" ? <Progress value={p.progress} className="absolute bottom-0 rounded-none" /> : <p className="absolute bottom-0 w-full bg-background/80 text-center text-[10px] text-muted-foreground">Uploads on save</p>}</div>)}</div>{!id && uploads.some((p) => p.status === "queued") && <p className="mt-2 text-xs text-muted-foreground">Photos will be uploaded when you save the lesson.</p>}{uploads.some((p) => p.status === "failed") && <p className="mt-2 text-xs text-destructive">A photo upload failed. Save again to retry it before submitting.</p>}{uploadBlocking && <p className="mt-2 text-xs text-destructive">Wait for pending uploads before saving or submitting.</p>}</div>;
+      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { void choosePhotos(e.target.files, category); e.currentTarget.value = ""; }} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="relative overflow-hidden rounded border border-border">{p.storageUrl ? <AuthImage src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}{!readOnly && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 size-8" aria-label={`Remove ${p.fileName}`} disabled={removingPhotoIds.has(p.id)} onClick={() => void removeSavedPhoto(p.id)}>{removingPhotoIds.has(p.id) ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}</Button>}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}{!["uploading", "done"].includes(p.status) && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 size-8" aria-label={`Remove ${p.name}`} onClick={() => removeQueuedPhoto(p.key)}><Trash2 className="size-4" /></Button>}{p.status !== "queued" ? <Progress value={p.progress} className="absolute bottom-0 rounded-none" /> : <p className="absolute bottom-0 w-full bg-background/80 text-center text-[10px] text-muted-foreground">Uploads on save</p>}</div>)}</div>{!id && uploads.some((p) => p.status === "queued") && <p className="mt-2 text-xs text-muted-foreground">Photos will be uploaded when you save the lesson.</p>}{uploads.some((p) => p.status === "failed") && <p className="mt-2 text-xs text-destructive">A photo upload failed. Save again to retry it before submitting.</p>}{uploadBlocking && <p className="mt-2 text-xs text-destructive">Wait for pending uploads before saving or submitting.</p>}</div>;
     }
 
     function WorkflowControls({ mobile = false }: { mobile?: boolean }) {
@@ -380,6 +420,7 @@ export function LessonFormPage({ id }: { id?: string }) {
       return <Card className={mobile ? "border-0 shadow-none" : undefined}><CardHeader className={mobile ? "hidden" : undefined}><CardTitle>Workflow</CardTitle></CardHeader><CardContent className={mobile ? "p-0" : undefined}>
         <Field label="Approver" error={errors.approverId} required={fp("approverId").required}><Select value={draft.approverId} onValueChange={(v) => set("approverId", v)} disabled={disabled("approverId") || approvers.isLoading}><SelectTrigger><SelectValue placeholder="Select approver" /></SelectTrigger><SelectContent>{approverOptions.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent></Select>{!readOnly && !mobile && <p className="mt-1 text-xs text-muted-foreground">Routes the lesson to this person for review. You cannot select yourself.</p>}</Field>
         {!readOnly && <div className="mt-4 grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => void saveDraft()} disabled={pending || uploadBlocking}>{(create.isPending || update.isPending) && <Loader2 className="animate-spin" />} Save draft</Button>{editableState && <Button onClick={() => void saveAndSubmit()} disabled={pending || uploadBlocking}><Loader2 className={pending ? "animate-spin" : "hidden"} /> Save & submit</Button>}</div>}
+        {saveError && <p className="mt-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive" role="alert">{saveError}</p>}
         {editableState && !mobile && <p className="mt-2 text-center text-xs text-muted-foreground">Submission requires an approver and at least one confirmed before and after photo.</p>}
       </CardContent></Card>;
     }

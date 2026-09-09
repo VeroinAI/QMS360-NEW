@@ -13,4 +13,5 @@ export const FeedbackEntryResolution = {
   open: 'open',
   reviewing: 'reviewing',
   resolved: 'resolved',
+  closed: 'closed',
 } as const;

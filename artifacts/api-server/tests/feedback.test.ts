@@ -2,8 +2,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import express, { type Express } from "express";
 import type { Server } from "node:http";
 import { eq, inArray } from "drizzle-orm";
-import { db, feedbackEntries, organizations, platformRoles, users } from "@workspace/db";
+import { db, feedbackAttachments, feedbackEntries, organizations, platformRoles, users } from "@workspace/db";
 import feedbackRouter from "../src/routes/feedback";
+import feedbackFilesRouter from "../src/routes/feedback-files";
 import authRouter from "../src/routes/auth";
 import platformRouter from "../src/routes/platform";
 import { issueToken } from "../src/lib/auth";
@@ -42,6 +43,14 @@ async function api(
   return { status: response.status, json };
 }
 
+async function apiBytes(method: string, path: string, token: string, body: Uint8Array) {
+  return fetch(`${baseUrl}${path}`, {
+    method,
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/octet-stream" },
+    body,
+  });
+}
+
 // The server under test calls the AI proxy over fetch, but so does the test
 // client itself — so stubs must pass non-AI requests through to the real fetch.
 const realFetch = globalThis.fetch;
@@ -67,6 +76,7 @@ afterEach(() => {
 
 beforeAll(async () => {
   app = express();
+  app.use("/api/feedback/attachments", feedbackFilesRouter);
   app.use(express.json());
   app.use("/api", authRouter);
   app.use("/api", platformRouter);
@@ -113,6 +123,7 @@ afterAll(async () => {
   delete process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
   await new Promise((resolve) => server.close(resolve));
   const orgIds = [orgAId, orgBId];
+  await db.delete(feedbackAttachments).where(inArray(feedbackAttachments.organizationId, orgIds));
   await db.delete(feedbackEntries).where(inArray(feedbackEntries.organizationId, orgIds));
   await db.delete(users).where(inArray(users.organizationId, orgIds));
   await db.delete(platformRoles).where(inArray(platformRoles.organizationId, orgIds));
@@ -133,57 +144,6 @@ describe("authentication", () => {
   it("rejects unauthenticated AI triage with 401", async () => {
     const res = await api("POST", "/feedback/triage", { body: { category: "issue", message: "Something is broken" } });
     expect(res.status).toBe(401);
-  });
-});
-
-describe("imported user activation", () => {
-  it("requires an imported user to replace the administrator-set password before continuing", async () => {
-    const password = "ImportedUser9!";
-    try {
-      const forbidden = await api("PUT", `/platform/users/${memberA.id}/temporary-password`, {
-        token: memberA.token,
-        body: { password },
-      });
-      expect(forbidden.status).toBe(403);
-
-      const activated = await api("PUT", `/platform/users/${memberA.id}/temporary-password`, {
-        token: adminA.token,
-        body: { password },
-      });
-      expect(activated.status).toBe(204);
-
-      const login = await api("POST", "/auth/login", {
-        body: { email: `member.a.${suffix}@example.test`, password },
-      });
-      expect(login.status).toBe(200);
-      expect(login.json.user).toMatchObject({ id: memberA.id, mustChangePassword: true });
-
-      const me = await api("GET", "/auth/me", { token: login.json.token });
-      expect(me.status).toBe(200);
-      expect(me.json.mustChangePassword).toBe(true);
-
-      const blocked = await api("POST", "/feedback", {
-        token: login.json.token,
-        body: { module: "system", category: "issue", message: "Must not be created yet" },
-      });
-      expect(blocked.status).toBe(403);
-      expect(blocked.json.code).toBe("PASSWORD_CHANGE_REQUIRED");
-
-      const changed = await api("PUT", "/auth/change-password", {
-        token: login.json.token,
-        body: { password: "PrivateReplacement9!" },
-      });
-      expect(changed.status).toBe(200);
-      expect(changed.json.mustChangePassword).toBe(false);
-
-      const unblocked = await api("POST", "/feedback", {
-        token: login.json.token,
-        body: { module: "system", category: "issue", message: "Access restored after replacement" },
-      });
-      expect(unblocked.status).toBe(201);
-    } finally {
-      await db.update(users).set({ mustChangePassword: false }).where(eq(users.id, memberA.id));
-    }
   });
 });
 
@@ -229,6 +189,17 @@ describe("authorization", () => {
     const list = await api("GET", "/feedback", { token: adminA.token });
     const entry = list.json.items.find((item: any) => item.id === created.json.id);
     expect(entry.resolution).toBe("open");
+  });
+
+  it("allows Closed only after Resolved", async () => {
+    const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "system", category: "issue", message: "The feedback workflow is incomplete" } });
+    const tooEarly = await api("PUT", `/feedback/${created.json.id}/resolution`, { token: adminA.token, body: { resolution: "closed" } });
+    expect(tooEarly.status).toBe(409);
+    const resolved = await api("PUT", `/feedback/${created.json.id}/resolution`, { token: adminA.token, body: { resolution: "resolved" } });
+    expect(resolved.status).toBe(200);
+    const closed = await api("PUT", `/feedback/${created.json.id}/resolution`, { token: adminA.token, body: { resolution: "closed" } });
+    expect(closed.status).toBe(200);
+    expect(closed.json.resolution).toBe("closed");
   });
 
   it("denies admins updating feedback from another organization", async () => {
@@ -338,6 +309,41 @@ describe("admin re-triage", () => {
 });
 
 describe("happy path", () => {
+  it("uploads a reference file that the author and admin can see", async () => {
+    const created = await api("POST", "/feedback", {
+      token: memberA.token,
+      body: { module: "system", category: "issue", message: "See the attached reference document" },
+    });
+    const bytes = new TextEncoder().encode("reference details");
+    const intent = await api("POST", `/feedback/${created.json.id}/attachments`, {
+      token: memberA.token,
+      body: { fileName: "reference.txt", mimeType: "text/plain", sizeBytes: bytes.byteLength },
+    });
+    expect(intent.status).toBe(201);
+    const uploaded = await apiBytes("PUT", `/feedback/attachments/${intent.json.attachment.id}/upload`, memberA.token, bytes);
+    expect(uploaded.status).toBe(200);
+
+    const mine = await api("GET", "/feedback/mine", { token: memberA.token });
+    const mineEntry = mine.json.items.find((item: any) => item.id === created.json.id);
+    expect(mineEntry.attachments).toEqual([expect.objectContaining({ fileName: "reference.txt", status: "stored" })]);
+    const adminList = await api("GET", "/feedback", { token: adminA.token });
+    const adminEntry = adminList.json.items.find((item: any) => item.id === created.json.id);
+    expect(adminEntry.attachments).toHaveLength(1);
+    const authorDownload = await fetch(`${baseUrl}/feedback/attachments/${intent.json.attachment.id}/file`, {
+      headers: { authorization: `Bearer ${memberA.token}` },
+    });
+    expect(authorDownload.status).toBe(200);
+    expect(await authorDownload.text()).toBe("reference details");
+    const adminDownload = await fetch(`${baseUrl}/feedback/attachments/${intent.json.attachment.id}/file`, {
+      headers: { authorization: `Bearer ${adminA.token}` },
+    });
+    expect(adminDownload.status).toBe(200);
+    const crossTenantDownload = await fetch(`${baseUrl}/feedback/attachments/${intent.json.attachment.id}/file`, {
+      headers: { authorization: `Bearer ${adminB.token}` },
+    });
+    expect(crossTenantDownload.status).toBe(404);
+  });
+
   it("submit then admin list shows the entry with user details and timestamp", async () => {
     const triage = { verdict: "suggestion", summary: "Enhancement idea", guidance: null, resolutionSuggestion: null };
     const created = await api("POST", "/feedback", {

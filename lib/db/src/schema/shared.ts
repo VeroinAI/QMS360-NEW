@@ -1,5 +1,6 @@
 import {
   boolean,
+  bigint,
   integer,
   jsonb,
   pgSchema,
@@ -108,6 +109,8 @@ export const users = sharedSchema.table("users", {
   // Object-storage key of the user's signature image (used on approval records).
   signaturePath: text("signature_path"),
   passwordHash: text("password_hash"),
+  // Legacy compatibility column only; administrator-assigned passwords remain valid.
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
   authSource: text("auth_source").notNull().default("local"),
   accessStatus: text("access_status").notNull().default("active"),
   lastAccessAt: timestamp("last_access_at", { withTimezone: true }),
@@ -245,6 +248,24 @@ export const feedbackEntries = sharedSchema.table("feedback_entries", {
   resolutionResponse: text("resolution_response"),
   ...auditColumns,
 });
+
+export const feedbackAttachments = sharedSchema.table("feedback_attachments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  feedbackId: uuid("feedback_id").notNull().references(() => feedbackEntries.id, { onDelete: "cascade" }),
+  uploadedById: uuid("uploaded_by_id").notNull().references(() => users.id),
+  fileName: text("file_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+  storageKey: text("storage_key").notNull().default(""),
+  status: text("status").notNull().default("uploading"),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("feedback_attachments_feedback_idx").on(table.feedbackId),
+  index("feedback_attachments_org_idx").on(table.organizationId),
+]);
 
 export const executiveSummarySnapshots = sharedSchema.table("executive_summary_snapshots", {
   id: uuid("id").defaultRandom().primaryKey(),

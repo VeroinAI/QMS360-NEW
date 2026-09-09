@@ -5,6 +5,7 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { FeedbackAttachment } from './feedbackAttachment';
 import type { FeedbackEntryResolution } from './feedbackEntryResolution';
 import type { FeedbackEntryUser } from './feedbackEntryUser';
 import type { FeedbackTriage } from './feedbackTriage';
@@ -23,6 +24,7 @@ export interface FeedbackEntry {
   resolution: FeedbackEntryResolution;
   /** @nullable */
   resolutionResponse?: string | null;
+  attachments?: FeedbackAttachment[];
   createdAt: Date;
   user: FeedbackEntryUser;
 }

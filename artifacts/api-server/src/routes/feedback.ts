@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
-import { db, feedbackEntries, users } from "@workspace/db";
-import { SubmitFeedbackBody, TriageFeedbackBody, TriageFeedbackResponse, UpdateFeedbackResolutionBody } from "@workspace/api-zod";
+import { and, desc, eq, getTableColumns, inArray, isNull, sql } from "drizzle-orm";
+import { db, feedbackAttachments, feedbackEntries, users } from "@workspace/db";
+import { CreateFeedbackAttachmentBody, SubmitFeedbackBody, TriageFeedbackBody, TriageFeedbackResponse, UpdateFeedbackResolutionBody } from "@workspace/api-zod";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { AiUnavailableError, triageFeedback as runTriage } from "../lib/ai";
 import { asyncHandler, HttpError, notFound, paginated, pagination } from "../lib/workspace";
@@ -41,9 +41,38 @@ function entryJson(row: EntryRow, user: { id: string; fullName: string; email: s
     triage: row.triage ?? null,
     resolution: row.resolution,
     resolutionResponse: row.resolutionResponse ?? null,
+    attachments: [],
     createdAt: row.createdAt,
     user: { id: user.id, fullName: user.fullName, email: user.email },
   };
+}
+
+function attachmentJson(row: typeof feedbackAttachments.$inferSelect) {
+  return {
+    id: row.id,
+    fileName: row.fileName,
+    mimeType: row.mimeType,
+    sizeBytes: row.sizeBytes,
+    status: row.status as "uploading" | "stored" | "failed",
+  };
+}
+
+async function attachmentsByFeedback(ids: string[]) {
+  const grouped = new Map<string, ReturnType<typeof attachmentJson>[]>();
+  if (!ids.length) return grouped;
+  const rows = await db.select().from(feedbackAttachments).where(and(
+    inArray(feedbackAttachments.feedbackId, ids),
+    eq(feedbackAttachments.status, "stored"),
+    isNull(feedbackAttachments.deletedAt),
+  )).orderBy(feedbackAttachments.createdAt);
+  for (const row of rows) {
+    grouped.set(row.feedbackId, [...(grouped.get(row.feedbackId) ?? []), attachmentJson(row)]);
+  }
+  return grouped;
+}
+
+function withAttachments(entry: ReturnType<typeof entryJson>, attachments: ReturnType<typeof attachmentJson>[]) {
+  return { ...entry, attachments };
 }
 
 router.post("/feedback/triage", asyncHandler(async (req, res) => {
@@ -104,8 +133,9 @@ router.get("/feedback", requireAdmin, asyncHandler(async (req, res) => {
       .where(where).orderBy(desc(feedbackEntries.createdAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(feedbackEntries).where(where),
   ]);
+  const attachments = await attachmentsByFeedback(rows.map((row) => row.entry.id));
   res.json(paginated(
-    rows.map((row) => entryJson(row.entry, { id: row.entry.userId, fullName: row.fullName, email: row.email })),
+    rows.map((row) => withAttachments(entryJson(row.entry, { id: row.entry.userId, fullName: row.fullName, email: row.email }), attachments.get(row.entry.id) ?? [])),
     Number(count[0]?.count ?? 0), page, limit,
   ));
 }));
@@ -123,8 +153,9 @@ router.get("/feedback/mine", asyncHandler(async (req, res) => {
       .orderBy(desc(feedbackEntries.createdAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(feedbackEntries).where(where),
   ]);
+  const attachments = await attachmentsByFeedback(rows.map((row) => row.id));
   res.json(paginated(
-    rows.map((row) => entryJson(row, { id: user.id, fullName: user.fullName, email: user.email })),
+    rows.map((row) => withAttachments(entryJson(row, { id: user.id, fullName: user.fullName, email: user.email }), attachments.get(row.id) ?? [])),
     Number(count[0]?.count ?? 0), page, limit,
   ));
 }));
@@ -163,11 +194,14 @@ router.put("/feedback/:id/resolution", requireAdmin, asyncHandler(async (req, re
     eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
     isNull(feedbackEntries.deletedAt),
   );
+  const updateWhere = parsed.data.resolution === "closed"
+    ? and(where, eq(feedbackEntries.resolution, "resolved"))
+    : where;
   let row: EntryRow | undefined;
   try {
     [row] = await db.update(feedbackEntries)
       .set({ resolution: parsed.data.resolution, resolutionResponse: response, updatedAt: new Date() })
-      .where(where).returning(feedbackEntrySelection);
+      .where(updateWhere).returning(feedbackEntrySelection);
   } catch (error) {
     if (!hasPostgresCode(error, "42703")) throw error;
     // Preserve responses while production temporarily lacks resolution_response.
@@ -176,11 +210,64 @@ router.put("/feedback/:id/resolution", requireAdmin, asyncHandler(async (req, re
       : sql`coalesce(${feedbackEntries.triage}, '{}'::jsonb) - 'resolutionResponse'`;
     [row] = await db.update(feedbackEntries)
       .set({ resolution: parsed.data.resolution, triage: fallbackTriage, updatedAt: new Date() })
-      .where(where).returning(feedbackEntrySelection);
+      .where(updateWhere).returning(feedbackEntrySelection);
+  }
+  if (!row && parsed.data.resolution === "closed") {
+    const [existing] = await db.select({ id: feedbackEntries.id }).from(feedbackEntries).where(where).limit(1);
+    if (existing) throw new HttpError(409, "Feedback must be resolved before it can be closed");
   }
   if (!row) notFound("Feedback entry not found");
   const [author] = await db.select({ fullName: users.fullName, email: users.email }).from(users).where(eq(users.id, row!.userId)).limit(1);
-  res.json(entryJson(row!, { id: row!.userId, fullName: author?.fullName ?? "", email: author?.email ?? "" }));
+  const attachments = await attachmentsByFeedback([row!.id]);
+  res.json(withAttachments(entryJson(row!, { id: row!.userId, fullName: author?.fullName ?? "", email: author?.email ?? "" }), attachments.get(row!.id) ?? []));
+}));
+
+router.post("/feedback/:id/attachments", asyncHandler(async (req, res) => {
+  const parsed = CreateFeedbackAttachmentBody.safeParse(req.body);
+  if (!parsed.success) throw new HttpError(422, parsed.error.issues[0]?.message ?? "Invalid attachment metadata");
+  const user = req.currentUser!;
+  const [entry] = await db.select({ id: feedbackEntries.id }).from(feedbackEntries).where(and(
+    eq(feedbackEntries.id, String(req.params.id)),
+    eq(feedbackEntries.organizationId, user.organizationId),
+    eq(feedbackEntries.userId, user.id),
+    isNull(feedbackEntries.deletedAt),
+  )).limit(1);
+  if (!entry) notFound("Feedback entry not found");
+
+  const mimeByExtension: Record<string, string> = {
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    csv: "text/csv",
+    txt: "text/plain",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+  };
+  const extension = parsed.data.fileName.split(".").pop()?.toLowerCase() ?? "";
+  if (!mimeByExtension[extension]) throw new HttpError(422, "This file type is not supported");
+  const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(feedbackAttachments).where(and(
+    eq(feedbackAttachments.feedbackId, entry!.id),
+    isNull(feedbackAttachments.deletedAt),
+  ));
+  if (Number(count) >= 5) throw new HttpError(422, "A maximum of 5 reference files can be attached");
+
+  const [attachment] = await db.insert(feedbackAttachments).values({
+    organizationId: user.organizationId,
+    feedbackId: entry!.id,
+    uploadedById: user.id,
+    fileName: parsed.data.fileName,
+    mimeType: mimeByExtension[extension],
+    sizeBytes: parsed.data.sizeBytes,
+    status: "uploading",
+  }).returning();
+  res.status(201).json({
+    attachment: attachmentJson(attachment!),
+    uploadUrl: `/api/feedback/attachments/${attachment!.id}/upload`,
+  });
 }));
 
 export default router;

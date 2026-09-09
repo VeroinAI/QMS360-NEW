@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import filesRouter from "./routes/files";
+import feedbackFilesRouter from "./routes/feedback-files";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -29,6 +30,7 @@ app.use(
 app.use(cors());
 // Evidence uploads are raw bytes and must be parsed before the global JSON middleware.
 app.use("/api/files", filesRouter);
+app.use("/api/feedback/attachments", feedbackFilesRouter);
 // 2MB accommodates base64-encoded signature uploads (512KB decoded) on the user profile route.
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));

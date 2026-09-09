@@ -6,11 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type FeedbackResolutionUpdateBodyResolution = typeof FeedbackResolutionUpdateBodyResolution[keyof typeof FeedbackResolutionUpdateBodyResolution];
+export type FeedbackResolutionInputResolution = typeof FeedbackResolutionInputResolution[keyof typeof FeedbackResolutionInputResolution];
 
 
-export const FeedbackResolutionUpdateBodyResolution = {
+export const FeedbackResolutionInputResolution = {
   open: 'open',
   reviewing: 'reviewing',
   resolved: 'resolved',
+  closed: 'closed',
 } as const;

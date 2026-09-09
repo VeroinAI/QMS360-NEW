@@ -5,14 +5,6 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
-import type { FeedbackResolutionUpdateBodyResolution } from './feedbackResolutionUpdateBodyResolution';
+import type { FeedbackResolutionInput } from './feedbackResolutionInput';
 
-export type FeedbackResolutionUpdateBody = {
-  resolution: FeedbackResolutionUpdateBodyResolution;
-  /**
-     * Optional response explaining what was reviewed or resolved
-     * @maxLength 4000
-     * @nullable
-     */
-  response?: string | null;
-};
+export type FeedbackResolutionUpdateBody = FeedbackResolutionInput;

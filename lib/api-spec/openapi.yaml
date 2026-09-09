@@ -603,7 +603,29 @@ paths:
         - bearerAuth: []
       parameters: [{$ref: "#/components/parameters/Id"}]
       requestBody: {$ref: "#/components/requestBodies/FeedbackResolutionUpdate"}
-      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackEntry"}}}}, "401": {description: Authentication required}, "403": {description: Administrator access required}, "404": {description: Feedback entry not found}}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackEntry"}}}}, "401": {description: Authentication required}, "403": {description: Administrator access required}, "404": {description: Feedback entry not found}, "409": {description: Feedback must be resolved before it can be closed}}
+  /feedback/{id}/attachments:
+    post:
+      operationId: createFeedbackAttachment
+      tags: [feedback]
+      summary: Create a reference-file upload intent for feedback
+      security:
+        - bearerAuth: []
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {$ref: "#/components/requestBodies/FeedbackAttachmentUpload"}
+      responses: {"201": {description: Upload intent, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentUploadIntent"}}}}, "401": {description: Authentication required}, "404": {description: Feedback entry not found}, "422": {description: Invalid file metadata}}
+  /feedback/attachments/{id}/file:
+    get:
+      operationId: downloadFeedbackAttachment
+      tags: [feedback]
+      summary: Download a feedback reference file
+      security:
+        - bearerAuth: []
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200": {description: Reference file, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
+        "401": {description: Authentication required}
+        "404": {description: Attachment not found}
   /qaqc/disciplines:
     get:
       operationId: listQaqcDisciplines
@@ -1127,7 +1149,8 @@ components:
     Extension: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ExtensionRequest"}}}}
     FeedbackSubmission: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SubmitFeedbackInput"}}}}
     FeedbackTriageRequest: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/TriageFeedbackInput"}}}}
-    FeedbackResolutionUpdate: {required: true, content: {application/json: {schema: {type: object, required: [resolution], properties: {resolution: {type: string, enum: [open, reviewing, resolved]}, response: {type: [string, "null"], maxLength: 4000, description: "Optional response explaining what was reviewed or resolved"}}}}}}
+    FeedbackResolutionUpdate: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackResolutionInput"}}}}
+    FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
     FieldAccessLevel:
@@ -1869,6 +1892,34 @@ components:
         category: {type: string, enum: [issue, suggestion, question]}
         message: {type: string, minLength: 5, maxLength: 4000}
         pagePath: {type: [string, "null"], maxLength: 500}
+    FeedbackResolutionInput:
+      type: object
+      required: [resolution]
+      properties:
+        resolution: {type: string, enum: [open, reviewing, resolved, closed]}
+        response: {type: [string, "null"], maxLength: 4000, description: "Optional response explaining what was reviewed, resolved, or closed"}
+    FeedbackAttachmentInput:
+      type: object
+      required: [fileName, mimeType, sizeBytes]
+      properties:
+        fileName: {type: string, minLength: 1, maxLength: 255}
+        mimeType: {type: string, minLength: 1, maxLength: 150}
+        sizeBytes: {type: number, minimum: 1, maximum: 10485760}
+    FeedbackAttachment:
+      type: object
+      required: [id, fileName, mimeType, sizeBytes, status]
+      properties:
+        id: {type: string}
+        fileName: {type: string}
+        mimeType: {type: string}
+        sizeBytes: {type: number}
+        status: {type: string, enum: [uploading, stored, failed]}
+    FeedbackAttachmentUploadIntent:
+      type: object
+      required: [attachment, uploadUrl]
+      properties:
+        attachment: {$ref: "#/components/schemas/FeedbackAttachment"}
+        uploadUrl: {type: string}
     FeedbackEntry:
       type: object
       required: [id, category, message, resolution, createdAt, user]
@@ -1880,8 +1931,9 @@ components:
         category: {type: string}
         message: {type: string}
         triage: {anyOf: [{$ref: "#/components/schemas/FeedbackTriage"}, {type: "null"}]}
-        resolution: {type: string, enum: [open, reviewing, resolved]}
+        resolution: {type: string, enum: [open, reviewing, resolved, closed]}
         resolutionResponse: {type: [string, "null"]}
+        attachments: {type: array, items: {$ref: "#/components/schemas/FeedbackAttachment"}}
         createdAt: {type: string, format: date-time}
         user: {type: object, required: [id, fullName, email], properties: {id: {type: string}, fullName: {type: string}, email: {type: string}}}
     FeedbackPage:

@@ -81,6 +81,8 @@ import type {
   ExportLessonsLogParams,
   ExportQaqcMonthlyReportParams,
   ExtensionBody,
+  FeedbackAttachmentUploadBody,
+  FeedbackAttachmentUploadIntent,
   FeedbackEntry,
   FeedbackPage,
   FeedbackResolutionUpdateBody,
@@ -4474,6 +4476,155 @@ export const useUpdateFeedbackResolution = <TError = ErrorType<void>,
       > => {
       return useMutation(getUpdateFeedbackResolutionMutationOptions(options));
     }
+
+export const getCreateFeedbackAttachmentUrl = (id: string,) => {
+
+
+
+
+  return `/api/feedback/${id}/attachments`
+}
+
+/**
+ * @summary Create a reference-file upload intent for feedback
+ */
+export const createFeedbackAttachment = async (id: string,
+    feedbackAttachmentUploadBody: FeedbackAttachmentUploadBody, options?: Parameters<typeof customFetch>[1]): Promise<FeedbackAttachmentUploadIntent> => {
+
+  return customFetch<FeedbackAttachmentUploadIntent>(getCreateFeedbackAttachmentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(feedbackAttachmentUploadBody)
+  }
+);}
+
+
+
+
+
+export const getCreateFeedbackAttachmentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFeedbackAttachment>>, TError,{id: string;data: BodyType<FeedbackAttachmentUploadBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFeedbackAttachment>>, TError,{id: string;data: BodyType<FeedbackAttachmentUploadBody>}, TContext> => {
+
+const mutationKey = ['createFeedbackAttachment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFeedbackAttachment>>, {id: string;data: BodyType<FeedbackAttachmentUploadBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createFeedbackAttachment(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFeedbackAttachmentMutationResult = NonNullable<Awaited<ReturnType<typeof createFeedbackAttachment>>>
+    export type CreateFeedbackAttachmentMutationBody = BodyType<FeedbackAttachmentUploadBody>
+    export type CreateFeedbackAttachmentMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a reference-file upload intent for feedback
+ */
+export const useCreateFeedbackAttachment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFeedbackAttachment>>, TError,{id: string;data: BodyType<FeedbackAttachmentUploadBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createFeedbackAttachment>>,
+        TError,
+        {id: string;data: BodyType<FeedbackAttachmentUploadBody>},
+        TContext
+      > => {
+      return useMutation(getCreateFeedbackAttachmentMutationOptions(options));
+    }
+
+export const getDownloadFeedbackAttachmentUrl = (id: string,) => {
+
+
+
+
+  return `/api/feedback/attachments/${id}/file`
+}
+
+/**
+ * @summary Download a feedback reference file
+ */
+export const downloadFeedbackAttachment = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadFeedbackAttachmentUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadFeedbackAttachmentQueryKey = (id: string,) => {
+    return [
+    `/api/feedback/attachments/${id}/file`
+    ] as const;
+    }
+
+
+export const getDownloadFeedbackAttachmentQueryOptions = <TData = Awaited<ReturnType<typeof downloadFeedbackAttachment>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadFeedbackAttachment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadFeedbackAttachmentQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadFeedbackAttachment>>> = ({ signal }) => downloadFeedbackAttachment(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadFeedbackAttachment>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadFeedbackAttachmentQueryResult = NonNullable<Awaited<ReturnType<typeof downloadFeedbackAttachment>>>
+export type DownloadFeedbackAttachmentQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download a feedback reference file
+ */
+
+export function useDownloadFeedbackAttachment<TData = Awaited<ReturnType<typeof downloadFeedbackAttachment>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadFeedbackAttachment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadFeedbackAttachmentQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListQaqcDisciplinesUrl = (params?: ListQaqcDisciplinesParams,) => {
   const normalizedParams = new URLSearchParams();
