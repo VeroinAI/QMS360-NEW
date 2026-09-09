@@ -1912,7 +1912,7 @@ components:
     Delegation:
       type: object
       required: [id, delegatorId, delegateId, scope, startDate, endDate, status]
-      properties: {id: {type: string}, delegatorId: {type: string}, delegateId: {type: string}, scope: {type: string}, approvalTypes: {type: array, items: {type: string}}, startDate: {type: string, format: date}, endDate: {type: string, format: date}, status: {type: string, enum: [pending, active, expired, revoked]}, revokedAt: {type: [string, "null"], format: date-time}}
+      properties: {id: {type: string}, delegatorId: {type: string}, delegatorFullName: {type: [string, "null"]}, delegatorUsername: {type: [string, "null"]}, delegatorEmail: {type: [string, "null"]}, delegatorUserStatus: {type: [string, "null"], enum: [active, deactivated, unavailable, null]}, delegateId: {type: string}, delegateFullName: {type: [string, "null"]}, delegateUsername: {type: [string, "null"]}, delegateEmail: {type: [string, "null"]}, delegateUserStatus: {type: [string, "null"], enum: [active, deactivated, unavailable, null]}, scope: {type: string}, approvalTypes: {type: array, items: {type: string}}, startDate: {type: string, format: date}, endDate: {type: string, format: date}, status: {type: string, enum: [pending, active, expired, revoked]}, revokedAt: {type: [string, "null"], format: date-time}}
     LessonDelegationInput:
       type: object
       required: [projectId, delegatorId, delegateId, lessonFormIds, startDate, endDate]

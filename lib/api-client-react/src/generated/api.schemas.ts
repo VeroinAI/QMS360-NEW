@@ -1151,6 +1151,30 @@ export interface AdminDecision {
   comments?: string | null;
 }
 
+/**
+ * @nullable
+ */
+export type DelegationDelegatorUserStatus = typeof DelegationDelegatorUserStatus[keyof typeof DelegationDelegatorUserStatus] | null;
+
+
+export const DelegationDelegatorUserStatus = {
+  active: 'active',
+  deactivated: 'deactivated',
+  unavailable: 'unavailable',
+} as const;
+
+/**
+ * @nullable
+ */
+export type DelegationDelegateUserStatus = typeof DelegationDelegateUserStatus[keyof typeof DelegationDelegateUserStatus] | null;
+
+
+export const DelegationDelegateUserStatus = {
+  active: 'active',
+  deactivated: 'deactivated',
+  unavailable: 'unavailable',
+} as const;
+
 export type DelegationStatus = typeof DelegationStatus[keyof typeof DelegationStatus];
 
 
@@ -1164,7 +1188,23 @@ export const DelegationStatus = {
 export interface Delegation {
   id: string;
   delegatorId: string;
+  /** @nullable */
+  delegatorFullName?: string | null;
+  /** @nullable */
+  delegatorUsername?: string | null;
+  /** @nullable */
+  delegatorEmail?: string | null;
+  /** @nullable */
+  delegatorUserStatus?: DelegationDelegatorUserStatus;
   delegateId: string;
+  /** @nullable */
+  delegateFullName?: string | null;
+  /** @nullable */
+  delegateUsername?: string | null;
+  /** @nullable */
+  delegateEmail?: string | null;
+  /** @nullable */
+  delegateUserStatus?: DelegationDelegateUserStatus;
   scope: string;
   approvalTypes?: string[];
   startDate: string;
@@ -3230,3 +3270,4 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 };
+

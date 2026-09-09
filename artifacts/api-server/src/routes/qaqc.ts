@@ -820,8 +820,31 @@ router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) =>
 }));
 router.get("/admin/delegations", asyncHandler(async (req, res) => {
   const result = await pageTable(req, delegations);
+  const userIds = [...new Set(result.items.flatMap((r: any) => [r.delegatorId, r.delegateId]))];
+  const people = userIds.length
+    ? await db.select({
+        id: users.id,
+        fullName: users.fullName,
+        username: users.username,
+        email: users.email,
+        accessStatus: users.accessStatus,
+        deletedAt: users.deletedAt,
+      }).from(users).where(and(eq(users.organizationId, org(req)), inArray(users.id, userIds)))
+    : [];
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const personFields = (prefix: "delegator" | "delegate", userId: string) => {
+    const person = peopleById.get(userId);
+    return {
+      [`${prefix}FullName`]: person?.fullName ?? null,
+      [`${prefix}Username`]: person?.username ?? null,
+      [`${prefix}Email`]: person?.email ?? null,
+      [`${prefix}UserStatus`]: person
+        ? person.accessStatus === "active" && !person.deletedAt ? "active" : "deactivated"
+        : "unavailable",
+    };
+  };
   const now = Date.now();
-  res.json({ ...result, items: result.items.map((r: any) => ({ id: r.id, delegatorId: r.delegatorId, delegateId: r.delegateId, scope: JSON.stringify(r.scope), approvalTypes: (r.scope as any)?.approvalTypes ?? [], startDate: r.startsAt, endDate: r.endsAt, status: r.status === "deleted" ? "revoked" : r.endsAt.valueOf() < now ? "expired" : r.startsAt.valueOf() <= now ? "active" : "pending", revokedAt: r.deletedAt })) });
+  res.json({ ...result, items: result.items.map((r: any) => ({ id: r.id, delegatorId: r.delegatorId, ...personFields("delegator", r.delegatorId), delegateId: r.delegateId, ...personFields("delegate", r.delegateId), scope: JSON.stringify(r.scope), approvalTypes: (r.scope as any)?.approvalTypes ?? [], startDate: r.startsAt, endDate: r.endsAt, status: r.status === "deleted" ? "revoked" : r.endsAt.valueOf() < now ? "expired" : r.startsAt.valueOf() <= now ? "active" : "pending", revokedAt: r.deletedAt })) });
 }));
 router.post("/admin/delegations", asyncHandler(async (req, res) => {
   const v: any = body(api.CreateQaqcDelegationBody, req);

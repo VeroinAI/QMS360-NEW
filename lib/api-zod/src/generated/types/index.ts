@@ -97,6 +97,8 @@ export * from './dashboardMetrics';
 export * from './dashboardSeriesItem';
 export * from './delegation';
 export * from './delegationBody';
+export * from './delegationDelegateUserStatus';
+export * from './delegationDelegatorUserStatus';
 export * from './delegationPage';
 export * from './delegationPageResponse';
 export * from './delegationStatus';

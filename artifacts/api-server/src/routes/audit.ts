@@ -1047,18 +1047,45 @@ router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) =>
   const [row] = await db.update(applicationAccess).set({ canOpenAudit: data.decision === "approve", status: data.decision === "approve" ? "active" : "rejected", updatedAt: new Date() }).where(eq(applicationAccess.id, before.id)).returning();
   await auditLog(req, `${data.decision}_access`, "application_access", row.id, before, row); res.json(row);
 }));
-const delegationDto = (x: AnyRow) => ({
-  id: x.id, delegatorId: x.delegatorId, delegateId: x.delegateId,
-  scope: typeof x.scope?.scope === "string" ? x.scope.scope : "audit",
-  approvalTypes: x.scope?.approvalTypes ?? [], startDate: x.startsAt, endDate: x.endsAt,
-  status: x.status === "active" && x.endsAt < new Date() ? "expired" : x.status, revokedAt: x.deletedAt,
-});
+const delegationDto = (x: AnyRow, peopleById = new Map<string, AnyRow>()) => {
+  const personFields = (prefix: "delegator" | "delegate", userId: string) => {
+    const person = peopleById.get(userId);
+    return {
+      [`${prefix}FullName`]: person?.fullName ?? null,
+      [`${prefix}Username`]: person?.username ?? null,
+      [`${prefix}Email`]: person?.email ?? null,
+      [`${prefix}UserStatus`]: person
+        ? person.accessStatus === "active" && !person.deletedAt ? "active" : "deactivated"
+        : "unavailable",
+    };
+  };
+  return ({
+    id: x.id, delegatorId: x.delegatorId, delegateId: x.delegateId,
+    ...personFields("delegator", x.delegatorId), ...personFields("delegate", x.delegateId),
+    scope: typeof x.scope?.scope === "string" ? x.scope.scope : "audit",
+    approvalTypes: x.scope?.approvalTypes ?? [], startDate: x.startsAt, endDate: x.endsAt,
+    status: x.status === "active" && x.endsAt < new Date() ? "expired" : x.status, revokedAt: x.deletedAt,
+  });
+};
 router.get("/admin/delegations", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const where = active(auditDelegations, actor(req).organizationId);
   const [rows, [{ count }]] = await Promise.all([
     db.select().from(auditDelegations).where(where).orderBy(desc(auditDelegations.createdAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(auditDelegations).where(where),
-  ]); res.json(paginated(rows.map(delegationDto), Number(count), page, limit));
+  ]);
+  const userIds = [...new Set(rows.flatMap((row) => [row.delegatorId, row.delegateId]))];
+  const people = userIds.length
+    ? await db.select({
+        id: users.id,
+        fullName: users.fullName,
+        username: users.username,
+        email: users.email,
+        accessStatus: users.accessStatus,
+        deletedAt: users.deletedAt,
+      }).from(users).where(and(eq(users.organizationId, actor(req).organizationId), inArray(users.id, userIds)))
+    : [];
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  res.json(paginated(rows.map((row) => delegationDto(row, peopleById)), Number(count), page, limit));
 }));
 router.post("/admin/delegations", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditDelegationBody, req);

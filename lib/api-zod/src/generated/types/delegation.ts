@@ -5,12 +5,30 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { DelegationDelegateUserStatus } from './delegationDelegateUserStatus';
+import type { DelegationDelegatorUserStatus } from './delegationDelegatorUserStatus';
 import type { DelegationStatus } from './delegationStatus';
 
 export interface Delegation {
   id: string;
   delegatorId: string;
+  /** @nullable */
+  delegatorFullName?: string | null;
+  /** @nullable */
+  delegatorUsername?: string | null;
+  /** @nullable */
+  delegatorEmail?: string | null;
+  /** @nullable */
+  delegatorUserStatus?: DelegationDelegatorUserStatus;
   delegateId: string;
+  /** @nullable */
+  delegateFullName?: string | null;
+  /** @nullable */
+  delegateUsername?: string | null;
+  /** @nullable */
+  delegateEmail?: string | null;
+  /** @nullable */
+  delegateUserStatus?: DelegationDelegateUserStatus;
   scope: string;
   approvalTypes?: string[];
   startDate: Date;

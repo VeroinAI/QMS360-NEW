@@ -3323,7 +3323,15 @@ export const ListQaqcDelegationsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "delegatorId": zod.string(),
+  "delegatorFullName": zod.string().nullish(),
+  "delegatorUsername": zod.string().nullish(),
+  "delegatorEmail": zod.string().nullish(),
+  "delegatorUserStatus": zod.union([zod.literal('active'),zod.literal('deactivated'),zod.literal('unavailable'),zod.literal(null)]).nullish(),
   "delegateId": zod.string(),
+  "delegateFullName": zod.string().nullish(),
+  "delegateUsername": zod.string().nullish(),
+  "delegateEmail": zod.string().nullish(),
+  "delegateUserStatus": zod.union([zod.literal('active'),zod.literal('deactivated'),zod.literal('unavailable'),zod.literal(null)]).nullish(),
   "scope": zod.string(),
   "approvalTypes": zod.array(zod.string()).optional(),
   "startDate": zod.coerce.date(),
@@ -3340,7 +3348,15 @@ export const ListQaqcDelegationsResponse = zod.object({
 export const CreateQaqcDelegationBody = zod.object({
   "id": zod.string(),
   "delegatorId": zod.string(),
+  "delegatorFullName": zod.string().nullish(),
+  "delegatorUsername": zod.string().nullish(),
+  "delegatorEmail": zod.string().nullish(),
+  "delegatorUserStatus": zod.union([zod.literal('active'),zod.literal('deactivated'),zod.literal('unavailable'),zod.literal(null)]).nullish(),
   "delegateId": zod.string(),
+  "delegateFullName": zod.string().nullish(),
+  "delegateUsername": zod.string().nullish(),
+  "delegateEmail": zod.string().nullish(),
+  "delegateUserStatus": zod.union([zod.literal('active'),zod.literal('deactivated'),zod.literal('unavailable'),zod.literal(null)]).nullish(),
   "scope": zod.string(),
   "approvalTypes": zod.array(zod.string()).optional(),
   "startDate": zod.coerce.date(),
@@ -6816,7 +6832,15 @@ export const ListAuditDelegationsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "delegatorId": zod.string(),
+  "delegatorFullName": zod.string().nullish(),
+  "delegatorUsername": zod.string().nullish(),
+  "delegatorEmail": zod.string().nullish(),
+  "delegatorUserStatus": zod.union([zod.literal('active'),zod.literal('deactivated'),zod.literal('unavailable'),zod.literal(null)]).nullish(),
   "delegateId": zod.string(),
+  "delegateFullName": zod.string().nullish(),
+  "delegateUsername": zod.string().nullish(),
+  "delegateEmail": zod.string().nullish(),
+  "delegateUserStatus": zod.union([zod.literal('active'),zod.literal('deactivated'),zod.literal('unavailable'),zod.literal(null)]).nullish(),
   "scope": zod.string(),
   "approvalTypes": zod.array(zod.string()).optional(),
   "startDate": zod.coerce.date(),
@@ -6833,7 +6857,15 @@ export const ListAuditDelegationsResponse = zod.object({
 export const CreateAuditDelegationBody = zod.object({
   "id": zod.string(),
   "delegatorId": zod.string(),
+  "delegatorFullName": zod.string().nullish(),
+  "delegatorUsername": zod.string().nullish(),
+  "delegatorEmail": zod.string().nullish(),
+  "delegatorUserStatus": zod.union([zod.literal('active'),zod.literal('deactivated'),zod.literal('unavailable'),zod.literal(null)]).nullish(),
   "delegateId": zod.string(),
+  "delegateFullName": zod.string().nullish(),
+  "delegateUsername": zod.string().nullish(),
+  "delegateEmail": zod.string().nullish(),
+  "delegateUserStatus": zod.union([zod.literal('active'),zod.literal('deactivated'),zod.literal('unavailable'),zod.literal(null)]).nullish(),
   "scope": zod.string(),
   "approvalTypes": zod.array(zod.string()).optional(),
   "startDate": zod.coerce.date(),
@@ -7086,3 +7118,5 @@ export const MarkAuditNotificationReadParams = zod.object({
 })
 
 export const MarkAuditNotificationReadResponse = zod.void()
+
+
