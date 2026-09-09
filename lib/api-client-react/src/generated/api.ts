@@ -114,6 +114,11 @@ import type {
   IntegrationConnectorPageResponse,
   IntegrationHealth,
   LessonApproverOption,
+  LessonDelegation,
+  LessonDelegationForm,
+  LessonDelegationInput,
+  LessonDelegationOptions,
+  LessonDelegationPage,
   LessonFormBody,
   LessonFormPageResponse,
   LessonLearnedForm,
@@ -142,6 +147,7 @@ import type {
   ListLessonFormsParams,
   ListLessonsAccessQueueParams,
   ListLessonsAuditLogParams,
+  ListLessonsDelegationPendingFormsParams,
   ListLessonsDelegationsParams,
   ListLessonsEvidenceParams,
   ListLessonsNotificationTemplatesParams,
@@ -10519,9 +10525,9 @@ export const getUpdateLessonFormUrl = (id: string,) => {
  * @summary Update lesson learned form
  */
 export const updateLessonForm = async (id: string,
-    lessonFormBody: LessonFormBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    lessonFormBody: LessonFormBody, options?: Parameters<typeof customFetch>[1]): Promise<LessonLearnedForm> => {
 
-  return customFetch<void>(getUpdateLessonFormUrl(id),
+  return customFetch<LessonLearnedForm>(getUpdateLessonFormUrl(id),
   {
     ...options,
     method: 'PUT',
@@ -12868,11 +12874,11 @@ export const getListLessonsDelegationsUrl = (params?: ListLessonsDelegationsPara
 }
 
 /**
- * @summary List delegations
+ * @summary List lesson delegations
  */
-export const listLessonsDelegations = async (params?: ListLessonsDelegationsParams, options?: Parameters<typeof customFetch>[1]): Promise<DelegationPageResponse> => {
+export const listLessonsDelegations = async (params?: ListLessonsDelegationsParams, options?: Parameters<typeof customFetch>[1]): Promise<LessonDelegationPage> => {
 
-  return customFetch<DelegationPageResponse>(getListLessonsDelegationsUrl(params),
+  return customFetch<LessonDelegationPage>(getListLessonsDelegationsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -12915,7 +12921,7 @@ export type ListLessonsDelegationsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List delegations
+ * @summary List lesson delegations
  */
 
 export function useListLessonsDelegations<TData = Awaited<ReturnType<typeof listLessonsDelegations>>, TError = ErrorType<unknown>>(
@@ -12945,16 +12951,16 @@ export const getCreateLessonsDelegationUrl = () => {
 }
 
 /**
- * @summary Create delegation
+ * @summary Create a selected-form lesson delegation
  */
-export const createLessonsDelegation = async (delegationBody: DelegationBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+export const createLessonsDelegation = async (lessonDelegationInput: LessonDelegationInput, options?: Parameters<typeof customFetch>[1]): Promise<LessonDelegation> => {
 
-  return customFetch<void>(getCreateLessonsDelegationUrl(),
+  return customFetch<LessonDelegation>(getCreateLessonsDelegationUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(delegationBody)
+    body: JSON.stringify(lessonDelegationInput)
   }
 );}
 
@@ -12963,8 +12969,8 @@ export const createLessonsDelegation = async (delegationBody: DelegationBody, op
 
 
 export const getCreateLessonsDelegationMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLessonsDelegation>>, TError,{data: BodyType<DelegationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createLessonsDelegation>>, TError,{data: BodyType<DelegationBody>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLessonsDelegation>>, TError,{data: BodyType<LessonDelegationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLessonsDelegation>>, TError,{data: BodyType<LessonDelegationInput>}, TContext> => {
 
 const mutationKey = ['createLessonsDelegation'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -12976,7 +12982,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLessonsDelegation>>, {data: BodyType<DelegationBody>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLessonsDelegation>>, {data: BodyType<LessonDelegationInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  createLessonsDelegation(data,requestOptions)
@@ -12990,22 +12996,183 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateLessonsDelegationMutationResult = NonNullable<Awaited<ReturnType<typeof createLessonsDelegation>>>
-    export type CreateLessonsDelegationMutationBody = BodyType<DelegationBody>
+    export type CreateLessonsDelegationMutationBody = BodyType<LessonDelegationInput>
     export type CreateLessonsDelegationMutationError = ErrorType<unknown>
 
     /**
- * @summary Create delegation
+ * @summary Create a selected-form lesson delegation
  */
 export const useCreateLessonsDelegation = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLessonsDelegation>>, TError,{data: BodyType<DelegationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLessonsDelegation>>, TError,{data: BodyType<LessonDelegationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createLessonsDelegation>>,
         TError,
-        {data: BodyType<DelegationBody>},
+        {data: BodyType<LessonDelegationInput>},
         TContext
       > => {
       return useMutation(getCreateLessonsDelegationMutationOptions(options));
     }
+
+export const getGetLessonsDelegationOptionsUrl = () => {
+
+
+
+
+  return `/api/lessons/admin/delegation-options`
+}
+
+/**
+ * @summary List active projects and users eligible for lesson delegation
+ */
+export const getLessonsDelegationOptions = async ( options?: Parameters<typeof customFetch>[1]): Promise<LessonDelegationOptions> => {
+
+  return customFetch<LessonDelegationOptions>(getGetLessonsDelegationOptionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLessonsDelegationOptionsQueryKey = () => {
+    return [
+    `/api/lessons/admin/delegation-options`
+    ] as const;
+    }
+
+
+export const getGetLessonsDelegationOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getLessonsDelegationOptions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsDelegationOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLessonsDelegationOptionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLessonsDelegationOptions>>> = ({ signal }) => getLessonsDelegationOptions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLessonsDelegationOptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLessonsDelegationOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getLessonsDelegationOptions>>>
+export type GetLessonsDelegationOptionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List active projects and users eligible for lesson delegation
+ */
+
+export function useGetLessonsDelegationOptions<TData = Awaited<ReturnType<typeof getLessonsDelegationOptions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsDelegationOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLessonsDelegationOptionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListLessonsDelegationPendingFormsUrl = (params: ListLessonsDelegationPendingFormsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/lessons/admin/delegation-pending-forms?${stringifiedParams}` : `/api/lessons/admin/delegation-pending-forms`
+}
+
+/**
+ * @summary List lesson forms awaiting a delegator for one project
+ */
+export const listLessonsDelegationPendingForms = async (params: ListLessonsDelegationPendingFormsParams, options?: Parameters<typeof customFetch>[1]): Promise<LessonDelegationForm[]> => {
+
+  return customFetch<LessonDelegationForm[]>(getListLessonsDelegationPendingFormsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLessonsDelegationPendingFormsQueryKey = (params?: ListLessonsDelegationPendingFormsParams,) => {
+    return [
+    `/api/lessons/admin/delegation-pending-forms`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListLessonsDelegationPendingFormsQueryOptions = <TData = Awaited<ReturnType<typeof listLessonsDelegationPendingForms>>, TError = ErrorType<unknown>>(params: ListLessonsDelegationPendingFormsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonsDelegationPendingForms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLessonsDelegationPendingFormsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLessonsDelegationPendingForms>>> = ({ signal }) => listLessonsDelegationPendingForms(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLessonsDelegationPendingForms>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListLessonsDelegationPendingFormsQueryResult = NonNullable<Awaited<ReturnType<typeof listLessonsDelegationPendingForms>>>
+export type ListLessonsDelegationPendingFormsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List lesson forms awaiting a delegator for one project
+ */
+
+export function useListLessonsDelegationPendingForms<TData = Awaited<ReturnType<typeof listLessonsDelegationPendingForms>>, TError = ErrorType<unknown>>(
+ params: ListLessonsDelegationPendingFormsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonsDelegationPendingForms>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListLessonsDelegationPendingFormsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getRevokeLessonsDelegationUrl = (id: string,) => {
 

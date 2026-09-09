@@ -306,6 +306,61 @@ async function eligibleApprovers(organizationId: string): Promise<EligibleApprov
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
 
+async function eligibleLessonDelegateIds(organizationId: string): Promise<Set<string>> {
+  const rows = await db.select({
+    id: users.id,
+    platformRole: platformRoles.name,
+    canOpenLessons: applicationAccess.canOpenLessons,
+    workspaceRole: lessonsWorkspaceRoles.name,
+    permissionKey: lessonsPermissions.key,
+  })
+    .from(users)
+    .leftJoin(platformRoles, eq(users.platformRoleId, platformRoles.id))
+    .leftJoin(applicationAccess, and(
+      eq(applicationAccess.organizationId, organizationId),
+      eq(applicationAccess.username, users.username),
+      isNull(applicationAccess.deletedAt),
+    ))
+    .leftJoin(lessonsUserWorkspaceRoles, and(
+      eq(lessonsUserWorkspaceRoles.userId, users.id),
+      isNull(lessonsUserWorkspaceRoles.deletedAt),
+    ))
+    .leftJoin(lessonsWorkspaceRoles, and(
+      eq(lessonsWorkspaceRoles.id, lessonsUserWorkspaceRoles.workspaceRoleId),
+      eq(lessonsWorkspaceRoles.status, "active"),
+      isNull(lessonsWorkspaceRoles.deletedAt),
+    ))
+    .leftJoin(lessonsWorkspaceRolePermissions, and(
+      eq(lessonsWorkspaceRolePermissions.workspaceRoleId, lessonsWorkspaceRoles.id),
+      isNull(lessonsWorkspaceRolePermissions.deletedAt),
+    ))
+    .leftJoin(lessonsPermissions, and(
+      eq(lessonsPermissions.id, lessonsWorkspaceRolePermissions.permissionId),
+      isNull(lessonsPermissions.deletedAt),
+    ))
+    .where(and(
+      eq(users.organizationId, organizationId),
+      eq(users.accessStatus, "active"),
+      isNull(users.deletedAt),
+    ));
+  const state = new Map<string, { platformAdmin: boolean; appAccess: boolean; workspaceAdmin: boolean; view: boolean; approve: boolean }>();
+  for (const row of rows) {
+    const current = state.get(row.id) ?? { platformAdmin: false, appAccess: false, workspaceAdmin: false, view: false, approve: false };
+    current.platformAdmin ||= ["Super Admin", "Org Admin"].includes(row.platformRole ?? "");
+    current.appAccess ||= row.canOpenLessons === true;
+    current.workspaceAdmin ||= /\b(admin|administrator)\b/i.test(row.workspaceRole ?? "");
+    const key = String(row.permissionKey ?? "").toLowerCase();
+    current.view ||= ["view_all", "view_own", "view_own_scope", "lessons"].includes(key)
+      || /^lessons[._](?:view_all|view_own|view_own_scope)$/.test(key);
+    current.approve ||= ["approve_reject", "lessons"].includes(key)
+      || /^lessons[._]approve_reject$/.test(key);
+    state.set(row.id, current);
+  }
+  return new Set([...state.entries()]
+    .filter(([, value]) => value.platformAdmin || (value.appAccess && (value.workspaceAdmin || (value.view && value.approve))))
+    .map(([id]) => id));
+}
+
 type ApproverScopeCtx = { projectId?: string | null; disciplineId?: string | null; categorisation?: string | null };
 
 function scopeMatches(rule: { projectId: string | null; disciplineId: string | null; categorisation: string | null }, ctx: ApproverScopeCtx) {
@@ -327,15 +382,43 @@ async function scopedApproverIds(organizationId: string, ctx: ApproverScopeCtx):
   return new Set(rules.filter((rule) => scopeMatches(rule, ctx)).map((rule) => rule.userId));
 }
 
+type LessonDelegationScope = { projectId?: unknown; lessonFormIds?: unknown };
+
+function selectedLessonIds(scope: Record<string, unknown>): string[] {
+  const value = scope as LessonDelegationScope;
+  return Array.isArray(value.lessonFormIds) ? value.lessonFormIds.filter((id): id is string => typeof id === "string") : [];
+}
+
+async function activeLessonDelegations(organizationId: string, delegateId: string) {
+  const now = new Date();
+  return db.select().from(lessonDelegations).where(and(
+    eq(lessonDelegations.organizationId, organizationId),
+    eq(lessonDelegations.delegateId, delegateId),
+    lte(lessonDelegations.startsAt, now),
+    gte(lessonDelegations.endsAt, now),
+    ne(lessonDelegations.status, "revoked"),
+    isNull(lessonDelegations.deletedAt),
+  ));
+}
+
+async function delegatedFromForLesson(organizationId: string, delegateId: string, lessonId: string, expectedApproverId: string | null): Promise<string | null> {
+  if (!expectedApproverId) return null;
+  const rows = await activeLessonDelegations(organizationId, delegateId);
+  return rows.find((row) =>
+    row.delegatorId === expectedApproverId && selectedLessonIds(row.scope).includes(lessonId),
+  )?.delegatorId ?? null;
+}
+
 async function canReadLesson(req: any, row: typeof lessonLearnedForms.$inferSelect): Promise<boolean> {
   if (req.permissionAdminBypass || req.permissionScope === "full") return true;
   const user = req.currentUser!;
   if (row.creatorId === user.id) return true;
-  if (row.approverId !== user.id) return false;
+  const delegatedFrom = await delegatedFromForLesson(row.organizationId, user.id, row.id, row.approverId);
+  if (row.approverId !== user.id && (!delegatedFrom || row.approverId !== delegatedFrom)) return false;
   const scoped = await scopedApproverIds(row.organizationId, {
     projectId: row.projectId, disciplineId: row.disciplineId, categorisation: row.categorisation,
   });
-  return !scoped || scoped.has(user.id);
+  return !scoped || scoped.has(row.approverId ?? user.id);
 }
 
 async function lessonVisibilityWhere(req: any, base: any, requireApproverScope = false) {
@@ -348,15 +431,24 @@ async function lessonVisibilityWhere(req: any, base: any, requireApproverScope =
     eq(lessonApproverScopes.status, "active"),
     isNull(lessonApproverScopes.deletedAt),
   ));
-  const matchingScope = !rules.length ? undefined : or(...rules
-    .filter((rule) => rule.userId === user.id)
+  const delegations = await activeLessonDelegations(user.organizationId, user.id);
+  const matchingScopeFor = (userIds: Set<string>) => !rules.length ? undefined : or(...rules
+    .filter((rule) => userIds.has(rule.userId))
     .map((rule) => and(
       rule.projectId ? eq(lessonLearnedForms.projectId, rule.projectId) : undefined,
       rule.disciplineId ? eq(lessonLearnedForms.disciplineId, rule.disciplineId) : undefined,
       rule.categorisation ? eq(lessonLearnedForms.categorisation, rule.categorisation) : undefined,
     ))) ?? sql`false`;
-  const assigned = and(eq(lessonLearnedForms.approverId, user.id), matchingScope);
-  return and(base, requireApproverScope ? assigned : or(eq(lessonLearnedForms.creatorId, user.id), assigned));
+  const assigned = and(eq(lessonLearnedForms.approverId, user.id), matchingScopeFor(new Set([user.id])));
+  const delegated = or(...delegations.map((row) => {
+    const ids = selectedLessonIds(row.scope);
+    return ids.length ? and(
+      inArray(lessonLearnedForms.id, ids),
+      eq(lessonLearnedForms.approverId, row.delegatorId),
+      matchingScopeFor(new Set([row.delegatorId])),
+    ) : sql`false`;
+  })) ?? sql`false`;
+  return and(base, requireApproverScope ? or(assigned, delegated) : or(eq(lessonLearnedForms.creatorId, user.id), assigned, delegated));
 }
 
 router.get("/approvers", asyncHandler(async (req, res) => {
@@ -549,12 +641,13 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
   if (before.creatorId === req.currentUser!.id) {
     throw new HttpError(403, "You cannot review a lesson you created");
   }
-  // Only the designated approver may review — there is no admin bypass.
-  if (before.approverId !== req.currentUser!.id) {
+  const delegatedFrom = await delegatedFromForLesson(before.organizationId, req.currentUser!.id, before.id, before.approverId);
+  // Only the designated approver or an explicitly selected active delegate may review.
+  if (before.approverId !== req.currentUser!.id && before.approverId !== delegatedFrom) {
     throw new HttpError(403, "Only the designated approver may review this form");
   }
   const scoped = await scopedApproverIds(before.organizationId, { projectId: before.projectId, disciplineId: before.disciplineId, categorisation: before.categorisation });
-  if (scoped && !scoped.has(req.currentUser!.id)) {
+  if (scoped && !scoped.has(before.approverId ?? req.currentUser!.id)) {
     throw new HttpError(403, "Your approver scope does not cover this lesson's project, discipline and categorisation");
   }
   if (before.workflowState !== "submitted") throw new HttpError(409, "Only submitted forms may be reviewed");
@@ -570,7 +663,7 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
     eq(lessonLearnedForms.id, before.id),
     eq(lessonLearnedForms.organizationId, before.organizationId),
     eq(lessonLearnedForms.workflowState, "submitted"),
-    eq(lessonLearnedForms.approverId, req.currentUser!.id),
+    eq(lessonLearnedForms.approverId, before.approverId!),
     ne(lessonLearnedForms.creatorId, req.currentUser!.id),
     isNull(lessonLearnedForms.deletedAt),
   )).returning();
@@ -589,7 +682,7 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
     isNull(lessonEscalationInstances.deletedAt),
   ));
   const [beforeJson, rowJson] = await Promise.all([formJsonNamed(before), formJsonNamed(row!)]);
-  await audit(req, body.decision, "lesson_form", before.id, beforeJson, { ...rowJson, remarks: body.comments });
+  await audit(req, body.decision, "lesson_form", before.id, beforeJson, { ...rowJson, remarks: body.comments, delegatedFrom });
   await notifyWithEmail(db, "lessons", { organizationId: before.organizationId, userId: before.creatorId, type: `lesson_${state}`, title: `Lesson ${publicState(state)}`, body: body.comments?.trim() || `${before.referenceNumber} was approved.`, entityType: "lesson_form", entityId: before.id });
   res.json({ ...rowJson, remarks: body.comments });
 }));
@@ -674,6 +767,10 @@ async function logWhere(req: any) {
     disciplineId = await findLessonsDisciplineId(req.currentUser.organizationId, q.disciplineId);
     if (!disciplineId) disciplineId = "00000000-0000-0000-0000-000000000000";
   }
+  const delegations = q.pendingApproval === "true"
+    ? await activeLessonDelegations(req.currentUser.organizationId, req.currentUser.id)
+    : [];
+  const delegatedIds = delegations.flatMap((row) => selectedLessonIds(row.scope));
   return and(
     eq(lessonLearnedForms.organizationId, req.currentUser.organizationId), isNull(lessonLearnedForms.deletedAt),
     term ? or(
@@ -700,6 +797,11 @@ async function logWhere(req: any) {
         eq(lessonLearnedForms.creatorId, req.currentUser.id),
         eq(lessonLearnedForms.workflowState, "sent_back"),
       ),
+      delegatedIds.length ? and(
+        inArray(lessonLearnedForms.id, delegatedIds),
+        eq(lessonLearnedForms.workflowState, "submitted"),
+        ne(lessonLearnedForms.creatorId, req.currentUser.id),
+      ) : undefined,
     ) : undefined,
   );
 }
@@ -1017,15 +1119,123 @@ router.get("/admin/delegations", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = and(eq(lessonDelegations.organizationId, req.currentUser!.organizationId), isNull(lessonDelegations.deletedAt));
   const [rows, count] = await Promise.all([db.select().from(lessonDelegations).where(where).orderBy(desc(lessonDelegations.startsAt)).limit(limit).offset(offset), db.select({ count: sql<number>`count(*)` }).from(lessonDelegations).where(where)]);
-  res.json(paginated(rows.map((r) => ({ id: r.id, delegatorId: r.delegatorId, delegateId: r.delegateId, scope: JSON.stringify(r.scope), approvalTypes: Array.isArray(r.scope.approvalTypes) ? r.scope.approvalTypes : [], startDate: r.startsAt, endDate: r.endsAt, status: r.status, revokedAt: r.status === "revoked" ? r.updatedAt : null })), Number(count[0]?.count ?? 0), page, limit));
+  const userIds = [...new Set(rows.flatMap((r) => [r.delegatorId, r.delegateId]))];
+  const projectIds = [...new Set(rows.map((r) => typeof r.scope.projectId === "string" ? r.scope.projectId : "").filter(Boolean))];
+  const lessonIds = [...new Set(rows.flatMap((r) => selectedLessonIds(r.scope)))];
+  const [userRows, projectRows, formRows] = await Promise.all([
+    userIds.length ? db.select({ id: users.id, name: users.fullName }).from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId), inArray(users.id, userIds))) : [],
+    projectIds.length ? db.select({ id: projects.id, name: projects.name }).from(projects).where(and(eq(projects.organizationId, req.currentUser!.organizationId), inArray(projects.id, projectIds))) : [],
+    lessonIds.length ? db.select({ id: lessonLearnedForms.id, referenceNumber: lessonLearnedForms.referenceNumber, title: lessonLearnedForms.title }).from(lessonLearnedForms).where(and(eq(lessonLearnedForms.organizationId, req.currentUser!.organizationId), inArray(lessonLearnedForms.id, lessonIds))) : [],
+  ]);
+  const userNames = new Map(userRows.map((r) => [r.id, r.name]));
+  const projectNames = new Map(projectRows.map((r) => [r.id, r.name]));
+  const forms = new Map(formRows.map((r) => [r.id, r]));
+  const now = new Date();
+  res.json(paginated(rows.map((r) => {
+    const projectId = typeof r.scope.projectId === "string" ? r.scope.projectId : "";
+    const status = r.status === "revoked" ? "revoked" : r.startsAt > now ? "pending" : r.endsAt < now ? "expired" : "active";
+    return {
+      id: r.id, delegatorId: r.delegatorId, delegatorName: userNames.get(r.delegatorId) ?? "Unknown user",
+      delegateId: r.delegateId, delegateName: userNames.get(r.delegateId) ?? "Unknown user",
+      projectId, projectName: projectNames.get(projectId) ?? "Unknown project",
+      lessonForms: selectedLessonIds(r.scope).map((id) => forms.get(id)).filter(Boolean),
+      startDate: r.startsAt, endDate: r.endsAt, status,
+      revokedAt: r.status === "revoked" ? r.updatedAt : null,
+    };
+  }), Number(count[0]?.count ?? 0), page, limit));
+}));
+
+router.get("/admin/delegation-options", asyncHandler(async (req, res) => {
+  const orgId = req.currentUser!.organizationId;
+  const [projectRows, userRows, eligibleUserIds] = await Promise.all([
+    db.select({ id: projects.id, name: projects.name }).from(projects).where(and(
+      eq(projects.organizationId, orgId), eq(projects.status, "active"), isNull(projects.deletedAt),
+    )).orderBy(asc(projects.name)),
+    db.select({ id: users.id, name: users.fullName }).from(users).where(and(
+      eq(users.organizationId, orgId), eq(users.accessStatus, "active"), isNull(users.deletedAt),
+    )).orderBy(asc(users.fullName)),
+    eligibleLessonDelegateIds(orgId),
+  ]);
+  res.json({ projects: projectRows, users: userRows.filter((user) => eligibleUserIds.has(user.id)) });
+}));
+
+router.get("/admin/delegation-pending-forms", asyncHandler(async (req, res) => {
+  const projectId = typeof req.query.projectId === "string" ? req.query.projectId : "";
+  const delegatorId = typeof req.query.delegatorId === "string" ? req.query.delegatorId : "";
+  if (!projectId || !delegatorId) throw new HttpError(422, "Project and delegator are required");
+  const orgId = req.currentUser!.organizationId;
+  await Promise.all([assertProjectInOrg(db, orgId, projectId), assertUserInOrg(db, orgId, delegatorId)]);
+  const rows = await db.select({
+    id: lessonLearnedForms.id,
+    referenceNumber: lessonLearnedForms.referenceNumber,
+    title: lessonLearnedForms.title,
+    projectId: lessonLearnedForms.projectId,
+    disciplineId: lessonLearnedForms.disciplineId,
+    categorisation: lessonLearnedForms.categorisation,
+  }).from(lessonLearnedForms).where(and(
+    eq(lessonLearnedForms.organizationId, orgId),
+    eq(lessonLearnedForms.projectId, projectId),
+    eq(lessonLearnedForms.approverId, delegatorId),
+    eq(lessonLearnedForms.workflowState, "submitted"),
+    ne(lessonLearnedForms.creatorId, delegatorId),
+    isNull(lessonLearnedForms.deletedAt),
+  )).orderBy(asc(lessonLearnedForms.submittedAt), asc(lessonLearnedForms.referenceNumber));
+  const eligible = [];
+  for (const row of rows) {
+    const scoped = await scopedApproverIds(orgId, row);
+    if (!scoped || scoped.has(delegatorId)) eligible.push({ id: row.id, referenceNumber: row.referenceNumber, title: row.title });
+  }
+  res.json(eligible);
 }));
 
 router.post("/admin/delegations", asyncHandler(async (req, res) => {
   const body = parseBody(CreateLessonsDelegationBody, req, res); if (!body) return;
-  if (body.endDate <= body.startDate) throw new HttpError(422, "End date must be after start date");
-  const [row] = await db.insert(lessonDelegations).values({ organizationId: req.currentUser!.organizationId, delegatorId: body.delegatorId, delegateId: body.delegateId, startsAt: body.startDate, endsAt: body.endDate, scope: { value: body.scope, approvalTypes: body.approvalTypes ?? [] }, status: body.status }).returning();
+  if (body.delegatorId === body.delegateId) throw new HttpError(422, "Delegator and delegate must be different users");
+  const startsAt = new Date(body.startDate);
+  startsAt.setUTCHours(0, 0, 0, 0);
+  const endsAt = new Date(body.endDate);
+  endsAt.setUTCHours(23, 59, 59, 999);
+  if (Number.isNaN(startsAt.valueOf()) || Number.isNaN(endsAt.valueOf()) || endsAt < startsAt) throw new HttpError(422, "End date must be on or after start date");
+  const orgId = req.currentUser!.organizationId;
+  const [projectRows, userRows, eligibleForms, eligibleUserIds] = await Promise.all([
+    db.select({ id: projects.id }).from(projects).where(and(eq(projects.id, body.projectId), eq(projects.organizationId, orgId), eq(projects.status, "active"), isNull(projects.deletedAt))),
+    db.select({ id: users.id }).from(users).where(and(eq(users.organizationId, orgId), inArray(users.id, [body.delegatorId, body.delegateId]), eq(users.accessStatus, "active"), isNull(users.deletedAt))),
+    db.select({
+      id: lessonLearnedForms.id,
+      projectId: lessonLearnedForms.projectId,
+      disciplineId: lessonLearnedForms.disciplineId,
+      categorisation: lessonLearnedForms.categorisation,
+    }).from(lessonLearnedForms).where(and(
+      eq(lessonLearnedForms.organizationId, orgId), eq(lessonLearnedForms.projectId, body.projectId),
+      eq(lessonLearnedForms.approverId, body.delegatorId), eq(lessonLearnedForms.workflowState, "submitted"),
+      ne(lessonLearnedForms.creatorId, body.delegatorId), inArray(lessonLearnedForms.id, body.lessonFormIds),
+      isNull(lessonLearnedForms.deletedAt),
+    )),
+    eligibleLessonDelegateIds(orgId),
+  ]);
+  if (!projectRows.length) throw new HttpError(422, "Selected project is not active in this organization");
+  if (userRows.length !== 2) throw new HttpError(422, "Both users must be active in this organization");
+  if (!eligibleUserIds.has(body.delegatorId) || !eligibleUserIds.has(body.delegateId)) throw new HttpError(422, "Both users must have active Lesson review access");
+  if (eligibleForms.length !== body.lessonFormIds.length) throw new HttpError(422, "Every selected lesson must currently be pending with the delegator in the selected project");
+  const selectedRows = await db.select({ creatorId: lessonLearnedForms.creatorId }).from(lessonLearnedForms).where(and(
+    eq(lessonLearnedForms.organizationId, orgId), inArray(lessonLearnedForms.id, body.lessonFormIds),
+  ));
+  if (selectedRows.some((form) => form.creatorId === body.delegateId)) throw new HttpError(422, "The delegate cannot review a lesson they created");
+  for (const form of eligibleForms) {
+    const scoped = await scopedApproverIds(orgId, form);
+    if (scoped && !scoped.has(body.delegatorId)) throw new HttpError(422, "The delegator is no longer scoped to every selected lesson");
+  }
+  const now = new Date();
+  const status = startsAt > now ? "pending" : endsAt < now ? "expired" : "active";
+  const [row] = await db.insert(lessonDelegations).values({ organizationId: orgId, delegatorId: body.delegatorId, delegateId: body.delegateId, startsAt, endsAt, scope: { projectId: body.projectId, lessonFormIds: body.lessonFormIds }, status }).returning();
   await audit(req, "create", "delegation", row!.id, undefined, row as any);
-  res.status(201).json(row);
+  const [delegator, delegate, project, forms] = await Promise.all([
+    db.select({ name: users.fullName }).from(users).where(eq(users.id, body.delegatorId)).limit(1),
+    db.select({ name: users.fullName }).from(users).where(eq(users.id, body.delegateId)).limit(1),
+    db.select({ name: projects.name }).from(projects).where(eq(projects.id, body.projectId)).limit(1),
+    db.select({ id: lessonLearnedForms.id, referenceNumber: lessonLearnedForms.referenceNumber, title: lessonLearnedForms.title }).from(lessonLearnedForms).where(inArray(lessonLearnedForms.id, body.lessonFormIds)),
+  ]);
+  res.status(201).json({ id: row!.id, delegatorId: body.delegatorId, delegatorName: delegator[0]!.name, delegateId: body.delegateId, delegateName: delegate[0]!.name, projectId: body.projectId, projectName: project[0]!.name, lessonForms: forms, startDate: row!.startsAt, endDate: row!.endsAt, status, revokedAt: null });
 }));
 
 router.delete("/admin/delegations/:id", asyncHandler(async (req, res) => {
