@@ -60,11 +60,19 @@ function attachmentJson(row: typeof feedbackAttachments.$inferSelect) {
 async function attachmentsByFeedback(ids: string[]) {
   const grouped = new Map<string, ReturnType<typeof attachmentJson>[]>();
   if (!ids.length) return grouped;
-  const rows = await db.select().from(feedbackAttachments).where(and(
-    inArray(feedbackAttachments.feedbackId, ids),
-    eq(feedbackAttachments.status, "stored"),
-    isNull(feedbackAttachments.deletedAt),
-  )).orderBy(feedbackAttachments.createdAt);
+  let rows: (typeof feedbackAttachments.$inferSelect)[];
+  try {
+    rows = await db.select().from(feedbackAttachments).where(and(
+      inArray(feedbackAttachments.feedbackId, ids),
+      eq(feedbackAttachments.status, "stored"),
+      isNull(feedbackAttachments.deletedAt),
+    )).orderBy(feedbackAttachments.createdAt);
+  } catch (error) {
+    // Keep existing feedback visible while production catches up with the
+    // optional attachment-table rollout.
+    if (hasPostgresCode(error, "42P01")) return grouped;
+    throw error;
+  }
   for (const row of rows) {
     grouped.set(row.feedbackId, [...(grouped.get(row.feedbackId) ?? []), attachmentJson(row)]);
   }
