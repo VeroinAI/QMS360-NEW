@@ -39,7 +39,7 @@ export function LessonsNotificationsPage() {
   const total = lessons.data?.total ?? 0;
 
   return <div className="space-y-6">
-    <header className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-3xl font-bold">Lessons notifications</h1><p className="mt-2 text-sm text-muted-foreground">Updates from Lesson Learned Management. Notifications are history; your approval queue shows what still needs action.</p></div><Button asChild variant="outline"><Link href="/lessons/approvals">Pending my approval</Link></Button></header>
+    <header className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-3xl font-bold">Lessons notifications</h1><p className="mt-2 text-sm text-muted-foreground">Updates from Lesson Learned Management. Notifications are history; For my Action shows what still needs action.</p></div><Button asChild variant="outline"><Link href="/lessons/approvals">For my Action</Link></Button></header>
     <div className="flex flex-col gap-3 sm:flex-row">
       <div className="relative flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search Lessons notifications" className="pl-9" /></div>
       <Button variant={unreadOnly ? 'default' : 'outline'} onClick={() => setUnreadOnly(value => !value)}>Unread only</Button>

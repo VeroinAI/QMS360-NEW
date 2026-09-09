@@ -110,8 +110,8 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
             <Link key={href as string} href={href as string} onClick={() => setMobileOpen(false)}
               className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm ${location === href ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}`}>
               <div className="flex items-center gap-3"><Icon className="h-4 w-4 shrink-0" />{!collapsed && label}</div>
-              {!collapsed && isApprovals && count !== undefined && count !== null && count > 0 && <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-destructive-foreground">{count}</span>}
-              {!collapsed && isApprovals && isError && <span className="text-[10px] font-bold text-destructive" title="Count unavailable">!</span>}
+              {!collapsed && isApprovals && count !== undefined && count !== null && count > 0 && <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-destructive-foreground" aria-label={`${count} lessons For my Action`}>{count}</span>}
+              {!collapsed && isApprovals && isError && <span className="text-[10px] font-bold text-destructive" title="For my Action count unavailable" aria-label="For my Action count unavailable">!</span>}
             </Link>
           )})}
           {section && isAdmin && <Link href={`/settings/${section}`} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent"><Settings className="h-4 w-4" />{!collapsed && 'Settings'}</Link>}

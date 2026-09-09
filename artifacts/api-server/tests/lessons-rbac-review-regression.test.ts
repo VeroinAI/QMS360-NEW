@@ -7,6 +7,7 @@ import {
   lessonApproverScopes,
   lessonLearnedForms,
   lessonNotifications,
+  lessonsEvidenceFiles,
   lessonsAuditLogEntries,
   lessonsDisciplines,
   lessonsPermissions,
@@ -166,7 +167,7 @@ beforeAll(async () => {
   // Deliberately preserve the historical persisted `full` grant: the
   // view_own_scope capability itself must still constrain visibility.
   await giveLessonsRole(reader.id, "Scoped Reader", ["view_own_scope"], "full");
-  await giveLessonsRole(owner.id, "Data Entry", ["data_entry"], "full");
+  await giveLessonsRole(owner.id, "Data Entry", ["data_entry", "view_own_scope", "submit"], "full");
   // Browser-equivalent fixture: one non-admin workspace role carries both
   // persisted full grants and reaches Lessons through app.ts's nested routers.
   await giveLessonsRole(approver.id, "Lesson Approver", ["view_own_scope", "approve_reject"], "full");
@@ -216,6 +217,7 @@ afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await db.delete(lessonNotifications).where(inArray(lessonNotifications.organizationId, orgIds));
   await db.delete(lessonsAuditLogEntries).where(inArray(lessonsAuditLogEntries.organizationId, orgIds));
+  await db.delete(lessonsEvidenceFiles).where(inArray(lessonsEvidenceFiles.organizationId, orgIds));
   await db.delete(lessonLearnedForms).where(inArray(lessonLearnedForms.organizationId, orgIds));
   await db.delete(lessonApproverScopes).where(inArray(lessonApproverScopes.organizationId, orgIds));
   await db.delete(lessonsDisciplines).where(inArray(lessonsDisciplines.organizationId, orgIds));
@@ -323,5 +325,71 @@ describe("atomic lesson review decisions", () => {
     expect(stored!.workflowState).toBe(winner === "approve" ? "approved" : "sent_back");
     expect(stored!.reviewedById).toBe(approver.id);
     expect(stored!.reviewedAt).not.toBeNull();
+  });
+});
+
+describe("sent-back correction and resubmission", () => {
+  it("moves the lesson between creator and approver action queues while preserving reviewer comments", async () => {
+    const [lesson] = await db.insert(lessonLearnedForms).values(
+      lessonValues(`RESUBMIT-${suffix}`, owner.id, {
+        approverId: approver.id,
+        workflowState: "submitted",
+        submittedAt: new Date("2026-05-20T10:00:00.000Z"),
+        submittedById: owner.id,
+      }),
+    ).returning();
+
+    await db.insert(lessonsEvidenceFiles).values([
+      {
+        organizationId: orgId, app: "lessons", recordType: "lesson_form", recordId: lesson!.id,
+        category: "before", fileName: "before.jpg", mimeType: "image/jpeg", sizeBytes: 100,
+        storageKey: `tests/${suffix}/before.jpg`, uploadedById: owner.id, status: "stored",
+      },
+      {
+        organizationId: orgId, app: "lessons", recordType: "lesson_form", recordId: lesson!.id,
+        category: "after", fileName: "after.jpg", mimeType: "image/jpeg", sizeBytes: 100,
+        storageKey: `tests/${suffix}/after.jpg`, uploadedById: owner.id, status: "stored",
+      },
+    ]);
+
+    const approverBefore = await api("GET", "/log?pendingApproval=true&limit=100", { token: approver.token });
+    expect(approverBefore.status).toBe(200);
+    expect(approverBefore.json.items.some((row: { id: string }) => row.id === lesson!.id)).toBe(true);
+
+    const sentBack = await api("POST", `/forms/${lesson!.id}/review`, {
+      token: approver.token,
+      body: { decision: "send_back", comments: "Clarify the corrective action and resubmit." },
+    });
+    expect(sentBack.status).toBe(200);
+    expect(sentBack.json.workflowState).toBe("Sent Back");
+    expect(sentBack.json.reviewComments).toBe("Clarify the corrective action and resubmit.");
+
+    const creatorQueue = await api("GET", "/log?pendingApproval=true&limit=100", { token: owner.token });
+    const approverAfterSendBack = await api("GET", "/log?pendingApproval=true&limit=100", { token: approver.token });
+    expect(creatorQueue.json.items.find((row: { id: string }) => row.id === lesson!.id)?.workflowState).toBe("Sent Back");
+    expect(approverAfterSendBack.json.items.some((row: { id: string }) => row.id === lesson!.id)).toBe(false);
+
+    const creatorDetail = await api("GET", `/forms/${lesson!.id}`, { token: owner.token });
+    const approverActivity = await api("GET", `/forms/${lesson!.id}/activity`, { token: approver.token });
+    expect(creatorDetail.json.reviewComments).toBe("Clarify the corrective action and resubmit.");
+    expect(approverActivity.json.items.find((entry: { action: string }) => entry.action === "send_back")?.after.reviewComments)
+      .toBe("Clarify the corrective action and resubmit.");
+
+    const corrected = await api("PUT", `/forms/${lesson!.id}`, {
+      token: owner.token,
+      body: updateBody(lesson!.id, { correctiveAction: "Corrected action with clear ownership", workflowState: "Sent Back" }),
+    });
+    expect(corrected.status).toBe(200);
+    expect(corrected.json.workflowState).toBe("Draft");
+
+    const resubmitted = await api("POST", `/forms/${lesson!.id}/submit`, { token: owner.token });
+    expect(resubmitted.status).toBe(200);
+    expect(resubmitted.json.workflowState).toBe("Submitted");
+    expect(resubmitted.json.reviewComments).toBe("Clarify the corrective action and resubmit.");
+
+    const creatorAfterResubmit = await api("GET", "/log?pendingApproval=true&limit=100", { token: owner.token });
+    const approverAfterResubmit = await api("GET", "/log?pendingApproval=true&limit=100", { token: approver.token });
+    expect(creatorAfterResubmit.json.items.some((row: { id: string }) => row.id === lesson!.id)).toBe(false);
+    expect(approverAfterResubmit.json.items.some((row: { id: string }) => row.id === lesson!.id)).toBe(true);
   });
 });

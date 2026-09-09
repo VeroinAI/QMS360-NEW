@@ -218,7 +218,7 @@ function LogPage() {
     }
   }
   return <div>
-    <PageHeader title="Lesson Learned Log" description="Search the organisation's shared knowledge base." back="/lessons" actions={<><Button variant="outline" asChild><Link href="/lessons/approvals"><ClipboardCheck /> My approvals</Link></Button><Button variant="outline" onClick={exportCsv}><Download /> Export CSV</Button><LessonActions /></>} />
+    <PageHeader title="Lesson Learned Log" description="Search the organisation's shared knowledge base." back="/lessons" actions={<><Button variant="outline" asChild><Link href="/lessons/approvals"><ClipboardCheck /> For my Action</Link></Button><Button variant="outline" onClick={exportCsv}><Download /> Export CSV</Button><LessonActions /></>} />
     <Card className="mb-5"><CardContent className="grid gap-3 pt-6 md:grid-cols-2 xl:grid-cols-5">
       <div className="relative md:col-span-2 xl:col-span-5"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input className="pl-9" placeholder="Search title, reference or content…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
       <div className="space-y-1.5"><Label>Project</Label><Select value={projectId} onValueChange={(v) => { setProjectId(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger><SelectContent><SelectItem value="all">All projects</SelectItem>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></div>

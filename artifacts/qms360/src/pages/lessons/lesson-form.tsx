@@ -118,7 +118,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   const fieldControls = useFieldControls("lessons", "lesson-form");
   const fieldAccess = useFieldAccess("lessons");
   const queryClient = useQueryClient();
-  const invalidate = () => { queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] }); if (id) queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}`] }); };
+  const invalidate = () => { queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] }); if (id) { queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}`] }); queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}/activity`] }); } };
   // Create is driven from save() so photos queued before the first save can be uploaded once the record id exists.
   const create = useCreateLessonForm();
   const update = useUpdateLessonForm();
@@ -264,7 +264,7 @@ export function LessonFormPage({ id }: { id?: string }) {
     try {
       await submit.mutateAsync({ id: recordId });
       invalidate();
-      toast({ title: "Lesson submitted for approval" });
+      toast({ title: detail.data?.workflowState === "Sent Back" ? "Corrected lesson resubmitted" : "Lesson submitted for approval" });
       navigate("/lessons/log");
     } catch (e) {
       toast({ title: "Saved as draft; submit failed", description: errorMessage(e), variant: "destructive" });
