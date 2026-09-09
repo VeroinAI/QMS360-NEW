@@ -90,6 +90,7 @@ type ScheduleMeta = {
   projectIds?: string[]; auditTypes?: string[]; plannedStartDate?: string;
   plannedEndDate?: string; reviewComments?: string | null;
   auditCategory?: string; departmentProject?: string; location?: string;
+  gpsLat?: number | null; gpsLng?: number | null;
   processProductOwner?: string; qaqcReference?: string; auditNumber?: string;
   qaqcScope?: string; qaqcClauses?: string; remarks?: string | null;
   l1Name?: string; l1ReviewStatus?: string; l1ReviewComments?: string | null; l1Attachments?: string[];
@@ -107,6 +108,7 @@ const scheduleDto = (row: AnyRow) => {
     reviewComments: meta.reviewComments ?? null,
     auditCategory: meta.auditCategory ?? "", departmentProject: meta.departmentProject ?? "",
     location: meta.location ?? "", processProductOwner: meta.processProductOwner ?? "",
+    gpsLat: meta.gpsLat ?? null, gpsLng: meta.gpsLng ?? null,
     qaqcReference: meta.qaqcReference ?? "", auditNumber: meta.auditNumber ?? "",
     qaqcScope: meta.qaqcScope ?? "System and Process audits against ISO 9001:2015",
     qaqcClauses: meta.qaqcClauses ?? "ISO 9001 — All clauses", remarks: meta.remarks ?? null,
@@ -125,6 +127,7 @@ const scheduleValues = (data: AnyRow) => ({
     projectIds: data.projectIds, auditTypes: data.auditTypes ?? [], plannedStartDate: dateOnly(data.plannedStartDate),
     plannedEndDate: dateOnly(data.plannedEndDate), reviewComments: data.reviewComments ?? null,
     auditCategory: data.auditCategory, departmentProject: data.departmentProject, location: data.location,
+    gpsLat: data.gpsLat ?? null, gpsLng: data.gpsLng ?? null,
     processProductOwner: data.processProductOwner, qaqcReference: data.qaqcReference, auditNumber: data.auditNumber,
     qaqcScope: data.qaqcScope, qaqcClauses: data.qaqcClauses, remarks: data.remarks ?? null,
     l1Name: data.l1Name, l1ReviewStatus: data.l1ReviewStatus, l1ReviewComments: data.l1ReviewComments ?? null,
@@ -137,7 +140,6 @@ const scheduleValues = (data: AnyRow) => ({
 /** Validate schedule fields against audit-scope master data; blank values are allowed (field controls govern requiredness). */
 async function assertScheduleLovs(organizationId: string, data: AnyRow, legacy?: ScheduleMeta) {
   const checks: Array<[string, unknown, string | null | undefined]> = [
-    ["locations", data.location, legacy?.location],
     ["process_product_owners", data.processProductOwner, legacy?.processProductOwner],
     ["audit_levels", data.l1Name, legacy?.l1Name],
     ["audit_levels", data.l2Name, legacy?.l2Name],

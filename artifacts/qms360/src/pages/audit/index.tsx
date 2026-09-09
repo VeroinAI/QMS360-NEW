@@ -46,7 +46,7 @@ import type {
 } from "@workspace/api-client-react";
 import {
   AlertTriangle, ArrowLeft, BarChart3, CalendarDays, CheckCircle2, ClipboardCheck,
-  Download, FileText, FolderOpen, Plus, Printer, Search, Share2, ShieldCheck,
+  Download, FileText, FolderOpen, MapPin, Plus, Printer, Search, Share2, ShieldCheck,
   Trash2, Upload, XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -151,7 +151,6 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   const evidenceIntent = useCreateAuditEvidenceIntent(); const confirmEvidence = useConfirmAuditEvidence();
   const auditTypes = useLov("audit_types");
   const auditCategories = useLov("audit_categories");
-  const locations = useLov("locations");
   const processOwners = useLov("process_product_owners");
   const auditLevels = useLov("audit_levels");
   const projects = useListProjects();
@@ -220,6 +219,28 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
       return next;
     });
   };
+  const captureGps = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Location unavailable", description: "This browser does not support GPS location.", variant: "destructive" });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const gpsLat = Number(position.coords.latitude.toFixed(6));
+        const gpsLng = Number(position.coords.longitude.toFixed(6));
+        setForm(current => ({ ...current, gpsLat, gpsLng, location: `${gpsLat}, ${gpsLng}` }));
+        setErrors(current => {
+          if (!current.location) return current;
+          const next = { ...current };
+          delete next.location;
+          return next;
+        });
+        toast({ title: "Location captured" });
+      },
+      () => toast({ title: "Location permission denied", description: "Allow location access and try again.", variant: "destructive" }),
+      { enableHighAccuracy: true },
+    );
+  };
   const error = (key: keyof AuditSchedule) => errors[key] ? <p className="mt-1 text-sm font-medium text-destructive" role="alert">{errors[key]}</p> : null;
   const invalid = (key: keyof AuditSchedule) => errors[key] ? "border-destructive focus-visible:ring-destructive" : "";
   const files = (key: "l1Attachments" | "l2Attachments", list: FileList | null) => {
@@ -231,7 +252,7 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
     <div id="schedule-auditTypes"><Label>1. Audit Type *</Label><Select value={form.auditTypes?.[0] ?? ""} disabled={auditTypes.isLoading || ro("auditTypes")} onValueChange={v => field("auditTypes", [v])}><SelectTrigger aria-invalid={!!errors.auditTypes} className={invalid("auditTypes")}><SelectValue placeholder="Select audit type"/></SelectTrigger><SelectContent>{withLegacyOption(auditTypes.options, form.auditTypes?.[0]).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditTypes")}</div>
     <div id="schedule-auditCategory"><Label>2. Audit Category *</Label><Select value={form.auditCategory ?? ""} disabled={auditCategories.isLoading || ro("auditCategory")} onValueChange={v => field("auditCategory", v)}><SelectTrigger aria-invalid={!!errors.auditCategory} className={invalid("auditCategory")}><SelectValue placeholder="Select category"/></SelectTrigger><SelectContent>{withLegacyOption(auditCategories.options, form.auditCategory).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditCategory")}</div>
     <div id="schedule-departmentProject"><Label>3. Department / Project *</Label><Select value={form.departmentProject ?? ""} disabled={projects.isLoading || ro("departmentProject")} onValueChange={v => field("departmentProject", v)}><SelectTrigger aria-invalid={!!errors.departmentProject} className={invalid("departmentProject")}><SelectValue placeholder="Select department or project"/></SelectTrigger><SelectContent>{withLegacyOption(projectOptions, form.departmentProject).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("departmentProject")}</div>
-    <div id="schedule-location"><Label>4. Location *</Label><Select value={form.location ?? ""} disabled={locations.isLoading || ro("location")} onValueChange={v => field("location", v)}><SelectTrigger aria-invalid={!!errors.location} className={invalid("location")}><SelectValue placeholder="Select location"/></SelectTrigger><SelectContent>{withLegacyOption(locations.options, form.location).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("location")}</div>
+     <div id="schedule-location"><Label>4. Location (GPS) *</Label><Button type="button" variant="outline" className={`w-full justify-start ${invalid("location")}`} onClick={captureGps} disabled={ro("location")}><MapPin className="mr-2 size-4" />Capture GPS</Button>{form.gpsLat != null && form.gpsLng != null && <p className="mt-2 text-xs text-muted-foreground">{form.gpsLat.toFixed(5)}, {form.gpsLng.toFixed(5)}</p>}{error("location")}</div>
     <div id="schedule-title"><Label>5. Audit Title *</Label><Input aria-invalid={!!errors.title} className={invalid("title")} value={form.title} disabled={ro("title")} onChange={e => field("title", e.target.value)}/>{error("title")}</div>
     <div id="schedule-processProductOwner"><Label>6. Process / Product Owner *</Label><Select value={form.processProductOwner ?? ""} disabled={processOwners.isLoading || ro("processProductOwner")} onValueChange={v => field("processProductOwner", v)}><SelectTrigger aria-invalid={!!errors.processProductOwner} className={invalid("processProductOwner")}><SelectValue placeholder="Select owner"/></SelectTrigger><SelectContent>{withLegacyOption(processOwners.options, form.processProductOwner).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("processProductOwner")}</div>
     <div className="grid grid-cols-2 gap-3"><div id="schedule-plannedStartDate"><Label>7. From Date *</Label><Input aria-invalid={!!errors.plannedStartDate} className={invalid("plannedStartDate")} type="date" value={form.plannedStartDate.slice(0,10)} disabled={ro("plannedStartDate")} onChange={e => field("plannedStartDate", e.target.value)}/>{error("plannedStartDate")}</div><div id="schedule-plannedEndDate"><Label>To Date *</Label><Input aria-invalid={!!errors.plannedEndDate} className={invalid("plannedEndDate")} type="date" value={form.plannedEndDate.slice(0,10)} disabled={ro("plannedEndDate")} onChange={e => field("plannedEndDate", e.target.value)}/>{error("plannedEndDate")}</div></div>

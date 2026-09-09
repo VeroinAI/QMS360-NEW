@@ -332,6 +332,19 @@ describe("field-controls enforcement over HTTP (audit schedule)", () => {
     scheduleId = res.json.id;
   });
 
+  it("persists GPS coordinates for a schedule location", async () => {
+    const gpsLat = 12.345678;
+    const gpsLng = 77.123456;
+    const res = await api("POST", "/audit/schedules", {
+      token: admin.token,
+      body: scheduleBody({ location: `${gpsLat}, ${gpsLng}`, gpsLat, gpsLng }),
+    });
+    expect(res.status).toBe(201);
+    expect(res.json.location).toBe(`${gpsLat}, ${gpsLng}`);
+    expect(res.json.gpsLat).toBe(gpsLat);
+    expect(res.json.gpsLng).toBe(gpsLng);
+  });
+
   it("rejects a non-admin update that writes the read-only remarks field", async () => {
     const res = await api("PUT", `/audit/schedules/${scheduleId}`, { token: member.token, body: scheduleBody({ id: scheduleId, remarks: "Edited remarks" }) });
     await expectUnprocessable(res, "remarks");

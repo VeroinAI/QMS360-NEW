@@ -5072,6 +5072,12 @@ export const listAuditSchedulesResponseOneTotalMin = 0;
 
 
 
+export const listAuditSchedulesResponseTwoItemsItemGpsLatMin = -90;
+export const listAuditSchedulesResponseTwoItemsItemGpsLatMax = 90;
+
+export const listAuditSchedulesResponseTwoItemsItemGpsLngMin = -180;
+export const listAuditSchedulesResponseTwoItemsItemGpsLngMax = 180;
+
 
 
 export const ListAuditSchedulesResponse = zod.object({
@@ -5087,7 +5093,9 @@ export const ListAuditSchedulesResponse = zod.object({
   "auditTypes": zod.array(zod.string().describe('Values managed via \/platform\/master-data\/lov\/audit_types')).optional(),
   "auditCategory": zod.string().optional(),
   "departmentProject": zod.string().optional(),
-  "location": zod.string().optional(),
+  "location": zod.string().optional().describe('GPS coordinates formatted as latitude, longitude'),
+  "gpsLat": zod.number().min(listAuditSchedulesResponseTwoItemsItemGpsLatMin).max(listAuditSchedulesResponseTwoItemsItemGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(listAuditSchedulesResponseTwoItemsItemGpsLngMin).max(listAuditSchedulesResponseTwoItemsItemGpsLngMax).nullish(),
   "processProductOwner": zod.string().optional(),
   "plannedStartDate": zod.coerce.date(),
   "plannedEndDate": zod.coerce.date(),
@@ -5116,6 +5124,14 @@ export const ListAuditSchedulesResponse = zod.object({
 /**
  * @summary Create audit schedule
  */
+export const createAuditScheduleBodyGpsLatMin = -90;
+export const createAuditScheduleBodyGpsLatMax = 90;
+
+export const createAuditScheduleBodyGpsLngMin = -180;
+export const createAuditScheduleBodyGpsLngMax = 180;
+
+
+
 export const CreateAuditScheduleBody = zod.object({
   "id": zod.string(),
   "year": zod.number(),
@@ -5124,7 +5140,9 @@ export const CreateAuditScheduleBody = zod.object({
   "auditTypes": zod.array(zod.string().describe('Values managed via \/platform\/master-data\/lov\/audit_types')).optional(),
   "auditCategory": zod.string().optional(),
   "departmentProject": zod.string().optional(),
-  "location": zod.string().optional(),
+  "location": zod.string().optional().describe('GPS coordinates formatted as latitude, longitude'),
+  "gpsLat": zod.number().min(createAuditScheduleBodyGpsLatMin).max(createAuditScheduleBodyGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(createAuditScheduleBodyGpsLngMin).max(createAuditScheduleBodyGpsLngMax).nullish(),
   "processProductOwner": zod.string().optional(),
   "plannedStartDate": zod.coerce.date(),
   "plannedEndDate": zod.coerce.date(),
@@ -5158,6 +5176,14 @@ export const GetAuditScheduleParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getAuditScheduleResponseGpsLatMin = -90;
+export const getAuditScheduleResponseGpsLatMax = 90;
+
+export const getAuditScheduleResponseGpsLngMin = -180;
+export const getAuditScheduleResponseGpsLngMax = 180;
+
+
+
 export const GetAuditScheduleResponse = zod.object({
   "id": zod.string(),
   "year": zod.number(),
@@ -5166,7 +5192,9 @@ export const GetAuditScheduleResponse = zod.object({
   "auditTypes": zod.array(zod.string().describe('Values managed via \/platform\/master-data\/lov\/audit_types')).optional(),
   "auditCategory": zod.string().optional(),
   "departmentProject": zod.string().optional(),
-  "location": zod.string().optional(),
+  "location": zod.string().optional().describe('GPS coordinates formatted as latitude, longitude'),
+  "gpsLat": zod.number().min(getAuditScheduleResponseGpsLatMin).max(getAuditScheduleResponseGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(getAuditScheduleResponseGpsLngMin).max(getAuditScheduleResponseGpsLngMax).nullish(),
   "processProductOwner": zod.string().optional(),
   "plannedStartDate": zod.coerce.date(),
   "plannedEndDate": zod.coerce.date(),
@@ -5198,6 +5226,14 @@ export const UpdateAuditScheduleParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const updateAuditScheduleBodyGpsLatMin = -90;
+export const updateAuditScheduleBodyGpsLatMax = 90;
+
+export const updateAuditScheduleBodyGpsLngMin = -180;
+export const updateAuditScheduleBodyGpsLngMax = 180;
+
+
+
 export const UpdateAuditScheduleBody = zod.object({
   "id": zod.string(),
   "year": zod.number(),
@@ -5206,7 +5242,9 @@ export const UpdateAuditScheduleBody = zod.object({
   "auditTypes": zod.array(zod.string().describe('Values managed via \/platform\/master-data\/lov\/audit_types')).optional(),
   "auditCategory": zod.string().optional(),
   "departmentProject": zod.string().optional(),
-  "location": zod.string().optional(),
+  "location": zod.string().optional().describe('GPS coordinates formatted as latitude, longitude'),
+  "gpsLat": zod.number().min(updateAuditScheduleBodyGpsLatMin).max(updateAuditScheduleBodyGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(updateAuditScheduleBodyGpsLngMin).max(updateAuditScheduleBodyGpsLngMax).nullish(),
   "processProductOwner": zod.string().optional(),
   "plannedStartDate": zod.coerce.date(),
   "plannedEndDate": zod.coerce.date(),
@@ -6120,6 +6158,12 @@ export const getAuditScheduleReportResponseOneTotalMin = 0;
 
 
 
+export const getAuditScheduleReportResponseTwoItemsItemGpsLatMin = -90;
+export const getAuditScheduleReportResponseTwoItemsItemGpsLatMax = 90;
+
+export const getAuditScheduleReportResponseTwoItemsItemGpsLngMin = -180;
+export const getAuditScheduleReportResponseTwoItemsItemGpsLngMax = 180;
+
 
 
 export const GetAuditScheduleReportResponse = zod.object({
@@ -6135,7 +6179,9 @@ export const GetAuditScheduleReportResponse = zod.object({
   "auditTypes": zod.array(zod.string().describe('Values managed via \/platform\/master-data\/lov\/audit_types')).optional(),
   "auditCategory": zod.string().optional(),
   "departmentProject": zod.string().optional(),
-  "location": zod.string().optional(),
+  "location": zod.string().optional().describe('GPS coordinates formatted as latitude, longitude'),
+  "gpsLat": zod.number().min(getAuditScheduleReportResponseTwoItemsItemGpsLatMin).max(getAuditScheduleReportResponseTwoItemsItemGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(getAuditScheduleReportResponseTwoItemsItemGpsLngMin).max(getAuditScheduleReportResponseTwoItemsItemGpsLngMax).nullish(),
   "processProductOwner": zod.string().optional(),
   "plannedStartDate": zod.coerce.date(),
   "plannedEndDate": zod.coerce.date(),

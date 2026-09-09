@@ -1996,7 +1996,9 @@ components:
         auditTypes: {type: array, items: {type: string, description: "Values managed via /platform/master-data/lov/audit_types"}}
         auditCategory: {type: string}
         departmentProject: {type: string}
-        location: {type: string}
+        location: {type: string, description: "GPS coordinates formatted as latitude, longitude"}
+        gpsLat: {type: [number, "null"], minimum: -90, maximum: 90}
+        gpsLng: {type: [number, "null"], minimum: -180, maximum: 180}
         processProductOwner: {type: string}
         plannedStartDate: {type: string, format: date}
         plannedEndDate: {type: string, format: date}

@@ -1595,7 +1595,20 @@ export interface AuditSchedule {
   auditTypes?: string[];
   auditCategory?: string;
   departmentProject?: string;
+  /** GPS coordinates formatted as latitude, longitude */
   location?: string;
+  /**
+     * @minimum -90
+     * @maximum 90
+     * @nullable
+     */
+  gpsLat?: number | null;
+  /**
+     * @minimum -180
+     * @maximum 180
+     * @nullable
+     */
+  gpsLng?: number | null;
   processProductOwner?: string;
   plannedStartDate: string;
   plannedEndDate: string;
