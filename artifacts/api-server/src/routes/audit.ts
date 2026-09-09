@@ -805,7 +805,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
   const assignments = rows.length ? await db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), inArray(auditUserWorkspaceRoles.userId, rows.map((x) => x.id)), isNull(auditUserWorkspaceRoles.deletedAt))) : [];
   const roles = assignments.length ? await db.select().from(auditWorkspaceRoles).where(inArray(auditWorkspaceRoles.id, assignments.map((x) => x.workspaceRoleId))) : [];
   res.json(paginated(rows.map((x) => ({
-    id: x.id, username: x.username, email: x.email, platformRole: availablePlatformRoles.find((role) => role.id === x.platformRoleId)?.name ?? "Employee",
+    id: x.id, username: x.username, fullName: x.fullName, email: x.email, platformRole: availablePlatformRoles.find((role) => role.id === x.platformRoleId)?.name ?? "Employee",
     workspaceRoles: roles.filter((role) => assignments.some((a) => a.userId === x.id && a.workspaceRoleId === role.id)).map((role) => ({ id: role.id, name: role.name, description: role.description, permissions: [], active: role.status === "active", systemDefault: role.isSystem })),
     status: x.accessStatus === "active" ? "Active" : x.accessStatus === "deactivated" ? "Deactivated" : "Not Requested", lastAccessAt: x.lastAccessAt,
   })), Number(count), page, limit));

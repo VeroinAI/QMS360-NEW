@@ -1864,8 +1864,8 @@ components:
       properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, business_unit, project]}, scopeIds: {type: array, items: {type: string}}}
     WorkspaceUser:
       type: object
-      required: [id, username, platformRole, workspaceRoles, status]
-      properties: {id: {type: string}, username: {type: string}, email: {type: [string, "null"]}, designation: {type: [string, "null"]}, signatureUrl: {type: [string, "null"]}, platformRole: {type: string}, workspaceRoles: {type: array, items: {$ref: "#/components/schemas/Role"}}, status: {type: string, enum: [Not Requested, Active, Deactivated]}, lastAccessAt: {type: [string, "null"], format: date-time}}
+      required: [id, username, fullName, platformRole, workspaceRoles, status]
+      properties: {id: {type: string}, username: {type: string}, fullName: {type: string}, email: {type: [string, "null"]}, designation: {type: [string, "null"]}, signatureUrl: {type: [string, "null"]}, platformRole: {type: string}, workspaceRoles: {type: array, items: {$ref: "#/components/schemas/Role"}}, status: {type: string, enum: [Not Requested, Active, Deactivated]}, lastAccessAt: {type: [string, "null"], format: date-time}}
     PlatformRole:
       type: object
       required: [id, name]

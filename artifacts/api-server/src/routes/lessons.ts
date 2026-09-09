@@ -899,7 +899,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
     db.select().from(platformRoles),
   ]);
   const rolePayload = new Map((await Promise.all(roles.map(roleJson))).map((r) => [r.id, r]));
-  res.json(paginated(rows.map((u) => ({ id: u.id, username: u.username, email: u.email, designation: u.designation, signatureUrl: u.signaturePath ? `/api/lessons/users/${u.id}/signature` : null, platformRole: platform.find((p) => p.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: assignments.filter((a) => a.userId === u.id).map((a) => rolePayload.get(a.workspaceRoleId)).filter(Boolean), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt })), Number(count[0]?.count ?? 0), page, limit));
+  res.json(paginated(rows.map((u) => ({ id: u.id, username: u.username, fullName: u.fullName, email: u.email, designation: u.designation, signatureUrl: u.signaturePath ? `/api/lessons/users/${u.id}/signature` : null, platformRole: platform.find((p) => p.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: assignments.filter((a) => a.userId === u.id).map((a) => rolePayload.get(a.workspaceRoleId)).filter(Boolean), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt })), Number(count[0]?.count ?? 0), page, limit));
 }));
 
 /** Admin: update a user's designation and signature image (used on lesson approval records). */

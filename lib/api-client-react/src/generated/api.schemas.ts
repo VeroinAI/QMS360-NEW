@@ -1065,6 +1065,7 @@ export const WorkspaceUserStatus = {
 export interface WorkspaceUser {
   id: string;
   username: string;
+  fullName: string;
   /** @nullable */
   email?: string | null;
   /** @nullable */

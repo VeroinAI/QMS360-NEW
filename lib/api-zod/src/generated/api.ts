@@ -3178,6 +3178,7 @@ export const ListQaqcUsersResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "username": zod.string(),
+  "fullName": zod.string(),
   "email": zod.string().nullish(),
   "designation": zod.string().nullish(),
   "signatureUrl": zod.string().nullish(),
@@ -4602,6 +4603,7 @@ export const ListLessonsUsersResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "username": zod.string(),
+  "fullName": zod.string(),
   "email": zod.string().nullish(),
   "designation": zod.string().nullish(),
   "signatureUrl": zod.string().nullish(),
@@ -6521,6 +6523,7 @@ export const ListAuditUsersResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "username": zod.string(),
+  "fullName": zod.string(),
   "email": zod.string().nullish(),
   "designation": zod.string().nullish(),
   "signatureUrl": zod.string().nullish(),
