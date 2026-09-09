@@ -47,6 +47,7 @@ export interface LessonLearnedForm {
   creatorId?: string;
   /** @nullable */
   approverId?: string | null;
+  readonly canReview?: boolean;
   /** @minimum 1 */
   version: number;
   conflictFlag: boolean;

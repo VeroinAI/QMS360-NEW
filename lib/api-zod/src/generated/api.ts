@@ -23,7 +23,6 @@ export const HealthCheckResponse = zod.object({
 export const loginBodyPasswordMin = 8;
 
 
-
 export const LoginBody = zod.object({
   "email": zod.string(),
   "password": zod.string().min(loginBodyPasswordMin)
@@ -53,7 +52,6 @@ export const registerBodyFullNameMin = 2;
 export const registerBodyUsernameMin = 2;
 
 
-
 export const RegisterBody = zod.object({
   "email": zod.string(),
   "password": zod.string().min(registerBodyPasswordMin),
@@ -80,7 +78,6 @@ export const RegisterResponse = zod.object({
  * @summary Stub container profile handoff
  */
 export const containerSsoBodyUsernameMin = 2;
-
 
 
 export const ContainerSsoBody = zod.object({
@@ -124,7 +121,6 @@ export const changePasswordBodyPasswordMin = 8;
 export const changePasswordBodyPasswordMax = 128;
 
 
-
 export const ChangePasswordBody = zod.object({
   "password": zod.string().min(changePasswordBodyPasswordMin).max(changePasswordBodyPasswordMax)
 })
@@ -150,7 +146,6 @@ export const LogoutResponse = zod.void()
  * @summary Get shared platform context
  */
 export const getPlatformContextResponseAppsItemWorkspaceRoleCountMin = 0;
-
 
 
 export const GetPlatformContextResponse = zod.object({
@@ -198,16 +193,12 @@ export const listPlatformProjectsQueryLimitDefault = 20;
 export const listPlatformProjectsQueryLimitMax = 200;
 
 
-
 export const ListPlatformProjectsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listPlatformProjectsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listPlatformProjectsQueryLimitMax).default(listPlatformProjectsQueryLimitDefault)
 })
 
 export const listPlatformProjectsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListPlatformProjectsResponse = zod.object({
@@ -235,16 +226,12 @@ export const listBusinessUnitsQueryLimitDefault = 20;
 export const listBusinessUnitsQueryLimitMax = 200;
 
 
-
 export const ListBusinessUnitsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listBusinessUnitsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listBusinessUnitsQueryLimitMax).default(listBusinessUnitsQueryLimitDefault)
 })
 
 export const listBusinessUnitsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListBusinessUnitsResponse = zod.object({
@@ -280,7 +267,6 @@ export const SetUserTemporaryPasswordParams = zod.object({
 
 export const setUserTemporaryPasswordBodyPasswordMin = 8;
 export const setUserTemporaryPasswordBodyPasswordMax = 128;
-
 
 
 export const SetUserTemporaryPasswordBody = zod.object({
@@ -459,7 +445,6 @@ export const updateNumberingPatternBodyStartingNumberMin = 0;
 export const updateNumberingPatternBodyStartingNumberMax = 1000000000000;
 
 
-
 export const UpdateNumberingPatternBody = zod.object({
   "prefix": zod.string().max(updateNumberingPatternBodyPrefixMax),
   "suffix": zod.string().max(updateNumberingPatternBodySuffixMax),
@@ -513,7 +498,6 @@ export const getOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMin = 
 export const getOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMax = 6;
 
 
-
 export const GetOrganizationSettingsResponse = zod.object({
   "organizationName": zod.string(),
   "logoUrl": zod.string().nullish(),
@@ -544,7 +528,6 @@ export const updateOrganizationSettingsBodyWorkingCalendarWorkingDaysItemMin = 0
 export const updateOrganizationSettingsBodyWorkingCalendarWorkingDaysItemMax = 6;
 
 
-
 export const UpdateOrganizationSettingsBody = zod.object({
   "organizationName": zod.string(),
   "logoUrl": zod.string().nullish(),
@@ -569,7 +552,6 @@ export const UpdateOrganizationSettingsBody = zod.object({
 
 export const updateOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMin = 0;
 export const updateOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMax = 6;
-
 
 
 export const UpdateOrganizationSettingsResponse = zod.object({
@@ -683,8 +665,6 @@ export const UpdateMasterDataGroupParams = zod.object({
 })
 
 
-
-
 export const UpdateMasterDataGroupBody = zod.object({
   "name": zod.string().min(1),
   "description": zod.string().optional(),
@@ -758,8 +738,6 @@ export const UpdateMasterDataValueParams = zod.object({
 })
 
 
-
-
 export const UpdateMasterDataValueBody = zod.object({
   "value": zod.string().min(1).optional(),
   "label": zod.string().optional(),
@@ -798,16 +776,12 @@ export const listIntegrationConnectorsQueryLimitDefault = 20;
 export const listIntegrationConnectorsQueryLimitMax = 200;
 
 
-
 export const ListIntegrationConnectorsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listIntegrationConnectorsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listIntegrationConnectorsQueryLimitMax).default(listIntegrationConnectorsQueryLimitDefault)
 })
 
 export const listIntegrationConnectorsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListIntegrationConnectorsResponse = zod.object({
@@ -830,7 +804,6 @@ export const ListIntegrationConnectorsResponse = zod.object({
 /**
  * @summary Create an integration connector (admin only)
  */
-
 
 
 export const CreateIntegrationConnectorBody = zod.object({
@@ -934,9 +907,6 @@ export const ListImportTemplatesQueryParams = zod.object({
 })
 
 
-
-
-
 export const ListImportTemplatesResponseItem = zod.object({
   "id": zod.string(),
   "entity": zod.enum(['projects', 'users']),
@@ -957,9 +927,6 @@ export const ListImportTemplatesResponse = zod.array(ListImportTemplatesResponse
  */
 
 
-
-
-
 export const CreateImportTemplateBody = zod.object({
   "entity": zod.enum(['projects', 'users']),
   "name": zod.string().min(1),
@@ -969,9 +936,6 @@ export const CreateImportTemplateBody = zod.object({
   "required": zod.boolean()
 }))
 })
-
-
-
 
 
 export const CreateImportTemplateResponse = zod.object({
@@ -996,10 +960,6 @@ export const UpdateImportTemplateParams = zod.object({
 })
 
 
-
-
-
-
 export const UpdateImportTemplateBody = zod.object({
   "entity": zod.enum(['projects', 'users']),
   "name": zod.string().min(1),
@@ -1009,9 +969,6 @@ export const UpdateImportTemplateBody = zod.object({
   "required": zod.boolean()
 }))
 })
-
-
-
 
 
 export const UpdateImportTemplateResponse = zod.object({
@@ -1101,10 +1058,6 @@ export const SaveConnectorFieldMappingsParams = zod.object({
 })
 
 
-
-
-
-
 export const SaveConnectorFieldMappingsBody = zod.object({
   "entity": zod.string().min(1),
   "active": zod.boolean(),
@@ -1145,16 +1098,12 @@ export const listSyncJobsQueryLimitDefault = 20;
 export const listSyncJobsQueryLimitMax = 200;
 
 
-
 export const ListSyncJobsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listSyncJobsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listSyncJobsQueryLimitMax).default(listSyncJobsQueryLimitDefault)
 })
 
 export const listSyncJobsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListSyncJobsResponse = zod.object({
@@ -1307,16 +1256,12 @@ export const listPublishedExecutiveSummariesQueryLimitDefault = 20;
 export const listPublishedExecutiveSummariesQueryLimitMax = 200;
 
 
-
 export const ListPublishedExecutiveSummariesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listPublishedExecutiveSummariesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listPublishedExecutiveSummariesQueryLimitMax).default(listPublishedExecutiveSummariesQueryLimitDefault)
 })
 
 export const listPublishedExecutiveSummariesResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListPublishedExecutiveSummariesResponse = zod.object({
@@ -1342,7 +1287,6 @@ export const listFeedbackEntriesQueryPageDefault = 1;
 
 export const listFeedbackEntriesQueryLimitDefault = 20;
 export const listFeedbackEntriesQueryLimitMax = 200;
-
 
 
 export const ListFeedbackEntriesQueryParams = zod.object({
@@ -1394,7 +1338,6 @@ export const submitFeedbackBodyMessageMin = 5;
 export const submitFeedbackBodyMessageMax = 4000;
 
 export const submitFeedbackBodyPagePathMax = 500;
-
 
 
 export const SubmitFeedbackBody = zod.object({
@@ -1451,7 +1394,6 @@ export const listMyFeedbackEntriesQueryLimitDefault = 20;
 export const listMyFeedbackEntriesQueryLimitMax = 200;
 
 
-
 export const ListMyFeedbackEntriesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listMyFeedbackEntriesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listMyFeedbackEntriesQueryLimitMax).default(listMyFeedbackEntriesQueryLimitDefault)
@@ -1500,7 +1442,6 @@ export const triageFeedbackBodyMessageMin = 5;
 export const triageFeedbackBodyMessageMax = 4000;
 
 export const triageFeedbackBodyPagePathMax = 500;
-
 
 
 export const TriageFeedbackBody = zod.object({
@@ -1566,7 +1507,6 @@ export const UpdateFeedbackResolutionParams = zod.object({
 export const updateFeedbackResolutionBodyResponseMax = 4000;
 
 
-
 export const UpdateFeedbackResolutionBody = zod.object({
   "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
   "response": zod.string().max(updateFeedbackResolutionBodyResponseMax).nullish().describe('Optional response explaining what was reviewed, resolved, or closed')
@@ -1617,7 +1557,6 @@ export const createFeedbackAttachmentBodyMimeTypeMax = 150;
 export const createFeedbackAttachmentBodySizeBytesMax = 10485760;
 
 
-
 export const CreateFeedbackAttachmentBody = zod.object({
   "fileName": zod.string().min(1).max(createFeedbackAttachmentBodyFileNameMax),
   "mimeType": zod.string().min(1).max(createFeedbackAttachmentBodyMimeTypeMax),
@@ -1655,16 +1594,12 @@ export const listQaqcDisciplinesQueryLimitDefault = 20;
 export const listQaqcDisciplinesQueryLimitMax = 200;
 
 
-
 export const ListQaqcDisciplinesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcDisciplinesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcDisciplinesQueryLimitMax).default(listQaqcDisciplinesQueryLimitDefault)
 })
 
 export const listQaqcDisciplinesResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcDisciplinesResponse = zod.object({
@@ -1691,16 +1626,12 @@ export const listQaqcTargetsQueryLimitDefault = 20;
 export const listQaqcTargetsQueryLimitMax = 200;
 
 
-
 export const ListQaqcTargetsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcTargetsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcTargetsQueryLimitMax).default(listQaqcTargetsQueryLimitDefault)
 })
 
 export const listQaqcTargetsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcTargetsResponse = zod.object({
@@ -1727,16 +1658,12 @@ export const listQaqcDistributionListsQueryLimitDefault = 20;
 export const listQaqcDistributionListsQueryLimitMax = 200;
 
 
-
 export const ListQaqcDistributionListsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcDistributionListsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcDistributionListsQueryLimitMax).default(listQaqcDistributionListsQueryLimitDefault)
 })
 
 export const listQaqcDistributionListsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcDistributionListsResponse = zod.object({
@@ -1763,16 +1690,12 @@ export const listQaqcCategorisationQueryLimitDefault = 20;
 export const listQaqcCategorisationQueryLimitMax = 200;
 
 
-
 export const ListQaqcCategorisationQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcCategorisationQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcCategorisationQueryLimitMax).default(listQaqcCategorisationQueryLimitDefault)
 })
 
 export const listQaqcCategorisationResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcCategorisationResponse = zod.object({
@@ -1800,7 +1723,6 @@ export const listQaqcMetricsQueryLimitDefault = 20;
 export const listQaqcMetricsQueryLimitMax = 200;
 
 
-
 export const ListQaqcMetricsQueryParams = zod.object({
   "projectId": zod.coerce.string().optional(),
   "period": zod.coerce.string().regex(listQaqcMetricsQueryPeriodRegExp).optional(),
@@ -1809,7 +1731,6 @@ export const ListQaqcMetricsQueryParams = zod.object({
 })
 
 export const listQaqcMetricsResponseOneTotalMin = 0;
-
 
 
 export const listQaqcMetricsResponseTwoItemsItemIssuedCountMin = 0;
@@ -1821,7 +1742,6 @@ export const listQaqcMetricsResponseTwoItemsItemAgeing0To15Min = 0;
 export const listQaqcMetricsResponseTwoItemsItemAgeing15To45Min = 0;
 
 export const listQaqcMetricsResponseTwoItemsItemAgeingOver45Min = 0;
-
 
 
 export const ListQaqcMetricsResponse = zod.object({
@@ -1865,7 +1785,6 @@ export const createQaqcMetricBodyAgeing15To45Min = 0;
 export const createQaqcMetricBodyAgeingOver45Min = 0;
 
 
-
 export const CreateQaqcMetricBody = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -1890,7 +1809,6 @@ export const createQaqcMetricResponseAgeing0To15Min = 0;
 export const createQaqcMetricResponseAgeing15To45Min = 0;
 
 export const createQaqcMetricResponseAgeingOver45Min = 0;
-
 
 
 export const CreateQaqcMetricResponse = zod.object({
@@ -1932,7 +1850,6 @@ export const updateQaqcMetricBodyAgeing15To45Min = 0;
 export const updateQaqcMetricBodyAgeingOver45Min = 0;
 
 
-
 export const UpdateQaqcMetricBody = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -1957,7 +1874,6 @@ export const updateQaqcMetricResponseAgeing0To15Min = 0;
 export const updateQaqcMetricResponseAgeing15To45Min = 0;
 
 export const updateQaqcMetricResponseAgeingOver45Min = 0;
-
 
 
 export const UpdateQaqcMetricResponse = zod.object({
@@ -2025,7 +1941,6 @@ export const submitQaqcMetricResponseAgeing15To45Min = 0;
 export const submitQaqcMetricResponseAgeingOver45Min = 0;
 
 
-
 export const SubmitQaqcMetricResponse = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2070,7 +1985,6 @@ export const reviewQaqcMetricResponseAgeing15To45Min = 0;
 export const reviewQaqcMetricResponseAgeingOver45Min = 0;
 
 
-
 export const ReviewQaqcMetricResponse = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2101,14 +2015,12 @@ export const listMaterialInspectionsQueryLimitDefault = 20;
 export const listMaterialInspectionsQueryLimitMax = 200;
 
 
-
 export const ListMaterialInspectionsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listMaterialInspectionsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listMaterialInspectionsQueryLimitMax).default(listMaterialInspectionsQueryLimitDefault)
 })
 
 export const listMaterialInspectionsResponseOneTotalMin = 0;
-
 
 
 export const listMaterialInspectionsResponseTwoItemsItemMirnTotalMin = 0;
@@ -2124,7 +2036,6 @@ export const listMaterialInspectionsResponseTwoItemsItemRejectedMin = 0;
 export const listMaterialInspectionsResponseTwoItemsItemHazardousMin = 0;
 
 export const listMaterialInspectionsResponseTwoItemsItemHandleWithCareMin = 0;
-
 
 
 export const ListMaterialInspectionsResponse = zod.object({
@@ -2165,7 +2076,6 @@ export const createMaterialInspectionBodyHazardousMin = 0;
 export const createMaterialInspectionBodyHandleWithCareMin = 0;
 
 
-
 export const CreateMaterialInspectionBody = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2192,7 +2102,6 @@ export const createMaterialInspectionResponseRejectedMin = 0;
 export const createMaterialInspectionResponseHazardousMin = 0;
 
 export const createMaterialInspectionResponseHandleWithCareMin = 0;
-
 
 
 export const CreateMaterialInspectionResponse = zod.object({
@@ -2231,7 +2140,6 @@ export const updateMaterialInspectionBodyHazardousMin = 0;
 export const updateMaterialInspectionBodyHandleWithCareMin = 0;
 
 
-
 export const UpdateMaterialInspectionBody = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2258,7 +2166,6 @@ export const updateMaterialInspectionResponseRejectedMin = 0;
 export const updateMaterialInspectionResponseHazardousMin = 0;
 
 export const updateMaterialInspectionResponseHandleWithCareMin = 0;
-
 
 
 export const UpdateMaterialInspectionResponse = zod.object({
@@ -2294,7 +2201,6 @@ export const listQtbtEntriesQueryLimitDefault = 20;
 export const listQtbtEntriesQueryLimitMax = 200;
 
 
-
 export const ListQtbtEntriesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQtbtEntriesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQtbtEntriesQueryLimitMax).default(listQtbtEntriesQueryLimitDefault)
@@ -2303,13 +2209,11 @@ export const ListQtbtEntriesQueryParams = zod.object({
 export const listQtbtEntriesResponseOneTotalMin = 0;
 
 
-
 export const listQtbtEntriesResponseTwoItemsItemTalkCountMin = 0;
 
 export const listQtbtEntriesResponseTwoItemsItemAttendanceMin = 0;
 
 export const listQtbtEntriesResponseTwoItemsItemDurationMinutesMin = 0;
-
 
 
 export const ListQtbtEntriesResponse = zod.object({
@@ -2339,7 +2243,6 @@ export const createQtbtEntryBodyAttendanceMin = 0;
 export const createQtbtEntryBodyDurationMinutesMin = 0;
 
 
-
 export const CreateQtbtEntryBody = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2364,7 +2267,6 @@ export const updateQtbtEntryBodyTalkCountMin = 0;
 export const updateQtbtEntryBodyAttendanceMin = 0;
 
 export const updateQtbtEntryBodyDurationMinutesMin = 0;
-
 
 
 export const UpdateQtbtEntryBody = zod.object({
@@ -2398,7 +2300,6 @@ export const listCustomerSatisfactionEntriesQueryLimitDefault = 20;
 export const listCustomerSatisfactionEntriesQueryLimitMax = 200;
 
 
-
 export const ListCustomerSatisfactionEntriesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listCustomerSatisfactionEntriesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listCustomerSatisfactionEntriesQueryLimitMax).default(listCustomerSatisfactionEntriesQueryLimitDefault)
@@ -2407,12 +2308,10 @@ export const ListCustomerSatisfactionEntriesQueryParams = zod.object({
 export const listCustomerSatisfactionEntriesResponseOneTotalMin = 0;
 
 
-
 export const listCustomerSatisfactionEntriesResponseTwoItemsItemServiceRatingsItemMax = 5;
 
 export const listCustomerSatisfactionEntriesResponseTwoItemsItemServiceRatingsMin = 6;
 export const listCustomerSatisfactionEntriesResponseTwoItemsItemServiceRatingsMax = 6;
-
 
 
 export const ListCustomerSatisfactionEntriesResponse = zod.object({
@@ -2440,7 +2339,6 @@ export const createCustomerSatisfactionEntryBodyServiceRatingsMin = 6;
 export const createCustomerSatisfactionEntryBodyServiceRatingsMax = 6;
 
 
-
 export const CreateCustomerSatisfactionEntryBody = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2464,7 +2362,6 @@ export const updateCustomerSatisfactionEntryBodyServiceRatingsItemMax = 5;
 
 export const updateCustomerSatisfactionEntryBodyServiceRatingsMin = 6;
 export const updateCustomerSatisfactionEntryBodyServiceRatingsMax = 6;
-
 
 
 export const UpdateCustomerSatisfactionEntryBody = zod.object({
@@ -2498,7 +2395,6 @@ export const listDocumentGovernanceLogQueryLimitDefault = 20;
 export const listDocumentGovernanceLogQueryLimitMax = 200;
 
 
-
 export const ListDocumentGovernanceLogQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listDocumentGovernanceLogQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listDocumentGovernanceLogQueryLimitMax).default(listDocumentGovernanceLogQueryLimitDefault)
@@ -2507,13 +2403,11 @@ export const ListDocumentGovernanceLogQueryParams = zod.object({
 export const listDocumentGovernanceLogResponseOneTotalMin = 0;
 
 
-
 export const listDocumentGovernanceLogResponseTwoItemsItemReviewDaysMin = 0;
 
 export const listDocumentGovernanceLogResponseTwoItemsItemPendingDaysMin = 0;
 
 export const listDocumentGovernanceLogResponseTwoItemsItemCorrespondenceCountMin = 0;
-
 
 
 export const ListDocumentGovernanceLogResponse = zod.object({
@@ -2546,7 +2440,6 @@ export const createDocumentGovernanceEntryBodyPendingDaysMin = 0;
 export const createDocumentGovernanceEntryBodyCorrespondenceCountMin = 0;
 
 
-
 export const CreateDocumentGovernanceEntryBody = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2575,7 +2468,6 @@ export const updateDocumentGovernanceEntryBodyReviewDaysMin = 0;
 export const updateDocumentGovernanceEntryBodyPendingDaysMin = 0;
 
 export const updateDocumentGovernanceEntryBodyCorrespondenceCountMin = 0;
-
 
 
 export const UpdateDocumentGovernanceEntryBody = zod.object({
@@ -2613,16 +2505,12 @@ export const listQualityBriefsQueryLimitDefault = 20;
 export const listQualityBriefsQueryLimitMax = 200;
 
 
-
 export const ListQualityBriefsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQualityBriefsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQualityBriefsQueryLimitMax).default(listQualityBriefsQueryLimitDefault)
 })
 
 export const listQualityBriefsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQualityBriefsResponse = zod.object({
@@ -2838,7 +2726,6 @@ export const importQaqcMetricsBodyAgeing15To45Min = 0;
 export const importQaqcMetricsBodyAgeingOver45Min = 0;
 
 
-
 export const ImportQaqcMetricsBodyItem = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2874,16 +2761,12 @@ export const listQaqcApprovalsQueryLimitDefault = 20;
 export const listQaqcApprovalsQueryLimitMax = 200;
 
 
-
 export const ListQaqcApprovalsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcApprovalsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcApprovalsQueryLimitMax).default(listQaqcApprovalsQueryLimitDefault)
 })
 
 export const listQaqcApprovalsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcApprovalsResponse = zod.object({
@@ -2967,7 +2850,6 @@ export const listQaqcEvidenceQueryLimitDefault = 20;
 export const listQaqcEvidenceQueryLimitMax = 200;
 
 
-
 export const ListQaqcEvidenceQueryParams = zod.object({
   "recordType": zod.coerce.string(),
   "recordId": zod.coerce.string(),
@@ -2976,9 +2858,6 @@ export const ListQaqcEvidenceQueryParams = zod.object({
 })
 
 export const listQaqcEvidenceResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcEvidenceResponse = zod.object({
@@ -3007,7 +2886,6 @@ export const ListQaqcEvidenceResponse = zod.object({
 /**
  * @summary Create evidence upload intent
  */
-
 
 
 export const CreateQaqcEvidenceIntentBody = zod.object({
@@ -3078,16 +2956,12 @@ export const listQaqcRolesQueryLimitDefault = 20;
 export const listQaqcRolesQueryLimitMax = 200;
 
 
-
 export const ListQaqcRolesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcRolesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcRolesQueryLimitMax).default(listQaqcRolesQueryLimitDefault)
 })
 
 export const listQaqcRolesResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcRolesResponse = zod.object({
@@ -3158,16 +3032,12 @@ export const listQaqcUsersQueryLimitDefault = 20;
 export const listQaqcUsersQueryLimitMax = 200;
 
 
-
 export const ListQaqcUsersQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcUsersQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcUsersQueryLimitMax).default(listQaqcUsersQueryLimitDefault)
 })
 
 export const listQaqcUsersResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcUsersResponse = zod.object({
@@ -3236,16 +3106,12 @@ export const listQaqcAccessQueueQueryLimitDefault = 20;
 export const listQaqcAccessQueueQueryLimitMax = 200;
 
 
-
 export const ListQaqcAccessQueueQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcAccessQueueQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcAccessQueueQueryLimitMax).default(listQaqcAccessQueueQueryLimitDefault)
 })
 
 export const listQaqcAccessQueueResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcAccessQueueResponse = zod.object({
@@ -3295,16 +3161,12 @@ export const listQaqcDelegationsQueryLimitDefault = 20;
 export const listQaqcDelegationsQueryLimitMax = 200;
 
 
-
 export const ListQaqcDelegationsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcDelegationsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcDelegationsQueryLimitMax).default(listQaqcDelegationsQueryLimitDefault)
 })
 
 export const listQaqcDelegationsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcDelegationsResponse = zod.object({
@@ -3360,10 +3222,7 @@ export const RevokeQaqcDelegationResponse = zod.void()
 export const listQaqcEscalationRulesResponseOneTotalMin = 0;
 
 
-
 export const listQaqcEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin = 0;
-
-
 
 
 export const ListQaqcEscalationRulesResponse = zod.object({
@@ -3391,8 +3250,6 @@ export const ListQaqcEscalationRulesResponse = zod.object({
 export const updateQaqcEscalationRulesBodySlaWorkingDaysMin = 0;
 
 
-
-
 export const UpdateQaqcEscalationRulesBodyItem = zod.object({
   "id": zod.string(),
   "triggerType": zod.string(),
@@ -3414,7 +3271,6 @@ export const UpdateQaqcEscalationRulesResponse = zod.unknown()
  */
 
 
-
 export const GetQaqcAiSettingsResponse = zod.object({
   "enabled": zod.boolean(),
   "features": zod.record(zod.string(), zod.boolean()),
@@ -3430,7 +3286,6 @@ export const GetQaqcAiSettingsResponse = zod.object({
 /**
  * @summary Update AI settings
  */
-
 
 
 export const UpdateQaqcAiSettingsBody = zod.object({
@@ -3479,7 +3334,6 @@ export const listQaqcAuditLogQueryLimitDefault = 20;
 export const listQaqcAuditLogQueryLimitMax = 200;
 
 
-
 export const ListQaqcAuditLogQueryParams = zod.object({
   "from": zod.date().optional(),
   "to": zod.date().optional(),
@@ -3490,9 +3344,6 @@ export const ListQaqcAuditLogQueryParams = zod.object({
 })
 
 export const listQaqcAuditLogResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcAuditLogResponse = zod.object({
@@ -3525,16 +3376,12 @@ export const listQaqcNotificationTemplatesQueryLimitDefault = 20;
 export const listQaqcNotificationTemplatesQueryLimitMax = 200;
 
 
-
 export const ListQaqcNotificationTemplatesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcNotificationTemplatesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcNotificationTemplatesQueryLimitMax).default(listQaqcNotificationTemplatesQueryLimitDefault)
 })
 
 export const listQaqcNotificationTemplatesResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcNotificationTemplatesResponse = zod.object({
@@ -3583,16 +3430,12 @@ export const listQaqcNotificationsQueryLimitDefault = 20;
 export const listQaqcNotificationsQueryLimitMax = 200;
 
 
-
 export const ListQaqcNotificationsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listQaqcNotificationsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcNotificationsQueryLimitMax).default(listQaqcNotificationsQueryLimitDefault)
 })
 
 export const listQaqcNotificationsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListQaqcNotificationsResponse = zod.object({
@@ -3687,14 +3530,12 @@ export const listLessonFormsQueryLimitDefault = 20;
 export const listLessonFormsQueryLimitMax = 200;
 
 
-
 export const ListLessonFormsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listLessonFormsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listLessonFormsQueryLimitMax).default(listLessonFormsQueryLimitDefault)
 })
 
 export const listLessonFormsResponseOneTotalMin = 0;
-
 
 
 export const listLessonFormsResponseTwoItemsItemRepeatCountMin = 0;
@@ -3704,8 +3545,6 @@ export const listLessonFormsResponseTwoItemsItemGpsLatMax = 90;
 
 export const listLessonFormsResponseTwoItemsItemGpsLngMin = -180;
 export const listLessonFormsResponseTwoItemsItemGpsLngMax = 180;
-
-
 
 
 export const ListLessonFormsResponse = zod.object({
@@ -3735,6 +3574,7 @@ export const ListLessonFormsResponse = zod.object({
   "gpsLng": zod.number().min(listLessonFormsResponseTwoItemsItemGpsLngMin).max(listLessonFormsResponseTwoItemsItemGpsLngMax).nullish(),
   "creatorId": zod.string().optional(),
   "approverId": zod.string().nullish(),
+  "canReview": zod.boolean().optional(),
   "version": zod.number().min(1),
   "conflictFlag": zod.boolean(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
@@ -3778,8 +3618,6 @@ export const createLessonFormBodyGpsLatMax = 90;
 
 export const createLessonFormBodyGpsLngMin = -180;
 export const createLessonFormBodyGpsLngMax = 180;
-
-
 
 
 export const CreateLessonFormBody = zod.object({
@@ -3833,8 +3671,6 @@ export const createLessonFormResponseGpsLngMin = -180;
 export const createLessonFormResponseGpsLngMax = 180;
 
 
-
-
 export const CreateLessonFormResponse = zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
@@ -3857,6 +3693,7 @@ export const CreateLessonFormResponse = zod.object({
   "gpsLng": zod.number().min(createLessonFormResponseGpsLngMin).max(createLessonFormResponseGpsLngMax).nullish(),
   "creatorId": zod.string().optional(),
   "approverId": zod.string().nullish(),
+  "canReview": zod.boolean().optional(),
   "version": zod.number().min(1),
   "conflictFlag": zod.boolean(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
@@ -3905,8 +3742,6 @@ export const getLessonFormResponseGpsLngMin = -180;
 export const getLessonFormResponseGpsLngMax = 180;
 
 
-
-
 export const GetLessonFormResponse = zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
@@ -3929,6 +3764,7 @@ export const GetLessonFormResponse = zod.object({
   "gpsLng": zod.number().min(getLessonFormResponseGpsLngMin).max(getLessonFormResponseGpsLngMax).nullish(),
   "creatorId": zod.string().optional(),
   "approverId": zod.string().nullish(),
+  "canReview": zod.boolean().optional(),
   "version": zod.number().min(1),
   "conflictFlag": zod.boolean(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
@@ -3975,8 +3811,6 @@ export const updateLessonFormBodyGpsLatMax = 90;
 
 export const updateLessonFormBodyGpsLngMin = -180;
 export const updateLessonFormBodyGpsLngMax = 180;
-
-
 
 
 export const UpdateLessonFormBody = zod.object({
@@ -4030,8 +3864,6 @@ export const updateLessonFormResponseGpsLngMin = -180;
 export const updateLessonFormResponseGpsLngMax = 180;
 
 
-
-
 export const UpdateLessonFormResponse = zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
@@ -4054,6 +3886,7 @@ export const UpdateLessonFormResponse = zod.object({
   "gpsLng": zod.number().min(updateLessonFormResponseGpsLngMin).max(updateLessonFormResponseGpsLngMax).nullish(),
   "creatorId": zod.string().optional(),
   "approverId": zod.string().nullish(),
+  "canReview": zod.boolean().optional(),
   "version": zod.number().min(1),
   "conflictFlag": zod.boolean(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
@@ -4131,9 +3964,6 @@ export const ListLessonFormActivityParams = zod.object({
 export const listLessonFormActivityResponseOneTotalMin = 0;
 
 
-
-
-
 export const ListLessonFormActivityResponse = zod.object({
   "total": zod.number().min(listLessonFormActivityResponseOneTotalMin),
   "page": zod.number().min(1),
@@ -4161,8 +3991,6 @@ export const ListLessonFormActivityResponse = zod.object({
 export const CreateLessonPhotoIntentParams = zod.object({
   "id": zod.coerce.string()
 })
-
-
 
 
 export const CreateLessonPhotoIntentBody = zod.object({
@@ -4208,7 +4036,6 @@ export const searchLessonsLogQueryLimitDefault = 20;
 export const searchLessonsLogQueryLimitMax = 200;
 
 
-
 export const SearchLessonsLogQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "projectId": zod.coerce.string().optional(),
@@ -4226,7 +4053,6 @@ export const SearchLessonsLogQueryParams = zod.object({
 export const searchLessonsLogResponseOneTotalMin = 0;
 
 
-
 export const searchLessonsLogResponseTwoItemsItemRepeatCountMin = 0;
 
 export const searchLessonsLogResponseTwoItemsItemGpsLatMin = -90;
@@ -4234,8 +4060,6 @@ export const searchLessonsLogResponseTwoItemsItemGpsLatMax = 90;
 
 export const searchLessonsLogResponseTwoItemsItemGpsLngMin = -180;
 export const searchLessonsLogResponseTwoItemsItemGpsLngMax = 180;
-
-
 
 
 export const SearchLessonsLogResponse = zod.object({
@@ -4265,6 +4089,7 @@ export const SearchLessonsLogResponse = zod.object({
   "gpsLng": zod.number().min(searchLessonsLogResponseTwoItemsItemGpsLngMin).max(searchLessonsLogResponseTwoItemsItemGpsLngMax).nullish(),
   "creatorId": zod.string().optional(),
   "approverId": zod.string().nullish(),
+  "canReview": zod.boolean().optional(),
   "version": zod.number().min(1),
   "conflictFlag": zod.boolean(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
@@ -4363,16 +4188,12 @@ export const getLessonsEscalationsQueryLimitDefault = 20;
 export const getLessonsEscalationsQueryLimitMax = 200;
 
 
-
 export const GetLessonsEscalationsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(getLessonsEscalationsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(getLessonsEscalationsQueryLimitMax).default(getLessonsEscalationsQueryLimitDefault)
 })
 
 export const getLessonsEscalationsResponseOneTotalMin = 0;
-
-
-
 
 
 export const GetLessonsEscalationsResponse = zod.object({
@@ -4402,16 +4223,12 @@ export const getQaqcEscalationsQueryLimitDefault = 20;
 export const getQaqcEscalationsQueryLimitMax = 200;
 
 
-
 export const GetQaqcEscalationsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(getQaqcEscalationsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(getQaqcEscalationsQueryLimitMax).default(getQaqcEscalationsQueryLimitDefault)
 })
 
 export const getQaqcEscalationsResponseOneTotalMin = 0;
-
-
-
 
 
 export const GetQaqcEscalationsResponse = zod.object({
@@ -4441,16 +4258,12 @@ export const getAuditEscalationsQueryLimitDefault = 20;
 export const getAuditEscalationsQueryLimitMax = 200;
 
 
-
 export const GetAuditEscalationsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(getAuditEscalationsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(getAuditEscalationsQueryLimitMax).default(getAuditEscalationsQueryLimitDefault)
 })
 
 export const getAuditEscalationsResponseOneTotalMin = 0;
-
-
-
 
 
 export const GetAuditEscalationsResponse = zod.object({
@@ -4568,16 +4381,12 @@ export const listLessonsRolesQueryLimitDefault = 20;
 export const listLessonsRolesQueryLimitMax = 200;
 
 
-
 export const ListLessonsRolesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listLessonsRolesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listLessonsRolesQueryLimitMax).default(listLessonsRolesQueryLimitDefault)
 })
 
 export const listLessonsRolesResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListLessonsRolesResponse = zod.object({
@@ -4648,16 +4457,12 @@ export const listLessonsUsersQueryLimitDefault = 20;
 export const listLessonsUsersQueryLimitMax = 200;
 
 
-
 export const ListLessonsUsersQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listLessonsUsersQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listLessonsUsersQueryLimitMax).default(listLessonsUsersQueryLimitDefault)
 })
 
 export const listLessonsUsersResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListLessonsUsersResponse = zod.object({
@@ -4751,16 +4556,12 @@ export const listLessonsAccessQueueQueryLimitDefault = 20;
 export const listLessonsAccessQueueQueryLimitMax = 200;
 
 
-
 export const ListLessonsAccessQueueQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listLessonsAccessQueueQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listLessonsAccessQueueQueryLimitMax).default(listLessonsAccessQueueQueryLimitDefault)
 })
 
 export const listLessonsAccessQueueResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListLessonsAccessQueueResponse = zod.object({
@@ -4810,16 +4611,12 @@ export const listLessonsDelegationsQueryLimitDefault = 20;
 export const listLessonsDelegationsQueryLimitMax = 200;
 
 
-
 export const ListLessonsDelegationsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listLessonsDelegationsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listLessonsDelegationsQueryLimitMax).default(listLessonsDelegationsQueryLimitDefault)
 })
 
 export const listLessonsDelegationsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListLessonsDelegationsResponse = zod.object({
@@ -4851,11 +4648,6 @@ export const ListLessonsDelegationsResponse = zod.object({
 /**
  * @summary Create a selected-form lesson delegation
  */
-
-
-
-
-
 
 
 export const CreateLessonsDelegationBody = zod.object({
@@ -4934,10 +4726,7 @@ export const RevokeLessonsDelegationResponse = zod.void()
 export const listLessonsEscalationRulesResponseOneTotalMin = 0;
 
 
-
 export const listLessonsEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin = 0;
-
-
 
 
 export const ListLessonsEscalationRulesResponse = zod.object({
@@ -4965,8 +4754,6 @@ export const ListLessonsEscalationRulesResponse = zod.object({
 export const updateLessonsEscalationRulesBodySlaWorkingDaysMin = 0;
 
 
-
-
 export const UpdateLessonsEscalationRulesBodyItem = zod.object({
   "id": zod.string(),
   "triggerType": zod.string(),
@@ -4988,7 +4775,6 @@ export const UpdateLessonsEscalationRulesResponse = zod.unknown()
  */
 
 
-
 export const GetLessonsAiSettingsResponse = zod.object({
   "enabled": zod.boolean(),
   "features": zod.record(zod.string(), zod.boolean()),
@@ -5004,7 +4790,6 @@ export const GetLessonsAiSettingsResponse = zod.object({
 /**
  * @summary Update AI settings
  */
-
 
 
 export const UpdateLessonsAiSettingsBody = zod.object({
@@ -5053,7 +4838,6 @@ export const listLessonsAuditLogQueryLimitDefault = 20;
 export const listLessonsAuditLogQueryLimitMax = 200;
 
 
-
 export const ListLessonsAuditLogQueryParams = zod.object({
   "from": zod.date().optional(),
   "to": zod.date().optional(),
@@ -5065,9 +4849,6 @@ export const ListLessonsAuditLogQueryParams = zod.object({
 })
 
 export const listLessonsAuditLogResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListLessonsAuditLogResponse = zod.object({
@@ -5100,16 +4881,12 @@ export const listLessonsNotificationTemplatesQueryLimitDefault = 20;
 export const listLessonsNotificationTemplatesQueryLimitMax = 200;
 
 
-
 export const ListLessonsNotificationTemplatesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listLessonsNotificationTemplatesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listLessonsNotificationTemplatesQueryLimitMax).default(listLessonsNotificationTemplatesQueryLimitDefault)
 })
 
 export const listLessonsNotificationTemplatesResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListLessonsNotificationTemplatesResponse = zod.object({
@@ -5158,16 +4935,12 @@ export const listLessonsNotificationsQueryLimitDefault = 20;
 export const listLessonsNotificationsQueryLimitMax = 200;
 
 
-
 export const ListLessonsNotificationsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listLessonsNotificationsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listLessonsNotificationsQueryLimitMax).default(listLessonsNotificationsQueryLimitDefault)
 })
 
 export const listLessonsNotificationsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListLessonsNotificationsResponse = zod.object({
@@ -5209,7 +4982,6 @@ export const listLessonsEvidenceQueryLimitDefault = 20;
 export const listLessonsEvidenceQueryLimitMax = 200;
 
 
-
 export const ListLessonsEvidenceQueryParams = zod.object({
   "recordType": zod.coerce.string(),
   "recordId": zod.coerce.string(),
@@ -5218,9 +4990,6 @@ export const ListLessonsEvidenceQueryParams = zod.object({
 })
 
 export const listLessonsEvidenceResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListLessonsEvidenceResponse = zod.object({
@@ -5249,7 +5018,6 @@ export const ListLessonsEvidenceResponse = zod.object({
 /**
  * @summary Create evidence upload intent
  */
-
 
 
 export const CreateLessonsEvidenceIntentBody = zod.object({
@@ -5297,7 +5065,6 @@ export const listAuditSchedulesQueryLimitDefault = 20;
 export const listAuditSchedulesQueryLimitMax = 200;
 
 
-
 export const ListAuditSchedulesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditSchedulesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listAuditSchedulesQueryLimitMax).default(listAuditSchedulesQueryLimitDefault)
@@ -5306,13 +5073,11 @@ export const ListAuditSchedulesQueryParams = zod.object({
 export const listAuditSchedulesResponseOneTotalMin = 0;
 
 
-
 export const listAuditSchedulesResponseTwoItemsItemGpsLatMin = -90;
 export const listAuditSchedulesResponseTwoItemsItemGpsLatMax = 90;
 
 export const listAuditSchedulesResponseTwoItemsItemGpsLngMin = -180;
 export const listAuditSchedulesResponseTwoItemsItemGpsLngMax = 180;
-
 
 
 export const ListAuditSchedulesResponse = zod.object({
@@ -5366,7 +5131,6 @@ export const createAuditScheduleBodyGpsLngMin = -180;
 export const createAuditScheduleBodyGpsLngMax = 180;
 
 
-
 export const CreateAuditScheduleBody = zod.object({
   "id": zod.string(),
   "year": zod.number(),
@@ -5418,7 +5182,6 @@ export const getAuditScheduleResponseGpsLngMin = -180;
 export const getAuditScheduleResponseGpsLngMax = 180;
 
 
-
 export const GetAuditScheduleResponse = zod.object({
   "id": zod.string(),
   "year": zod.number(),
@@ -5466,7 +5229,6 @@ export const updateAuditScheduleBodyGpsLatMax = 90;
 
 export const updateAuditScheduleBodyGpsLngMin = -180;
 export const updateAuditScheduleBodyGpsLngMax = 180;
-
 
 
 export const UpdateAuditScheduleBody = zod.object({
@@ -5550,16 +5312,12 @@ export const listAuditPlansQueryLimitDefault = 20;
 export const listAuditPlansQueryLimitMax = 200;
 
 
-
 export const ListAuditPlansQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditPlansQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listAuditPlansQueryLimitMax).default(listAuditPlansQueryLimitDefault)
 })
 
 export const listAuditPlansResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListAuditPlansResponse = zod.object({
@@ -5682,16 +5440,12 @@ export const listAuditsQueryLimitDefault = 20;
 export const listAuditsQueryLimitMax = 200;
 
 
-
 export const ListAuditsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listAuditsQueryLimitMax).default(listAuditsQueryLimitDefault)
 })
 
 export const listAuditsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListAuditsResponse = zod.object({
@@ -5918,16 +5672,12 @@ export const listAuditFindingsQueryLimitDefault = 20;
 export const listAuditFindingsQueryLimitMax = 200;
 
 
-
 export const ListAuditFindingsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditFindingsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listAuditFindingsQueryLimitMax).default(listAuditFindingsQueryLimitDefault)
 })
 
 export const listAuditFindingsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListAuditFindingsResponse = zod.object({
@@ -6039,16 +5789,11 @@ export const CreateFindingCarsParams = zod.object({
 })
 
 
-
-
 export const CreateFindingCarsBody = zod.object({
   "responsibleDepartments": zod.array(zod.string()).min(1)
 })
 
 export const createFindingCarsResponseOneTotalMin = 0;
-
-
-
 
 
 export const CreateFindingCarsResponse = zod.object({
@@ -6086,7 +5831,6 @@ export const listCorrectiveActionReportsQueryLimitDefault = 20;
 export const listCorrectiveActionReportsQueryLimitMax = 200;
 
 
-
 export const ListCorrectiveActionReportsQueryParams = zod.object({
   "status": zod.coerce.string().optional(),
   "page": zod.coerce.number().min(1).default(listCorrectiveActionReportsQueryPageDefault),
@@ -6094,9 +5838,6 @@ export const ListCorrectiveActionReportsQueryParams = zod.object({
 })
 
 export const listCorrectiveActionReportsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListCorrectiveActionReportsResponse = zod.object({
@@ -6238,7 +5979,6 @@ export const listAuditEvidenceQueryLimitDefault = 20;
 export const listAuditEvidenceQueryLimitMax = 200;
 
 
-
 export const ListAuditEvidenceQueryParams = zod.object({
   "recordType": zod.coerce.string(),
   "recordId": zod.coerce.string(),
@@ -6247,9 +5987,6 @@ export const ListAuditEvidenceQueryParams = zod.object({
 })
 
 export const listAuditEvidenceResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListAuditEvidenceResponse = zod.object({
@@ -6278,7 +6015,6 @@ export const ListAuditEvidenceResponse = zod.object({
 /**
  * @summary Create evidence upload intent
  */
-
 
 
 export const CreateAuditEvidenceIntentBody = zod.object({
@@ -6332,16 +6068,12 @@ export const getAuditFindingsLogReportQueryLimitDefault = 20;
 export const getAuditFindingsLogReportQueryLimitMax = 200;
 
 
-
 export const GetAuditFindingsLogReportQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(getAuditFindingsLogReportQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(getAuditFindingsLogReportQueryLimitMax).default(getAuditFindingsLogReportQueryLimitDefault)
 })
 
 export const getAuditFindingsLogReportResponseOneTotalMin = 0;
-
-
-
 
 
 export const GetAuditFindingsLogReportResponse = zod.object({
@@ -6392,13 +6124,11 @@ export const GetAuditCarStatusReportResponse = zod.object({
 export const getAuditScheduleReportResponseOneTotalMin = 0;
 
 
-
 export const getAuditScheduleReportResponseTwoItemsItemGpsLatMin = -90;
 export const getAuditScheduleReportResponseTwoItemsItemGpsLatMax = 90;
 
 export const getAuditScheduleReportResponseTwoItemsItemGpsLngMin = -180;
 export const getAuditScheduleReportResponseTwoItemsItemGpsLngMax = 180;
-
 
 
 export const GetAuditScheduleReportResponse = zod.object({
@@ -6550,16 +6280,12 @@ export const listAuditRolesQueryLimitDefault = 20;
 export const listAuditRolesQueryLimitMax = 200;
 
 
-
 export const ListAuditRolesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditRolesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listAuditRolesQueryLimitMax).default(listAuditRolesQueryLimitDefault)
 })
 
 export const listAuditRolesResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListAuditRolesResponse = zod.object({
@@ -6630,16 +6356,12 @@ export const listAuditUsersQueryLimitDefault = 20;
 export const listAuditUsersQueryLimitMax = 200;
 
 
-
 export const ListAuditUsersQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditUsersQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listAuditUsersQueryLimitMax).default(listAuditUsersQueryLimitDefault)
 })
 
 export const listAuditUsersResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListAuditUsersResponse = zod.object({
@@ -6708,16 +6430,12 @@ export const listAuditAccessQueueQueryLimitDefault = 20;
 export const listAuditAccessQueueQueryLimitMax = 200;
 
 
-
 export const ListAuditAccessQueueQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditAccessQueueQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listAuditAccessQueueQueryLimitMax).default(listAuditAccessQueueQueryLimitDefault)
 })
 
 export const listAuditAccessQueueResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListAuditAccessQueueResponse = zod.object({
@@ -6767,16 +6485,12 @@ export const listAuditDelegationsQueryLimitDefault = 20;
 export const listAuditDelegationsQueryLimitMax = 200;
 
 
-
 export const ListAuditDelegationsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditDelegationsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listAuditDelegationsQueryLimitMax).default(listAuditDelegationsQueryLimitDefault)
 })
 
 export const listAuditDelegationsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListAuditDelegationsResponse = zod.object({
@@ -6832,10 +6546,7 @@ export const RevokeAuditDelegationResponse = zod.void()
 export const listAuditEscalationRulesResponseOneTotalMin = 0;
 
 
-
 export const listAuditEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin = 0;
-
-
 
 
 export const ListAuditEscalationRulesResponse = zod.object({
@@ -6861,8 +6572,6 @@ export const ListAuditEscalationRulesResponse = zod.object({
  * @summary Replace escalation rules
  */
 export const updateAuditEscalationRulesBodySlaWorkingDaysMin = 0;
-
-
 
 
 export const UpdateAuditEscalationRulesBodyItem = zod.object({
@@ -6913,7 +6622,6 @@ export const listAuditWorkspaceAuditLogQueryLimitDefault = 20;
 export const listAuditWorkspaceAuditLogQueryLimitMax = 200;
 
 
-
 export const ListAuditWorkspaceAuditLogQueryParams = zod.object({
   "from": zod.date().optional(),
   "to": zod.date().optional(),
@@ -6924,9 +6632,6 @@ export const ListAuditWorkspaceAuditLogQueryParams = zod.object({
 })
 
 export const listAuditWorkspaceAuditLogResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListAuditWorkspaceAuditLogResponse = zod.object({
@@ -6959,16 +6664,12 @@ export const listAuditNotificationTemplatesQueryLimitDefault = 20;
 export const listAuditNotificationTemplatesQueryLimitMax = 200;
 
 
-
 export const ListAuditNotificationTemplatesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditNotificationTemplatesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listAuditNotificationTemplatesQueryLimitMax).default(listAuditNotificationTemplatesQueryLimitDefault)
 })
 
 export const listAuditNotificationTemplatesResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListAuditNotificationTemplatesResponse = zod.object({
@@ -7017,16 +6718,12 @@ export const listAuditNotificationsQueryLimitDefault = 20;
 export const listAuditNotificationsQueryLimitMax = 200;
 
 
-
 export const ListAuditNotificationsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditNotificationsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listAuditNotificationsQueryLimitMax).default(listAuditNotificationsQueryLimitDefault)
 })
 
 export const listAuditNotificationsResponseOneTotalMin = 0;
-
-
-
 
 
 export const ListAuditNotificationsResponse = zod.object({
@@ -7057,5 +6754,4 @@ export const MarkAuditNotificationReadParams = zod.object({
 })
 
 export const MarkAuditNotificationReadResponse = zod.void()
-
 

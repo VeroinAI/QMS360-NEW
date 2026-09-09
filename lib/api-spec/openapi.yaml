@@ -2126,6 +2126,7 @@ components:
         gpsLng: {type: [number, "null"], minimum: -180, maximum: 180}
         creatorId: {type: string}
         approverId: {type: [string, "null"]}
+        canReview: {type: boolean, readOnly: true}
         version: {type: number, minimum: 1}
         conflictFlag: {type: boolean}
         workflowState: {$ref: "#/components/schemas/WorkflowState"}

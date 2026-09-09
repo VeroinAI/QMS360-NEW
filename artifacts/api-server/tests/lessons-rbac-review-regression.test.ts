@@ -355,6 +355,8 @@ describe("sent-back correction and resubmission", () => {
     const approverBefore = await api("GET", "/log?pendingApproval=true&limit=100", { token: approver.token });
     expect(approverBefore.status).toBe(200);
     expect(approverBefore.json.items.some((row: { id: string }) => row.id === lesson!.id)).toBe(true);
+    expect((await api("GET", `/forms/${lesson!.id}`, { token: approver.token })).json.canReview).toBe(true);
+    expect((await api("GET", `/forms/${lesson!.id}`, { token: owner.token })).json.canReview).toBe(false);
 
     const sentBack = await api("POST", `/forms/${lesson!.id}/review`, {
       token: approver.token,
@@ -368,6 +370,7 @@ describe("sent-back correction and resubmission", () => {
     const approverAfterSendBack = await api("GET", "/log?pendingApproval=true&limit=100", { token: approver.token });
     expect(creatorQueue.json.items.find((row: { id: string }) => row.id === lesson!.id)?.workflowState).toBe("Sent Back");
     expect(approverAfterSendBack.json.items.some((row: { id: string }) => row.id === lesson!.id)).toBe(false);
+    expect((await api("GET", `/forms/${lesson!.id}`, { token: approver.token })).json.canReview).toBe(false);
 
     const creatorDetail = await api("GET", `/forms/${lesson!.id}`, { token: owner.token });
     const approverActivity = await api("GET", `/forms/${lesson!.id}/activity`, { token: approver.token });
@@ -391,5 +394,52 @@ describe("sent-back correction and resubmission", () => {
     const approverAfterResubmit = await api("GET", "/log?pendingApproval=true&limit=100", { token: approver.token });
     expect(creatorAfterResubmit.json.items.some((row: { id: string }) => row.id === lesson!.id)).toBe(false);
     expect(approverAfterResubmit.json.items.some((row: { id: string }) => row.id === lesson!.id)).toBe(true);
+  });
+});
+
+describe("approver notification and action queue consistency", () => {
+  it("stores a navigable notification for the intended approver and clears the action queue after review", async () => {
+    const [lesson] = await db.insert(lessonLearnedForms).values(
+      lessonValues(`NOTIFY-${suffix}`, owner.id, {
+        approverId: approver.id,
+        workflowState: "draft",
+      }),
+    ).returning();
+    await db.insert(lessonsEvidenceFiles).values([
+      {
+        organizationId: orgId, app: "lessons", recordType: "lesson_form", recordId: lesson!.id,
+        category: "before", fileName: "before-notify.jpg", mimeType: "image/jpeg", sizeBytes: 100,
+        storageKey: `tests/${suffix}/before-notify.jpg`, uploadedById: owner.id, status: "stored",
+      },
+      {
+        organizationId: orgId, app: "lessons", recordType: "lesson_form", recordId: lesson!.id,
+        category: "after", fileName: "after-notify.jpg", mimeType: "image/jpeg", sizeBytes: 100,
+        storageKey: `tests/${suffix}/after-notify.jpg`, uploadedById: owner.id, status: "stored",
+      },
+    ]);
+
+    const submitted = await api("POST", `/forms/${lesson!.id}/submit`, { token: owner.token });
+    expect(submitted.status).toBe(200);
+
+    const [queue, notifications, unauthorizedNotifications] = await Promise.all([
+      api("GET", "/log?pendingApproval=true&limit=100", { token: approver.token }),
+      api("GET", "/notifications?limit=100", { token: approver.token }),
+      api("GET", "/notifications?limit=100", { token: reader.token }),
+    ]);
+    expect(queue.status).toBe(200);
+    expect(queue.json.total).toBeGreaterThan(0);
+    expect(queue.json.items.some((row: { id: string }) => row.id === lesson!.id)).toBe(true);
+    const notification = notifications.json.items.find((row: { recordId: string | null }) => row.recordId === lesson!.id);
+    expect(notification).toMatchObject({ recordType: "lesson_form", recordId: lesson!.id, read: false });
+    expect(unauthorizedNotifications.json.items.some((row: { recordId: string | null }) => row.recordId === lesson!.id)).toBe(false);
+
+    expect((await api("POST", `/notifications/${notification.id}/read`, { token: reader.token })).status).toBe(404);
+    expect((await api("POST", `/notifications/${notification.id}/read`, { token: approver.token })).status).toBe(204);
+    const afterRead = await api("GET", "/notifications?limit=100", { token: approver.token });
+    expect(afterRead.json.items.find((row: { id: string }) => row.id === notification.id)?.read).toBe(true);
+
+    expect((await api("POST", `/forms/${lesson!.id}/review`, { token: approver.token, body: { decision: "approve" } })).status).toBe(200);
+    const afterReview = await api("GET", "/log?pendingApproval=true&limit=100", { token: approver.token });
+    expect(afterReview.json.items.some((row: { id: string }) => row.id === lesson!.id)).toBe(false);
   });
 });

@@ -85,6 +85,8 @@ export async function notify(database: any, app: AppKey, input: NotifyInput) {
     title: input.title,
     body: input.body,
     channel: "in_app",
+    recordType: input.entityType,
+    recordId: input.entityId,
   });
 }
 

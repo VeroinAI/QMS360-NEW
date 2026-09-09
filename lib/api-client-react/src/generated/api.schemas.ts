@@ -1646,6 +1646,7 @@ export interface LessonLearnedForm {
   creatorId?: string;
   /** @nullable */
   approverId?: string | null;
+  readonly canReview?: boolean;
   /** @minimum 1 */
   version: number;
   conflictFlag: boolean;
@@ -2343,7 +2344,6 @@ export type FeedbackAttachmentUploadBody = FeedbackAttachmentInput;
 export type SaveFieldMappingsBody = SaveFieldMappingsInput;
 
 export type EntityIdParameter = string;
-
 export type PageParameter = number;
 
 export type LimitParameter = number;
@@ -2395,7 +2395,6 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 };
-
 export type ListBusinessUnitsParams = {
 /**
  * @minimum 1
@@ -3220,4 +3219,3 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 };
-

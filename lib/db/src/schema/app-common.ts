@@ -144,6 +144,8 @@ export function createAppAdministration(schema: AppSchema) {
     title: text("title").notNull(),
     body: text("body").notNull(),
     channel: text("channel").notNull().default("in_app"),
+    recordType: text("record_type"),
+    recordId: uuid("record_id"),
     readAt: timestamp("read_at", { withTimezone: true }),
     ...auditColumns,
   });

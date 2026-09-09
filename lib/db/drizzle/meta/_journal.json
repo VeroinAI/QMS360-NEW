@@ -43,6 +43,13 @@
       "when": 1788972701484,
       "tag": "0005_lazy_inhumans",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788974959227,
+      "tag": "0006_yummy_eddie_brock",
+      "breakpoints": true
     }
   ]
 }

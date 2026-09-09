@@ -140,7 +140,9 @@ describe("selected-form lesson delegation", () => {
   });
 
   it("allows only the selected form during active dates and stops access after revocation", async () => {
-    expect((await api("GET", `/forms/${selectedId}`, delegate.token)).status).toBe(200);
+    const selected = await api("GET", `/forms/${selectedId}`, delegate.token);
+    expect(selected.status).toBe(200);
+    expect(selected.json.canReview).toBe(true);
     expect((await api("GET", `/forms/${unselectedId}`, delegate.token)).status).toBe(403);
     expect((await api("POST", `/forms/${unselectedId}/review`, delegate.token, { decision: "approve" })).status).toBe(403);
     const pending = await api("GET", "/log?pendingApproval=true", delegate.token);

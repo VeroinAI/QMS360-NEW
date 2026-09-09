@@ -422,6 +422,16 @@ async function canReadLesson(req: any, row: typeof lessonLearnedForms.$inferSele
   return !scoped || scoped.has(row.approverId ?? user.id);
 }
 
+async function canReviewLesson(req: any, row: typeof lessonLearnedForms.$inferSelect): Promise<boolean> {
+  if (row.workflowState !== "submitted" || row.creatorId === req.currentUser!.id || !row.approverId) return false;
+  const delegatedFrom = await delegatedFromForLesson(row.organizationId, req.currentUser!.id, row.id, row.approverId);
+  if (row.approverId !== req.currentUser!.id && row.approverId !== delegatedFrom) return false;
+  const scoped = await scopedApproverIds(row.organizationId, {
+    projectId: row.projectId, disciplineId: row.disciplineId, categorisation: row.categorisation,
+  });
+  return !scoped || scoped.has(row.approverId);
+}
+
 async function lessonVisibilityWhere(req: any, base: any, requireApproverScope = false) {
   const user = req.currentUser!;
   // Pending queues remain scope-bound even for full readers: assignment does
@@ -558,7 +568,7 @@ router.get("/forms/:id", asyncHandler(async (req, res) => {
   if (!row) notFound("Lesson form not found");
   if (!await canReadLesson(req, row)) throw new HttpError(403, "You do not have permission to view this lesson");
   const photos = await listEvidence(db, "lessons", req.currentUser!.organizationId, "lesson_form", row.id);
-  res.json(await formJsonNamed(row, photos));
+  res.json({ ...await formJsonNamed(row, photos), canReview: await canReviewLesson(req, row) });
 }));
 
 router.put("/forms/:id", asyncHandler(async (req, res) => {
@@ -620,6 +630,9 @@ router.post("/forms/:id/submit", asyncHandler(async (req, res) => {
   assertOwnerOrFull(req, before.creatorId);
   if (before.workflowState !== "draft") throw new HttpError(409, "Only draft forms may be submitted");
   if (!before.approverId) throw new HttpError(422, "An approver is required before submission");
+  await assertEligibleApprover(req, before.approverId, before.creatorId, {
+    projectId: before.projectId, disciplineId: before.disciplineId, categorisation: before.categorisation,
+  });
   // Before/after evidence photos are mandatory for submission.
   const evidence = await listEvidence(db, "lessons", before.organizationId, "lesson_form", before.id);
   const stored = (evidence as Array<typeof lessonsEvidenceFiles.$inferSelect>).filter((p) => p.status === "stored");
@@ -1368,7 +1381,7 @@ router.get("/notifications", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = and(eq(lessonNotifications.organizationId, req.currentUser!.organizationId), eq(lessonNotifications.recipientId, req.currentUser!.id), isNull(lessonNotifications.deletedAt));
   const [rows, count] = await Promise.all([db.select().from(lessonNotifications).where(where).orderBy(desc(lessonNotifications.createdAt)).limit(limit).offset(offset), db.select({ count: sql<number>`count(*)` }).from(lessonNotifications).where(where)]);
-  res.json(paginated(rows.map((r) => ({ id: r.id, type: "notification", title: r.title, message: r.body, critical: false, read: !!r.readAt, recordType: null, recordId: null, createdAt: r.createdAt, readAt: r.readAt })), Number(count[0]?.count ?? 0), page, limit));
+  res.json(paginated(rows.map((r) => ({ id: r.id, type: "notification", title: r.title, message: r.body, critical: false, read: !!r.readAt, recordType: r.recordType, recordId: r.recordId, createdAt: r.createdAt, readAt: r.readAt })), Number(count[0]?.count ?? 0), page, limit));
 }));
 router.post("/notifications/:id/read", asyncHandler(async (req, res) => {
   const [row] = await db.update(lessonNotifications).set({ readAt: new Date(), updatedAt: new Date() }).where(and(eq(lessonNotifications.id, String(req.params.id)), eq(lessonNotifications.organizationId, req.currentUser!.organizationId), eq(lessonNotifications.recipientId, req.currentUser!.id), isNull(lessonNotifications.deletedAt))).returning();

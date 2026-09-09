@@ -118,13 +118,21 @@ export function LessonFormPage({ id }: { id?: string }) {
   const fieldControls = useFieldControls("lessons", "lesson-form");
   const fieldAccess = useFieldAccess("lessons");
   const queryClient = useQueryClient();
-  const invalidate = () => { queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] }); if (id) { queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}`] }); queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}/activity`] }); } };
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/lessons/notifications"] });
+    if (id) {
+      queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/lessons/forms/${id}/activity`] });
+    }
+  };
   // Create is driven from save() so photos queued before the first save can be uploaded once the record id exists.
   const create = useCreateLessonForm();
   const update = useUpdateLessonForm();
   const submit = useSubmitLessonForm();
-  const fromApprovals = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("from") === "approvals" : false;
-  const backLink = fromApprovals ? "/lessons/approvals" : (isNew ? "/lessons" : "/lessons/log");
+  const source = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("from") : null;
+  const fromApprovals = source === "approvals";
+  const backLink = fromApprovals ? "/lessons/approvals" : source === "notifications" ? "/lessons/notifications" : (isNew ? "/lessons" : "/lessons/log");
   const reviewMutation = useReviewLessonForm({ mutation: { onSuccess: () => { invalidate(); setReview(null); setReviewRemarks(""); toast({ title: review === "approve" ? "Lesson approved" : "Lesson sent back" }); if (fromApprovals) navigate("/lessons/approvals"); }, onError: (e) => toast({ title: "Review failed", description: errorMessage(e), variant: "destructive" }) } });
   const rephrase = useRephraseLessonField();
   const [suggestion, setSuggestion] = useState<{ field: FieldName; text: string } | null>(null);
@@ -149,7 +157,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   const disabled = (key: string) => readOnly || fp(key).disabled || fieldAccess.readOnly("lesson-form", key);
   const isCreator = detail.data?.creatorId != null && detail.data.creatorId === user.data?.id;
   // Only the designated approver sees review actions — there is no admin bypass.
-  const canReview = !isCreator && detail.data?.approverId != null && detail.data.approverId === user.data?.id;
+  const canReview = detail.data?.canReview === true;
   const uploadBlocking = uploads.some((x) => x.status === "uploading");
   const hasBeforePhoto = Boolean(detail.data?.photos?.some((p) => p.category === "before" && p.status === "confirmed"));
   const hasAfterPhoto = Boolean(detail.data?.photos?.some((p) => p.category === "after" && p.status === "confirmed"));

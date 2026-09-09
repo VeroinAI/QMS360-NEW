@@ -55,6 +55,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
     ...(lessonNotifications.data?.items ?? []),
     ...(auditNotifications.data?.items ?? []),
   ].filter(item => !item.read).length, [qaqcNotifications.data, lessonNotifications.data, auditNotifications.data]);
+  const notificationsUnavailable = qaqcNotifications.isError || lessonNotifications.isError || auditNotifications.isError;
 
   const userPendingQuery = useSearchLessonsLog(
     { pendingApproval: true, limit: 1 },
@@ -131,9 +132,10 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
             <option value="">All projects</option>
             {(projects.data?.items ?? []).map(project => <option key={project.id} value={project.id}>{project.code} · {project.name}</option>)}
           </select>
-          <Link href={section === 'lessons' ? '/lessons/notifications' : '/notifications'} className="relative rounded-md p-2 hover:bg-muted" aria-label={`${unread} unread notifications`}>
+          <Link href="/notifications" className="relative rounded-md p-2 hover:bg-muted" aria-label={notificationsUnavailable ? 'Notifications unavailable' : `${unread} unread notifications`}>
             <Bell className="h-5 w-5" />
-            {unread > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">{unread > 99 ? '99+' : unread}</span>}
+            {!notificationsUnavailable && unread > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">{unread > 99 ? '99+' : unread}</span>}
+            {notificationsUnavailable && <span className="absolute -right-1 -top-1 text-xs font-bold text-destructive" title="Notification count unavailable">!</span>}
           </Link>
           <div className="relative">
             <button className="flex items-center gap-2 rounded-md p-1.5 hover:bg-muted" onClick={() => setUserOpen(value => !value)}>
