@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowLeft, Loader2, MessageSquarePlus, Paperclip, Sparkles } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, MessageSquarePlus, Paperclip, Sparkles } from 'lucide-react';
 import {
   downloadFeedbackAttachment,
+  exportFeedbackEntries,
   useGetCurrentUser,
   getListFeedbackEntriesQueryKey,
   useListFeedbackEntries,
@@ -35,7 +36,16 @@ const moduleLabels: Record<string, string> = {
   system: 'System / General',
 };
 
-type Resolution = 'open' | 'reviewing' | 'hold' | 'resolved' | 'closed';
+type Resolution = 'open' | 'reviewing' | 'hold' | 'additional_info_required' | 'resolved' | 'closed';
+
+const resolutionLabels: Record<Resolution, string> = {
+  open: 'Open',
+  reviewing: 'Reviewing',
+  hold: 'Hold',
+  additional_info_required: 'Additional info required',
+  resolved: 'Resolved',
+  closed: 'Closed',
+};
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -48,6 +58,7 @@ export function FeedbackPage() {
   const [resolutionEntry, setResolutionEntry] = useState<FeedbackEntry | null>(null);
   const [resolutionStatus, setResolutionStatus] = useState<Resolution>('open');
   const [resolutionResponse, setResolutionResponse] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
   const user = useGetCurrentUser();
   const isAdmin = ['Super Admin', 'Org Admin'].includes(user.data?.platformRole ?? '')
     || (user.data?.workspaceRoles.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
@@ -108,6 +119,26 @@ export function FeedbackPage() {
     }
   };
 
+  const downloadExcel = async () => {
+    setIsExporting(true);
+    try {
+      const blob = await exportFeedbackEntries(moduleFilter === 'all' ? undefined : {
+        module: moduleFilter as 'qaqc' | 'lessons' | 'audit' | 'system',
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `feedback-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      const details = userFacingApiError(error, 'The feedback workbook could not be downloaded.');
+      toast({ title: details.title, description: `${details.message} (${details.technicalCode})`, variant: 'destructive' });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (user.isLoading) return <div className="flex justify-center p-16"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   if (!isAdmin) return <main className="mx-auto max-w-3xl p-10 text-center">
     <h1 className="text-xl font-bold">Administrator access required</h1>
@@ -136,7 +167,13 @@ export function FeedbackPage() {
             </SelectContent>
           </Select>
         </div>
-        <p className="text-sm text-muted-foreground">{feedback.data?.total ?? 0} feedback item{feedback.data?.total === 1 ? '' : 's'}</p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">{feedback.data?.total ?? 0} feedback item{feedback.data?.total === 1 ? '' : 's'}</p>
+          <Button variant="outline" onClick={downloadExcel} disabled={isExporting || feedback.isLoading}>
+            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Download Excel
+          </Button>
+        </div>
       </div>
 
       {feedback.isLoading ? <div className="flex justify-center p-16"><Loader2 className="h-6 w-6 animate-spin" /></div>
@@ -152,7 +189,9 @@ export function FeedbackPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="capitalize">{entry.category}</Badge>
                   {entry.module && <Badge variant="secondary">{moduleLabels[entry.module] ?? entry.module}</Badge>}
-                  <Badge variant={entry.resolution === 'closed' ? 'secondary' : entry.resolution === 'resolved' ? 'default' : 'outline'} className="capitalize">{entry.resolution}</Badge>
+                  <Badge variant={entry.resolution === 'closed' ? 'secondary' : entry.resolution === 'resolved' ? 'default' : 'outline'}>
+                    {resolutionLabels[entry.resolution]}
+                  </Badge>
                   {entry.triage && <Badge variant={entry.triage.verdict === 'valid_issue' ? 'destructive' : entry.triage.verdict === 'awareness_gap' ? 'secondary' : 'default'}>
                     AI: {verdictLabels[entry.triage.verdict] ?? entry.triage.verdict}
                   </Badge>}
@@ -174,6 +213,16 @@ export function FeedbackPage() {
                 {entry.resolutionResponse && <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
                   <p className="font-semibold">Response to user</p>
                   <p className="mt-1 whitespace-pre-line text-muted-foreground">{entry.resolutionResponse}</p>
+                </div>}
+                {entry.statusHistory.length > 0 && <div className="mt-3 rounded-md border bg-muted/30 p-3 text-sm">
+                  <p className="font-semibold">Status history</p>
+                  <div className="mt-2 space-y-2">
+                    {entry.statusHistory.map((change) => <div key={change.id} className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground">
+                      <span>{formatDateTime(change.changedAt)}</span>
+                      <span className="text-foreground">{resolutionLabels[change.fromStatus]} → {resolutionLabels[change.toStatus]}</span>
+                      <span>by {change.changedByName || 'User'} · User ID: <span className="font-mono">{change.changedById}</span></span>
+                    </div>)}
+                  </div>
                 </div>}
                 {(entry.attachments?.length ?? 0) > 0 && <div className="mt-3">
                   <p className="mb-2 text-sm font-semibold">Reference files</p>
@@ -214,6 +263,7 @@ export function FeedbackPage() {
                 <SelectItem value="open">Open</SelectItem>
                 <SelectItem value="reviewing">Reviewing</SelectItem>
                 <SelectItem value="hold">Hold</SelectItem>
+                <SelectItem value="additional_info_required">Additional info required</SelectItem>
                 <SelectItem value="resolved">Resolved</SelectItem>
                 <SelectItem value="closed" disabled={resolutionEntry?.resolution !== 'resolved' && resolutionEntry?.resolution !== 'closed'}>Closed</SelectItem>
               </SelectContent>

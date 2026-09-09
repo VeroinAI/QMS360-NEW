@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type FeedbackEntryResolution = typeof FeedbackEntryResolution[keyof typeof FeedbackEntryResolution];
+export type FeedbackStatusHistoryToStatus = typeof FeedbackStatusHistoryToStatus[keyof typeof FeedbackStatusHistoryToStatus];
 
 
-export const FeedbackEntryResolution = {
+export const FeedbackStatusHistoryToStatus = {
   open: 'open',
   reviewing: 'reviewing',
   hold: 'hold',

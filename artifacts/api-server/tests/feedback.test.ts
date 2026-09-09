@@ -202,6 +202,60 @@ describe("authorization", () => {
     expect(held.json.resolutionResponse).toBe("Paused until the dependency is available.");
   });
 
+  it("records who changed feedback to Additional info required and when", async () => {
+    const created = await api("POST", "/feedback", {
+      token: memberA.token,
+      body: { module: "audit", category: "question", message: "Which evidence file is required?" },
+    });
+    const changed = await api("PUT", `/feedback/${created.json.id}/resolution`, {
+      token: adminA.token,
+      body: { resolution: "additional_info_required", response: "Please attach the signed inspection record." },
+    });
+    expect(changed.status).toBe(200);
+    expect(changed.json.resolution).toBe("additional_info_required");
+    expect(changed.json.statusHistory).toHaveLength(1);
+    expect(changed.json.statusHistory[0]).toMatchObject({
+      fromStatus: "open",
+      toStatus: "additional_info_required",
+      changedById: adminA.id,
+      changedByName: "Admin A",
+    });
+    expect(new Date(changed.json.statusHistory[0].changedAt).toString()).not.toBe("Invalid Date");
+
+    const responseOnly = await api("PUT", `/feedback/${created.json.id}/resolution`, {
+      token: adminA.token,
+      body: { resolution: "additional_info_required", response: "Please attach both signed pages." },
+    });
+    expect(responseOnly.status).toBe(200);
+    expect(responseOnly.json.statusHistory).toHaveLength(1);
+  });
+
+  it("downloads feedback and status history as an Excel workbook", async () => {
+    const created = await api("POST", "/feedback", {
+      token: memberA.token,
+      body: { module: "qaqc", category: "issue", message: "Export this feedback row" },
+    });
+    await api("PUT", `/feedback/${created.json.id}/resolution`, {
+      token: adminA.token,
+      body: { resolution: "hold", response: "Waiting for verification." },
+    });
+    const response = await realFetch(`${baseUrl}/feedback/export?module=qaqc`, {
+      headers: { authorization: `Bearer ${adminA.token}` },
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.read(Buffer.from(await response.arrayBuffer()), { type: "buffer" });
+    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(workbook.Sheets.Feedback!);
+    const row = rows.find((item) => item["Feedback ID"] === created.json.id);
+    expect(row).toMatchObject({
+      Feedback: "Export this feedback row",
+      Status: "hold",
+      "Submitted by user ID": memberA.id,
+    });
+    expect(row?.["Status history"]).toContain(`by ${adminA.id}`);
+  });
+
   it("allows Closed only after Resolved", async () => {
     const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "system", category: "issue", message: "The feedback workflow is incomplete" } });
     const tooEarly = await api("PUT", `/feedback/${created.json.id}/resolution`, { token: adminA.token, body: { resolution: "closed" } });

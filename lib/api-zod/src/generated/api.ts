@@ -1365,8 +1365,16 @@ export const ListFeedbackEntriesResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
+  "statusHistory": zod.array(zod.object({
+  "id": zod.string(),
+  "fromStatus": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
+  "toStatus": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
+  "changedById": zod.string(),
+  "changedByName": zod.string().nullish(),
+  "changedAt": zod.coerce.date()
+})),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
   "fileName": zod.string(),
@@ -1424,8 +1432,16 @@ export const SubmitFeedbackResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
+  "statusHistory": zod.array(zod.object({
+  "id": zod.string(),
+  "fromStatus": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
+  "toStatus": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
+  "changedById": zod.string(),
+  "changedByName": zod.string().nullish(),
+  "changedAt": zod.coerce.date()
+})),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
   "fileName": zod.string(),
@@ -1440,6 +1456,16 @@ export const SubmitFeedbackResponse = zod.object({
   "email": zod.string()
 })
 })
+
+
+/**
+ * @summary Download feedback entries and status history as Excel (admin only)
+ */
+export const ExportFeedbackEntriesQueryParams = zod.object({
+  "module": zod.enum(['qaqc', 'lessons', 'audit', 'system']).optional()
+})
+
+export const ExportFeedbackEntriesResponse = zod.unknown()
 
 
 /**
@@ -1471,8 +1497,16 @@ export const ListMyFeedbackEntriesResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
+  "statusHistory": zod.array(zod.object({
+  "id": zod.string(),
+  "fromStatus": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
+  "toStatus": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
+  "changedById": zod.string(),
+  "changedByName": zod.string().nullish(),
+  "changedAt": zod.coerce.date()
+})),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
   "fileName": zod.string(),
@@ -1538,8 +1572,16 @@ export const RunFeedbackTriageResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
+  "statusHistory": zod.array(zod.object({
+  "id": zod.string(),
+  "fromStatus": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
+  "toStatus": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
+  "changedById": zod.string(),
+  "changedByName": zod.string().nullish(),
+  "changedAt": zod.coerce.date()
+})),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
   "fileName": zod.string(),
@@ -1568,7 +1610,7 @@ export const updateFeedbackResolutionBodyResponseMax = 4000;
 
 
 export const UpdateFeedbackResolutionBody = zod.object({
-  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
   "response": zod.string().max(updateFeedbackResolutionBodyResponseMax).nullish().describe('Optional response explaining what was reviewed, resolved, or closed')
 })
 
@@ -1585,8 +1627,16 @@ export const UpdateFeedbackResolutionResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
+  "statusHistory": zod.array(zod.object({
+  "id": zod.string(),
+  "fromStatus": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
+  "toStatus": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']),
+  "changedById": zod.string(),
+  "changedByName": zod.string().nullish(),
+  "changedAt": zod.coerce.date()
+})),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
   "fileName": zod.string(),

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, getTableColumns, inArray, isNull, sql } from "drizzle-orm";
-import { db, feedbackAttachments, feedbackEntries, users } from "@workspace/db";
+import { db, feedbackAttachments, feedbackEntries, feedbackStatusHistory, users } from "@workspace/db";
 import { CreateFeedbackAttachmentBody, SubmitFeedbackBody, TriageFeedbackBody, TriageFeedbackResponse, UpdateFeedbackResolutionBody } from "@workspace/api-zod";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { AiUnavailableError, triageFeedback as runTriage } from "../lib/ai";
@@ -16,8 +16,8 @@ const feedbackEntrySelection = {
   ...feedbackEntryColumns,
   // Production may temporarily lag the development schema during rollout.
   resolutionResponse: sql<string | null>`coalesce(
-    to_jsonb("feedback_entries") ->> 'resolution_response',
-    "feedback_entries"."triage" ->> 'resolutionResponse'
+    "feedback_entries"."triage" ->> 'resolutionResponse',
+    to_jsonb("feedback_entries") ->> 'resolution_response'
   )`,
 };
 
@@ -30,7 +30,20 @@ function hasPostgresCode(error: unknown, expectedCode: string): boolean {
   return false;
 }
 
-function entryJson(row: EntryRow, user: { id: string; fullName: string; email: string }) {
+type StatusHistoryJson = {
+  id: string;
+  fromStatus: string;
+  toStatus: string;
+  changedById: string;
+  changedByName: string | null;
+  changedAt: Date;
+};
+
+function entryJson(
+  row: EntryRow,
+  user: { id: string; fullName: string; email: string },
+  statusHistory: StatusHistoryJson[] = [],
+) {
   return {
     id: row.id,
     appKey: row.appKey,
@@ -41,10 +54,37 @@ function entryJson(row: EntryRow, user: { id: string; fullName: string; email: s
     triage: row.triage ?? null,
     resolution: row.resolution,
     resolutionResponse: row.resolutionResponse ?? null,
+    statusHistory,
     attachments: [],
     createdAt: row.createdAt,
     user: { id: user.id, fullName: user.fullName, email: user.email },
   };
+}
+
+async function statusHistoryByFeedback(ids: string[]) {
+  const grouped = new Map<string, StatusHistoryJson[]>();
+  if (!ids.length) return grouped;
+  try {
+    const rows = await db.select({
+      id: feedbackStatusHistory.id,
+      feedbackId: feedbackStatusHistory.feedbackId,
+      fromStatus: feedbackStatusHistory.fromStatus,
+      toStatus: feedbackStatusHistory.toStatus,
+      changedById: feedbackStatusHistory.changedById,
+      changedByName: users.fullName,
+      changedAt: feedbackStatusHistory.changedAt,
+    }).from(feedbackStatusHistory)
+      .leftJoin(users, eq(users.id, feedbackStatusHistory.changedById))
+      .where(inArray(feedbackStatusHistory.feedbackId, ids))
+      .orderBy(feedbackStatusHistory.changedAt);
+    for (const { feedbackId, ...row } of rows) {
+      grouped.set(feedbackId, [...(grouped.get(feedbackId) ?? []), row]);
+    }
+    return grouped;
+  } catch (error) {
+    if (hasPostgresCode(error, "42P01")) return grouped;
+    throw error;
+  }
 }
 
 function attachmentJson(row: typeof feedbackAttachments.$inferSelect) {
@@ -141,11 +181,70 @@ router.get("/feedback", requireAdmin, asyncHandler(async (req, res) => {
       .where(where).orderBy(desc(feedbackEntries.createdAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(feedbackEntries).where(where),
   ]);
-  const attachments = await attachmentsByFeedback(rows.map((row) => row.entry.id));
+  const ids = rows.map((row) => row.entry.id);
+  const [attachments, statusHistory] = await Promise.all([
+    attachmentsByFeedback(ids),
+    statusHistoryByFeedback(ids),
+  ]);
   res.json(paginated(
-    rows.map((row) => withAttachments(entryJson(row.entry, { id: row.entry.userId, fullName: row.fullName, email: row.email }), attachments.get(row.entry.id) ?? [])),
+    rows.map((row) => withAttachments(
+      entryJson(
+        row.entry,
+        { id: row.entry.userId, fullName: row.fullName, email: row.email },
+        statusHistory.get(row.entry.id) ?? [],
+      ),
+      attachments.get(row.entry.id) ?? [],
+    )),
     Number(count[0]?.count ?? 0), page, limit,
   ));
+}));
+
+router.get("/feedback/export", requireAdmin, asyncHandler(async (req, res) => {
+  const module = typeof req.query.module === "string" ? req.query.module : undefined;
+  if (module && !["qaqc", "lessons", "audit", "system"].includes(module)) {
+    throw new HttpError(422, "Invalid feedback module");
+  }
+  const rows = await db.select({ entry: feedbackEntrySelection, fullName: users.fullName, email: users.email })
+    .from(feedbackEntries)
+    .innerJoin(users, eq(users.id, feedbackEntries.userId))
+    .where(and(
+      eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
+      isNull(feedbackEntries.deletedAt),
+      module ? eq(feedbackEntries.module, module) : undefined,
+    ))
+    .orderBy(desc(feedbackEntries.createdAt));
+  const history = await statusHistoryByFeedback(rows.map(({ entry }) => entry.id));
+  const exportRows = rows.map(({ entry, fullName, email }) => ({
+    "Feedback ID": entry.id,
+    Module: entry.module ?? "",
+    Category: entry.category,
+    Feedback: entry.message,
+    Status: entry.resolution,
+    "Response to user": entry.resolutionResponse ?? "",
+    "Submitted by": fullName,
+    "Submitted by user ID": entry.userId,
+    Email: email,
+    Page: entry.pagePath ?? "",
+    Application: entry.appKey ?? "",
+    "Created at": entry.createdAt.toISOString(),
+    "Updated at": entry.updatedAt.toISOString(),
+    "Status history": (history.get(entry.id) ?? []).map((change) =>
+      `${change.changedAt.toISOString()}: ${change.fromStatus} -> ${change.toStatus} by ${change.changedById}`,
+    ).join("\n"),
+  }));
+  const XLSX = await import("xlsx");
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.json_to_sheet(exportRows);
+  worksheet["!cols"] = [
+    { wch: 38 }, { wch: 14 }, { wch: 14 }, { wch: 55 }, { wch: 26 },
+    { wch: 45 }, { wch: 24 }, { wch: 38 }, { wch: 30 }, { wch: 30 },
+    { wch: 18 }, { wch: 24 }, { wch: 24 }, { wch: 80 },
+  ];
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Feedback");
+  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="feedback-${new Date().toISOString().slice(0, 10)}.xlsx"`);
+  res.send(buffer);
 }));
 
 router.get("/feedback/mine", asyncHandler(async (req, res) => {
@@ -161,9 +260,16 @@ router.get("/feedback/mine", asyncHandler(async (req, res) => {
       .orderBy(desc(feedbackEntries.createdAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(feedbackEntries).where(where),
   ]);
-  const attachments = await attachmentsByFeedback(rows.map((row) => row.id));
+  const ids = rows.map((row) => row.id);
+  const [attachments, statusHistory] = await Promise.all([
+    attachmentsByFeedback(ids),
+    statusHistoryByFeedback(ids),
+  ]);
   res.json(paginated(
-    rows.map((row) => withAttachments(entryJson(row, { id: user.id, fullName: user.fullName, email: user.email }), attachments.get(row.id) ?? [])),
+    rows.map((row) => withAttachments(
+      entryJson(row, { id: user.id, fullName: user.fullName, email: user.email }, statusHistory.get(row.id) ?? []),
+      attachments.get(row.id) ?? [],
+    )),
     Number(count[0]?.count ?? 0), page, limit,
   ));
 }));
@@ -202,32 +308,43 @@ router.put("/feedback/:id/resolution", requireAdmin, asyncHandler(async (req, re
     eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
     isNull(feedbackEntries.deletedAt),
   );
-  const updateWhere = parsed.data.resolution === "closed"
-    ? and(where, eq(feedbackEntries.resolution, "resolved"))
-    : where;
-  let row: EntryRow | undefined;
-  try {
-    [row] = await db.update(feedbackEntries)
-      .set({ resolution: parsed.data.resolution, resolutionResponse: response, updatedAt: new Date() })
-      .where(updateWhere).returning(feedbackEntrySelection);
-  } catch (error) {
-    if (!hasPostgresCode(error, "42703")) throw error;
-    // Preserve responses while production temporarily lacks resolution_response.
+  const row = await db.transaction(async (tx) => {
+    const [existing] = await tx.select(feedbackEntrySelection).from(feedbackEntries).where(where).limit(1);
+    if (!existing) return undefined;
+    if (parsed.data.resolution === "closed" && existing.resolution !== "resolved" && existing.resolution !== "closed") {
+      throw new HttpError(409, "Feedback must be resolved before it can be closed");
+    }
     const fallbackTriage = response
       ? sql`jsonb_set(coalesce(${feedbackEntries.triage}, '{}'::jsonb), '{resolutionResponse}', to_jsonb(${response}::text), true)`
       : sql`coalesce(${feedbackEntries.triage}, '{}'::jsonb) - 'resolutionResponse'`;
-    [row] = await db.update(feedbackEntries)
+    const [updated] = await tx.update(feedbackEntries)
       .set({ resolution: parsed.data.resolution, triage: fallbackTriage, updatedAt: new Date() })
-      .where(updateWhere).returning(feedbackEntrySelection);
-  }
-  if (!row && parsed.data.resolution === "closed") {
-    const [existing] = await db.select({ id: feedbackEntries.id }).from(feedbackEntries).where(where).limit(1);
-    if (existing) throw new HttpError(409, "Feedback must be resolved before it can be closed");
-  }
+      .where(where).returning(feedbackEntrySelection);
+    if (existing.resolution !== parsed.data.resolution) {
+      await tx.insert(feedbackStatusHistory).values({
+        organizationId: req.currentUser!.organizationId,
+        feedbackId: existing.id,
+        fromStatus: existing.resolution,
+        toStatus: parsed.data.resolution,
+        changedById: req.currentUser!.id,
+      });
+    }
+    return updated;
+  });
   if (!row) notFound("Feedback entry not found");
   const [author] = await db.select({ fullName: users.fullName, email: users.email }).from(users).where(eq(users.id, row!.userId)).limit(1);
-  const attachments = await attachmentsByFeedback([row!.id]);
-  res.json(withAttachments(entryJson(row!, { id: row!.userId, fullName: author?.fullName ?? "", email: author?.email ?? "" }), attachments.get(row!.id) ?? []));
+  const [attachments, statusHistory] = await Promise.all([
+    attachmentsByFeedback([row!.id]),
+    statusHistoryByFeedback([row!.id]),
+  ]);
+  res.json(withAttachments(
+    entryJson(
+      row!,
+      { id: row!.userId, fullName: author?.fullName ?? "", email: author?.email ?? "" },
+      statusHistory.get(row!.id) ?? [],
+    ),
+    attachments.get(row!.id) ?? [],
+  ));
 }));
 
 router.post("/feedback/:id/attachments", asyncHandler(async (req, res) => {

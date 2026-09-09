@@ -78,6 +78,7 @@ import type {
   ExecutiveOverview,
   ExecutiveSummaryPageResponse,
   ExportDocumentGovernanceReportParams,
+  ExportFeedbackEntriesParams,
   ExportLessonsLogParams,
   ExportQaqcMonthlyReportParams,
   ExtensionBody,
@@ -4336,6 +4337,90 @@ export const useSubmitFeedback = <TError = ErrorType<void>,
       > => {
       return useMutation(getSubmitFeedbackMutationOptions(options));
     }
+
+export const getExportFeedbackEntriesUrl = (params?: ExportFeedbackEntriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/feedback/export?${stringifiedParams}` : `/api/feedback/export`
+}
+
+/**
+ * @summary Download feedback entries and status history as Excel (admin only)
+ */
+export const exportFeedbackEntries = async (params?: ExportFeedbackEntriesParams, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportFeedbackEntriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportFeedbackEntriesQueryKey = (params?: ExportFeedbackEntriesParams,) => {
+    return [
+    `/api/feedback/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportFeedbackEntriesQueryOptions = <TData = Awaited<ReturnType<typeof exportFeedbackEntries>>, TError = ErrorType<void>>(params?: ExportFeedbackEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportFeedbackEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportFeedbackEntriesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportFeedbackEntries>>> = ({ signal }) => exportFeedbackEntries(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportFeedbackEntries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportFeedbackEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof exportFeedbackEntries>>>
+export type ExportFeedbackEntriesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download feedback entries and status history as Excel (admin only)
+ */
+
+export function useExportFeedbackEntries<TData = Awaited<ReturnType<typeof exportFeedbackEntries>>, TError = ErrorType<void>>(
+ params?: ExportFeedbackEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportFeedbackEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportFeedbackEntriesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListMyFeedbackEntriesUrl = (params?: ListMyFeedbackEntriesParams,) => {
   const normalizedParams = new URLSearchParams();

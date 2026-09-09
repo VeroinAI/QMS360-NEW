@@ -604,6 +604,18 @@ paths:
         - bearerAuth: []
       requestBody: {$ref: "#/components/requestBodies/FeedbackSubmission"}
       responses: {"201": {description: Recorded, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackEntry"}}}}, "401": {description: Authentication required}, "422": {description: Invalid request body}}
+  /feedback/export:
+    get:
+      operationId: exportFeedbackEntries
+      tags: [feedback]
+      summary: Download feedback entries and status history as Excel (admin only)
+      security:
+        - bearerAuth: []
+      parameters: [{name: module, in: query, required: false, schema: {type: string, enum: [qaqc, lessons, audit, system]}}]
+      responses:
+        "200": {description: Feedback workbook, content: {application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: {schema: {type: string, format: binary}}}}
+        "401": {description: Authentication required}
+        "403": {description: Administrator access required}
   /feedback/mine:
     get:
       operationId: listMyFeedbackEntries
@@ -2008,8 +2020,18 @@ components:
       type: object
       required: [resolution]
       properties:
-        resolution: {type: string, enum: [open, reviewing, hold, resolved, closed]}
+        resolution: {type: string, enum: [open, reviewing, hold, additional_info_required, resolved, closed]}
         response: {type: [string, "null"], maxLength: 4000, description: "Optional response explaining what was reviewed, resolved, or closed"}
+    FeedbackStatusHistory:
+      type: object
+      required: [id, fromStatus, toStatus, changedById, changedAt]
+      properties:
+        id: {type: string}
+        fromStatus: {type: string, enum: [open, reviewing, hold, additional_info_required, resolved, closed]}
+        toStatus: {type: string, enum: [open, reviewing, hold, additional_info_required, resolved, closed]}
+        changedById: {type: string}
+        changedByName: {type: [string, "null"]}
+        changedAt: {type: string, format: date-time}
     FeedbackAttachmentInput:
       type: object
       required: [fileName, mimeType, sizeBytes]
@@ -2034,7 +2056,7 @@ components:
         uploadUrl: {type: string}
     FeedbackEntry:
       type: object
-      required: [id, category, message, resolution, createdAt, user]
+      required: [id, category, message, resolution, statusHistory, createdAt, user]
       properties:
         id: {type: string}
         appKey: {type: [string, "null"]}
@@ -2043,8 +2065,9 @@ components:
         category: {type: string}
         message: {type: string}
         triage: {anyOf: [{$ref: "#/components/schemas/FeedbackTriage"}, {type: "null"}]}
-        resolution: {type: string, enum: [open, reviewing, hold, resolved, closed]}
+        resolution: {type: string, enum: [open, reviewing, hold, additional_info_required, resolved, closed]}
         resolutionResponse: {type: [string, "null"]}
+        statusHistory: {type: array, items: {$ref: "#/components/schemas/FeedbackStatusHistory"}}
         attachments: {type: array, items: {$ref: "#/components/schemas/FeedbackAttachment"}}
         createdAt: {type: string, format: date-time}
         user: {type: object, required: [id, fullName, email], properties: {id: {type: string}, fullName: {type: string}, email: {type: string}}}

@@ -1432,6 +1432,7 @@ export const FeedbackResolutionInputResolution = {
   open: 'open',
   reviewing: 'reviewing',
   hold: 'hold',
+  additional_info_required: 'additional_info_required',
   resolved: 'resolved',
   closed: 'closed',
 } as const;
@@ -1444,6 +1445,40 @@ export interface FeedbackResolutionInput {
      * @nullable
      */
   response?: string | null;
+}
+
+export type FeedbackStatusHistoryFromStatus = typeof FeedbackStatusHistoryFromStatus[keyof typeof FeedbackStatusHistoryFromStatus];
+
+
+export const FeedbackStatusHistoryFromStatus = {
+  open: 'open',
+  reviewing: 'reviewing',
+  hold: 'hold',
+  additional_info_required: 'additional_info_required',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
+export type FeedbackStatusHistoryToStatus = typeof FeedbackStatusHistoryToStatus[keyof typeof FeedbackStatusHistoryToStatus];
+
+
+export const FeedbackStatusHistoryToStatus = {
+  open: 'open',
+  reviewing: 'reviewing',
+  hold: 'hold',
+  additional_info_required: 'additional_info_required',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
+export interface FeedbackStatusHistory {
+  id: string;
+  fromStatus: FeedbackStatusHistoryFromStatus;
+  toStatus: FeedbackStatusHistoryToStatus;
+  changedById: string;
+  /** @nullable */
+  changedByName?: string | null;
+  changedAt: string;
 }
 
 export interface FeedbackAttachmentInput {
@@ -1493,6 +1528,7 @@ export const FeedbackEntryResolution = {
   open: 'open',
   reviewing: 'reviewing',
   hold: 'hold',
+  additional_info_required: 'additional_info_required',
   resolved: 'resolved',
   closed: 'closed',
 } as const;
@@ -1517,6 +1553,7 @@ export interface FeedbackEntry {
   resolution: FeedbackEntryResolution;
   /** @nullable */
   resolutionResponse?: string | null;
+  statusHistory: FeedbackStatusHistory[];
   attachments?: FeedbackAttachment[];
   createdAt: string;
   user: FeedbackEntryUser;
@@ -2532,6 +2569,20 @@ export type ListFeedbackEntriesModule = typeof ListFeedbackEntriesModule[keyof t
 
 
 export const ListFeedbackEntriesModule = {
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+  system: 'system',
+} as const;
+
+export type ExportFeedbackEntriesParams = {
+module?: ExportFeedbackEntriesModule;
+};
+
+export type ExportFeedbackEntriesModule = typeof ExportFeedbackEntriesModule[keyof typeof ExportFeedbackEntriesModule];
+
+
+export const ExportFeedbackEntriesModule = {
   qaqc: 'qaqc',
   lessons: 'lessons',
   audit: 'audit',

@@ -8,6 +8,7 @@
 import type { FeedbackAttachment } from './feedbackAttachment';
 import type { FeedbackEntryResolution } from './feedbackEntryResolution';
 import type { FeedbackEntryUser } from './feedbackEntryUser';
+import type { FeedbackStatusHistory } from './feedbackStatusHistory';
 import type { FeedbackTriage } from './feedbackTriage';
 
 export interface FeedbackEntry {
@@ -24,6 +25,7 @@ export interface FeedbackEntry {
   resolution: FeedbackEntryResolution;
   /** @nullable */
   resolutionResponse?: string | null;
+  statusHistory: FeedbackStatusHistory[];
   attachments?: FeedbackAttachment[];
   createdAt: Date;
   user: FeedbackEntryUser;

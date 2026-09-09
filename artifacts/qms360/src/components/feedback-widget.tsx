@@ -219,7 +219,11 @@ export function FeedbackWidget() {
               {myFeedback.data?.items.map((entry) => <div key={entry.id} className="rounded-md border bg-muted/30 p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate font-medium">{entry.message}</span>
-                   <Badge variant={entry.resolution === 'closed' ? 'secondary' : entry.resolution === 'resolved' ? 'default' : 'outline'} className="shrink-0 capitalize">{entry.resolution}</Badge>
+                  <Badge variant={entry.resolution === 'closed' ? 'secondary' : entry.resolution === 'resolved' ? 'default' : 'outline'} className="shrink-0">
+                    {entry.resolution === 'additional_info_required'
+                      ? 'Additional info required'
+                      : entry.resolution.charAt(0).toUpperCase() + entry.resolution.slice(1)}
+                  </Badge>
                 </div>
                 {entry.resolutionResponse && <p className="mt-2 whitespace-pre-line rounded bg-background p-2 text-muted-foreground">
                   <span className="font-medium text-foreground">Admin response:</span> {entry.resolutionResponse}

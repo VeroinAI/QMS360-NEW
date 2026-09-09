@@ -13,6 +13,7 @@ export const FeedbackResolutionInputResolution = {
   open: 'open',
   reviewing: 'reviewing',
   hold: 'hold',
+  additional_info_required: 'additional_info_required',
   resolved: 'resolved',
   closed: 'closed',
 } as const;

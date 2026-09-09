@@ -249,6 +249,19 @@ export const feedbackEntries = sharedSchema.table("feedback_entries", {
   ...auditColumns,
 });
 
+export const feedbackStatusHistory = sharedSchema.table("feedback_status_history", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  feedbackId: uuid("feedback_id").notNull().references(() => feedbackEntries.id, { onDelete: "cascade" }),
+  fromStatus: text("from_status").notNull(),
+  toStatus: text("to_status").notNull(),
+  changedById: uuid("changed_by_id").notNull().references(() => users.id),
+  changedAt: timestamp("changed_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("feedback_status_history_feedback_idx").on(table.feedbackId, table.changedAt),
+  index("feedback_status_history_org_idx").on(table.organizationId),
+]);
+
 export const feedbackAttachments = sharedSchema.table("feedback_attachments", {
   id: uuid("id").defaultRandom().primaryKey(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
