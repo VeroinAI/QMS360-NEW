@@ -1903,8 +1903,8 @@ components:
         signatureDataUrl: {type: [string, "null"], description: "data:image/... base64 payload; null clears the signature"}
     AccessRequest:
       type: object
-      required: [id, userId, requestedRoleId, status, requestedAt]
-      properties: {id: {type: string}, userId: {type: string}, requestedRoleId: {type: string}, scope: {$ref: "#/components/schemas/RoleAssignment"}, status: {type: string, enum: [pending, approved, rejected]}, requestedAt: {type: string, format: date-time}}
+      required: [id, userId, fullName, username, email, requestedRoleId, status, requestedAt]
+      properties: {id: {type: string}, userId: {type: string}, fullName: {type: [string, "null"]}, username: {type: string}, email: {type: [string, "null"]}, requestedRoleId: {type: string}, scope: {$ref: "#/components/schemas/RoleAssignment"}, status: {type: string, enum: [pending, approved, rejected]}, requestedAt: {type: string, format: date-time}}
     AdminDecision:
       type: object
       required: [decision]

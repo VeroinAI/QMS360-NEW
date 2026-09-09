@@ -11,6 +11,11 @@ import type { RoleAssignment } from './roleAssignment';
 export interface AccessRequest {
   id: string;
   userId: string;
+  /** @nullable */
+  fullName: string | null;
+  username: string;
+  /** @nullable */
+  email: string | null;
   requestedRoleId: string;
   scope?: RoleAssignment;
   status: AccessRequestStatus;

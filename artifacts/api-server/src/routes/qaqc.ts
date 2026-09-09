@@ -17,6 +17,7 @@ import { assertProjectInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess, filterReadOnlyValues, readOnlyFields } from "../lib/field-access";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
+import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
@@ -723,9 +724,9 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
 }));
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
   const result = await pageTable(req, applicationAccess, [eq(applicationAccess.status, "pending")]);
-  const userRows = await db.select().from(users).where(eq(users.organizationId, org(req)));
-  const byUsername = new Map(userRows.map((u) => [u.username, u]));
-  res.json({ ...result, items: result.items.map((r: any) => ({ id: r.id, userId: byUsername.get(r.username)?.id ?? r.username, requestedRoleId: "", status: "pending", requestedAt: r.createdAt })) });
+  const userRows = await db.select().from(users).where(and(eq(users.organizationId, org(req)), isNull(users.deletedAt)));
+  const byUsername = activeUserIdentityByUsername(userRows, org(req));
+  res.json({ ...result, items: result.items.map((r: any) => ({ id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: "", status: "pending", requestedAt: r.createdAt })) });
 }));
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
   const v: any = body(api.DecideQaqcAccessRequestBody, req); const before: any = await activeRow(req, applicationAccess, String(req.params.id));

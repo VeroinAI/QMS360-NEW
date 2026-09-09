@@ -1085,6 +1085,16 @@ export interface PlatformRole {
   /** @nullable */
   description?: string | null;
 }
+
+export interface PlatformRoleUpdate {
+  roleId: string;
+}
+
+export interface PlatformRoleUpdateResult {
+  userId: string;
+  platformRole: string;
+}
+
 export interface UserProfileUpdate {
   /** @nullable */
   designation?: string | null;
@@ -1107,6 +1117,11 @@ export const AccessRequestStatus = {
 export interface AccessRequest {
   id: string;
   userId: string;
+  /** @nullable */
+  fullName: string | null;
+  username: string;
+  /** @nullable */
+  email: string | null;
   requestedRoleId: string;
   scope?: RoleAssignment;
   status: AccessRequestStatus;
@@ -1165,6 +1180,49 @@ export interface LessonDelegationInput {
   startDate: string;
   endDate: string;
 }
+
+export interface LessonDelegationForm {
+  id: string;
+  referenceNumber: string;
+  title: string;
+}
+
+export interface LessonDelegationOption {
+  id: string;
+  name: string;
+}
+
+export interface LessonDelegationOptions {
+  projects: LessonDelegationOption[];
+  users: LessonDelegationOption[];
+}
+
+export type LessonDelegationStatus = typeof LessonDelegationStatus[keyof typeof LessonDelegationStatus];
+
+
+export const LessonDelegationStatus = {
+  pending: 'pending',
+  active: 'active',
+  expired: 'expired',
+  revoked: 'revoked',
+} as const;
+
+export interface LessonDelegation {
+  id: string;
+  delegatorId: string;
+  delegatorName: string;
+  delegateId: string;
+  delegateName: string;
+  projectId: string;
+  projectName: string;
+  lessonForms: LessonDelegationForm[];
+  startDate: string;
+  endDate: string;
+  status: LessonDelegationStatus;
+  /** @nullable */
+  revokedAt?: string | null;
+}
+
 export interface EscalationRule {
   id: string;
   triggerType: string;
@@ -2022,6 +2080,7 @@ export type DelegationPage = PageMeta & {
 export type LessonDelegationPage = PageMeta & {
   items: LessonDelegation[];
 };
+
 export type EscalationRulePage = PageMeta & {
   items: EscalationRule[];
 };
@@ -2276,6 +2335,7 @@ export type ExtensionBody = ExtensionRequest;
 export type FeedbackSubmissionBody = SubmitFeedbackInput;
 
 export type FeedbackTriageRequestBody = TriageFeedbackInput;
+
 export type FeedbackResolutionUpdateBody = FeedbackResolutionInput;
 
 export type FeedbackAttachmentUploadBody = FeedbackAttachmentInput;
@@ -2918,6 +2978,7 @@ export type ListLessonsDelegationPendingFormsParams = {
 projectId: string;
 delegatorId: string;
 };
+
 export type ListLessonsAuditLogParams = {
 from?: FromParameter;
 to?: ToParameter;
@@ -3159,50 +3220,4 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 };
-export interface LessonDelegationOption {
-  id: string;
-  name: string;
-}
 
-export const LessonDelegationStatus = {
-  pending: 'pending',
-  active: 'active',
-  expired: 'expired',
-  revoked: 'revoked',
-} as const;
-export type LessonDelegationStatus = typeof LessonDelegationStatus[keyof typeof LessonDelegationStatus];
-export interface LessonDelegation {
-  id: string;
-  delegatorId: string;
-  delegatorName: string;
-  delegateId: string;
-  delegateName: string;
-  projectId: string;
-  projectName: string;
-  lessonForms: LessonDelegationForm[];
-  startDate: string;
-  endDate: string;
-  status: LessonDelegationStatus;
-  /** @nullable */
-  revokedAt?: string | null;
-}
-
-export interface LessonDelegationForm {
-  id: string;
-  referenceNumber: string;
-  title: string;
-}
-
-export interface LessonDelegationOptions {
-  projects: LessonDelegationOption[];
-  users: LessonDelegationOption[];
-}
-
-export interface PlatformRoleUpdate {
-  roleId: string;
-}
-
-export interface PlatformRoleUpdateResult {
-  userId: string;
-  platformRole: string;
-}

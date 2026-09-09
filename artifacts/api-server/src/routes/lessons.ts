@@ -23,6 +23,7 @@ import {
   UpdateLessonsUserProfileBody,
   CreateApproverScopeBody,
 } from "@workspace/api-zod";
+import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 import {
   applicationAccess,
   db,
@@ -1102,8 +1103,9 @@ router.get("/admin/access-queue", asyncHandler(async (req, res) => {
     db.select({ count: sql<number>`count(*)` }).from(applicationAccess).where(where),
     db.select().from(lessonsWorkspaceRoles).where(and(eq(lessonsWorkspaceRoles.organizationId, req.currentUser!.organizationId), isNull(lessonsWorkspaceRoles.deletedAt))).limit(1),
   ]);
-  const userRows = rows.length ? await db.select().from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId), inArray(users.username, rows.map((r) => r.username)))) : [];
-  res.json(paginated(rows.map((r) => ({ id: r.id, userId: userRows.find((u) => u.username === r.username)?.id ?? r.id, requestedRoleId: role[0]?.id ?? r.id, status: "pending", requestedAt: r.createdAt })), Number(count[0]?.count ?? 0), page, limit));
+  const userRows = rows.length ? await db.select().from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId), inArray(users.username, rows.map((r) => r.username)), isNull(users.deletedAt))) : [];
+  const byUsername = activeUserIdentityByUsername(userRows, req.currentUser!.organizationId);
+  res.json(paginated(rows.map((r) => ({ id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: role[0]?.id ?? r.id, status: "pending", requestedAt: r.createdAt })), Number(count[0]?.count ?? 0), page, limit));
 }));
 
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {

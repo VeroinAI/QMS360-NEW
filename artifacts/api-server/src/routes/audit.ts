@@ -31,6 +31,7 @@ import { assertFieldAccess } from "../lib/field-access";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
 import { asyncHandler, HttpError, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
+import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 
 const router = Router();
 router.use(requireAuth);
@@ -844,8 +845,9 @@ router.get("/admin/access-queue", asyncHandler(async (req, res) => {
     db.select().from(applicationAccess).where(where).orderBy(desc(applicationAccess.createdAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(applicationAccess).where(where),
   ]);
-  const orgUsers = await db.select().from(users).where(eq(users.organizationId, actor(req).organizationId));
-  res.json(paginated(rows.map((x) => ({ id: x.id, userId: orgUsers.find((u) => u.username === x.username)?.id ?? x.id, requestedRoleId: "", status: "pending", requestedAt: x.createdAt })), Number(count), page, limit));
+  const orgUsers = await db.select().from(users).where(and(eq(users.organizationId, actor(req).organizationId), isNull(users.deletedAt)));
+  const byUsername = activeUserIdentityByUsername(orgUsers, actor(req).organizationId);
+  res.json(paginated(rows.map((x) => ({ id: x.id, ...accessRequestIdentity(x.username, byUsername), requestedRoleId: "", status: "pending", requestedAt: x.createdAt })), Number(count), page, limit));
 }));
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.DecideAuditAccessRequestBody, req);
