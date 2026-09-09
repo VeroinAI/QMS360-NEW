@@ -1318,6 +1318,7 @@ export type FeedbackResolutionInputResolution = typeof FeedbackResolutionInputRe
 export const FeedbackResolutionInputResolution = {
   open: 'open',
   reviewing: 'reviewing',
+  hold: 'hold',
   resolved: 'resolved',
   closed: 'closed',
 } as const;
@@ -1378,6 +1379,7 @@ export type FeedbackEntryResolution = typeof FeedbackEntryResolution[keyof typeo
 export const FeedbackEntryResolution = {
   open: 'open',
   reviewing: 'reviewing',
+  hold: 'hold',
   resolved: 'resolved',
   closed: 'closed',
 } as const;

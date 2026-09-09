@@ -191,6 +191,17 @@ describe("authorization", () => {
     expect(entry.resolution).toBe("open");
   });
 
+  it("allows administrators to place feedback on hold", async () => {
+    const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "system", category: "issue", message: "Waiting for an external dependency" } });
+    const held = await api("PUT", `/feedback/${created.json.id}/resolution`, {
+      token: adminA.token,
+      body: { resolution: "hold", response: "Paused until the dependency is available." },
+    });
+    expect(held.status).toBe(200);
+    expect(held.json.resolution).toBe("hold");
+    expect(held.json.resolutionResponse).toBe("Paused until the dependency is available.");
+  });
+
   it("allows Closed only after Resolved", async () => {
     const created = await api("POST", "/feedback", { token: memberA.token, body: { module: "system", category: "issue", message: "The feedback workflow is incomplete" } });
     const tooEarly = await api("PUT", `/feedback/${created.json.id}/resolution`, { token: adminA.token, body: { resolution: "closed" } });

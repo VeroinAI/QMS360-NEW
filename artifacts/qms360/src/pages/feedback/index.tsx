@@ -35,7 +35,7 @@ const moduleLabels: Record<string, string> = {
   system: 'System / General',
 };
 
-type Resolution = 'open' | 'reviewing' | 'resolved' | 'closed';
+type Resolution = 'open' | 'reviewing' | 'hold' | 'resolved' | 'closed';
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -213,6 +213,7 @@ export function FeedbackPage() {
               <SelectContent>
                 <SelectItem value="open">Open</SelectItem>
                 <SelectItem value="reviewing">Reviewing</SelectItem>
+                <SelectItem value="hold">Hold</SelectItem>
                 <SelectItem value="resolved">Resolved</SelectItem>
                 <SelectItem value="closed" disabled={resolutionEntry?.resolution !== 'resolved' && resolutionEntry?.resolution !== 'closed'}>Closed</SelectItem>
               </SelectContent>

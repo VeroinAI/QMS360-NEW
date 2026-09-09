@@ -12,6 +12,7 @@ export type FeedbackResolutionInputResolution = typeof FeedbackResolutionInputRe
 export const FeedbackResolutionInputResolution = {
   open: 'open',
   reviewing: 'reviewing',
+  hold: 'hold',
   resolved: 'resolved',
   closed: 'closed',
 } as const;

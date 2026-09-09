@@ -1365,7 +1365,7 @@ export const ListFeedbackEntriesResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -1424,7 +1424,7 @@ export const SubmitFeedbackResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -1471,7 +1471,7 @@ export const ListMyFeedbackEntriesResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -1538,7 +1538,7 @@ export const RunFeedbackTriageResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -1568,7 +1568,7 @@ export const updateFeedbackResolutionBodyResponseMax = 4000;
 
 
 export const UpdateFeedbackResolutionBody = zod.object({
-  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
   "response": zod.string().max(updateFeedbackResolutionBodyResponseMax).nullish().describe('Optional response explaining what was reviewed, resolved, or closed')
 })
 
@@ -1585,7 +1585,7 @@ export const UpdateFeedbackResolutionResponse = zod.object({
   "guidance": zod.string().nullish(),
   "resolutionSuggestion": zod.string().nullish().describe('Suggested next step for the admin reviewing this feedback')
 }),zod.null()]).optional(),
-  "resolution": zod.enum(['open', 'reviewing', 'resolved', 'closed']),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'resolved', 'closed']),
   "resolutionResponse": zod.string().nullish(),
   "attachments": zod.array(zod.object({
   "id": zod.string(),

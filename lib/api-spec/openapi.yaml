@@ -1951,7 +1951,7 @@ components:
       type: object
       required: [resolution]
       properties:
-        resolution: {type: string, enum: [open, reviewing, resolved, closed]}
+        resolution: {type: string, enum: [open, reviewing, hold, resolved, closed]}
         response: {type: [string, "null"], maxLength: 4000, description: "Optional response explaining what was reviewed, resolved, or closed"}
     FeedbackAttachmentInput:
       type: object
@@ -1986,7 +1986,7 @@ components:
         category: {type: string}
         message: {type: string}
         triage: {anyOf: [{$ref: "#/components/schemas/FeedbackTriage"}, {type: "null"}]}
-        resolution: {type: string, enum: [open, reviewing, resolved, closed]}
+        resolution: {type: string, enum: [open, reviewing, hold, resolved, closed]}
         resolutionResponse: {type: [string, "null"]}
         attachments: {type: array, items: {$ref: "#/components/schemas/FeedbackAttachment"}}
         createdAt: {type: string, format: date-time}
