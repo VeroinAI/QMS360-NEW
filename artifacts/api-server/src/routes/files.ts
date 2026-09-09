@@ -4,12 +4,18 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import express, { Router, type IRouter } from "express";
 import { and, eq, isNull } from "drizzle-orm";
-import { db } from "@workspace/db";
+import {
+  applicationAccess, auditFindings, audits, correctiveActionReports, customerSatisfactionEntries,
+  db, documentGovernanceLogEntries, lessonLearnedForms, materialInspectionEntries, qaqcMetricEntries,
+  qualityAssessmentBriefs, qtbtEntries,
+} from "@workspace/db";
 import { evidenceLimits, evidenceTable } from "../lib/evidence";
 import { validateEvidenceFile } from "../lib/files";
 import { getObject, storeObject } from "../lib/objectStorage";
 import type { AppKey } from "../lib/workspace";
 import { requireAuth } from "../middlewares/auth";
+import { getAuthorizedProjectScope, type AppKey as RbacAppKey, type PermissionAction } from "../middlewares/rbac";
+import { canReadLesson } from "./lessons";
 
 const router: IRouter = Router();
 const uploadDir = path.resolve(process.cwd(), "uploads");
@@ -26,13 +32,85 @@ async function findEvidence(id: string, organizationId: string) {
   return null;
 }
 
+const appAccessColumns = {
+  qaqc: applicationAccess.canOpenQaqc,
+  lessons: applicationAccess.canOpenLessons,
+  audit: applicationAccess.canOpenAudit,
+};
+async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, organizationId: string) {
+  if (!found) return null;
+  const { app, row } = found;
+  if (app === "lessons") {
+    const [lesson] = await db.select({
+      projectId: lessonLearnedForms.projectId, creatorId: lessonLearnedForms.creatorId, approverId: lessonLearnedForms.approverId,
+    }).from(lessonLearnedForms).where(and(
+      eq(lessonLearnedForms.id, row.recordId), eq(lessonLearnedForms.organizationId, organizationId), isNull(lessonLearnedForms.deletedAt),
+    ));
+    return lesson ? { projectId: lesson.projectId, module: "lessons", creatorId: lesson.creatorId, approverId: lesson.approverId } : null;
+  }
+  if (app === "audit") {
+    if (["audit", "audit_execution"].includes(row.recordType)) {
+      const [parent] = await db.select({ projectId: audits.projectId }).from(audits).where(and(eq(audits.id, row.recordId), eq(audits.organizationId, organizationId), isNull(audits.deletedAt)));
+      return parent?.projectId ? { projectId: parent.projectId, module: "audits" } : null;
+    }
+    if (["audit_finding", "finding"].includes(row.recordType)) {
+      const [parent] = await db.select({ projectId: audits.projectId }).from(auditFindings).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(and(eq(auditFindings.id, row.recordId), eq(auditFindings.organizationId, organizationId), isNull(auditFindings.deletedAt), isNull(audits.deletedAt)));
+      return parent?.projectId ? { projectId: parent.projectId, module: "findings" } : null;
+    }
+    const [parent] = await db.select({ projectId: audits.projectId }).from(correctiveActionReports)
+      .innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id))
+      .innerJoin(audits, eq(auditFindings.auditId, audits.id))
+      .where(and(eq(correctiveActionReports.id, row.recordId), eq(correctiveActionReports.organizationId, organizationId), isNull(correctiveActionReports.deletedAt), isNull(auditFindings.deletedAt), isNull(audits.deletedAt)));
+    return parent?.projectId ? { projectId: parent.projectId, module: "cars" } : null;
+  }
+  const qaqcParents: Record<string, { table: any; module: string }> = {
+    metric: { table: qaqcMetricEntries, module: "metrics" }, qaqc_metric: { table: qaqcMetricEntries, module: "metrics" },
+    material_inspection: { table: materialInspectionEntries, module: "material_inspections" },
+    qtbt: { table: qtbtEntries, module: "qtbt" },
+    customer_satisfaction: { table: customerSatisfactionEntries, module: "customer_satisfaction" },
+    document_governance: { table: documentGovernanceLogEntries, module: "document_governance" },
+    quality_brief: { table: qualityAssessmentBriefs, module: "quality_briefs" },
+  };
+  const target = qaqcParents[row.recordType];
+  if (!target) return null;
+  const [parent] = await db.select({ projectId: target.table.projectId }).from(target.table).where(and(
+    eq(target.table.id, row.recordId), eq(target.table.organizationId, organizationId), isNull(target.table.deletedAt),
+  ));
+  return parent?.projectId ? { projectId: parent.projectId, module: target.module } : null;
+}
+
+async function authorizeEvidence(req: express.Request, found: NonNullable<Awaited<ReturnType<typeof findEvidence>>>, action: PermissionAction) {
+  const user = req.currentUser!;
+  if (!["Super Admin", "Org Admin"].includes(user.platformRole)) {
+    const column = appAccessColumns[found.app];
+    const [access] = await db.select({ allowed: column }).from(applicationAccess).where(and(
+      eq(applicationAccess.organizationId, user.organizationId), eq(applicationAccess.username, user.username),
+      eq(column, true), isNull(applicationAccess.deletedAt),
+    )).limit(1);
+    if (!access) return false;
+  }
+  const parent = await evidenceProject(found, user.organizationId);
+  if (!parent) return false;
+  const scope = await getAuthorizedProjectScope(req, found.app as RbacAppKey, { module: parent.module, action });
+  if (!scope.unrestricted && !scope.projectIds.includes(parent.projectId)) return false;
+  if (found.app === "lessons" && action === "select") {
+    const [lesson] = await db.select().from(lessonLearnedForms).where(and(
+      eq(lessonLearnedForms.id, found.row.recordId),
+      eq(lessonLearnedForms.organizationId, user.organizationId),
+      isNull(lessonLearnedForms.deletedAt),
+    )).limit(1);
+    return !!lesson && await canReadLesson(req, lesson);
+  }
+  return true;
+}
+
 router.put("/:evidenceId", requireAuth,
   // The same-artifact endpoint intentionally accepts bytes rather than multipart.
   express.raw({ type: "*/*", limit: "210mb" }),
  async (req, res): Promise<void> => {
   const user = req.currentUser!;
   const found = await findEvidence(String(req.params.evidenceId), user.organizationId);
-  if (!found) { res.status(404).json({ error: "Evidence upload intent not found" }); return; }
+   if (!found || !await authorizeEvidence(req, found, "full")) { res.status(404).json({ error: "Evidence upload intent not found" }); return; }
   const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
   try {
     validateEvidenceFile(found.row.mimeType, body.byteLength, await evidenceLimits(user.organizationId));
@@ -63,7 +141,7 @@ router.put("/:evidenceId", requireAuth,
 
 router.head("/:evidenceId", requireAuth, async (req, res): Promise<void> => {
   const found = await findEvidence(String(req.params.evidenceId), req.currentUser!.organizationId);
-  if (!found || found.row.status !== "stored") { res.status(404).end(); return; }
+  if (!found || found.row.status !== "stored" || !await authorizeEvidence(req, found, "select")) { res.status(404).end(); return; }
   res.setHeader("Content-Type", found.row.mimeType);
   res.setHeader("Content-Length", found.row.sizeBytes);
   res.setHeader("Content-Disposition", `inline; filename="${found.row.fileName.replaceAll('"', "")}"`);
@@ -88,7 +166,7 @@ router.head("/:evidenceId", requireAuth, async (req, res): Promise<void> => {
 
 router.get("/:evidenceId", requireAuth, async (req, res): Promise<void> => {
   const found = await findEvidence(String(req.params.evidenceId), req.currentUser!.organizationId);
-  if (!found || found.row.status !== "stored") { res.status(404).json({ error: "Evidence file not found" }); return; }
+  if (!found || found.row.status !== "stored" || !await authorizeEvidence(req, found, "select")) { res.status(404).json({ error: "Evidence file not found" }); return; }
   if (found.row.storageKey.startsWith("gcs:")) {
     try {
       const object = await getObject(found.row.storageKey.slice(4));

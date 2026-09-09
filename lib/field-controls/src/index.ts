@@ -24,6 +24,7 @@ export const fieldControlRegistry: Record<FieldControlAppKey, FormDefinition[]> 
         { key: "ageing0To15", label: "Ageing 0–15 days" },
         { key: "ageing15To45", label: "Ageing 15–45 days" },
         { key: "ageingOver45", label: "Ageing over 45 days" },
+        { key: "approverId", label: "Approver" },
       ],
     },
     {

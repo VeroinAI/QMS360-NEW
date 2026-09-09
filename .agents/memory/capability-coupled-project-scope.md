@@ -1,0 +1,10 @@
+---
+name: Capability-coupled project scope
+description: Authorization rules for combining project-scoped roles, permission grants, aggregate routes, and secondary record paths.
+---
+
+Project access must come only from active role assignments that grant the capability required by the current operation. When multiple read roles apply, retain full-record and own-record scope separately for each project rather than promoting the strongest grant across their combined project set. An application administrator role grants full application capabilities only within its assignment scope; only platform Super Admin and Org Admin roles may bypass project scope.
+
+**Why:** Unioning every application assignment let unrelated roles expand privileged operations into other projects. Taking the strongest read grant globally also turned an own-record assignment into full visibility when another project had a full-read assignment. Treating any admin-named workspace role as global allowed cross-application administration, unrestricted role grants, and platform password resets. Reports, queues, raw files, and embedded parent records can recreate the same leak if they use broader application scope or trust a child identifier.
+
+**How to apply:** Resolve scope per application, module, and action. App-admin guards must query active assignments in that app, scope user listings and role mutations, and reject organization or outside-project grants from restricted admins. Keep platform administration platform-role-only. For aggregate endpoints, scope each underlying dataset independently. For child, evidence, escalation, replay, and export paths, resolve the authoritative parent project and apply the same ownership/approver policy as the primary detail route. Restricted users must fail closed on projectless records.

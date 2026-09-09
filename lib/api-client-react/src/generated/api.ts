@@ -19359,4 +19359,3 @@ export const useMarkAuditNotificationRead = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getMarkAuditNotificationReadMutationOptions(options));
     }
-

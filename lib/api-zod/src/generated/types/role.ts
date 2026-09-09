@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Permission } from './permission';
+import type { RoleScopeType } from './roleScopeType';
 
 export interface Role {
   id: string;
@@ -15,4 +16,6 @@ export interface Role {
   permissions: Permission[];
   active: boolean;
   systemDefault?: boolean;
+  scopeType?: RoleScopeType;
+  scopeIds?: string[];
 }

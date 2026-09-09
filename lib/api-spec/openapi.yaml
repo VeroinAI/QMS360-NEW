@@ -1869,11 +1869,11 @@ components:
     Role:
       type: object
       required: [id, name, permissions, active]
-      properties: {id: {type: string}, name: {type: string}, description: {type: [string, "null"]}, permissions: {type: array, items: {$ref: "#/components/schemas/Permission"}}, active: {type: boolean}, systemDefault: {type: boolean}}
+      properties: {id: {type: string}, name: {type: string}, description: {type: [string, "null"]}, permissions: {type: array, items: {$ref: "#/components/schemas/Permission"}}, active: {type: boolean}, systemDefault: {type: boolean}, scopeType: {type: string, enum: [organization, project]}, scopeIds: {type: array, items: {type: string}}}
     RoleAssignment:
       type: object
       required: [roleId, scopeType, scopeIds]
-      properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, business_unit, project]}, scopeIds: {type: array, items: {type: string}}}
+      properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, project]}, scopeIds: {type: array, items: {type: string}}}
     WorkspaceUser:
       type: object
       required: [id, username, fullName, platformRole, workspaceRoles, status]

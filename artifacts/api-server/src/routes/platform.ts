@@ -18,6 +18,7 @@ import {
   effectivePattern, formatReferenceNumber, getNumberingMap, isConfigured, NUMBERING_MODULES,
   resetNumberingPattern, saveNumberingPattern, type NumberingModule,
 } from "../lib/numbering";
+import { getPlatformEffectiveProjectScope } from "../middlewares/rbac";
 
 const router: IRouter = Router();
 const platformAdmin = requirePlatformRole("Super Admin", "Org Admin");
@@ -115,7 +116,7 @@ router.put("/platform/users/:userId/role", requireAuth, platformAdmin, async (re
   res.json(UpdateUserPlatformRoleResponse.parse({ userId: target.id, platformRole: role.name }));
 });
 
-router.put("/platform/users/:userId/temporary-password", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+router.put("/platform/users/:userId/temporary-password", requireAuth, requirePlatformRole("Super Admin", "Org Admin"), async (req, res): Promise<void> => {
   const parsed = SetUserTemporaryPasswordBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(422).json({ error: parsed.error.message });
@@ -190,6 +191,9 @@ router.get("/platform/context", requireAuth, async (req, res): Promise<void> => 
     lessons: access?.canOpenLessons ?? false,
     audit: access?.canOpenAudit ?? false,
   };
+  const scope = ["Super Admin", "Org Admin"].includes(user.platformRole)
+    ? { unrestricted: true, projectIds: [] }
+    : await getPlatformEffectiveProjectScope(user.id, user.organizationId);
   const projectRows = await db
     .select({
       id: projects.id,
@@ -201,7 +205,12 @@ router.get("/platform/context", requireAuth, async (req, res): Promise<void> => 
     })
     .from(projects)
     .leftJoin(businessUnits, eq(projects.businessUnitId, businessUnits.id))
-    .where(eq(projects.organizationId, user.organizationId));
+    .where(and(
+      eq(projects.organizationId, user.organizationId),
+      eq(projects.status, "active"),
+      isNull(projects.deletedAt),
+      scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds),
+    ));
 
   const response = {
     organizationName: organization?.name ?? user.organizationName,
@@ -224,6 +233,9 @@ router.get("/platform/projects", requireAuth, async (req, res): Promise<void> =>
     res.status(401).json({ error: "Authentication required" });
     return;
   }
+  const scope = ["Super Admin", "Org Admin"].includes(user.platformRole)
+    ? { unrestricted: true, projectIds: [] }
+    : await getPlatformEffectiveProjectScope(user.id, user.organizationId);
   const projectRows = await db
     .select({
       id: projects.id,
@@ -235,7 +247,12 @@ router.get("/platform/projects", requireAuth, async (req, res): Promise<void> =>
     })
     .from(projects)
     .leftJoin(businessUnits, eq(projects.businessUnitId, businessUnits.id))
-    .where(eq(projects.organizationId, user.organizationId));
+    .where(and(
+      eq(projects.organizationId, user.organizationId),
+      eq(projects.status, "active"),
+      isNull(projects.deletedAt),
+      scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds),
+    ));
   res.json(ListProjectsResponse.parse(projectRows.map((project) => ({
     ...project,
     businessUnit: project.businessUnit ?? "Unassigned",
@@ -244,6 +261,9 @@ router.get("/platform/projects", requireAuth, async (req, res): Promise<void> =>
 
 router.get("/platform/business-units", requireAuth, async (req, res): Promise<void> => {
   const user = req.currentUser!;
+  const scope = ["Super Admin", "Org Admin"].includes(user.platformRole)
+    ? { unrestricted: true, projectIds: [] }
+    : await getPlatformEffectiveProjectScope(user.id, user.organizationId);
   const { page, limit, offset } = pagination(req);
   const where = and(eq(businessUnits.organizationId, user.organizationId), isNull(businessUnits.deletedAt));
   const [rows, countRows] = await Promise.all([
@@ -251,7 +271,10 @@ router.get("/platform/business-units", requireAuth, async (req, res): Promise<vo
     db.select({ count: sql<number>`count(*)` }).from(businessUnits).where(where),
   ]);
   const projectRows = await db.select({ id: projects.id, businessUnitId: projects.businessUnitId })
-    .from(projects).where(and(eq(projects.organizationId, user.organizationId), isNull(projects.deletedAt)));
+    .from(projects).where(and(
+      eq(projects.organizationId, user.organizationId), eq(projects.status, "active"), isNull(projects.deletedAt),
+      scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds),
+    ));
   const response = paginated(rows.map((row) => ({
     id: row.id, name: row.name, parentGroup: row.headName,
     projectIds: projectRows.filter((project) => project.businessUnitId === row.id).map((project) => project.id),
@@ -276,20 +299,23 @@ router.get("/platform/reference-data", requireAuth, async (req, res): Promise<vo
   const user = req.currentUser!;
   const since = typeof req.query.since === "string" ? new Date(req.query.since) : null;
   if (since && Number.isNaN(since.valueOf())) { res.status(422).json({ error: "Invalid since timestamp" }); return; }
+  const scope = ["Super Admin", "Org Admin"].includes(user.platformRole)
+    ? { unrestricted: true, projectIds: [] }
+    : await getPlatformEffectiveProjectScope(user.id, user.organizationId);
   const updated = since ? gt(projects.updatedAt, since) : undefined;
   const [projectRows, unitRows] = await Promise.all([
     db.select({
       id: projects.id, code: projects.code, name: projects.name, status: projects.status,
       location: projects.location, businessUnit: businessUnits.name,
     }).from(projects).leftJoin(businessUnits, eq(projects.businessUnitId, businessUnits.id))
-      .where(and(eq(projects.organizationId, user.organizationId), isNull(projects.deletedAt), updated)),
+      .where(and(eq(projects.organizationId, user.organizationId), eq(projects.status, "active"), isNull(projects.deletedAt), updated, scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds))),
     db.select().from(businessUnits).where(and(
       eq(businessUnits.organizationId, user.organizationId), isNull(businessUnits.deletedAt),
       since ? gt(businessUnits.updatedAt, since) : undefined,
     )),
   ]);
   const allProjects = await db.select({ id: projects.id, businessUnitId: projects.businessUnitId })
-    .from(projects).where(and(eq(projects.organizationId, user.organizationId), isNull(projects.deletedAt)));
+    .from(projects).where(and(eq(projects.organizationId, user.organizationId), eq(projects.status, "active"), isNull(projects.deletedAt), scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds)));
   res.json(GetPlatformReferenceDataResponse.parse({
     generatedAt: new Date(),
     projects: projectRows.map((row) => ({ ...row, businessUnit: row.businessUnit ?? "Unassigned" })),

@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type RoleAssignmentScopeType = typeof RoleAssignmentScopeType[keyof typeof RoleAssignmentScopeType];
+export type RoleScopeType = typeof RoleScopeType[keyof typeof RoleScopeType];
 
 
-export const RoleAssignmentScopeType = {
+export const RoleScopeType = {
   organization: 'organization',
   project: 'project',
 } as const;

@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { disciplines, lessonsDisciplines, projects, users } from "@workspace/db";
 import { HttpError } from "./workspace";
 
@@ -13,6 +13,16 @@ async function assertActiveOrgRow(db: Db, table: any, orgId: string, id: string,
 
 export const assertProjectInOrg = (db: Db, orgId: string, projectId: string) =>
   assertActiveOrgRow(db, projects, orgId, projectId, "Project");
+export async function assertProjectScopeInOrg(db: Db, orgId: string, projectIds: unknown): Promise<string[]> {
+  if (!Array.isArray(projectIds) || projectIds.length === 0) throw new HttpError(422, "At least one project is required for project scope");
+  const ids = [...new Set(projectIds.filter((id): id is string => typeof id === "string"))];
+  if (ids.length !== projectIds.length || ids.length === 0) throw new HttpError(422, "Project scope must contain unique project IDs");
+  const rows = await db.select({ id: projects.id }).from(projects).where(and(
+    inArray(projects.id, ids), eq(projects.organizationId, orgId), eq(projects.status, "active"), isNull(projects.deletedAt),
+  ));
+  if (rows.length !== ids.length) throw new HttpError(422, "Every selected project must be active and belong to this organization");
+  return ids;
+}
 export const assertUserInOrg = (db: Db, orgId: string, userId: string) =>
   assertActiveOrgRow(db, users, orgId, userId, "User");
 export const assertDisciplineInOrg = (db: Db, app: "qaqc" | "lessons", orgId: string, disciplineId: string) =>

@@ -1028,6 +1028,14 @@ export interface Permission {
   name: string;
 }
 
+export type RoleScopeType = typeof RoleScopeType[keyof typeof RoleScopeType];
+
+
+export const RoleScopeType = {
+  organization: 'organization',
+  project: 'project',
+} as const;
+
 export interface Role {
   id: string;
   name: string;
@@ -1036,6 +1044,8 @@ export interface Role {
   permissions: Permission[];
   active: boolean;
   systemDefault?: boolean;
+  scopeType?: RoleScopeType;
+  scopeIds?: string[];
 }
 
 export type RoleAssignmentScopeType = typeof RoleAssignmentScopeType[keyof typeof RoleAssignmentScopeType];
@@ -1043,7 +1053,6 @@ export type RoleAssignmentScopeType = typeof RoleAssignmentScopeType[keyof typeo
 
 export const RoleAssignmentScopeType = {
   organization: 'organization',
-  business_unit: 'business_unit',
   project: 'project',
 } as const;
 
@@ -2344,6 +2353,7 @@ export type FeedbackAttachmentUploadBody = FeedbackAttachmentInput;
 export type SaveFieldMappingsBody = SaveFieldMappingsInput;
 
 export type EntityIdParameter = string;
+
 export type PageParameter = number;
 
 export type LimitParameter = number;
@@ -2395,6 +2405,7 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 };
+
 export type ListBusinessUnitsParams = {
 /**
  * @minimum 1

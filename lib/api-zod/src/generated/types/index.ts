@@ -361,6 +361,7 @@ export * from './roleAssignmentScopeType';
 export * from './roleBody';
 export * from './rolePage';
 export * from './rolePageResponse';
+export * from './roleScopeType';
 export * from './saveFieldMappingsBody';
 export * from './saveFieldMappingsInput';
 export * from './saveFieldMappingsInputMappingsItem';

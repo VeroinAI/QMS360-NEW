@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
-  and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, sql,
+  and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql,
 } from "drizzle-orm";
 import {
   AiUnavailableError, draftQualityBrief, promptToTransaction, rephraseText,
@@ -11,9 +11,9 @@ import {
   asyncHandler, HttpError, notify, notifyWithEmail, paginated, pagination, staffedRoleNames, writeAuditLog,
 } from "../lib/workspace";
 import { allocateReferenceNumber } from "../lib/numbering";
-import { requireAdmin, requireAuth } from "../middlewares/auth";
-import { requireAppAccess, requirePermission } from "../middlewares/rbac";
-import { assertProjectInOrg } from "../lib/tenancy";
+import { requireAuth } from "../middlewares/auth";
+import { assertCanManageAssignmentScope, assertProjectAccess, canManageAssignmentScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
+import { assertProjectInOrg, assertProjectScopeInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess, filterReadOnlyValues, readOnlyFields } from "../lib/field-access";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
@@ -22,7 +22,7 @@ import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
   documentGovernanceLogEntries, escalationInstances, escalationRules,
-  materialInspectionEntries, notificationTemplates, notifications,
+  evidenceFiles, materialInspectionEntries, notificationTemplates, notifications,
   organizationSettings, permissions, platformRoles, qaqcMetricEntries,
   qualityAssessmentBriefs, qtbtEntries, targetBenchmarks, users,
   userWorkspaceRoles, workspaceRolePermissions, workspaceRoles,
@@ -45,13 +45,31 @@ for (const [path, module] of qaqcModules) {
   router.use(path, (req, res, next) =>
     requirePermission("qaqc", module, req.method === "GET" ? "select" : "full")(req, res, next));
 }
-router.use("/evidence", (req, res, next) =>
-  requirePermission("qaqc", "quality_briefs", req.method === "GET" ? "select" : "full")(req, res, next));
+const qaqcEvidenceModules: Record<string, string> = {
+  metric: "metrics", qaqc_metric: "metrics", material_inspection: "material_inspections",
+  qtbt: "qtbt", customer_satisfaction: "customer_satisfaction",
+  document_governance: "document_governance", quality_brief: "quality_briefs",
+};
+router.use("/evidence", asyncHandler(async (req, res, next) => {
+  let recordType = typeof req.body?.recordType === "string" ? req.body.recordType
+    : typeof req.query.recordType === "string" ? req.query.recordType : null;
+  if (!recordType) {
+    const evidenceId = req.path.split("/").filter(Boolean)[0];
+    const [stored] = evidenceId ? await db.select({ recordType: evidenceFiles.recordType }).from(evidenceFiles).where(and(
+      eq(evidenceFiles.id, evidenceId), eq(evidenceFiles.organizationId, req.currentUser!.organizationId), isNull(evidenceFiles.deletedAt),
+    )).limit(1) : [];
+    recordType = stored?.recordType ?? null;
+  }
+  const module = recordType ? qaqcEvidenceModules[recordType] : null;
+  if (!module) throw new HttpError(422, "Unsupported evidence record type");
+  await requirePermission("qaqc", module, req.method === "GET" ? "select" : "full")(req, res, next);
+}));
 router.use("/ai", (req, res, next) =>
   requirePermission("qaqc", "metrics", "full")(req, res, next));
 router.use(asyncHandler(async (req, _res, next) => {
   if (req.method !== "GET" && typeof req.body?.projectId === "string") {
     await assertProjectInOrg(db, org(req), req.body.projectId);
+    await assertProjectAccess(req, req.body.projectId);
   }
   next();
 }));
@@ -118,6 +136,8 @@ function activeClauses(table: Table, organizationId: string, extra: any[] = []) 
 
 async function pageTable(req: Request, table: Table, clauses: any[] = []) {
   const { page, limit, offset } = pagination(req);
+  const scope = await getAuthorizedProjectScope(req, "qaqc");
+  if (!scope.unrestricted && table.projectId) clauses.push(inArray(table.projectId, scope.projectIds));
   const where = activeClauses(table, org(req), clauses);
   const [items, totals] = await Promise.all([
     db.select().from(table).where(where).orderBy(desc(table.createdAt)).limit(limit).offset(offset),
@@ -127,8 +147,10 @@ async function pageTable(req: Request, table: Table, clauses: any[] = []) {
 }
 
 async function activeRow(req: Request, table: Table, id: string) {
+  const scope = await getAuthorizedProjectScope(req, "qaqc");
   const [row] = await db.select().from(table).where(and(
     eq(table.id, id), activeClauses(table, org(req)),
+    !req.permissionAdminBypass && !scope.unrestricted && table.projectId ? inArray(table.projectId, scope.projectIds) : undefined,
   )).limit(1);
   if (!row) throw new HttpError(404, "Resource not found");
   return row;
@@ -451,7 +473,13 @@ async function pqiData(req: Request) {
   const projectId = String(req.query.projectId ?? "");
   const period = String(req.query.period ?? "");
   const clauses: any[] = [eq(qaqcMetricEntries.organizationId, org(req)), isNull(qaqcMetricEntries.deletedAt)];
-  if (projectId) clauses.push(eq(qaqcMetricEntries.projectId, projectId));
+  const scope = await getAuthorizedProjectScope(req, "qaqc", { module: "metrics", action: "select" });
+  if (projectId) {
+    if (!scope.unrestricted && !scope.projectIds.includes(projectId)) throw new HttpError(403, "You do not have access to this project");
+    clauses.push(eq(qaqcMetricEntries.projectId, projectId));
+  } else if (!scope.unrestricted) {
+    clauses.push(inArray(qaqcMetricEntries.projectId, scope.projectIds));
+  }
   if (period) clauses.push(eq(qaqcMetricEntries.reportingPeriod, monthStart(period)));
   const [rows, targets] = await Promise.all([
     db.select().from(qaqcMetricEntries).where(and(...clauses)),
@@ -478,16 +506,25 @@ const toCsv = (headers: string[], rows: unknown[][]) => [headers, ...rows].map((
 function sendDownload(res: Response, fileName: string, csv: string) {
   res.json({ delivery: "download", fileName, downloadUrl: `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`, message: null });
 }
-router.get("/reports/monthly", asyncHandler(async (req, res) => {
+router.get("/reports/monthly", requirePermission("qaqc", "metrics", "select"), asyncHandler(async (req, res) => {
   const filters: any[] = [];
-  if (req.query.projectId) filters.push(eq(qaqcMetricEntries.projectId, String(req.query.projectId)));
+  const scope = await getAuthorizedProjectScope(req, "qaqc");
+  if (req.query.projectId) {
+    await assertProjectAccess(req, String(req.query.projectId));
+    filters.push(eq(qaqcMetricEntries.projectId, String(req.query.projectId)));
+  } else if (!scope.unrestricted) filters.push(inArray(qaqcMetricEntries.projectId, scope.projectIds));
   if (req.query.period) filters.push(eq(qaqcMetricEntries.reportingPeriod, monthStart(String(req.query.period))));
   const rows = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), isNull(qaqcMetricEntries.deletedAt), ...filters)).orderBy(asc(qaqcMetricEntries.category));
   sendDownload(res, "qaqc-monthly.csv", toCsv(["Project ID", "Period", "Category", "Issued", "Closed", "0-15", "15-45", ">45", "Closure Rate"], rows.map((r) => { const m = mapMetric(r); return [r.projectId, r.reportingPeriod, r.category, r.issuedCount, r.closedCount, r.ageing0To15, r.ageing15To45, r.ageingOver45, m.closureRate]; })));
 }));
 router.get("/reports/document-governance", asyncHandler(async (req, res) => {
   const filters: any[] = [];
-  if (req.query.projectId) filters.push(eq(documentGovernanceLogEntries.projectId, String(req.query.projectId)));
+  const scope = await getAuthorizedProjectScope(req, "qaqc", { module: "document_governance", action: "select" });
+  if (req.query.projectId) {
+    const projectId = String(req.query.projectId);
+    if (!scope.unrestricted && !scope.projectIds.includes(projectId)) throw new HttpError(403, "You do not have access to this project");
+    filters.push(eq(documentGovernanceLogEntries.projectId, projectId));
+  } else if (!scope.unrestricted) filters.push(inArray(documentGovernanceLogEntries.projectId, scope.projectIds));
   if (req.query.period) filters.push(eq(documentGovernanceLogEntries.reportingPeriod, monthStart(String(req.query.period))));
   const rows = await db.select().from(documentGovernanceLogEntries).where(and(eq(documentGovernanceLogEntries.organizationId, org(req)), isNull(documentGovernanceLogEntries.deletedAt), ...filters));
   sendDownload(res, "document-governance.csv", toCsv(["Project ID", "Date", "Discipline ID", "Document Type", "Status", "Review Days", "Pending With", "Pending Days", "Correspondence Count"], rows.map((r) => { const m = mapDocument(r); return [m.projectId, m.date, m.disciplineId, m.documentType, m.status, m.reviewDays, m.pendingWith, m.pendingDays, m.correspondenceCount]; })));
@@ -520,6 +557,7 @@ router.post("/metrics/import", asyncHandler(async (req, res) => {
     const v = parsed.data;
     try {
       await assertProjectInOrg(db, org(req), v.projectId);
+      await assertProjectAccess(req, v.projectId);
       const [existing] = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), eq(qaqcMetricEntries.projectId, v.projectId), eq(qaqcMetricEntries.reportingPeriod, monthStart(v.period)), eq(qaqcMetricEntries.category, v.category), isNull(qaqcMetricEntries.deletedAt))).limit(1);
       const values = { projectId: v.projectId, reportingPeriod: monthStart(v.period), category: v.category, issuedCount: v.issuedCount, closedCount: v.closedCount, ageing0To15: v.ageing0To15, ageing15To45: v.ageing15To45, ageingOver45: v.ageingOver45, status: v.workflowState.toLowerCase().replace(" ", "_"), updatedAt: new Date() };
       if (existing) {
@@ -537,9 +575,23 @@ router.post("/metrics/import", asyncHandler(async (req, res) => {
 
 router.get("/approvals", asyncHandler(async (req, res) => {
   const { page, limit } = pagination(req);
+  const [metricScope, briefScope] = await Promise.all([
+    getAuthorizedProjectScope(req, "qaqc", { module: "metrics", action: "select" }),
+    getAuthorizedProjectScope(req, "qaqc", { module: "quality_briefs", action: "select" }),
+  ]);
   const [metrics, briefs] = await Promise.all([
-    db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), eq(qaqcMetricEntries.status, "submitted"), isNull(qaqcMetricEntries.deletedAt))),
-    db.select().from(qualityAssessmentBriefs).where(and(eq(qualityAssessmentBriefs.organizationId, org(req)), eq(qualityAssessmentBriefs.workflowState, "submitted"), isNull(qualityAssessmentBriefs.deletedAt))),
+    db.select().from(qaqcMetricEntries).where(and(
+      eq(qaqcMetricEntries.organizationId, org(req)),
+      eq(qaqcMetricEntries.status, "submitted"),
+      isNull(qaqcMetricEntries.deletedAt),
+      metricScope.unrestricted ? undefined : inArray(qaqcMetricEntries.projectId, metricScope.projectIds),
+    )),
+    db.select().from(qualityAssessmentBriefs).where(and(
+      eq(qualityAssessmentBriefs.organizationId, org(req)),
+      eq(qualityAssessmentBriefs.workflowState, "submitted"),
+      isNull(qualityAssessmentBriefs.deletedAt),
+      briefScope.unrestricted ? undefined : inArray(qualityAssessmentBriefs.projectId, briefScope.projectIds),
+    )),
   ]);
   const all = [
     ...metrics.map((r) => ({ id: r.id, recordType: "metric", recordId: r.id, title: `${r.category} metric`, submittedAt: r.updatedAt, delegatedFrom: null })),
@@ -585,27 +637,43 @@ router.post("/ai/prompt-to-transaction/:sessionId/answer", asyncHandler(async (r
 }));
 
 // Evidence
-router.post("/evidence", asyncHandler(async (req, res) => {
-  const v: any = body(api.CreateQaqcEvidenceIntentBody, req);
-  const recordTables: Record<string, Table> = {
-    metric: qaqcMetricEntries,
-    qaqc_metric: qaqcMetricEntries,
-    material_inspection: materialInspectionEntries,
-    qtbt: qtbtEntries,
-    customer_satisfaction: customerSatisfactionEntries,
-    document_governance: documentGovernanceLogEntries,
-    quality_brief: qualityAssessmentBriefs,
-  };
-  const recordTable = recordTables[v.recordType];
+const evidenceRecordTables: Record<string, Table> = {
+  metric: qaqcMetricEntries,
+  qaqc_metric: qaqcMetricEntries,
+  material_inspection: materialInspectionEntries,
+  qtbt: qtbtEntries,
+  customer_satisfaction: customerSatisfactionEntries,
+  document_governance: documentGovernanceLogEntries,
+  quality_brief: qualityAssessmentBriefs,
+};
+
+async function assertEvidenceParent(req: Request, recordType: string, recordId: string, invalidParentAs422 = false) {
+  const recordTable = evidenceRecordTables[recordType];
   if (!recordTable) throw new HttpError(422, "Unsupported evidence record type");
   try {
-    await activeRow(req, recordTable, v.recordId);
+    return await activeRow(req, recordTable, recordId);
   } catch (error) {
-    if (error instanceof HttpError && error.status === 404) {
+    if (invalidParentAs422 && error instanceof HttpError && error.status === 404) {
       throw new HttpError(422, "Evidence record does not belong to this organization");
     }
     throw error;
   }
+}
+
+async function scopedEvidenceRow(req: Request, id: string) {
+  const [row] = await db.select().from(evidenceFiles).where(and(
+    eq(evidenceFiles.id, id),
+    eq(evidenceFiles.organizationId, org(req)),
+    isNull(evidenceFiles.deletedAt),
+  )).limit(1);
+  if (!row) throw new HttpError(404, "Evidence not found");
+  await assertEvidenceParent(req, row.recordType, row.recordId);
+  return row;
+}
+
+router.post("/evidence", asyncHandler(async (req, res) => {
+  const v: any = body(api.CreateQaqcEvidenceIntentBody, req);
+  await assertEvidenceParent(req, v.recordType, v.recordId, true);
   let intent: { id: string; uploadUrl: string };
   try {
     intent = await createEvidenceIntent({
@@ -621,16 +689,21 @@ router.post("/evidence", asyncHandler(async (req, res) => {
   res.status(201).json(intent);
 }));
 router.put("/evidence/:id/confirm", asyncHandler(async (req, res) => {
+  await scopedEvidenceRow(req, String(req.params.id));
   const row = await confirmEvidence(db, "qaqc", String(req.params.id), org(req));
   if (!row) throw new HttpError(404, "Evidence not found");
   await audit(req, "confirm", "evidence", row.id, undefined, row); res.json(row);
 }));
 router.get("/evidence", asyncHandler(async (req, res) => {
   const { page, limit } = pagination(req);
-  const rows = await listEvidence(db, "qaqc", org(req), String(req.query.recordType), String(req.query.recordId));
+  const recordType = String(req.query.recordType);
+  const recordId = String(req.query.recordId);
+  await assertEvidenceParent(req, recordType, recordId);
+  const rows = await listEvidence(db, "qaqc", org(req), recordType, recordId);
   res.json(paginated(rows.slice((page - 1) * limit, page * limit), rows.length, page, limit));
 }));
 router.delete("/evidence/:id", asyncHandler(async (req, res) => {
+  await scopedEvidenceRow(req, String(req.params.id));
   const row = await deleteEvidence(db, "qaqc", String(req.params.id), org(req));
   if (!row) throw new HttpError(404, "Evidence not found");
   await audit(req, "delete", "evidence", row.id, undefined, row); res.status(204).send();
@@ -650,7 +723,7 @@ router.get("/field-controls", asyncHandler(async (req, res) => {
 }));
 
 // Per-application administration
-router.use("/admin", requireAdmin);
+router.use("/admin", requireAppAdmin("qaqc"));
 router.get("/admin/field-controls", asyncHandler(async (req, res) => {
   res.json(await readFieldControls(org(req), "qaqc"));
 }));
@@ -665,7 +738,7 @@ async function roleResponse(role: any) {
   const rows = await db.select({ key: permissions.key, name: permissions.label }).from(workspaceRolePermissions)
     .innerJoin(permissions, eq(workspaceRolePermissions.permissionId, permissions.id))
     .where(and(eq(workspaceRolePermissions.workspaceRoleId, role.id), isNull(workspaceRolePermissions.deletedAt), isNull(permissions.deletedAt)));
-  return { id: role.id, name: role.name, description: role.description, permissions: rows, active: role.status === "active", systemDefault: role.isSystem };
+  return { id: role.id, name: role.name, description: role.description, permissions: rows, active: role.status === "active", systemDefault: role.isSystem, scopeType: "organization" as const, scopeIds: [] };
 }
 router.get("/admin/roles", asyncHandler(async (req, res) => {
   const result = await pageTable(req, workspaceRoles);
@@ -692,22 +765,32 @@ router.put("/admin/roles/:id", asyncHandler(async (req, res) => {
 }));
 router.get("/admin/users", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const [rows, totals, availablePlatformRoles] = await Promise.all([
-    db.select().from(users).where(and(eq(users.organizationId, org(req)), isNull(users.deletedAt))).orderBy(asc(users.fullName)).limit(limit).offset(offset),
-    db.select({ value: count() }).from(users).where(and(eq(users.organizationId, org(req)), isNull(users.deletedAt))),
+  const [allRows, allAssignments, availablePlatformRoles] = await Promise.all([
+    db.select().from(users).where(and(eq(users.organizationId, org(req)), isNull(users.deletedAt))).orderBy(asc(users.fullName)),
+    db.select().from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.organizationId, org(req)), isNull(userWorkspaceRoles.deletedAt))),
     db.select({ id: platformRoles.id, name: platformRoles.name }).from(platformRoles).where(and(eq(platformRoles.organizationId, org(req)), isNull(platformRoles.deletedAt))),
   ]);
+  const visibleRows = req.permissionAdminBypass ? allRows : allRows.filter((u) =>
+    u.id === actor(req) || allAssignments.some((a) => a.userId === u.id && canManageAssignmentScope(req, a.projectIds, a.businessUnitIds)));
+  const rows = visibleRows.slice(offset, offset + limit);
   const items = await Promise.all(rows.map(async (u) => {
-    const assigned = await db.select({ role: workspaceRoles }).from(userWorkspaceRoles).innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id)).where(and(eq(userWorkspaceRoles.userId, u.id), isNull(userWorkspaceRoles.deletedAt), isNull(workspaceRoles.deletedAt)));
-    return { id: u.id, username: u.username, fullName: u.fullName, email: u.email, platformRole: availablePlatformRoles.find((role) => role.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: await Promise.all(assigned.map((r) => roleResponse(r.role))), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt };
+    const assigned = await db.select({ role: workspaceRoles, assignment: userWorkspaceRoles }).from(userWorkspaceRoles).innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id)).where(and(eq(userWorkspaceRoles.userId, u.id), isNull(userWorkspaceRoles.deletedAt), isNull(workspaceRoles.deletedAt)));
+    const visibleAssigned = assigned.filter((r) => canManageAssignmentScope(req, r.assignment.projectIds, r.assignment.businessUnitIds));
+    return { id: u.id, username: u.username, fullName: u.fullName, email: u.email, platformRole: availablePlatformRoles.find((role) => role.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: await Promise.all(visibleAssigned.map(async (r) => ({ ...(await roleResponse(r.role)), scopeType: r.assignment.projectIds?.length ? "project" as const : "organization" as const, scopeIds: r.assignment.projectIds ?? [] }))), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt };
   }));
-  res.json(paginated(items, Number(totals[0]?.value ?? 0), page, limit));
+  res.json(paginated(items, visibleRows.length, page, limit));
 }));
 router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   const v: any = body(api.AssignQaqcUserRoleBody, req);
-  await activeRow(req, users, String(req.params.userId)); await activeRow(req, workspaceRoles, v.roleId);
+  const [target, role] = await Promise.all([
+    db.select({ id: users.id }).from(users).where(and(eq(users.id, String(req.params.userId)), eq(users.organizationId, org(req)), isNull(users.deletedAt))).limit(1),
+    db.select({ id: workspaceRoles.id }).from(workspaceRoles).where(and(eq(workspaceRoles.id, v.roleId), eq(workspaceRoles.organizationId, org(req)), eq(workspaceRoles.status, "active"), isNull(workspaceRoles.deletedAt))).limit(1),
+  ]);
+  if (!target[0] || !role[0]) throw new HttpError(404, "User or role not found");
   const [existing] = await db.select().from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.userId, String(req.params.userId)), eq(userWorkspaceRoles.workspaceRoleId, v.roleId), isNull(userWorkspaceRoles.deletedAt))).limit(1);
-  const scopes = v.scopeType === "business_unit" ? { businessUnitIds: v.scopeIds, projectIds: [] } : v.scopeType === "project" ? { businessUnitIds: [], projectIds: v.scopeIds } : { businessUnitIds: [], projectIds: [] };
+  if (v.scopeType === "business_unit") throw new HttpError(422, "Business-unit scope is not supported; choose organization or project");
+  const scopes = { businessUnitIds: [], projectIds: v.scopeType === "project" ? await assertProjectScopeInOrg(db, org(req), v.scopeIds) : [] };
+  assertCanManageAssignmentScope(req, scopes.projectIds, scopes.businessUnitIds);
   const [row] = existing ? await db.update(userWorkspaceRoles).set({ ...scopes, updatedAt: new Date() }).where(eq(userWorkspaceRoles.id, existing.id)).returning() : await db.insert(userWorkspaceRoles).values({ organizationId: org(req), userId: String(req.params.userId), workspaceRoleId: v.roleId, ...scopes }).returning();
   await audit(req, "assign_role", "user_workspace_role", row.id, existing, row); res.json(row);
 }));
@@ -715,6 +798,7 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
   const user: any = await activeRow(req, users, String(req.params.userId));
   const [assignment] = await db.select().from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.organizationId, org(req)), eq(userWorkspaceRoles.userId, user.id), eq(userWorkspaceRoles.workspaceRoleId, String(req.params.id)), isNull(userWorkspaceRoles.deletedAt))).limit(1);
   if (!assignment) throw new HttpError(404, "Role assignment not found");
+  assertCanManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds);
   const now = new Date();
   await db.update(userWorkspaceRoles).set({ deletedAt: now, status: "deleted", updatedAt: now }).where(eq(userWorkspaceRoles.id, assignment.id));
   const remaining = await db.select({ id: userWorkspaceRoles.id }).from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.organizationId, org(req)), eq(userWorkspaceRoles.userId, user.id), isNull(userWorkspaceRoles.deletedAt))).limit(1);
@@ -750,7 +834,25 @@ router.delete("/admin/delegations/:id", asyncHandler((req, res) => softDelete(re
 // lessons module's GET /lessons/escalations shape (EscalationSummary).
 router.get("/escalations", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const where = and(eq(escalationInstances.organizationId, org(req)), isNull(escalationInstances.deletedAt));
+  const metricScope = await getAuthorizedProjectScope(req, "qaqc", { module: "metrics", action: "select" });
+  const briefScope = await getAuthorizedProjectScope(req, "qaqc", { module: "quality_briefs", action: "select" });
+  const briefIds = briefScope.unrestricted ? [] : await db.select({ id: qualityAssessmentBriefs.id }).from(qualityAssessmentBriefs).where(and(
+    eq(qualityAssessmentBriefs.organizationId, org(req)),
+    inArray(qualityAssessmentBriefs.projectId, briefScope.projectIds),
+    isNull(qualityAssessmentBriefs.deletedAt),
+  ));
+  const where = and(
+    eq(escalationInstances.organizationId, org(req)),
+    isNull(escalationInstances.deletedAt),
+    or(
+      metricScope.unrestricted
+        ? eq(escalationInstances.recordType, "quality_performance")
+        : and(eq(escalationInstances.recordType, "quality_performance"), inArray(escalationInstances.recordId, metricScope.projectIds)),
+      briefScope.unrestricted
+        ? eq(escalationInstances.recordType, "quality_brief")
+        : and(eq(escalationInstances.recordType, "quality_brief"), inArray(escalationInstances.recordId, briefIds.map((row) => row.id))),
+    ),
+  );
   const [rows, count, rules] = await Promise.all([
     db.select().from(escalationInstances).where(where).orderBy(desc(escalationInstances.startedAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(escalationInstances).where(where),

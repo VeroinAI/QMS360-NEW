@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import * as Api from "@workspace/api-zod";
 import { allocateReferenceNumber, hasNumberingPattern } from "../lib/numbering";
 import {
@@ -23,9 +23,9 @@ import {
   platformRoles,
   users,
 } from "@workspace/db";
-import { requireAdmin, requireAuth } from "../middlewares/auth";
-import { requireAppAccess, requirePermission } from "../middlewares/rbac";
-import { assertProjectInOrg } from "../lib/tenancy";
+import { requireAuth } from "../middlewares/auth";
+import { assertCanManageAssignmentScope, assertProjectAccess, canManageAssignmentScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
+import { assertProjectInOrg, assertProjectScopeInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
@@ -34,6 +34,7 @@ import { asyncHandler, HttpError, notify, paginated, pagination, staffedRoleName
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 
 const router = Router();
+const requireAuditAdmin = requireAppAdmin("audit");
 router.use(requireAuth);
 router.use(requireAppAccess("audit"));
 const auditModules: Array<[string, string]> = [
@@ -44,11 +45,29 @@ for (const [path, module] of auditModules) {
   router.use(path, (req, res, next) =>
     requirePermission("audit", module, req.method === "GET" ? "select" : "full")(req, res, next));
 }
-router.use("/evidence", (req, res, next) =>
-  requirePermission("audit", "audits", req.method === "GET" ? "select" : "full")(req, res, next));
+const auditEvidenceModules: Record<string, string> = {
+  audit: "audits", audit_execution: "audits",
+  audit_finding: "findings", finding: "findings",
+  corrective_action_report: "cars", car: "cars",
+};
+router.use("/evidence", asyncHandler(async (req, res, next) => {
+  let recordType = typeof req.body?.recordType === "string" ? req.body.recordType
+    : typeof req.query.recordType === "string" ? req.query.recordType : null;
+  if (!recordType) {
+    const evidenceId = req.path.split("/").filter(Boolean)[0];
+    const [stored] = evidenceId ? await db.select({ recordType: auditEvidenceFiles.recordType }).from(auditEvidenceFiles).where(and(
+      eq(auditEvidenceFiles.id, evidenceId), eq(auditEvidenceFiles.organizationId, req.currentUser!.organizationId), isNull(auditEvidenceFiles.deletedAt),
+    )).limit(1) : [];
+    recordType = stored?.recordType ?? null;
+  }
+  const module = recordType ? auditEvidenceModules[recordType] : null;
+  if (!module) throw new HttpError(422, "Unsupported audit evidence record type");
+  await requirePermission("audit", module, req.method === "GET" ? "select" : "full")(req, res, next);
+}));
 router.use(asyncHandler(async (req, _res, next) => {
   if (req.method !== "GET" && typeof req.body?.projectId === "string") {
     await assertProjectInOrg(db, actor(req).organizationId, req.body.projectId);
+    await assertProjectAccess(req, req.body.projectId);
   }
   next();
 }));
@@ -100,6 +119,84 @@ type ScheduleMeta = {
   memoDescription?: string; memoCirculation?: string;
 };
 const scheduleMeta = (row: AnyRow): ScheduleMeta => parseJson(row.status, {});
+async function scheduleInScope(req: Request, row: AnyRow) {
+  const scope = await getAuthorizedProjectScope(req, "audit");
+  if (scope.unrestricted) return true;
+  const ids = scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
+  return ids.length > 0 && ids.every((id) => scope.projectIds.includes(id));
+}
+async function assertAuditProject(req: Request, projectId: string | null | undefined) {
+  if (req.permissionAdminBypass) return;
+  const scope = await getAuthorizedProjectScope(req, "audit");
+  if (!projectId) {
+    if (!scope.unrestricted) throw new HttpError(403, "You do not have access to a projectless Audit record");
+    return;
+  }
+  if (!scope.unrestricted && !scope.projectIds.includes(projectId)) throw new HttpError(403, "You do not have access to this project");
+}
+
+async function assertAuditRecordAccess(req: Request, recordType: string, recordId: string) {
+  let projectId: string | null | undefined;
+  if (recordType === "audit" || recordType === "audit_execution") {
+    const [row] = await db.select({ projectId: audits.projectId }).from(audits)
+      .where(and(active(audits, actor(req).organizationId), eq(audits.id, recordId)));
+    projectId = row?.projectId;
+  } else if (recordType === "audit_finding" || recordType === "finding") {
+    const [row] = await db.select({ projectId: audits.projectId }).from(auditFindings)
+      .innerJoin(audits, eq(auditFindings.auditId, audits.id))
+      .where(and(eq(auditFindings.id, recordId), active(auditFindings, actor(req).organizationId), isNull(audits.deletedAt)));
+    projectId = row?.projectId;
+  } else if (recordType === "corrective_action_report" || recordType === "car") {
+    const [row] = await db.select({ projectId: audits.projectId }).from(correctiveActionReports)
+      .innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id))
+      .innerJoin(audits, eq(auditFindings.auditId, audits.id))
+      .where(and(eq(correctiveActionReports.id, recordId), active(correctiveActionReports, actor(req).organizationId), isNull(auditFindings.deletedAt), isNull(audits.deletedAt)));
+    projectId = row?.projectId;
+  } else {
+    throw new HttpError(422, "Unsupported audit evidence record type");
+  }
+  if (!projectId) throw new HttpError(404, "Audit evidence record not found");
+  await assertAuditProject(req, projectId);
+}
+
+// Resolve the project through audit's parent chain before every detail,
+// workflow, evidence, and export operation. This keeps authorization intact
+// even where the child table does not store a project column.
+router.use(asyncHandler(async (req, _res, next) => {
+  const match = /^\/(schedules|plans|audits|findings|cars)(?:\/([^/]+))?/i.exec(req.path);
+  let projectIds: string[] = [];
+  let recordFound = false;
+  const id = match?.[2];
+  const routeType = match?.[1]?.toLowerCase();
+  if (routeType === "schedules" && id) {
+    const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, id)));
+    if (row) { recordFound = true; projectIds = scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []); }
+  } else if (routeType === "plans" && id) {
+    const [row] = await db.select({ projectId: auditPlans.projectId }).from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, id)));
+    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; }
+  } else if (routeType === "audits" && id) {
+    const [row] = await db.select({ projectId: audits.projectId }).from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, id)));
+    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; }
+  } else if (routeType === "findings" && id) {
+    const [row] = await db.select({ projectId: audits.projectId }).from(auditFindings)
+      .innerJoin(audits, eq(auditFindings.auditId, audits.id))
+      .where(and(eq(auditFindings.id, id), eq(audits.organizationId, actor(req).organizationId), isNull(auditFindings.deletedAt)));
+    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; }
+  } else if (routeType === "cars" && id) {
+    const [row] = await db.select({ projectId: audits.projectId }).from(correctiveActionReports)
+      .innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id))
+      .innerJoin(audits, eq(auditFindings.auditId, audits.id))
+      .where(and(eq(correctiveActionReports.id, id), eq(audits.organizationId, actor(req).organizationId), isNull(correctiveActionReports.deletedAt)));
+    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; }
+  }
+  if (recordFound) {
+    const scope = await getAuthorizedProjectScope(req, "audit");
+    if (!scope.unrestricted && (!projectIds.length || projectIds.some((projectId) => !scope.projectIds.includes(projectId)))) {
+      throw new HttpError(403, "You do not have access to this project");
+    }
+  }
+  next();
+}));
 const scheduleDto = (row: AnyRow) => {
   const meta = scheduleMeta(row);
   return {
@@ -163,16 +260,23 @@ function assertScheduleDates(data: AnyRow) {
 }
 
 router.get("/schedules", asyncHandler(async (req, res) => {
-  const { page, limit, offset } = pagination(req);
+  const { page, limit } = pagination(req);
   const where = active(auditSchedules, actor(req).organizationId);
-  const [items, [{ count }]] = await Promise.all([
-    db.select().from(auditSchedules).where(where).orderBy(desc(auditSchedules.year), desc(auditSchedules.updatedAt)).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(auditSchedules).where(where),
-  ]);
-  res.json(paginated(items.map(scheduleDto), Number(count), page, limit));
+  const allItems = await db.select().from(auditSchedules).where(where).orderBy(desc(auditSchedules.year), desc(auditSchedules.updatedAt));
+  const scoped = (await Promise.all(allItems.map(async (row) => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
+  const offset = (page - 1) * limit;
+  res.json(paginated(scoped.slice(offset, offset + limit).map(scheduleDto), scoped.length, page, limit));
 }));
 router.post("/schedules", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditScheduleBody, req);
+  const requestedProjectIds = data.projectIds?.length ? data.projectIds : [data.projectId].filter(Boolean);
+  const projectIds = requestedProjectIds.length
+    ? await assertProjectScopeInOrg(db, actor(req).organizationId, requestedProjectIds)
+    : [];
+  data.projectIds = projectIds;
+  const scope = await getAuthorizedProjectScope(req, "audit");
+  if (!scope.unrestricted && !projectIds.length) throw new HttpError(422, "At least one project is required for a project-scoped Audit schedule");
+  if (!scope.unrestricted && projectIds.some((id) => !scope.projectIds.includes(id))) throw new HttpError(403, "You do not have access to every selected project");
   await assertFieldAccess(req, "audit", "schedule", { mode: "create" });
   await assertFieldControls(req, "audit", "schedule", { mode: "create" });
   await Promise.all((data.auditTypes ?? []).map((value: string) =>
@@ -187,10 +291,19 @@ router.post("/schedules", asyncHandler(async (req, res) => {
 router.get("/schedules/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   if (!row) throw new HttpError(404, "Audit schedule not found");
+  if (!await scheduleInScope(req, row)) throw new HttpError(403, "You do not have access to this schedule");
   res.json(scheduleDto(row));
 }));
 router.put("/schedules/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditScheduleBody, req);
+  const requestedProjectIds = data.projectIds?.length ? data.projectIds : [data.projectId].filter(Boolean);
+  const projectIds = requestedProjectIds.length
+    ? await assertProjectScopeInOrg(db, actor(req).organizationId, requestedProjectIds)
+    : [];
+  data.projectIds = projectIds;
+  const scope = await getAuthorizedProjectScope(req, "audit");
+  if (!scope.unrestricted && !projectIds.length) throw new HttpError(422, "At least one project is required for a project-scoped Audit schedule");
+  if (!scope.unrestricted && projectIds.some((id) => !scope.projectIds.includes(id))) throw new HttpError(403, "You do not have access to every selected project");
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit schedule not found");
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Only draft or sent-back schedules may be edited");
@@ -226,7 +339,7 @@ router.post("/schedules/:id/submit", asyncHandler(async (req, res) => {
   await auditLog(req, "submit", "audit_schedule", row.id, before, row);
   res.json(scheduleDto(row));
 }));
-router.post("/schedules/:id/review", requireAdmin, asyncHandler(async (req, res) => {
+router.post("/schedules/:id/review", requireAuditAdmin, asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.ReviewAuditScheduleBody, req);
   if (data.decision === "send_back" && !data.comments?.trim()) throw new HttpError(422, "Comments are required when sending back");
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
@@ -265,7 +378,8 @@ const planValues = (data: AnyRow) => ({
   status: JSON.stringify({ objectives: data.objectives ?? null, leadAuditorId: data.leadAuditorId, processOwnerIds: data.processOwnerIds ?? [], feasibilityNotes: data.feasibilityNotes ?? null }),
 });
 router.get("/plans", asyncHandler(async (req, res) => {
-  const { page, limit, offset } = pagination(req); const where = active(auditPlans, actor(req).organizationId);
+  const { page, limit, offset } = pagination(req); const scope = await getAuthorizedProjectScope(req, "audit");
+  const where = and(active(auditPlans, actor(req).organizationId), scope.unrestricted ? undefined : inArray(auditPlans.projectId, scope.projectIds));
   const [rows, [{ count }]] = await Promise.all([
     db.select().from(auditPlans).where(where).orderBy(desc(auditPlans.updatedAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(auditPlans).where(where),
@@ -278,6 +392,7 @@ router.post("/plans", asyncHandler(async (req, res) => {
   await assertFieldControls(req, "audit", "plan", { mode: "create" });
   const [schedule] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, data.scheduleId)));
   if (!schedule) throw new HttpError(404, "Audit schedule not found");
+  if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
   const [row] = await db.insert(auditPlans).values({ organizationId: actor(req).organizationId, projectId: schedule.projectId, ...planValues(data) }).returning();
   await auditLog(req, "create", "audit_plan", row.id, undefined, row); res.status(201).json(planDto(row));
 }));
@@ -289,9 +404,18 @@ router.put("/plans/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditPlanBody, req);
   const [before] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit plan not found");
+  const [schedule] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, data.scheduleId)));
+  if (!schedule) throw new HttpError(404, "Audit schedule not found");
+  if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
+  const linkedAudits = await db.select({ projectId: audits.projectId }).from(audits).where(and(
+    active(audits, actor(req).organizationId), eq(audits.auditPlanId, before.id),
+  ));
+  if (linkedAudits.some((audit) => audit.projectId !== schedule.projectId)) {
+    throw new HttpError(409, "This plan cannot move to another project while audits are linked to it");
+  }
   await assertFieldAccess(req, "audit", "plan", { mode: "update", current: planDto(before) });
   await assertFieldControls(req, "audit", "plan", { mode: "update", current: planDto(before) });
-  const [row] = await db.update(auditPlans).set({ ...planValues(data), id: undefined, updatedAt: new Date() }).where(eq(auditPlans.id, before.id)).returning();
+  const [row] = await db.update(auditPlans).set({ ...planValues(data), id: undefined, projectId: schedule.projectId, updatedAt: new Date() }).where(eq(auditPlans.id, before.id)).returning();
   await auditLog(req, "update", "audit_plan", row.id, before, row); res.json(planDto(row));
 }));
 router.delete("/plans/:id", asyncHandler(async (req, res) => {
@@ -334,7 +458,8 @@ const auditValues = (data: AnyRow) => ({
   }),
 });
 router.get("/audits", asyncHandler(async (req, res) => {
-  const { page, limit, offset } = pagination(req); const where = active(audits, actor(req).organizationId);
+  const { page, limit, offset } = pagination(req); const scope = await getAuthorizedProjectScope(req, "audit");
+  const where = and(active(audits, actor(req).organizationId), scope.unrestricted ? undefined : inArray(audits.projectId, scope.projectIds));
   const [rows, [{ count }]] = await Promise.all([
     db.select().from(audits).where(where).orderBy(desc(audits.updatedAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(audits).where(where),
@@ -345,6 +470,7 @@ router.post("/audits", asyncHandler(async (req, res) => {
   await assertFieldAccess(req, "audit", "audit-execution", { mode: "create" });
   const [plan] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, data.planId)));
   if (!plan) throw new HttpError(422, "Audit plan does not belong to this organization");
+  await assertAuditProject(req, plan.projectId);
   if (data.projectId && plan.projectId && data.projectId !== plan.projectId) {
     throw new HttpError(422, "Audit project must match the selected plan");
   }
@@ -386,7 +512,14 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditBody, req);
   const [before] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit not found");
+  const [plan] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, data.planId)));
+  if (!plan) throw new HttpError(404, "Audit plan not found");
+  await assertAuditProject(req, plan.projectId);
+  if (data.projectId && plan.projectId && data.projectId !== plan.projectId) {
+    throw new HttpError(422, "Audit project must match the selected plan");
+  }
   const values = auditValues(data);
+  values.projectId = plan.projectId;
   // Generated reference numbers are immutable, regardless of the current pattern config.
   if (before.referenceGenerated) values.referenceNumber = before.referenceNumber;
   await assertFieldAccess(req, "audit", "audit-execution", { mode: "update", current: auditDto(before) });
@@ -449,11 +582,13 @@ const findingValues = (data: AnyRow) => ({
 });
 const prioritySla: Record<string, number> = { P1: 2, P2: 2, P3: 2, P4: 2, P5: 3, P6: 3 };
 router.get("/findings", asyncHandler(async (req, res) => {
-  const { page, limit, offset } = pagination(req); const where = active(auditFindings, actor(req).organizationId);
+  const { page, limit, offset } = pagination(req);
+  const scope = await getAuthorizedProjectScope(req, "audit");
+  const where = and(active(auditFindings, actor(req).organizationId), scope.unrestricted ? undefined : inArray(audits.projectId, scope.projectIds));
   const [rows, [{ count }]] = await Promise.all([
-    db.select().from(auditFindings).where(where).orderBy(desc(auditFindings.createdAt)).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(auditFindings).where(where),
-  ]); res.json(paginated(rows.map(findingDto), Number(count), page, limit));
+    db.select({ finding: auditFindings }).from(auditFindings).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(where).orderBy(desc(auditFindings.createdAt)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(auditFindings).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(where),
+  ]); res.json(paginated(rows.map((row) => findingDto(row.finding)), Number(count), page, limit));
 }));
 router.post("/findings", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditFindingBody, req);
@@ -466,6 +601,7 @@ router.post("/findings", asyncHandler(async (req, res) => {
   ]);
   const [audit] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, data.auditId)));
   if (!audit) throw new HttpError(404, "Audit not found");
+  await assertAuditProject(req, audit.projectId);
   const [row] = await db.insert(auditFindings).values({ organizationId: actor(req).organizationId, ...findingValues(data) }).returning();
   await auditLog(req, "create", "audit_finding", row.id, undefined, row); res.status(201).json(findingDto(row));
 }));
@@ -477,6 +613,9 @@ router.put("/findings/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditFindingBody, req);
   const [before] = await db.select().from(auditFindings).where(and(active(auditFindings, actor(req).organizationId), eq(auditFindings.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit finding not found");
+  const [parentAudit] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, data.auditId)));
+  if (!parentAudit) throw new HttpError(404, "Audit not found");
+  await assertAuditProject(req, parentAudit.projectId);
   await assertFieldAccess(req, "audit", "finding", { mode: "update", current: findingDto(before) });
   await assertFieldControls(req, "audit", "finding", { mode: "update", current: findingDto(before) });
   await Promise.all([
@@ -557,12 +696,14 @@ router.post("/findings/:id/cars", asyncHandler(async (req, res) => {
 router.get("/cars", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const clauses: any[] = [active(correctiveActionReports, actor(req).organizationId)];
+  const scope = await getAuthorizedProjectScope(req, "audit");
+  if (!scope.unrestricted) clauses.push(inArray(audits.projectId, scope.projectIds));
   if (req.query.status) clauses.push(eq(correctiveActionReports.workflowState, String(req.query.status).toLowerCase().replaceAll(" ", "_")));
   const where = and(...clauses);
   const [rows, [{ count }]] = await Promise.all([
-    db.select().from(correctiveActionReports).where(where).orderBy(desc(correctiveActionReports.updatedAt)).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(correctiveActionReports).where(where),
-  ]); res.json(paginated(rows.map(carDto), Number(count), page, limit));
+    db.select({ car: correctiveActionReports }).from(correctiveActionReports).innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id)).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(where).orderBy(desc(correctiveActionReports.updatedAt)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(correctiveActionReports).innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id)).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(where),
+  ]); res.json(paginated(rows.map((row) => carDto(row.car)), Number(count), page, limit));
 }));
 router.put("/cars/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateCorrectiveActionReportBody, req);
@@ -585,7 +726,7 @@ router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
   const [row] = await db.update(correctiveActionReports).set({ workflowState: "submitted", updatedAt: new Date() }).where(eq(correctiveActionReports.id, before.id)).returning();
   await auditLog(req, "submit", "corrective_action_report", row.id, before, row); res.json(carDto(row));
 }));
-router.post("/cars/:id/review", requireAdmin, asyncHandler(async (req, res) => { const data = body<AnyRow>(Api.ReviewCorrectiveActionReportBody, req);
+router.post("/cars/:id/review", requireAuditAdmin, asyncHandler(async (req, res) => { const data = body<AnyRow>(Api.ReviewCorrectiveActionReportBody, req);
   if (data.decision === "reject" && !data.comments?.trim()) throw new HttpError(422, "Comments are required when rejecting");
   const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "CAR not found");
@@ -611,7 +752,7 @@ router.post("/cars/:id/extension", asyncHandler(async (req, res) => { const data
   }).where(eq(correctiveActionReports.id, before.id)).returning();
   await auditLog(req, "request_extension", "corrective_action_report", row.id, before, row); res.json(carDto(row));
 }));
-router.post("/cars/:id/extension/review", requireAdmin, asyncHandler(async (req, res) => { const data = body<AnyRow>(Api.ReviewCarExtensionBody, req);
+router.post("/cars/:id/extension/review", requireAuditAdmin, asyncHandler(async (req, res) => { const data = body<AnyRow>(Api.ReviewCarExtensionBody, req);
   if (data.decision === "reject" && !data.comments?.trim()) throw new HttpError(422, "Comments are required when rejecting");
   const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "CAR not found");
@@ -645,7 +786,7 @@ router.post("/cars/:id/extension/cancel", asyncHandler(async (req, res) => {
   }).where(eq(correctiveActionReports.id, before.id)).returning();
   await auditLog(req, "cancel_extension", "corrective_action_report", row.id, before, row); res.json(carDto(row));
 }));
-router.post("/cars/:id/close", requireAdmin, asyncHandler(async (req, res) => {
+router.post("/cars/:id/close", requireAuditAdmin, asyncHandler(async (req, res) => {
   const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "CAR not found");
   if (before.workflowState !== "accepted") throw new HttpError(409, "Only accepted CARs may be closed");
@@ -664,6 +805,7 @@ const evidenceDto = (row: AnyRow) => ({
 });
 router.post("/evidence", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditEvidenceIntentBody, req);
+  await assertAuditRecordAccess(req, data.recordType, data.recordId);
   const [settings] = await db.select().from(organizationSettings).where(and(eq(organizationSettings.organizationId, actor(req).organizationId), isNull(organizationSettings.deletedAt)));
   if (settings) {
     const limits = settings.evidenceLimits;
@@ -683,6 +825,13 @@ router.post("/evidence", asyncHandler(async (req, res) => {
   }
 }));
 router.put("/evidence/:id/confirm", asyncHandler(async (req, res) => {
+  const [before] = await db.select().from(auditEvidenceFiles).where(and(
+    eq(auditEvidenceFiles.id, String(req.params.id)),
+    eq(auditEvidenceFiles.organizationId, actor(req).organizationId),
+    isNull(auditEvidenceFiles.deletedAt),
+  )).limit(1);
+  if (!before) throw new HttpError(404, "Evidence not found");
+  await assertAuditRecordAccess(req, before.recordType, before.recordId);
   const row = await confirmEvidence(db, "audit", String(req.params.id), actor(req).organizationId);
   if (!row) throw new HttpError(404, "Evidence not found");
   await auditLog(req, "confirm", "evidence", row.id, undefined, row); res.json(evidenceDto(row));
@@ -691,17 +840,44 @@ router.get("/evidence", asyncHandler(async (req, res) => {
   const parsed = Api.ListAuditEvidenceQueryParams.safeParse(req.query);
   if (!parsed.success) throw new HttpError(422, parsed.error.message);
   const { page, limit } = parsed.data;
+  await assertAuditRecordAccess(req, parsed.data.recordType, parsed.data.recordId);
   const all = await listEvidence(db, "audit", actor(req).organizationId, parsed.data.recordType, parsed.data.recordId);
   res.json(paginated(all.slice((page - 1) * limit, page * limit).map(evidenceDto), all.length, page, limit));
 }));
 
-async function dashboardData(organizationId: string, projectId?: string) {
-  const auditWhere = and(active(audits, organizationId), projectId ? eq(audits.projectId, projectId) : undefined);
-  const [auditRows, findingRows, carRows] = await Promise.all([
-    db.select().from(audits).where(auditWhere),
-    db.select().from(auditFindings).where(active(auditFindings, organizationId)),
-    db.select().from(correctiveActionReports).where(active(correctiveActionReports, organizationId)),
+async function scopedAuditRows(req: Request, projectId?: string, module = "audits") {
+  const scope = await getAuthorizedProjectScope(req, "audit", { module, action: "select" });
+  if (projectId && !scope.unrestricted && !scope.projectIds.includes(projectId)) {
+    throw new HttpError(403, "You do not have access to this project");
+  }
+  return db.select().from(audits).where(and(
+    active(audits, actor(req).organizationId),
+    projectId ? eq(audits.projectId, projectId) : scope.unrestricted ? undefined : inArray(audits.projectId, scope.projectIds),
+  ));
+}
+
+async function scopedAuditData(req: Request, projectId?: string) {
+  const [auditRows, findingAudits, carAudits] = await Promise.all([
+    scopedAuditRows(req, projectId, "audits"),
+    scopedAuditRows(req, projectId, "findings"),
+    scopedAuditRows(req, projectId, "cars"),
   ]);
+  const findingAuditIds = findingAudits.map((row) => row.id);
+  const findingRows = findingAuditIds.length
+    ? await db.select().from(auditFindings).where(and(active(auditFindings, actor(req).organizationId), inArray(auditFindings.auditId, findingAuditIds)))
+    : [];
+  const carAuditIds = carAudits.map((row) => row.id);
+  const carParents = carAuditIds.length
+    ? await db.select({ id: auditFindings.id }).from(auditFindings).where(and(active(auditFindings, actor(req).organizationId), inArray(auditFindings.auditId, carAuditIds)))
+    : [];
+  const carRows = carParents.length
+    ? await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), inArray(correctiveActionReports.auditFindingId, carParents.map((row) => row.id))))
+    : [];
+  return { auditRows, findingRows, carRows };
+}
+
+async function dashboardData(req: Request, projectId?: string) {
+  const { auditRows, findingRows, carRows } = await scopedAuditData(req, projectId);
   const countBy = (rows: AnyRow[], key: string) => rows.reduce((out: AnyRow, row) => ({ ...out, [row[key]]: (out[row[key]] ?? 0) + 1 }), {});
   const now = dateOnly(new Date())!;
   return {
@@ -716,46 +892,50 @@ async function dashboardData(organizationId: string, projectId?: string) {
     series: Object.entries(countBy(findingRows, "classification")).map(([classification, count]) => ({ classification, count })),
   };
 }
-router.get("/dashboard", asyncHandler(async (req, res) => res.json(await dashboardData(actor(req).organizationId, req.query.projectId ? String(req.query.projectId) : undefined))));
+router.get("/dashboard", asyncHandler(async (req, res) => res.json(await dashboardData(req, req.query.projectId ? String(req.query.projectId) : undefined))));
 router.get("/reports/open-vs-closed", asyncHandler(async (req, res) => {
-  const report = await dashboardData(actor(req).organizationId, req.query.projectId ? String(req.query.projectId) : undefined);
+  const report = await dashboardData(req, req.query.projectId ? String(req.query.projectId) : undefined);
   const rows = Object.entries(report.metrics.audits as AnyRow).map(([status, count]) => ({ status, count }));
   if (!maybeCsv(req, res, "audit-open-vs-closed", rows)) res.json(report);
 }));
-router.get("/reports/findings-log", asyncHandler(async (req, res) => {
-  const { page, limit, offset } = pagination(req); const where = active(auditFindings, actor(req).organizationId);
-  const [rows, [{ count }]] = await Promise.all([
-    db.select().from(auditFindings).where(where).orderBy(desc(auditFindings.createdAt)).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(auditFindings).where(where),
-  ]); const result = rows.map(findingDto);
-  if (!maybeCsv(req, res, "audit-findings-log", result)) res.json(paginated(result, Number(count), page, limit));
+router.get("/reports/findings-log", requirePermission("audit", "findings", "select"), asyncHandler(async (req, res) => {
+  const { page, limit } = pagination(req);
+  const { findingRows } = await scopedAuditData(req, req.query.projectId ? String(req.query.projectId) : undefined);
+  const sorted = findingRows.sort((a, b) => b.createdAt.valueOf() - a.createdAt.valueOf());
+  const result = sorted.slice((page - 1) * limit, page * limit).map(findingDto);
+  if (!maybeCsv(req, res, "audit-findings-log", result)) res.json(paginated(result, sorted.length, page, limit));
 }));
 router.get("/reports/ageing", asyncHandler(async (req, res) => {
-  const [findings, cars] = await Promise.all([
-    db.select().from(auditFindings).where(active(auditFindings, actor(req).organizationId)),
-    db.select().from(correctiveActionReports).where(active(correctiveActionReports, actor(req).organizationId)),
-  ]);
+  const { findingRows: findings, carRows: cars } = await scopedAuditData(req, req.query.projectId ? String(req.query.projectId) : undefined);
   const bucket = (createdAt: Date) => { const days = Math.floor((Date.now() - createdAt.valueOf()) / 86400000); return days <= 15 ? "0-15" : days <= 45 ? "16-45" : ">45"; };
   const rows = [...findings.map((x) => ({ type: "finding", bucket: bucket(x.createdAt), id: x.id })), ...cars.map((x) => ({ type: "CAR", bucket: bucket(x.createdAt), id: x.id }))];
   const metrics = rows.reduce((out: AnyRow, x) => ({ ...out, [`${x.type}:${x.bucket}`]: (out[`${x.type}:${x.bucket}`] ?? 0) + 1 }), {});
   if (!maybeCsv(req, res, "audit-ageing", rows)) res.json({ generatedAt: new Date(), metrics, series: rows });
 }));
 router.get("/reports/car-status", asyncHandler(async (req, res) => {
-  const rows = await db.select().from(correctiveActionReports).where(active(correctiveActionReports, actor(req).organizationId));
+  const { carRows: rows } = await scopedAuditData(req, req.query.projectId ? String(req.query.projectId) : undefined);
   const metrics = rows.reduce((out: AnyRow, x) => ({ ...out, [x.workflowState]: (out[x.workflowState] ?? 0) + 1 }), {});
   const series = Object.entries(metrics).map(([status, count]) => ({ status, count }));
   if (!maybeCsv(req, res, "car-status", series)) res.json({ generatedAt: new Date(), metrics, series });
 }));
 router.get("/reports/schedule", asyncHandler(async (req, res) => {
-  const rows = (await db.select().from(auditSchedules).where(active(auditSchedules, actor(req).organizationId)).orderBy(desc(auditSchedules.year))).map(scheduleDto);
+  const all = await db.select().from(auditSchedules).where(active(auditSchedules, actor(req).organizationId)).orderBy(desc(auditSchedules.year));
+  const scope = await getAuthorizedProjectScope(req, "audit", { module: "schedules", action: "select" });
+  const scoped = all.filter((row) => {
+    const ids = scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
+    return scope.unrestricted || (ids.length > 0 && ids.every((id) => scope.projectIds.includes(id)));
+  });
+  const rows = scoped.map(scheduleDto);
   if (!maybeCsv(req, res, "annual-audit-schedule", rows)) res.json(paginated(rows, rows.length, 1, Math.max(1, rows.length)));
 }));
 router.get("/audits/:id/report", asyncHandler(async (req, res) => {
   const [audit] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!audit) throw new HttpError(404, "Audit not found");
+  const [plan] = audit.auditPlanId ? await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, audit.auditPlanId))) : [];
+  if (plan) await assertAuditProject(req, plan.projectId);
   const findings = await db.select().from(auditFindings).where(and(active(auditFindings, actor(req).organizationId), eq(auditFindings.auditId, audit.id)));
   const cars = findings.length ? await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), inArray(correctiveActionReports.auditFindingId, findings.map((x) => x.id)))) : [];
-  const payload = { audit: auditDto(audit), plan: audit.auditPlanId ? planDto((await db.select().from(auditPlans).where(eq(auditPlans.id, audit.auditPlanId)))[0] ?? {}) : null, findings: findings.map(findingDto), cars: cars.map(carDto), generatedAt: new Date(), downloadUrl: null };
+  const payload = { audit: auditDto(audit), plan: plan ? planDto(plan) : null, findings: findings.map(findingDto), cars: cars.map(carDto), generatedAt: new Date(), downloadUrl: null };
   if (!maybeCsv(req, res, `audit-${audit.referenceNumber}`, findings.map((finding) => ({ ...findingDto(finding), cars: cars.filter((car) => car.auditFindingId === finding.id).map(carDto) })))) res.json(payload);
 }));
 
@@ -763,7 +943,7 @@ router.get("/field-controls", asyncHandler(async (req, res) => {
   res.json(await readFieldControls(actor(req).organizationId, "audit"));
 }));
 
-router.use("/admin", requireAdmin);
+router.use("/admin", requireAuditAdmin);
 router.get("/admin/field-controls", asyncHandler(async (req, res) => {
   res.json(await readFieldControls(actor(req).organizationId, "audit"));
 }));
@@ -798,18 +978,25 @@ router.put("/admin/roles/:id", asyncHandler(async (req, res) => {
 }));
 router.get("/admin/users", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const where = and(eq(users.organizationId, actor(req).organizationId), isNull(users.deletedAt));
-  const [rows, [{ count }], availablePlatformRoles] = await Promise.all([
-    db.select().from(users).where(where).orderBy(asc(users.username)).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(users).where(where),
+  const [allRows, allAssignments, availablePlatformRoles] = await Promise.all([
+    db.select().from(users).where(where).orderBy(asc(users.username)),
+    db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), isNull(auditUserWorkspaceRoles.deletedAt))),
     db.select({ id: platformRoles.id, name: platformRoles.name }).from(platformRoles).where(and(eq(platformRoles.organizationId, actor(req).organizationId), isNull(platformRoles.deletedAt))),
   ]);
+  const visibleRows = req.permissionAdminBypass ? allRows : allRows.filter((u) =>
+    u.id === actor(req).id || allAssignments.some((a) => a.userId === u.id && canManageAssignmentScope(req, a.projectIds, a.businessUnitIds)));
+  const rows = visibleRows.slice(offset, offset + limit);
   const assignments = rows.length ? await db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), inArray(auditUserWorkspaceRoles.userId, rows.map((x) => x.id)), isNull(auditUserWorkspaceRoles.deletedAt))) : [];
-  const roles = assignments.length ? await db.select().from(auditWorkspaceRoles).where(inArray(auditWorkspaceRoles.id, assignments.map((x) => x.workspaceRoleId))) : [];
+  const visibleAssignments = assignments.filter((assignment) => canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds));
+  const roles = visibleAssignments.length ? await db.select().from(auditWorkspaceRoles).where(inArray(auditWorkspaceRoles.id, visibleAssignments.map((x) => x.workspaceRoleId))) : [];
   res.json(paginated(rows.map((x) => ({
     id: x.id, username: x.username, fullName: x.fullName, email: x.email, platformRole: availablePlatformRoles.find((role) => role.id === x.platformRoleId)?.name ?? "Employee",
-    workspaceRoles: roles.filter((role) => assignments.some((a) => a.userId === x.id && a.workspaceRoleId === role.id)).map((role) => ({ id: role.id, name: role.name, description: role.description, permissions: [], active: role.status === "active", systemDefault: role.isSystem })),
+    workspaceRoles: roles.filter((role) => visibleAssignments.some((a) => a.userId === x.id && a.workspaceRoleId === role.id)).map((role) => {
+      const assignment = visibleAssignments.find((a) => a.userId === x.id && a.workspaceRoleId === role.id)!;
+      return { id: role.id, name: role.name, description: role.description, permissions: [], active: role.status === "active", systemDefault: role.isSystem, scopeType: assignment.projectIds?.length ? "project" as const : "organization" as const, scopeIds: assignment.projectIds ?? [] };
+    }),
     status: x.accessStatus === "active" ? "Active" : x.accessStatus === "deactivated" ? "Deactivated" : "Not Requested", lastAccessAt: x.lastAccessAt,
-  })), Number(count), page, limit));
+  })), visibleRows.length, page, limit));
 }));
 router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.AssignAuditUserRoleBody, req);
@@ -819,7 +1006,9 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   ]);
   if (!user || !role) throw new HttpError(404, !user ? "User not found" : "Role not found");
   const [existing] = await db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.userId, user.id), eq(auditUserWorkspaceRoles.workspaceRoleId, role.id), isNull(auditUserWorkspaceRoles.deletedAt)));
-  const values = { organizationId: actor(req).organizationId, userId: user.id, workspaceRoleId: role.id, projectIds: data.scopeType === "project" ? data.scopeIds : [], businessUnitIds: data.scopeType === "business_unit" ? data.scopeIds : [], status: "active", updatedAt: new Date() };
+  if (data.scopeType === "business_unit") throw new HttpError(422, "Business-unit scope is not supported; choose organization or project");
+  const values = { organizationId: actor(req).organizationId, userId: user.id, workspaceRoleId: role.id, projectIds: data.scopeType === "project" ? await assertProjectScopeInOrg(db, actor(req).organizationId, data.scopeIds) : [], businessUnitIds: [], status: "active", updatedAt: new Date() };
+  assertCanManageAssignmentScope(req, values.projectIds, values.businessUnitIds);
   const [row] = existing ? await db.update(auditUserWorkspaceRoles).set(values).where(eq(auditUserWorkspaceRoles.id, existing.id)).returning() : await db.insert(auditUserWorkspaceRoles).values(values).returning();
   await auditLog(req, "assign_role", "user_workspace_role", row.id, existing, row); res.json(row);
 }));
@@ -831,6 +1020,7 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
     db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), eq(auditUserWorkspaceRoles.userId, userId), eq(auditUserWorkspaceRoles.workspaceRoleId, roleId), isNull(auditUserWorkspaceRoles.deletedAt))).then((x) => x[0]),
   ]);
   if (!user || !assignment) throw new HttpError(404, "Role assignment not found");
+  assertCanManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds);
   const now = new Date();
   await db.update(auditUserWorkspaceRoles).set({ deletedAt: now, status: "deleted", updatedAt: now }).where(eq(auditUserWorkspaceRoles.id, assignment.id));
   const remaining = await db.select({ id: auditUserWorkspaceRoles.id }).from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), eq(auditUserWorkspaceRoles.userId, userId), isNull(auditUserWorkspaceRoles.deletedAt))).limit(1);
@@ -894,7 +1084,43 @@ const ruleDto = (x: AnyRow, staffed?: Set<string>) => {
 // lessons module's GET /lessons/escalations shape (EscalationSummary).
 router.get("/escalations", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const where = and(eq(auditEscalationInstances.organizationId, actor(req).organizationId), isNull(auditEscalationInstances.deletedAt));
+  const findingScope = await getAuthorizedProjectScope(req, "audit", { module: "findings", action: "select" });
+  const carScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "select" });
+  const findingIds = findingScope.unrestricted ? [] : await db.select({ id: auditFindings.id }).from(auditFindings)
+    .innerJoin(audits, eq(auditFindings.auditId, audits.id))
+    .where(and(
+      eq(auditFindings.organizationId, actor(req).organizationId),
+      eq(audits.organizationId, actor(req).organizationId),
+      inArray(audits.projectId, findingScope.projectIds),
+      isNull(auditFindings.deletedAt),
+      isNull(audits.deletedAt),
+    ));
+  const carFindingIds = carScope.unrestricted ? [] : await db.select({ id: auditFindings.id }).from(auditFindings)
+    .innerJoin(audits, eq(auditFindings.auditId, audits.id))
+    .where(and(
+      eq(auditFindings.organizationId, actor(req).organizationId),
+      eq(audits.organizationId, actor(req).organizationId),
+      inArray(audits.projectId, carScope.projectIds),
+      isNull(auditFindings.deletedAt),
+      isNull(audits.deletedAt),
+    ));
+  const carIds = carScope.unrestricted ? [] : await db.select({ id: correctiveActionReports.id }).from(correctiveActionReports).where(and(
+    eq(correctiveActionReports.organizationId, actor(req).organizationId),
+    inArray(correctiveActionReports.auditFindingId, carFindingIds.map((row) => row.id)),
+    isNull(correctiveActionReports.deletedAt),
+  ));
+  const where = and(
+    eq(auditEscalationInstances.organizationId, actor(req).organizationId),
+    isNull(auditEscalationInstances.deletedAt),
+    or(
+      findingScope.unrestricted
+        ? eq(auditEscalationInstances.recordType, "audit_finding")
+        : and(eq(auditEscalationInstances.recordType, "audit_finding"), inArray(auditEscalationInstances.recordId, findingIds.map((row) => row.id))),
+      carScope.unrestricted
+        ? eq(auditEscalationInstances.recordType, "corrective_action")
+        : and(eq(auditEscalationInstances.recordType, "corrective_action"), inArray(auditEscalationInstances.recordId, carIds.map((row) => row.id))),
+    ),
+  );
   const [rows, count, rules] = await Promise.all([
     db.select().from(auditEscalationInstances).where(where).orderBy(desc(auditEscalationInstances.startedAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(auditEscalationInstances).where(where),

@@ -4,7 +4,6 @@
 - [Drizzle insert compatibility](drizzle-insert-compatibility.md) — omitted values may still emit DEFAULT columns; check INSERT SQL when supporting an older production schema.
 - [Optional UUID input normalization](optional-uuid-normalization.md) — normalize blank optional UUID form values to null at API boundaries before database writes.
 - [Password rotation policy](password-rotation-policy.md) — administrator-assigned passwords remain valid; do not add a forced password-change gate or session flag.
-- [Orval Zod format quirks](openapi-format-uuid-quirk.md) — UUID formats and integer types emit unsupported Zod APIs here; use plain strings and bounded numbers.
 - [RBAC setup for testing non-admin writes](demo-seed-users.md) — seeded workspace roles start with zero permission grants, so non-admin writes 403 until granted; never store credentials in memory.
 - [Lessons API request-body quirks](lessons-api-quirks.md) — discipline/categorisation take master-data values not UUIDs; server assigns its own id on create.
 - [Wouter :rest* wildcard limitation](wouter-rest-wildcard.md) — :rest* matches one segment only; deep nested routes need explicit App.tsx routes.
@@ -15,3 +14,4 @@
 - [Field-access enforcement landscape](field-access-enforcement-landscape.md) — two field-control stores, both API-enforced; register new controllable fields in both catalogs; pg enum blocks locks on platform entities (projects/users).
 - [Artifact API startup probe](artifact-api-startup-probe.md) — publish may probe an API artifact's preview path despite a more specific configured startup health path.
 - [Create-form idempotency keys](create-form-idempotency-keys.md) — browser-stored create keys must rotate after success or later “new” forms silently replay the first record.
+- [Capability-coupled project scope](capability-coupled-project-scope.md) — derive project boundaries from roles granting the requested capability; preserve full-vs-own visibility per project.

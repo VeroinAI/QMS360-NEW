@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { GetAppOverviewParams, GetAppOverviewResponse, GetAppSettingsParams, GetAppSettingsResponse } from "@workspace/api-zod";
 import {
   auditFindings,
@@ -11,7 +11,9 @@ import {
   qualityAssessmentBriefs,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
+import { getAuthorizedFullProjectScope, getAuthorizedProjectScope, requireAppAccess } from "../middlewares/rbac";
 import { appDefinitions, userHasAppAccess } from "./platform";
+import { canReadLesson } from "./lessons";
 
 const router: IRouter = Router();
 
@@ -24,7 +26,11 @@ function parseAppKey(raw: string) {
   return parsed.success ? parsed.data : null;
 }
 
-router.get("/apps/:appKey/overview", requireAuth, async (req, res): Promise<void> => {
+router.get("/apps/:appKey/overview", requireAuth, async (req, res, next): Promise<void> => {
+  const parsed = GetAppOverviewParams.safeParse(req.params);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  await requireAppAccess(parsed.data.appKey)(req, res, next);
+}, async (req, res): Promise<void> => {
   const user = req.currentUser;
   const parsedParams = GetAppOverviewParams.safeParse(req.params);
   if (!parsedParams.success) {
@@ -40,6 +46,9 @@ router.get("/apps/:appKey/overview", requireAuth, async (req, res): Promise<void
     res.status(404).json({ error: "Application not found" });
     return;
   }
+  const scopeFor = (module: string) => getAuthorizedProjectScope(req, app.key, { module, action: "select" });
+  const projectFilter = (column: any, scope: { unrestricted: boolean; projectIds: string[] }) =>
+    scope.unrestricted ? undefined : inArray(column, scope.projectIds);
   const roleNames = user.workspaceRoles;
   const hasAccess = userHasAppAccess(user.platformRole, roleNames, app.key);
   const modules = hasAccess
@@ -53,10 +62,13 @@ router.get("/apps/:appKey/overview", requireAuth, async (req, res): Promise<void
   let recentRecords: Array<{ id: string; title: string; reference: string; status: string; meta: string; updatedAt: Date | null }> = [];
 
   if (app.key === "qaqc") {
-    const [metricsCount] = await db.select({ count: sql<number>`count(*)` }).from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, user.organizationId), sql`${qaqcMetricEntries.deletedAt} IS NULL`));
-    const [briefCount] = await db.select({ count: sql<number>`count(*)` }).from(qualityAssessmentBriefs).where(and(eq(qualityAssessmentBriefs.organizationId, user.organizationId), sql`${qualityAssessmentBriefs.deletedAt} IS NULL`));
-    const rows = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, user.organizationId), sql`${qaqcMetricEntries.deletedAt} IS NULL`)).orderBy(desc(qaqcMetricEntries.updatedAt)).limit(4);
-    const [totals] = await db.select({ issued: sql<number>`coalesce(sum(${qaqcMetricEntries.issuedCount}), 0)`, closed: sql<number>`coalesce(sum(${qaqcMetricEntries.closedCount}), 0)` }).from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, user.organizationId), sql`${qaqcMetricEntries.deletedAt} IS NULL`));
+    const [metricScope, briefScope] = await Promise.all([scopeFor("metrics"), scopeFor("quality_briefs")]);
+    const metricWhere = and(eq(qaqcMetricEntries.organizationId, user.organizationId), isNull(qaqcMetricEntries.deletedAt), projectFilter(qaqcMetricEntries.projectId, metricScope));
+    const briefWhere = and(eq(qualityAssessmentBriefs.organizationId, user.organizationId), isNull(qualityAssessmentBriefs.deletedAt), projectFilter(qualityAssessmentBriefs.projectId, briefScope));
+    const [metricsCount] = await db.select({ count: sql<number>`count(*)` }).from(qaqcMetricEntries).where(metricWhere);
+    const [briefCount] = await db.select({ count: sql<number>`count(*)` }).from(qualityAssessmentBriefs).where(briefWhere);
+    const rows = await db.select().from(qaqcMetricEntries).where(metricWhere).orderBy(desc(qaqcMetricEntries.updatedAt)).limit(4);
+    const [totals] = await db.select({ issued: sql<number>`coalesce(sum(${qaqcMetricEntries.issuedCount}), 0)`, closed: sql<number>`coalesce(sum(${qaqcMetricEntries.closedCount}), 0)` }).from(qaqcMetricEntries).where(metricWhere);
     const issuedTotal = Number(totals?.issued ?? 0);
     const closedTotal = Number(totals?.closed ?? 0);
     metrics = [
@@ -73,9 +85,18 @@ router.get("/apps/:appKey/overview", requireAuth, async (req, res): Promise<void
       updatedAt: row.updatedAt,
     }));
   } else if (app.key === "lessons") {
-    const [lessonCount] = await db.select({ count: sql<number>`count(*)` }).from(lessonLearnedForms).where(and(eq(lessonLearnedForms.organizationId, user.organizationId), sql`${lessonLearnedForms.deletedAt} IS NULL`));
-    const [openCount] = await db.select({ count: sql<number>`count(*)` }).from(lessonLearnedForms).where(and(eq(lessonLearnedForms.organizationId, user.organizationId), eq(lessonLearnedForms.workflowState, "submitted"), sql`${lessonLearnedForms.deletedAt} IS NULL`));
-    const rows = await db.select().from(lessonLearnedForms).where(and(eq(lessonLearnedForms.organizationId, user.organizationId), sql`${lessonLearnedForms.deletedAt} IS NULL`)).orderBy(desc(lessonLearnedForms.updatedAt)).limit(4);
+    const lessonScope = await scopeFor("lessons");
+    const lessonWhere = and(
+      eq(lessonLearnedForms.organizationId, user.organizationId),
+      isNull(lessonLearnedForms.deletedAt),
+      projectFilter(lessonLearnedForms.projectId, lessonScope),
+    );
+    const candidateRows = await db.select().from(lessonLearnedForms).where(lessonWhere).orderBy(desc(lessonLearnedForms.updatedAt));
+    const visibleRows = (await Promise.all(candidateRows.map(async (row) => await canReadLesson(req, row) ? row : null)))
+      .filter((row): row is typeof lessonLearnedForms.$inferSelect => !!row);
+    const lessonCount = { count: visibleRows.length };
+    const openCount = { count: visibleRows.filter((row) => row.workflowState === "submitted").length };
+    const rows = visibleRows.slice(0, 4);
     metrics = [
       { label: "Lessons captured", value: countValue([lessonCount]), detail: "Searchable field insight", tone: "turquoise" },
       { label: "Awaiting approval", value: countValue([openCount]), detail: "Approver inbox", tone: "yellow" },
@@ -90,9 +111,14 @@ router.get("/apps/:appKey/overview", requireAuth, async (req, res): Promise<void
       updatedAt: row.updatedAt,
     }));
   } else {
-    const [auditCount] = await db.select({ count: sql<number>`count(*)` }).from(audits).where(and(eq(audits.organizationId, user.organizationId), sql`${audits.deletedAt} IS NULL`));
-    const [findingCount] = await db.select({ count: sql<number>`count(*)` }).from(auditFindings).where(eq(auditFindings.organizationId, user.organizationId));
-    const rows = await db.select().from(audits).where(and(eq(audits.organizationId, user.organizationId), sql`${audits.deletedAt} IS NULL`)).orderBy(desc(audits.updatedAt)).limit(4);
+    const [auditScope, findingScope] = await Promise.all([scopeFor("audits"), scopeFor("findings")]);
+    const auditWhere = and(eq(audits.organizationId, user.organizationId), isNull(audits.deletedAt), projectFilter(audits.projectId, auditScope));
+    const [auditCount] = await db.select({ count: sql<number>`count(*)` }).from(audits).where(auditWhere);
+    const [findingCount] = await db.select({ count: sql<number>`count(*)` }).from(auditFindings).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(and(
+      eq(auditFindings.organizationId, user.organizationId), isNull(auditFindings.deletedAt),
+      eq(audits.organizationId, user.organizationId), isNull(audits.deletedAt), projectFilter(audits.projectId, findingScope),
+    ));
+    const rows = await db.select().from(audits).where(auditWhere).orderBy(desc(audits.updatedAt)).limit(4);
     metrics = [
       { label: "Audit engagements", value: countValue([auditCount]), detail: "Across the annual program", tone: "purple" },
       { label: "Findings logged", value: countValue([findingCount]), detail: "Evidence-backed observations", tone: "yellow" },
