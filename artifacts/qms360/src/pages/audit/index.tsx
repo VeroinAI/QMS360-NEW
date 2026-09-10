@@ -20,7 +20,7 @@ import {
   useListAuditSchedules,
   useListAudits,
   useListCorrectiveActionReports,
-  useListProjects,
+  useListPlatformProjects,
   useCancelCarExtension,
   useRequestCarExtension,
   useReviewAuditSchedule,
@@ -153,11 +153,30 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   const auditCategories = useLov("audit_categories");
   const processOwners = useLov("process_product_owners");
   const auditLevels = useLov("audit_levels");
-  const projects = useListProjects();
-  const projectOptions = (projects.data ?? []).map(project => ({
-    value: project.name,
+  const projects = useListPlatformProjects();
+  const projectRows = projects.data?.items ?? [];
+  const projectOptions = projectRows.map(project => ({
+    value: project.id,
     label: project.code ? `${project.code} — ${project.name}` : project.name,
   }));
+  const selectedProjectId = form.projectIds?.[0]
+    ?? projectRows.find(project => project.name === form.departmentProject)?.id
+    ?? "";
+  const selectProject = (projectId: string) => {
+    const project = projectRows.find(item => item.id === projectId);
+    setForm(current => ({
+      ...current,
+      projectIds: [projectId],
+      departmentProject: project?.name ?? "",
+    }));
+    setErrors(current => {
+      if (!current.departmentProject && !current.projectIds) return current;
+      const next = { ...current };
+      delete next.departmentProject;
+      delete next.projectIds;
+      return next;
+    });
+  };
   const uploadAttachment = async (file: File, category: "l1-review" | "l2-review") => {
     const intent = await evidenceIntent.mutateAsync({ data: {
       recordType: "audit_schedule", recordId: form.id, category, fileName: file.name,
@@ -171,7 +190,7 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
     const missing: Record<string, string> = {};
     if (!form.auditTypes?.length) missing.auditTypes = "Audit Type is required.";
     if (!form.auditCategory) missing.auditCategory = "Audit Category is required.";
-    if (!form.departmentProject?.trim()) missing.departmentProject = "Department / Project is required.";
+    if (!form.projectIds?.length || !form.departmentProject?.trim()) missing.departmentProject = "Department / Project is required.";
     if (!form.location?.trim()) missing.location = "Location is required.";
     if (!form.title.trim()) missing.title = "Audit Title is required.";
     if (!form.processProductOwner?.trim()) missing.processProductOwner = "Process / Product Owner is required.";
@@ -257,15 +276,15 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
     <div id="schedule-departmentProject">
       <Label>3. Department / Project *</Label>
       <Select
-        value={form.departmentProject ?? ""}
+        value={selectedProjectId}
         disabled={projects.isLoading || projects.isError || projectOptions.length === 0 || ro("departmentProject")}
-        onValueChange={v => field("departmentProject", v)}
+        onValueChange={selectProject}
       >
         <SelectTrigger aria-invalid={!!errors.departmentProject} className={invalid("departmentProject")}>
           <SelectValue placeholder={projects.isLoading ? "Loading projects…" : "Select project"} />
         </SelectTrigger>
         <SelectContent>
-          {withLegacyOption(projectOptions, form.departmentProject).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}
+          {projectOptions.map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}
         </SelectContent>
       </Select>
       {projects.isError
