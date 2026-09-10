@@ -174,7 +174,12 @@ async function disciplineNameById(disciplineId: string | null): Promise<string |
 async function approvalPeopleJson(row: typeof lessonLearnedForms.$inferSelect) {
   const ids = [row.submittedById, row.reviewedById].filter((v): v is string => Boolean(v));
   const rows = ids.length
-    ? await db.select().from(users).where(and(inArray(users.id, ids), isNull(users.deletedAt)))
+    ? await db.select({
+      id: users.id,
+      fullName: users.fullName,
+      designation: users.designation,
+      signaturePath: users.signaturePath,
+    }).from(users).where(and(inArray(users.id, ids), isNull(users.deletedAt)))
     : [];
   const byId = new Map(rows.map((u) => [u.id, u]));
   const person = (id: string | null) => {
@@ -981,7 +986,10 @@ router.get("/forms/:id/activity", asyncHandler(async (req, res) => {
     db.select({ count: sql<number>`count(*)` }).from(lessonsAuditLogEntries).where(where),
   ]);
   const actorIds = [...new Set(rows.map((r) => r.actorId).filter((v): v is string => Boolean(v)))];
-  const actors = actorIds.length ? await db.select().from(users).where(and(inArray(users.id, actorIds), isNull(users.deletedAt))) : [];
+  const actors = actorIds.length
+    ? await db.select({ id: users.id, fullName: users.fullName })
+      .from(users).where(and(inArray(users.id, actorIds), isNull(users.deletedAt)))
+    : [];
   const actorName = new Map(actors.map((u) => [u.id, u.fullName]));
   res.json(paginated(rows.map((r) => ({ id: r.id, actorId: r.actorId ?? "", actorName: actorName.get(r.actorId ?? "") ?? null, delegatedForId: null, action: r.action, entityType: r.entityType, entityId: r.entityId ?? "", before: null, after: r.after, ipAddress: null, occurredAt: r.createdAt })), Number(count[0]?.count ?? 0), 1, 50));
 }));
