@@ -109,8 +109,6 @@ export const users = sharedSchema.table("users", {
   // Object-storage key of the user's signature image (used on approval records).
   signaturePath: text("signature_path"),
   passwordHash: text("password_hash"),
-  // Legacy compatibility column only; administrator-assigned passwords remain valid.
-  mustChangePassword: boolean("must_change_password").notNull().default(false),
   authSource: text("auth_source").notNull().default("local"),
   accessStatus: text("access_status").notNull().default("active"),
   lastAccessAt: timestamp("last_access_at", { withTimezone: true }),
