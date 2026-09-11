@@ -15,3 +15,4 @@
 - [Artifact API startup probe](artifact-api-startup-probe.md) — publish may probe an API artifact's preview path despite a more specific configured startup health path.
 - [Create-form idempotency keys](create-form-idempotency-keys.md) — browser-stored create keys must rotate after success or later “new” forms silently replay the first record.
 - [Capability-coupled project scope](capability-coupled-project-scope.md) — derive project boundaries from roles granting the requested capability; preserve full-vs-own visibility per project.
+- [QMS360 service-worker updates](qms360-service-worker-updates.md) — app-shell HTML must be network-first; a fixed cache-first root can keep production on an old bundle after publish.
