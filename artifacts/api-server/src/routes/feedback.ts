@@ -87,6 +87,16 @@ async function statusHistoryByFeedback(ids: string[]) {
   }
 }
 
+async function canWriteStatusHistory() {
+  try {
+    await db.select({ id: feedbackStatusHistory.id }).from(feedbackStatusHistory).limit(0);
+    return true;
+  } catch (error) {
+    if (hasPostgresCode(error, "42P01")) return false;
+    throw error;
+  }
+}
+
 function attachmentJson(row: typeof feedbackAttachments.$inferSelect) {
   return {
     id: row.id,
@@ -308,6 +318,7 @@ router.put("/feedback/:id/resolution", requireAdmin, asyncHandler(async (req, re
     eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
     isNull(feedbackEntries.deletedAt),
   );
+  const statusHistoryAvailable = await canWriteStatusHistory();
   const row = await db.transaction(async (tx) => {
     const [existing] = await tx.select(feedbackEntrySelection).from(feedbackEntries).where(where).limit(1);
     if (!existing) return undefined;
@@ -320,7 +331,7 @@ router.put("/feedback/:id/resolution", requireAdmin, asyncHandler(async (req, re
     const [updated] = await tx.update(feedbackEntries)
       .set({ resolution: parsed.data.resolution, triage: fallbackTriage, updatedAt: new Date() })
       .where(where).returning(feedbackEntrySelection);
-    if (existing.resolution !== parsed.data.resolution) {
+    if (statusHistoryAvailable && existing.resolution !== parsed.data.resolution) {
       await tx.insert(feedbackStatusHistory).values({
         organizationId: req.currentUser!.organizationId,
         feedbackId: existing.id,
