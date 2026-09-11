@@ -12,5 +12,6 @@ export interface PromptTransaction {
   extracted: PromptTransactionExtracted;
   missing: MissingField[];
   sessionId: string;
+  ready?: boolean;
   warnings?: string[];
 }

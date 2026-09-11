@@ -71,9 +71,28 @@ export function AiEntryPage() {
       title: text(extracted.title), projectId: text(extracted.projectId), disciplineId: text(extracted.disciplineId),
       categorisationId: text(extracted.categorisationId), issueCategory: text(extracted.issueCategory) || "Minor",
       impact: text(extracted.impact) || "Negative", description: text(extracted.description), rootCause: text(extracted.rootCause),
-      correction: text(extracted.correction), correctiveAction: text(extracted.correctiveAction), capturedAt: new Date().toISOString(),
+      correction: text(extracted.correction), correctiveAction: text(extracted.correctiveAction),
+      reference: text(extracted.reference), remarks: text(extracted.remarks),
+      isRepeatedIssue: extracted.isRepeatedIssue === true || text(extracted.isRepeatedIssue).toLowerCase() === "true",
+      repeatCount: Number(extracted.repeatCount ?? 0), repeatLocation: text(extracted.repeatLocation),
+      approverId: text(extracted.approverId) || undefined,
+      gpsLat: typeof extracted.gpsLat === "number" ? extracted.gpsLat : undefined,
+      gpsLng: typeof extracted.gpsLng === "number" ? extracted.gpsLng : undefined,
+      capturedAt: text(extracted.capturedAt) || new Date().toISOString(),
     } as LessonLearnedForm;
     create.mutate({ data });
+  }
+  function continueInForm() {
+    sessionStorage.setItem("verionai-lessons-draft", JSON.stringify(extracted));
+    navigate("/lessons/new?from=verionai");
+  }
+  function missingOptions(item: MissingField) {
+    if (item.field === "projectId") return refs.data?.projects.map((option) => ({ value: option.id, label: option.name })) ?? [];
+    if (item.field === "disciplineId") return disciplines.options;
+    if (item.field === "categorisationId") return categorisations.options;
+    if (item.field === "issueCategory") return issueCategories.options;
+    if (item.field === "impact") return impacts.options;
+    return item.options.map((option) => ({ value: option, label: option }));
   }
 
   return <div>
@@ -84,7 +103,21 @@ export function AiEntryPage() {
       <div className="mt-3 flex items-center justify-between"><p className="text-xs text-muted-foreground">Nothing is created until you review and confirm the structured form.</p><Button onClick={() => generate.mutate({ data: { prompt } })} disabled={!prompt.trim() || generate.isPending}>{generate.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} Build draft</Button></div>
     </VerionCard>
 
-    {transaction && <div className="mt-6 grid gap-6 xl:grid-cols-3">
+    {transaction && <>
+      <div className="mt-6 rounded-xl border border-[#b52865]/20 bg-[#fceaf3]/50 p-4 dark:bg-[#b52865]/10">
+        {transaction.missing.length > 0 ? <>
+          <VerionBadge>Additional information required</VerionBadge>
+          <p className="mt-2 text-sm font-medium">VerionAI needs {transaction.missing.length} more {transaction.missing.length === 1 ? "detail" : "details"} before this lesson is complete.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Add the information below, update your original prompt and build the draft again, or continue to the Lessons Learned form and complete the highlighted mandatory fields there.</p>
+        </> : <>
+          <VerionBadge>Required inputs validated</VerionBadge>
+          <p className="mt-2 text-sm">VerionAI found all mandatory information needed for a lesson draft. Review the extracted values before creating it.</p>
+        </>}
+        <Button type="button" variant="outline" className="mt-3" onClick={continueInForm}>
+          Continue in Lessons Learned form
+        </Button>
+      </div>
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
       <Card className="xl:col-span-2"><CardHeader className="flex-row items-center justify-between"><CardTitle>Structured preview</CardTitle><VerionBadge>VerionAI Assembled</VerionBadge></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2">
         <Edit label="Title" value={text(extracted.title)} onChange={(v) => update("title", v)} wide disabled={fp("title").disabled} required={fp("title").required} />
         <Choice label="Project" value={text(extracted.projectId)} onChange={(v) => update("projectId", v)} options={refs.data?.projects.map((x) => ({ value: x.id, label: x.name })) ?? []} disabled={fp("projectId").disabled} required={fp("projectId").required} />
@@ -96,9 +129,13 @@ export function AiEntryPage() {
         <div className="sm:col-span-2"><Button className="w-full" onClick={createLesson} disabled={transaction.missing.length > 0 || create.isPending}>{create.isPending ? <Loader2 className="animate-spin" /> : <Check />} Create draft lesson</Button></div>
       </CardContent></Card>
       <Card><CardHeader><CardTitle>Follow-up questions</CardTitle></CardHeader><CardContent className="space-y-5">
-        {transaction.missing.length === 0 ? <div className="rounded-lg bg-accent/10 p-4 text-sm"><Check className="mb-2 text-accent" />All required details were extracted. Review the preview before creating.</div> : transaction.missing.map((item) => <div key={item.field}><Label className="mb-2 block">{item.question}</Label>{item.options.length ? <Select value={answers[item.field] ?? ""} onValueChange={(v) => setAnswers((x) => ({ ...x, [item.field]: v }))}><SelectTrigger><SelectValue placeholder="Select an answer" /></SelectTrigger><SelectContent>{item.options.map((option) => <SelectItem value={option} key={option}>{option}</SelectItem>)}</SelectContent></Select> : <Input value={answers[item.field] ?? ""} onChange={(e) => setAnswers((x) => ({ ...x, [item.field]: e.target.value }))} />}<Button size="sm" variant="outline" className="mt-2" onClick={() => submitAnswer(item)} disabled={answer.isPending}>Submit answer</Button></div>)}
+        {transaction.missing.length === 0 ? <div className="rounded-lg bg-accent/10 p-4 text-sm"><Check className="mb-2 text-accent" />All required details were extracted. Review the preview before creating.</div> : transaction.missing.map((item) => {
+          const options = missingOptions(item);
+          return <div key={item.field}><Label className="mb-2 block">{item.question}</Label>{options.length ? <Select value={answers[item.field] ?? ""} onValueChange={(v) => setAnswers((x) => ({ ...x, [item.field]: v }))}><SelectTrigger><SelectValue placeholder="Select an answer" /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem value={option.value} key={option.value}>{option.label}</SelectItem>)}</SelectContent></Select> : <Input value={answers[item.field] ?? ""} onChange={(e) => setAnswers((x) => ({ ...x, [item.field]: e.target.value }))} />}<Button size="sm" variant="outline" className="mt-2" onClick={() => submitAnswer(item)} disabled={answer.isPending}>Add to VerionAI draft</Button></div>;
+        })}
       </CardContent></Card>
-    </div>}
+      </div>
+    </>}
   </div>;
 }
 

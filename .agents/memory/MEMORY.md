@@ -17,3 +17,4 @@
 - [Capability-coupled project scope](capability-coupled-project-scope.md) — derive project boundaries from roles granting the requested capability; preserve full-vs-own visibility per project.
 - [QMS360 service-worker updates](qms360-service-worker-updates.md) — app-shell HTML must be network-first; a fixed cache-first root can keep production on an old bundle after publish.
 - [VerionAI product branding](verionai-product-branding.md) — brand user-facing AI assistants as VerionAI; keep provider/model and connector terminology technical.
+- [VerionAI transaction preflight](verionai-transaction-preflight.md) — transactional AI must independently validate target-form requirements and offer clarification or form continuation.

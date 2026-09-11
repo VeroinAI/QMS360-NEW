@@ -601,8 +601,27 @@ router.get("/approvals", asyncHandler(async (req, res) => {
 }));
 
 // AI prompt sessions
-type PromptSession = { organizationId: string; extracted: Record<string, unknown>; missing: Array<{ field: string; question: string; options: string[] }>; expiresAt: number };
+type PromptSession = { organizationId: string; actorId: string; extracted: Record<string, unknown>; requiredFields: string[]; missing: Array<{ field: string; question: string; options: string[] }>; expiresAt: number };
 const promptSessions = new Map<string, PromptSession>();
+const metricRequiredFields = ["projectId", "period", "category"];
+const metricFieldLabels: Record<string, string> = {
+  projectId: "project", period: "reporting period", category: "metric category",
+  issuedCount: "issued count", closedCount: "closed count", ageing0To15: "0–15 day ageing count",
+  ageing15To45: "15–45 day ageing count", ageingOver45: "over 45 day ageing count",
+};
+const metricValueMissing = (value: unknown) =>
+  value === null || value === undefined || (typeof value === "string" && !value.trim());
+function metricMissingFields(
+  extracted: Record<string, unknown>,
+  requiredFields: string[],
+  aiMissing: Array<{ field: string; question: string; options?: string[] }> = [],
+) {
+  const aiByField = new Map(aiMissing.map((item) => [item.field, item]));
+  return requiredFields.filter((field) => metricValueMissing(extracted[field])).map((field) => {
+    const fromAi = aiByField.get(field);
+    return { field, question: fromAi?.question ?? `What is the ${metricFieldLabels[field] ?? field}?`, options: fromAi?.options ?? [] };
+  });
+}
 router.post("/ai/rephrase", asyncHandler(async (req, res) => {
   const v: any = body(api.RephraseQaqcFieldBody, req);
   try { res.json({ suggestion: await rephraseText({ app: "qaqc", organizationId: org(req), actorId: actor(req), field: v.field, text: v.text, tone: "clear and concise" }) }); }
@@ -620,19 +639,22 @@ router.post("/ai/prompt-to-transaction", asyncHandler(async (req, res) => {
       ...filtered.skipped.map((field) => `Field "${field}" is read-only and was skipped`),
       ...result.missing.filter((m) => readOnly.has(m.field)).map((m) => `Field "${m.field}" is read-only; no answer is needed`),
     ];
-    const missing = result.missing.filter((m) => !readOnly.has(m.field)).map((m) => ({ ...m, options: m.options ?? [] }));
+    const controls = (await readFieldControls(org(req), "qaqc")).metric ?? {};
+    const configuredRequired = Object.entries(controls).filter(([, setting]) => setting.requirement === "mandatory").map(([field]) => field);
+    const requiredFields = [...new Set([...metricRequiredFields, ...configuredRequired])].filter((field) => !readOnly.has(field));
+    const missing = metricMissingFields(filtered.values, requiredFields, result.missing.filter((m) => !readOnly.has(m.field)));
     const sessionId = randomUUID();
-    promptSessions.set(sessionId, { organizationId: org(req), extracted: filtered.values, missing, expiresAt: Date.now() + 15 * 60_000 });
-    res.json({ ...result, extracted: filtered.values, missing, sessionId, warnings });
+    promptSessions.set(sessionId, { organizationId: org(req), actorId: actor(req), extracted: filtered.values, requiredFields, missing, expiresAt: Date.now() + 15 * 60_000 });
+    res.json({ ...result, extracted: filtered.values, missing, sessionId, warnings, ready: missing.length === 0 });
   } catch (error) { if (error instanceof AiUnavailableError) { res.status(503).json({ error: error.message }); return; } throw error; }
 }));
 router.post("/ai/prompt-to-transaction/:sessionId/answer", asyncHandler(async (req, res) => {
   const v: any = body(api.AnswerQaqcPromptQuestionBody, req); const id = String(req.params.sessionId);
   const session = promptSessions.get(id);
-  if (!session || session.organizationId !== org(req) || session.expiresAt < Date.now()) { promptSessions.delete(id); throw new HttpError(404, "Prompt session not found or expired"); }
+  if (!session || session.organizationId !== org(req) || session.actorId !== actor(req) || session.expiresAt < Date.now()) { promptSessions.delete(id); throw new HttpError(404, "Prompt session not found or expired"); }
   // Answers are writes too: apply the same read-only field rules as the form APIs.
   await assertFieldAccess(req, "qaqc", "metric-entry", { mode: "create", body: { [v.field]: v.value } });
-  session.extracted[v.field] = v.value; session.missing = session.missing.filter((m) => m.field !== v.field); session.expiresAt = Date.now() + 15 * 60_000;
+  session.extracted[v.field] = v.value; session.missing = metricMissingFields(session.extracted, session.requiredFields, session.missing); session.expiresAt = Date.now() + 15 * 60_000;
   res.json({ sessionId: id, extracted: session.extracted, missing: session.missing, ready: session.missing.length === 0 });
 }));
 

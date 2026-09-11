@@ -2980,6 +2980,7 @@ export const PromptToQaqcTransactionResponse = zod.object({
   "options": zod.array(zod.string())
 })),
   "sessionId": zod.string(),
+  "ready": zod.boolean().optional(),
   "warnings": zod.array(zod.string()).optional()
 })
 
@@ -3004,6 +3005,7 @@ export const AnswerQaqcPromptQuestionResponse = zod.object({
   "options": zod.array(zod.string())
 })),
   "sessionId": zod.string(),
+  "ready": zod.boolean().optional(),
   "warnings": zod.array(zod.string()).optional()
 })
 
@@ -4405,6 +4407,7 @@ export const PromptToLessonTransactionResponse = zod.object({
   "options": zod.array(zod.string())
 })),
   "sessionId": zod.string(),
+  "ready": zod.boolean().optional(),
   "warnings": zod.array(zod.string()).optional()
 })
 
@@ -4429,6 +4432,7 @@ export const AnswerLessonPromptQuestionResponse = zod.object({
   "options": zod.array(zod.string())
 })),
   "sessionId": zod.string(),
+  "ready": zod.boolean().optional(),
   "warnings": zod.array(zod.string()).optional()
 })
 

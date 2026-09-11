@@ -87,6 +87,7 @@ const aiSettings = new Map<string, {
 }>();
 const promptSessions = new Map<string, {
   organizationId: string; actorId: string; extracted: Record<string, unknown>;
+  requiredFields: string[];
   missing: Array<{ field: string; question: string; options: string[] }>; expiresAt: number;
 }>();
 
@@ -883,15 +884,53 @@ router.post("/ai/rephrase", asyncHandler(async (req, res) => {
   }
 }));
 
-const lessonSchema = "Fields: title, projectId, disciplineId, categorisationId, issueCategory (Minor|Moderate|Major), impact (Positive|Negative), description, rootCause, correction, correctiveAction. Infer values stated in a site incident paragraph; ask concise questions only for required fields that cannot be inferred.";
+const lessonRequiredFields = ["title", "projectId", "disciplineId", "categorisationId", "description", "rootCause", "correction", "correctiveAction"];
+const lessonFieldLabels: Record<string, string> = {
+  title: "lesson title", projectId: "project", disciplineId: "discipline",
+  categorisationId: "categorisation", issueCategory: "issue category", impact: "impact",
+  description: "description of what happened", rootCause: "root cause",
+  correction: "immediate correction", correctiveAction: "corrective action",
+  reference: "reference", isRepeatedIssue: "whether this is a repeated issue",
+  repeatCount: "number of times repeated", repeatLocation: "where it was repeated",
+  remarks: "remarks", capturedAt: "capture date and time", gps: "GPS location", approverId: "approver",
+};
+
+function valueMissing(value: unknown) {
+  return value === null || value === undefined || (typeof value === "string" && !value.trim());
+}
+
+function lessonMissingFields(
+  extracted: Record<string, unknown>,
+  requiredFields: string[],
+  aiMissing: Array<{ field: string; question: string; options?: string[] }> = [],
+) {
+  const aiByField = new Map(aiMissing.map((item) => [item.field, item]));
+  return requiredFields.filter((field) => {
+    if (field === "gps") return valueMissing(extracted.gpsLat) || valueMissing(extracted.gpsLng);
+    if ((field === "repeatCount" || field === "repeatLocation") && extracted.isRepeatedIssue !== true) return false;
+    return valueMissing(extracted[field]);
+  }).map((field) => {
+    const fromAi = aiByField.get(field);
+    return {
+      field,
+      question: fromAi?.question ?? `What is the ${lessonFieldLabels[field] ?? field}?`,
+      options: fromAi?.options ?? [],
+    };
+  });
+}
+
+const lessonSchema = `Fields: title, projectId, disciplineId, categorisationId, issueCategory (Minor|Moderate|Major), impact (Positive|Negative), description, rootCause, correction, correctiveAction, reference, isRepeatedIssue, repeatCount, repeatLocation, remarks, capturedAt, gpsLat, gpsLng, approverId. Required for a lesson draft: ${lessonRequiredFields.join(", ")}. Never claim a required value was provided when it was not present or safely inferable.`;
 router.post("/ai/prompt-to-transaction", asyncHandler(async (req, res) => {
   const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
   if (!prompt) throw new HttpError(422, "Prompt is required");
   const result = await promptToTransaction({ app: "lessons", organizationId: req.currentUser!.organizationId, actorId: req.currentUser!.id, prompt, schemaDescription: lessonSchema });
   const sessionId = randomUUID();
-  const missing = result.missing.map((item) => ({ ...item, options: item.options ?? [] }));
-  promptSessions.set(sessionId, { organizationId: req.currentUser!.organizationId, actorId: req.currentUser!.id, extracted: result.extracted, missing, expiresAt: Date.now() + 15 * 60_000 });
-  res.json({ extracted: result.extracted, missing, sessionId });
+  const controls = (await readFieldControls(req.currentUser!.organizationId, "lessons"))["lesson-form"] ?? {};
+  const configuredRequired = Object.entries(controls).filter(([, setting]) => setting.requirement === "mandatory").map(([field]) => field);
+  const requiredFields = [...new Set([...lessonRequiredFields, ...configuredRequired])];
+  const missing = lessonMissingFields(result.extracted, requiredFields, result.missing);
+  promptSessions.set(sessionId, { organizationId: req.currentUser!.organizationId, actorId: req.currentUser!.id, extracted: result.extracted, requiredFields, missing, expiresAt: Date.now() + 15 * 60_000 });
+  res.json({ extracted: result.extracted, missing, sessionId, ready: missing.length === 0 });
 }));
 
 router.post("/ai/prompt-to-transaction/:sessionId/answer", asyncHandler(async (req, res) => {
@@ -903,9 +942,9 @@ router.post("/ai/prompt-to-transaction/:sessionId/answer", asyncHandler(async (r
     promptSessions.delete(sessionId); notFound("Prompt session not found or expired");
   }
   session!.extracted[body.field] = body.value;
-  session!.missing = session!.missing.filter((item) => item.field !== body.field);
+  session!.missing = lessonMissingFields(session!.extracted, session!.requiredFields, session!.missing);
   session!.expiresAt = Date.now() + 15 * 60_000;
-  res.json({ extracted: session!.extracted, missing: session!.missing, sessionId });
+  res.json({ extracted: session!.extracted, missing: session!.missing, sessionId, ready: session!.missing.length === 0 });
 }));
 
 router.get("/escalations", asyncHandler(async (req, res) => {

@@ -53,7 +53,19 @@ function toDatetimeLocal(value: Date) {
   return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
 }
 
-const initialDraft = (): Draft => ({ title: "", projectId: "", disciplineId: "", categorisationId: "", reference: "", issueCategory: "Minor", impact: "Positive", approverId: "", isRepeatedIssue: false, repeatCount: 0, repeatLocation: "", remarks: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: toDatetimeLocal(new Date()) });
+const initialDraft = (): Draft => {
+  const empty: Draft = { title: "", projectId: "", disciplineId: "", categorisationId: "", reference: "", issueCategory: "Minor", impact: "Positive", approverId: "", isRepeatedIssue: false, repeatCount: 0, repeatLocation: "", remarks: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: toDatetimeLocal(new Date()) };
+  if (typeof window === "undefined") return empty;
+  const raw = sessionStorage.getItem("verionai-lessons-draft");
+  if (!raw) return empty;
+  sessionStorage.removeItem("verionai-lessons-draft");
+  try {
+    const seed = JSON.parse(raw) as Partial<Draft>;
+    return { ...empty, ...seed, repeatCount: Number(seed.repeatCount ?? empty.repeatCount), isRepeatedIssue: seed.isRepeatedIssue === true };
+  } catch {
+    return empty;
+  }
+};
 
 async function resizeImage(file: File): Promise<File> {
   if (file.size > 8 * 1024 * 1024) throw new Error(`${file.name} exceeds the 8 MB limit.`);
