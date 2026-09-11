@@ -22,6 +22,7 @@ import {
   UpdateLessonsRoleBody,
   UpdateLessonsUserProfileBody,
   CreateApproverScopeBody,
+  ReassignLessonsPendingActionsBody,
 } from "@workspace/api-zod";
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 import {
@@ -48,7 +49,7 @@ import {
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { allocateReferenceNumber } from "../lib/numbering";
-import { assertCanManageAssignmentScope, assertOwnerOrFull, assertProjectAccess, canManageAssignmentScope, getAuthorizedFullProjectScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
+import { assertCanManageAssignmentScope, assertOwnerOrFull, assertProjectAccess, canManageAssignmentScope, getAppAdminScope, getAuthorizedFullProjectScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
@@ -812,6 +813,12 @@ router.delete("/photos/:id", asyncHandler(async (req, res) => {
 
 async function logWhere(req: any) {
   const q = req.query;
+  const allPending = q.allPendingActions === "true";
+  if (allPending) {
+    if (!await getAppAdminScope(req, "lessons")) {
+      throw new HttpError(403, "Administrator access is required to view all pending actions");
+    }
+  }
   const term = typeof q.search === "string" && q.search.trim() ? `%${q.search.trim()}%` : null;
   const from = typeof q.from === "string" ? new Date(q.from) : null;
   const to = typeof q.to === "string" ? new Date(q.to) : null;
@@ -842,12 +849,17 @@ async function logWhere(req: any) {
       ilike(lessonLearnedForms.correctiveAction, term),
     ) : undefined,
     typeof q.projectId === "string" ? eq(lessonLearnedForms.projectId, q.projectId) : undefined,
+    typeof q.creatorId === "string" ? eq(lessonLearnedForms.creatorId, q.creatorId) : undefined,
+    typeof q.approverId === "string" ? eq(lessonLearnedForms.approverId, q.approverId) : undefined,
     disciplineId ? eq(lessonLearnedForms.disciplineId, disciplineId) : undefined,
     typeof q.category === "string" ? eq(lessonLearnedForms.categorisation, q.category) : undefined,
     typeof q.impact === "string" ? eq(lessonLearnedForms.impact, q.impact) : undefined,
     from ? gte(lessonLearnedForms.capturedAt, from) : undefined, to ? lte(lessonLearnedForms.capturedAt, to) : undefined,
     workflowState ? eq(lessonLearnedForms.workflowState, workflowState) : undefined,
-    q.pendingApproval === "true" ? or(
+    allPending ? and(
+      eq(lessonLearnedForms.workflowState, "submitted"),
+      sql`${lessonLearnedForms.approverId} IS NOT NULL`,
+    ) : q.pendingApproval === "true" ? or(
       and(
         eq(lessonLearnedForms.approverId, req.currentUser.id),
         eq(lessonLearnedForms.workflowState, "submitted"),
@@ -866,13 +878,22 @@ async function logWhere(req: any) {
   );
 }
 
+async function lessonLogScope(req: any) {
+  if (req.query.allPendingActions === "true") {
+    const adminScope = await getAppAdminScope(req, "lessons");
+    if (!adminScope) throw new HttpError(403, "Administrator access is required to view all pending actions");
+    return adminScope;
+  }
+  return getAuthorizedProjectScope(req, "lessons");
+}
+
 router.get("/log", requirePermission("lessons", "lessons", "select"), asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = await logWhere(req);
-  const scope = await getAuthorizedProjectScope(req, "lessons");
+  const scope = await lessonLogScope(req);
   const scopedWhere = and(where, scope.unrestricted ? undefined : inArray(lessonLearnedForms.projectId, scope.projectIds));
   const pending = req.query.pendingApproval === "true";
-  const visibleWhere = await lessonVisibilityWhere(req, scopedWhere, false);
+  const visibleWhere = req.query.allPendingActions === "true" ? scopedWhere : await lessonVisibilityWhere(req, scopedWhere, false);
   const order = pending
     ? [asc(lessonLearnedForms.submittedAt), asc(lessonLearnedForms.referenceNumber), asc(lessonLearnedForms.id)]
     : [desc(lessonLearnedForms.capturedAt), asc(lessonLearnedForms.id)];
@@ -882,6 +903,65 @@ router.get("/log", requirePermission("lessons", "lessons", "select"), asyncHandl
   ]);
   const names = await disciplineNameMap(req.currentUser!.organizationId);
   res.json(paginated(formJsonList(rows, names), Number(count[0]?.count ?? 0), page, limit));
+}));
+
+router.post("/admin/pending-actions/reassign", requireAppAdmin("lessons"), asyncHandler(async (req, res) => {
+  const body = parseBody(ReassignLessonsPendingActionsBody, req, res);
+  if (!body) return;
+  const orgId = req.currentUser!.organizationId;
+  const ids = [...new Set(body.lessonFormIds)];
+  if (!ids.length || ids.length !== body.lessonFormIds.length) throw new HttpError(422, "Select one or more unique pending lessons");
+  const scope = await lessonLogScope(req);
+  const targetRows = await db.select({ id: users.id, fullName: users.fullName, accessStatus: users.accessStatus })
+    .from(users).where(and(eq(users.id, body.targetApproverId), eq(users.organizationId, orgId), isNull(users.deletedAt)));
+  const target = targetRows[0];
+  if (!target || target.accessStatus !== "active") throw new HttpError(422, "Target approver must be active in this organization");
+  const eligible = await eligibleApprovers(orgId);
+  if (!eligible.some((u) => u.id === target.id)) throw new HttpError(422, "Target approver is not eligible for Lesson review");
+  const actor = req.currentUser!;
+  const reassigned: Array<{ id: string; oldApproverId: string; referenceNumber: string }> = [];
+  let names = new Map<string, string>();
+  await db.transaction(async (tx) => {
+    const rows = await tx.select().from(lessonLearnedForms).where(and(
+      eq(lessonLearnedForms.organizationId, orgId), inArray(lessonLearnedForms.id, ids), isNull(lessonLearnedForms.deletedAt),
+    ));
+    if (rows.length !== ids.length) throw new HttpError(409, "One or more selected lessons no longer exists");
+    if (!scope.unrestricted && rows.some((r) => !scope.projectIds.includes(r.projectId))) throw new HttpError(403, "A selected lesson is outside your project scope");
+    if (rows.some((r) => r.workflowState !== "submitted" || !r.approverId)) throw new HttpError(409, "One or more selected lessons is no longer pending");
+    if (rows.some((r) => r.creatorId === target.id)) throw new HttpError(422, "The target approver cannot be a creator of a selected lesson");
+    if (rows.some((r) => r.approverId === target.id)) throw new HttpError(422, "Target approver must differ from every current assignee");
+    for (const row of rows) {
+      const scoped = await scopedApproverIds(orgId, { projectId: row.projectId, disciplineId: row.disciplineId, categorisation: row.categorisation });
+      if (scoped && !scoped.has(target.id)) throw new HttpError(422, "Target approver is not scoped to every selected lesson");
+    }
+    const oldIds = [...new Set(rows.map((r) => r.approverId!))];
+    const people = await tx.select({ id: users.id, fullName: users.fullName }).from(users).where(inArray(users.id, [...oldIds, target.id, actor.id]));
+    names = new Map(people.map((p) => [p.id, p.fullName]));
+    for (const row of rows) {
+      const updated = await tx.update(lessonLearnedForms).set({ approverId: target.id, updatedAt: new Date() }).where(and(
+        eq(lessonLearnedForms.id, row.id), eq(lessonLearnedForms.workflowState, "submitted"), eq(lessonLearnedForms.approverId, row.approverId!),
+      )).returning({ id: lessonLearnedForms.id });
+      if (updated.length !== 1) throw new HttpError(409, "One or more selected lessons changed while being reassigned");
+      await writeAuditLog(tx, "lessons", {
+        organizationId: orgId, actorId: actor.id, action: "transfer", entityType: "lesson_form", entityId: row.id,
+        before: { approverId: row.approverId, approverName: names.get(row.approverId!) ?? null },
+        after: { approverId: target.id, approverName: names.get(target.id) ?? null, transferText: `Transferred by ${names.get(actor.id) ?? actor.fullName} from ${names.get(row.approverId!) ?? "Unknown"} to ${names.get(target.id) ?? target.fullName}` },
+        ipAddress: req.ip,
+      });
+      reassigned.push({ id: row.id, oldApproverId: row.approverId!, referenceNumber: row.referenceNumber });
+    }
+  });
+  for (const row of reassigned) {
+    const bodyText = `${row.referenceNumber} was transferred to ${names.get(target.id) ?? target.fullName} by ${names.get(actor.id) ?? actor.fullName}.`;
+    for (const userId of [row.oldApproverId, target.id]) {
+      try {
+        await notifyWithEmail(db, "lessons", { organizationId: orgId, userId, type: "lesson_reassigned", title: "Lesson action reassigned", body: bodyText, entityType: "lesson_form", entityId: row.id });
+      } catch (error) {
+        logger.warn({ error, lessonId: row.id, userId }, "Lesson reassignment notification failed");
+      }
+    }
+  }
+  res.json({ count: reassigned.length });
 }));
 
 router.post("/ai/rephrase", asyncHandler(async (req, res) => {
@@ -1001,10 +1081,10 @@ router.get("/reports/log", requirePermission("lessons", "lessons", "select"), as
   const format = typeof req.query.format === "string" ? req.query.format : "csv";
   if (format !== "csv" && format !== "json") throw new HttpError(422, "Only CSV and JSON exports are supported");
   const where = await logWhere(req);
-  const scope = await getAuthorizedProjectScope(req, "lessons");
+  const scope = await lessonLogScope(req);
   const scopedWhere = and(where, scope.unrestricted ? undefined : inArray(lessonLearnedForms.projectId, scope.projectIds));
   const pending = req.query.pendingApproval === "true";
-  const visibleWhere = await lessonVisibilityWhere(req, scopedWhere, false);
+  const visibleWhere = req.query.allPendingActions === "true" ? scopedWhere : await lessonVisibilityWhere(req, scopedWhere, false);
   const rows = await db.select().from(lessonLearnedForms).where(visibleWhere).orderBy(
     ...(pending ? [asc(lessonLearnedForms.submittedAt), asc(lessonLearnedForms.id)] : [asc(lessonLearnedForms.referenceNumber), asc(lessonLearnedForms.id)]),
   );

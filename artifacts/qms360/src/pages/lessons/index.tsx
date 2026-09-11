@@ -9,6 +9,9 @@ import {
   useGetLessonsReferenceData,
   useSearchLessonsLog,
   useGetCurrentUser,
+  useListLessonApprovers,
+  useListLessonsUsers,
+  useReassignLessonsPendingActions,
 } from "@workspace/api-client-react";
 import type { LessonLearnedForm, SearchLessonsLogParams, SearchLessonsLogWorkflowState } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -125,16 +129,25 @@ function ApprovalsPage() {
   const [projectId, setProjectId] = useState("all");
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(1);
+  const [allPending, setAllPending] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [targetApproverId, setTargetApproverId] = useState("");
+  const [approverId, setApproverId] = useState("all");
+  const [creatorId, setCreatorId] = useState("all");
   const user = useGetCurrentUser();
+  const isAdmin = ["Super Admin", "Org Admin"].includes(user.data?.platformRole ?? "") || (user.data?.workspaceRoles?.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
 
   const params = useMemo(() => ({
     search: search || undefined,
     projectId: projectId === "all" ? undefined : projectId,
     category: category === "all" ? undefined : category,
     pendingApproval: true,
+    allPendingActions: allPending || undefined,
+    approverId: approverId === "all" ? undefined : approverId,
+    creatorId: creatorId === "all" ? undefined : creatorId,
     page,
     limit: PAGE_SIZE
-  }), [search, projectId, category, page]);
+  }), [search, projectId, category, page, allPending, approverId, creatorId]);
 
   const log = useSearchLessonsLog(params, {
     query: {
@@ -146,7 +159,15 @@ function ApprovalsPage() {
 
   const refs = useGetLessonsReferenceData();
   const categories = useLov("lesson_issue_categories");
+  const approvers = useListLessonApprovers({ includeSelf: "true" });
+  const creators = useListLessonsUsers({ page: 1, limit: 200 }, { query: { enabled: isAdmin && allPending, queryKey: ["/api/lessons/admin/users", "pending-creators"] } });
+  const queryClient = useQueryClient();
+  const reassign = useReassignLessonsPendingActions();
   const projectNames = new Map(refs.data?.projects.map((project) => [project.id, project.name]) ?? []);
+  const userNames = new Map([
+    ...(creators.data?.items.map((person) => [person.id, person.fullName] as const) ?? []),
+    ...(approvers.data?.map((person) => [person.id, person.fullName] as const) ?? []),
+  ]);
 
   async function exportCsv() {
     try {
@@ -160,25 +181,44 @@ function ApprovalsPage() {
 
   const isEmpty = !log.isLoading && !log.error && !log.data?.items.length;
   const filtered = !!search || projectId !== "all" || category !== "all";
+  const pageIds = log.data?.items.map((lesson) => lesson.id) ?? [];
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
+  const doReassign = () => {
+    if (!selected.length || !targetApproverId) return;
+    reassign.mutate({ data: { lessonFormIds: selected, targetApproverId } }, {
+      onSuccess: (result) => { setSelected([]); setTargetApproverId(""); for (const key of ["/api/lessons/log", "/api/apps/lessons/overview", "/api/lessons/notifications", "/api/notifications"]) queryClient.invalidateQueries({ queryKey: [key] }); toast({ title: `${result.count} pending action${result.count === 1 ? "" : "s"} reassigned` }); },
+      onError: (e) => toast({ title: "Reassignment failed", description: errorMessage(e), variant: "destructive" }),
+    });
+  };
+  const clearSelection = () => setSelected([]);
 
   return <div>
-    <PageHeader title="For my Action" description="Lessons awaiting your review or updates after being sent back." back="/lessons" actions={<Button variant="outline" onClick={exportCsv}><Download /> Export CSV</Button>} />
-    <Card className="mb-5"><CardContent className="grid gap-3 pt-6 md:grid-cols-2 xl:grid-cols-4">
-      <div className="relative md:col-span-2"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input className="pl-9" placeholder="Search title or reference…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
-      <div className="space-y-1.5"><Label>Project</Label><Select value={projectId} onValueChange={(v) => { setProjectId(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger><SelectContent><SelectItem value="all">All projects</SelectItem>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></div>
-      <div className="space-y-1.5"><Label>Category</Label><Select value={category} onValueChange={(v) => { setCategory(v); setPage(1); }} disabled={categories.isLoading}><SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger><SelectContent><SelectItem value="all">All categories</SelectItem>{categories.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
-    </CardContent></Card>
+    <PageHeader title={allPending ? "All Pending Actions" : "For my Action"} description={allPending ? "All submitted Lessons pending approval in your effective project scope." : "Lessons awaiting your review or updates after being sent back."} back="/lessons" actions={<>{isAdmin && <Button variant="outline" onClick={() => { const next = !allPending; setAllPending(next); setSelected([]); setPage(1); if (!next) { setCreatorId("all"); setApproverId("all"); } }}>{allPending ? "For my Action" : "All Pending Actions"}</Button>}<Button variant="outline" onClick={exportCsv}><Download /> Export CSV</Button></>} />
+    <Card className="mb-5"><CardContent className="grid gap-3 pt-6 md:grid-cols-2 xl:grid-cols-5">
+      <div className="relative md:col-span-2"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input className="pl-9" placeholder="Search title or reference…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); clearSelection(); }} /></div>
+      <div className="space-y-1.5"><Label>Project</Label><Select value={projectId} onValueChange={(v) => { setProjectId(v); setPage(1); clearSelection(); }}><SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger><SelectContent><SelectItem value="all">All projects</SelectItem>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></div>
+       <div className="space-y-1.5"><Label>Category</Label><Select value={category} onValueChange={(v) => { setCategory(v); setPage(1); clearSelection(); }} disabled={categories.isLoading}><SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger><SelectContent><SelectItem value="all">All categories</SelectItem>{categories.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
+       {allPending && <div className="space-y-1.5"><Label>Creator</Label><Select value={creatorId} onValueChange={(v) => { setCreatorId(v); setPage(1); clearSelection(); }}><SelectTrigger><SelectValue placeholder="All creators" /></SelectTrigger><SelectContent><SelectItem value="all">All creators</SelectItem>{creators.data?.items.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent></Select></div>}
+       {allPending && <div className="space-y-1.5"><Label>Current approver</Label><Select value={approverId} onValueChange={(v) => { setApproverId(v); setPage(1); clearSelection(); }}><SelectTrigger><SelectValue placeholder="All approvers" /></SelectTrigger><SelectContent><SelectItem value="all">All approvers</SelectItem>{approvers.data?.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent></Select></div>}
+     </CardContent></Card>
+    {allPending && selected.length > 0 && <Card className="mb-5"><CardContent className="flex flex-wrap items-center gap-3 pt-5"><span className="text-sm font-semibold">{selected.length} selected</span><Select value={targetApproverId} onValueChange={setTargetApproverId}><SelectTrigger className="w-64"><SelectValue placeholder="Transfer to…" /></SelectTrigger><SelectContent>{approvers.data?.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent></Select><AlertDialog><AlertDialogTrigger asChild><Button disabled={!targetApproverId || reassign.isPending}>Confirm reassignment</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Transfer {selected.length} pending action{selected.length === 1 ? "" : "s"}?</AlertDialogTitle><AlertDialogDescription>Transfer the selected actions to {approvers.data?.find((x) => x.id === targetApproverId)?.fullName ?? "the selected approver"}? This is atomic and cannot partially apply.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={doReassign}>Transfer</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></CardContent></Card>}
     <LoadState loading={log.isLoading} error={log.error} empty={false}>
       <Card>
         {isEmpty ? (
           <CardContent className="flex flex-col items-center py-12 text-center"><ClipboardCheck className="mb-3 size-9 text-muted-foreground" /><p className="font-semibold">{page > 1 ? "No actions on this page" : filtered ? "No matching pending actions" : "No lessons require your action"}</p><p className="text-sm text-muted-foreground">{page > 1 ? "Return to the previous page to see remaining actions." : filtered ? "Change or clear your filters to see other pending actions." : "You are all caught up."}</p></CardContent>
         ) : (
-          <Table><TableHeader><TableRow><TableHead>Lesson</TableHead><TableHead>Project</TableHead><TableHead>Category</TableHead><TableHead>Status</TableHead><TableHead>Submitted on</TableHead><TableHead className="w-24 text-right">Action</TableHead></TableRow></TableHeader><TableBody>
-            {log.data?.items.map((lesson) => <TableRow key={lesson.id}><TableCell><Link href={`/lessons/${lesson.id}?from=approvals`} className="font-semibold text-primary hover:underline">{lesson.title}</Link><p className="text-xs text-muted-foreground">{lesson.referenceNumber}</p></TableCell><TableCell>{projectNames.get(lesson.projectId) ?? "Unknown project"}</TableCell><TableCell>{lesson.issueCategory}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{lesson.submittedAt ? new Date(lesson.submittedAt).toLocaleDateString() : "—"}</TableCell><TableCell className="text-right"><Button size="sm" asChild><Link href={`/lessons/${lesson.id}?from=approvals`}>{lesson.workflowState === "Sent Back" ? "Update" : "Review"}</Link></Button></TableCell></TableRow>)}
+           <Table><TableHeader><TableRow>{allPending && <TableHead><Checkbox checked={allSelected} onCheckedChange={(checked) => setSelected(checked === true ? pageIds : [])} aria-label="Select all rows on page" /></TableHead>}<TableHead>Lesson</TableHead><TableHead>Project</TableHead>{allPending && <><TableHead>Creator</TableHead><TableHead>Current approver</TableHead></>}<TableHead>Category</TableHead><TableHead>Status</TableHead><TableHead>Submitted on</TableHead><TableHead className="w-24 text-right">Action</TableHead></TableRow></TableHeader><TableBody>
+             {log.data?.items.map((lesson) => <TableRow key={lesson.id}>
+               {allPending && <TableCell><Checkbox checked={selected.includes(lesson.id)} onCheckedChange={(checked) => setSelected((current) => checked === true ? [...new Set([...current, lesson.id])] : current.filter((id) => id !== lesson.id))} aria-label={`Select ${lesson.referenceNumber}`} /></TableCell>}
+               <TableCell><Link href={`/lessons/${lesson.id}?from=approvals`} className="font-semibold text-primary hover:underline">{lesson.title}</Link><p className="text-xs text-muted-foreground">{lesson.referenceNumber}</p></TableCell>
+               <TableCell>{projectNames.get(lesson.projectId) ?? "Unknown project"}</TableCell>
+               {allPending && <><TableCell>{lesson.creatorId ? userNames.get(lesson.creatorId) ?? "Unknown user" : "Unknown user"}</TableCell><TableCell>{lesson.approverId ? userNames.get(lesson.approverId) ?? "Unknown user" : "Unassigned"}</TableCell></>}
+               <TableCell>{lesson.issueCategory}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{lesson.submittedAt ? new Date(lesson.submittedAt).toLocaleDateString() : "—"}</TableCell><TableCell className="text-right"><Button size="sm" asChild><Link href={`/lessons/${lesson.id}?from=approvals`}>{lesson.workflowState === "Sent Back" ? "Update" : "Review"}</Link></Button></TableCell>
+             </TableRow>)}
           </TableBody></Table>
         )}
       </Card>
-      <div className="mt-4 flex items-center justify-between"><p className="text-sm text-muted-foreground">{log.data?.total ?? 0} results</p><div className="flex gap-2"><Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button><Button variant="outline" disabled={page * PAGE_SIZE >= (log.data?.total ?? 0)} onClick={() => setPage((p) => p + 1)}>Next</Button></div></div>
+      <div className="mt-4 flex items-center justify-between"><p className="text-sm text-muted-foreground">{log.data?.total ?? 0} results</p><div className="flex gap-2"><Button variant="outline" disabled={page <= 1} onClick={() => { clearSelection(); setPage((p) => p - 1); }}>Previous</Button><Button variant="outline" disabled={page * PAGE_SIZE >= (log.data?.total ?? 0)} onClick={() => { clearSelection(); setPage((p) => p + 1); }}>Next</Button></div></div>
     </LoadState>
   </div>;
 }
@@ -228,7 +268,7 @@ function LogPage() {
       <div className="relative md:col-span-2 xl:col-span-5"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input className="pl-9" placeholder="Search title, reference or content…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} /></div>
       <div className="space-y-1.5"><Label>Project</Label><Select value={projectId} onValueChange={(v) => { setProjectId(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger><SelectContent><SelectItem value="all">All projects</SelectItem>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></div>
       <div className="space-y-1.5"><Label>Discipline</Label><Select value={disciplineId} onValueChange={(v) => { setDisciplineId(v); setPage(1); }} disabled={disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Discipline" /></SelectTrigger><SelectContent><SelectItem value="all">All disciplines</SelectItem>{disciplines.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
-       <div className="space-y-1.5"><Label>Category</Label><Select value={category} onValueChange={(v) => { setCategory(v); setPage(1); }} disabled={categories.isLoading}><SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger><SelectContent><SelectItem value="all">All categories</SelectItem>{categories.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
+        <div className="space-y-1.5"><Label>Category</Label><Select value={category} onValueChange={(v) => { setCategory(v); setPage(1); }} disabled={categories.isLoading}><SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger><SelectContent><SelectItem value="all">All categories</SelectItem>{categories.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
        <div className="space-y-1.5"><Label>Impact</Label><Select value={impact} onValueChange={(v) => { setImpact(v); setPage(1); }} disabled={impacts.isLoading}><SelectTrigger><SelectValue placeholder="Impact" /></SelectTrigger><SelectContent><SelectItem value="all">All impacts</SelectItem>{impacts.options.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></div>
        <div className="space-y-1.5"><Label>Status</Label><Select value={workflowState} onValueChange={(v) => { setWorkflowState(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem><SelectItem value="Draft">Draft</SelectItem><SelectItem value="Submitted">Submitted</SelectItem><SelectItem value="Approved">Approved</SelectItem><SelectItem value="Sent Back">Sent Back</SelectItem></SelectContent></Select></div>
       <div className="space-y-1.5 md:col-span-1 xl:col-span-2"><Label>From</Label><Input type="date" aria-label="From date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} /></div>

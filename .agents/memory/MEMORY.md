@@ -19,3 +19,4 @@
 - [VerionAI product branding](verionai-product-branding.md) — brand user-facing AI assistants as VerionAI; keep provider/model and connector terminology technical.
 - [VerionAI transaction preflight](verionai-transaction-preflight.md) — transactional AI must independently validate target-form requirements and offer clarification or form continuation.
 - [Legacy notification navigation fields](legacy-notification-navigation-fields.md) — production-like app notification tables may lack record_type/record_id; preserve compatibility without blocking workflows.
+- [Admin bulk workflow transfers](admin-bulk-workflow-transfers.md) — admin queues use admin-role scope, not broader view scope; bulk transfers must be atomic before audit or notification.

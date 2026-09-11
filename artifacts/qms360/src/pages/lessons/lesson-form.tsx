@@ -441,8 +441,8 @@ export function LessonFormPage({ id }: { id?: string }) {
       {!readOnly && <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background p-3 shadow-lg xl:hidden"><WorkflowControls mobile /></div>}
       {record?.photos?.length ? <Card className="mt-6"><CardHeader><CardTitle>Before & after</CardTitle></CardHeader><CardContent className="grid gap-6 md:grid-cols-2"><PhotoGallery title="Before" photos={record.photos.filter((p) => p.category === "before")} /><PhotoGallery title="After" photos={record.photos.filter((p) => p.category === "after")} /></CardContent></Card> : null}
       {record && activity.data && activity.data.items.length > 0 && <Card className="mt-6"><CardHeader><CardTitle>Activity</CardTitle></CardHeader><CardContent><ol className="relative space-y-4 border-l border-border pl-5">{activity.data.items.map((entry) => {
-        const comments = entry.action === "send_back" && entry.after && typeof entry.after === "object"
-          ? String(entry.after.reviewComments ?? entry.after.remarks ?? "")
+         const comments = entry.after && typeof entry.after === "object"
+           ? String(entry.after.transferText ?? (entry.action === "send_back" ? (entry.after.reviewComments ?? entry.after.remarks ?? "") : ""))
           : "";
         return <li key={entry.id} className="relative"><span className="absolute -left-[26px] top-1 h-2.5 w-2.5 rounded-full bg-primary" /><p className="text-sm font-medium capitalize">{entry.action.replace(/_/g, " ")}</p><p className="text-xs text-muted-foreground">{entry.actorName ?? "Someone"} · {new Date(entry.occurredAt).toLocaleString()}</p>{comments && <p className="mt-1 rounded-md bg-muted p-2 text-sm"><span className="font-medium">Comments: </span>{comments}</p>}</li>;
       })}</ol></CardContent></Card>}

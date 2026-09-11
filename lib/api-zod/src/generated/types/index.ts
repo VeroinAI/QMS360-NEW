@@ -347,6 +347,8 @@ export * from './qualityAssessmentBrief';
 export * from './qualityAssessmentBriefAiReviewDecision';
 export * from './qualityBriefPage';
 export * from './qualityBriefPageResponse';
+export * from './reassignLessonsPendingActionsInput';
+export * from './reassignLessonsPendingActionsResult';
 export * from './recordIdParameter';
 export * from './recordTypeParameter';
 export * from './referenceDataSnapshot';

@@ -124,6 +124,8 @@ export function requireAppAdmin(appKey: AppKey) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const user = req.currentUser;
     if (!user) return void res.status(401).json({ error: "Authentication required" });
+    const scope = await getAppAdminScope(req, appKey);
+    if (scope === null) return void res.status(403).json({ error: "Application administrator access is required" });
     if (platformAdmins.has(user.platformRole)) {
       req.permissionScope = "full";
       req.permissionAdminBypass = true;
@@ -141,12 +143,26 @@ export function requireAppAdmin(appKey: AppKey) {
         sql`${t.roles.name} ~* ${"\\m(admin|administrator)\\M"}`,
       ));
     if (!rows.length) return void res.status(403).json({ error: "Application administrator access is required" });
-    const scope = projectScopeFromRows(rows);
+    const effectiveScope = projectScopeFromRows(rows);
     req.permissionScope = "full";
-    req.permissionProjectScope = scope;
-    req.permissionFullProjectScope = scope;
+    req.permissionProjectScope = effectiveScope;
+    req.permissionFullProjectScope = effectiveScope;
     next();
   };
+}
+
+/** Returns null unless the user is a platform or active, non-deleted app administrator. */
+export async function getAppAdminScope(req: Request, appKey: AppKey): Promise<EffectiveProjectScope | null> {
+  const user = req.currentUser;
+  if (!user) return null;
+  if (platformAdmins.has(user.platformRole)) return { unrestricted: true, projectIds: [] };
+  const t = appTables(appKey) as any;
+  const rows = await db.select({ projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds })
+    .from(t.userRoles).innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
+    .where(and(eq(t.userRoles.userId, user.id), eq(t.userRoles.organizationId, user.organizationId),
+      isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt),
+      eq(t.roles.status, "active"), sql`${t.roles.name} ~* ${"\\m(admin|administrator)\\M"}`));
+  return rows.length ? projectScopeFromRows(rows) : null;
 }
 
 async function matchingPermissionRows(req: Request, appKey: AppKey, target: PermissionTarget) {

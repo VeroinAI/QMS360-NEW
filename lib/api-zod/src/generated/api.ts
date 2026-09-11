@@ -4298,6 +4298,9 @@ export const SearchLessonsLogQueryParams = zod.object({
   "from": zod.date().optional(),
   "to": zod.date().optional(),
   "pendingApproval": zod.coerce.boolean().optional().describe('Return lessons requiring the current user\'s action (submitted for their review or sent back for their updates)'),
+  "allPendingActions": zod.coerce.boolean().optional().describe('Administrator-only queue containing every submitted lesson pending approval in the effective project scope'),
+  "creatorId": zod.coerce.string().optional(),
+  "approverId": zod.coerce.string().optional(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back']).optional(),
   "page": zod.coerce.number().min(1).default(searchLessonsLogQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(searchLessonsLogQueryLimitMax).default(searchLessonsLogQueryLimitDefault)
@@ -4377,6 +4380,22 @@ export const SearchLessonsLogResponse = zod.object({
   "reviewComments": zod.string().nullish()
 }))
 }))
+
+
+/**
+ * @summary Atomically transfer pending lesson actions to another eligible approver
+ */
+
+
+
+export const ReassignLessonsPendingActionsBody = zod.object({
+  "lessonFormIds": zod.array(zod.string()).min(1),
+  "targetApproverId": zod.string()
+})
+
+export const ReassignLessonsPendingActionsResponse = zod.object({
+  "count": zod.number()
+})
 
 
 /**

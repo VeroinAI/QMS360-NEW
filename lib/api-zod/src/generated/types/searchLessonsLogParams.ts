@@ -25,6 +25,12 @@ to?: ToParameter;
  * Return lessons requiring the current user's action (submitted for their review or sent back for their updates)
  */
 pendingApproval?: boolean;
+/**
+ * Administrator-only queue containing every submitted lesson pending approval in the effective project scope
+ */
+allPendingActions?: boolean;
+creatorId?: string;
+approverId?: string;
 workflowState?: SearchLessonsLogWorkflowState;
 /**
  * @minimum 1

@@ -897,10 +897,29 @@ paths:
         - {$ref: "#/components/parameters/From"}
         - {$ref: "#/components/parameters/To"}
         - {name: pendingApproval, in: query, description: Return lessons requiring the current user's action (submitted for their review or sent back for their updates), schema: {type: boolean}}
+        - {name: allPendingActions, in: query, description: Administrator-only queue containing every submitted lesson pending approval in the effective project scope, schema: {type: boolean}}
+        - {name: creatorId, in: query, schema: {type: string}}
+        - {name: approverId, in: query, schema: {type: string}}
         - {name: workflowState, in: query, schema: {type: string, enum: [Draft, Submitted, Approved, Sent Back]}}
         - {$ref: "#/components/parameters/Page"}
         - {$ref: "#/components/parameters/Limit"}
       responses: {"200": {$ref: "#/components/responses/LessonFormPage"}}
+  /lessons/admin/pending-actions/reassign:
+    post:
+      operationId: reassignLessonsPendingActions
+      tags: [lessons-admin]
+      summary: Atomically transfer pending lesson actions to another eligible approver
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ReassignLessonsPendingActionsInput"}
+      responses:
+        "200": {description: Reassigned forms, content: {application/json: {schema: {$ref: "#/components/schemas/ReassignLessonsPendingActionsResult"}}}}
+        "403": {description: Administrator access required}
+        "409": {description: One or more selected lessons are stale}
+        "422": {description: Selection or target is invalid}
   /lessons/ai/rephrase:
     post: {operationId: rephraseLessonField, tags: [lessons], summary: Rephrase a supported lesson field, requestBody: {$ref: "#/components/requestBodies/Rephrase"}, responses: {"200": {description: Suggestion, content: {application/json: {schema: {$ref: "#/components/schemas/AISuggestion"}}}}}}
   /lessons/ai/prompt-to-transaction:
@@ -1214,6 +1233,20 @@ components:
     FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    ReassignLessonsPendingActionsInput:
+      type: object
+      required: [lessonFormIds, targetApproverId]
+      properties:
+        lessonFormIds:
+          type: array
+          minItems: 1
+          items: {type: string}
+        targetApproverId: {type: string}
+    ReassignLessonsPendingActionsResult:
+      type: object
+      required: [count]
+      properties:
+        count: {type: number}
     FieldAccessLevel:
       type: string
       enum: [editable, read_only]

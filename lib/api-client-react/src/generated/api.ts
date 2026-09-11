@@ -210,6 +210,8 @@ import type {
   QtbtPageResponse,
   QualityAssessmentBrief,
   QualityBriefPageResponse,
+  ReassignLessonsPendingActionsInput,
+  ReassignLessonsPendingActionsResult,
   ReferenceDataSnapshot,
   ReferenceItemPageResponse,
   RegisterInput,
@@ -11258,6 +11260,77 @@ export function useSearchLessonsLog<TData = Awaited<ReturnType<typeof searchLess
 
 
 
+
+export const getReassignLessonsPendingActionsUrl = () => {
+
+
+
+
+  return `/api/lessons/admin/pending-actions/reassign`
+}
+
+/**
+ * @summary Atomically transfer pending lesson actions to another eligible approver
+ */
+export const reassignLessonsPendingActions = async (reassignLessonsPendingActionsInput: ReassignLessonsPendingActionsInput, options?: Parameters<typeof customFetch>[1]): Promise<ReassignLessonsPendingActionsResult> => {
+
+  return customFetch<ReassignLessonsPendingActionsResult>(getReassignLessonsPendingActionsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reassignLessonsPendingActionsInput)
+  }
+);}
+
+
+
+
+
+export const getReassignLessonsPendingActionsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reassignLessonsPendingActions>>, TError,{data: BodyType<ReassignLessonsPendingActionsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reassignLessonsPendingActions>>, TError,{data: BodyType<ReassignLessonsPendingActionsInput>}, TContext> => {
+
+const mutationKey = ['reassignLessonsPendingActions'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reassignLessonsPendingActions>>, {data: BodyType<ReassignLessonsPendingActionsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  reassignLessonsPendingActions(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReassignLessonsPendingActionsMutationResult = NonNullable<Awaited<ReturnType<typeof reassignLessonsPendingActions>>>
+    export type ReassignLessonsPendingActionsMutationBody = BodyType<ReassignLessonsPendingActionsInput>
+    export type ReassignLessonsPendingActionsMutationError = ErrorType<void>
+
+    /**
+ * @summary Atomically transfer pending lesson actions to another eligible approver
+ */
+export const useReassignLessonsPendingActions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reassignLessonsPendingActions>>, TError,{data: BodyType<ReassignLessonsPendingActionsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reassignLessonsPendingActions>>,
+        TError,
+        {data: BodyType<ReassignLessonsPendingActionsInput>},
+        TContext
+      > => {
+      return useMutation(getReassignLessonsPendingActionsMutationOptions(options));
+    }
 
 export const getRephraseLessonFieldUrl = () => {
 
