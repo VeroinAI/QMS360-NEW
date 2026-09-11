@@ -391,6 +391,12 @@ describe("Task 13 project-scoped assignments", () => {
 
     const allowed = await api("POST", "/audit/evidence", editor.token, intentBody(allowedSchedule!.id, `allowed-${suffix}`));
     expect(allowed.status).toBe(201);
+    const upload = await fetch(`${baseUrl}/files/${allowed.json.id}`, {
+      method: "PUT",
+      headers: { authorization: `Bearer ${editor.token}`, "content-type": "application/pdf" },
+      body: Buffer.alloc(1024),
+    });
+    expect(upload.status).toBe(200);
     expect((await api("PUT", `/audit/evidence/${allowed.json.id}/confirm`, editor.token)).status).toBe(200);
     const listed = await api("GET", `/audit/evidence?recordType=audit_schedule&recordId=${allowedSchedule!.id}`, editor.token);
     expect(listed.status).toBe(200);

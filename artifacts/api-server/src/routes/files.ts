@@ -5,7 +5,7 @@ import { Readable } from "node:stream";
 import express, { Router, type IRouter } from "express";
 import { and, eq, isNull } from "drizzle-orm";
 import {
-  applicationAccess, auditFindings, audits, correctiveActionReports, customerSatisfactionEntries,
+  applicationAccess, auditFindings, auditSchedules, audits, correctiveActionReports, customerSatisfactionEntries,
   db, documentGovernanceLogEntries, lessonLearnedForms, materialInspectionEntries, qaqcMetricEntries,
   qualityAssessmentBriefs, qtbtEntries,
 } from "@workspace/db";
@@ -37,7 +37,26 @@ const appAccessColumns = {
   lessons: applicationAccess.canOpenLessons,
   audit: applicationAccess.canOpenAudit,
 };
-async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, organizationId: string) {
+type EvidenceParent = {
+  projectId: string;
+  projectIds?: string[];
+  module: string;
+  creatorId?: string;
+  approverId?: string | null;
+};
+function scheduleProjectIds(status: string | null, projectId: string | null) {
+  try {
+    const parsed = JSON.parse(status ?? "{}") as { projectIds?: unknown };
+    const projectIds = Array.isArray(parsed.projectIds)
+      ? parsed.projectIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+      : [];
+    if (projectIds.length) return projectIds;
+  } catch {
+    // Legacy schedules may have a non-JSON status value; use their primary project instead.
+  }
+  return projectId ? [projectId] : [];
+}
+async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, organizationId: string): Promise<EvidenceParent | null> {
   if (!found) return null;
   const { app, row } = found;
   if (app === "lessons") {
@@ -49,6 +68,13 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
     return lesson ? { projectId: lesson.projectId, module: "lessons", creatorId: lesson.creatorId, approverId: lesson.approverId } : null;
   }
   if (app === "audit") {
+    if (row.recordType === "audit_schedule") {
+      const [parent] = await db.select({ projectId: auditSchedules.projectId, status: auditSchedules.status }).from(auditSchedules).where(and(
+        eq(auditSchedules.id, row.recordId), eq(auditSchedules.organizationId, organizationId), isNull(auditSchedules.deletedAt),
+      ));
+      const projectIds = parent ? scheduleProjectIds(parent.status, parent.projectId) : [];
+      return projectIds.length ? { projectId: projectIds[0]!, projectIds, module: "schedules" } : null;
+    }
     if (["audit", "audit_execution"].includes(row.recordType)) {
       const [parent] = await db.select({ projectId: audits.projectId }).from(audits).where(and(eq(audits.id, row.recordId), eq(audits.organizationId, organizationId), isNull(audits.deletedAt)));
       return parent?.projectId ? { projectId: parent.projectId, module: "audits" } : null;
@@ -92,7 +118,7 @@ async function authorizeEvidence(req: express.Request, found: NonNullable<Awaite
   const parent = await evidenceProject(found, user.organizationId);
   if (!parent) return false;
   const scope = await getAuthorizedProjectScope(req, found.app as RbacAppKey, { module: parent.module, action });
-  if (!scope.unrestricted && !scope.projectIds.includes(parent.projectId)) return false;
+  if (!scope.unrestricted && (parent.projectIds ?? [parent.projectId]).some((projectId) => !scope.projectIds.includes(projectId))) return false;
   if (found.app === "lessons" && action === "select") {
     const [lesson] = await db.select().from(lessonLearnedForms).where(and(
       eq(lessonLearnedForms.id, found.row.recordId),

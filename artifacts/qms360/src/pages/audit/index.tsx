@@ -192,8 +192,19 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
       recordType: "audit_schedule", recordId: scheduleId, category, fileName: file.name,
       mimeType: file.type || "application/octet-stream", sizeBytes: file.size, clientReference,
     } });
-    const response = await fetch(intent.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "application/octet-stream" } });
-    if (!response.ok) throw new Error(`Unable to upload ${file.name}`);
+    const token = localStorage.getItem("qms360_token");
+    const response = await fetch(intent.uploadUrl, {
+      method: "PUT",
+      body: file,
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) {
+      const result = await response.json().catch(() => null);
+      throw new Error(result?.error ?? `Unable to upload ${file.name}`);
+    }
     await confirmEvidence.mutateAsync({ id: intent.id });
   };
   const uploadQueuedAttachments = async (scheduleId: string) => {
