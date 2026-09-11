@@ -393,6 +393,7 @@ describe("field-controls enforcement over HTTP (audit schedule)", () => {
 describe("field-controls enforcement over HTTP (audit plan)", () => {
   let scheduleId: string;
   let planId: string;
+  let createdPlanBody: ReturnType<typeof planBody>;
 
   beforeAll(async () => {
     const res = await api("POST", "/audit/schedules", { token: admin.token, body: scheduleBody() });
@@ -413,9 +414,16 @@ describe("field-controls enforcement over HTTP (audit plan)", () => {
   });
 
   it("accepts a non-admin create that respects both rules", async () => {
-    const res = await api("POST", "/audit/plans", { token: member.token, body: planBody(scheduleId) });
+    createdPlanBody = planBody(scheduleId);
+    const res = await api("POST", "/audit/plans", { token: member.token, body: createdPlanBody });
     expect(res.status).toBe(201);
     planId = res.json.id;
+  });
+
+  it("treats a repeated offline synchronization request as already created", async () => {
+    const res = await api("POST", "/audit/plans", { token: member.token, body: createdPlanBody });
+    expect(res.status).toBe(200);
+    expect(res.json.id).toBe(planId);
   });
 
   it("returns active Audit users as Master options", async () => {
@@ -456,6 +464,13 @@ describe("field-controls enforcement over HTTP (audit plan)", () => {
   it("accepts a non-admin update that resubmits both fields unchanged", async () => {
     const res = await api("PUT", `/audit/plans/${planId}`, { token: member.token, body: planBody(scheduleId, { id: planId, scope: "Revised scope" }) });
     expect(res.status).toBe(200);
+  });
+
+  it("rejects edits after the Audit Plan is shared", async () => {
+    await db.update(auditPlans).set({ workflowState: "shared" }).where(eq(auditPlans.id, planId));
+    const res = await api("PUT", `/audit/plans/${planId}`, { token: member.token, body: planBody(scheduleId, { id: planId }) });
+    expect(res.status).toBe(409);
+    expect(res.json?.error).toContain("Only draft plans");
   });
 });
 

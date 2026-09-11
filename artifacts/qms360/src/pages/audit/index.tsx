@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Route, Switch, useParams } from "wouter";
+import { Link, Route, Switch, useLocation, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCloseCorrectiveActionReport,
@@ -13,6 +13,7 @@ import {
   useDeleteAuditSchedule,
   useGetAudit,
   useGetAuditDashboard,
+  useGetAuditPlan,
   useGetAuditPlanOptions,
   useGetGeneratedAuditReport,
   useListAuditEvidence,
@@ -34,6 +35,7 @@ import {
   useUpdateAuditClosingMeeting,
   useUpdateAuditFinding,
   useUpdateAuditOpeningMeeting,
+  useUpdateAuditPlan,
   useUpdateCorrectiveActionReport,
   useUpdateAuditSchedule,
 } from "@workspace/api-client-react";
@@ -48,7 +50,7 @@ import type {
 } from "@workspace/api-client-react";
 import {
   AlertTriangle, ArrowLeft, BarChart3, CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck,
-  Download, FileText, FolderOpen, MapPin, Plus, Printer, Search, Share2, ShieldCheck,
+  Download, Eye, FileText, FolderOpen, MapPin, Pencil, Plus, Printer, Search, Share2, ShieldCheck,
   Trash2, Upload, XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +71,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useLov, withLegacyOption } from "@/lib/use-lov";
 import { useFieldAccess } from "@/lib/use-field-access";
 import { useFieldControls } from "@/lib/field-controls";
+import {
+  cacheAuditPlanContext,
+  queueAuditPlan,
+  readAuditPlanContext,
+  syncQueuedAuditPlans,
+  type AuditPlanOfflineContext,
+} from "@/lib/pwa";
 
 const PAGE_SIZE = 10;
 const date = (value?: string | null) => value ? new Date(value).toLocaleDateString() : "—";
@@ -451,8 +460,8 @@ function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClo
     <DialogFooter><Button onClick={onClose}>Close</Button></DialogFooter></>;
 }
 
-function PlanForm({ schedules, onClose }: { schedules: AuditSchedule[]; onClose: () => void }) {
-  const [form, setForm] = useState<AuditPlan>({
+function PlanForm({ schedules, onClose, initial, readOnly = false }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; readOnly?: boolean }) {
+  const [form, setForm] = useState<AuditPlan>(initial ?? {
     id: crypto.randomUUID(), scheduleId: "", auditFeasible: true, auditTitle: "", leadAuditorId: "",
     teamMemberIds: [], auditeeId: "", qaqcScope: "", auditTypes: [],
     auditLanguage: "Verbal: English\nWriting: English", qaqcReference: "", description: "",
@@ -460,12 +469,29 @@ function PlanForm({ schedules, onClose }: { schedules: AuditSchedule[]; onClose:
     activitySection: "Opening Meeting", activityRemarks: "", activityAuditeeId: "",
     activityDateTime: "", auditPlanCirculation: "", status: "Draft",
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [offlineContext, setOfflineContext] = useState<AuditPlanOfflineContext | null>(null);
   const fc = useFieldControls("audit", "plan"); const ro = (key: string) => fc.fieldProps(key).disabled;
-  const create = useCreateAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
+  const create = useCreateAuditPlan(); const update = useUpdateAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
   const options = useGetAuditPlanOptions();
-  const users = options.data?.users ?? [];
-  const approvedSchedules = schedules.filter(schedule => schedule.workflowState === "Approved");
-  const set = (key: keyof AuditPlan, value: unknown) => setForm(v => ({ ...v, [key]: value }));
+  useEffect(() => { void readAuditPlanContext().then(setOfflineContext).catch(() => undefined); }, []);
+  useEffect(() => {
+    if (options.data?.users && schedules.length) {
+      void cacheAuditPlanContext(schedules, options.data.users).then(() => readAuditPlanContext().then(setOfflineContext)).catch(() => undefined);
+    }
+  }, [options.data, schedules]);
+  const users = options.data?.users ?? offlineContext?.users ?? [];
+  const effectiveSchedules = schedules.length ? schedules : offlineContext?.schedules ?? [];
+  const approvedSchedules = effectiveSchedules.filter(schedule => schedule.workflowState === "Approved");
+  const clearError = (...keys: string[]) => setErrors(current => {
+    const next = { ...current };
+    keys.forEach(key => delete next[key]);
+    return next;
+  });
+  const set = (key: keyof AuditPlan, value: unknown) => {
+    setForm(v => ({ ...v, [key]: value }));
+    clearError(String(key));
+  };
   const selectSchedule = (scheduleId: string) => {
     const schedule = approvedSchedules.find(item => item.id === scheduleId);
     if (!schedule) return;
@@ -473,52 +499,88 @@ function PlanForm({ schedules, onClose }: { schedules: AuditSchedule[]; onClose:
       ...current, scheduleId, auditTitle: schedule.title, qaqcScope: schedule.qaqcScope ?? "",
       auditTypes: schedule.auditTypes ?? [], qaqcReference: schedule.qaqcReference ?? "",
     }));
+    clearError("scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference");
   };
   const selectedTeamNames = form.teamMemberIds.map(id => users.find(user => user.id === id)?.fullName).filter(Boolean);
   const circulationIds = [...new Set([form.leadAuditorId, ...form.teamMemberIds, form.auditeeId].filter(Boolean))];
   const circulation = circulationIds.map(id => users.find(user => user.id === id)?.fullName).filter(Boolean).join(", ");
   const toggleTeamMember = (id: string, checked: boolean) => set("teamMemberIds", checked ? [...form.teamMemberIds, id] : form.teamMemberIds.filter(item => item !== id));
   const save = () => {
-    const requiredValues = [
-      form.scheduleId, form.auditTitle, form.leadAuditorId, form.auditeeId, form.qaqcScope,
-      form.auditLanguage, form.qaqcReference, form.startDateTime, form.endDateTime,
-      form.openingMeetingDateTime, form.closingMeetingDateTime, form.activitySection,
-      form.activityRemarks, form.activityAuditeeId, form.activityDateTime, circulation,
+    const required: Array<[keyof AuditPlan | "circulation", unknown]> = [
+      ["scheduleId", form.scheduleId], ["auditTitle", form.auditTitle], ["leadAuditorId", form.leadAuditorId],
+      ["teamMemberIds", form.teamMemberIds], ["auditeeId", form.auditeeId], ["qaqcScope", form.qaqcScope],
+      ["auditTypes", form.auditTypes], ["auditLanguage", form.auditLanguage], ["qaqcReference", form.qaqcReference],
+      ["startDateTime", form.startDateTime], ["endDateTime", form.endDateTime],
+      ["openingMeetingDateTime", form.openingMeetingDateTime], ["closingMeetingDateTime", form.closingMeetingDateTime],
+      ["activitySection", form.activitySection], ["activityRemarks", form.activityRemarks],
+      ["activityAuditeeId", form.activityAuditeeId], ["activityDateTime", form.activityDateTime], ["circulation", circulation],
     ];
-    if (requiredValues.some(value => !String(value).trim()) || !form.auditTypes.length || !form.teamMemberIds.length) {
-      toast({ title: "Complete all mandatory Audit Plan fields", variant: "destructive" }); return;
+    const nextErrors = Object.fromEntries(required.filter(([, value]) => Array.isArray(value) ? !value.length : !String(value ?? "").trim()).map(([key]) => [key, "This field is required."]));
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
+      requestAnimationFrame(() => document.querySelector<HTMLElement>("[aria-invalid='true']")?.focus());
+      return;
     }
     if (new Date(form.endDateTime) < new Date(form.startDateTime)) {
-      toast({ title: "End Date & Time must be on or after Start Date & Time", variant: "destructive" }); return;
+      setErrors({ endDateTime: "End Date & Time must be on or after Start Date & Time." }); return;
     }
     if (new Date(form.closingMeetingDateTime) < new Date(form.openingMeetingDateTime)) {
-      toast({ title: "Closing Meeting must be on or after Opening Meeting", variant: "destructive" }); return;
+      setErrors({ closingMeetingDateTime: "Closing Meeting must be on or after Opening Meeting." }); return;
     }
-    create.mutate({ data: { ...form, auditPlanCirculation: circulation } }, { onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/audit/plans"] }); toast({ title: "Audit plan created" }); onClose(); }, onError: e => { toast({ title: "Unable to save", description: errorText(e), variant: "destructive" }); } });
+    setErrors({});
+    const payload = { ...form, auditPlanCirculation: circulation };
+    const success = (title: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/plans"] }); toast({ title }); onClose(); };
+    if (initial) {
+      update.mutate({ id: form.id, data: payload }, { onSuccess: () => success("Audit plan updated"), onError: e => toast({ title: "Unable to save", description: errorText(e), variant: "destructive" }) });
+      return;
+    }
+    const saveOffline = async () => {
+      try {
+        await queueAuditPlan(payload);
+        success("Audit plan saved offline. It will sync automatically when the network returns.");
+      } catch (error) {
+        toast({ title: "Unable to save offline", description: errorText(error), variant: "destructive" });
+      }
+    };
+    if (!navigator.onLine) {
+      void saveOffline();
+      return;
+    }
+    create.mutate({ data: payload }, {
+      onSuccess: () => success("Audit plan created"),
+      onError: e => {
+        if (e instanceof TypeError || !navigator.onLine) void saveOffline();
+        else toast({ title: "Unable to save", description: errorText(e), variant: "destructive" });
+      },
+    });
   };
+  const ErrorText = ({ name }: { name: string }) => errors[name] ? <p className="mt-1 text-sm text-destructive">{errors[name]}</p> : null;
+  const invalid = (name: string) => ({ "aria-invalid": errors[name] ? true as const : undefined });
+  const disabled = (key: string) => readOnly || ro(key);
   const activities = ["Opening Meeting", "General Requirement", "Design", "Procurement", "Construction & Installation", "Testing & Commissioning", "Improvements", "Lunch", "Break Time", "Site Visit", "Closing Meeting"] as const;
   return <div className="grid gap-4 py-2">
-    <div className="rounded-lg border bg-muted/30 p-4"><Label>Source Audit Schedule *</Label><Select value={form.scheduleId} disabled={ro("scheduleId")} onValueChange={selectSchedule}><SelectTrigger className="mt-2"><SelectValue placeholder="Select an approved schedule"/></SelectTrigger><SelectContent>{approvedSchedules.map(schedule => <SelectItem key={schedule.id} value={schedule.id}>{schedule.title}</SelectItem>)}</SelectContent></Select>{!approvedSchedules.length && <p className="mt-2 text-xs text-muted-foreground">No approved Audit Schedules are available.</p>}</div>
-    <div><Label>1. Audit Feasible *</Label><RadioGroup className="mt-2 flex gap-6" value={form.auditFeasible ? "yes" : "no"} disabled={ro("auditFeasible")} onValueChange={value => set("auditFeasible", value === "yes")}><div className="flex items-center gap-2"><RadioGroupItem value="yes" id="plan-feasible-yes"/><Label htmlFor="plan-feasible-yes">Yes</Label></div><div className="flex items-center gap-2"><RadioGroupItem value="no" id="plan-feasible-no"/><Label htmlFor="plan-feasible-no">No</Label></div></RadioGroup></div>
-    <div><Label>2. Audit Title *</Label><Input className="mt-2" readOnly value={form.auditTitle} placeholder="Generated from Audit Schedule"/></div>
-    <div><Label>3. Lead / Internal Auditor *</Label><Select value={form.leadAuditorId} disabled={options.isLoading || ro("leadAuditorId")} onValueChange={value => set("leadAuditorId", value)}><SelectTrigger className="mt-2"><SelectValue placeholder="Select lead auditor"/></SelectTrigger><SelectContent>{users.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select></div>
-    <div><Label>4. Audit Team *</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal" disabled={options.isLoading || ro("teamMemberIds")}><span className="truncate">{selectedTeamNames.length ? selectedTeamNames.join(", ") : "Select Audit Team"}</span><ChevronDown className="ml-2 size-4 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">{users.map(user => <DropdownMenuCheckboxItem key={user.id} checked={form.teamMemberIds.includes(user.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => toggleTeamMember(user.id, checked === true)}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu></div>
-    <div><Label>5. Auditee *</Label><Select value={form.auditeeId} disabled={options.isLoading || ro("auditeeId")} onValueChange={value => setForm(current => ({ ...current, auditeeId: value, activityAuditeeId: value }))}><SelectTrigger className="mt-2"><SelectValue placeholder="Select auditee"/></SelectTrigger><SelectContent>{users.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select></div>
-    <div><Label>6. QA/QC Scope *</Label><Textarea className="mt-2" readOnly value={form.qaqcScope} placeholder="Prefilled from Audit Schedule"/></div>
-    <div><Label>7. Audit Type *</Label><Input className="mt-2" readOnly value={form.auditTypes.join(", ")} placeholder="Prefilled from Audit Schedule"/></div>
-    <div><Label>8. Audit Language *</Label><Textarea className="mt-2" readOnly value={form.auditLanguage}/></div>
-    <div><Label>9. QA/QC References *</Label><Select value={form.qaqcReference} disabled={!form.scheduleId || ro("qaqcReference")} onValueChange={value => set("qaqcReference", value)}><SelectTrigger className="mt-2"><SelectValue placeholder="Select QA/QC reference"/></SelectTrigger><SelectContent>{form.qaqcReference && <SelectItem value={form.qaqcReference}>{form.qaqcReference}</SelectItem>}</SelectContent></Select></div>
-    <div><Label>10. Description of Audit</Label><Textarea className="mt-2" value={form.description ?? ""} disabled={ro("description")} onChange={event => set("description", event.target.value)} placeholder="Optional"/></div>
-    <div><Label>11. Start Date & Time *</Label><Input className="mt-2" type="datetime-local" value={form.startDateTime} disabled={ro("startDateTime")} onChange={event => set("startDateTime", event.target.value)}/></div>
-    <div><Label>12. End Date & Time *</Label><Input className="mt-2" type="datetime-local" value={form.endDateTime} disabled={ro("endDateTime")} onChange={event => set("endDateTime", event.target.value)}/></div>
-    <div><Label>13. Opening Meeting *</Label><Input className="mt-2" type="datetime-local" value={form.openingMeetingDateTime} disabled={ro("openingMeetingDateTime")} onChange={event => set("openingMeetingDateTime", event.target.value)}/></div>
-    <div><Label>14. Closing Meeting *</Label><Input className="mt-2" type="datetime-local" value={form.closingMeetingDateTime} disabled={ro("closingMeetingDateTime")} onChange={event => set("closingMeetingDateTime", event.target.value)}/></div>
-    <div><Label>15. Activities / Section *</Label><Select value={form.activitySection} disabled={ro("activitySection")} onValueChange={value => set("activitySection", value)}><SelectTrigger className="mt-2"><SelectValue/></SelectTrigger><SelectContent>{activities.map(activity => <SelectItem key={activity} value={activity}>{activity}</SelectItem>)}</SelectContent></Select></div>
-    <div><Label>16. Activities / Section Remarks *</Label><Input className="mt-2" value={form.activityRemarks} disabled={ro("activityRemarks")} onChange={event => set("activityRemarks", event.target.value)}/></div>
-    <div><Label>17. Auditee for the Activity *</Label><Select value={form.activityAuditeeId} disabled={!form.auditeeId || ro("activityAuditeeId")} onValueChange={value => set("activityAuditeeId", value)}><SelectTrigger className="mt-2"><SelectValue placeholder="Select activity auditee"/></SelectTrigger><SelectContent>{form.auditeeId && <SelectItem value={form.auditeeId}>{users.find(user => user.id === form.auditeeId)?.fullName ?? "Selected auditee"}</SelectItem>}</SelectContent></Select></div>
-    <div><Label>18. Date / Time of Activity *</Label><Input className="mt-2" type="datetime-local" value={form.activityDateTime} disabled={ro("activityDateTime")} onChange={event => set("activityDateTime", event.target.value)}/></div>
-    <div><Label>19. Audit Plan Circulation *</Label><Textarea className="mt-2" readOnly value={circulation} placeholder="Generated from selected Master users"/></div>
-    <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save} disabled={create.isPending || options.isLoading}>Create plan</Button></DialogFooter>
+    {!navigator.onLine && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">You are offline. This plan will be saved on this device and synchronized automatically when the network returns.</div>}
+    <div className="rounded-lg border bg-muted/30 p-4"><Label>Source Audit Schedule *</Label><Select value={form.scheduleId} disabled={disabled("scheduleId")} onValueChange={selectSchedule}><SelectTrigger className="mt-2" {...invalid("scheduleId")}><SelectValue placeholder="Select an approved schedule"/></SelectTrigger><SelectContent>{approvedSchedules.map(schedule => <SelectItem key={schedule.id} value={schedule.id}>{schedule.title}</SelectItem>)}</SelectContent></Select><ErrorText name="scheduleId"/>{!approvedSchedules.length && <p className="mt-2 text-xs text-muted-foreground">No approved Audit Schedules are available offline. Connect once to cache current schedule data.</p>}</div>
+    <div><Label>1. Audit Feasible *</Label><RadioGroup className="mt-2 flex gap-6" value={form.auditFeasible ? "yes" : "no"} disabled={disabled("auditFeasible")} onValueChange={value => set("auditFeasible", value === "yes")}><div className="flex items-center gap-2"><RadioGroupItem value="yes" id="plan-feasible-yes"/><Label htmlFor="plan-feasible-yes">Yes</Label></div><div className="flex items-center gap-2"><RadioGroupItem value="no" id="plan-feasible-no"/><Label htmlFor="plan-feasible-no">No</Label></div></RadioGroup></div>
+    <div><Label>2. Audit Title *</Label><Input className="mt-2" readOnly disabled={readOnly} value={form.auditTitle} {...invalid("auditTitle")} placeholder="Generated from Audit Schedule"/><ErrorText name="auditTitle"/></div>
+    <div><Label>3. Lead / Internal Auditor *</Label><Select value={form.leadAuditorId} disabled={disabled("leadAuditorId")} onValueChange={value => set("leadAuditorId", value)}><SelectTrigger className="mt-2" {...invalid("leadAuditorId")}><SelectValue placeholder="Select lead auditor"/></SelectTrigger><SelectContent>{users.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><ErrorText name="leadAuditorId"/></div>
+    <div><Label>4. Audit Team *</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal" disabled={disabled("teamMemberIds")} {...invalid("teamMemberIds")}><span className="truncate">{selectedTeamNames.length ? selectedTeamNames.join(", ") : "Select Audit Team"}</span><ChevronDown className="ml-2 size-4 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">{users.map(user => <DropdownMenuCheckboxItem key={user.id} checked={form.teamMemberIds.includes(user.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => toggleTeamMember(user.id, checked === true)}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu><ErrorText name="teamMemberIds"/></div>
+    <div><Label>5. Auditee *</Label><Select value={form.auditeeId} disabled={disabled("auditeeId")} onValueChange={value => { setForm(current => ({ ...current, auditeeId: value, activityAuditeeId: value })); clearError("auditeeId", "activityAuditeeId", "circulation"); }}><SelectTrigger className="mt-2" {...invalid("auditeeId")}><SelectValue placeholder="Select auditee"/></SelectTrigger><SelectContent>{users.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><ErrorText name="auditeeId"/></div>
+    <div><Label>6. QA/QC Scope *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={form.qaqcScope} {...invalid("qaqcScope")} placeholder="Prefilled from Audit Schedule"/><ErrorText name="qaqcScope"/></div>
+    <div><Label>7. Audit Type *</Label><Input className="mt-2" readOnly disabled={readOnly} value={form.auditTypes.join(", ")} {...invalid("auditTypes")} placeholder="Prefilled from Audit Schedule"/><ErrorText name="auditTypes"/></div>
+    <div><Label>8. Audit Language *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={form.auditLanguage} {...invalid("auditLanguage")}/><ErrorText name="auditLanguage"/></div>
+    <div><Label>9. QA/QC References *</Label><Select value={form.qaqcReference} disabled={readOnly || !form.scheduleId || ro("qaqcReference")} onValueChange={value => set("qaqcReference", value)}><SelectTrigger className="mt-2" {...invalid("qaqcReference")}><SelectValue placeholder="Select QA/QC reference"/></SelectTrigger><SelectContent>{form.qaqcReference && <SelectItem value={form.qaqcReference}>{form.qaqcReference}</SelectItem>}</SelectContent></Select><ErrorText name="qaqcReference"/></div>
+    <div><Label>10. Description of Audit</Label><Textarea className="mt-2" value={form.description ?? ""} disabled={disabled("description")} onChange={event => set("description", event.target.value)} placeholder="Optional"/></div>
+    <div><Label>11. Start Date & Time *</Label><Input className="mt-2" type="datetime-local" value={form.startDateTime.slice(0,16)} disabled={disabled("startDateTime")} {...invalid("startDateTime")} onChange={event => set("startDateTime", event.target.value)}/><ErrorText name="startDateTime"/></div>
+    <div><Label>12. End Date & Time *</Label><Input className="mt-2" type="datetime-local" value={form.endDateTime.slice(0,16)} disabled={disabled("endDateTime")} {...invalid("endDateTime")} onChange={event => set("endDateTime", event.target.value)}/><ErrorText name="endDateTime"/></div>
+    <div><Label>13. Opening Meeting *</Label><Input className="mt-2" type="datetime-local" value={form.openingMeetingDateTime.slice(0,16)} disabled={disabled("openingMeetingDateTime")} {...invalid("openingMeetingDateTime")} onChange={event => set("openingMeetingDateTime", event.target.value)}/><ErrorText name="openingMeetingDateTime"/></div>
+    <div><Label>14. Closing Meeting *</Label><Input className="mt-2" type="datetime-local" value={form.closingMeetingDateTime.slice(0,16)} disabled={disabled("closingMeetingDateTime")} {...invalid("closingMeetingDateTime")} onChange={event => set("closingMeetingDateTime", event.target.value)}/><ErrorText name="closingMeetingDateTime"/></div>
+    <div><Label>15. Activities / Section *</Label><Select value={form.activitySection} disabled={disabled("activitySection")} onValueChange={value => set("activitySection", value)}><SelectTrigger className="mt-2" {...invalid("activitySection")}><SelectValue/></SelectTrigger><SelectContent>{activities.map(activity => <SelectItem key={activity} value={activity}>{activity}</SelectItem>)}</SelectContent></Select><ErrorText name="activitySection"/></div>
+    <div><Label>16. Activities / Section Remarks *</Label><Input className="mt-2" value={form.activityRemarks} disabled={disabled("activityRemarks")} {...invalid("activityRemarks")} onChange={event => set("activityRemarks", event.target.value)}/><ErrorText name="activityRemarks"/></div>
+    <div><Label>17. Auditee for the Activity *</Label><Select value={form.activityAuditeeId} disabled={readOnly || !form.auditeeId || ro("activityAuditeeId")} onValueChange={value => set("activityAuditeeId", value)}><SelectTrigger className="mt-2" {...invalid("activityAuditeeId")}><SelectValue placeholder="Select activity auditee"/></SelectTrigger><SelectContent>{form.auditeeId && <SelectItem value={form.auditeeId}>{users.find(user => user.id === form.auditeeId)?.fullName ?? "Selected auditee"}</SelectItem>}</SelectContent></Select><ErrorText name="activityAuditeeId"/></div>
+    <div><Label>18. Date / Time of Activity *</Label><Input className="mt-2" type="datetime-local" value={form.activityDateTime.slice(0,16)} disabled={disabled("activityDateTime")} {...invalid("activityDateTime")} onChange={event => set("activityDateTime", event.target.value)}/><ErrorText name="activityDateTime"/></div>
+    <div><Label>19. Audit Plan Circulation *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={circulation} {...invalid("circulation")} placeholder="Generated from selected Master users"/><ErrorText name="circulation"/></div>
+    <DialogFooter><Button variant="outline" onClick={onClose}>{readOnly ? "Back to plans" : "Cancel"}</Button>{!readOnly && <Button onClick={save} disabled={create.isPending || update.isPending}>{initial ? "Save changes" : "Create Plan"}</Button>}</DialogFooter>
   </div>;
 }
 
@@ -528,7 +590,18 @@ function Plans() {
   const items = (query.data?.items ?? []).filter(x => x.auditTitle.toLowerCase().includes(search.toLowerCase()));
   const refresh = (title: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/plans"] }); toast({ title }); };
   return <div className="space-y-5"><PageHeader title="Audit plans" description="Define the Stage 2 Audit Planning programme" action={<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button><Plus className="mr-2 size-4"/>New plan</Button></DialogTrigger><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader><PlanForm schedules={schedules.data?.items ?? []} onClose={() => setOpen(false)}/></DialogContent></Dialog>}/><Input className="max-w-sm" placeholder="Search audit title…" value={search} onChange={e => setSearch(e.target.value)}/><State loading={query.isLoading} error={query.error} empty={!items.length}/>
-    <div className="grid gap-4 md:grid-cols-2">{items.map(plan => <Card key={plan.id}><CardHeader><div className="flex justify-between gap-2"><CardTitle className="text-base">{plan.auditTitle}</CardTitle><Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div><CardDescription>{date(plan.startDateTime)} · {plan.activitySection}</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><p><b>Audit type:</b> {plan.auditTypes.join(", ")}</p><p><b>Team:</b> {plan.teamMemberIds.length} member(s)</p><p className="text-muted-foreground">{plan.description || plan.activityRemarks}</p><div className="flex justify-end gap-2"><Button size="sm" onClick={() => share.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan shared") })}><Share2 className="mr-2 size-4"/>Share</Button><Button size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></div></CardContent></Card>)}</div>{items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}</div>;
+    <div className="grid gap-4 md:grid-cols-2">{items.map(plan => <Card key={plan.id}><CardHeader><div className="flex justify-between gap-2"><CardTitle className="text-base"><Link className="underline-offset-4 hover:underline" href={`/audit/plans/${plan.id}`}>{plan.auditTitle}</Link></CardTitle><Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div><CardDescription>{date(plan.startDateTime)} · {plan.activitySection}</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><p><b>Audit type:</b> {plan.auditTypes.join(", ")}</p><p><b>Team:</b> {plan.teamMemberIds.length} member(s)</p><p className="text-muted-foreground">{plan.description || plan.activityRemarks}</p><div className="flex justify-end gap-2"><Button size="sm" variant="outline" asChild><Link href={`/audit/plans/${plan.id}`}>{plan.status === "Draft" ? <Pencil className="mr-2 size-4"/> : <Eye className="mr-2 size-4"/>}{plan.status === "Draft" ? "Edit" : "View"}</Link></Button>{plan.status === "Draft" && <Button size="sm" onClick={() => share.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan shared") })}><Share2 className="mr-2 size-4"/>Share</Button>}<Button size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></div></CardContent></Card>)}</div>{items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}</div>;
+}
+
+function PlanDetail() {
+  const { id = "" } = useParams<{ id: string }>();
+  const [, navigate] = useLocation();
+  const query = useGetAuditPlan(id);
+  const schedules = useListAuditSchedules({ page: 1, limit: 100 });
+  if (query.isLoading || query.error || !query.data) return <div className="space-y-4"><Button variant="ghost" asChild><Link href="/audit/plans"><ArrowLeft className="mr-2 size-4"/>Audit plans</Link></Button><State loading={query.isLoading} error={query.error} empty={!query.data}/></div>;
+  const plan = query.data;
+  const editable = plan.status === "Draft";
+  return <div className="space-y-5"><Button variant="ghost" asChild><Link href="/audit/plans"><ArrowLeft className="mr-2 size-4"/>Audit plans</Link></Button><PageHeader title={plan.auditTitle} description={editable ? "Draft Audit Plan · editable" : `${plan.status} Audit Plan · read-only`} action={<Badge variant={workflowTone(plan.status)}>{plan.status}</Badge>}/><Card><CardContent className="pt-6"><PlanForm initial={plan} readOnly={!editable} schedules={schedules.data?.items ?? []} onClose={() => navigate("/audit/plans")}/></CardContent></Card></div>;
 }
 
 function Audits() {
@@ -617,10 +690,30 @@ function AuditReport() {
 
 function Missing() { return <Card><CardContent className="py-14 text-center"><XCircle className="mx-auto mb-3 size-8 text-muted-foreground"/><h2 className="font-semibold">Audit page not found</h2><Button className="mt-4" asChild><Link href="/audit">Return to dashboard</Link></Button></CardContent></Card>; }
 
+function AuditPlanAutoSync() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  useEffect(() => {
+    const sync = async () => {
+      const result = await syncQueuedAuditPlans();
+      if (result.synced) {
+        qc.invalidateQueries({ queryKey: ["/api/audit/plans"] });
+        toast({ title: `${result.synced} offline Audit Plan${result.synced === 1 ? "" : "s"} synchronized` });
+      }
+      if (result.failed) toast({ title: "Some offline Audit Plans could not be synchronized", description: "They remain safely stored on this device and will be retried.", variant: "destructive" });
+    };
+    void sync();
+    window.addEventListener("online", sync);
+    return () => window.removeEventListener("online", sync);
+  }, [qc, toast]);
+  return null;
+}
+
 export function AuditRoutes() {
-  return <Layout><Switch>
+  return <Layout><AuditPlanAutoSync/><Switch>
     <Route path="/audit" component={Dashboard}/>
     <Route path="/audit/schedules" component={Schedules}/>
+    <Route path="/audit/plans/:id" component={PlanDetail}/>
     <Route path="/audit/plans" component={Plans}/>
     <Route path="/audit/audits/:id/report" component={AuditReport}/>
     <Route path="/audit/audits/:id" component={AuditWorkspace}/>

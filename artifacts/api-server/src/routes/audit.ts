@@ -499,6 +499,13 @@ router.post("/plans", asyncHandler(async (req, res) => {
   let data = body<AnyRow>(Api.CreateAuditPlanBody, req);
   await assertFieldAccess(req, "audit", "plan", { mode: "create" });
   await assertFieldControls(req, "audit", "plan", { mode: "create" });
+  const [existing] = await db.select().from(auditPlans).where(and(
+    active(auditPlans, actor(req).organizationId), eq(auditPlans.id, data.id),
+  ));
+  if (existing) {
+    res.status(200).json(planDto(existing));
+    return;
+  }
   const [schedule] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, data.scheduleId)));
   if (!schedule) throw new HttpError(404, "Audit schedule not found");
   if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
@@ -514,6 +521,7 @@ router.put("/plans/:id", asyncHandler(async (req, res) => {
   let data = body<AnyRow>(Api.UpdateAuditPlanBody, req);
   const [before] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit plan not found");
+  if (before.workflowState !== "draft") throw new HttpError(409, "Only draft plans can be edited");
   const [schedule] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, data.scheduleId)));
   if (!schedule) throw new HttpError(404, "Audit schedule not found");
   if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");

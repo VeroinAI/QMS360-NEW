@@ -98,6 +98,7 @@ function AuthenticatedRouter() {
     <Route path="/notifications" component={NotificationsPage} />
     <Route path="/qaqc"><QaqcRoutes /></Route><Route path="/qaqc/:rest*"><QaqcRoutes /></Route>
     <Route path="/lessons"><LessonsRoutes /></Route><Route path="/lessons/:rest*"><LessonsRoutes /></Route>
+    <Route path="/audit/plans/:id"><AuditRoutes /></Route>
     <Route path="/audit/audits/:id/report"><AuditRoutes /></Route>
     <Route path="/audit/audits/:id"><AuditRoutes /></Route>
     <Route path="/audit"><AuditRoutes /></Route><Route path="/audit/:rest*"><AuditRoutes /></Route>
