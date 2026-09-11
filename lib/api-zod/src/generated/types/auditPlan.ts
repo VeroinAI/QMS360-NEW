@@ -5,21 +5,53 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { AuditPlanActivitySection } from './auditPlanActivitySection';
 import type { AuditPlanStatus } from './auditPlanStatus';
 
 export interface AuditPlan {
   id: string;
   scheduleId: string;
-  scope: string;
-  /** @nullable */
-  objectives?: string | null;
-  criteria: string[];
-  auditDate: Date;
-  location: string;
-  leadAuditorId?: string;
+  auditFeasible: boolean;
+  auditTitle: string;
+  leadAuditorId: string;
+  /** @minItems 1 */
   teamMemberIds: string[];
-  processOwnerIds?: string[];
+  auditeeId: string;
+  qaqcScope: string;
+  /** @minItems 1 */
+  auditTypes: string[];
+  auditLanguage: string;
+  qaqcReference: string;
   /** @nullable */
-  feasibilityNotes?: string | null;
+  description?: string | null;
+  startDateTime: Date;
+  endDateTime: Date;
+  openingMeetingDateTime: Date;
+  closingMeetingDateTime: Date;
+  activitySection: AuditPlanActivitySection;
+  activityRemarks: string;
+  activityAuditeeId: string;
+  activityDateTime: Date;
+  auditPlanCirculation: string;
   status: AuditPlanStatus;
+  /** Legacy compatibility field */
+  scope?: string;
+  /**
+     * Legacy compatibility field
+     * @nullable
+     */
+  objectives?: string | null;
+  /** Legacy compatibility field */
+  criteria?: string[];
+  /** Legacy compatibility field */
+  auditDate?: Date;
+  /** Legacy compatibility field */
+  location?: string;
+  /** Legacy compatibility field */
+  processOwnerIds?: string[];
+  /**
+     * Legacy compatibility field
+     * @nullable
+     */
+  feasibilityNotes?: string | null;
 }

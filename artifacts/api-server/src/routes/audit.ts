@@ -386,24 +386,106 @@ router.post("/schedules/:id/review", requireAuditAdmin, asyncHandler(async (req,
   res.json(scheduleDto(row));
 }));
 
-type PlanMeta = { objectives?: string | null; leadAuditorId?: string; processOwnerIds?: string[]; feasibilityNotes?: string | null };
+const PLAN_LANGUAGE = "Verbal: English\nWriting: English";
+const PLAN_ACTIVITY_SECTIONS = [
+  "Opening Meeting", "General Requirement", "Design", "Procurement", "Construction & Installation",
+  "Testing & Commissioning", "Improvements", "Lunch", "Break Time", "Site Visit", "Closing Meeting",
+] as const;
+type PlanMeta = {
+  objectives?: string | null; leadAuditorId?: string; processOwnerIds?: string[]; feasibilityNotes?: string | null;
+  auditFeasible?: boolean; auditTitle?: string; auditeeId?: string; qaqcScope?: string; auditTypes?: string[];
+  auditLanguage?: string; qaqcReference?: string; description?: string | null; startDateTime?: string;
+  endDateTime?: string; openingMeetingDateTime?: string; closingMeetingDateTime?: string; activitySection?: string;
+  activityRemarks?: string; activityAuditeeId?: string; activityDateTime?: string; auditPlanCirculation?: string;
+};
 const planMeta = (row: AnyRow): PlanMeta => parseJson(row.status, {});
 const planDto = (row: AnyRow) => {
   const meta = planMeta(row);
+  const fallbackDateTime = row.auditDate ? `${row.auditDate}T00:00:00.000Z` : new Date(0).toISOString();
+  const auditTypes = meta.auditTypes ?? parseJson(row.criteria, row.criteria ? [row.criteria] : []);
   return {
-    id: row.id, scheduleId: row.auditScheduleId!, scope: row.scope ?? "", objectives: meta.objectives ?? null,
-    criteria: parseJson(row.criteria, row.criteria ? [row.criteria] : []), auditDate: new Date(row.auditDate!),
-    location: row.location ?? "", leadAuditorId: meta.leadAuditorId, teamMemberIds: row.teamMemberIds,
+    id: row.id, scheduleId: row.auditScheduleId!, auditFeasible: meta.auditFeasible ?? true,
+    auditTitle: meta.auditTitle ?? row.scope ?? "Audit Plan", leadAuditorId: meta.leadAuditorId ?? row.teamMemberIds[0] ?? "",
+    teamMemberIds: row.teamMemberIds, auditeeId: meta.auditeeId ?? meta.processOwnerIds?.[0] ?? "",
+    qaqcScope: meta.qaqcScope ?? row.scope ?? "", auditTypes, auditLanguage: meta.auditLanguage ?? PLAN_LANGUAGE,
+    qaqcReference: meta.qaqcReference ?? "", description: meta.description ?? meta.objectives ?? null,
+    startDateTime: meta.startDateTime ?? fallbackDateTime, endDateTime: meta.endDateTime ?? fallbackDateTime,
+    openingMeetingDateTime: meta.openingMeetingDateTime ?? fallbackDateTime, closingMeetingDateTime: meta.closingMeetingDateTime ?? fallbackDateTime,
+    activitySection: meta.activitySection ?? row.location ?? "General Requirement",
+    activityRemarks: meta.activityRemarks ?? meta.feasibilityNotes ?? "", activityAuditeeId: meta.activityAuditeeId ?? meta.auditeeId ?? meta.processOwnerIds?.[0] ?? "",
+    activityDateTime: meta.activityDateTime ?? fallbackDateTime, auditPlanCirculation: meta.auditPlanCirculation ?? "",
+    scope: row.scope ?? "", objectives: meta.objectives ?? null,
+    criteria: auditTypes, auditDate: row.auditDate ? new Date(row.auditDate) : new Date(0),
+    location: row.location ?? "",
     processOwnerIds: meta.processOwnerIds ?? [], feasibilityNotes: meta.feasibilityNotes ?? null,
     status: ({ draft: "Draft", shared: "Shared", active: "Active", completed: "Completed" } as AnyRow)[row.workflowState] ?? "Draft",
   };
 };
 const planValues = (data: AnyRow) => ({
-  id: data.id, auditScheduleId: data.scheduleId, scope: data.scope, criteria: JSON.stringify(data.criteria),
-  auditDate: dateOnly(data.auditDate)!, location: data.location, teamMemberIds: data.teamMemberIds,
+  id: data.id, auditScheduleId: data.scheduleId, scope: data.qaqcScope ?? data.scope,
+  criteria: JSON.stringify(data.auditTypes ?? data.criteria ?? []),
+  auditDate: dateOnly(data.startDateTime ?? data.auditDate)!, location: data.location,
+  teamMemberIds: data.teamMemberIds,
   workflowState: String(data.status).toLowerCase(),
-  status: JSON.stringify({ objectives: data.objectives ?? null, leadAuditorId: data.leadAuditorId, processOwnerIds: data.processOwnerIds ?? [], feasibilityNotes: data.feasibilityNotes ?? null }),
+  status: JSON.stringify({
+    objectives: data.objectives ?? null, leadAuditorId: data.leadAuditorId, processOwnerIds: data.processOwnerIds ?? [],
+    feasibilityNotes: data.feasibilityNotes ?? null, auditFeasible: data.auditFeasible, auditTitle: data.auditTitle,
+    auditeeId: data.auditeeId, qaqcScope: data.qaqcScope, auditTypes: data.auditTypes, auditLanguage: data.auditLanguage,
+    qaqcReference: data.qaqcReference, description: data.description ?? null, startDateTime: data.startDateTime,
+    endDateTime: data.endDateTime, openingMeetingDateTime: data.openingMeetingDateTime,
+    closingMeetingDateTime: data.closingMeetingDateTime, activitySection: data.activitySection,
+    activityRemarks: data.activityRemarks, activityAuditeeId: data.activityAuditeeId,
+    activityDateTime: data.activityDateTime, auditPlanCirculation: data.auditPlanCirculation,
+  }),
 });
+async function auditPlanUsers(organizationId: string) {
+  const rows = await db.select({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
+    .innerJoin(applicationAccess, and(
+      eq(applicationAccess.username, users.username), eq(applicationAccess.organizationId, organizationId),
+      eq(applicationAccess.canOpenAudit, true), isNull(applicationAccess.deletedAt),
+    ))
+    .where(and(eq(users.organizationId, organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt)))
+    .orderBy(asc(users.fullName));
+  return [...new Map(rows.map((row) => [row.id, row])).values()];
+}
+async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) {
+  const scheduleData = scheduleDto(schedule);
+  const required = [
+    "auditTitle", "leadAuditorId", "auditeeId", "qaqcScope", "auditLanguage", "qaqcReference",
+    "startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime",
+    "activitySection", "activityRemarks", "activityAuditeeId", "activityDateTime", "auditPlanCirculation",
+  ];
+  if (typeof data.auditFeasible !== "boolean" || required.some((key) => !String(data[key] ?? "").trim()) || !data.teamMemberIds?.length || !data.auditTypes?.length) {
+    throw new HttpError(422, "Complete all mandatory Audit Plan fields");
+  }
+  if (!PLAN_ACTIVITY_SECTIONS.includes(data.activitySection)) throw new HttpError(422, "Select a valid Activities / Section value");
+  if (data.activityAuditeeId !== data.auditeeId) throw new HttpError(422, "Auditee for the Activity must be selected from the plan Auditee");
+  const times = ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime", "activityDateTime"]
+    .map((key) => [key, new Date(data[key])] as const);
+  if (times.some(([, value]) => Number.isNaN(value.getTime()))) throw new HttpError(422, "Enter valid date and time values");
+  const byKey = Object.fromEntries(times.map(([key, value]) => [key, value.getTime()]));
+  if (byKey.endDateTime < byKey.startDateTime) throw new HttpError(422, "End Date & Time must be on or after Start Date & Time");
+  if (byKey.closingMeetingDateTime < byKey.openingMeetingDateTime) throw new HttpError(422, "Closing Meeting must be on or after Opening Meeting");
+  const options = await auditPlanUsers(actor(req).organizationId);
+  const usersById = new Map(options.map((option) => [option.id, option]));
+  const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, data.auditeeId, data.activityAuditeeId])];
+  if (participantIds.some((id) => !usersById.has(id))) throw new HttpError(422, "Select active QMS Audit users for all Master fields");
+  const circulationIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, data.auditeeId])];
+  return {
+    ...data,
+    auditTitle: scheduleData.title,
+    qaqcScope: scheduleData.qaqcScope,
+    auditTypes: scheduleData.auditTypes,
+    auditLanguage: PLAN_LANGUAGE,
+    qaqcReference: scheduleData.qaqcReference,
+    auditPlanCirculation: circulationIds.map((id) => usersById.get(id)!.fullName).join(", "),
+    processOwnerIds: circulationIds,
+    location: scheduleData.location,
+  };
+}
+router.get("/plan-options", requirePermission("audit", "plans", "select"), asyncHandler(async (req, res) => {
+  res.json({ users: await auditPlanUsers(actor(req).organizationId) });
+}));
 router.get("/plans", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const scope = await getAuthorizedProjectScope(req, "audit");
   const where = and(active(auditPlans, actor(req).organizationId), scope.unrestricted ? undefined : inArray(auditPlans.projectId, scope.projectIds));
@@ -414,12 +496,13 @@ router.get("/plans", asyncHandler(async (req, res) => {
   res.json(paginated(rows.map(planDto), Number(count), page, limit));
 }));
 router.post("/plans", asyncHandler(async (req, res) => {
-  const data = body<AnyRow>(Api.CreateAuditPlanBody, req);
+  let data = body<AnyRow>(Api.CreateAuditPlanBody, req);
   await assertFieldAccess(req, "audit", "plan", { mode: "create" });
   await assertFieldControls(req, "audit", "plan", { mode: "create" });
   const [schedule] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, data.scheduleId)));
   if (!schedule) throw new HttpError(404, "Audit schedule not found");
   if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
+  data = await normalizeAuditPlan(req, data, schedule);
   const [row] = await db.insert(auditPlans).values({ organizationId: actor(req).organizationId, projectId: schedule.projectId, ...planValues(data) }).returning();
   await auditLog(req, "create", "audit_plan", row.id, undefined, row); res.status(201).json(planDto(row));
 }));
@@ -428,12 +511,13 @@ router.get("/plans/:id", asyncHandler(async (req, res) => {
   if (!row) throw new HttpError(404, "Audit plan not found"); res.json(planDto(row));
 }));
 router.put("/plans/:id", asyncHandler(async (req, res) => {
-  const data = body<AnyRow>(Api.UpdateAuditPlanBody, req);
+  let data = body<AnyRow>(Api.UpdateAuditPlanBody, req);
   const [before] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit plan not found");
   const [schedule] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, data.scheduleId)));
   if (!schedule) throw new HttpError(404, "Audit schedule not found");
   if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
+  data = await normalizeAuditPlan(req, data, schedule);
   const linkedAudits = await db.select({ projectId: audits.projectId }).from(audits).where(and(
     active(audits, actor(req).organizationId), eq(audits.auditPlanId, before.id),
   ));

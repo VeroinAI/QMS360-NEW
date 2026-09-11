@@ -1878,6 +1878,34 @@ export interface AuditSchedule {
   reviewComments?: string | null;
 }
 
+export interface AuditPlanUserOption {
+  id: string;
+  fullName: string;
+  /** @nullable */
+  designation?: string | null;
+}
+
+export interface AuditPlanOptions {
+  users: AuditPlanUserOption[];
+}
+
+export type AuditPlanActivitySection = typeof AuditPlanActivitySection[keyof typeof AuditPlanActivitySection];
+
+
+export const AuditPlanActivitySection = {
+  Opening_Meeting: 'Opening Meeting',
+  General_Requirement: 'General Requirement',
+  Design: 'Design',
+  Procurement: 'Procurement',
+  'Construction_&_Installation': 'Construction & Installation',
+  'Testing_&_Commissioning': 'Testing & Commissioning',
+  Improvements: 'Improvements',
+  Lunch: 'Lunch',
+  Break_Time: 'Break Time',
+  Site_Visit: 'Site Visit',
+  Closing_Meeting: 'Closing Meeting',
+} as const;
+
 export type AuditPlanStatus = typeof AuditPlanStatus[keyof typeof AuditPlanStatus];
 
 
@@ -1892,18 +1920,49 @@ export const AuditPlanStatus = {
 export interface AuditPlan {
   id: string;
   scheduleId: string;
-  scope: string;
-  /** @nullable */
-  objectives?: string | null;
-  criteria: string[];
-  auditDate: string;
-  location: string;
-  leadAuditorId?: string;
+  auditFeasible: boolean;
+  auditTitle: string;
+  leadAuditorId: string;
+  /** @minItems 1 */
   teamMemberIds: string[];
-  processOwnerIds?: string[];
+  auditeeId: string;
+  qaqcScope: string;
+  /** @minItems 1 */
+  auditTypes: string[];
+  auditLanguage: string;
+  qaqcReference: string;
   /** @nullable */
-  feasibilityNotes?: string | null;
+  description?: string | null;
+  startDateTime: string;
+  endDateTime: string;
+  openingMeetingDateTime: string;
+  closingMeetingDateTime: string;
+  activitySection: AuditPlanActivitySection;
+  activityRemarks: string;
+  activityAuditeeId: string;
+  activityDateTime: string;
+  auditPlanCirculation: string;
   status: AuditPlanStatus;
+  /** Legacy compatibility field */
+  scope?: string;
+  /**
+     * Legacy compatibility field
+     * @nullable
+     */
+  objectives?: string | null;
+  /** Legacy compatibility field */
+  criteria?: string[];
+  /** Legacy compatibility field */
+  auditDate?: string;
+  /** Legacy compatibility field */
+  location?: string;
+  /** Legacy compatibility field */
+  processOwnerIds?: string[];
+  /**
+     * Legacy compatibility field
+     * @nullable
+     */
+  feasibilityNotes?: string | null;
 }
 
 export interface MeetingMinutes {

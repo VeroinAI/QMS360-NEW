@@ -44,6 +44,7 @@ import type {
   AuditPageResponse,
   AuditPlan,
   AuditPlanBody,
+  AuditPlanOptions,
   AuditPlanPageResponse,
   AuditSchedule,
   AuditScheduleBody,
@@ -15211,6 +15212,83 @@ export const useCreateAuditPlan = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCreateAuditPlanMutationOptions(options));
     }
+
+export const getGetAuditPlanOptionsUrl = () => {
+
+
+
+
+  return `/api/audit/plan-options`
+}
+
+/**
+ * @summary List active organization users available to Audit Plan master fields
+ */
+export const getAuditPlanOptions = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanOptions> => {
+
+  return customFetch<AuditPlanOptions>(getGetAuditPlanOptionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditPlanOptionsQueryKey = () => {
+    return [
+    `/api/audit/plan-options`
+    ] as const;
+    }
+
+
+export const getGetAuditPlanOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getAuditPlanOptions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditPlanOptionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditPlanOptions>>> = ({ signal }) => getAuditPlanOptions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanOptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditPlanOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditPlanOptions>>>
+export type GetAuditPlanOptionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List active organization users available to Audit Plan master fields
+ */
+
+export function useGetAuditPlanOptions<TData = Awaited<ReturnType<typeof getAuditPlanOptions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditPlanOptionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetAuditPlanUrl = (id: string,) => {
 

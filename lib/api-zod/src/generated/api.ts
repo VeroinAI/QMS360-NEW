@@ -5672,6 +5672,8 @@ export const listAuditPlansResponseOneTotalMin = 0;
 
 
 
+
+
 export const ListAuditPlansResponse = zod.object({
   "total": zod.number().min(listAuditPlansResponseOneTotalMin),
   "page": zod.number().min(1),
@@ -5680,16 +5682,33 @@ export const ListAuditPlansResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "scheduleId": zod.string(),
-  "scope": zod.string(),
-  "objectives": zod.string().nullish(),
-  "criteria": zod.array(zod.string()),
-  "auditDate": zod.coerce.date(),
-  "location": zod.string(),
-  "leadAuditorId": zod.string().optional(),
-  "teamMemberIds": zod.array(zod.string()),
-  "processOwnerIds": zod.array(zod.string()).optional(),
-  "feasibilityNotes": zod.string().nullish(),
-  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted'])
+  "auditFeasible": zod.boolean(),
+  "auditTitle": zod.string(),
+  "leadAuditorId": zod.string(),
+  "teamMemberIds": zod.array(zod.string()).min(1),
+  "auditeeId": zod.string(),
+  "qaqcScope": zod.string(),
+  "auditTypes": zod.array(zod.string()).min(1),
+  "auditLanguage": zod.string(),
+  "qaqcReference": zod.string(),
+  "description": zod.string().nullish(),
+  "startDateTime": zod.coerce.date(),
+  "endDateTime": zod.coerce.date(),
+  "openingMeetingDateTime": zod.coerce.date(),
+  "closingMeetingDateTime": zod.coerce.date(),
+  "activitySection": zod.enum(['Opening Meeting', 'General Requirement', 'Design', 'Procurement', 'Construction & Installation', 'Testing & Commissioning', 'Improvements', 'Lunch', 'Break Time', 'Site Visit', 'Closing Meeting']),
+  "activityRemarks": zod.string(),
+  "activityAuditeeId": zod.string(),
+  "activityDateTime": zod.coerce.date(),
+  "auditPlanCirculation": zod.string(),
+  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted']),
+  "scope": zod.string().optional().describe('Legacy compatibility field'),
+  "objectives": zod.string().nullish().describe('Legacy compatibility field'),
+  "criteria": zod.array(zod.string()).optional().describe('Legacy compatibility field'),
+  "auditDate": zod.coerce.date().optional().describe('Legacy compatibility field'),
+  "location": zod.string().optional().describe('Legacy compatibility field'),
+  "processOwnerIds": zod.array(zod.string()).optional().describe('Legacy compatibility field'),
+  "feasibilityNotes": zod.string().nullish().describe('Legacy compatibility field')
 }))
 }))
 
@@ -5697,22 +5716,55 @@ export const ListAuditPlansResponse = zod.object({
 /**
  * @summary Create plan linked to schedule
  */
+
+
+
+
 export const CreateAuditPlanBody = zod.object({
   "id": zod.string(),
   "scheduleId": zod.string(),
-  "scope": zod.string(),
-  "objectives": zod.string().nullish(),
-  "criteria": zod.array(zod.string()),
-  "auditDate": zod.coerce.date(),
-  "location": zod.string(),
-  "leadAuditorId": zod.string().optional(),
-  "teamMemberIds": zod.array(zod.string()),
-  "processOwnerIds": zod.array(zod.string()).optional(),
-  "feasibilityNotes": zod.string().nullish(),
-  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted'])
+  "auditFeasible": zod.boolean(),
+  "auditTitle": zod.string(),
+  "leadAuditorId": zod.string(),
+  "teamMemberIds": zod.array(zod.string()).min(1),
+  "auditeeId": zod.string(),
+  "qaqcScope": zod.string(),
+  "auditTypes": zod.array(zod.string()).min(1),
+  "auditLanguage": zod.string(),
+  "qaqcReference": zod.string(),
+  "description": zod.string().nullish(),
+  "startDateTime": zod.coerce.date(),
+  "endDateTime": zod.coerce.date(),
+  "openingMeetingDateTime": zod.coerce.date(),
+  "closingMeetingDateTime": zod.coerce.date(),
+  "activitySection": zod.enum(['Opening Meeting', 'General Requirement', 'Design', 'Procurement', 'Construction & Installation', 'Testing & Commissioning', 'Improvements', 'Lunch', 'Break Time', 'Site Visit', 'Closing Meeting']),
+  "activityRemarks": zod.string(),
+  "activityAuditeeId": zod.string(),
+  "activityDateTime": zod.coerce.date(),
+  "auditPlanCirculation": zod.string(),
+  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted']),
+  "scope": zod.string().optional().describe('Legacy compatibility field'),
+  "objectives": zod.string().nullish().describe('Legacy compatibility field'),
+  "criteria": zod.array(zod.string()).optional().describe('Legacy compatibility field'),
+  "auditDate": zod.coerce.date().optional().describe('Legacy compatibility field'),
+  "location": zod.string().optional().describe('Legacy compatibility field'),
+  "processOwnerIds": zod.array(zod.string()).optional().describe('Legacy compatibility field'),
+  "feasibilityNotes": zod.string().nullish().describe('Legacy compatibility field')
 })
 
 export const CreateAuditPlanResponse = zod.void()
+
+
+/**
+ * @summary List active organization users available to Audit Plan master fields
+ */
+export const GetAuditPlanOptionsResponse = zod.object({
+  "users": zod.array(zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+}))
+})
 
 
 /**
@@ -5722,19 +5774,40 @@ export const GetAuditPlanParams = zod.object({
   "id": zod.coerce.string()
 })
 
+
+
+
+
 export const GetAuditPlanResponse = zod.object({
   "id": zod.string(),
   "scheduleId": zod.string(),
-  "scope": zod.string(),
-  "objectives": zod.string().nullish(),
-  "criteria": zod.array(zod.string()),
-  "auditDate": zod.coerce.date(),
-  "location": zod.string(),
-  "leadAuditorId": zod.string().optional(),
-  "teamMemberIds": zod.array(zod.string()),
-  "processOwnerIds": zod.array(zod.string()).optional(),
-  "feasibilityNotes": zod.string().nullish(),
-  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted'])
+  "auditFeasible": zod.boolean(),
+  "auditTitle": zod.string(),
+  "leadAuditorId": zod.string(),
+  "teamMemberIds": zod.array(zod.string()).min(1),
+  "auditeeId": zod.string(),
+  "qaqcScope": zod.string(),
+  "auditTypes": zod.array(zod.string()).min(1),
+  "auditLanguage": zod.string(),
+  "qaqcReference": zod.string(),
+  "description": zod.string().nullish(),
+  "startDateTime": zod.coerce.date(),
+  "endDateTime": zod.coerce.date(),
+  "openingMeetingDateTime": zod.coerce.date(),
+  "closingMeetingDateTime": zod.coerce.date(),
+  "activitySection": zod.enum(['Opening Meeting', 'General Requirement', 'Design', 'Procurement', 'Construction & Installation', 'Testing & Commissioning', 'Improvements', 'Lunch', 'Break Time', 'Site Visit', 'Closing Meeting']),
+  "activityRemarks": zod.string(),
+  "activityAuditeeId": zod.string(),
+  "activityDateTime": zod.coerce.date(),
+  "auditPlanCirculation": zod.string(),
+  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted']),
+  "scope": zod.string().optional().describe('Legacy compatibility field'),
+  "objectives": zod.string().nullish().describe('Legacy compatibility field'),
+  "criteria": zod.array(zod.string()).optional().describe('Legacy compatibility field'),
+  "auditDate": zod.coerce.date().optional().describe('Legacy compatibility field'),
+  "location": zod.string().optional().describe('Legacy compatibility field'),
+  "processOwnerIds": zod.array(zod.string()).optional().describe('Legacy compatibility field'),
+  "feasibilityNotes": zod.string().nullish().describe('Legacy compatibility field')
 })
 
 
@@ -5745,19 +5818,40 @@ export const UpdateAuditPlanParams = zod.object({
   "id": zod.coerce.string()
 })
 
+
+
+
+
 export const UpdateAuditPlanBody = zod.object({
   "id": zod.string(),
   "scheduleId": zod.string(),
-  "scope": zod.string(),
-  "objectives": zod.string().nullish(),
-  "criteria": zod.array(zod.string()),
-  "auditDate": zod.coerce.date(),
-  "location": zod.string(),
-  "leadAuditorId": zod.string().optional(),
-  "teamMemberIds": zod.array(zod.string()),
-  "processOwnerIds": zod.array(zod.string()).optional(),
-  "feasibilityNotes": zod.string().nullish(),
-  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted'])
+  "auditFeasible": zod.boolean(),
+  "auditTitle": zod.string(),
+  "leadAuditorId": zod.string(),
+  "teamMemberIds": zod.array(zod.string()).min(1),
+  "auditeeId": zod.string(),
+  "qaqcScope": zod.string(),
+  "auditTypes": zod.array(zod.string()).min(1),
+  "auditLanguage": zod.string(),
+  "qaqcReference": zod.string(),
+  "description": zod.string().nullish(),
+  "startDateTime": zod.coerce.date(),
+  "endDateTime": zod.coerce.date(),
+  "openingMeetingDateTime": zod.coerce.date(),
+  "closingMeetingDateTime": zod.coerce.date(),
+  "activitySection": zod.enum(['Opening Meeting', 'General Requirement', 'Design', 'Procurement', 'Construction & Installation', 'Testing & Commissioning', 'Improvements', 'Lunch', 'Break Time', 'Site Visit', 'Closing Meeting']),
+  "activityRemarks": zod.string(),
+  "activityAuditeeId": zod.string(),
+  "activityDateTime": zod.coerce.date(),
+  "auditPlanCirculation": zod.string(),
+  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted']),
+  "scope": zod.string().optional().describe('Legacy compatibility field'),
+  "objectives": zod.string().nullish().describe('Legacy compatibility field'),
+  "criteria": zod.array(zod.string()).optional().describe('Legacy compatibility field'),
+  "auditDate": zod.coerce.date().optional().describe('Legacy compatibility field'),
+  "location": zod.string().optional().describe('Legacy compatibility field'),
+  "processOwnerIds": zod.array(zod.string()).optional().describe('Legacy compatibility field'),
+  "feasibilityNotes": zod.string().nullish().describe('Legacy compatibility field')
 })
 
 export const UpdateAuditPlanResponse = zod.unknown()

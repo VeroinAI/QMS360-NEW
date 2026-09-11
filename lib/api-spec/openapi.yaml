@@ -1034,6 +1034,8 @@ paths:
   /audit/plans:
     get: {operationId: listAuditPlans, tags: [audit], summary: List audit plans, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditPlanPage"}}}
     post: {operationId: createAuditPlan, tags: [audit], summary: Create plan linked to schedule, requestBody: {$ref: "#/components/requestBodies/AuditPlan"}, responses: {"201": {description: Created}}}
+  /audit/plan-options:
+    get: {operationId: getAuditPlanOptions, tags: [audit], summary: List active organization users available to Audit Plan master fields, responses: {"200": {description: Plan options, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanOptions"}}}}}}
   /audit/plans/{id}:
     get: {operationId: getAuditPlan, tags: [audit], summary: Get audit plan, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Plan, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlan"}}}}}}
     put: {operationId: updateAuditPlan, tags: [audit], summary: Update audit plan, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditPlan"}, responses: {"200": {description: Updated}}}
@@ -2241,10 +2243,51 @@ components:
         ownerId: {type: string}
         workflowState: {$ref: "#/components/schemas/WorkflowState"}
         reviewComments: {type: [string, "null"]}
+    AuditPlanUserOption:
+      type: object
+      required: [id, fullName]
+      properties:
+        id: {type: string}
+        fullName: {type: string}
+        designation: {type: [string, "null"]}
+    AuditPlanOptions:
+      type: object
+      required: [users]
+      properties:
+        users: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
     AuditPlan:
       type: object
-      required: [id, scheduleId, scope, criteria, auditDate, location, teamMemberIds, status]
-      properties: {id: {type: string}, scheduleId: {type: string}, scope: {type: string}, objectives: {type: [string, "null"]}, criteria: {type: array, items: {type: string}}, auditDate: {type: string, format: date}, location: {type: string}, leadAuditorId: {type: string}, teamMemberIds: {type: array, items: {type: string}}, processOwnerIds: {type: array, items: {type: string}}, feasibilityNotes: {type: [string, "null"]}, status: {type: string, enum: [Draft, Shared, Active, Completed, Deleted]}}
+      required: [id, scheduleId, auditFeasible, auditTitle, leadAuditorId, teamMemberIds, auditeeId, qaqcScope, auditTypes, auditLanguage, qaqcReference, startDateTime, endDateTime, openingMeetingDateTime, closingMeetingDateTime, activitySection, activityRemarks, activityAuditeeId, activityDateTime, auditPlanCirculation, status]
+      properties:
+        id: {type: string}
+        scheduleId: {type: string}
+        auditFeasible: {type: boolean}
+        auditTitle: {type: string}
+        leadAuditorId: {type: string}
+        teamMemberIds: {type: array, minItems: 1, items: {type: string}}
+        auditeeId: {type: string}
+        qaqcScope: {type: string}
+        auditTypes: {type: array, minItems: 1, items: {type: string}}
+        auditLanguage: {type: string}
+        qaqcReference: {type: string}
+        description: {type: [string, "null"]}
+        startDateTime: {type: string, format: date-time}
+        endDateTime: {type: string, format: date-time}
+        openingMeetingDateTime: {type: string, format: date-time}
+        closingMeetingDateTime: {type: string, format: date-time}
+        activitySection: {type: string, enum: [Opening Meeting, General Requirement, Design, Procurement, Construction & Installation, Testing & Commissioning, Improvements, Lunch, Break Time, Site Visit, Closing Meeting]}
+        activityRemarks: {type: string}
+        activityAuditeeId: {type: string}
+        activityDateTime: {type: string, format: date-time}
+        auditPlanCirculation: {type: string}
+        status: {type: string, enum: [Draft, Shared, Active, Completed, Deleted]}
+        scope: {type: string, description: Legacy compatibility field}
+        objectives: {type: [string, "null"], description: Legacy compatibility field}
+        criteria: {type: array, items: {type: string}, description: Legacy compatibility field}
+        auditDate: {type: string, format: date, description: Legacy compatibility field}
+        location: {type: string, description: Legacy compatibility field}
+        processOwnerIds: {type: array, items: {type: string}, description: Legacy compatibility field}
+        feasibilityNotes: {type: [string, "null"], description: Legacy compatibility field}
     MeetingMinutes:
       type: object
       required: [heldAt, attendees, minutes]

@@ -96,12 +96,30 @@ const scheduleBody = (overrides: Record<string, unknown> = {}) => ({
 const planBody = (scheduleId: string, overrides: Record<string, unknown> = {}) => ({
   id: crypto.randomUUID(),
   scheduleId,
+  auditFeasible: true,
+  auditTitle: "Generated audit title",
+  leadAuditorId: member.id,
+  teamMemberIds: [member.id],
+  auditeeId: member.id,
+  qaqcScope: "Document control and site processes",
+  auditTypes: ["Internal"],
+  auditLanguage: "Verbal: English\nWriting: English",
+  qaqcReference: "QA/QC reference",
+  description: "Verify clause 8.5 controls",
+  startDateTime: "2026-05-10T08:00:00.000Z",
+  endDateTime: "2026-05-10T17:00:00.000Z",
+  openingMeetingDateTime: "2026-05-10T08:00:00.000Z",
+  closingMeetingDateTime: "2026-05-10T16:30:00.000Z",
+  activitySection: "General Requirement",
+  activityRemarks: "Review documented information",
+  activityAuditeeId: member.id,
+  activityDateTime: "2026-05-10T09:00:00.000Z",
+  auditPlanCirculation: "Audit team",
   scope: "Document control and site processes",
   criteria: ["ISO 9001:2015"],
   auditDate: "2026-05-10",
   location: "",
   objectives: "Verify clause 8.5 controls",
-  teamMemberIds: [] as string[],
   status: "Draft",
   ...overrides,
 });
@@ -398,6 +416,31 @@ describe("field-controls enforcement over HTTP (audit plan)", () => {
     const res = await api("POST", "/audit/plans", { token: member.token, body: planBody(scheduleId) });
     expect(res.status).toBe(201);
     planId = res.json.id;
+  });
+
+  it("returns active Audit users as Master options", async () => {
+    const res = await api("GET", "/audit/plan-options", { token: member.token });
+    expect(res.status).toBe(200);
+    expect(res.json.users.some((user: { id: string }) => user.id === member.id)).toBe(true);
+  });
+
+  it("persists Stage 2 fields and derives schedule and circulation values on the server", async () => {
+    const res = await api("GET", `/audit/plans/${planId}`, { token: member.token });
+    expect(res.status).toBe(200);
+    expect(res.json.auditTitle).toBe(`Annual audit schedule ${suffix}`);
+    expect(res.json.activitySection).toBe("General Requirement");
+    expect(res.json.activityRemarks).toBe("Review documented information");
+    expect(new Date(res.json.startDateTime).toISOString()).toBe("2026-05-10T08:00:00.000Z");
+    expect(res.json.auditPlanCirculation).not.toBe("Audit team");
+    expect(res.json.auditPlanCirculation.length).toBeGreaterThan(0);
+  });
+
+  it("rejects an end date and time before the start", async () => {
+    const res = await api("POST", "/audit/plans", {
+      token: member.token,
+      body: planBody(scheduleId, { endDateTime: "2026-05-09T17:00:00.000Z" }),
+    });
+    await expectUnprocessable(res, "End Date & Time");
   });
 
   it("rejects a non-admin update that writes the read-only location field", async () => {
