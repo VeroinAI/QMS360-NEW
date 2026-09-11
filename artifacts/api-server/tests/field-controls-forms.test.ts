@@ -327,9 +327,13 @@ describe("field-controls enforcement over HTTP (audit schedule)", () => {
   });
 
   it("accepts a non-admin create that respects both rules", async () => {
-    const res = await api("POST", "/audit/schedules", { token: member.token, body: scheduleBody() });
+    const body = scheduleBody();
+    const res = await api("POST", "/audit/schedules", { token: member.token, body });
     expect(res.status).toBe(201);
     scheduleId = res.json.id;
+    const retry = await api("POST", "/audit/schedules", { token: member.token, body });
+    expect(retry.status).toBe(201);
+    expect(retry.json.id).toBe(scheduleId);
   });
 
   it("persists GPS coordinates for a schedule location", async () => {

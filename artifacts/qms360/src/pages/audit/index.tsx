@@ -69,6 +69,7 @@ import { useFieldControls } from "@/lib/field-controls";
 const PAGE_SIZE = 10;
 const date = (value?: string | null) => value ? new Date(value).toLocaleDateString() : "—";
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Something went wrong.";
+type QueuedAttachment = { file: File; clientReference: string };
 const workflowTone = (value: string) =>
   value === "Approved" || value === "Closed" || value === "Accepted" || value === "Shared"
     ? "default" : value === "Rejected" || value === "Sent Back" ? "destructive" : "secondary";
@@ -135,8 +136,9 @@ function Metric({ label, value, icon }: { label: string; value: number; icon: Re
 function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: () => void }) {
   const qc = useQueryClient(); const { toast } = useToast();
   const fc = useFieldControls("audit", "schedule"); const ro = (key: string) => fc.fieldProps(key).disabled; const req = (key: string) => fc.fieldProps(key).required;
-  const [l1Files, setL1Files] = useState<File[]>([]);
-  const [l2Files, setL2Files] = useState<File[]>([]);
+  const [l1Files, setL1Files] = useState<QueuedAttachment[]>([]);
+  const [l2Files, setL2Files] = useState<QueuedAttachment[]>([]);
+  const [createdScheduleId, setCreatedScheduleId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<AuditSchedule>(initial ?? {
     id: crypto.randomUUID(), year: new Date().getFullYear(), title: "", projectIds: [], auditTypes: [],
@@ -185,14 +187,24 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
       return next;
     });
   };
-  const uploadAttachment = async (file: File, category: "l1-review" | "l2-review") => {
+  const uploadAttachment = async ({ file, clientReference }: QueuedAttachment, category: "l1-review" | "l2-review", scheduleId: string) => {
     const intent = await evidenceIntent.mutateAsync({ data: {
-      recordType: "audit_schedule", recordId: form.id, category, fileName: file.name,
-      mimeType: file.type || "application/octet-stream", sizeBytes: file.size, clientReference: crypto.randomUUID(),
+      recordType: "audit_schedule", recordId: scheduleId, category, fileName: file.name,
+      mimeType: file.type || "application/octet-stream", sizeBytes: file.size, clientReference,
     } });
     const response = await fetch(intent.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "application/octet-stream" } });
     if (!response.ok) throw new Error(`Unable to upload ${file.name}`);
     await confirmEvidence.mutateAsync({ id: intent.id });
+  };
+  const uploadQueuedAttachments = async (scheduleId: string) => {
+    for (const attachment of l1Files) {
+      await uploadAttachment(attachment, "l1-review", scheduleId);
+      setL1Files(current => current.filter(item => item.clientReference !== attachment.clientReference));
+    }
+    for (const attachment of l2Files) {
+      await uploadAttachment(attachment, "l2-review", scheduleId);
+      setL2Files(current => current.filter(item => item.clientReference !== attachment.clientReference));
+    }
   };
   const save = async () => {
     const missing: Record<string, string> = {};
@@ -225,18 +237,32 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
       return;
     }
     setErrors({});
+    let savedScheduleId: string | null = null;
     try {
-      if (initial) await update.mutateAsync({ id: initial.id, data: form });
-      else await create.mutateAsync({ data: form });
-      await Promise.all([
-        ...l1Files.map(file => uploadAttachment(file, "l1-review")),
-        ...l2Files.map(file => uploadAttachment(file, "l2-review")),
-      ]);
+      if (initial) {
+        await update.mutateAsync({ id: initial.id, data: form });
+        savedScheduleId = initial.id;
+      } else if (createdScheduleId) {
+        await update.mutateAsync({ id: createdScheduleId, data: { ...form, id: createdScheduleId } });
+        savedScheduleId = createdScheduleId;
+      }
+      else {
+        await create.mutateAsync({ data: form });
+        savedScheduleId = form.id;
+        setCreatedScheduleId(savedScheduleId);
+      }
+      await uploadQueuedAttachments(savedScheduleId);
       qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
       toast({ title: initial ? "Schedule updated" : "Schedule created" });
       onClose();
     } catch (e) {
-      toast({ title: "Unable to save", description: errorText(e), variant: "destructive" });
+      toast({
+        title: savedScheduleId ? "Schedule saved; attachment upload needs retry" : "Unable to save",
+        description: savedScheduleId
+          ? `${errorText(e)} Select Save schedule to retry only the remaining attachment files.`
+          : errorText(e),
+        variant: "destructive",
+      });
     }
   };
   const field = (key: keyof AuditSchedule, value: unknown) => {
@@ -276,7 +302,8 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   const files = (key: "l1Attachments" | "l2Attachments", list: FileList | null) => {
     const selected = Array.from(list ?? []);
     field(key, selected.map(file => file.name));
-    if (key === "l1Attachments") setL1Files(selected); else setL2Files(selected);
+    const queued = selected.map(file => ({ file, clientReference: crypto.randomUUID() }));
+    if (key === "l1Attachments") setL1Files(queued); else setL2Files(queued);
   };
   return <div className="grid gap-4 py-2">
     <div id="schedule-auditTypes"><Label>1. Audit Type *</Label><Select value={form.auditTypes?.[0] ?? ""} disabled={auditTypes.isLoading || ro("auditTypes")} onValueChange={v => field("auditTypes", [v])}><SelectTrigger aria-invalid={!!errors.auditTypes} className={invalid("auditTypes")}><SelectValue placeholder="Select audit type"/></SelectTrigger><SelectContent>{withLegacyOption(auditTypes.options, form.auditTypes?.[0]).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditTypes")}</div>

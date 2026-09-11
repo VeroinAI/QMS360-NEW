@@ -242,6 +242,14 @@ const scheduleValues = (data: AnyRow) => ({
     memoDescription: data.memoDescription, memoCirculation: data.memoCirculation,
   }),
 });
+const isMatchingScheduleCreate = (row: AnyRow, values: ReturnType<typeof scheduleValues>) =>
+  row.deletedAt == null
+  && row.year === values.year
+  && row.title === values.title
+  && row.projectId === values.projectId
+  && (row.ownerId ?? null) === (values.ownerId ?? null)
+  && row.workflowState === values.workflowState
+  && row.status === values.status;
 
 /** Validate schedule fields against audit-scope master data; blank values are allowed (field controls govern requiredness). */
 async function assertScheduleLovs(organizationId: string, data: AnyRow, legacy?: ScheduleMeta) {
@@ -291,7 +299,19 @@ router.post("/schedules", asyncHandler(async (req, res) => {
   await assertLovValue(db, actor(req).organizationId, "audit_categories", data.auditCategory);
   assertScheduleDates(data);
   await assertScheduleLovs(actor(req).organizationId, data);
-  const [row] = await db.insert(auditSchedules).values({ organizationId: actor(req).organizationId, ...scheduleValues(data) }).returning();
+  const values = scheduleValues(data);
+  const [row] = await db.insert(auditSchedules)
+    .values({ organizationId: actor(req).organizationId, ...values })
+    .onConflictDoNothing({ target: auditSchedules.id })
+    .returning();
+  if (!row) {
+    const [existing] = await db.select().from(auditSchedules).where(eq(auditSchedules.id, values.id)).limit(1);
+    if (existing?.organizationId === actor(req).organizationId && isMatchingScheduleCreate(existing, values)) {
+      res.status(201).json(scheduleDto(existing));
+      return;
+    }
+    throw new HttpError(409, "A schedule with this form identifier already exists. Refresh the schedule list before creating another schedule.");
+  }
   await auditLog(req, "create", "audit_schedule", row.id, undefined, row);
   res.status(201).json(scheduleDto(row));
 }));
