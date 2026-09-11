@@ -77,7 +77,7 @@ export function AiEntryPage() {
   }
 
   return <div>
-    <PageHeader title="Describe it" description="Turn a plain-language site experience into a structured lesson." back="/lessons" />
+    <PageHeader title="VerionAI Entry" description="Turn a plain-language site experience into a structured lesson." back="/lessons" />
     <VerionCard title={<VerionWordmark suffix="Entry" />}>
       <p className="mb-4 text-sm text-muted-foreground">VerionAI extracts a draft; you remain in control.</p>
       <Textarea rows={7} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe what happened, where, the impact, root cause, and what should be done differently…" />

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, Route, Switch } from "wouter";
-import { AlertTriangle, BookOpen, Download, Plus, Search, Sparkles, Trash2, ClipboardCheck } from "lucide-react";
+import { AlertTriangle, BookOpen, Download, Plus, Search, Trash2, ClipboardCheck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   exportLessonsLog,
@@ -25,6 +25,7 @@ import { AiEntryPage } from "./ai-entry";
 import { LoadState, PageHeader, StateBadge, errorMessage } from "./common";
 import { useLov } from "@/lib/use-lov";
 import { LessonsNotificationsPage } from "@/pages/notifications";
+import { VerionBadge } from "@/components/verion-ai";
 
 const PAGE_SIZE = 10;
 
@@ -46,7 +47,11 @@ function download(url?: string | null, filename?: string) {
 
 function LessonActions() {
   return <>
-    <Button variant="outline" asChild><Link href="/lessons/ai-entry"><Sparkles /> Describe it</Link></Button>
+    <Button variant="outline" asChild>
+      <Link href="/lessons/ai-entry" aria-label="Open VerionAI lesson assistant">
+        <VerionBadge className="border-0 bg-transparent p-0">VerionAI</VerionBadge>
+      </Link>
+    </Button>
     <Button asChild><Link href="/lessons/new"><Plus /> New lesson</Link></Button>
   </>;
 }
