@@ -374,6 +374,37 @@ describe("admin re-triage", () => {
 });
 
 describe("happy path", () => {
+  it("uploads and lists a reference file when the attachment table is unavailable", async () => {
+    process.env.FEEDBACK_ATTACHMENTS_FORCE_FALLBACK = "true";
+    try {
+      const created = await api("POST", "/feedback", {
+        token: memberA.token,
+        body: { module: "system", category: "issue", message: "Fallback attachment metadata" },
+      });
+      const bytes = new TextEncoder().encode("fallback reference");
+      const intent = await api("POST", `/feedback/${created.json.id}/attachments`, {
+        token: memberA.token,
+        body: { fileName: "fallback.txt", mimeType: "text/plain", sizeBytes: bytes.byteLength },
+      });
+      expect(intent.status).toBe(201);
+      const uploaded = await apiBytes("PUT", `/feedback/attachments/${intent.json.attachment.id}/upload`, memberA.token, bytes);
+      expect(uploaded.status).toBe(200);
+
+      const adminList = await api("GET", "/feedback", { token: adminA.token });
+      const entry = adminList.json.items.find((item: any) => item.id === created.json.id);
+      expect(entry.attachments).toEqual([expect.objectContaining({ fileName: "fallback.txt", status: "stored" })]);
+      expect(entry.triage?._attachments).toBeUndefined();
+
+      const download = await fetch(`${baseUrl}/feedback/attachments/${intent.json.attachment.id}/file`, {
+        headers: { authorization: `Bearer ${adminA.token}` },
+      });
+      expect(download.status).toBe(200);
+      expect(await download.text()).toBe("fallback reference");
+    } finally {
+      delete process.env.FEEDBACK_ATTACHMENTS_FORCE_FALLBACK;
+    }
+  });
+
   it("uploads a reference file that the author and admin can see", async () => {
     const created = await api("POST", "/feedback", {
       token: memberA.token,

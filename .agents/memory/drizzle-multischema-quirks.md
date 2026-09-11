@@ -75,3 +75,18 @@ the column.
 **How to apply:** keep the fallback narrow and temporary, preserve full behavior
 when the column exists, and complete the supported production schema rollout as
 the durable fix.
+
+## Verify reported production diffs against the live catalog
+
+Do not treat a “no differences” schema report as proof that production matches
+development when the deployed runtime reports missing relations or columns.
+Confirm rollout-sensitive objects with a read-only production catalog query.
+
+**Why:** the schema report returned no pending statements while both the live
+request logs and `information_schema` showed two feedback tables absent from
+production, even though they existed in development.
+
+**How to apply:** use the supported Publish flow for the durable migration, but
+keep narrow application compatibility for critical features until the live
+production catalog confirms the required object exists. Never compensate with
+startup DDL or a production-targeted migration script.

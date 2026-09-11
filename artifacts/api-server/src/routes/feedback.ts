@@ -4,6 +4,15 @@ import { db, feedbackAttachments, feedbackEntries, feedbackStatusHistory, users 
 import { CreateFeedbackAttachmentBody, SubmitFeedbackBody, TriageFeedbackBody, TriageFeedbackResponse, UpdateFeedbackResolutionBody } from "@workspace/api-zod";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { AiUnavailableError, triageFeedback as runTriage } from "../lib/ai";
+import {
+  appendFallbackAttachment,
+  fallbackAttachmentsByFeedback,
+  fallbackAttachmentsFromTriage,
+  forceAttachmentFallback,
+  hasPostgresCode,
+  publicTriage,
+  type FeedbackAttachmentMetadata,
+} from "../lib/feedback-attachment-fallback";
 import { asyncHandler, HttpError, notFound, paginated, pagination } from "../lib/workspace";
 
 const router: IRouter = Router();
@@ -20,15 +29,6 @@ const feedbackEntrySelection = {
     to_jsonb("feedback_entries") ->> 'resolution_response'
   )`,
 };
-
-function hasPostgresCode(error: unknown, expectedCode: string): boolean {
-  let current: unknown = error;
-  for (let depth = 0; depth < 6 && current && typeof current === "object"; depth += 1) {
-    if ((current as { code?: unknown }).code === expectedCode) return true;
-    current = (current as { cause?: unknown }).cause;
-  }
-  return false;
-}
 
 type StatusHistoryJson = {
   id: string;
@@ -51,7 +51,7 @@ function entryJson(
     pagePath: row.pagePath,
     category: row.category,
     message: row.message,
-    triage: row.triage ?? null,
+    triage: publicTriage(row.triage),
     resolution: row.resolution,
     resolutionResponse: row.resolutionResponse ?? null,
     statusHistory,
@@ -97,7 +97,7 @@ async function canWriteStatusHistory() {
   }
 }
 
-function attachmentJson(row: typeof feedbackAttachments.$inferSelect) {
+function attachmentJson(row: Pick<typeof feedbackAttachments.$inferSelect, "id" | "fileName" | "mimeType" | "sizeBytes" | "status">) {
   return {
     id: row.id,
     fileName: row.fileName,
@@ -110,21 +110,25 @@ function attachmentJson(row: typeof feedbackAttachments.$inferSelect) {
 async function attachmentsByFeedback(ids: string[]) {
   const grouped = new Map<string, ReturnType<typeof attachmentJson>[]>();
   if (!ids.length) return grouped;
-  let rows: (typeof feedbackAttachments.$inferSelect)[];
-  try {
-    rows = await db.select().from(feedbackAttachments).where(and(
-      inArray(feedbackAttachments.feedbackId, ids),
-      eq(feedbackAttachments.status, "stored"),
-      isNull(feedbackAttachments.deletedAt),
-    )).orderBy(feedbackAttachments.createdAt);
-  } catch (error) {
-    // Keep existing feedback visible while production catches up with the
-    // optional attachment-table rollout.
-    if (hasPostgresCode(error, "42P01")) return grouped;
-    throw error;
+  if (!forceAttachmentFallback()) {
+    try {
+      const rows = await db.select().from(feedbackAttachments).where(and(
+        inArray(feedbackAttachments.feedbackId, ids),
+        eq(feedbackAttachments.status, "stored"),
+        isNull(feedbackAttachments.deletedAt),
+      )).orderBy(feedbackAttachments.createdAt);
+      for (const row of rows) {
+        grouped.set(row.feedbackId, [...(grouped.get(row.feedbackId) ?? []), attachmentJson(row)]);
+      }
+    } catch (error) {
+      if (!hasPostgresCode(error, "42P01")) throw error;
+    }
   }
-  for (const row of rows) {
-    grouped.set(row.feedbackId, [...(grouped.get(row.feedbackId) ?? []), attachmentJson(row)]);
+  const fallback = await fallbackAttachmentsByFeedback(ids);
+  for (const [feedbackId, attachments] of fallback) {
+    const existingIds = new Set((grouped.get(feedbackId) ?? []).map((attachment) => attachment.id));
+    const additional = attachments.filter((attachment) => !existingIds.has(attachment.id)).map(attachmentJson);
+    grouped.set(feedbackId, [...(grouped.get(feedbackId) ?? []), ...additional]);
   }
   return grouped;
 }
@@ -362,7 +366,7 @@ router.post("/feedback/:id/attachments", asyncHandler(async (req, res) => {
   const parsed = CreateFeedbackAttachmentBody.safeParse(req.body);
   if (!parsed.success) throw new HttpError(422, parsed.error.issues[0]?.message ?? "Invalid attachment metadata");
   const user = req.currentUser!;
-  const [entry] = await db.select({ id: feedbackEntries.id }).from(feedbackEntries).where(and(
+  const [entry] = await db.select({ id: feedbackEntries.id, triage: feedbackEntries.triage }).from(feedbackEntries).where(and(
     eq(feedbackEntries.id, String(req.params.id)),
     eq(feedbackEntries.organizationId, user.organizationId),
     eq(feedbackEntries.userId, user.id),
@@ -385,21 +389,45 @@ router.post("/feedback/:id/attachments", asyncHandler(async (req, res) => {
   };
   const extension = parsed.data.fileName.split(".").pop()?.toLowerCase() ?? "";
   if (!mimeByExtension[extension]) throw new HttpError(422, "This file type is not supported");
-  const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(feedbackAttachments).where(and(
-    eq(feedbackAttachments.feedbackId, entry!.id),
-    isNull(feedbackAttachments.deletedAt),
-  ));
-  if (Number(count) >= 5) throw new HttpError(422, "A maximum of 5 reference files can be attached");
-
-  const [attachment] = await db.insert(feedbackAttachments).values({
-    organizationId: user.organizationId,
-    feedbackId: entry!.id,
-    uploadedById: user.id,
-    fileName: parsed.data.fileName,
-    mimeType: mimeByExtension[extension],
-    sizeBytes: parsed.data.sizeBytes,
-    status: "uploading",
-  }).returning();
+  let attachment: Pick<typeof feedbackAttachments.$inferSelect, "id" | "fileName" | "mimeType" | "sizeBytes" | "status">;
+  let useFallback = forceAttachmentFallback();
+  if (!useFallback) {
+    try {
+      const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(feedbackAttachments).where(and(
+        eq(feedbackAttachments.feedbackId, entry!.id),
+        isNull(feedbackAttachments.deletedAt),
+      ));
+      if (Number(count) >= 5) throw new HttpError(422, "A maximum of 5 reference files can be attached");
+      [attachment] = await db.insert(feedbackAttachments).values({
+        organizationId: user.organizationId,
+        feedbackId: entry!.id,
+        uploadedById: user.id,
+        fileName: parsed.data.fileName,
+        mimeType: mimeByExtension[extension],
+        sizeBytes: parsed.data.sizeBytes,
+        status: "uploading",
+      }).returning();
+    } catch (error) {
+      if (!hasPostgresCode(error, "42P01")) throw error;
+      useFallback = true;
+    }
+  }
+  if (useFallback) {
+    const existing = fallbackAttachmentsFromTriage(entry!.triage);
+    if (existing.length >= 5) throw new HttpError(422, "A maximum of 5 reference files can be attached");
+    const fallbackAttachment: FeedbackAttachmentMetadata = {
+      id: crypto.randomUUID(),
+      fileName: parsed.data.fileName,
+      mimeType: mimeByExtension[extension]!,
+      sizeBytes: parsed.data.sizeBytes,
+      status: "uploading",
+      storageKey: "",
+      uploadedById: user.id,
+      createdAt: new Date().toISOString(),
+    };
+    await appendFallbackAttachment(entry!.id, fallbackAttachment);
+    attachment = fallbackAttachment;
+  }
   res.status(201).json({
     attachment: attachmentJson(attachment!),
     uploadUrl: `/api/feedback/attachments/${attachment!.id}/upload`,

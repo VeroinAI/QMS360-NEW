@@ -8,6 +8,13 @@ import { db, feedbackAttachments, feedbackEntries } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { isAdminUser } from "../lib/field-access";
 import { getObject, storeObject } from "../lib/objectStorage";
+import {
+  findFallbackAttachment,
+  forceAttachmentFallback,
+  hasPostgresCode,
+  updateFallbackAttachment,
+  type FeedbackAttachmentMetadata,
+} from "../lib/feedback-attachment-fallback";
 
 const router: IRouter = Router();
 const uploadDir = path.join(process.cwd(), ".local", "uploads", "feedback");
@@ -34,16 +41,36 @@ function contentMatches(fileName: string, bytes: Buffer) {
 }
 
 async function findAttachment(id: string, organizationId: string) {
-  const [row] = await db.select({ attachment: feedbackAttachments, ownerId: feedbackEntries.userId })
-    .from(feedbackAttachments)
-    .innerJoin(feedbackEntries, eq(feedbackEntries.id, feedbackAttachments.feedbackId))
-    .where(and(
-      eq(feedbackAttachments.id, id),
-      eq(feedbackAttachments.organizationId, organizationId),
-      isNull(feedbackAttachments.deletedAt),
-      isNull(feedbackEntries.deletedAt),
-    )).limit(1);
-  return row;
+  if (!forceAttachmentFallback()) {
+    try {
+      const [row] = await db.select({ attachment: feedbackAttachments, ownerId: feedbackEntries.userId })
+        .from(feedbackAttachments)
+        .innerJoin(feedbackEntries, eq(feedbackEntries.id, feedbackAttachments.feedbackId))
+        .where(and(
+          eq(feedbackAttachments.id, id),
+          eq(feedbackAttachments.organizationId, organizationId),
+          isNull(feedbackAttachments.deletedAt),
+          isNull(feedbackEntries.deletedAt),
+        )).limit(1);
+      if (row) return { ...row, feedbackId: row.attachment.feedbackId, fallback: false as const };
+    } catch (error) {
+      if (!hasPostgresCode(error, "42P01")) throw error;
+    }
+  }
+  const fallback = await findFallbackAttachment(id, organizationId);
+  return fallback ? { ...fallback, fallback: true as const } : undefined;
+}
+
+async function setAttachmentState(
+  found: NonNullable<Awaited<ReturnType<typeof findAttachment>>>,
+  changes: Partial<Pick<FeedbackAttachmentMetadata, "status" | "storageKey">>,
+) {
+  if (found.fallback) {
+    await updateFallbackAttachment(found.feedbackId, found.attachment.id, changes);
+    return;
+  }
+  await db.update(feedbackAttachments).set({ ...changes, updatedAt: new Date() })
+    .where(eq(feedbackAttachments.id, found.attachment.id));
 }
 
 router.put("/:attachmentId/upload", requireAuth, express.raw({ type: "*/*", limit: "10mb" }), async (req, res): Promise<void> => {
@@ -53,17 +80,17 @@ router.put("/:attachmentId/upload", requireAuth, express.raw({ type: "*/*", limi
   }
   const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
   if (body.byteLength !== found.attachment.sizeBytes) {
-    await db.update(feedbackAttachments).set({ status: "failed", updatedAt: new Date() }).where(eq(feedbackAttachments.id, found.attachment.id));
+    await setAttachmentState(found, { status: "failed" });
     res.status(422).json({ error: "Uploaded byte count does not match the declared size" }); return;
   }
   if (!contentMatches(found.attachment.fileName, body)) {
-    await db.update(feedbackAttachments).set({ status: "failed", updatedAt: new Date() }).where(eq(feedbackAttachments.id, found.attachment.id));
+    await setAttachmentState(found, { status: "failed" });
     res.status(422).json({ error: "The file contents do not match the selected file type" }); return;
   }
   try {
     let storageKey: string;
     try {
-      const stored = await storeObject(`qms360/feedback/${found.attachment.organizationId}/${found.attachment.feedbackId}/${found.attachment.id}`, body, found.attachment.mimeType);
+      const stored = await storeObject(`qms360/feedback/${req.currentUser!.organizationId}/${found.feedbackId}/${found.attachment.id}`, body, found.attachment.mimeType);
       storageKey = `gcs:${stored}`;
     } catch (storageError) {
       req.log.warn({ storageError }, "Object storage unavailable; using local feedback upload fallback");
@@ -71,11 +98,10 @@ router.put("/:attachmentId/upload", requireAuth, express.raw({ type: "*/*", limi
       await writeFile(path.join(uploadDir, found.attachment.id), body, { flag: "wx" });
       storageKey = `local:${found.attachment.id}`;
     }
-    await db.update(feedbackAttachments).set({ storageKey, status: "stored", updatedAt: new Date() })
-      .where(eq(feedbackAttachments.id, found.attachment.id));
+    await setAttachmentState(found, { storageKey, status: "stored" });
     res.json({ id: found.attachment.id, status: "stored" });
   } catch (error) {
-    await db.update(feedbackAttachments).set({ status: "failed", updatedAt: new Date() }).where(eq(feedbackAttachments.id, found.attachment.id));
+    await setAttachmentState(found, { status: "failed" });
     res.status(422).json({ error: error instanceof Error ? error.message : "Upload failed" });
   }
 });
