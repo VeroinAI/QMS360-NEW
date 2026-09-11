@@ -13,6 +13,7 @@ import {
   type FeedbackEntry,
 } from '@workspace/api-client-react';
 import { Badge } from '@/components/ui/badge';
+import { VerionBadge, VerionWordmark } from '@/components/verion-ai';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -95,10 +96,10 @@ export function FeedbackPage() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['/api/feedback'] });
-        toast({ title: 'AI triage completed' });
+        toast({ title: 'VerionAI triage completed' });
       },
       onError: (error) => {
-        const details = userFacingApiError(error, 'AI triage could not be completed.');
+        const details = userFacingApiError(error, 'VerionAI triage could not be completed.');
         toast({ title: details.title, description: `${details.message} (${details.technicalCode})`, variant: 'destructive' });
       },
     },
@@ -161,7 +162,7 @@ export function FeedbackPage() {
       <div className="mx-auto max-w-7xl">
         <Link href="/" className="mb-5 inline-flex items-center gap-2 text-sm opacity-80 hover:opacity-100"><ArrowLeft className="h-4 w-4" />Back to application</Link>
         <h1 className="font-display text-3xl font-bold">User Feedback &amp; Testing Issues</h1>
-        <p className="mt-2 max-w-2xl opacity-80">Filter feedback by application, review AI triage, and share resolution updates with the person who raised each item.</p>
+        <p className="mt-2 max-w-2xl opacity-80">Filter feedback by application, review VerionAI triage, and share resolution updates with the person who raised each item.</p>
       </div>
     </header>
     <div className="mx-auto max-w-7xl px-5 py-6 md:px-10">
@@ -202,7 +203,7 @@ export function FeedbackPage() {
                     {resolutionLabels[entry.resolution]}
                   </Badge>
                   {entry.triage && <Badge variant={entry.triage.verdict === 'valid_issue' ? 'destructive' : entry.triage.verdict === 'awareness_gap' ? 'secondary' : 'default'}>
-                    AI: {verdictLabels[entry.triage.verdict] ?? entry.triage.verdict}
+                    VerionAI: {verdictLabels[entry.triage.verdict] ?? entry.triage.verdict}
                   </Badge>}
                   <span className="text-xs text-muted-foreground">{formatDateTime(entry.createdAt)}</span>
                 </div>
@@ -212,12 +213,13 @@ export function FeedbackPage() {
                   {entry.pagePath && <> · Page: {entry.pagePath}</>}
                   {entry.appKey && <> · App: {entry.appKey}</>}
                 </p>
-                {entry.triage && <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-sm">
-                  <p><span className="font-semibold">AI assessment:</span> {entry.triage.summary}</p>
+                {entry.triage && <div className="mt-3 rounded-md border border-[#b52865]/20 bg-gradient-to-br from-[#fceaf3]/50 to-background p-3 text-sm dark:from-[#b52865]/10 dark:to-background">
+                  <div className="mb-2 flex items-center gap-2 border-b border-[#b52865]/20 pb-2"><VerionWordmark suffix="Assessment" /></div>
+                  <p>{entry.triage.summary}</p>
                   {entry.triage.guidance && <p className="mt-1 whitespace-pre-line"><span className="font-semibold">Guidance shown to user:</span> {expanded === entry.id ? entry.triage.guidance : `${entry.triage.guidance.slice(0, 120)}${entry.triage.guidance.length > 120 ? '…' : ''}`}
-                    {entry.triage.guidance.length > 120 && <button className="ml-1 text-primary underline" onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}>{expanded === entry.id ? 'Show less' : 'Show more'}</button>}
+                    {entry.triage.guidance.length > 120 && <button className="ml-1 text-[#b52865] underline" onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}>{expanded === entry.id ? 'Show less' : 'Show more'}</button>}
                   </p>}
-                  {entry.triage.resolutionSuggestion && <p className="mt-2 rounded-md bg-background p-2"><span className="font-semibold">Resolution suggestion:</span> {entry.triage.resolutionSuggestion}</p>}
+                  {entry.triage.resolutionSuggestion && <p className="mt-2 rounded-md bg-background/50 p-2"><span className="font-semibold">Resolution suggestion:</span> {entry.triage.resolutionSuggestion}</p>}
                 </div>}
                 {entry.resolutionResponse && <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
                   <p className="font-semibold">Response to user</p>
@@ -243,10 +245,10 @@ export function FeedbackPage() {
                   </div>
                 </div>}
               </div>
-              <div className="w-44 shrink-0 space-y-2">
-                <Button variant="secondary" size="sm" className="w-full" disabled={triagingId === entry.id} onClick={() => runTriage(entry.id)}>
+              <div className="w-48 shrink-0 space-y-2">
+                <Button className="w-full bg-[#fceaf3] text-[#b52865] hover:bg-[#f9d5e7] dark:bg-[#b52865]/20 dark:text-[#f472b6] dark:hover:bg-[#b52865]/30" size="sm" disabled={triagingId === entry.id} onClick={() => runTriage(entry.id)}>
                   {triagingId === entry.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  {entry.triage ? 'Re-run AI triage' : 'Run AI triage'}
+                  {entry.triage ? 'Re-run VerionAI triage' : 'Run VerionAI triage'}
                 </Button>
                 <Button variant="outline" size="sm" className="w-full" onClick={() => openResolution(entry)}>
                   Update resolution

@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAnswerLessonPromptQuestion, useCreateLessonForm, useGetLessonsReferenceData, usePromptToLessonTransaction } from "@workspace/api-client-react";
 import type { LessonLearnedForm, MissingField, PromptTransaction } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
+import { VerionBadge, VerionCard, VerionWordmark } from "@/components/verion-ai";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,7 @@ export function AiEntryPage() {
   const generate = usePromptToLessonTransaction({
     mutation: {
       onSuccess: (result) => { setTransaction(result); setExtracted(result.extracted); },
-      onError: (e) => toast({ title: "AI extraction failed", description: errorMessage(e), variant: "destructive" }),
+      onError: (e) => toast({ title: "VerionAI extraction failed", description: errorMessage(e), variant: "destructive" }),
     },
   });
   const answer = useAnswerLessonPromptQuestion({
@@ -48,7 +49,7 @@ export function AiEntryPage() {
   });
   const create = useCreateLessonForm({
     mutation: {
-      onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] }); toast({ title: "AI-assisted lesson created", description: "Review it in the Lesson Learned Log before submission." }); navigate("/lessons/log"); },
+      onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/lessons/log"] }); toast({ title: "VerionAI-assisted lesson created", description: "Review it in the Lesson Learned Log before submission." }); navigate("/lessons/log"); },
       onError: (e) => toast({ title: "Lesson could not be created", description: errorMessage(e), variant: "destructive" }),
     },
   });
@@ -77,16 +78,14 @@ export function AiEntryPage() {
 
   return <div>
     <PageHeader title="Describe it" description="Turn a plain-language site experience into a structured lesson." back="/lessons" />
-    <Card className="overflow-hidden border-primary/20">
-      <div className="bg-primary px-6 py-5 text-primary-foreground"><div className="flex items-center gap-3"><Sparkles /><div><p className="font-serif text-xl font-semibold">Prompt to transaction</p><p className="text-sm opacity-80">AI extracts a draft; you remain in control.</p></div></div></div>
-      <CardContent className="pt-6">
-        <Textarea rows={7} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe what happened, where, the impact, root cause, and what should be done differently…" />
-        <div className="mt-3 flex items-center justify-between"><p className="text-xs text-muted-foreground">Nothing is created until you review and confirm the structured form.</p><Button onClick={() => generate.mutate({ data: { prompt } })} disabled={!prompt.trim() || generate.isPending}>{generate.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />} Build draft</Button></div>
-      </CardContent>
-    </Card>
+    <VerionCard title={<VerionWordmark suffix="Entry" />}>
+      <p className="mb-4 text-sm text-muted-foreground">VerionAI extracts a draft; you remain in control.</p>
+      <Textarea rows={7} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe what happened, where, the impact, root cause, and what should be done differently…" />
+      <div className="mt-3 flex items-center justify-between"><p className="text-xs text-muted-foreground">Nothing is created until you review and confirm the structured form.</p><Button onClick={() => generate.mutate({ data: { prompt } })} disabled={!prompt.trim() || generate.isPending}>{generate.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} Build draft</Button></div>
+    </VerionCard>
 
     {transaction && <div className="mt-6 grid gap-6 xl:grid-cols-3">
-      <Card className="xl:col-span-2"><CardHeader className="flex-row items-center justify-between"><CardTitle>Structured preview</CardTitle><Badge variant="secondary">AI assembled</Badge></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2">
+      <Card className="xl:col-span-2"><CardHeader className="flex-row items-center justify-between"><CardTitle>Structured preview</CardTitle><VerionBadge>VerionAI Assembled</VerionBadge></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2">
         <Edit label="Title" value={text(extracted.title)} onChange={(v) => update("title", v)} wide disabled={fp("title").disabled} required={fp("title").required} />
         <Choice label="Project" value={text(extracted.projectId)} onChange={(v) => update("projectId", v)} options={refs.data?.projects.map((x) => ({ value: x.id, label: x.name })) ?? []} disabled={fp("projectId").disabled} required={fp("projectId").required} />
         <Choice label="Discipline" value={text(extracted.disciplineId)} onChange={(v) => update("disciplineId", v)} options={disciplines.options} disabled={fp("disciplineId").disabled} required={fp("disciplineId").required} />

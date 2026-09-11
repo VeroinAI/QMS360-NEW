@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { VerionBadge, VerionWordmark, VerionIcon } from '@/components/verion-ai';
 import { toast } from '@/hooks/use-toast';
 import { userFacingApiError } from '@/lib/api-error';
 
@@ -62,7 +63,7 @@ export function FeedbackWidget() {
   const triageMutation = useTriageFeedback({
     mutation: {
       onSuccess: (result) => setTriage(result),
-      onError: (e) => toast({ title: 'AI triage unavailable', description: errorMessage(e), variant: 'destructive' }),
+      onError: (e) => toast({ title: 'VerionAI triage unavailable', description: errorMessage(e), variant: 'destructive' }),
     },
   });
   const submit = useSubmitFeedback({
@@ -151,7 +152,7 @@ export function FeedbackWidget() {
         <DialogHeader className="shrink-0 border-b px-4 py-4 pr-10 sm:px-6">
           <DialogTitle>Report an issue or share feedback</DialogTitle>
           <DialogDescription>
-            Tell us what happened while testing. You can optionally run AI Triage before submitting — it checks whether the capability already exists and shows you how to use it. Your feedback is logged either way.
+            Tell us what happened while testing. You can optionally run VerionAI Triage before submitting — it checks whether the capability already exists and shows you how to use it. Your feedback is logged either way.
           </DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6">
@@ -202,15 +203,17 @@ export function FeedbackWidget() {
               </div>)}
             </div>}
           </div>
-          {triage && verdict && <div className="rounded-lg border border-border bg-muted/40 p-3">
-            <div className="mb-2 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold">AI Triage</span>
+          {triage && verdict && <div className="rounded-xl border border-[#b52865]/20 bg-gradient-to-br from-[#fceaf3] to-background p-4 shadow-sm dark:from-[#b52865]/10 dark:to-background">
+            <div className="mb-3 flex items-center gap-3 border-b border-[#b52865]/20 pb-3">
+              <VerionIcon className="h-8 w-8" />
+              <div className="flex-1">
+                <VerionWordmark suffix="Triage" />
+              </div>
               <Badge variant={verdict.variant}>{verdict.label}</Badge>
             </div>
             <p className="text-sm">{triage.summary}</p>
             {triage.verdict === 'awareness_gap' && triage.guidance && (
-              <div className="mt-2 rounded-md bg-background p-2 text-sm whitespace-pre-line">{triage.guidance}</div>
+              <div className="mt-2 rounded-md bg-background/50 p-3 text-sm whitespace-pre-line">{triage.guidance}</div>
             )}
           </div>}
           {(myFeedback.data?.items.length ?? 0) > 0 && <div className="border-t pt-4">
@@ -239,10 +242,10 @@ export function FeedbackWidget() {
           </div>}
         </div>
         <DialogFooter className="z-10 shrink-0 gap-2 border-t bg-background px-4 py-4 sm:justify-between sm:px-6">
-          <Button type="button" variant="secondary" disabled={!canTriage || triageMutation.isPending}
+          <Button type="button" className="bg-[#fceaf3] text-[#b52865] hover:bg-[#f9d5e7] dark:bg-[#b52865]/20 dark:text-[#f472b6] dark:hover:bg-[#b52865]/30" disabled={!canTriage || triageMutation.isPending}
             onClick={() => triageMutation.mutate({ data: { module: module || undefined, category, message: message.trim(), pagePath } })}>
             {triageMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            AI Triage
+            VerionAI Triage
           </Button>
            <Button type="button" className="min-w-36" disabled={message.trim().length < 5 || submit.isPending || uploadingAttachments}
              onClick={submitFeedback}>
