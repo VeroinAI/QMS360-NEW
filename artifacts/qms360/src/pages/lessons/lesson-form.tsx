@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import type { ReactNode } from "react";
-import { Download, Loader2, MapPin, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { Camera, Download, Loader2, MapPin, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   confirmLessonPhoto,
@@ -110,6 +110,11 @@ export function LessonFormPage({ id }: { id?: string }) {
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [cameraCategory, setCameraCategory] = useState<"before" | "after" | null>(null);
+  const [cameraError, setCameraError] = useState("");
+  const [cameraReady, setCameraReady] = useState(false);
+  const cameraVideo = useRef<HTMLVideoElement>(null);
+  const cameraStream = useRef<MediaStream | null>(null);
   const uploadsRef = useRef<UploadItem[]>([]);
   uploadsRef.current = uploads;
   const revokedPreviews = useRef<Set<string>>(new Set());
@@ -122,6 +127,59 @@ export function LessonFormPage({ id }: { id?: string }) {
   useEffect(() => () => {
     for (const item of uploadsRef.current) revokePreview(item.preview);
   }, []);
+  useEffect(() => {
+    if (!cameraCategory) return;
+    let cancelled = false;
+    let acquiredStream: MediaStream | null = null;
+    const stopStream = (stream: MediaStream | null) => {
+      stream?.getTracks().forEach((track) => track.stop());
+      if (cameraStream.current === stream) cameraStream.current = null;
+    };
+    setCameraError("");
+    setCameraReady(false);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("This browser does not support camera capture. You can still add a photo from your device.");
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false,
+    }).then(async (stream) => {
+      acquiredStream = stream;
+      if (cancelled) {
+        stopStream(stream);
+        return;
+      }
+      cameraStream.current = stream;
+      const video = cameraVideo.current;
+      if (!video) {
+        stopStream(stream);
+        return;
+      }
+      video.srcObject = stream;
+      try {
+        await video.play();
+      } catch (error) {
+        stopStream(stream);
+        throw error;
+      }
+      if (cancelled) {
+        stopStream(stream);
+        return;
+      }
+      setCameraReady(true);
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      const name = error instanceof DOMException ? error.name : "";
+      setCameraError(name === "NotAllowedError"
+        ? "Camera permission was denied. Allow access in your browser settings and try again."
+        : "The camera could not be started. You can still add a photo from your device.");
+    });
+    return () => {
+      cancelled = true;
+      stopStream(acquiredStream);
+    };
+  }, [cameraCategory]);
   const [saveError, setSaveError] = useState(() =>
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("photoUploadError") === "1"
       ? "A photo failed to upload. Remove the failed photo, add it again, and save the lesson."
@@ -313,12 +371,12 @@ export function LessonFormPage({ id }: { id?: string }) {
     if (!navigator.geolocation) { toast({ title: "Location unavailable", description: "This browser does not support location.", variant: "destructive" }); return; }
     navigator.geolocation.getCurrentPosition((p) => { setDraft((d) => ({ ...d, gpsLat: p.coords.latitude, gpsLng: p.coords.longitude })); toast({ title: "Location captured" }); }, () => toast({ title: "Location permission denied", description: "You can continue without GPS.", variant: "destructive" }), { enableHighAccuracy: true });
   }
-  async function choosePhotos(files: FileList | null, category: "before" | "after") {
-    if (!files) return;
+  async function addPhotos(files: File[], category: "before" | "after") {
+    if (!files.length) return;
     const existing = detail.data?.photos?.filter((p) => p.category === category).length ?? 0;
     const current = uploads.filter((p) => p.category === category).length;
     if (existing + current + files.length > 5) { toast({ title: "Photo limit reached", description: "A maximum of 5 photos is allowed per category.", variant: "destructive" }); return; }
-    for (const original of Array.from(files)) {
+    for (const original of files) {
       const key = crypto.randomUUID();
       try {
         const file = await resizeImage(original);
@@ -334,6 +392,35 @@ export function LessonFormPage({ id }: { id?: string }) {
         toast({ title: "Photo upload failed", description: errorMessage(e), variant: "destructive" });
       }
     }
+  }
+  async function choosePhotos(files: FileList | null, category: "before" | "after") {
+    if (files) await addPhotos(Array.from(files), category);
+  }
+  async function capturePhoto() {
+    const category = cameraCategory;
+    const video = cameraVideo.current;
+    if (!category || !video || !video.videoWidth || !video.videoHeight) {
+      setCameraError("The camera is still starting. Wait a moment, then try again.");
+      return;
+    }
+    const canvas = document.createElement("canvas");
+    const scale = Math.min(1, 1920 / video.videoWidth, 1080 / video.videoHeight);
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) {
+      setCameraError("Could not capture the camera image. Please try again.");
+      return;
+    }
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const image = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+    if (!image) {
+      setCameraError("Could not create the photo. Please try again.");
+      return;
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    await addPhotos([new File([image], `${category}-photo-${timestamp}.jpg`, { type: "image/jpeg" })], category);
+    setCameraCategory(null);
   }
   function removeQueuedPhoto(key: string) {
     removedUploadKeys.current.add(key);
@@ -446,11 +533,29 @@ export function LessonFormPage({ id }: { id?: string }) {
           : "";
         return <li key={entry.id} className="relative"><span className="absolute -left-[26px] top-1 h-2.5 w-2.5 rounded-full bg-primary" /><p className="text-sm font-medium capitalize">{entry.action.replace(/_/g, " ")}</p><p className="text-xs text-muted-foreground">{entry.actorName ?? "Someone"} · {new Date(entry.occurredAt).toLocaleString()}</p>{comments && <p className="mt-1 rounded-md bg-muted p-2 text-sm"><span className="font-medium">Comments: </span>{comments}</p>}</li>;
       })}</ol></CardContent></Card>}
+      <Dialog open={cameraCategory !== null} onOpenChange={(open) => !open && setCameraCategory(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Capture {cameraCategory === "before" ? "Before" : "After"} photo</DialogTitle>
+            <DialogDescription>Position the photo, then capture it. It will appear with the other {cameraCategory} photos.</DialogDescription>
+          </DialogHeader>
+          <div className="overflow-hidden rounded-lg bg-black">
+            <video ref={cameraVideo} className="aspect-video w-full object-cover" autoPlay muted playsInline />
+          </div>
+          {cameraError && <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{cameraError}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCameraCategory(null)}>Cancel</Button>
+            <Button type="button" onClick={() => void capturePhoto()} disabled={!cameraReady || Boolean(cameraError)}>
+              <Camera /> Capture photo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={review !== null} onOpenChange={(open) => !open && !reviewMutation.isPending && setReview(null)}><DialogContent><DialogHeader><DialogTitle>{review === "approve" ? "Approve lesson" : "Send lesson back"}</DialogTitle><DialogDescription>{review === "send_back" ? "Remarks are required so the creator knows what to change." : "Optionally add an approval remark."}</DialogDescription></DialogHeader><Textarea value={reviewRemarks} onChange={(e) => setReviewRemarks(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" disabled={reviewMutation.isPending} onClick={() => setReview(null)}>Cancel</Button><Button disabled={reviewMutation.isPending || (review === "send_back" && !reviewRemarks.trim())} onClick={() => record && reviewMutation.mutate({ id: record.id, data: { decision: review!, comments: reviewRemarks || undefined } })}>{reviewMutation.isPending ? "Saving decision…" : "Confirm"}</Button></DialogFooter></DialogContent></Dialog>
     </div>;
 
     function PhotoInput({ category }: { category: "before" | "after" }) {
-      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { void choosePhotos(e.target.files, category); e.currentTarget.value = ""; }} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="relative overflow-hidden rounded border border-border">{p.storageUrl ? <AuthImage src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}{!readOnly && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 z-10 size-8" aria-label={`Remove ${p.fileName}`} disabled={removingPhotoIds.has(p.id)} onClick={() => void removeSavedPhoto(p.id)}>{removingPhotoIds.has(p.id) ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}</Button>}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}{!["uploading", "done"].includes(p.status) && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 z-10 size-8" aria-label={`Remove ${p.name}`} onClick={() => removeQueuedPhoto(p.key)}><Trash2 className="size-4" /></Button>}{p.status !== "queued" ? <Progress value={p.progress} className="pointer-events-none absolute bottom-0 rounded-none" /> : <p className="pointer-events-none absolute bottom-0 w-full bg-background/80 text-center text-[10px] text-muted-foreground">Uploads on save</p>}</div>)}</div>{!id && uploads.some((p) => p.status === "queued") && <p className="mt-2 text-xs text-muted-foreground">Photos will be uploaded when you save the lesson.</p>}{uploads.some((p) => p.status === "failed") && <p className="mt-2 text-xs text-destructive">A photo upload failed. Save again to retry it before submitting.</p>}{uploadBlocking && <p className="mt-2 text-xs text-destructive">Wait for pending uploads before saving or submitting.</p>}</div>;
+       return <div><div className="mb-2 flex justify-end gap-2">{!readOnly && <><Button type="button" size="sm" variant="outline" onClick={() => setCameraCategory(category)}><Camera /> Use camera</Button><Button size="sm" variant="outline" asChild><label><Upload /> Add photo<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { void choosePhotos(e.target.files, category); e.currentTarget.value = ""; }} /></label></Button></>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="relative overflow-hidden rounded border border-border">{p.storageUrl ? <AuthImage src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}{!readOnly && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 z-10 size-8" aria-label={`Remove ${p.fileName}`} disabled={removingPhotoIds.has(p.id)} onClick={() => void removeSavedPhoto(p.id)}>{removingPhotoIds.has(p.id) ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}</Button>}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}{!["uploading", "done"].includes(p.status) && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 z-10 size-8" aria-label={`Remove ${p.name}`} onClick={() => removeQueuedPhoto(p.key)}><Trash2 className="size-4" /></Button>}{p.status !== "queued" ? <Progress value={p.progress} className="pointer-events-none absolute bottom-0 rounded-none" /> : <p className="pointer-events-none absolute bottom-0 w-full bg-background/80 text-center text-[10px] text-muted-foreground">Uploads on save</p>}</div>)}</div>{!id && uploads.some((p) => p.status === "queued") && <p className="mt-2 text-xs text-muted-foreground">Photos will be uploaded when you save the lesson.</p>}{uploads.some((p) => p.status === "failed") && <p className="mt-2 text-xs text-destructive">A photo upload failed. Save again to retry it before submitting.</p>}{uploadBlocking && <p className="mt-2 text-xs text-destructive">Wait for pending uploads before saving or submitting.</p>}</div>;
     }
 
     function WorkflowControls({ mobile = false }: { mobile?: boolean }) {
