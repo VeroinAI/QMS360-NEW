@@ -25,6 +25,7 @@ import {
   ReassignLessonsPendingActionsBody,
 } from "@workspace/api-zod";
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
+import { createLessonPdf } from "../lib/lesson-pdf";
 import {
   applicationAccess,
   db,
@@ -1093,6 +1094,21 @@ router.get("/reports/log", requirePermission("lessons", "lessons", "select"), as
   const json = formJsonList(rows, names);
   const content = format === "csv" ? csv(json) : JSON.stringify(json, null, 2);
   res.json({ delivery: "download", fileName, downloadUrl: `data:${format === "csv" ? "text/csv" : "application/json"};charset=utf-8,${encodeURIComponent(content)}`, message: null });
+}));
+
+router.get("/forms/:id/report.pdf", asyncHandler(async (req, res) => {
+  const row = await getForm(String(req.params.id), req.currentUser!.organizationId);
+  if (!row) notFound("Lesson form not found");
+  if (!await canReadLesson(req, row)) throw new HttpError(403, "You do not have permission to view this lesson");
+  const photos = (await listEvidence(db, "lessons", row.organizationId, "lesson_form", row.id)) as Array<typeof lessonsEvidenceFiles.$inferSelect>;
+  const data = await formJsonNamed(row, photos);
+  const content = createLessonPdf(data).toString("base64");
+  res.json({
+    delivery: "download",
+    fileName: `${row.referenceNumber}.pdf`,
+    downloadUrl: `data:application/pdf;base64,${content}`,
+    message: null,
+  });
 }));
 
 router.get("/forms/:id/report", asyncHandler(async (req, res) => {

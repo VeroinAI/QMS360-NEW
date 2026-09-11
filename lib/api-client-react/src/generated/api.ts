@@ -11960,6 +11960,83 @@ export function useExportLessonFormReport<TData = Awaited<ReturnType<typeof expo
 
 
 
+export const getDownloadLessonFormPdfUrl = (id: string,) => {
+
+
+
+
+  return `/api/lessons/forms/${id}/report.pdf`
+}
+
+/**
+ * @summary Download one Lesson Learned form as PDF
+ */
+export const downloadLessonFormPdf = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ReportFileResponse> => {
+
+  return customFetch<ReportFileResponse>(getDownloadLessonFormPdfUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadLessonFormPdfQueryKey = (id: string,) => {
+    return [
+    `/api/lessons/forms/${id}/report.pdf`
+    ] as const;
+    }
+
+
+export const getDownloadLessonFormPdfQueryOptions = <TData = Awaited<ReturnType<typeof downloadLessonFormPdf>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadLessonFormPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadLessonFormPdfQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadLessonFormPdf>>> = ({ signal }) => downloadLessonFormPdf(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadLessonFormPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadLessonFormPdfQueryResult = NonNullable<Awaited<ReturnType<typeof downloadLessonFormPdf>>>
+export type DownloadLessonFormPdfQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download one Lesson Learned form as PDF
+ */
+
+export function useDownloadLessonFormPdf<TData = Awaited<ReturnType<typeof downloadLessonFormPdf>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadLessonFormPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadLessonFormPdfQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetLessonsFieldControlsUrl = () => {
 
 

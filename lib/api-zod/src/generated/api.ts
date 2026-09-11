@@ -4613,6 +4613,21 @@ export const ExportLessonFormReportResponse = zod.object({
 
 
 /**
+ * @summary Download one Lesson Learned form as PDF
+ */
+export const DownloadLessonFormPdfParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DownloadLessonFormPdfResponse = zod.object({
+  "delivery": zod.enum(['download', 'email']),
+  "fileName": zod.string(),
+  "downloadUrl": zod.string().nullish(),
+  "message": zod.string().nullish()
+})
+
+
+/**
  * @summary Get field control configuration for forms
  */
 export const GetLessonsFieldControlsResponse = zod.record(zod.string(), zod.record(zod.string(), zod.object({

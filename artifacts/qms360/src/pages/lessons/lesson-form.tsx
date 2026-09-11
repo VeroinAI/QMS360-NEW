@@ -8,7 +8,7 @@ import {
   createLessonPhotoIntent,
   deleteLessonPhoto,
   customFetch,
-  exportLessonFormReport,
+  downloadLessonFormPdf,
   useCreateLessonForm,
   useGetCurrentUser,
   useGetLessonForm,
@@ -458,12 +458,12 @@ export function LessonFormPage({ id }: { id?: string }) {
   async function report() {
     if (!id) return;
     try {
-      const result = await exportLessonFormReport(id);
+      const result = await downloadLessonFormPdf(id);
       if (result.downloadUrl) {
         // Download via an anchor so popup blockers do not swallow the data URL.
         const a = document.createElement("a");
         a.href = result.downloadUrl;
-        a.download = result.fileName ?? "lesson-report.json";
+        a.download = result.fileName ?? "lesson-learned.pdf";
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -477,7 +477,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   function render() {
     const record = detail.data;
     return <div>
-      <PageHeader title={isNew ? "New Lesson Learned" : record?.title ?? "Lesson"} description={isNew ? "Capture an experience for the shared knowledge base." : record?.referenceNumber} back={backLink} actions={record && <><StateBadge state={record.workflowState} />{record.version > 1 && <Badge variant="outline">Version {record.version}</Badge>}<Button variant="outline" onClick={report}><Download /> Report</Button></>} />
+      <PageHeader title={isNew ? "New Lesson Learned" : record?.title ?? "Lesson"} description={isNew ? "Capture an experience for the shared knowledge base." : record?.referenceNumber} back={backLink} actions={record && <><StateBadge state={record.workflowState} />{record.version > 1 && <Badge variant="outline">Version {record.version}</Badge>}<Button variant="outline" onClick={report}><Download /> Download PDF</Button></>} />
       <div className="grid gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2"><CardHeader><CardTitle>Lesson details</CardTitle></CardHeader><CardContent className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">

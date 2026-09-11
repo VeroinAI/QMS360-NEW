@@ -3,6 +3,7 @@ import { Link, Route, Switch } from "wouter";
 import { AlertTriangle, BookOpen, Download, Plus, Search, Trash2, ClipboardCheck } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  downloadLessonFormPdf,
   exportLessonsLog,
   useDeleteLessonForm,
   useGetLessonsEscalations,
@@ -178,7 +179,6 @@ function ApprovalsPage() {
       toast({ title: "Export failed", description: errorMessage(e), variant: "destructive" });
     }
   }
-
   const isEmpty = !log.isLoading && !log.error && !log.data?.items.length;
   const filtered = !!search || projectId !== "all" || category !== "all";
   const pageIds = log.data?.items.map((lesson) => lesson.id) ?? [];
@@ -262,6 +262,14 @@ function LogPage() {
       toast({ title: "Export failed", description: errorMessage(e), variant: "destructive" });
     }
   }
+  async function downloadPdf(id: string) {
+    try {
+      const result = await downloadLessonFormPdf(id);
+      download(result.downloadUrl, result.fileName ?? "lesson-learned.pdf");
+    } catch (e) {
+      toast({ title: "PDF download failed", description: errorMessage(e), variant: "destructive" });
+    }
+  }
   return <div>
     <PageHeader title="Lesson Learned Log" description="Search the organisation's shared knowledge base." back="/lessons" actions={<><Button variant="outline" asChild><Link href="/lessons/approvals"><ClipboardCheck /> For my Action</Link></Button><Button variant="outline" onClick={exportCsv}><Download /> Export CSV</Button><LessonActions /></>} />
     <Card className="mb-5"><CardContent className="grid gap-3 pt-6 md:grid-cols-2 xl:grid-cols-5">
@@ -275,12 +283,14 @@ function LogPage() {
       <div className="space-y-1.5 md:col-span-1 xl:col-span-2"><Label>To</Label><Input type="date" aria-label="To date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} /></div>
     </CardContent></Card>
     <LoadState loading={log.isLoading} error={log.error} empty={!log.data?.items.length}>
-      <Card><Table><TableHeader><TableRow><TableHead>Lesson</TableHead><TableHead>Project</TableHead><TableHead>Discipline</TableHead><TableHead>Category</TableHead><TableHead>Impact</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="w-12" /></TableRow></TableHeader><TableBody>
+      <Card><Table><TableHeader><TableRow><TableHead>Lesson</TableHead><TableHead>Project</TableHead><TableHead>Discipline</TableHead><TableHead>Category</TableHead><TableHead>Impact</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="w-24" /></TableRow></TableHeader><TableBody>
         {log.data?.items.map((lesson) => {
           const isActionable = lesson.workflowState === "Submitted" && lesson.approverId === user.data?.id;
           const canDelete = isAdmin || lesson.creatorId === user.data?.id;
-          return <TableRow key={lesson.id} className={isActionable ? "bg-accent/5" : ""}><TableCell><Link href={`/lessons/${lesson.id}`} className="font-semibold text-primary hover:underline">{lesson.title}</Link><p className="text-xs text-muted-foreground">{lesson.referenceNumber}{activeIds.has(lesson.id) && <Badge variant="destructive" className="ml-2">Escalated</Badge>}{isActionable && <Badge variant="secondary" className="ml-2 border-accent text-accent">Assigned to you</Badge>}</p></TableCell><TableCell>{projectNames.get(lesson.projectId) ?? "Unknown project"}</TableCell><TableCell>{lesson.disciplineId || "—"}</TableCell><TableCell>{lesson.issueCategory}</TableCell><TableCell>{lesson.impact}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{new Date(lesson.capturedAt).toLocaleDateString()}</TableCell><TableCell>
+          return <TableRow key={lesson.id} className={isActionable ? "bg-accent/5" : ""}><TableCell><Link href={`/lessons/${lesson.id}`} className="font-semibold text-primary hover:underline">{lesson.title}</Link><p className="text-xs text-muted-foreground">{lesson.referenceNumber}{activeIds.has(lesson.id) && <Badge variant="destructive" className="ml-2">Escalated</Badge>}{isActionable && <Badge variant="secondary" className="ml-2 border-accent text-accent">Assigned to you</Badge>}</p></TableCell><TableCell>{projectNames.get(lesson.projectId) ?? "Unknown project"}</TableCell><TableCell>{lesson.disciplineId || "—"}</TableCell><TableCell>{lesson.issueCategory}</TableCell><TableCell>{lesson.impact}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{new Date(lesson.capturedAt).toLocaleDateString()}</TableCell><TableCell><div className="flex justify-end">
+          <Button variant="ghost" size="icon" aria-label={`Download ${lesson.referenceNumber} as PDF`} title="Download PDF" onClick={() => downloadPdf(lesson.id)}><Download /></Button>
           {canDelete && <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" aria-label="Delete lesson"><Trash2 /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this lesson?</AlertDialogTitle><AlertDialogDescription>This soft-deletes the lesson and removes it from active lists.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => remove.mutate({ id: lesson.id })}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}
+          </div>
         </TableCell></TableRow>})}
       </TableBody></Table></Card>
       <div className="mt-4 flex items-center justify-between"><p className="text-sm text-muted-foreground">{log.data?.total ?? 0} results</p><div className="flex gap-2"><Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button><Button variant="outline" disabled={page * PAGE_SIZE >= (log.data?.total ?? 0)} onClick={() => setPage((p) => p + 1)}>Next</Button></div></div>

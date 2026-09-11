@@ -951,6 +951,8 @@ paths:
       responses: {"200": {$ref: "#/components/responses/ReportFile"}}
   /lessons/forms/{id}/report:
     get: {operationId: exportLessonFormReport, tags: [lessons], summary: Export one lesson learned form using Accept for format negotiation, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
+  /lessons/forms/{id}/report.pdf:
+    get: {operationId: downloadLessonFormPdf, tags: [lessons], summary: Download one Lesson Learned form as PDF, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {$ref: "#/components/responses/ReportFile"}}}
   /lessons/field-controls:
     get: {operationId: getLessonsFieldControls, tags: [lessons], summary: Get field control configuration for forms, responses: {"200": {description: Field controls, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
   /lessons/admin/approver-scopes:

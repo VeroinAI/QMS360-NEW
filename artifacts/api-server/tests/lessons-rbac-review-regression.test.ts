@@ -258,13 +258,16 @@ describe("non-admin lesson visibility and capabilities", () => {
     for (const id of visibleIds) {
       expect((await api("GET", `/forms/${id}`, { token: reader.token })).status).toBe(200);
       expect((await api("GET", `/forms/${id}/report`, { token: reader.token })).status).toBe(200);
+      expect((await api("GET", `/forms/${id}/report.pdf`, { token: reader.token })).status).toBe(200);
     }
     for (const id of [assignedOutsideScope!.id, unrelated!.id]) {
       expect((await api("GET", `/forms/${id}`, { token: reader.token })).status).toBe(403);
       expect((await api("GET", `/forms/${id}/report`, { token: reader.token })).status).toBe(403);
+      expect((await api("GET", `/forms/${id}/report.pdf`, { token: reader.token })).status).toBe(403);
     }
     expect((await api("GET", `/forms/${foreignLessonId}`, { token: reader.token })).status).toBe(404);
     expect((await api("GET", `/forms/${foreignLessonId}/report`, { token: reader.token })).status).toBe(404);
+    expect((await api("GET", `/forms/${foreignLessonId}/report.pdf`, { token: reader.token })).status).toBe(404);
   });
 
   it("lets data_entry update its own draft, but requires approve_reject to review", async () => {
