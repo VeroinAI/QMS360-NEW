@@ -37,15 +37,24 @@ const moduleLabels: Record<string, string> = {
 };
 
 type Resolution = 'open' | 'reviewing' | 'hold' | 'additional_info_required' | 'resolved' | 'closed';
+type SelectableResolution = Exclude<Resolution, 'additional_info_required'>;
 
 const resolutionLabels: Record<Resolution, string> = {
   open: 'Open',
   reviewing: 'Reviewing',
   hold: 'Hold',
-  additional_info_required: 'Additional info required',
+  additional_info_required: 'Reviewing',
   resolved: 'Resolved',
   closed: 'Closed',
 };
+
+const resolutionOptions: Array<{ value: SelectableResolution; label: string; description: string }> = [
+  { value: 'open', label: 'Open', description: 'Ticket / issue logged. Yet to be taken up for resolution.' },
+  { value: 'hold', label: 'Hold', description: 'Ticket reviewed but has been parked at the moment.' },
+  { value: 'reviewing', label: 'Reviewing', description: 'Work in progress. Additional information or clarification might be required.' },
+  { value: 'resolved', label: 'Resolved', description: 'Issue has been fixed and should now be tested by the user.' },
+  { value: 'closed', label: 'Closed', description: 'No further action is required on the issue.' },
+];
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -102,7 +111,7 @@ export function FeedbackPage() {
 
   const openResolution = (entry: FeedbackEntry) => {
     setResolutionEntry(entry);
-    setResolutionStatus(entry.resolution);
+    setResolutionStatus(entry.resolution === 'additional_info_required' ? 'reviewing' : entry.resolution);
     setResolutionResponse(entry.resolutionResponse ?? '');
   };
 
@@ -260,14 +269,21 @@ export function FeedbackPage() {
             <Select value={resolutionStatus} onValueChange={(value) => setResolutionStatus(value as Resolution)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="reviewing">Reviewing</SelectItem>
-                <SelectItem value="hold">Hold</SelectItem>
-                <SelectItem value="additional_info_required">Additional info required</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-                <SelectItem value="closed" disabled={resolutionEntry?.resolution !== 'resolved' && resolutionEntry?.resolution !== 'closed'}>Closed</SelectItem>
+                {resolutionOptions.map((option) => <SelectItem
+                  key={option.value}
+                  value={option.value}
+                  disabled={option.value === 'closed' && resolutionEntry?.resolution !== 'resolved' && resolutionEntry?.resolution !== 'closed'}
+                >
+                  {option.label}
+                </SelectItem>)}
               </SelectContent>
             </Select>
+            <div className="mt-3 space-y-2 rounded-md border bg-muted/30 p-3">
+              {resolutionOptions.map((option) => <div key={option.value} className="text-xs">
+                <span className="font-semibold text-foreground">{option.label}:</span>{' '}
+                <span className="text-muted-foreground">{option.description}</span>
+              </div>)}
+            </div>
           </div>
           <div>
             <Label className="mb-2 block">Response to user <span className="font-normal text-muted-foreground">(optional)</span></Label>
