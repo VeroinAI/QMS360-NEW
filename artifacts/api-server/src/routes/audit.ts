@@ -46,6 +46,7 @@ for (const [path, module] of auditModules) {
     requirePermission("audit", module, req.method === "GET" ? "select" : "full")(req, res, next));
 }
 const auditEvidenceModules: Record<string, string> = {
+  audit_schedule: "schedules",
   audit: "audits", audit_execution: "audits",
   audit_finding: "findings", finding: "findings",
   corrective_action_report: "cars", car: "cars",
@@ -137,7 +138,13 @@ async function assertAuditProject(req: Request, projectId: string | null | undef
 
 async function assertAuditRecordAccess(req: Request, recordType: string, recordId: string) {
   let projectId: string | null | undefined;
-  if (recordType === "audit" || recordType === "audit_execution") {
+  if (recordType === "audit_schedule") {
+    const [row] = await db.select().from(auditSchedules)
+      .where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, recordId)));
+    if (!row) throw new HttpError(404, "Audit evidence record not found");
+    if (!await scheduleInScope(req, row)) throw new HttpError(403, "You do not have access to this project");
+    return;
+  } else if (recordType === "audit" || recordType === "audit_execution") {
     const [row] = await db.select({ projectId: audits.projectId }).from(audits)
       .where(and(active(audits, actor(req).organizationId), eq(audits.id, recordId)));
     projectId = row?.projectId;

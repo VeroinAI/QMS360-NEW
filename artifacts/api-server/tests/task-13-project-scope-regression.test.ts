@@ -113,6 +113,7 @@ afterAll(async () => {
   await db.delete(escalationInstances).where(inArray(escalationInstances.organizationId, createdOrgIds));
   await db.delete(escalationRules).where(inArray(escalationRules.organizationId, createdOrgIds));
   await db.delete(evidenceFiles).where(inArray(evidenceFiles.organizationId, createdOrgIds));
+  await db.delete(auditEvidenceFiles).where(inArray(auditEvidenceFiles.organizationId, createdOrgIds));
   await db.delete(correctiveActionReports).where(inArray(correctiveActionReports.organizationId, createdOrgIds));
   await db.delete(auditFindings).where(inArray(auditFindings.organizationId, createdOrgIds));
   await db.delete(audits).where(inArray(audits.organizationId, createdOrgIds));
@@ -364,6 +365,41 @@ describe("Task 13 project-scoped assignments", () => {
     }).returning();
     expect((await api("GET", `/audit/evidence?recordType=audit&recordId=${audit!.id}`, user.token)).status).toBe(200);
     expect((await api("GET", `/audit/evidence?recordType=finding&recordId=${finding!.id}`, user.token)).status).toBe(403);
+  });
+
+  it("supports schedule attachments while preserving schedule permission and project scope", async () => {
+    const editor = await insertUser("task13.schedule-evidence", orgId);
+    await db.insert(applicationAccess).values({
+      organizationId: orgId, username: editor.username, canOpenAudit: true,
+    });
+    await insertAppRole("audit", "Task 13 schedule evidence editor", editor.id, [projectA], "create_edit");
+    await insertAppRole("audit", "Task 13 schedule evidence viewer", editor.id, [projectA], "view_all");
+    const [allowedSchedule, deniedSchedule] = await db.insert(auditSchedules).values([
+      {
+        organizationId: orgId, projectId: projectA, year: 2027, title: "Allowed schedule evidence",
+        status: JSON.stringify({ projectIds: [projectA] }),
+      },
+      {
+        organizationId: orgId, projectId: projectB, year: 2027, title: "Denied schedule evidence",
+        status: JSON.stringify({ projectIds: [projectB] }),
+      },
+    ]).returning();
+    const intentBody = (recordId: string, clientReference: string) => ({
+      recordType: "audit_schedule", recordId, category: "l1-review",
+      fileName: "review.pdf", mimeType: "application/pdf", sizeBytes: 1024, clientReference,
+    });
+
+    const allowed = await api("POST", "/audit/evidence", editor.token, intentBody(allowedSchedule!.id, `allowed-${suffix}`));
+    expect(allowed.status).toBe(201);
+    expect((await api("PUT", `/audit/evidence/${allowed.json.id}/confirm`, editor.token)).status).toBe(200);
+    const listed = await api("GET", `/audit/evidence?recordType=audit_schedule&recordId=${allowedSchedule!.id}`, editor.token);
+    expect(listed.status).toBe(200);
+    expect(listed.json.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: allowed.json.id, recordType: "audit_schedule", recordId: allowedSchedule!.id }),
+    ]));
+
+    expect((await api("POST", "/audit/evidence", editor.token, intentBody(deniedSchedule!.id, `denied-${suffix}`))).status).toBe(403);
+    expect((await api("GET", `/audit/evidence?recordType=audit_schedule&recordId=${deniedSchedule!.id}`, editor.token)).status).toBe(403);
   });
 
   it("rejects out-of-scope rows in QA/QC metric imports", async () => {
