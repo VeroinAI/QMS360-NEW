@@ -3,7 +3,7 @@ import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   GetApplicationAccessResponse, GetFieldSettingsResponse, GetNumberingConfigResponse, GetOrganizationSettingsResponse,
   GetPlatformContextResponse, GetPlatformReferenceDataResponse,
-  ListBusinessUnitsResponse, ListProjectsResponse, ResetNumberingPatternResponse,
+  ListBusinessUnitsResponse, ListPlatformProjectsResponse, ResetNumberingPatternResponse,
   SetUserTemporaryPasswordBody, UpdateUserPlatformRoleBody, UpdateUserPlatformRoleResponse,
   UpdateFieldSettingsBody, UpdateFieldSettingsResponse, UpdateNumberingPatternBody, UpdateNumberingPatternResponse, UpdateOrganizationSettingsBody,
   UpdateOrganizationSettingsResponse,
@@ -236,8 +236,15 @@ router.get("/platform/projects", requireAuth, async (req, res): Promise<void> =>
   const scope = ["Super Admin", "Org Admin"].includes(user.platformRole)
     ? { unrestricted: true, projectIds: [] }
     : await getPlatformEffectiveProjectScope(user.id, user.organizationId);
-  const projectRows = await db
-    .select({
+  const { page, limit, offset } = pagination(req);
+  const where = and(
+    eq(projects.organizationId, user.organizationId),
+    eq(projects.status, "active"),
+    isNull(projects.deletedAt),
+    scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds),
+  );
+  const [projectRows, countRows] = await Promise.all([
+    db.select({
       id: projects.id,
       code: projects.code,
       name: projects.name,
@@ -245,18 +252,19 @@ router.get("/platform/projects", requireAuth, async (req, res): Promise<void> =>
       status: projects.status,
       location: projects.location,
     })
-    .from(projects)
-    .leftJoin(businessUnits, eq(projects.businessUnitId, businessUnits.id))
-    .where(and(
-      eq(projects.organizationId, user.organizationId),
-      eq(projects.status, "active"),
-      isNull(projects.deletedAt),
-      scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds),
-    ));
-  res.json(ListProjectsResponse.parse(projectRows.map((project) => ({
+      .from(projects)
+      .leftJoin(businessUnits, eq(projects.businessUnitId, businessUnits.id))
+      .where(where)
+      .orderBy(projects.code, projects.name, projects.id)
+      .limit(limit)
+      .offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(projects).where(where),
+  ]);
+  const response = paginated(projectRows.map((project) => ({
     ...project,
     businessUnit: project.businessUnit ?? "Unassigned",
-  }))));
+  })), Number(countRows[0]?.count ?? 0), page, limit);
+  res.json(ListPlatformProjectsResponse.parse(response));
 });
 
 router.get("/platform/business-units", requireAuth, async (req, res): Promise<void> => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Route, Switch, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -153,7 +153,7 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   const auditCategories = useLov("audit_categories");
   const processOwners = useLov("process_product_owners");
   const auditLevels = useLov("audit_levels");
-  const projects = useListPlatformProjects();
+  const projects = useListPlatformProjects({ page: 1, limit: 200 });
   const projectRows = projects.data?.items ?? [];
   const projectOptions = projectRows.map(project => ({
     value: project.id,
@@ -162,6 +162,14 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   const selectedProjectId = form.projectIds?.[0]
     ?? projectRows.find(project => project.name === form.departmentProject)?.id
     ?? "";
+  useEffect(() => {
+    if (!projectRows.length) return;
+    const selected = form.projectIds?.[0]
+      ? projectRows.find(project => project.id === form.projectIds![0])
+      : projectRows.find(project => project.name === form.departmentProject);
+    if (!selected || (form.projectIds?.[0] === selected.id && form.departmentProject === selected.name)) return;
+    setForm(current => ({ ...current, projectIds: [selected.id], departmentProject: selected.name }));
+  }, [projectRows, form.projectIds, form.departmentProject]);
   const selectProject = (projectId: string) => {
     const project = projectRows.find(item => item.id === projectId);
     setForm(current => ({

@@ -30,7 +30,7 @@ import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
-import { asyncHandler, HttpError, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
+import { asyncHandler, HttpError, listNotifications, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 
 const router = Router();
@@ -1213,13 +1213,9 @@ router.put("/admin/notification-templates/:id", asyncHandler(async (req, res) =>
 }));
 
 router.get("/notifications", asyncHandler(async (req, res) => {
-  const { page, limit, offset } = pagination(req);
-  const where = and(active(auditNotifications, actor(req).organizationId), eq(auditNotifications.recipientId, actor(req).id));
-  const [rows, [{ count }]] = await Promise.all([
-    db.select().from(auditNotifications).where(where).orderBy(desc(auditNotifications.createdAt)).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(auditNotifications).where(where),
-  ]);
-  res.json(paginated(rows.map((x) => ({ id: x.id, type: "audit", title: x.title, message: x.body, critical: false, read: Boolean(x.readAt), recordType: null, recordId: null, createdAt: x.createdAt, readAt: x.readAt })), Number(count), page, limit));
+  const { page, limit } = pagination(req);
+  const rows = await listNotifications(db, "audit", actor(req).organizationId, actor(req).id);
+  res.json(paginated(rows.slice((page - 1) * limit, page * limit).map((x) => ({ id: x.id, type: "audit", title: x.title, message: x.body, critical: false, read: Boolean(x.readAt), recordType: x.recordType, recordId: x.recordId, createdAt: x.createdAt, readAt: x.readAt })), rows.length, page, limit));
 }));
 router.post("/notifications/:id/read", asyncHandler(async (req, res) => {
   const [row] = await db.update(auditNotifications).set({ readAt: new Date(), updatedAt: new Date() }).where(and(active(auditNotifications, actor(req).organizationId), eq(auditNotifications.id, String(req.params.id)), eq(auditNotifications.recipientId, actor(req).id))).returning();

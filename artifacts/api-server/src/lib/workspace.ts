@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import {
   auditAuditLogEntries,
   auditLogEntries,
@@ -77,17 +77,78 @@ type NotifyInput = {
   entityType?: string; entityId?: string;
 };
 
+const notificationTables: Record<AppKey, string> = {
+  qaqc: "app1_qaqc.notifications",
+  lessons: "app2_lessons.notifications",
+  audit: "app3_audit.notifications",
+};
+// Keep the fallback suffix valid for PostgreSQL text (NUL is rejected by
+// PostgreSQL even though JavaScript strings permit it).
+const notificationMetaPrefix = "\n[QMS360_NOTIFICATION_META:";
+
+function notificationBody(body: string, entityType?: string, entityId?: string) {
+  return entityType && entityId
+    ? `${body}${notificationMetaPrefix}${Buffer.from(JSON.stringify({ recordType: entityType, recordId: entityId }), "utf8").toString("base64")}]`
+    : body;
+}
+
+export function readNotificationBody(body: string): { body: string; recordType: string | null; recordId: string | null } {
+  const marker = body.lastIndexOf(notificationMetaPrefix);
+  if (marker < 0) return { body, recordType: null, recordId: null };
+  try {
+    const encoded = body.slice(marker + notificationMetaPrefix.length).replace(/\]$/, "");
+    const metadata = JSON.parse(Buffer.from(encoded, "base64").toString("utf8")) as { recordType?: unknown; recordId?: unknown };
+    return {
+      body: body.slice(0, marker),
+      recordType: typeof metadata.recordType === "string" ? metadata.recordType : null,
+      recordId: typeof metadata.recordId === "string" ? metadata.recordId : null,
+    };
+  } catch {
+    return { body, recordType: null, recordId: null };
+  }
+}
+
 export async function notify(database: any, app: AppKey, input: NotifyInput) {
   const table = app === "qaqc" ? notifications : app === "lessons" ? lessonNotifications : auditNotifications;
-  await database.insert(table).values({
-    organizationId: input.organizationId,
-    recipientId: input.userId,
-    title: input.title,
-    body: input.body,
-    channel: "in_app",
-    recordType: input.entityType,
-    recordId: input.entityId,
+  try {
+    await database.insert(table).values({
+      organizationId: input.organizationId, recipientId: input.userId, title: input.title,
+      body: input.body, channel: "in_app", recordType: input.entityType, recordId: input.entityId,
+    });
+  } catch (error) {
+    // Older deployed notification tables predate navigation columns. Retry
+    // without them and carry metadata in an opaque suffix of the body.
+    if (!(error instanceof Error && /record_type|record_id|column .* does not exist/i.test(error.message))) throw error;
+    await database.execute(sql`
+      INSERT INTO ${sql.raw(notificationTables[app])}
+        (organization_id, recipient_id, title, body, channel)
+      VALUES (${input.organizationId}, ${input.userId}, ${input.title}, ${notificationBody(input.body, input.entityType, input.entityId)}, 'in_app')
+    `);
+  }
+}
+
+export async function listNotifications(database: any, app: AppKey, organizationId: string, recipientId: string) {
+  const result = await database.execute(sql`
+    SELECT id, title, body, channel, read_at, created_at
+    FROM ${sql.raw(notificationTables[app])}
+    WHERE organization_id = ${organizationId} AND recipient_id = ${recipientId} AND deleted_at IS NULL
+    ORDER BY created_at DESC
+  `);
+  return (result.rows as Array<{ id: string; title: string; body: string; channel: string; read_at: Date | null; created_at: Date }>).map((row) => {
+    const decoded = readNotificationBody(row.body);
+    return { ...row, body: decoded.body, recordType: decoded.recordType, recordId: decoded.recordId, readAt: row.read_at, createdAt: row.created_at };
   });
+}
+
+export async function markNotificationRead(database: any, app: AppKey, organizationId: string, recipientId: string, id: string) {
+  const result = await database.execute(sql`
+    UPDATE ${sql.raw(notificationTables[app])}
+    SET read_at = ${new Date()}, updated_at = ${new Date()}
+    WHERE id = ${id} AND organization_id = ${organizationId}
+      AND recipient_id = ${recipientId} AND deleted_at IS NULL
+    RETURNING id
+  `);
+  return (result.rows[0] as { id?: string } | undefined)?.id ?? null;
 }
 
 /**

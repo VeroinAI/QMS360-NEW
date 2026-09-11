@@ -58,8 +58,10 @@ import { confirmEvidence, createEvidenceIntent as createIntent, deleteEvidence, 
 import { getObject, storeObject } from "../lib/objectStorage";
 import {
   asyncHandler, HttpError, notFound, notify, paginated, pagination, writeAuditLog,
+  listNotifications, markNotificationRead,
 } from "../lib/workspace";
 import { notifyWithEmail, staffedRoleNames } from "../lib/workspace";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -670,7 +672,14 @@ router.post("/forms/:id/submit", asyncHandler(async (req, res) => {
   }
   const [row] = await db.update(lessonLearnedForms).set({ workflowState: "submitted", submittedAt: new Date(), submittedById: req.currentUser!.id, updatedAt: new Date() }).where(eq(lessonLearnedForms.id, before.id)).returning();
   await audit(req, "submit", "lesson_form", before.id, await formJsonNamed(before), await formJsonNamed(row!));
-  await notifyWithEmail(db, "lessons", { organizationId: before.organizationId, userId: before.approverId, type: "lesson_submitted", title: "Lesson awaiting approval", body: `${before.referenceNumber} is ready for review.`, entityType: "lesson_form", entityId: before.id });
+  // Notification persistence is best effort. The state transition and audit
+  // record above are authoritative and must not be reported as a workflow
+  // failure when the notification store is unavailable.
+  try {
+    await notifyWithEmail(db, "lessons", { organizationId: before.organizationId, userId: before.approverId, type: "lesson_submitted", title: "Lesson awaiting approval", body: `${before.referenceNumber} is ready for review.`, entityType: "lesson_form", entityId: before.id });
+  } catch (error) {
+    logger.error({ err: error, app: "lessons", action: "submit", lessonId: before.id, recipientId: before.approverId }, "Lesson notification persistence failed after submit");
+  }
   res.json(await formJsonNamed(row!));
 }));
 
@@ -727,7 +736,11 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
   ));
   const [beforeJson, rowJson] = await Promise.all([formJsonNamed(before), formJsonNamed(row!)]);
   await audit(req, body.decision, "lesson_form", before.id, beforeJson, { ...rowJson, remarks: body.comments, delegatedFrom });
-  await notifyWithEmail(db, "lessons", { organizationId: before.organizationId, userId: before.creatorId, type: `lesson_${state}`, title: `Lesson ${publicState(state)}`, body: body.comments?.trim() || `${before.referenceNumber} was approved.`, entityType: "lesson_form", entityId: before.id });
+  try {
+    await notifyWithEmail(db, "lessons", { organizationId: before.organizationId, userId: before.creatorId, type: `lesson_${state}`, title: `Lesson ${publicState(state)}`, body: body.comments?.trim() || `${before.referenceNumber} was approved.`, entityType: "lesson_form", entityId: before.id });
+  } catch (error) {
+    logger.error({ err: error, app: "lessons", action: body.decision, lessonId: before.id, recipientId: before.creatorId }, "Lesson notification persistence failed after review");
+  }
   res.json({ ...rowJson, remarks: body.comments });
 }));
 
@@ -1475,14 +1488,13 @@ router.put("/admin/notification-templates/:id", asyncHandler(async (req, res) =>
 // Leave the admin namespace before user-facing notification/evidence routes.
 router.get("/notifications", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const where = and(eq(lessonNotifications.organizationId, req.currentUser!.organizationId), eq(lessonNotifications.recipientId, req.currentUser!.id), isNull(lessonNotifications.deletedAt));
-  const [rows, count] = await Promise.all([db.select().from(lessonNotifications).where(where).orderBy(desc(lessonNotifications.createdAt)).limit(limit).offset(offset), db.select({ count: sql<number>`count(*)` }).from(lessonNotifications).where(where)]);
-  res.json(paginated(rows.map((r) => ({ id: r.id, type: "notification", title: r.title, message: r.body, critical: false, read: !!r.readAt, recordType: r.recordType, recordId: r.recordId, createdAt: r.createdAt, readAt: r.readAt })), Number(count[0]?.count ?? 0), page, limit));
+  const rows = await listNotifications(db, "lessons", req.currentUser!.organizationId, req.currentUser!.id);
+  res.json(paginated(rows.slice(offset, offset + limit).map((r) => ({ id: r.id, type: "notification", title: r.title, message: r.body, critical: false, read: !!r.readAt, recordType: r.recordType, recordId: r.recordId, createdAt: r.createdAt, readAt: r.readAt })), rows.length, page, limit));
 }));
 router.post("/notifications/:id/read", asyncHandler(async (req, res) => {
-  const [row] = await db.update(lessonNotifications).set({ readAt: new Date(), updatedAt: new Date() }).where(and(eq(lessonNotifications.id, String(req.params.id)), eq(lessonNotifications.organizationId, req.currentUser!.organizationId), eq(lessonNotifications.recipientId, req.currentUser!.id), isNull(lessonNotifications.deletedAt))).returning();
-  if (!row) notFound("Notification not found");
-  await audit(req, "mark_read", "notification", row.id);
+  const notificationId = await markNotificationRead(db, "lessons", req.currentUser!.organizationId, req.currentUser!.id, String(req.params.id));
+  if (!notificationId) notFound("Notification not found");
+  await audit(req, "mark_read", "notification", notificationId!);
   res.status(204).end();
 }));
 

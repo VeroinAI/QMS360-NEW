@@ -4,6 +4,7 @@ import { db, feedbackAttachments, feedbackEntries, feedbackStatusHistory, users 
 import { CreateFeedbackAttachmentBody, SubmitFeedbackBody, TriageFeedbackBody, TriageFeedbackResponse, UpdateFeedbackResolutionBody } from "@workspace/api-zod";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { AiUnavailableError, triageFeedback as runTriage } from "../lib/ai";
+import { redactFeedbackText } from "../lib/feedback-redaction";
 import {
   appendFallbackAttachment,
   fallbackAttachmentsByFeedback,
@@ -43,6 +44,7 @@ function entryJson(
   row: EntryRow,
   user: { id: string; fullName: string; email: string },
   statusHistory: StatusHistoryJson[] = [],
+  redactMessage = false,
 ) {
   return {
     id: row.id,
@@ -50,7 +52,7 @@ function entryJson(
     module: row.module,
     pagePath: row.pagePath,
     category: row.category,
-    message: row.message,
+    message: redactMessage ? redactFeedbackText(row.message) : row.message,
     triage: publicTriage(row.triage),
     resolution: row.resolution,
     resolutionResponse: row.resolutionResponse ?? null,
@@ -206,6 +208,7 @@ router.get("/feedback", requireAdmin, asyncHandler(async (req, res) => {
         row.entry,
         { id: row.entry.userId, fullName: row.fullName, email: row.email },
         statusHistory.get(row.entry.id) ?? [],
+        true,
       ),
       attachments.get(row.entry.id) ?? [],
     )),
@@ -232,7 +235,7 @@ router.get("/feedback/export", requireAdmin, asyncHandler(async (req, res) => {
     "Feedback ID": entry.id,
     Module: entry.module ?? "",
     Category: entry.category,
-    Feedback: entry.message,
+    Feedback: redactFeedbackText(entry.message),
     Status: entry.resolution,
     "Response to user": entry.resolutionResponse ?? "",
     "Submitted by": fullName,
@@ -306,7 +309,7 @@ router.post("/feedback/:id/triage", requireAdmin, asyncHandler(async (req, res) 
     const [updated] = await db.update(feedbackEntries)
       .set({ triage: { ...validated.data, guidance: validated.data.guidance ?? null, resolutionSuggestion: validated.data.resolutionSuggestion ?? null }, updatedAt: new Date() })
       .where(eq(feedbackEntries.id, row!.id)).returning(feedbackEntrySelection);
-    res.json(entryJson(updated!, { id: row!.userId, fullName: author?.fullName ?? "", email: author?.email ?? "" }));
+    res.json(entryJson(updated!, { id: row!.userId, fullName: author?.fullName ?? "", email: author?.email ?? "" }, [], true));
   } catch (error) {
     if (error instanceof AiUnavailableError) { res.status(503).json({ error: error.message }); return; }
     throw error;
@@ -357,6 +360,7 @@ router.put("/feedback/:id/resolution", requireAdmin, asyncHandler(async (req, re
       row!,
       { id: row!.userId, fullName: author?.fullName ?? "", email: author?.email ?? "" },
       statusHistory.get(row!.id) ?? [],
+      true,
     ),
     attachments.get(row!.id) ?? [],
   ));

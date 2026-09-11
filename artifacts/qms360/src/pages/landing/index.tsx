@@ -1,6 +1,6 @@
 import { Link } from 'wouter';
 import { ArrowRight, BarChart3, Blocks, Database, FileCheck2, Lightbulb, Lock, Network } from 'lucide-react';
-import { useGetApplicationAccess, useGetAppOverview, useGetCurrentUser } from '@workspace/api-client-react';
+import { getGetAppOverviewQueryKey, useGetApplicationAccess, useGetAppOverview, useGetCurrentUser } from '@workspace/api-client-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,17 +14,16 @@ const apps = [
 export function LandingPage() {
   const session = useGetCurrentUser();
   const access = useGetApplicationAccess();
-  const qaqc = useGetAppOverview('qaqc');
-  const lessons = useGetAppOverview('lessons');
-  const audit = useGetAppOverview('audit');
+  const qaqc = useGetAppOverview('qaqc', { query: { queryKey: getGetAppOverviewQueryKey('qaqc'), enabled: access.data?.qaqc === true } });
+  const lessons = useGetAppOverview('lessons', { query: { queryKey: getGetAppOverviewQueryKey('lessons'), enabled: access.data?.lessons === true } });
+  const audit = useGetAppOverview('audit', { query: { queryKey: getGetAppOverviewQueryKey('audit'), enabled: access.data?.audit === true } });
   const overviews = { qaqc, lessons, audit };
   const isAdmin = ['Super Admin', 'Org Admin'].includes(session.data?.platformRole ?? '')
     || (session.data?.workspaceRoles?.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
-  const loading = access.isLoading || qaqc.isLoading || lessons.isLoading || audit.isLoading;
-  const failed = access.isError || qaqc.isError || lessons.isError || audit.isError;
+  const loading = access.isLoading;
 
   if (loading) return <div className="space-y-6"><Skeleton className="h-24" /><div className="grid gap-5 lg:grid-cols-3">{apps.map(app => <Skeleton key={app.key} className="h-72" />)}</div></div>;
-  if (failed) return <State title="System overview unavailable" detail="The latest application data could not be loaded." />;
+  if (access.isError) return <State title="System overview unavailable" detail="Application access could not be loaded. Please try again later." />;
 
   return (
     <div className="space-y-8">
@@ -49,6 +48,10 @@ export function LandingPage() {
                   <div className="mb-5 flex flex-wrap gap-2">
                     {overview.metrics.slice(0, 3).map(metric => <span key={metric.label} className="rounded-full bg-muted px-3 py-1 text-xs"><strong>{metric.value}</strong> {metric.label}</span>)}
                   </div>
+                ) : allowed && overviews[app.key].isLoading ? (
+                  <div className="mb-5 space-y-2"><Skeleton className="h-8 w-3/4" /><Skeleton className="h-8 w-1/2" /></div>
+                ) : allowed && overviews[app.key].isError ? (
+                  <div className="mb-5 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">This application&apos;s overview is temporarily unavailable.</div>
                 ) : <div className="mb-5 flex items-center gap-2 rounded-lg bg-muted p-3 text-xs text-muted-foreground"><Lock className="h-4 w-4" />Access is not assigned to your role.</div>}
                 {allowed ? <Button asChild className="w-full"><Link href={`/${app.key}`}>Open application <ArrowRight className="h-4 w-4" /></Link></Button> : <Button className="w-full" disabled>Application locked</Button>}
               </CardContent>

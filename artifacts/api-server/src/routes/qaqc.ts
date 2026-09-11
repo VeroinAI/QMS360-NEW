@@ -8,7 +8,7 @@ import {
 } from "../lib/ai";
 import { confirmEvidence, createEvidenceIntent, deleteEvidence, listEvidence } from "../lib/evidence";
 import {
-  asyncHandler, HttpError, notify, notifyWithEmail, paginated, pagination, staffedRoleNames, writeAuditLog,
+  asyncHandler, HttpError, listNotifications, notify, notifyWithEmail, paginated, pagination, staffedRoleNames, writeAuditLog,
 } from "../lib/workspace";
 import { allocateReferenceNumber } from "../lib/numbering";
 import { requireAuth } from "../middlewares/auth";
@@ -732,8 +732,9 @@ router.delete("/evidence/:id", asyncHandler(async (req, res) => {
 }));
 
 router.get("/notifications", asyncHandler(async (req, res) => {
-  const result = await pageTable(req, notifications, [eq(notifications.recipientId, actor(req))]);
-  res.json({ ...result, items: result.items.map((r: any) => ({ id: r.id, type: r.channel, title: r.title, message: r.body, critical: false, read: !!r.readAt, recordType: null, recordId: null, createdAt: r.createdAt, readAt: r.readAt })) });
+  const { page, limit } = pagination(req);
+  const rows = await listNotifications(db, "qaqc", req.currentUser!.organizationId, actor(req));
+  res.json(paginated(rows.slice((page - 1) * limit, page * limit).map((r) => ({ id: r.id, type: r.channel, title: r.title, message: r.body, critical: false, read: !!r.readAt, recordType: r.recordType, recordId: r.recordId, createdAt: r.createdAt, readAt: r.readAt })), rows.length, page, limit));
 }));
 router.post("/notifications/:id/read", asyncHandler(async (req, res) => {
   const [row] = await db.update(notifications).set({ readAt: new Date(), updatedAt: new Date() }).where(and(eq(notifications.id, String(req.params.id)), eq(notifications.organizationId, org(req)), eq(notifications.recipientId, actor(req)), isNull(notifications.deletedAt))).returning();

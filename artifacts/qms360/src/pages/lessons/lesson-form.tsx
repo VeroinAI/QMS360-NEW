@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import type { ReactNode } from "react";
 import { Download, Loader2, MapPin, Sparkles, Trash2, Upload, X } from "lucide-react";
@@ -69,9 +69,10 @@ const initialDraft = (): Draft => {
 
 async function resizeImage(file: File): Promise<File> {
   if (file.size > 8 * 1024 * 1024) throw new Error(`${file.name} exceeds the 8 MB limit.`);
+  const sourceUrl = URL.createObjectURL(file);
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error(`Could not read ${file.name}.`)); img.src = URL.createObjectURL(file);
-  });
+    const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error(`Could not read ${file.name}.`)); img.src = sourceUrl;
+  }).finally(() => URL.revokeObjectURL(sourceUrl));
   const scale = Math.min(1, 1920 / image.width, 1080 / image.height);
   if (scale === 1) return file;
   const canvas = document.createElement("canvas"); canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale);
@@ -109,6 +110,18 @@ export function LessonFormPage({ id }: { id?: string }) {
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const uploadsRef = useRef<UploadItem[]>([]);
+  uploadsRef.current = uploads;
+  const revokedPreviews = useRef<Set<string>>(new Set());
+  const removedUploadKeys = useRef<Set<string>>(new Set());
+  const revokePreview = (url: string) => {
+    if (!url || revokedPreviews.current.has(url)) return;
+    revokedPreviews.current.add(url);
+    URL.revokeObjectURL(url);
+  };
+  useEffect(() => () => {
+    for (const item of uploadsRef.current) revokePreview(item.preview);
+  }, []);
   const [saveError, setSaveError] = useState(() =>
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("photoUploadError") === "1"
       ? "A photo failed to upload. Remove the failed photo, add it again, and save the lesson."
@@ -217,15 +230,19 @@ export function LessonFormPage({ id }: { id?: string }) {
     } as LessonLearnedForm;
   }
   async function uploadPhoto(recordId: string, item: UploadItem) {
+    if (removedUploadKeys.current.has(item.key)) return;
     const file = item.file;
     if (!file) throw new Error(`${item.name} must be selected again before it can be uploaded.`);
     setUploads((u) => u.map((x) => x.key === item.key ? { ...x, progress: Math.max(x.progress, 20), status: "uploading" } : x));
+    if (removedUploadKeys.current.has(item.key)) return;
     const intent = await createLessonPhotoIntent(recordId, { category: item.category, fileName: file.name, mimeType: file.type, sizeBytes: file.size, clientReference: `${clientReference}-${item.key}` });
     setUploads((u) => u.map((x) => x.key === item.key ? { ...x, progress: 55, status: "uploading" } : x));
     await customFetch(intent.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+    if (removedUploadKeys.current.has(item.key)) return;
     setUploads((u) => u.map((x) => x.key === item.key ? { ...x, progress: 85 } : x));
     await confirmLessonPhoto(intent.id);
-    if (item.preview) URL.revokeObjectURL(item.preview);
+    if (item.preview) revokePreview(item.preview);
+    removedUploadKeys.current.delete(item.key);
     setUploads((u) => u.filter((x) => x.key !== item.key));
   }
   async function saveDraft({ navigateAfterSave = isNew, requireApprover = false }: { navigateAfterSave?: boolean; requireApprover?: boolean } = {}): Promise<string | null> {
@@ -319,10 +336,11 @@ export function LessonFormPage({ id }: { id?: string }) {
     }
   }
   function removeQueuedPhoto(key: string) {
+    removedUploadKeys.current.add(key);
     if (!uploads.some((photo) => photo.key !== key && photo.status === "failed")) setSaveError("");
     setUploads((current) => {
       const item = current.find((photo) => photo.key === key);
-      if (item?.preview) URL.revokeObjectURL(item.preview);
+      if (item?.preview) revokePreview(item.preview);
       return current.filter((photo) => photo.key !== key);
     });
   }
@@ -432,7 +450,7 @@ export function LessonFormPage({ id }: { id?: string }) {
     </div>;
 
     function PhotoInput({ category }: { category: "before" | "after" }) {
-      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { void choosePhotos(e.target.files, category); e.currentTarget.value = ""; }} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="relative overflow-hidden rounded border border-border">{p.storageUrl ? <AuthImage src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}{!readOnly && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 size-8" aria-label={`Remove ${p.fileName}`} disabled={removingPhotoIds.has(p.id)} onClick={() => void removeSavedPhoto(p.id)}>{removingPhotoIds.has(p.id) ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}</Button>}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}{!["uploading", "done"].includes(p.status) && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 size-8" aria-label={`Remove ${p.name}`} onClick={() => removeQueuedPhoto(p.key)}><Trash2 className="size-4" /></Button>}{p.status !== "queued" ? <Progress value={p.progress} className="absolute bottom-0 rounded-none" /> : <p className="absolute bottom-0 w-full bg-background/80 text-center text-[10px] text-muted-foreground">Uploads on save</p>}</div>)}</div>{!id && uploads.some((p) => p.status === "queued") && <p className="mt-2 text-xs text-muted-foreground">Photos will be uploaded when you save the lesson.</p>}{uploads.some((p) => p.status === "failed") && <p className="mt-2 text-xs text-destructive">A photo upload failed. Save again to retry it before submitting.</p>}{uploadBlocking && <p className="mt-2 text-xs text-destructive">Wait for pending uploads before saving or submitting.</p>}</div>;
+      return <div><div className="mb-2 flex justify-end">{!readOnly && <Button size="sm" variant="outline" asChild><label><Upload /> Add<input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={(e) => { void choosePhotos(e.target.files, category); e.currentTarget.value = ""; }} /></label></Button>}</div><div className="grid grid-cols-2 gap-2">{record?.photos?.filter((p) => p.category === category).map((p) => <div key={p.id} className="relative overflow-hidden rounded border border-border">{p.storageUrl ? <AuthImage src={p.storageUrl} className="aspect-video w-full object-cover" alt={p.fileName} /> : <div className="aspect-video bg-muted" />}{!readOnly && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 z-10 size-8" aria-label={`Remove ${p.fileName}`} disabled={removingPhotoIds.has(p.id)} onClick={() => void removeSavedPhoto(p.id)}>{removingPhotoIds.has(p.id) ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}</Button>}</div>)}{uploads.filter((p) => p.category === category).map((p) => <div key={p.key} className="relative overflow-hidden rounded border border-border">{p.preview ? <img src={p.preview} className="aspect-video w-full object-cover" alt={p.name} /> : <div className="flex aspect-video items-center justify-center bg-muted"><X className="text-destructive" /></div>}{!["uploading", "done"].includes(p.status) && <Button type="button" size="icon" variant="destructive" className="absolute right-2 top-2 z-10 size-8" aria-label={`Remove ${p.name}`} onClick={() => removeQueuedPhoto(p.key)}><Trash2 className="size-4" /></Button>}{p.status !== "queued" ? <Progress value={p.progress} className="pointer-events-none absolute bottom-0 rounded-none" /> : <p className="pointer-events-none absolute bottom-0 w-full bg-background/80 text-center text-[10px] text-muted-foreground">Uploads on save</p>}</div>)}</div>{!id && uploads.some((p) => p.status === "queued") && <p className="mt-2 text-xs text-muted-foreground">Photos will be uploaded when you save the lesson.</p>}{uploads.some((p) => p.status === "failed") && <p className="mt-2 text-xs text-destructive">A photo upload failed. Save again to retry it before submitting.</p>}{uploadBlocking && <p className="mt-2 text-xs text-destructive">Wait for pending uploads before saving or submitting.</p>}</div>;
     }
 
     function WorkflowControls({ mobile = false }: { mobile?: boolean }) {
