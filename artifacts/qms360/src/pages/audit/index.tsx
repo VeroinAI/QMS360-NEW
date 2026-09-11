@@ -42,6 +42,7 @@ import type {
   AuditSchedule,
   ChecklistItem,
   CorrectiveActionReport,
+  EvidenceFile,
   MeetingMinutes,
 } from "@workspace/api-client-react";
 import {
@@ -69,6 +70,7 @@ import { useFieldControls } from "@/lib/field-controls";
 const PAGE_SIZE = 10;
 const date = (value?: string | null) => value ? new Date(value).toLocaleDateString() : "—";
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Something went wrong.";
+const fileSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 type QueuedAttachment = { file: File; clientReference: string };
 const workflowTone = (value: string) =>
   value === "Approved" || value === "Closed" || value === "Accepted" || value === "Shared"
@@ -364,7 +366,7 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
 }
 
 function Schedules() {
-  const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false); const [displaying, setDisplaying] = useState<AuditSchedule | undefined>();
   const query = useListAuditSchedules({ page, limit: PAGE_SIZE }); const qc = useQueryClient(); const { toast } = useToast();
   const remove = useDeleteAuditSchedule(); const submit = useSubmitAuditSchedule(); const review = useReviewAuditSchedule();
   const items = (query.data?.items ?? []).filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
@@ -373,11 +375,77 @@ function Schedules() {
   return <div className="space-y-5"><PageHeader title="Annual audit schedules" description="Build, submit and approve the annual audit programme" action={<Button onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New schedule</Button>}/>
     <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit schedule" : "Create schedule"}</DialogTitle></DialogHeader><ScheduleForm initial={editing} onClose={() => setOpen(false)}/></DialogContent></Dialog>
-    <State loading={query.isLoading} error={query.error} empty={!items.length}/>{items.length > 0 && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><b>{item.title}</b><div className="text-xs text-muted-foreground">{item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
+    <Dialog open={!!displaying} onOpenChange={isOpen => !isOpen && setDisplaying(undefined)}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">{displaying && <ScheduleDisplay schedule={displaying} onClose={() => setDisplaying(undefined)}/>}</DialogContent></Dialog>
+    <State loading={query.isLoading} error={query.error} empty={!items.length}/>{items.length > 0 && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
+      <Button size="sm" variant="outline" onClick={() => setDisplaying(item)}>Display</Button>
       {item.workflowState === "Draft" && <><Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button><Button size="sm" onClick={() => submit.mutate({ id: item.id }, { onSuccess: () => done("Schedule submitted") })}>Submit</Button></>}
       {item.workflowState === "Submitted" && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved") })}>Approve</Button><Button size="sm" variant="outline" onClick={() => sendBack(item.id)}>Send back</Button></>}
       <Button size="icon" variant="ghost" aria-label="Delete" onClick={() => window.confirm("Soft-delete this schedule?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Schedule deleted") })}><Trash2 className="size-4"/></Button>
     </div></TableCell></TableRow>)}</TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card>}</div>;
+}
+
+function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClose: () => void }) {
+  const { toast } = useToast();
+  const evidence = useListAuditEvidence({ recordType: "audit_schedule", recordId: schedule.id, page: 1, limit: 100 });
+  const [fileActionId, setFileActionId] = useState<string | null>(null);
+  const openFile = async (file: EvidenceFile) => {
+    if (!file.storageUrl) return;
+    const preview = window.open("", "_blank");
+    if (!preview) {
+      toast({ title: "Pop-up blocked", description: "Allow pop-ups for QMS360 to open this attachment.", variant: "destructive" });
+      return;
+    }
+    setFileActionId(file.id);
+    try {
+      const token = localStorage.getItem("qms360_token");
+      const response = await fetch(file.storageUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!response.ok) throw new Error(`Unable to open ${file.fileName}`);
+      const url = URL.createObjectURL(await response.blob());
+      preview.location.href = url;
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      preview.close();
+      toast({ title: "Unable to open attachment", description: errorText(error), variant: "destructive" });
+    } finally {
+      setFileActionId(null);
+    }
+  };
+  const downloadFile = async (file: EvidenceFile) => {
+    if (!file.storageUrl) return;
+    setFileActionId(file.id);
+    try {
+      const token = localStorage.getItem("qms360_token");
+      const response = await fetch(file.storageUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!response.ok) throw new Error(`Unable to download ${file.fileName}`);
+      const url = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = file.fileName; anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (error) {
+      toast({ title: "Unable to download attachment", description: errorText(error), variant: "destructive" });
+    } finally {
+      setFileActionId(null);
+    }
+  };
+  const attachments = (category: "l1-review" | "l2-review") => (evidence.data?.items ?? []).filter(file => file.category === category);
+  const AttachmentList = ({ category, title }: { category: "l1-review" | "l2-review"; title: string }) => {
+    const files = attachments(category);
+    return <div className="rounded-lg border p-4"><h3 className="font-medium">{title}</h3>
+      {evidence.isLoading ? <p className="mt-2 text-sm text-muted-foreground">Loading attachments…</p>
+        : evidence.isError ? <p className="mt-2 text-sm text-destructive">Attachments could not be loaded.</p>
+          : files.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">No files attached.</p>
+            : <div className="mt-3 space-y-2">{files.map(file => <div key={file.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/50 p-3"><div className="min-w-0"><p className="truncate text-sm font-medium">{file.fileName}</p><p className="text-xs text-muted-foreground">{fileSize(file.sizeBytes)} · {file.status}</p></div><div className="flex gap-2">{file.storageUrl ? <><Button size="sm" variant="outline" disabled={fileActionId === file.id} onClick={() => void openFile(file)}>Open</Button><Button size="sm" disabled={fileActionId === file.id} onClick={() => void downloadFile(file)}><Download className="mr-2 size-4"/>Download</Button></> : <Badge variant="secondary">Not uploaded</Badge>}</div></div>)}</div>}
+    </div>;
+  };
+  const Field = ({ label, value }: { label: string; value?: string | null }) => <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 whitespace-pre-wrap text-sm">{value?.trim() || "—"}</p></div>;
+  return <><DialogHeader><DialogTitle>Audit Schedule</DialogTitle><p className="text-sm text-muted-foreground">Read-only schedule details and review attachments.</p></DialogHeader>
+    <div className="space-y-6 py-2"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">{schedule.title}</h2><p className="mt-1 text-sm text-muted-foreground">Schedule year {schedule.year}</p></div><Badge variant={workflowTone(schedule.workflowState)}>{schedule.workflowState}</Badge></div>
+      <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2"><Field label="Audit type" value={schedule.auditTypes?.join(", ")}/><Field label="Audit category" value={schedule.auditCategory}/><Field label="Department / project" value={schedule.departmentProject}/><Field label="Process / product owner" value={schedule.processProductOwner}/><Field label="Planned dates" value={`${date(schedule.plannedStartDate)} – ${date(schedule.plannedEndDate)}`}/><Field label="Location" value={schedule.location}/><Field label="QA/QC reference" value={schedule.qaqcReference}/><Field label="Audit number / site visit no." value={schedule.auditNumber}/><Field label="QA/QC scope" value={schedule.qaqcScope}/><Field label="QA/QC clauses" value={schedule.qaqcClauses}/><Field label="Remarks" value={schedule.remarks}/><Field label="Memo circulation" value={schedule.memoCirculation}/></div>
+      <div className="grid gap-4 md:grid-cols-2"><div className="rounded-lg border p-4"><h3 className="font-medium">L1 review</h3><div className="mt-3 grid gap-3"><Field label="Reviewer" value={schedule.l1Name}/><Field label="Status" value={schedule.l1ReviewStatus}/><Field label="Comments" value={schedule.l1ReviewComments}/></div></div><div className="rounded-lg border p-4"><h3 className="font-medium">L2 review</h3><div className="mt-3 grid gap-3"><Field label="Reviewer" value={schedule.l2Name}/><Field label="Status" value={schedule.l2ReviewStatus}/><Field label="Comments" value={schedule.l2ReviewComments}/></div></div></div>
+      <div><h3 className="mb-3 font-medium">Attached files</h3><div className="grid gap-4 md:grid-cols-2"><AttachmentList category="l1-review" title="L1 attachments"/><AttachmentList category="l2-review" title="L2 attachments"/></div></div>
+      <Field label="Memo description" value={schedule.memoDescription}/>
+    </div>
+    <DialogFooter><Button onClick={onClose}>Close</Button></DialogFooter></>;
 }
 
 function PlanForm({ schedules, onClose }: { schedules: AuditSchedule[]; onClose: () => void }) {
