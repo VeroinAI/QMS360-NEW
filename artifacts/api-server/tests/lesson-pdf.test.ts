@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { PDFDocument } from "pdf-lib";
 import { createLessonPdf } from "../src/lib/lesson-pdf";
 
 describe("Lesson Learned PDF", () => {
-  it("creates a valid PDF containing the current approval status", () => {
-    const pdf = createLessonPdf({
+  it("creates a one-page client-template PDF with approval status and embedded photos", async () => {
+    const pdf = await createLessonPdf({
       referenceNumber: "LL-2026-001",
       title: "Concrete pour preparation",
       disciplineId: "Civil",
@@ -19,12 +20,19 @@ describe("Lesson Learned PDF", () => {
       reviewedByName: "Approved User",
       reviewedAt: "2026-09-11T12:00:00.000Z",
       reviewDecision: "Approved",
-      photos: [],
+    }, {
+      photos: [{
+        category: "before",
+        mimeType: "image/png",
+        imageBytes: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+      }],
     });
     const content = pdf.toString("latin1");
-    expect(content.startsWith("%PDF-1.4")).toBe(true);
-    expect(content).toContain("APPROVAL STATUS: APPROVED");
-    expect(content).toContain("Approval Status");
+    const parsed = await PDFDocument.load(pdf);
+    expect(content.startsWith("%PDF-")).toBe(true);
+    expect(parsed.getPageCount()).toBe(1);
+    expect(parsed.getSubject()).toBe("APPROVAL STATUS: APPROVED");
+    expect(content).toContain("/Subtype /Image");
     expect(content).toContain("%%EOF");
   });
 });

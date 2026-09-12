@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { Router, type IRouter } from "express";
 import {
   and, asc, desc, eq, gte, gt, ilike, inArray, isNull, lte, ne, or, sql,
@@ -214,6 +216,32 @@ async function approvalPeopleJson(row: typeof lessonLearnedForms.$inferSelect) {
 async function formJsonNamed(row: typeof lessonLearnedForms.$inferSelect, photos?: Array<typeof lessonsEvidenceFiles.$inferSelect>) {
   const [disciplineName, approval] = await Promise.all([disciplineNameById(row.disciplineId), approvalPeopleJson(row)]);
   return { ...formJson(row, photos, disciplineName), ...approval };
+}
+
+async function lessonPdfAssets(photos: Array<typeof lessonsEvidenceFiles.$inferSelect>) {
+  const logoBytes = await readFile(path.resolve(process.cwd(), "src/assets/lesson-learned-header-logo.jpg")).catch(() => undefined);
+  const imageRows = photos.filter(photo =>
+    photo.status === "stored"
+    && photo.mimeType.startsWith("image/")
+    && (photo.category === "before" || photo.category === "after"),
+  );
+  const imagePhotos = (await Promise.all(imageRows.map(async photo => {
+    try {
+      let imageBytes: Buffer;
+      if (photo.storageKey.startsWith("gcs:")) {
+        const response = await getObject(photo.storageKey.slice(4));
+        imageBytes = Buffer.from(await response.arrayBuffer());
+      } else {
+        const localKey = photo.storageKey.replace(/^local:/, "").replace("/", "-");
+        imageBytes = await readFile(path.resolve(process.cwd(), "uploads", localKey));
+      }
+      return { category: photo.category, mimeType: photo.mimeType, imageBytes };
+    } catch (error) {
+      logger.warn({ error, evidenceId: photo.id }, "Lesson PDF photo could not be loaded");
+      return null;
+    }
+  }))).filter((photo): photo is NonNullable<typeof photo> => photo !== null);
+  return { logoBytes, photos: imagePhotos };
 }
 
 async function disciplineNameMap(organizationId: string): Promise<Map<string, string>> {
@@ -1102,7 +1130,7 @@ router.get("/forms/:id/report.pdf", asyncHandler(async (req, res) => {
   if (!await canReadLesson(req, row)) throw new HttpError(403, "You do not have permission to view this lesson");
   const photos = (await listEvidence(db, "lessons", row.organizationId, "lesson_form", row.id)) as Array<typeof lessonsEvidenceFiles.$inferSelect>;
   const data = await formJsonNamed(row, photos);
-  const content = createLessonPdf(data).toString("base64");
+  const content = (await createLessonPdf(data, await lessonPdfAssets(photos))).toString("base64");
   res.json({
     delivery: "download",
     fileName: `${row.referenceNumber}.pdf`,

@@ -7,3 +7,18 @@ uri = "file://artifacts/qms360-video/public/audio/bg_music.mp3"
 type = "audio"
 title = "background music"
 description = "Generated music: Cinematic uplifting orchestral instrumental background music scoring an enterprise corporate platform brand film for a construction quality-management system. Strings, soft piano, su…"
+logical_id = "19a4128d-ce75-4b12-9564-daf98959bf16"
+
+[[outputs]]
+id = "8RCHOyKbXpSgE3u_W-YSg"
+uri = "file://.agents/outputs/lesson-document-review/corrected/lesson-learned-corrected.pdf"
+type = "pdf"
+title = "Corrected Lesson Learned PDF sample"
+description = "One-page A4 sample using the client Word template layout, Alghaz header, embedded before/after images, approval status, and revision footer."
+logical_id = "013ec3fd-62ab-4254-8c6a-c06eace08109"
+content_hash = "sha256:fc1510bac175bed983b3d4822d399e1e359f7bca8520f17be68364c613b84cd2"
+size = 177625
+mtime_ms = 1789199769689
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/013ec3fd-62ab-4254-8c6a-c06eace08109/0398a7e0-caba-4539-94cd-953097519050"
+storage_version_token = "1789199908745605"
+content_type = "application/pdf"
