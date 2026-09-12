@@ -1,8 +1,14 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 
 type PdfLesson = Record<string, unknown>;
-export type LessonPdfPhoto = { category: string; mimeType: string; imageBytes: Uint8Array };
-export type LessonPdfAssets = { logoBytes?: Uint8Array; photos?: LessonPdfPhoto[] };
+export type LessonPdfImage = { mimeType: string; imageBytes: Uint8Array };
+export type LessonPdfPhoto = LessonPdfImage & { category: string };
+export type LessonPdfAssets = {
+  logoBytes?: Uint8Array;
+  photos?: LessonPdfPhoto[];
+  preparedSignature?: LessonPdfImage;
+  approvedSignature?: LessonPdfImage;
+};
 
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
@@ -86,7 +92,7 @@ function cellText(
   }
 }
 
-async function embedImage(document: PDFDocument, image: LessonPdfPhoto | { mimeType: string; imageBytes: Uint8Array }) {
+async function embedImage(document: PDFDocument, image: LessonPdfImage) {
   const bytes = image.imageBytes;
   const isPng = image.mimeType.includes("png") || (bytes[0] === 0x89 && bytes[1] === 0x50);
   return isPng ? document.embedPng(bytes) : document.embedJpg(bytes);
@@ -232,7 +238,27 @@ export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets
   };
   approvalRow("Designation", lesson.submittedByDesignation, lesson.reviewedByDesignation);
   approvalRow("Name", lesson.submittedByName, lesson.reviewedByName);
-  approvalRow("Signature", "", "");
+  cell(page, LEFT, y, approvalLabel, 22, LIGHT_GREY);
+  cell(page, LEFT + approvalLabel, y, approvalValue, 22);
+  cell(page, LEFT + half, y, approvalLabel, 22, LIGHT_GREY);
+  cell(page, LEFT + half + approvalLabel, y, approvalValue, 22);
+  cellText(page, "Signature", LEFT, y, approvalLabel, 22, bold);
+  cellText(page, "Signature", LEFT + half, y, approvalLabel, 22, bold);
+  const drawSignature = async (signature: LessonPdfImage | undefined, x: number) => {
+    if (!signature) {
+      cellText(page, "", x, y, approvalValue, 22, regular, { align: "center", size: 7.8 });
+      return;
+    }
+    try {
+      const image = await embedImage(document, signature);
+      drawContainedImage(page, image, x + 3, y - 2, approvalValue - 6, 18);
+    } catch {
+      cellText(page, "", x, y, approvalValue, 22, regular, { align: "center", size: 7.8 });
+    }
+  };
+  await drawSignature(assets.preparedSignature, LEFT + approvalLabel);
+  await drawSignature(assets.approvedSignature, LEFT + half + approvalLabel);
+  y -= 22;
   approvalRow("Date", dateText(lesson.submittedAt), dateText(lesson.reviewedAt));
 
   const footerTop = y - 6;

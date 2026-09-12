@@ -218,8 +218,34 @@ async function formJsonNamed(row: typeof lessonLearnedForms.$inferSelect, photos
   return { ...formJson(row, photos, disciplineName), ...approval };
 }
 
-async function lessonPdfAssets(photos: Array<typeof lessonsEvidenceFiles.$inferSelect>) {
+async function lessonPdfAssets(
+  row: typeof lessonLearnedForms.$inferSelect,
+  photos: Array<typeof lessonsEvidenceFiles.$inferSelect>,
+) {
   const logoBytes = await readFile(path.resolve(process.cwd(), "src/assets/lesson-learned-header-logo.jpg")).catch(() => undefined);
+  const signerIds = [row.submittedById, row.reviewedById].filter((id): id is string => Boolean(id));
+  const signers = signerIds.length
+    ? await db.select({ id: users.id, signaturePath: users.signaturePath }).from(users).where(and(
+      eq(users.organizationId, row.organizationId),
+      inArray(users.id, signerIds),
+      isNull(users.deletedAt),
+    ))
+    : [];
+  const signatureByUserId = new Map(signers.map(signer => [signer.id, signer.signaturePath]));
+  const loadSignature = async (userId: string | null) => {
+    const signaturePath = userId ? signatureByUserId.get(userId) : null;
+    if (!signaturePath) return undefined;
+    try {
+      const response = await getObject(signaturePath.startsWith("gcs:") ? signaturePath.slice(4) : signaturePath);
+      return {
+        mimeType: response.headers.get("content-type") ?? "image/png",
+        imageBytes: Buffer.from(await response.arrayBuffer()),
+      };
+    } catch (error) {
+      logger.warn({ error, userId }, "Lesson PDF signature could not be loaded");
+      return undefined;
+    }
+  };
   const imageRows = photos.filter(photo =>
     photo.status === "stored"
     && photo.mimeType.startsWith("image/")
@@ -241,7 +267,11 @@ async function lessonPdfAssets(photos: Array<typeof lessonsEvidenceFiles.$inferS
       return null;
     }
   }))).filter((photo): photo is NonNullable<typeof photo> => photo !== null);
-  return { logoBytes, photos: imagePhotos };
+  const [preparedSignature, approvedSignature] = await Promise.all([
+    loadSignature(row.submittedById),
+    loadSignature(row.reviewedById),
+  ]);
+  return { logoBytes, photos: imagePhotos, preparedSignature, approvedSignature };
 }
 
 async function disciplineNameMap(organizationId: string): Promise<Map<string, string>> {
@@ -1130,7 +1160,7 @@ router.get("/forms/:id/report.pdf", asyncHandler(async (req, res) => {
   if (!await canReadLesson(req, row)) throw new HttpError(403, "You do not have permission to view this lesson");
   const photos = (await listEvidence(db, "lessons", row.organizationId, "lesson_form", row.id)) as Array<typeof lessonsEvidenceFiles.$inferSelect>;
   const data = await formJsonNamed(row, photos);
-  const content = (await createLessonPdf(data, await lessonPdfAssets(photos))).toString("base64");
+  const content = (await createLessonPdf(data, await lessonPdfAssets(row, photos))).toString("base64");
   res.json({
     delivery: "download",
     fileName: `${row.referenceNumber}.pdf`,
