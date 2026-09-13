@@ -167,7 +167,7 @@ beforeAll(async () => {
   // Deliberately preserve the historical persisted `full` grant: the
   // view_own_scope capability itself must still constrain visibility.
   await giveLessonsRole(reader.id, "Scoped Reader", ["view_own_scope"], "full");
-  await giveLessonsRole(owner.id, "Data Entry", ["data_entry", "view_own_scope", "submit"], "full");
+  await giveLessonsRole(owner.id, "Data Entry", ["data_entry", "view_own_scope", "submit"], "own");
   // Browser-equivalent fixture: one non-admin workspace role carries both
   // persisted full grants and reaches Lessons through app.ts's nested routers.
   await giveLessonsRole(approver.id, "Lesson Approver", ["view_own_scope", "approve_reject"], "full");
@@ -298,6 +298,35 @@ describe("non-admin lesson visibility and capabilities", () => {
     });
     expect(approved.status).toBe(200);
     expect(approved.json.workflowState).toBe("Approved");
+  });
+
+  it("lets a Form Create user upload and confirm photos on their own draft", async () => {
+    const [draft] = await db.insert(lessonLearnedForms).values(
+      lessonValues(`OWNER-PHOTO-${suffix}`, owner.id, { approverId: approver.id }),
+    ).returning();
+    const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    const intent = await api("POST", `/forms/${draft!.id}/photos`, {
+      token: owner.token,
+      body: {
+        category: "before",
+        fileName: "before.png",
+        mimeType: "image/png",
+        sizeBytes: bytes.length,
+        clientReference: `owner-photo-${suffix}`,
+      },
+    });
+    expect(intent.status).toBe(201);
+
+    const upload = await fetch(`${baseUrl.replace(/\/api\/lessons$/, "")}${intent.json.uploadUrl}`, {
+      method: "PUT",
+      headers: { authorization: `Bearer ${owner.token}`, "content-type": "image/png" },
+      body: bytes,
+    });
+    expect(upload.status).toBe(200);
+
+    const confirmed = await api("PUT", `/photos/${intent.json.id}/confirm`, { token: owner.token });
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.json.status).toBe("confirmed");
   });
 });
 

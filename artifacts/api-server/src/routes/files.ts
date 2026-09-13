@@ -136,7 +136,8 @@ router.put("/:evidenceId", requireAuth,
  async (req, res): Promise<void> => {
   const user = req.currentUser!;
   const found = await findEvidence(String(req.params.evidenceId), user.organizationId);
-   if (!found || !await authorizeEvidence(req, found, "full")) { res.status(404).json({ error: "Evidence upload intent not found" }); return; }
+  const uploadAction: PermissionAction = found?.app === "lessons" && found.row.uploadedById === user.id ? "own" : "full";
+   if (!found || !await authorizeEvidence(req, found, uploadAction)) { res.status(404).json({ error: "Evidence upload intent not found" }); return; }
   const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
   try {
     validateEvidenceFile(found.row.mimeType, body.byteLength, await evidenceLimits(user.organizationId));

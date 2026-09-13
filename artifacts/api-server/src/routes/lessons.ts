@@ -74,6 +74,8 @@ router.use("/forms", (req, res, next) =>
   requirePermission("lessons", "lessons", req.method === "GET" ? "select" : "own")(req, res, next));
 router.use("/evidence", (req, res, next) =>
   requirePermission("lessons", "lessons", req.method === "GET" ? "select" : "own")(req, res, next));
+router.use("/photos", (req, res, next) =>
+  requirePermission("lessons", "lessons", req.method === "GET" ? "select" : "own")(req, res, next));
 router.use("/forms", asyncHandler(async (req, _res, next) => {
   if (req.method !== "GET") {
     const orgId = req.currentUser!.organizationId;
