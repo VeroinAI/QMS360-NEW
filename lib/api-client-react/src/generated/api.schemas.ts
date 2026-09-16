@@ -1900,6 +1900,10 @@ export interface AuditProgramme {
   readonly canReview: boolean;
   /** @nullable */
   ownerId?: string | null;
+  /** @nullable */
+  readonly submissionSubject: string | null;
+  /** @nullable */
+  readonly submissionMailBody: string | null;
 }
 
 export interface AuditProgrammeInput {
@@ -1907,6 +1911,19 @@ export interface AuditProgrammeInput {
   title: string;
   fromDate: string;
   toDate: string;
+}
+
+export interface AuditProgrammeSubmission {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  subject: string;
+  /**
+     * @minLength 1
+     * @maxLength 10000
+     */
+  mailBody: string;
 }
 
 export interface AuditPlanUserOption {
@@ -2507,6 +2524,8 @@ export type LessonFormBody = LessonLearnedForm;
 export type AuditScheduleBody = AuditSchedule;
 
 export type AuditProgrammeBody = AuditProgrammeInput;
+
+export type AuditProgrammeSubmissionBody = AuditProgrammeSubmission;
 
 export type AuditPlanBody = AuditPlan;
 

@@ -114,6 +114,7 @@ const maybeCsv = (req: Request, res: Response, name: string, rows: AnyRow[]) => 
 type ScheduleMeta = {
   programme?: boolean; parentId?: string | null; fromDate?: string; toDate?: string;
   approvalRoles?: Array<{ id: string; name: string }>; approvalIndex?: number;
+  submissionSubject?: string; submissionMailBody?: string;
   projectIds?: string[]; auditTypes?: string[]; plannedStartDate?: string;
   plannedEndDate?: string; reviewComments?: string | null;
   auditCategory?: string; departmentProject?: string; location?: string;
@@ -358,6 +359,8 @@ const programmeDto = (row: AnyRow, childCount = 0) => {
     childCount, ownerId: row.ownerId ?? null,
     currentApprovalRole: row.workflowState === "submitted" ? roles[meta.approvalIndex ?? 0]?.name ?? null : null,
     approvalRoles: roles.map(role => role.name),
+    submissionSubject: meta.submissionSubject ?? null,
+    submissionMailBody: meta.submissionMailBody ?? null,
   };
 };
 
@@ -440,7 +443,7 @@ router.get("/programmes", asyncHandler(async (req, res) => {
   const legacy = (await Promise.all(legacyCandidates.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const visibleProgrammes = (await Promise.all(programmes.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const items = await Promise.all(visibleProgrammes.map(async row => programmeResponse(req, row, (await programmeChildren(req, row.id)).length)));
-  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, approvalRoles: [], canReview: false });
+  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, approvalRoles: [], canReview: false, submissionSubject: null, submissionMailBody: null });
   const offset = (page - 1) * limit;
   res.json(paginated(items.slice(offset, offset + limit), items.length, page, limit));
 }));
@@ -462,7 +465,7 @@ router.get("/programmes/:id", asyncHandler(async (req, res) => {
   if (String(req.params.id) === "legacy") {
     const children = await programmeChildren(req, "legacy");
     if (!children.length) throw new HttpError(404, "Audit programme not found");
-    res.json({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, approvalRoles: [], canReview: false });
+    res.json({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, approvalRoles: [], canReview: false, submissionSubject: null, submissionMailBody: null });
     return;
   }
   const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
@@ -472,6 +475,7 @@ router.get("/programmes/:id", asyncHandler(async (req, res) => {
 }));
 
 router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.SubmitAuditProgrammeBody, req);
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   if (!before || !scheduleMeta(before).programme) throw new HttpError(404, "Audit programme not found");
   const children = await programmeChildren(req, before.id);
@@ -483,7 +487,18 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
   if (unstaffed.length) throw new HttpError(422, `Approval role has no active users: ${unstaffed.join(", ")}`);
   const meta = scheduleMeta(before);
   await assertProgrammeMutationAccess(req, before);
-  const [row] = await db.update(auditSchedules).set({ workflowState: "submitted", status: JSON.stringify({ ...meta, approvalRoles: roles, approvalIndex: 0, reviewComments: null }), updatedAt: new Date() }).where(and(eq(auditSchedules.id, before.id), eq(auditSchedules.workflowState, before.workflowState), eq(auditSchedules.status, before.status))).returning();
+  const [row] = await db.update(auditSchedules).set({
+    workflowState: "submitted",
+    status: JSON.stringify({
+      ...meta,
+      approvalRoles: roles,
+      approvalIndex: 0,
+      reviewComments: null,
+      submissionSubject: data.subject.trim(),
+      submissionMailBody: data.mailBody.trim(),
+    }),
+    updatedAt: new Date(),
+  }).where(and(eq(auditSchedules.id, before.id), eq(auditSchedules.workflowState, before.workflowState), eq(auditSchedules.status, before.status))).returning();
   if (!row) throw new HttpError(409, "Programme changed while it was being submitted");
   const recipients = await roleUserIds(actor(req).organizationId, roles[0].id);
   await Promise.all(recipients.filter(id => id !== actor(req).id).map(userId => notify(db, "audit", { organizationId: actor(req).organizationId, userId, type: "programme_submitted", title: "Audit programme awaiting approval", body: row.title, entityType: "audit_programme", entityId: row.id })));

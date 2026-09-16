@@ -67,6 +67,8 @@ export * from './auditProgrammeBody';
 export * from './auditProgrammeInput';
 export * from './auditProgrammePage';
 export * from './auditProgrammePageResponse';
+export * from './auditProgrammeSubmission';
+export * from './auditProgrammeSubmissionBody';
 export * from './auditSchedule';
 export * from './auditScheduleBody';
 export * from './auditScheduleL1ReviewStatus';

@@ -20,4 +20,8 @@ export interface AuditProgramme {
   readonly canReview: boolean;
   /** @nullable */
   ownerId?: string | null;
+  /** @nullable */
+  readonly submissionSubject: string | null;
+  /** @nullable */
+  readonly submissionMailBody: string | null;
 }

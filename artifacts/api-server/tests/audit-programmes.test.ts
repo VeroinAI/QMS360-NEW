@@ -143,7 +143,7 @@ describe("audit programme parent/child workflow", () => {
   it("creates a programme and rejects submitting it without a child", async () => {
     const created = await api("POST", "/programmes", creator.token, { title: "2026 Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
     expect(created.status).toBe(201);
-    const submitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token);
+    const submitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token, { subject: "Empty programme", mailBody: "Please review this audit schedule." });
     expect(submitted.status).toBe(422);
   });
 
@@ -164,8 +164,10 @@ describe("audit programme parent/child workflow", () => {
   it("snapshots L1/L2 roles and advances sequentially with authorization", async () => {
     const created = await api("POST", "/programmes", creator.token, { title: "Approval Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
     await addChild(created.json.id);
-    const submitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token);
+    const submitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token, { subject: "Approval programme", mailBody: "Please review and approve." });
     expect(submitted.status).toBe(200);
+    expect(submitted.json.submissionSubject).toBe("Approval programme");
+    expect(submitted.json.submissionMailBody).toBe("Please review and approve.");
     expect(submitted.json.currentApprovalRole).toBe("L1 Programme Approver");
     expect(submitted.json.canReview).toBe(false);
     const [l1List, l2List] = await Promise.all([
@@ -233,7 +235,7 @@ describe("audit programme parent/child workflow", () => {
   it("allows only one concurrent current-role review and rejects unstaffed approval chains", async () => {
     const created = await api("POST", "/programmes", creator.token, { title: "Concurrent Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
     await addChild(created.json.id);
-    const submitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token);
+    const submitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token, { subject: "Concurrent programme", mailBody: "Please review this programme." });
     expect(submitted.status).toBe(200);
     const results = await Promise.all([
       api("POST", `/programmes/${created.json.id}/review`, l1.token, { decision: "approve" }),
@@ -244,7 +246,7 @@ describe("audit programme parent/child workflow", () => {
     expect(emptyRole.id).toBeTruthy();
     const unstaffed = await api("POST", "/programmes", creator.token, { title: "Unstaffed Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
     await addChild(unstaffed.json.id);
-    const rejected = await api("POST", `/programmes/${unstaffed.json.id}/submit`, creator.token);
+    const rejected = await api("POST", `/programmes/${unstaffed.json.id}/submit`, creator.token, { subject: "Unstaffed programme", mailBody: "Please review this programme." });
     expect(rejected.status).toBe(422);
   });
 

@@ -1031,7 +1031,7 @@ paths:
   /audit/programmes/{id}:
     get: {operationId: getAuditProgramme, tags: [audit], summary: Get an annual audit programme, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Programme, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
   /audit/programmes/{id}/submit:
-    post: {operationId: submitAuditProgramme, tags: [audit], summary: Submit programme for sequential approval, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
+    post: {operationId: submitAuditProgramme, tags: [audit], summary: Submit programme for sequential approval, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditProgrammeSubmission"}, responses: {"200": {description: Submitted, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
   /audit/programmes/{id}/review:
     post: {operationId: reviewAuditProgramme, tags: [audit], summary: Review current programme approval step, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
   /audit/schedules/{id}:
@@ -1232,6 +1232,7 @@ components:
     LessonForm: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonLearnedForm"}}}}
     AuditSchedule: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}
     AuditProgramme: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeInput"}}}}
+    AuditProgrammeSubmission: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeSubmission"}}}}
     AuditPlan: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlan"}}}}
     Audit: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
     AuditFinding: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFinding"}}}}
@@ -2262,7 +2263,7 @@ components:
         canReview: {type: boolean, readOnly: true}
     AuditProgramme:
       type: object
-      required: [id, title, fromDate, toDate, workflowState, childCount, currentApprovalRole, approvalRoles, canReview]
+      required: [id, title, fromDate, toDate, workflowState, childCount, currentApprovalRole, approvalRoles, canReview, submissionSubject, submissionMailBody]
       properties:
         id: {type: string}
         title: {type: string}
@@ -2274,6 +2275,8 @@ components:
         approvalRoles: {type: array, items: {type: string}}
         canReview: {type: boolean, readOnly: true}
         ownerId: {type: [string, "null"]}
+        submissionSubject: {type: [string, "null"], readOnly: true}
+        submissionMailBody: {type: [string, "null"], readOnly: true}
     AuditProgrammeInput:
       type: object
       required: [title, fromDate, toDate]
@@ -2281,6 +2284,12 @@ components:
         title: {type: string, minLength: 1}
         fromDate: {type: string, format: date}
         toDate: {type: string, format: date}
+    AuditProgrammeSubmission:
+      type: object
+      required: [subject, mailBody]
+      properties:
+        subject: {type: string, minLength: 1, maxLength: 200}
+        mailBody: {type: string, minLength: 1, maxLength: 10000}
     AuditPlanUserOption:
       type: object
       required: [id, fullName]
