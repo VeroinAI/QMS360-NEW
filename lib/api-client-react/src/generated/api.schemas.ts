@@ -1881,6 +1881,10 @@ export interface AuditSchedule {
   workflowState: WorkflowState;
   /** @nullable */
   reviewComments?: string | null;
+  /** @nullable */
+  readonly currentApprovalRole: string | null;
+  readonly approvalRoles: readonly string[];
+  readonly canReview: boolean;
 }
 
 export interface AuditProgramme {
@@ -1893,6 +1897,7 @@ export interface AuditProgramme {
   /** @nullable */
   currentApprovalRole: string | null;
   approvalRoles: string[];
+  readonly canReview: boolean;
   /** @nullable */
   ownerId?: string | null;
 }

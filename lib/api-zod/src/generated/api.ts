@@ -5478,7 +5478,10 @@ export const ListAuditSchedulesResponse = zod.object({
   "memoCirculation": zod.string().optional(),
   "ownerId": zod.string().optional(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
-  "reviewComments": zod.string().nullish()
+  "reviewComments": zod.string().nullish(),
+  "currentApprovalRole": zod.string().nullable(),
+  "approvalRoles": zod.array(zod.string()),
+  "canReview": zod.boolean()
 }))
 }))
 
@@ -5567,6 +5570,7 @@ export const ListAuditProgrammesResponse = zod.object({
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
   "approvalRoles": zod.array(zod.string()),
+  "canReview": zod.boolean(),
   "ownerId": zod.string().nullish()
 }))
 }))
@@ -5593,6 +5597,7 @@ export const CreateAuditProgrammeResponse = zod.object({
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
   "approvalRoles": zod.array(zod.string()),
+  "canReview": zod.boolean(),
   "ownerId": zod.string().nullish()
 })
 
@@ -5613,6 +5618,7 @@ export const GetAuditProgrammeResponse = zod.object({
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
   "approvalRoles": zod.array(zod.string()),
+  "canReview": zod.boolean(),
   "ownerId": zod.string().nullish()
 })
 
@@ -5633,6 +5639,7 @@ export const SubmitAuditProgrammeResponse = zod.object({
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
   "approvalRoles": zod.array(zod.string()),
+  "canReview": zod.boolean(),
   "ownerId": zod.string().nullish()
 })
 
@@ -5658,6 +5665,7 @@ export const ReviewAuditProgrammeResponse = zod.object({
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
   "approvalRoles": zod.array(zod.string()),
+  "canReview": zod.boolean(),
   "ownerId": zod.string().nullish()
 })
 
@@ -5709,7 +5717,10 @@ export const GetAuditScheduleResponse = zod.object({
   "memoCirculation": zod.string().optional(),
   "ownerId": zod.string().optional(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
-  "reviewComments": zod.string().nullish()
+  "reviewComments": zod.string().nullish(),
+  "currentApprovalRole": zod.string().nullable(),
+  "approvalRoles": zod.array(zod.string()),
+  "canReview": zod.boolean()
 })
 
 
@@ -6792,7 +6803,10 @@ export const GetAuditScheduleReportResponse = zod.object({
   "memoCirculation": zod.string().optional(),
   "ownerId": zod.string().optional(),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
-  "reviewComments": zod.string().nullish()
+  "reviewComments": zod.string().nullish(),
+  "currentApprovalRole": zod.string().nullable(),
+  "approvalRoles": zod.array(zod.string()),
+  "canReview": zod.boolean()
 }))
 }))
 

@@ -167,6 +167,13 @@ describe("audit programme parent/child workflow", () => {
     const submitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token);
     expect(submitted.status).toBe(200);
     expect(submitted.json.currentApprovalRole).toBe("L1 Programme Approver");
+    expect(submitted.json.canReview).toBe(false);
+    const [l1List, l2List] = await Promise.all([
+      api("GET", "/programmes", l1.token),
+      api("GET", "/programmes", l2.token),
+    ]);
+    expect(l1List.json.items.find((item: { id: string }) => item.id === created.json.id).canReview).toBe(true);
+    expect(l2List.json.items.find((item: { id: string }) => item.id === created.json.id).canReview).toBe(false);
     const blocked = await api("POST", `/programmes/${created.json.id}/review`, creator.token, { decision: "approve" });
     expect(blocked.status).toBe(403);
     const first = await api("POST", `/programmes/${created.json.id}/review`, l1.token, { decision: "approve" });
@@ -177,6 +184,33 @@ describe("audit programme parent/child workflow", () => {
     expect(second.json.workflowState).toBe("Approved");
     const ownerNotice = await db.execute(sql`SELECT recipient_id, title FROM app3_audit.notifications WHERE organization_id = ${orgId} AND recipient_id = ${creator.id} AND title = 'Audit programme approved'`);
     expect(ownerNotice.rows.length).toBeGreaterThan(0);
+  });
+
+  it("routes child schedule approval through L1 then L2 and exposes actions only to the current role", async () => {
+    const created = await api("POST", "/programmes", creator.token, { title: "Child Approval Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
+    const child = await addChild(created.json.id);
+    const submitted = await api("POST", `/schedules/${child.id}/submit`, creator.token);
+    expect(submitted.status).toBe(200);
+    expect(submitted.json.currentApprovalRole).toBe("L1 Programme Approver");
+    expect(submitted.json.canReview).toBe(false);
+
+    const [l1List, l2List] = await Promise.all([
+      api("GET", `/schedules?parentId=${created.json.id}`, l1.token),
+      api("GET", `/schedules?parentId=${created.json.id}`, l2.token),
+    ]);
+    expect(l1List.json.items[0].canReview).toBe(true);
+    expect(l2List.json.items[0].canReview).toBe(false);
+    expect((await api("POST", `/schedules/${child.id}/review`, l2.token, { decision: "approve" })).status).toBe(409);
+
+    const first = await api("POST", `/schedules/${child.id}/review`, l1.token, { decision: "approve" });
+    expect(first.status).toBe(200);
+    expect(first.json.workflowState).toBe("Submitted");
+    expect(first.json.currentApprovalRole).toBe("L2 Programme Approver");
+
+    const second = await api("POST", `/schedules/${child.id}/review`, l2.token, { decision: "approve" });
+    expect(second.status).toBe(200);
+    expect(second.json.workflowState).toBe("Approved");
+    expect(second.json.currentApprovalRole).toBeNull();
   });
 
   it("rejects programme type confusion and arbitrary or legacy parent links, preserving omitted links", async () => {

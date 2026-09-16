@@ -251,8 +251,11 @@ router.use(asyncHandler(async (req, _res, next) => {
   }
   next();
 }));
-const scheduleDto = (row: AnyRow) => {
+const scheduleDto = (row: AnyRow, canReview = false) => {
   const meta = scheduleMeta(row);
+  const currentApprovalRole = row.workflowState === "submitted"
+    ? (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0]?.name ?? null
+    : null;
   return {
     id: row.id, parentId: meta.parentId ?? null, year: row.year, title: row.title, projectIds: meta.projectIds ?? (row.projectId ? [row.projectId] : []),
     auditTypes: meta.auditTypes ?? [], plannedStartDate: new Date(meta.plannedStartDate ?? `${row.year}-01-01`),
@@ -270,6 +273,7 @@ const scheduleDto = (row: AnyRow) => {
     l2Name: meta.l2Name ?? "", l2ReviewStatus: meta.l2ReviewStatus ?? "Pending",
     l2ReviewComments: meta.l2ReviewComments ?? null, l2Attachments: meta.l2Attachments ?? [],
     memoDescription: meta.memoDescription ?? "", memoCirculation: meta.memoCirculation ?? "",
+    currentApprovalRole, approvalRoles: (meta.approvalRoles ?? []).map(role => role.name), canReview,
   };
 };
 const scheduleValues = (data: AnyRow) => ({
@@ -394,7 +398,8 @@ async function approvalRoleChain(organizationId: string) {
       or(eq(auditPermissions.key, "schedules.approve_reject"), eq(auditPermissions.key, "approve_reject"), eq(auditPermissions.key, "schedules")),
       eq(auditWorkspaceRolePermissions.grant, "full"),
     ));
-  const unique = [...new Map(rows.map(row => [row.id, row])).values()];
+  const unique = [...new Map(rows.map(row => [row.id, row])).values()]
+    .filter(role => /\bL\d+\b/i.test(role.name));
   return unique.sort((a, b) => {
     const level = (name: string) => Number(name.match(/\bL(\d+)\b/i)?.[1] ?? 999);
     return level(a.name) - level(b.name) || a.name.localeCompare(b.name);
@@ -412,6 +417,21 @@ async function roleUserIds(organizationId: string, roleId: string) {
   return rows.map(row => row.id);
 }
 
+async function canReviewApproval(req: Request, row: AnyRow) {
+  if (row.workflowState !== "submitted") return false;
+  const meta = scheduleMeta(row);
+  const role = (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0];
+  return Boolean(role && (req.permissionAdminBypass || (await roleUserIds(actor(req).organizationId, role.id)).includes(actor(req).id)));
+}
+
+async function programmeResponse(req: Request, row: AnyRow, childCount: number) {
+  return { ...programmeDto(row, childCount), canReview: await canReviewApproval(req, row) };
+}
+
+async function scheduleResponse(req: Request, row: AnyRow) {
+  return scheduleDto(row, await canReviewApproval(req, row));
+}
+
 router.get("/programmes", asyncHandler(async (req, res) => {
   const { page, limit } = pagination(req);
   const rows = await db.select().from(auditSchedules).where(active(auditSchedules, actor(req).organizationId)).orderBy(desc(auditSchedules.year), desc(auditSchedules.updatedAt));
@@ -419,8 +439,8 @@ router.get("/programmes", asyncHandler(async (req, res) => {
   const legacyCandidates = rows.filter(row => !isProgramme(row) && !scheduleMeta(row).parentId);
   const legacy = (await Promise.all(legacyCandidates.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const visibleProgrammes = (await Promise.all(programmes.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
-  const items = await Promise.all(visibleProgrammes.map(async row => programmeDto(row, (await programmeChildren(req, row.id)).length)));
-  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, approvalRoles: [] });
+  const items = await Promise.all(visibleProgrammes.map(async row => programmeResponse(req, row, (await programmeChildren(req, row.id)).length)));
+  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, approvalRoles: [], canReview: false });
   const offset = (page - 1) * limit;
   res.json(paginated(items.slice(offset, offset + limit), items.length, page, limit));
 }));
@@ -435,20 +455,20 @@ router.post("/programmes", asyncHandler(async (req, res) => {
     status: JSON.stringify({ programme: true, fromDate: data.fromDate, toDate: data.toDate }),
   }).returning();
   await auditLog(req, "create", "audit_programme", row.id, undefined, row);
-  res.status(201).json(programmeDto(row, 0));
+  res.status(201).json(await programmeResponse(req, row, 0));
 }));
 
 router.get("/programmes/:id", asyncHandler(async (req, res) => {
   if (String(req.params.id) === "legacy") {
     const children = await programmeChildren(req, "legacy");
     if (!children.length) throw new HttpError(404, "Audit programme not found");
-    res.json({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, approvalRoles: [] });
+    res.json({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, approvalRoles: [], canReview: false });
     return;
   }
   const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   if (!row || !scheduleMeta(row).programme) throw new HttpError(404, "Audit programme not found");
   if (!await scheduleInScope(req, row)) throw new HttpError(403, "You do not have access to this programme");
-  res.json(programmeDto(row, (await programmeChildren(req, row.id)).length));
+  res.json(await programmeResponse(req, row, (await programmeChildren(req, row.id)).length));
 }));
 
 router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
@@ -468,7 +488,7 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
   const recipients = await roleUserIds(actor(req).organizationId, roles[0].id);
   await Promise.all(recipients.filter(id => id !== actor(req).id).map(userId => notify(db, "audit", { organizationId: actor(req).organizationId, userId, type: "programme_submitted", title: "Audit programme awaiting approval", body: row.title, entityType: "audit_programme", entityId: row.id })));
   await auditLog(req, "submit", "audit_programme", row.id, before, row);
-  res.json(programmeDto(row, children.length));
+  res.json(await programmeResponse(req, row, children.length));
 }));
 
 router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
@@ -500,7 +520,7 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
     await Promise.all(recipients.map(userId => notify(db, "audit", { organizationId: actor(req).organizationId, userId, type: "programme_submitted", title: "Audit programme awaiting approval", body: row.title, entityType: "audit_programme", entityId: row.id })));
   }
   await auditLog(req, data.decision, "audit_programme", row.id, before, row);
-  res.json(programmeDto(row, (await programmeChildren(req, row.id)).length));
+  res.json(await programmeResponse(req, row, (await programmeChildren(req, row.id)).length));
 }));
 
 router.get("/schedules", asyncHandler(async (req, res) => {
@@ -515,7 +535,7 @@ router.get("/schedules", asyncHandler(async (req, res) => {
   });
   const scoped = (await Promise.all(filtered.map(async (row) => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const offset = (page - 1) * limit;
-  res.json(paginated(scoped.slice(offset, offset + limit).map(scheduleDto), scoped.length, page, limit));
+  res.json(paginated(await Promise.all(scoped.slice(offset, offset + limit).map(row => scheduleResponse(req, row))), scoped.length, page, limit));
 }));
 router.post("/schedules", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditScheduleBody, req);
@@ -615,33 +635,65 @@ router.post("/schedules/:id/submit", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   await assertChildSchedule(before);
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Schedule is not eligible for submission");
-  const [row] = await db.update(auditSchedules).set({ workflowState: "submitted", updatedAt: new Date() }).where(eq(auditSchedules.id, before.id)).returning();
-  const admins = await db.select({ id: users.id }).from(users).where(and(eq(users.organizationId, actor(req).organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt)));
-  await Promise.all(admins.filter((u) => u.id !== actor(req).id).map((u) => notify(db, "audit", {
-    organizationId: actor(req).organizationId, userId: u.id, type: "schedule_submitted",
+  if (!await scheduleInScope(req, before)) throw new HttpError(403, "You do not have access to this schedule");
+  const roles = await approvalRoleChain(actor(req).organizationId);
+  if (!roles.length) throw new HttpError(422, "No active sequential Audit approval roles are configured. Create roles named L1, L2, etc. with Approve / reject authorization.");
+  const unstaffed = (await Promise.all(roles.map(async role => (await roleUserIds(actor(req).organizationId, role.id)).length ? null : role.name))).filter(Boolean);
+  if (unstaffed.length) throw new HttpError(422, `Approval role has no active users: ${unstaffed.join(", ")}`);
+  const meta = scheduleMeta(before);
+  const [row] = await db.update(auditSchedules).set({
+    workflowState: "submitted",
+    status: JSON.stringify({ ...meta, approvalRoles: roles, approvalIndex: 0, reviewComments: null }),
+    updatedAt: new Date(),
+  }).where(and(eq(auditSchedules.id, before.id), eq(auditSchedules.workflowState, before.workflowState), eq(auditSchedules.status, before.status))).returning();
+  if (!row) throw new HttpError(409, "Schedule changed while it was being submitted");
+  const recipients = await roleUserIds(actor(req).organizationId, roles[0].id);
+  await Promise.all(recipients.filter(id => id !== actor(req).id).map(userId => notify(db, "audit", {
+    organizationId: actor(req).organizationId, userId, type: "schedule_submitted",
     title: "Audit schedule awaiting review", body: `${row.title} has been submitted.`, entityType: "audit_schedule", entityId: row.id,
   })));
   await auditLog(req, "submit", "audit_schedule", row.id, before, row);
-  res.json(scheduleDto(row));
+  res.json(await scheduleResponse(req, row));
 }));
-router.post("/schedules/:id/review", requireAuditAdmin, asyncHandler(async (req, res) => {
+router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.ReviewAuditScheduleBody, req);
   if (data.decision === "send_back" && !data.comments?.trim()) throw new HttpError(422, "Comments are required when sending back");
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   await assertChildSchedule(before);
   if (before.workflowState !== "submitted") throw new HttpError(409, "Only submitted schedules may be reviewed");
+  if (!await scheduleInScope(req, before)) throw new HttpError(403, "You do not have access to this schedule");
   const meta = scheduleMeta(before);
+  const role = (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0];
+  const allowed = req.permissionAdminBypass || (role ? (await roleUserIds(actor(req).organizationId, role.id)).includes(actor(req).id) : false);
+  if (!allowed && !req.permissionAdminBypass) {
+    const wasApprovalParticipant = (await Promise.all((meta.approvalRoles ?? []).map(candidate => roleUserIds(actor(req).organizationId, candidate.id))))
+      .some(ids => ids.includes(actor(req).id));
+    if (wasApprovalParticipant) throw new HttpError(409, "Schedule approval advanced before this review was applied");
+  }
+  if (!allowed) throw new HttpError(403, "Only the current approval role may review this schedule");
+  const nextIndex = (meta.approvalIndex ?? 0) + 1;
+  const complete = data.decision === "approve" && nextIndex >= (meta.approvalRoles ?? []).length;
   const [row] = await db.update(auditSchedules).set({
-    workflowState: data.decision === "approve" ? "approved" : "sent_back",
-    status: JSON.stringify({ ...meta, reviewComments: data.comments ?? null }), updatedAt: new Date(),
-  }).where(eq(auditSchedules.id, before.id)).returning();
-  if (before.ownerId) await notify(db, "audit", {
+    workflowState: data.decision === "send_back" ? "sent_back" : complete ? "approved" : "submitted",
+    status: JSON.stringify({ ...meta, approvalIndex: data.decision === "send_back" ? 0 : nextIndex, reviewComments: data.comments ?? null }),
+    updatedAt: new Date(),
+  }).where(and(eq(auditSchedules.id, before.id), eq(auditSchedules.workflowState, before.workflowState), eq(auditSchedules.status, before.status))).returning();
+  if (!row) throw new HttpError(409, "Schedule changed while it was being reviewed");
+  if ((data.decision === "send_back" || complete) && before.ownerId) await notify(db, "audit", {
     organizationId: actor(req).organizationId, userId: before.ownerId, type: "schedule_decision",
-    title: `Audit schedule ${data.decision === "approve" ? "approved" : "sent back"}`,
+    title: `Audit schedule ${data.decision === "send_back" ? "sent back" : "approved"}`,
     body: data.comments || row.title, entityType: "audit_schedule", entityId: row.id,
   });
+  if (data.decision === "approve" && !complete) {
+    const next = (meta.approvalRoles ?? [])[nextIndex];
+    const recipients = await roleUserIds(actor(req).organizationId, next.id);
+    await Promise.all(recipients.map(userId => notify(db, "audit", {
+      organizationId: actor(req).organizationId, userId, type: "schedule_submitted",
+      title: "Audit schedule awaiting review", body: row.title, entityType: "audit_schedule", entityId: row.id,
+    })));
+  }
   await auditLog(req, data.decision, "audit_schedule", row.id, before, row);
-  res.json(scheduleDto(row));
+  res.json(await scheduleResponse(req, row));
 }));
 
 const PLAN_LANGUAGE = "Verbal: English\nWriting: English";
@@ -1302,7 +1354,7 @@ router.get("/reports/schedule", asyncHandler(async (req, res) => {
     const ids = scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
     return scope.unrestricted || (ids.length > 0 && ids.every((id) => scope.projectIds.includes(id)));
   });
-  const rows = scoped.map(scheduleDto);
+  const rows = scoped.map(row => scheduleDto(row));
   if (!maybeCsv(req, res, "annual-audit-schedule", rows)) res.json(paginated(rows, rows.length, 1, Math.max(1, rows.length)));
 }));
 router.get("/audits/:id/report", asyncHandler(async (req, res) => {

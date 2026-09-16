@@ -61,4 +61,8 @@ export interface AuditSchedule {
   workflowState: WorkflowState;
   /** @nullable */
   reviewComments?: string | null;
+  /** @nullable */
+  readonly currentApprovalRole: string | null;
+  readonly approvalRoles: readonly string[];
+  readonly canReview: boolean;
 }

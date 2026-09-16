@@ -2223,7 +2223,7 @@ components:
       properties: {id: {type: string}, recordType: {type: string}, recordId: {type: string}, priority: {type: string}, level: {type: string}, dueAt: {type: string, format: date-time}, status: {type: string, enum: [open, resolved, paused]}, lastNotifiedAt: {type: [string, "null"], format: date-time}}
     AuditSchedule:
       type: object
-      required: [id, year, title, projectIds, plannedStartDate, plannedEndDate, workflowState]
+      required: [id, year, title, projectIds, plannedStartDate, plannedEndDate, workflowState, currentApprovalRole, approvalRoles, canReview]
       properties:
         id: {type: string}
         parentId: {type: [string, "null"], description: Parent audit programme identifier}
@@ -2257,9 +2257,12 @@ components:
         ownerId: {type: string}
         workflowState: {$ref: "#/components/schemas/WorkflowState"}
         reviewComments: {type: [string, "null"]}
+        currentApprovalRole: {type: [string, "null"], readOnly: true}
+        approvalRoles: {type: array, items: {type: string}, readOnly: true}
+        canReview: {type: boolean, readOnly: true}
     AuditProgramme:
       type: object
-      required: [id, title, fromDate, toDate, workflowState, childCount, currentApprovalRole, approvalRoles]
+      required: [id, title, fromDate, toDate, workflowState, childCount, currentApprovalRole, approvalRoles, canReview]
       properties:
         id: {type: string}
         title: {type: string}
@@ -2269,6 +2272,7 @@ components:
         childCount: {type: number}
         currentApprovalRole: {type: [string, "null"]}
         approvalRoles: {type: array, items: {type: string}}
+        canReview: {type: boolean, readOnly: true}
         ownerId: {type: [string, "null"]}
     AuditProgrammeInput:
       type: object
