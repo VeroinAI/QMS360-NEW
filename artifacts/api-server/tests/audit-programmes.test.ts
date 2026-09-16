@@ -107,6 +107,19 @@ beforeAll(async () => {
   await db.insert(masterDataValues).values({
     organizationId: orgId, groupId: auditCategoryGroup!.id, value: "Internal", label: "Internal",
   });
+  for (const [code, value] of [
+    ["audit_types", "Quality Internal Process Audit"],
+    ["audit_types", "Quality Internal Product Audit"],
+    ["departments", "Quality Department"],
+  ]) {
+    let [group] = await db.select().from(masterDataGroups).where(and(
+      eq(masterDataGroups.organizationId, orgId), eq(masterDataGroups.code, code),
+    ));
+    if (!group) {
+      [group] = await db.insert(masterDataGroups).values({ organizationId: orgId, code, name: code }).returning();
+    }
+    await db.insert(masterDataValues).values({ organizationId: orgId, groupId: group!.id, value, label: value });
+  }
 });
 
 afterAll(async () => {
@@ -216,5 +229,27 @@ describe("audit programme parent/child workflow", () => {
       plannedEndDate: "2026-10-01", workflowState: "Draft",
     });
     expect(invalidUpdate.status).toBe(422);
+  });
+
+  it("allows department-based Process audits without a project and keeps Product audits project-scoped", async () => {
+    const programme = await api("POST", "/programmes", creator.token, {
+      title: "Conditional scope programme", fromDate: "2026-01-01", toDate: "2026-12-31",
+    });
+    const base = {
+      id: crypto.randomUUID(), parentId: programme.json.id, year: 2026, title: "Conditional audit",
+      projectIds: [], auditCategory: "Internal", departmentProject: "Quality Department",
+      plannedStartDate: "2026-05-01", plannedEndDate: "2026-05-02", workflowState: "Draft",
+    };
+    const process = await api("POST", "/schedules", creator.token, {
+      ...base, auditTypes: ["Quality Internal Process Audit"],
+    });
+    expect(process.status).toBe(201);
+    expect(process.json.projectIds).toEqual([]);
+    expect(process.json.departmentProject).toBe("Quality Department");
+
+    const product = await api("POST", "/schedules", creator.token, {
+      ...base, id: crypto.randomUUID(), auditTypes: ["Quality Internal Product Audit"],
+    });
+    expect(product.status).toBe(422);
   });
 });

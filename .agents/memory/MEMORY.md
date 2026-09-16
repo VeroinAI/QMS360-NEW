@@ -22,3 +22,4 @@
 - [Admin bulk workflow transfers](admin-bulk-workflow-transfers.md) — admin queues use admin-role scope, not broader view scope; bulk transfers must be atomic before audit or notification.
 - [Two-phase attachment retries](two-phase-attachment-retries.md) — parent creation and evidence uploads must be independently idempotent to survive lost responses.
 - [Audit schedule programme guards](audit-schedule-programme-guards.md) — parent programmes share schedule storage; child endpoints must reject them and await every project-scope check.
+- [Process audit department scope](process-audit-department-scope.md) — Internal Process audits are department-based and projectless; authorize their full schedule-to-audit chain consistently.

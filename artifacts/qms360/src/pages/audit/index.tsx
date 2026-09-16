@@ -37,7 +37,6 @@ import {
   useReviewCarExtension,
   useReviewCorrectiveActionReport,
   useShareAuditPlan,
-  useSubmitAuditSchedule,
   useSubmitCorrectiveActionReport,
   useUpdateAuditChecklist,
   useUpdateAuditClosingMeeting,
@@ -58,7 +57,7 @@ import type {
 } from "@workspace/api-client-react";
 import {
   AlertTriangle, ArrowLeft, BarChart3, CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck,
-  Download, Eye, FileText, FolderOpen, MapPin, Pencil, Plus, Printer, Search, Share2, ShieldCheck,
+  Download, Eye, FileText, FolderOpen, Pencil, Plus, Printer, Search, Share2, ShieldCheck,
   Trash2, Upload, XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -92,13 +91,12 @@ const PAGE_SIZE = 10;
 const date = (value?: string | null) => value ? new Date(value).toLocaleDateString() : "—";
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Something went wrong.";
 const fileSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-type QueuedAttachment = { file: File; clientReference: string };
 type ProgrammeRange = { fromDate: string; toDate: string };
+const PROCESS_AUDIT_TYPE = "Quality Internal Process Audit";
+const PRODUCT_AUDIT_TYPE = "Quality Internal Product Audit";
 const scheduleImportHeaders = [
   "Audit Type", "Audit Category", "Department / Project", "Location", "Audit Title",
-  "Process / Product Owner", "From Date", "To Date", "Remarks", "Name of L1",
-  "L1 Review Status", "L1 Review Comments", "Name of L2", "L2 Review Status",
-  "L2 Review Comments", "Memo Description", "Memo Circulation",
+  "Process / Product Owner", "From Date", "To Date", "Remarks",
 ];
 const normalizeHeader = (value: unknown) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 const scheduleHeaderAliases: Record<string, string> = {
@@ -106,9 +104,7 @@ const scheduleHeaderAliases: Record<string, string> = {
   departmentproject: "departmentProject", project: "departmentProject", location: "location",
   audittitle: "title", processeeproductowner: "processProductOwner", processproductowner: "processProductOwner",
   fromdate: "plannedStartDate", startdate: "plannedStartDate", todate: "plannedEndDate", enddate: "plannedEndDate",
-  remarks: "remarks", nameofl1: "l1Name", l1name: "l1Name", l1reviewstatus: "l1ReviewStatus",
-  l1reviewcomments: "l1ReviewComments", nameofl2: "l2Name", l2name: "l2Name", l2reviewstatus: "l2ReviewStatus",
-  l2reviewcomments: "l2ReviewComments", memodescription: "memoDescription", memocirculation: "memoCirculation",
+  remarks: "remarks",
 };
 const scheduleDate = (value: unknown) => {
   if (value instanceof Date) {
@@ -142,10 +138,10 @@ const workbookDownload = (rows: Record<string, unknown>[], fileName: string, ran
   const instructions = [
     ["Audit Schedule Import Instructions"],
     ["Template columns", scheduleImportHeaders.join(", ")],
-    ["Mandatory columns", "Audit Type, Audit Category, Department / Project, Location, Audit Title, Process / Product Owner, From Date, To Date, Name of L1, Name of L2, Memo Description, Memo Circulation"],
+    ["Mandatory columns", "Audit Type, Audit Category, Department / Project, Audit Title, Process / Product Owner, From Date, To Date"],
     ["Date format", "YYYY-MM-DD"],
     ["Parent range", range ? `${range.fromDate} through ${range.toDate}` : "No parent range"],
-    ["Department / Project", "Use the active project code or exact project name."],
+    ["Department / Project", `For ${PROCESS_AUDIT_TYPE}, use an active department value or exact name. For ${PRODUCT_AUDIT_TYPE}, use an active project code or exact project name.`],
   ];
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(instructions), "Instructions");
   XLSX.writeFile(workbook, fileName);
@@ -216,8 +212,6 @@ function Metric({ label, value, icon }: { label: string; value: number; icon: Re
 function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: AuditSchedule; onClose: () => void; parentId?: string; parentRange?: ProgrammeRange }) {
   const qc = useQueryClient(); const { toast } = useToast();
   const fc = useFieldControls("audit", "schedule"); const ro = (key: string) => fc.fieldProps(key).disabled; const req = (key: string) => fc.fieldProps(key).required;
-  const [l1Files, setL1Files] = useState<QueuedAttachment[]>([]);
-  const [l2Files, setL2Files] = useState<QueuedAttachment[]>([]);
   const [createdScheduleId, setCreatedScheduleId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<AuditSchedule>(initial ?? {
@@ -230,28 +224,30 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     l2Attachments: [], memoDescription: "", memoCirculation: "", ownerId: "", workflowState: "Draft"
   });
   const create = useCreateAuditSchedule(); const update = useUpdateAuditSchedule();
-  const evidenceIntent = useCreateAuditEvidenceIntent(); const confirmEvidence = useConfirmAuditEvidence();
   const auditTypes = useLov("audit_types");
   const auditCategories = useLov("audit_categories");
   const processOwners = useLov("process_product_owners");
-  const auditLevels = useLov("audit_levels");
+  const departments = useLov("departments");
   const projects = useListPlatformProjects({ page: 1, limit: 200 });
   const projectRows = projects.data?.items ?? [];
   const projectOptions = projectRows.map(project => ({
     value: project.id,
     label: project.code ? `${project.code} — ${project.name}` : project.name,
   }));
+  const selectedAuditType = form.auditTypes?.[0] ?? "";
+  const selectedAuditTypeLabel = auditTypes.options.find(option => option.value === selectedAuditType)?.label;
+  const isProcessAudit = selectedAuditType === PROCESS_AUDIT_TYPE || selectedAuditTypeLabel === PROCESS_AUDIT_TYPE;
   const selectedProjectId = form.projectIds?.[0]
     ?? projectRows.find(project => project.name === form.departmentProject)?.id
     ?? "";
   useEffect(() => {
-    if (!projectRows.length) return;
+    if (isProcessAudit || !projectRows.length) return;
     const selected = form.projectIds?.[0]
       ? projectRows.find(project => project.id === form.projectIds![0])
       : projectRows.find(project => project.name === form.departmentProject);
     if (!selected || (form.projectIds?.[0] === selected.id && form.departmentProject === selected.name)) return;
     setForm(current => ({ ...current, projectIds: [selected.id], departmentProject: selected.name }));
-  }, [projectRows, form.projectIds, form.departmentProject]);
+  }, [isProcessAudit, projectRows, form.projectIds, form.departmentProject]);
   const selectProject = (projectId: string) => {
     const project = projectRows.find(item => item.id === projectId);
     setForm(current => ({
@@ -267,42 +263,33 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
       return next;
     });
   };
-  const uploadAttachment = async ({ file, clientReference }: QueuedAttachment, category: "l1-review" | "l2-review", scheduleId: string) => {
-    const intent = await evidenceIntent.mutateAsync({ data: {
-      recordType: "audit_schedule", recordId: scheduleId, category, fileName: file.name,
-      mimeType: file.type || "application/octet-stream", sizeBytes: file.size, clientReference,
-    } });
-    const token = localStorage.getItem("qms360_token");
-    const response = await fetch(intent.uploadUrl, {
-      method: "PUT",
-      body: file,
-      headers: {
-        "Content-Type": file.type || "application/octet-stream",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+  const selectAuditType = (value: string) => {
+    setForm(current => ({ ...current, auditTypes: [value], projectIds: [], departmentProject: "" }));
+    setErrors(current => {
+      const next = { ...current };
+      delete next.auditTypes;
+      delete next.departmentProject;
+      delete next.projectIds;
+      return next;
     });
-    if (!response.ok) {
-      const result = await response.json().catch(() => null);
-      throw new Error(result?.error ?? `Unable to upload ${file.name}`);
-    }
-    await confirmEvidence.mutateAsync({ id: intent.id });
   };
-  const uploadQueuedAttachments = async (scheduleId: string) => {
-    for (const attachment of l1Files) {
-      await uploadAttachment(attachment, "l1-review", scheduleId);
-      setL1Files(current => current.filter(item => item.clientReference !== attachment.clientReference));
-    }
-    for (const attachment of l2Files) {
-      await uploadAttachment(attachment, "l2-review", scheduleId);
-      setL2Files(current => current.filter(item => item.clientReference !== attachment.clientReference));
-    }
+  const selectedDepartmentValue = departments.options.find(option =>
+    option.value === form.departmentProject || option.label === form.departmentProject)?.value ?? form.departmentProject ?? "";
+  const selectDepartment = (value: string) => {
+    const department = departments.options.find(option => option.value === value);
+    setForm(current => ({ ...current, projectIds: [], departmentProject: department?.label ?? value }));
+    setErrors(current => {
+      const next = { ...current };
+      delete next.departmentProject;
+      delete next.projectIds;
+      return next;
+    });
   };
   const save = async () => {
     const missing: Record<string, string> = {};
     if (!form.auditTypes?.length) missing.auditTypes = "Audit Type is required.";
     if (!form.auditCategory) missing.auditCategory = "Audit Category is required.";
-    if (!form.projectIds?.length || !form.departmentProject?.trim()) missing.departmentProject = "Department / Project is required.";
-    if (!form.location?.trim()) missing.location = "Location is required.";
+    if (!form.departmentProject?.trim() || (!isProcessAudit && !form.projectIds?.length)) missing.departmentProject = `${isProcessAudit ? "Department" : "Project"} is required.`;
     if (!form.title.trim()) missing.title = "Audit Title is required.";
     if (!form.processProductOwner?.trim()) missing.processProductOwner = "Process / Product Owner is required.";
     if (!form.plannedStartDate) missing.plannedStartDate = "From Date is required.";
@@ -310,13 +297,9 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     if (!missing.plannedStartDate && !missing.plannedEndDate && form.plannedEndDate.slice(0, 10) < form.plannedStartDate.slice(0, 10)) missing.plannedEndDate = "To Date must be on or after From Date.";
     if (parentRange && form.plannedStartDate && form.plannedStartDate.slice(0, 10) < parentRange.fromDate) missing.plannedStartDate = `From Date must be on or after ${parentRange.fromDate}.`;
     if (parentRange && form.plannedEndDate && form.plannedEndDate.slice(0, 10) > parentRange.toDate) missing.plannedEndDate = `To Date must be on or before ${parentRange.toDate}.`;
-    if (!form.l1Name?.trim()) missing.l1Name = "Name of L1 is required.";
-    if (form.l1ReviewStatus === "Send Back" && !form.l1ReviewComments?.trim()) missing.l1ReviewComments = "L1 Review Comments are required when sending back.";
-    if (!form.l2Name?.trim()) missing.l2Name = "Name of L2 is required.";
-    if (form.l2ReviewStatus === "Send Back" && !form.l2ReviewComments?.trim()) missing.l2ReviewComments = "L2 Review Comments are required when sending back.";
-    if (!form.memoDescription?.trim()) missing.memoDescription = "Memo Description is required.";
-    if (!form.memoCirculation?.trim()) missing.memoCirculation = "Memo Circulation is required.";
+    const alwaysOptional = new Set(["location", "l1Name", "l1ReviewStatus", "l1ReviewComments", "l1Attachments", "l2Name", "l2ReviewStatus", "l2ReviewComments", "l2Attachments", "memoDescription", "memoCirculation"]);
     for (const key of fc.mandatoryFieldKeys()) {
+      if (alwaysOptional.has(key)) continue;
       if (missing[key]) continue;
       const value = (form as unknown as Record<string, unknown>)[key];
       const empty = Array.isArray(value) ? value.length === 0 : value == null || (typeof value === "string" && !value.trim());
@@ -344,17 +327,14 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
         savedScheduleId = form.id;
         setCreatedScheduleId(savedScheduleId);
       }
-      await uploadQueuedAttachments(savedScheduleId);
       qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
       qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] });
       toast({ title: initial ? "Schedule updated" : "Schedule created" });
       onClose();
     } catch (e) {
       toast({
-        title: savedScheduleId ? "Schedule saved; attachment upload needs retry" : "Unable to save",
-        description: savedScheduleId
-          ? `${errorText(e)} Select Save schedule to retry only the remaining attachment files.`
-          : errorText(e),
+        title: "Unable to save",
+        description: errorText(e),
         variant: "destructive",
       });
     }
@@ -369,61 +349,35 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
       return next;
     });
   };
-  const captureGps = () => {
-    if (!navigator.geolocation) {
-      toast({ title: "Location unavailable", description: "This browser does not support GPS location.", variant: "destructive" });
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const gpsLat = Number(position.coords.latitude.toFixed(6));
-        const gpsLng = Number(position.coords.longitude.toFixed(6));
-        setForm(current => ({ ...current, gpsLat, gpsLng, location: `${gpsLat}, ${gpsLng}` }));
-        setErrors(current => {
-          if (!current.location) return current;
-          const next = { ...current };
-          delete next.location;
-          return next;
-        });
-        toast({ title: "Location captured" });
-      },
-      () => toast({ title: "Location permission denied", description: "Allow location access and try again.", variant: "destructive" }),
-      { enableHighAccuracy: true },
-    );
-  };
   const error = (key: keyof AuditSchedule) => errors[key] ? <p className="mt-1 text-sm font-medium text-destructive" role="alert">{errors[key]}</p> : null;
   const invalid = (key: keyof AuditSchedule) => errors[key] ? "border-destructive focus-visible:ring-destructive" : "";
-  const files = (key: "l1Attachments" | "l2Attachments", list: FileList | null) => {
-    const selected = Array.from(list ?? []);
-    field(key, selected.map(file => file.name));
-    const queued = selected.map(file => ({ file, clientReference: crypto.randomUUID() }));
-    if (key === "l1Attachments") setL1Files(queued); else setL2Files(queued);
-  };
   return <div className="grid gap-4 py-2">
-    <div id="schedule-auditTypes"><Label>1. Audit Type *</Label><Select value={form.auditTypes?.[0] ?? ""} disabled={auditTypes.isLoading || ro("auditTypes")} onValueChange={v => field("auditTypes", [v])}><SelectTrigger aria-invalid={!!errors.auditTypes} className={invalid("auditTypes")}><SelectValue placeholder="Select audit type"/></SelectTrigger><SelectContent>{withLegacyOption(auditTypes.options, form.auditTypes?.[0]).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditTypes")}</div>
+    <div id="schedule-auditTypes"><Label>1. Audit Type *</Label><Select value={form.auditTypes?.[0] ?? ""} disabled={auditTypes.isLoading || ro("auditTypes")} onValueChange={selectAuditType}><SelectTrigger aria-invalid={!!errors.auditTypes} className={invalid("auditTypes")}><SelectValue placeholder="Select audit type"/></SelectTrigger><SelectContent>{withLegacyOption(auditTypes.options, form.auditTypes?.[0]).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditTypes")}</div>
     <div id="schedule-auditCategory"><Label>2. Audit Category *</Label><Select value={form.auditCategory ?? ""} disabled={auditCategories.isLoading || ro("auditCategory")} onValueChange={v => field("auditCategory", v)}><SelectTrigger aria-invalid={!!errors.auditCategory} className={invalid("auditCategory")}><SelectValue placeholder="Select category"/></SelectTrigger><SelectContent>{withLegacyOption(auditCategories.options, form.auditCategory).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditCategory")}</div>
     <div id="schedule-departmentProject">
-      <Label>3. Department / Project *</Label>
-      <Select
-        value={selectedProjectId}
-        disabled={projects.isLoading || projects.isError || projectOptions.length === 0 || ro("departmentProject")}
-        onValueChange={selectProject}
-      >
+      <Label>3. {isProcessAudit ? "Department" : "Project"} *</Label>
+      <Select value={isProcessAudit ? selectedDepartmentValue : selectedProjectId}
+        disabled={isProcessAudit ? departments.isLoading || ro("departmentProject") : projects.isLoading || projects.isError || projectOptions.length === 0 || ro("departmentProject")}
+        onValueChange={isProcessAudit ? selectDepartment : selectProject}>
         <SelectTrigger aria-invalid={!!errors.departmentProject} className={invalid("departmentProject")}>
-          <SelectValue placeholder={projects.isLoading ? "Loading projects…" : "Select project"} />
+          <SelectValue placeholder={isProcessAudit ? (departments.isLoading ? "Loading departments…" : "Select department") : (projects.isLoading ? "Loading projects…" : "Select project")} />
         </SelectTrigger>
         <SelectContent>
-          {projectOptions.map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}
+          {(isProcessAudit ? withLegacyOption(departments.options, form.departmentProject) : projectOptions).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}
         </SelectContent>
       </Select>
-      {projects.isError
+      {isProcessAudit && departments.error
+        ? <p className="mt-1 text-sm text-destructive" role="alert">Departments could not be loaded. Ask an administrator to configure the departments master-data list.</p>
+        : isProcessAudit && !departments.isLoading && departments.options.length === 0
+          ? <p className="mt-1 text-sm text-muted-foreground">No active departments are available in master data.</p>
+          : !isProcessAudit && projects.isError
         ? <p className="mt-1 text-sm text-destructive" role="alert">Projects could not be loaded. Please try again or contact an administrator.</p>
         : !projects.isLoading && projectOptions.length === 0
           ? <p className="mt-1 text-sm text-muted-foreground">No active projects are available. Ask an administrator to add a project in organization settings.</p>
           : null}
       {error("departmentProject")}
     </div>
-     <div id="schedule-location"><Label>4. Location (GPS) *</Label><Button type="button" variant="outline" className={`w-full justify-start ${invalid("location")}`} onClick={captureGps} disabled={ro("location")}><MapPin className="mr-2 size-4" />Capture GPS</Button>{form.gpsLat != null && form.gpsLng != null && <p className="mt-2 text-xs text-muted-foreground">{form.gpsLat.toFixed(5)}, {form.gpsLng.toFixed(5)}</p>}{error("location")}</div>
+    <div id="schedule-location"><Label>4. Location</Label><Input value={form.location ?? ""} disabled={ro("location")} onChange={e => field("location", e.target.value)} placeholder="Optional"/></div>
     <div id="schedule-title"><Label>5. Audit Title *</Label><Input aria-invalid={!!errors.title} className={invalid("title")} value={form.title} disabled={ro("title")} onChange={e => field("title", e.target.value)}/>{error("title")}</div>
     <div id="schedule-processProductOwner"><Label>6. Process / Product Owner *</Label><Select value={form.processProductOwner ?? ""} disabled={processOwners.isLoading || ro("processProductOwner")} onValueChange={v => field("processProductOwner", v)}><SelectTrigger aria-invalid={!!errors.processProductOwner} className={invalid("processProductOwner")}><SelectValue placeholder="Select owner"/></SelectTrigger><SelectContent>{withLegacyOption(processOwners.options, form.processProductOwner).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("processProductOwner")}</div>
      <div className="grid grid-cols-2 gap-3"><div id="schedule-plannedStartDate"><Label>7. From Date *</Label><Input aria-invalid={!!errors.plannedStartDate} className={invalid("plannedStartDate")} type="date" min={parentRange?.fromDate} max={parentRange?.toDate} value={form.plannedStartDate.slice(0,10)} disabled={ro("plannedStartDate")} onChange={e => field("plannedStartDate", e.target.value)}/>{error("plannedStartDate")}</div><div id="schedule-plannedEndDate"><Label>To Date *</Label><Input aria-invalid={!!errors.plannedEndDate} className={invalid("plannedEndDate")} type="date" min={parentRange?.fromDate} max={parentRange?.toDate} value={form.plannedEndDate.slice(0,10)} disabled={ro("plannedEndDate")} onChange={e => field("plannedEndDate", e.target.value)}/>{error("plannedEndDate")}</div></div>
@@ -432,21 +386,11 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     <div><Label>10. QA/QC Scope *</Label><Input readOnly value={form.qaqcScope ?? ""}/></div>
     <div><Label>11. QA/QC Clauses *</Label><Input readOnly value={form.qaqcClauses ?? ""}/></div>
     <div><Label>12. Remarks{req("remarks") ? " *" : ""}</Label><Textarea value={form.remarks ?? ""} disabled={ro("remarks")} onChange={e => field("remarks", e.target.value)}/></div>
-    <div id="schedule-l1Name"><Label>13. Name of L1 *</Label><Select value={form.l1Name ?? ""} disabled={auditLevels.isLoading || ro("l1Name")} onValueChange={v => field("l1Name", v)}><SelectTrigger aria-invalid={!!errors.l1Name} className={invalid("l1Name")}><SelectValue placeholder="Select L1 name"/></SelectTrigger><SelectContent>{withLegacyOption(auditLevels.options, form.l1Name).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("l1Name")}</div>
-    <div><Label>14. L1 Review Status *</Label><Select value={form.l1ReviewStatus ?? "Pending"} disabled={ro("l1ReviewStatus")} onValueChange={v => field("l1ReviewStatus", v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pending">Pending</SelectItem><SelectItem value="Accept">Accept</SelectItem><SelectItem value="Send Back">Send Back</SelectItem></SelectContent></Select></div>
-    <div id="schedule-l1ReviewComments"><Label>15. L1 Review Comments {form.l1ReviewStatus === "Send Back" ? "*" : ""}</Label><Textarea aria-invalid={!!errors.l1ReviewComments} className={invalid("l1ReviewComments")} value={form.l1ReviewComments ?? ""} disabled={ro("l1ReviewComments")} onChange={e => field("l1ReviewComments", e.target.value)}/>{error("l1ReviewComments")}</div>
-    <div><Label>16. L1 Attachments</Label><div className="flex items-center gap-3"><Button type="button" size="sm" variant="outline" asChild><label><Upload className="mr-2 h-4 w-4" />Add files<input type="file" multiple className="hidden" onChange={e => files("l1Attachments", e.target.files)}/></label></Button>{l1Files.length > 0 && <span className="text-xs text-muted-foreground">{l1Files.length} file{l1Files.length > 1 ? "s" : ""} selected — uploaded on save</span>}</div></div>
-    <div id="schedule-l2Name"><Label>17. Name of L2 *</Label><Select value={form.l2Name ?? ""} disabled={auditLevels.isLoading || ro("l2Name")} onValueChange={v => field("l2Name", v)}><SelectTrigger aria-invalid={!!errors.l2Name} className={invalid("l2Name")}><SelectValue placeholder="Select L2 name"/></SelectTrigger><SelectContent>{withLegacyOption(auditLevels.options, form.l2Name).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("l2Name")}</div>
-    <div><Label>18. L2 Review Status *</Label><Select value={form.l2ReviewStatus ?? "Pending"} disabled={ro("l2ReviewStatus")} onValueChange={v => field("l2ReviewStatus", v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="Pending">Pending</SelectItem><SelectItem value="Accept">Accept</SelectItem><SelectItem value="Send Back">Send Back</SelectItem></SelectContent></Select></div>
-    <div id="schedule-l2ReviewComments"><Label>19. L2 Review Comments {form.l2ReviewStatus === "Send Back" ? "*" : ""}</Label><Textarea aria-invalid={!!errors.l2ReviewComments} className={invalid("l2ReviewComments")} value={form.l2ReviewComments ?? ""} disabled={ro("l2ReviewComments")} onChange={e => field("l2ReviewComments", e.target.value)}/>{error("l2ReviewComments")}</div>
-    <div><Label>20. L2 Attachments</Label><div className="flex items-center gap-3"><Button type="button" size="sm" variant="outline" asChild><label><Upload className="mr-2 h-4 w-4" />Add files<input type="file" multiple className="hidden" onChange={e => files("l2Attachments", e.target.files)}/></label></Button>{l2Files.length > 0 && <span className="text-xs text-muted-foreground">{l2Files.length} file{l2Files.length > 1 ? "s" : ""} selected — uploaded on save</span>}</div></div>
-    <div id="schedule-memoDescription"><Label>21. Memo Description *</Label><Textarea aria-invalid={!!errors.memoDescription} className={invalid("memoDescription")} value={form.memoDescription ?? ""} disabled={ro("memoDescription")} onChange={e => field("memoDescription", e.target.value)}/>{error("memoDescription")}</div>
-    <div id="schedule-memoCirculation"><Label>22. Memo Circulation *</Label><Input aria-invalid={!!errors.memoCirculation} className={invalid("memoCirculation")} value={form.memoCirculation ?? ""} disabled={ro("memoCirculation")} onChange={e => field("memoCirculation", e.target.value)}/>{error("memoCirculation")}</div>
-    <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={() => void save()} disabled={create.isPending || update.isPending || evidenceIntent.isPending || confirmEvidence.isPending}>Save schedule</Button></DialogFooter>
+    <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={() => void save()} disabled={create.isPending || update.isPending}>Save schedule</Button></DialogFooter>
   </div>;
 }
 
-function ScheduleGantt({ items, onDisplay }: { items: AuditSchedule[]; onDisplay: (item: AuditSchedule) => void }) {
+function ScheduleGantt({ items, onDisplay, onNewPlan }: { items: AuditSchedule[]; onDisplay: (item: AuditSchedule) => void; onNewPlan: (item: AuditSchedule) => void }) {
   if (items.length === 0) return null;
 
   const year = items[0]?.year ?? new Date().getFullYear();
@@ -500,6 +444,7 @@ function ScheduleGantt({ items, onDisplay }: { items: AuditSchedule[]; onDisplay
                     {item.title}
                   </Button>
                   <div className="mt-1.5 text-xs text-muted-foreground font-medium">{item.departmentProject || "—"}</div>
+                  <Button size="sm" variant="outline" className="mt-2 h-7 w-fit text-xs" onClick={() => onNewPlan(item)}><Plus className="mr-1 size-3"/>New Plan</Button>
                 </div>
                 <div className="w-[180px] shrink-0 border-r p-3 text-xs flex items-center">
                   <span className="line-clamp-2 leading-relaxed text-muted-foreground">{item.processProductOwner || "—"}</span>
@@ -598,15 +543,17 @@ function Schedules() {
   const { parentId = "" } = useParams<{ parentId: string }>();
   const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false); const [displaying, setDisplaying] = useState<AuditSchedule | undefined>();
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
+  const [planning, setPlanning] = useState<AuditSchedule | undefined>();
   const query = useListAuditSchedules({ page, limit: PAGE_SIZE, parentId }); const qc = useQueryClient(); const { toast } = useToast();
   const programme = useGetAuditProgramme(parentId, { query: { enabled: parentId !== "legacy" && !!parentId, queryKey: getGetAuditProgrammeQueryKey(parentId) } });
   const allChildren = useListAuditSchedules({ page: 1, limit: 200, parentId });
   const projects = useListPlatformProjects({ page: 1, limit: 200 });
+  const departments = useLov("departments");
   const create = useCreateAuditSchedule();
   const fileInput = useRef<HTMLInputElement>(null);
   const [loadingFile, setLoadingFile] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const remove = useDeleteAuditSchedule(); const submit = useSubmitAuditSchedule(); const review = useReviewAuditSchedule();
+  const remove = useDeleteAuditSchedule(); const review = useReviewAuditSchedule();
   const items = (query.data?.items ?? []).filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
   const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] }); qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] }); toast({ title: message }); };
   const sendBack = (id: string) => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id, data: { decision: "send_back", comments } }, { onSuccess: () => done("Schedule sent back") }); };
@@ -625,11 +572,7 @@ function Schedules() {
       "Audit Type": item.auditTypes?.join(", ") ?? "", "Audit Category": item.auditCategory ?? "",
       "Department / Project": item.departmentProject ?? "", Location: item.location ?? "", "Audit Title": item.title,
       "Process / Product Owner": item.processProductOwner ?? "", "From Date": item.plannedStartDate.slice(0, 10),
-      "To Date": item.plannedEndDate.slice(0, 10), Remarks: item.remarks ?? "", "Name of L1": item.l1Name ?? "",
-      "L1 Review Status": item.l1ReviewStatus ?? "Pending", "L1 Review Comments": item.l1ReviewComments ?? "",
-      "Name of L2": item.l2Name ?? "", "L2 Review Status": item.l2ReviewStatus ?? "Pending",
-      "L2 Review Comments": item.l2ReviewComments ?? "", "Memo Description": item.memoDescription ?? "",
-      "Memo Circulation": item.memoCirculation ?? "",
+      "To Date": item.plannedEndDate.slice(0, 10), Remarks: item.remarks ?? "",
       }));
       workbookDownload(rows, `audit-schedule-${parentId}.xlsx`, range);
     } catch (error) {
@@ -662,28 +605,33 @@ function Schedules() {
       for (let index = 0; index < rows.length; index += 1) {
         const source = rows[index]; const mapped: Record<string, unknown> = {};
         Object.entries(source).forEach(([key, value]) => { const target = scheduleHeaderAliases[normalizeHeader(key)]; if (target) mapped[target] = value; });
-        const projectText = String(mapped.departmentProject ?? "").trim();
-        const project = projectRows.find(item => item.code === projectText || item.name === projectText);
+        const departmentProjectText = String(mapped.departmentProject ?? "").trim();
+        const importedAuditTypes = String(mapped.auditTypes).split(",").map(value => value.trim()).filter(Boolean);
+        const isImportedProcessAudit = importedAuditTypes.includes(PROCESS_AUDIT_TYPE);
+        const project = isImportedProcessAudit ? undefined : projectRows.find(item => item.code === departmentProjectText || item.name === departmentProjectText);
+        const department = isImportedProcessAudit
+          ? departments.options.find(item => item.value === departmentProjectText || item.label === departmentProjectText)
+          : undefined;
         const start = scheduleDate(mapped.plannedStartDate); const end = scheduleDate(mapped.plannedEndDate);
-        const required = ["auditTypes", "auditCategory", "departmentProject", "location", "title", "processProductOwner", "plannedStartDate", "plannedEndDate", "l1Name", "l2Name", "memoDescription", "memoCirculation"];
+        const required = ["auditTypes", "auditCategory", "departmentProject", "title", "processProductOwner", "plannedStartDate", "plannedEndDate"];
         const missing = required.filter(key => !String(mapped[key] ?? "").trim());
         if (missing.length) { failures.push(`row ${index + 2}: missing ${missing.join(", ")}`); continue; }
         if (!start || !end) { failures.push(`row ${index + 2}: From Date and To Date must be valid calendar dates in YYYY-MM-DD format`); continue; }
-        if (!project) { failures.push(`row ${index + 2}: Department / Project must be an active project code or exact name`); continue; }
+        if (isImportedProcessAudit && !department) { failures.push(`row ${index + 2}: Department / Project must be an active department value or exact name`); continue; }
+        if (!isImportedProcessAudit && !project) { failures.push(`row ${index + 2}: Department / Project must be an active project code or exact name`); continue; }
         if (end < start) { failures.push(`row ${index + 2}: To Date must be on or after From Date`); continue; }
         if (range && (start < range.fromDate || end > range.toDate)) { failures.push(`row ${index + 2}: dates must be within ${range.fromDate} and ${range.toDate}`); continue; }
         const rowParentId = parentId === "legacy" ? null : parentId;
         const dataWithoutId = {
           parentId: rowParentId, year: Number(start.slice(0, 4)),
-          title: String(mapped.title), projectIds: [project.id], auditTypes: String(mapped.auditTypes).split(",").map(x => x.trim()).filter(Boolean),
-          auditCategory: String(mapped.auditCategory), departmentProject: project.name, location: String(mapped.location),
+          title: String(mapped.title), projectIds: project ? [project.id] : [], auditTypes: importedAuditTypes,
+          auditCategory: String(mapped.auditCategory), departmentProject: department?.label ?? project?.name ?? "", location: String(mapped.location ?? ""),
           processProductOwner: String(mapped.processProductOwner), plannedStartDate: start, plannedEndDate: end,
           qaqcReference: `QAM-IA/${start.slice(2, 4)}-`, auditNumber: `AUD-${start.slice(0, 4)}-`,
           qaqcScope: "System and Process audits against ISO 9001:2015", qaqcClauses: "ISO 9001 — All clauses",
-          remarks: String(mapped.remarks ?? ""), l1Name: String(mapped.l1Name), l1ReviewStatus: String(mapped.l1ReviewStatus || "Pending") as AuditSchedule["l1ReviewStatus"],
-          l1ReviewComments: String(mapped.l1ReviewComments ?? ""), l1Attachments: [], l2Name: String(mapped.l2Name),
-          l2ReviewStatus: String(mapped.l2ReviewStatus || "Pending") as AuditSchedule["l2ReviewStatus"], l2ReviewComments: String(mapped.l2ReviewComments ?? ""),
-          l2Attachments: [], memoDescription: String(mapped.memoDescription), memoCirculation: String(mapped.memoCirculation), ownerId: "", workflowState: "Draft",
+          remarks: String(mapped.remarks ?? ""), l1Name: "", l1ReviewStatus: "Pending" as const,
+          l1ReviewComments: "", l1Attachments: [], l2Name: "", l2ReviewStatus: "Pending" as const, l2ReviewComments: "",
+          l2Attachments: [], memoDescription: "", memoCirculation: "", ownerId: "", workflowState: "Draft",
         };
         const data: AuditSchedule = {
           ...dataWithoutId,
@@ -711,15 +659,17 @@ function Schedules() {
       </div>
     </div>
      <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit audit" : "Create audit"}</DialogTitle></DialogHeader><ScheduleForm initial={editing} parentId={parentId === "legacy" ? undefined : parentId} parentRange={range} onClose={() => setOpen(false)}/></DialogContent></Dialog>
+    <Dialog open={!!planning} onOpenChange={isOpen => !isOpen && setPlanning(undefined)}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader>{planning && <PlanForm schedules={[planning]} presetSchedule={planning} onClose={() => setPlanning(undefined)}/>}</DialogContent></Dialog>
     <Dialog open={!!displaying} onOpenChange={isOpen => !isOpen && setDisplaying(undefined)}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">{displaying && <ScheduleDisplay schedule={displaying} onClose={() => setDisplaying(undefined)}/>}</DialogContent></Dialog>
     <State loading={query.isLoading} error={query.error} empty={!items.length}/>
     {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
       <Button size="sm" variant="outline" onClick={() => setDisplaying(item)}>Display</Button>
-      {item.workflowState === "Draft" && <><Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button><Button size="sm" onClick={() => submit.mutate({ id: item.id }, { onSuccess: () => done("Schedule submitted") })}>Submit</Button></>}
+      <Button size="sm" onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>
+      {item.workflowState === "Draft" && <Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button>}
       {item.workflowState === "Submitted" && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved") })}>Approve</Button><Button size="sm" variant="outline" onClick={() => sendBack(item.id)}>Send back</Button></>}
       <Button size="icon" variant="ghost" aria-label="Delete" onClick={() => window.confirm("Soft-delete this schedule?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Schedule deleted") })}><Trash2 className="size-4"/></Button>
     </div></TableCell></TableRow>)}</TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card>}
-    {items.length > 0 && viewMode === "gantt" && <div className="space-y-4"><ScheduleGantt items={items} onDisplay={setDisplaying} /><Card className="bg-transparent border-none shadow-none"><CardContent className="p-0"><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card></div>}
+    {items.length > 0 && viewMode === "gantt" && <div className="space-y-4"><ScheduleGantt items={items} onDisplay={setDisplaying} onNewPlan={setPlanning}/><Card className="bg-transparent border-none shadow-none"><CardContent className="p-0"><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card></div>}
   </div>;
 }
 
@@ -787,14 +737,15 @@ function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClo
     <DialogFooter><Button onClick={onClose}>Close</Button></DialogFooter></>;
 }
 
-function PlanForm({ schedules, onClose, initial, readOnly = false }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; readOnly?: boolean }) {
+function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = false }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; presetSchedule?: AuditSchedule; readOnly?: boolean }) {
   const [form, setForm] = useState<AuditPlan>(initial ?? {
-    id: crypto.randomUUID(), scheduleId: "", auditFeasible: true, auditTitle: "", leadAuditorId: "",
+    id: crypto.randomUUID(), scheduleId: presetSchedule?.id ?? "", auditFeasible: true, auditTitle: presetSchedule?.title ?? "", leadAuditorId: "",
     teamMemberIds: [], auditeeId: "", qaqcScope: "", auditTypes: [],
-    auditLanguage: "Verbal: English\nWriting: English", qaqcReference: "", description: "",
+    auditLanguage: "Verbal: English\nWriting: English", qaqcReference: presetSchedule?.qaqcReference ?? "", description: "",
     startDateTime: "", endDateTime: "", openingMeetingDateTime: "", closingMeetingDateTime: "",
     activitySection: "Opening Meeting", activityRemarks: "", activityAuditeeId: "",
     activityDateTime: "", auditPlanCirculation: "", status: "Draft",
+    ...(presetSchedule ? { qaqcScope: presetSchedule.qaqcScope ?? "", auditTypes: presetSchedule.auditTypes ?? [] } : {}),
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [offlineContext, setOfflineContext] = useState<AuditPlanOfflineContext | null>(null);
@@ -809,7 +760,7 @@ function PlanForm({ schedules, onClose, initial, readOnly = false }: { schedules
   }, [options.data, schedules]);
   const users = options.data?.users ?? offlineContext?.users ?? [];
   const effectiveSchedules = schedules.length ? schedules : offlineContext?.schedules ?? [];
-  const approvedSchedules = effectiveSchedules.filter(schedule => schedule.workflowState === "Approved");
+  const approvedSchedules = presetSchedule ? [presetSchedule] : effectiveSchedules;
   const clearError = (...keys: string[]) => setErrors(current => {
     const next = { ...current };
     keys.forEach(key => delete next[key]);
@@ -887,7 +838,7 @@ function PlanForm({ schedules, onClose, initial, readOnly = false }: { schedules
   const activities = ["Opening Meeting", "General Requirement", "Design", "Procurement", "Construction & Installation", "Testing & Commissioning", "Improvements", "Lunch", "Break Time", "Site Visit", "Closing Meeting"] as const;
   return <div className="grid gap-4 py-2">
     {!navigator.onLine && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">You are offline. This plan will be saved on this device and synchronized automatically when the network returns.</div>}
-    <div className="rounded-lg border bg-muted/30 p-4"><Label>Source Audit Schedule *</Label><Select value={form.scheduleId} disabled={disabled("scheduleId")} onValueChange={selectSchedule}><SelectTrigger className="mt-2" {...invalid("scheduleId")}><SelectValue placeholder="Select an approved schedule"/></SelectTrigger><SelectContent>{approvedSchedules.map(schedule => <SelectItem key={schedule.id} value={schedule.id}>{schedule.title}</SelectItem>)}</SelectContent></Select><ErrorText name="scheduleId"/>{!approvedSchedules.length && <p className="mt-2 text-xs text-muted-foreground">No approved Audit Schedules are available offline. Connect once to cache current schedule data.</p>}</div>
+    <div className="rounded-lg border bg-muted/30 p-4"><Label>Source Audit Schedule *</Label><Select value={form.scheduleId} disabled={disabled("scheduleId")} onValueChange={selectSchedule}><SelectTrigger className="mt-2" {...invalid("scheduleId")}><SelectValue placeholder="Select an audit schedule"/></SelectTrigger><SelectContent>{approvedSchedules.map(schedule => <SelectItem key={schedule.id} value={schedule.id}>{schedule.title}</SelectItem>)}</SelectContent></Select><ErrorText name="scheduleId"/>{!approvedSchedules.length && <p className="mt-2 text-xs text-muted-foreground">No Audit Schedules are available offline. Connect once to cache current schedule data.</p>}</div>
     <div><Label>1. Audit Feasible *</Label><RadioGroup className="mt-2 flex gap-6" value={form.auditFeasible ? "yes" : "no"} disabled={disabled("auditFeasible")} onValueChange={value => set("auditFeasible", value === "yes")}><div className="flex items-center gap-2"><RadioGroupItem value="yes" id="plan-feasible-yes"/><Label htmlFor="plan-feasible-yes">Yes</Label></div><div className="flex items-center gap-2"><RadioGroupItem value="no" id="plan-feasible-no"/><Label htmlFor="plan-feasible-no">No</Label></div></RadioGroup></div>
     <div><Label>2. Audit Title *</Label><Input className="mt-2" readOnly disabled={readOnly} value={form.auditTitle} {...invalid("auditTitle")} placeholder="Generated from Audit Schedule"/><ErrorText name="auditTitle"/></div>
     <div><Label>3. Lead / Internal Auditor *</Label><Select value={form.leadAuditorId} disabled={disabled("leadAuditorId")} onValueChange={value => set("leadAuditorId", value)}><SelectTrigger className="mt-2" {...invalid("leadAuditorId")}><SelectValue placeholder="Select lead auditor"/></SelectTrigger><SelectContent>{users.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><ErrorText name="leadAuditorId"/></div>
