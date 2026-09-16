@@ -123,6 +123,31 @@ const scheduleDate = (value: unknown) => {
   const parsed = new Date(Date.UTC(year, month - 1, day));
   return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day ? candidate : "";
 };
+const programmeTimeline = (year: number) => {
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const days = [31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const labels = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const months = labels.map((label, index) => ({ label, days: days[index], weeks: Math.ceil(days[index] / 7) }));
+  const monthStartSlots = months.map((_, index) => months.slice(0, index).reduce((sum, month) => sum + month.weeks, 0));
+  const totalSlots = months.reduce((sum, month) => sum + month.weeks, 0);
+  return { months, monthStartSlots, totalSlots };
+};
+const programmeTimelinePosition = (
+  value: string | null | undefined,
+  year: number,
+  end: boolean,
+  timeline: ReturnType<typeof programmeTimeline>,
+) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value?.slice(0, 10) ?? "");
+  if (!match) return 0;
+  const parsed = { year: Number(match[1]), month: Number(match[2]) - 1, day: Number(match[3]) };
+  if (parsed.year < year) return 0;
+  if (parsed.year > year) return timeline.totalSlots;
+  const month = timeline.months[parsed.month];
+  if (!month) return 0;
+  const dayFraction = (parsed.day - (end ? 0 : 1)) / month.days;
+  return timeline.monthStartSlots[parsed.month] + dayFraction * month.weeks;
+};
 const stableScheduleId = async (parentId: string, row: Record<string, unknown>) => {
   const input = new TextEncoder().encode(`${parentId}\n${JSON.stringify(row)}`);
   const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", input));
@@ -144,6 +169,50 @@ const workbookDownload = (rows: Record<string, unknown>[], fileName: string, ran
     ["Department / Project", `For ${PROCESS_AUDIT_TYPE}, use an active department value or exact name. For ${PRODUCT_AUDIT_TYPE}, use an active project code or exact project name.`],
   ];
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(instructions), "Instructions");
+  XLSX.writeFile(workbook, fileName);
+};
+const programmeWorkbookDownload = (rows: AuditSchedule[], fileName: string) => {
+  const year = rows[0]?.year ?? new Date().getFullYear();
+  const timeline = programmeTimeline(year);
+  const fixedHeaders = [
+    "Business Category", "Department / Project", "Process Owner", "Audit Number / Site Visit No",
+    "QA/QC Reference", "QA/QC Scope", "QA/QC Clauses",
+  ];
+  const remarksColumn = fixedHeaders.length + timeline.totalSlots;
+  const monthHeader = [...fixedHeaders, ...Array.from({ length: timeline.totalSlots }, () => ""), "Remarks"];
+  const weekHeader = [
+    ...Array.from({ length: fixedHeaders.length }, () => ""),
+    ...Array.from({ length: timeline.totalSlots }, (_, index) => `W${index + 1}`),
+    "",
+  ];
+  timeline.months.forEach((month, index) => {
+    monthHeader[fixedHeaders.length + timeline.monthStartSlots[index]] = month.label;
+  });
+  const data = rows.map(item => {
+    const start = Math.max(0, Math.min(timeline.totalSlots, programmeTimelinePosition(item.plannedStartDate, year, false, timeline)));
+    const end = Math.max(0, Math.min(timeline.totalSlots, programmeTimelinePosition(item.plannedEndDate, year, true, timeline)));
+    const weeks = Array.from({ length: timeline.totalSlots }, (_, index) => index + 1 > start && index < end ? "■" : "");
+    return [
+      item.auditCategory ?? "", item.departmentProject ?? "", item.processProductOwner ?? "", item.auditNumber ?? "",
+      item.qaqcReference ?? "", item.qaqcScope ?? "", item.qaqcClauses ?? "", ...weeks, item.remarks ?? "",
+    ];
+  });
+  const sheet = XLSX.utils.aoa_to_sheet([monthHeader, weekHeader, ...data]);
+  sheet["!merges"] = [
+    ...fixedHeaders.map((_, column) => ({ s: { r: 0, c: column }, e: { r: 1, c: column } })),
+    ...timeline.months.map((month, index) => ({
+      s: { r: 0, c: fixedHeaders.length + timeline.monthStartSlots[index] },
+      e: { r: 0, c: fixedHeaders.length + timeline.monthStartSlots[index] + month.weeks - 1 },
+    })),
+    { s: { r: 0, c: remarksColumn }, e: { r: 1, c: remarksColumn } },
+  ];
+  sheet["!cols"] = [
+    { wch: 22 }, { wch: 24 }, { wch: 22 }, { wch: 24 }, { wch: 20 }, { wch: 32 }, { wch: 28 },
+    ...Array.from({ length: timeline.totalSlots }, () => ({ wch: 5 })),
+    { wch: 30 },
+  ];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Audit Programme");
   XLSX.writeFile(workbook, fileName);
 };
 const workflowTone = (value: string) =>
@@ -399,17 +468,9 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan }: {
   if (items.length === 0) return null;
 
   const year = items[0]?.year ?? new Date().getFullYear();
-  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-  const daysInMonth = [31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  const monthLabels = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const months = monthLabels.map((label, index) => ({
-    label,
-    days: daysInMonth[index],
-    weeks: Math.ceil(daysInMonth[index] / 7),
-  }));
+  const timeline = programmeTimeline(year);
+  const { months, monthStartSlots, totalSlots } = timeline;
   const weekWidth = 36;
-  const monthStartSlots = months.map((_, index) => months.slice(0, index).reduce((sum, month) => sum + month.weeks, 0));
-  const totalSlots = months.reduce((sum, month) => sum + month.weeks, 0);
   const timelineWidth = totalSlots * weekWidth;
   const fixedColumns = [
     { label: "Business Category", width: 190 },
@@ -422,22 +483,6 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan }: {
   ];
   const remarksWidth = 220;
   const totalWidth = fixedColumns.reduce((sum, column) => sum + column.width, 0) + timelineWidth + remarksWidth;
-  const parseScheduleDate = (value?: string | null) => {
-    const candidate = value?.slice(0, 10) ?? "";
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(candidate);
-    if (!match) return null;
-    return { year: Number(match[1]), month: Number(match[2]) - 1, day: Number(match[3]) };
-  };
-  const timelinePosition = (value: string | null | undefined, end: boolean) => {
-    const parsed = parseScheduleDate(value);
-    if (!parsed || parsed.year < year) return 0;
-    if (parsed.year > year) return totalSlots;
-    const month = months[parsed.month];
-    if (!month) return 0;
-    const dayFraction = (parsed.day - (end ? 0 : 1)) / month.days;
-    return monthStartSlots[parsed.month] + dayFraction * month.weeks;
-  };
-
   return (
     <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
       <div style={{ minWidth: totalWidth }}>
@@ -452,8 +497,8 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan }: {
               ))}
             </div>
             <div className="flex h-8">
-              {months.flatMap(month => Array.from({ length: month.weeks }, (_, week) => (
-                <div key={`${month.label}-${week}`} className="flex shrink-0 items-center justify-center border-r" style={{ width: weekWidth }}>W{week + 1}</div>
+              {months.flatMap((month, monthIndex) => Array.from({ length: month.weeks }, (_, week) => (
+                <div key={`${month.label}-${week}`} className="flex shrink-0 items-center justify-center border-r" style={{ width: weekWidth }}>W{monthStartSlots[monthIndex] + week + 1}</div>
               )))}
             </div>
           </div>
@@ -461,8 +506,8 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan }: {
         </div>
         <div className="divide-y text-sm">
           {items.map(item => {
-            const startPosition = timelinePosition(item.plannedStartDate, false);
-            const endPosition = timelinePosition(item.plannedEndDate, true);
+            const startPosition = programmeTimelinePosition(item.plannedStartDate, year, false, timeline);
+            const endPosition = programmeTimelinePosition(item.plannedEndDate, year, true, timeline);
             const barLeft = Math.max(0, Math.min(totalSlots, startPosition)) * weekWidth;
             const barWidth = Math.max(0, Math.min(totalSlots, endPosition) * weekWidth - barLeft);
 
@@ -470,7 +515,6 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan }: {
               <div key={item.id} className="group flex min-h-24 transition-colors hover:bg-muted/30">
                 <div className="flex shrink-0 flex-col justify-center border-r p-3" style={{ width: fixedColumns[0].width }}>
                   <span className="font-medium">{item.auditCategory || "—"}</span>
-                  <span className="mt-1 truncate text-xs text-muted-foreground" title={item.title}>{item.title}</span>
                   <div className="mt-2 flex flex-wrap gap-1">
                     <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onDisplay(item)}>Display</Button>
                     {item.workflowState === "Draft" && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onEdit(item)}>Edit</Button>}
@@ -601,7 +645,8 @@ function Schedules() {
       "Process / Product Owner": item.processProductOwner ?? "", "From Date": item.plannedStartDate.slice(0, 10),
       "To Date": item.plannedEndDate.slice(0, 10), Remarks: item.remarks ?? "",
       }));
-      workbookDownload(rows, `audit-schedule-${parentId}.xlsx`, range);
+      if (viewMode === "gantt") programmeWorkbookDownload(children, `audit-programme-${parentId}.xlsx`);
+      else workbookDownload(rows, `audit-schedule-${parentId}.xlsx`, range);
     } catch (error) {
       toast({ title: "Unable to download audit schedule", description: errorText(error), variant: "destructive" });
     } finally {
