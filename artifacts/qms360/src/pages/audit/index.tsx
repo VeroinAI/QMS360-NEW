@@ -181,7 +181,7 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string) => {
   const pageWidth = 1191;
   const pageHeight = 842;
   const margin = 18;
-  const titleHeight = 34;
+  const titleHeight = 44;
   const headerHeight = 42;
   const rowHeight = 34;
   const rowsPerPage = 20;
@@ -199,9 +199,11 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string) => {
     return escapePdf(text.length > limit ? `${text.slice(0, Math.max(1, limit - 3))}...` : text);
   };
   const text = (value: unknown, x: number, y: number, size = 5.5, bold = false) =>
-    `BT /${bold ? "F2" : "F1"} ${size} Tf ${x.toFixed(2)} ${y.toFixed(2)} Td (${fit(value, 1000, size)}) Tj ET\n`;
+    `0 0 0 rg BT /${bold ? "F2" : "F1"} ${size} Tf ${x.toFixed(2)} ${y.toFixed(2)} Td (${fit(value, 1000, size)}) Tj ET\n`;
   const centeredText = (value: unknown, x: number, y: number, width: number, size = 5, bold = false) => {
-    const fitted = fit(value, width, size);
+    const raw = escapePdf(String(value ?? "").trim());
+    const limit = Math.max(1, Math.floor(width / (size * 0.52)));
+    const fitted = raw.slice(0, limit);
     const estimatedWidth = fitted.length * size * 0.52;
     return text(fitted, x + Math.max(2, (width - estimatedWidth) / 2), y, size, bold);
   };
@@ -211,9 +213,18 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string) => {
   const pageCount = Math.max(1, Math.ceil(rows.length / rowsPerPage));
   for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
     let content = "";
-    content += text(`QMS360 - QUALITY INTERNAL AUDIT / ASSESSMENT SCHEDULE - ${year}`, margin, pageHeight - 24, 11, true);
-    content += text(`Audit Programme${pageCount > 1 ? ` - Page ${pageIndex + 1} of ${pageCount}` : ""}`, pageWidth - 170, pageHeight - 24, 7, true);
-    const tableTop = pageHeight - titleHeight;
+    const tableTop = pageHeight - margin - titleHeight;
+    const headingLeftWidth = 128;
+    const headingRightWidth = 84;
+    const headingCenterWidth = pageWidth - margin * 2 - headingLeftWidth - headingRightWidth;
+    content += rect(margin, tableTop, headingLeftWidth, titleHeight);
+    content += rect(margin + headingLeftWidth, tableTop, headingCenterWidth, titleHeight);
+    content += rect(margin + headingLeftWidth + headingCenterWidth, tableTop, headingRightWidth, titleHeight);
+    content += centeredText("ALGIHAZ HOLDING", margin, tableTop + 25, headingLeftWidth, 7, true);
+    content += centeredText("QUALITY SOLUTIONS", margin, tableTop + 13, headingLeftWidth, 4.5, false);
+    content += centeredText(`SHEQ-QUALITY INTERNAL AUDIT / ASSESSMENT SCHEDULE-${year}`, margin + headingLeftWidth, tableTop + 20, headingCenterWidth, 10, true);
+    content += centeredText("SHEQ", margin + headingLeftWidth + headingCenterWidth, tableTop + 19, headingRightWidth, 11, true);
+    if (pageCount > 1) content += centeredText(`Page ${pageIndex + 1} of ${pageCount}`, margin + headingLeftWidth + headingCenterWidth, tableTop + 8, headingRightWidth, 4.5);
     const headerBottom = tableTop - headerHeight;
     let x = margin;
     fixedHeaders.forEach((header, index) => {
@@ -221,7 +232,7 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string) => {
       const words = header.split(" ");
       const midpoint = Math.ceil(words.length / 2);
       content += centeredText(words.slice(0, midpoint).join(" "), x, headerBottom + 24, fixedWidths[index], 5.2, true);
-      if (words.length > 2) content += centeredText(words.slice(midpoint).join(" "), x, headerBottom + 13, fixedWidths[index], 5.2, true);
+      if (words.length > 1) content += centeredText(words.slice(midpoint).join(" "), x, headerBottom + 13, fixedWidths[index], 5.2, true);
       x += fixedWidths[index];
     });
     const timelineX = x;
