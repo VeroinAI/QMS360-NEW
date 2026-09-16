@@ -1331,19 +1331,59 @@ router.put("/admin/field-controls", asyncHandler(async (req, res) => {
   await auditLog(req, "update", "field_controls", actor(req).organizationId, before, data);
   res.json(data);
 }));
+async function auditRoleResponse(role: AnyRow) {
+  const permissions = await db.select({ key: auditPermissions.key, name: auditPermissions.label })
+    .from(auditWorkspaceRolePermissions)
+    .innerJoin(auditPermissions, eq(auditWorkspaceRolePermissions.permissionId, auditPermissions.id))
+    .where(and(
+      eq(auditWorkspaceRolePermissions.organizationId, role.organizationId),
+      eq(auditWorkspaceRolePermissions.workspaceRoleId, role.id),
+      isNull(auditWorkspaceRolePermissions.deletedAt),
+      isNull(auditPermissions.deletedAt),
+    ));
+  return { id: role.id, name: role.name, description: role.description, permissions, active: role.status === "active", systemDefault: role.isSystem };
+}
+async function syncAuditRolePermissions(req: Request, roleId: string, requested: Array<{ key: string; name: string }>) {
+  const organizationId = actor(req).organizationId;
+  await db.update(auditWorkspaceRolePermissions)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(and(
+      eq(auditWorkspaceRolePermissions.organizationId, organizationId),
+      eq(auditWorkspaceRolePermissions.workspaceRoleId, roleId),
+      isNull(auditWorkspaceRolePermissions.deletedAt),
+    ));
+  const uniquePermissions = [...new Map(requested.map((permission) => [permission.key, permission])).values()];
+  for (const requestedPermission of uniquePermissions) {
+    let [permission] = await db.select().from(auditPermissions).where(and(
+      eq(auditPermissions.organizationId, organizationId),
+      eq(auditPermissions.key, requestedPermission.key),
+      isNull(auditPermissions.deletedAt),
+    )).limit(1);
+    if (!permission) {
+      [permission] = await db.insert(auditPermissions).values({
+        organizationId,
+        key: requestedPermission.key,
+        label: requestedPermission.name,
+        category: "audit",
+      }).returning();
+    }
+    await db.insert(auditWorkspaceRolePermissions).values({ organizationId, workspaceRoleId: roleId, permissionId: permission.id });
+  }
+}
 router.get("/admin/roles", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const where = active(auditWorkspaceRoles, actor(req).organizationId);
   const [rows, [{ count }]] = await Promise.all([
     db.select().from(auditWorkspaceRoles).where(where).orderBy(asc(auditWorkspaceRoles.name)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(auditWorkspaceRoles).where(where),
   ]);
-  res.json(paginated(rows.map((x) => ({ id: x.id, name: x.name, description: x.description, permissions: [], active: x.status === "active", systemDefault: x.isSystem })), Number(count), page, limit));
+  res.json(paginated(await Promise.all(rows.map(auditRoleResponse)), Number(count), page, limit));
 }));
 router.post("/admin/roles", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditRoleBody, req);
   try {
     const [row] = await db.insert(auditWorkspaceRoles).values({ id: data.id, organizationId: actor(req).organizationId, name: data.name, description: data.description, isSystem: data.systemDefault ?? false, status: data.active ? "active" : "inactive" }).returning();
-    await auditLog(req, "create", "workspace_role", row.id, undefined, row); res.status(201).json({ ...data, id: row.id });
+    await syncAuditRolePermissions(req, row.id, data.permissions);
+    await auditLog(req, "create", "workspace_role", row.id, undefined, row); res.status(201).json(await auditRoleResponse(row));
   } catch (error: any) { if (error?.code === "23505") throw new HttpError(409, "Role name already exists"); throw error; }
 }));
 router.put("/admin/roles/:id", asyncHandler(async (req, res) => {
@@ -1351,7 +1391,8 @@ router.put("/admin/roles/:id", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditWorkspaceRoles).where(and(active(auditWorkspaceRoles, actor(req).organizationId), eq(auditWorkspaceRoles.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Role not found");
   const [row] = await db.update(auditWorkspaceRoles).set({ name: data.name, description: data.description, status: data.active ? "active" : "inactive", updatedAt: new Date() }).where(eq(auditWorkspaceRoles.id, before.id)).returning();
-  await auditLog(req, "update", "workspace_role", row.id, before, row); res.json({ ...data, id: row.id });
+  await syncAuditRolePermissions(req, row.id, data.permissions);
+  await auditLog(req, "update", "workspace_role", row.id, before, row); res.json(await auditRoleResponse(row));
 }));
 router.get("/admin/users", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const where = and(eq(users.organizationId, actor(req).organizationId), isNull(users.deletedAt));
