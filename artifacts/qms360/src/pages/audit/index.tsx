@@ -171,7 +171,27 @@ const workbookDownload = (rows: Record<string, unknown>[], fileName: string, ran
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(instructions), "Instructions");
   XLSX.writeFile(workbook, fileName);
 };
-const programmePdfDownload = (rows: AuditSchedule[], fileName: string) => {
+const programmeLogoJpegBase64 = "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";
+const ascii85Encode = (bytes: Uint8Array) => {
+  let encoded = "";
+  for (let offset = 0; offset < bytes.length; offset += 4) {
+    const remaining = Math.min(4, bytes.length - offset);
+    let value = 0;
+    for (let index = 0; index < 4; index += 1) value = value * 256 + (index < remaining ? bytes[offset + index] : 0);
+    if (remaining === 4 && value === 0) {
+      encoded += "z";
+      continue;
+    }
+    const chars = Array(5);
+    for (let index = 4; index >= 0; index -= 1) {
+      chars[index] = String.fromCharCode((value % 85) + 33);
+      value = Math.floor(value / 85);
+    }
+    encoded += chars.join("").slice(0, remaining + 1);
+  }
+  return `${encoded}~>`;
+};
+const programmePdfDownload = (rows: AuditSchedule[], fileName: string, auditTitle: string) => {
   const year = rows[0]?.year ?? new Date().getFullYear();
   const timeline = programmeTimeline(year);
   const fixedHeaders = [
@@ -220,10 +240,10 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string) => {
     content += rect(margin, tableTop, headingLeftWidth, titleHeight);
     content += rect(margin + headingLeftWidth, tableTop, headingCenterWidth, titleHeight);
     content += rect(margin + headingLeftWidth + headingCenterWidth, tableTop, headingRightWidth, titleHeight);
-    content += centeredText("ALGIHAZ HOLDING", margin, tableTop + 25, headingLeftWidth, 7, true);
-    content += centeredText("QUALITY SOLUTIONS", margin, tableTop + 13, headingLeftWidth, 4.5, false);
-    content += centeredText(`SHEQ-QUALITY INTERNAL AUDIT / ASSESSMENT SCHEDULE-${year}`, margin + headingLeftWidth, tableTop + 20, headingCenterWidth, 10, true);
-    content += centeredText("SHEQ", margin + headingLeftWidth + headingCenterWidth, tableTop + 19, headingRightWidth, 11, true);
+    const logoHeight = 36;
+    const logoWidth = logoHeight * (180 / 59);
+    content += `q ${logoWidth.toFixed(2)} 0 0 ${logoHeight.toFixed(2)} ${(margin + (headingLeftWidth - logoWidth) / 2).toFixed(2)} ${(tableTop + (titleHeight - logoHeight) / 2).toFixed(2)} cm /Logo Do Q\n`;
+    content += centeredText(auditTitle, margin + headingLeftWidth, tableTop + 20, headingCenterWidth, 10, true);
     if (pageCount > 1) content += centeredText(`Page ${pageIndex + 1} of ${pageCount}`, margin + headingLeftWidth + headingCenterWidth, tableTop + 8, headingRightWidth, 4.5);
     const headerBottom = tableTop - headerHeight;
     let x = margin;
@@ -277,16 +297,19 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string) => {
     pages.push(content);
   }
   const encoder = new TextEncoder();
-  const pageObjectIds = pages.map((_, index) => 5 + index * 2);
+  const logoBytes = Uint8Array.from(atob(programmeLogoJpegBase64), character => character.charCodeAt(0));
+  const logoStream = ascii85Encode(logoBytes);
+  const pageObjectIds = pages.map((_, index) => 6 + index * 2);
   const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     `<< /Type /Pages /Kids [${pageObjectIds.map(id => `${id} 0 R`).join(" ")}] /Count ${pages.length} >>`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+    `<< /Type /XObject /Subtype /Image /Width 180 /Height 59 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCII85Decode /DCTDecode] /Length ${encoder.encode(logoStream).length} >>\nstream\n${logoStream}\nendstream`,
   ];
   pages.forEach((content, index) => {
-    const contentId = 6 + index * 2;
-    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentId} 0 R >>`);
+    const contentId = 7 + index * 2;
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << /Logo 5 0 R >> >> /Contents ${contentId} 0 R >>`);
     objects.push(`<< /Length ${encoder.encode(content).length} >>\nstream\n${content}endstream`);
   });
   let pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
@@ -736,7 +759,7 @@ function Schedules() {
       "Process / Product Owner": item.processProductOwner ?? "", "From Date": item.plannedStartDate.slice(0, 10),
       "To Date": item.plannedEndDate.slice(0, 10), Remarks: item.remarks ?? "",
       }));
-      if (viewMode === "gantt") programmePdfDownload(children, `audit-programme-${parentId}.pdf`);
+      if (viewMode === "gantt") programmePdfDownload(children, `audit-programme-${parentId}.pdf`, programme.data?.title ?? "");
       else workbookDownload(rows, `audit-schedule-${parentId}.xlsx`, range);
     } catch (error) {
       toast({ title: "Unable to download audit schedule", description: errorText(error), variant: "destructive" });
