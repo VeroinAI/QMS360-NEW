@@ -278,7 +278,7 @@ function UsersAccess({ app }: { app: AppKey }) {
   </PageState>;
 }
 
-const permissionLabels: Record<PermissionKey, string> = { data_entry: 'Create / edit', submit: 'Submit', approve_reject: 'Approve / reject', view_own_scope: 'View own', view_all: 'View all', configure_masters: 'Configure', manage_integrations: 'Integrations', manage_ai_settings: 'VerionAI settings', export: 'Export', delegate: 'Delegate' };
+const permissionLabels: Record<PermissionKey, string> = { data_entry: 'Create / edit', submit: 'Submit', approve_reject: 'Approve / reject', view_own_scope: 'View own', view_all: 'View all', configure_masters: 'Configure', manage_integrations: 'Integrations', manage_ai_settings: 'VerionAI settings', export: 'Export', delegate: 'Delegate', memo_circulation: 'Memo Circulation' };
 function Roles({ app }: { app: AppKey }) {
   const api = useAdmin(app); const act = useActions(app); const [editing, setEditing] = useState<Role>();
   const newRole = () => setEditing({ id: crypto.randomUUID(), name: '', description: '', active: true, permissions: [] });

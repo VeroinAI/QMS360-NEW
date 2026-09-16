@@ -1032,6 +1032,7 @@ export const PermissionKey = {
   manage_ai_settings: 'manage_ai_settings',
   export: 'export',
   delegate: 'delegate',
+  memo_circulation: 'memo_circulation',
 } as const;
 
 export interface Permission {

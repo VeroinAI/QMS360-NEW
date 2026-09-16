@@ -3152,7 +3152,7 @@ export const ListQaqcRolesResponse = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -3171,7 +3171,7 @@ export const CreateQaqcRoleBody = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -3195,7 +3195,7 @@ export const UpdateQaqcRoleBody = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -3246,7 +3246,7 @@ export const ListQaqcUsersResponse = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -4707,7 +4707,7 @@ export const ListLessonsRolesResponse = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -4726,7 +4726,7 @@ export const CreateLessonsRoleBody = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -4750,7 +4750,7 @@ export const UpdateLessonsRoleBody = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -4801,7 +4801,7 @@ export const ListLessonsUsersResponse = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -6967,7 +6967,7 @@ export const ListAuditRolesResponse = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -6986,7 +6986,7 @@ export const CreateAuditRoleBody = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -7010,7 +7010,7 @@ export const UpdateAuditRoleBody = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -7061,7 +7061,7 @@ export const ListAuditUsersResponse = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate']),
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
