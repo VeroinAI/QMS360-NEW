@@ -171,49 +171,129 @@ const workbookDownload = (rows: Record<string, unknown>[], fileName: string, ran
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(instructions), "Instructions");
   XLSX.writeFile(workbook, fileName);
 };
-const programmeWorkbookDownload = (rows: AuditSchedule[], fileName: string) => {
+const programmePdfDownload = (rows: AuditSchedule[], fileName: string) => {
   const year = rows[0]?.year ?? new Date().getFullYear();
   const timeline = programmeTimeline(year);
   const fixedHeaders = [
     "Business Category", "Department / Project", "Process Owner", "Audit Number / Site Visit No",
     "QA/QC Reference", "QA/QC Scope", "QA/QC Clauses",
   ];
-  const remarksColumn = fixedHeaders.length + timeline.totalSlots;
-  const monthHeader = [...fixedHeaders, ...Array.from({ length: timeline.totalSlots }, () => ""), "Remarks"];
-  const weekHeader = [
-    ...Array.from({ length: fixedHeaders.length }, () => ""),
-    ...Array.from({ length: timeline.totalSlots }, (_, index) => `W${index + 1}`),
-    "",
+  const pageWidth = 1191;
+  const pageHeight = 842;
+  const margin = 18;
+  const titleHeight = 34;
+  const headerHeight = 42;
+  const rowHeight = 34;
+  const rowsPerPage = 20;
+  const fixedWidths = [76, 92, 80, 90, 78, 116, 88];
+  const remarksWidth = 94;
+  const fixedWidth = fixedWidths.reduce((sum, width) => sum + width, 0);
+  const timelineWidth = pageWidth - margin * 2 - fixedWidth - remarksWidth;
+  const weekWidth = timelineWidth / timeline.totalSlots;
+  const escapePdf = (value: string) => value
+    .normalize("NFKD").replace(/[^\x20-\x7E]/g, "")
+    .replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  const fit = (value: unknown, width: number, size: number) => {
+    const text = String(value ?? "").trim();
+    const limit = Math.max(1, Math.floor((width - 5) / (size * 0.52)));
+    return escapePdf(text.length > limit ? `${text.slice(0, Math.max(1, limit - 3))}...` : text);
+  };
+  const text = (value: unknown, x: number, y: number, size = 5.5, bold = false) =>
+    `BT /${bold ? "F2" : "F1"} ${size} Tf ${x.toFixed(2)} ${y.toFixed(2)} Td (${fit(value, 1000, size)}) Tj ET\n`;
+  const centeredText = (value: unknown, x: number, y: number, width: number, size = 5, bold = false) => {
+    const fitted = fit(value, width, size);
+    const estimatedWidth = fitted.length * size * 0.52;
+    return text(fitted, x + Math.max(2, (width - estimatedWidth) / 2), y, size, bold);
+  };
+  const rect = (x: number, y: number, width: number, height: number, fill?: [number, number, number]) =>
+    `${fill ? `${fill.join(" ")} rg ${x.toFixed(2)} ${y.toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re f\n` : ""}0.45 G 0.35 w ${x.toFixed(2)} ${y.toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re S\n`;
+  const pages: string[] = [];
+  const pageCount = Math.max(1, Math.ceil(rows.length / rowsPerPage));
+  for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
+    let content = "";
+    content += text(`QMS360 - QUALITY INTERNAL AUDIT / ASSESSMENT SCHEDULE - ${year}`, margin, pageHeight - 24, 11, true);
+    content += text(`Audit Programme${pageCount > 1 ? ` - Page ${pageIndex + 1} of ${pageCount}` : ""}`, pageWidth - 170, pageHeight - 24, 7, true);
+    const tableTop = pageHeight - titleHeight;
+    const headerBottom = tableTop - headerHeight;
+    let x = margin;
+    fixedHeaders.forEach((header, index) => {
+      content += rect(x, headerBottom, fixedWidths[index], headerHeight, [0.91, 0.89, 0.95]);
+      const words = header.split(" ");
+      const midpoint = Math.ceil(words.length / 2);
+      content += centeredText(words.slice(0, midpoint).join(" "), x, headerBottom + 24, fixedWidths[index], 5.2, true);
+      if (words.length > 2) content += centeredText(words.slice(midpoint).join(" "), x, headerBottom + 13, fixedWidths[index], 5.2, true);
+      x += fixedWidths[index];
+    });
+    const timelineX = x;
+    timeline.months.forEach((month, monthIndex) => {
+      const monthX = timelineX + timeline.monthStartSlots[monthIndex] * weekWidth;
+      const monthWidth = month.weeks * weekWidth;
+      content += rect(monthX, tableTop - 21, monthWidth, 21, [0.91, 0.89, 0.95]);
+      content += centeredText(month.label, monthX, tableTop - 14, monthWidth, 4.7, true);
+    });
+    Array.from({ length: timeline.totalSlots }, (_, week) => {
+      const weekX = timelineX + week * weekWidth;
+      content += rect(weekX, headerBottom, weekWidth, 21, [0.96, 0.95, 0.98]);
+      content += centeredText(String(week + 1), weekX, headerBottom + 7, weekWidth, 3.8, false);
+    });
+    const remarksX = timelineX + timelineWidth;
+    content += rect(remarksX, headerBottom, remarksWidth, headerHeight, [0.91, 0.89, 0.95]);
+    content += centeredText("Remarks", remarksX, headerBottom + 18, remarksWidth, 5.4, true);
+    rows.slice(pageIndex * rowsPerPage, (pageIndex + 1) * rowsPerPage).forEach((item, rowIndex) => {
+      const y = headerBottom - (rowIndex + 1) * rowHeight;
+      const values = [
+        item.auditCategory, item.departmentProject, item.processProductOwner, item.auditNumber,
+        item.qaqcReference, item.qaqcScope, item.qaqcClauses,
+      ];
+      let cellX = margin;
+      values.forEach((value, index) => {
+        content += rect(cellX, y, fixedWidths[index], rowHeight, rowIndex % 2 ? [0.98, 0.98, 0.99] : undefined);
+        content += text(fit(value, fixedWidths[index], 5), cellX + 3, y + rowHeight / 2 - 2, 5);
+        cellX += fixedWidths[index];
+      });
+      Array.from({ length: timeline.totalSlots }, (_, week) => {
+        content += rect(timelineX + week * weekWidth, y, weekWidth, rowHeight, rowIndex % 2 ? [0.98, 0.98, 0.99] : undefined);
+      });
+      const start = Math.max(0, Math.min(timeline.totalSlots, programmeTimelinePosition(item.plannedStartDate, year, false, timeline)));
+      const end = Math.max(0, Math.min(timeline.totalSlots, programmeTimelinePosition(item.plannedEndDate, year, true, timeline)));
+      const barWidth = Math.max(0, end - start) * weekWidth;
+      if (barWidth > 0) {
+        content += `0.10 0.32 0.58 rg ${(timelineX + start * weekWidth).toFixed(2)} ${(y + 8).toFixed(2)} ${Math.max(2, barWidth).toFixed(2)} ${(rowHeight - 16).toFixed(2)} re f\n`;
+      }
+      content += rect(remarksX, y, remarksWidth, rowHeight, rowIndex % 2 ? [0.98, 0.98, 0.99] : undefined);
+      content += text(fit(item.remarks, remarksWidth, 5), remarksX + 3, y + rowHeight / 2 - 2, 5);
+    });
+    pages.push(content);
+  }
+  const encoder = new TextEncoder();
+  const pageObjectIds = pages.map((_, index) => 5 + index * 2);
+  const objects: string[] = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    `<< /Type /Pages /Kids [${pageObjectIds.map(id => `${id} 0 R`).join(" ")}] /Count ${pages.length} >>`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
   ];
-  timeline.months.forEach((month, index) => {
-    monthHeader[fixedHeaders.length + timeline.monthStartSlots[index]] = month.label;
+  pages.forEach((content, index) => {
+    const contentId = 6 + index * 2;
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentId} 0 R >>`);
+    objects.push(`<< /Length ${encoder.encode(content).length} >>\nstream\n${content}endstream`);
   });
-  const data = rows.map(item => {
-    const start = Math.max(0, Math.min(timeline.totalSlots, programmeTimelinePosition(item.plannedStartDate, year, false, timeline)));
-    const end = Math.max(0, Math.min(timeline.totalSlots, programmeTimelinePosition(item.plannedEndDate, year, true, timeline)));
-    const weeks = Array.from({ length: timeline.totalSlots }, (_, index) => index + 1 > start && index < end ? "■" : "");
-    return [
-      item.auditCategory ?? "", item.departmentProject ?? "", item.processProductOwner ?? "", item.auditNumber ?? "",
-      item.qaqcReference ?? "", item.qaqcScope ?? "", item.qaqcClauses ?? "", ...weeks, item.remarks ?? "",
-    ];
+  let pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(encoder.encode(pdf).length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
   });
-  const sheet = XLSX.utils.aoa_to_sheet([monthHeader, weekHeader, ...data]);
-  sheet["!merges"] = [
-    ...fixedHeaders.map((_, column) => ({ s: { r: 0, c: column }, e: { r: 1, c: column } })),
-    ...timeline.months.map((month, index) => ({
-      s: { r: 0, c: fixedHeaders.length + timeline.monthStartSlots[index] },
-      e: { r: 0, c: fixedHeaders.length + timeline.monthStartSlots[index] + month.weeks - 1 },
-    })),
-    { s: { r: 0, c: remarksColumn }, e: { r: 1, c: remarksColumn } },
-  ];
-  sheet["!cols"] = [
-    { wch: 22 }, { wch: 24 }, { wch: 22 }, { wch: 24 }, { wch: 20 }, { wch: 32 }, { wch: 28 },
-    ...Array.from({ length: timeline.totalSlots }, () => ({ wch: 5 })),
-    { wch: 30 },
-  ];
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, sheet, "Audit Programme");
-  XLSX.writeFile(workbook, fileName);
+  const xrefOffset = encoder.encode(pdf).length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach(offset => { pdf += `${String(offset).padStart(10, "0")} 00000 n \n`; });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  const url = URL.createObjectURL(new Blob([encoder.encode(pdf)], { type: "application/pdf" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 const workflowTone = (value: string) =>
   value === "Approved" || value === "Closed" || value === "Accepted" || value === "Shared"
@@ -645,7 +725,7 @@ function Schedules() {
       "Process / Product Owner": item.processProductOwner ?? "", "From Date": item.plannedStartDate.slice(0, 10),
       "To Date": item.plannedEndDate.slice(0, 10), Remarks: item.remarks ?? "",
       }));
-      if (viewMode === "gantt") programmeWorkbookDownload(children, `audit-programme-${parentId}.xlsx`);
+      if (viewMode === "gantt") programmePdfDownload(children, `audit-programme-${parentId}.pdf`);
       else workbookDownload(rows, `audit-schedule-${parentId}.xlsx`, range);
     } catch (error) {
       toast({ title: "Unable to download audit schedule", description: errorText(error), variant: "destructive" });
