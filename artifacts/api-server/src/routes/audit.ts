@@ -302,6 +302,27 @@ function assertScheduleDates(data: AnyRow) {
   }
 }
 
+async function assertScheduleParentDates(organizationId: string, parentId: unknown, data: AnyRow) {
+  if (!parentId || parentId === "legacy") return;
+  const parent = await assertValidParent(organizationId, parentId);
+  if (!parent) return;
+  const [row] = await db.select().from(auditSchedules).where(and(
+    active(auditSchedules, organizationId), eq(auditSchedules.id, parent),
+  ));
+  if (!row) return;
+  const meta = scheduleMeta(row);
+  const start = dateOnly(data.plannedStartDate);
+  const end = dateOnly(data.plannedEndDate);
+  const parentStart = meta.fromDate?.slice(0, 10);
+  const parentEnd = meta.toDate?.slice(0, 10);
+  if (start && parentStart && start < parentStart) {
+    throw new HttpError(422, `From Date must be on or after the Audit Schedule start date (${parentStart})`);
+  }
+  if (end && parentEnd && end > parentEnd) {
+    throw new HttpError(422, `To Date must be on or before the Audit Schedule end date (${parentEnd})`);
+  }
+}
+
 const programmeDto = (row: AnyRow, childCount = 0) => {
   const meta = scheduleMeta(row);
   const roles = meta.approvalRoles ?? [];
@@ -492,6 +513,7 @@ router.post("/schedules", asyncHandler(async (req, res) => {
     assertLovValue(db, actor(req).organizationId, "audit_types", value)));
   await assertLovValue(db, actor(req).organizationId, "audit_categories", data.auditCategory);
   assertScheduleDates(data);
+  await assertScheduleParentDates(actor(req).organizationId, data.parentId, data);
   await assertScheduleLovs(actor(req).organizationId, data);
   const values = scheduleValues(data);
   const [row] = await db.insert(auditSchedules)
@@ -536,6 +558,7 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
     assertLovValue(db, actor(req).organizationId, "audit_types", value, { allowLegacy: scheduleMeta(before).auditTypes })));
   await assertLovValue(db, actor(req).organizationId, "audit_categories", data.auditCategory, { allowLegacy: [scheduleMeta(before).auditCategory ?? ""] });
   assertScheduleDates(data);
+  await assertScheduleParentDates(actor(req).organizationId, data.parentId, data);
   await assertScheduleLovs(actor(req).organizationId, data, scheduleMeta(before));
   const [row] = await db.update(auditSchedules).set({ ...scheduleValues(data), id: undefined, updatedAt: new Date() })
     .where(eq(auditSchedules.id, before.id)).returning();

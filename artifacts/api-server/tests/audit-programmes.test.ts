@@ -4,7 +4,7 @@ import type { Server } from "node:http";
 import {
   applicationAccess, auditAuditLogEntries, auditNotifications, auditPermissions, auditSchedules,
   auditUserWorkspaceRoles, auditWorkspaceRolePermissions, auditWorkspaceRoles,
-  db, organizations, platformRoles, users,
+  db, masterDataGroups, masterDataValues, organizations, platformRoles, users,
 } from "@workspace/db";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import auditRouter from "../src/routes/audit";
@@ -101,6 +101,12 @@ beforeAll(async () => {
   await assign(creator.id, creatorRole.id);
   await assign(l1.id, l1Role.id);
   await assign(l2.id, l2Role.id);
+  const [auditCategoryGroup] = await db.insert(masterDataGroups).values({
+    organizationId: orgId, code: "audit_categories", name: "Audit categories",
+  }).returning();
+  await db.insert(masterDataValues).values({
+    organizationId: orgId, groupId: auditCategoryGroup!.id, value: "Internal", label: "Internal",
+  });
 });
 
 afterAll(async () => {
@@ -111,6 +117,8 @@ afterAll(async () => {
   await db.delete(auditWorkspaceRolePermissions).where(eq(auditWorkspaceRolePermissions.organizationId, orgId));
   await db.delete(auditPermissions).where(eq(auditPermissions.organizationId, orgId));
   await db.delete(auditWorkspaceRoles).where(eq(auditWorkspaceRoles.organizationId, orgId));
+  await db.delete(masterDataValues).where(eq(masterDataValues.organizationId, orgId));
+  await db.delete(masterDataGroups).where(eq(masterDataGroups.organizationId, orgId));
   await db.delete(applicationAccess).where(eq(applicationAccess.organizationId, orgId));
   await db.delete(users).where(eq(users.organizationId, orgId));
   await db.delete(platformRoles).where(eq(platformRoles.organizationId, orgId));
@@ -191,5 +199,22 @@ describe("audit programme parent/child workflow", () => {
     await addChild(unstaffed.json.id);
     const rejected = await api("POST", `/programmes/${unstaffed.json.id}/submit`, creator.token);
     expect(rejected.status).toBe(422);
+  });
+
+  it("enforces child dates inside the parent programme range while allowing boundaries", async () => {
+    const created = await api("POST", "/programmes", creator.token, { title: "Date Programme", fromDate: "2026-03-01", toDate: "2026-09-30" });
+    const payload = (start: string, end: string) => ({
+      id: crypto.randomUUID(), parentId: created.json.id, year: 2026, title: `Date audit ${start}`,
+      projectIds: [], auditTypes: [], auditCategory: "Internal", plannedStartDate: start, plannedEndDate: end, workflowState: "Draft",
+    });
+    expect((await api("POST", "/schedules", creator.token, payload("2026-02-28", "2026-03-05"))).status).toBe(422);
+    expect((await api("POST", "/schedules", creator.token, payload("2026-09-01", "2026-10-01"))).status).toBe(422);
+    const boundary = await api("POST", "/schedules", creator.token, payload("2026-03-01", "2026-09-30"));
+    expect(boundary.status).toBe(201);
+    const invalidUpdate = await api("PUT", `/schedules/${boundary.json.id}`, creator.token, {
+      ...boundary.json, auditCategory: "Internal", projectIds: [], auditTypes: [],
+      plannedEndDate: "2026-10-01", workflowState: "Draft",
+    });
+    expect(invalidUpdate.status).toBe(422);
   });
 });

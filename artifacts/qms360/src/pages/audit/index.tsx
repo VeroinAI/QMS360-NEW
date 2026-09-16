@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Route, Switch, useLocation, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,6 +15,10 @@ import {
   useGetAuditDashboard,
   useGetAuditPlan,
   useGetAuditPlanOptions,
+  useGetAuditProgramme,
+  getGetAuditProgrammeQueryKey,
+  listAuditSchedules,
+  listPlatformProjects,
   useGetGeneratedAuditReport,
   useListAuditEvidence,
   useListAuditFindings,
@@ -72,6 +76,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import * as XLSX from "xlsx";
 import { useLov, withLegacyOption } from "@/lib/use-lov";
 import { useFieldAccess } from "@/lib/use-field-access";
 import { useFieldControls } from "@/lib/field-controls";
@@ -88,6 +93,63 @@ const date = (value?: string | null) => value ? new Date(value).toLocaleDateStri
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Something went wrong.";
 const fileSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 type QueuedAttachment = { file: File; clientReference: string };
+type ProgrammeRange = { fromDate: string; toDate: string };
+const scheduleImportHeaders = [
+  "Audit Type", "Audit Category", "Department / Project", "Location", "Audit Title",
+  "Process / Product Owner", "From Date", "To Date", "Remarks", "Name of L1",
+  "L1 Review Status", "L1 Review Comments", "Name of L2", "L2 Review Status",
+  "L2 Review Comments", "Memo Description", "Memo Circulation",
+];
+const normalizeHeader = (value: unknown) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+const scheduleHeaderAliases: Record<string, string> = {
+  audittype: "auditTypes", audittypevalue: "auditTypes", auditcategory: "auditCategory",
+  departmentproject: "departmentProject", project: "departmentProject", location: "location",
+  audittitle: "title", processeeproductowner: "processProductOwner", processproductowner: "processProductOwner",
+  fromdate: "plannedStartDate", startdate: "plannedStartDate", todate: "plannedEndDate", enddate: "plannedEndDate",
+  remarks: "remarks", nameofl1: "l1Name", l1name: "l1Name", l1reviewstatus: "l1ReviewStatus",
+  l1reviewcomments: "l1ReviewComments", nameofl2: "l2Name", l2name: "l2Name", l2reviewstatus: "l2ReviewStatus",
+  l2reviewcomments: "l2ReviewComments", memodescription: "memoDescription", memocirculation: "memoCirculation",
+};
+const scheduleDate = (value: unknown) => {
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = value.getMonth() + 1;
+    const day = value.getDate();
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+  if (typeof value === "number") {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    return parsed ? `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}` : "";
+  }
+  const candidate = String(value ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return "";
+  const [year, month, day] = candidate.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day ? candidate : "";
+};
+const stableScheduleId = async (parentId: string, row: Record<string, unknown>) => {
+  const input = new TextEncoder().encode(`${parentId}\n${JSON.stringify(row)}`);
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", input));
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes.slice(0, 16), byte => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+const workbookDownload = (rows: Record<string, unknown>[], fileName: string, range?: ProgrammeRange) => {
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet(rows, { header: scheduleImportHeaders });
+  XLSX.utils.book_append_sheet(workbook, sheet, "Audit Schedules");
+  const instructions = [
+    ["Audit Schedule Import Instructions"],
+    ["Template columns", scheduleImportHeaders.join(", ")],
+    ["Mandatory columns", "Audit Type, Audit Category, Department / Project, Location, Audit Title, Process / Product Owner, From Date, To Date, Name of L1, Name of L2, Memo Description, Memo Circulation"],
+    ["Date format", "YYYY-MM-DD"],
+    ["Parent range", range ? `${range.fromDate} through ${range.toDate}` : "No parent range"],
+    ["Department / Project", "Use the active project code or exact project name."],
+  ];
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(instructions), "Instructions");
+  XLSX.writeFile(workbook, fileName);
+};
 const workflowTone = (value: string) =>
   value === "Approved" || value === "Closed" || value === "Accepted" || value === "Shared"
     ? "default" : value === "Rejected" || value === "Sent Back" ? "destructive" : "secondary";
@@ -151,7 +213,7 @@ function Metric({ label, value, icon }: { label: string; value: number; icon: Re
   return <Card><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-3xl font-semibold">{value}</p></div><div className="rounded-lg bg-accent p-3 text-accent-foreground">{icon}</div></CardContent></Card>;
 }
 
-function ScheduleForm({ initial, onClose, parentId }: { initial?: AuditSchedule; onClose: () => void; parentId?: string }) {
+function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: AuditSchedule; onClose: () => void; parentId?: string; parentRange?: ProgrammeRange }) {
   const qc = useQueryClient(); const { toast } = useToast();
   const fc = useFieldControls("audit", "schedule"); const ro = (key: string) => fc.fieldProps(key).disabled; const req = (key: string) => fc.fieldProps(key).required;
   const [l1Files, setL1Files] = useState<QueuedAttachment[]>([]);
@@ -246,6 +308,8 @@ function ScheduleForm({ initial, onClose, parentId }: { initial?: AuditSchedule;
     if (!form.plannedStartDate) missing.plannedStartDate = "From Date is required.";
     if (!form.plannedEndDate) missing.plannedEndDate = "To Date is required.";
     if (!missing.plannedStartDate && !missing.plannedEndDate && form.plannedEndDate.slice(0, 10) < form.plannedStartDate.slice(0, 10)) missing.plannedEndDate = "To Date must be on or after From Date.";
+    if (parentRange && form.plannedStartDate && form.plannedStartDate.slice(0, 10) < parentRange.fromDate) missing.plannedStartDate = `From Date must be on or after ${parentRange.fromDate}.`;
+    if (parentRange && form.plannedEndDate && form.plannedEndDate.slice(0, 10) > parentRange.toDate) missing.plannedEndDate = `To Date must be on or before ${parentRange.toDate}.`;
     if (!form.l1Name?.trim()) missing.l1Name = "Name of L1 is required.";
     if (form.l1ReviewStatus === "Send Back" && !form.l1ReviewComments?.trim()) missing.l1ReviewComments = "L1 Review Comments are required when sending back.";
     if (!form.l2Name?.trim()) missing.l2Name = "Name of L2 is required.";
@@ -362,7 +426,7 @@ function ScheduleForm({ initial, onClose, parentId }: { initial?: AuditSchedule;
      <div id="schedule-location"><Label>4. Location (GPS) *</Label><Button type="button" variant="outline" className={`w-full justify-start ${invalid("location")}`} onClick={captureGps} disabled={ro("location")}><MapPin className="mr-2 size-4" />Capture GPS</Button>{form.gpsLat != null && form.gpsLng != null && <p className="mt-2 text-xs text-muted-foreground">{form.gpsLat.toFixed(5)}, {form.gpsLng.toFixed(5)}</p>}{error("location")}</div>
     <div id="schedule-title"><Label>5. Audit Title *</Label><Input aria-invalid={!!errors.title} className={invalid("title")} value={form.title} disabled={ro("title")} onChange={e => field("title", e.target.value)}/>{error("title")}</div>
     <div id="schedule-processProductOwner"><Label>6. Process / Product Owner *</Label><Select value={form.processProductOwner ?? ""} disabled={processOwners.isLoading || ro("processProductOwner")} onValueChange={v => field("processProductOwner", v)}><SelectTrigger aria-invalid={!!errors.processProductOwner} className={invalid("processProductOwner")}><SelectValue placeholder="Select owner"/></SelectTrigger><SelectContent>{withLegacyOption(processOwners.options, form.processProductOwner).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("processProductOwner")}</div>
-    <div className="grid grid-cols-2 gap-3"><div id="schedule-plannedStartDate"><Label>7. From Date *</Label><Input aria-invalid={!!errors.plannedStartDate} className={invalid("plannedStartDate")} type="date" value={form.plannedStartDate.slice(0,10)} disabled={ro("plannedStartDate")} onChange={e => field("plannedStartDate", e.target.value)}/>{error("plannedStartDate")}</div><div id="schedule-plannedEndDate"><Label>To Date *</Label><Input aria-invalid={!!errors.plannedEndDate} className={invalid("plannedEndDate")} type="date" value={form.plannedEndDate.slice(0,10)} disabled={ro("plannedEndDate")} onChange={e => field("plannedEndDate", e.target.value)}/>{error("plannedEndDate")}</div></div>
+     <div className="grid grid-cols-2 gap-3"><div id="schedule-plannedStartDate"><Label>7. From Date *</Label><Input aria-invalid={!!errors.plannedStartDate} className={invalid("plannedStartDate")} type="date" min={parentRange?.fromDate} max={parentRange?.toDate} value={form.plannedStartDate.slice(0,10)} disabled={ro("plannedStartDate")} onChange={e => field("plannedStartDate", e.target.value)}/>{error("plannedStartDate")}</div><div id="schedule-plannedEndDate"><Label>To Date *</Label><Input aria-invalid={!!errors.plannedEndDate} className={invalid("plannedEndDate")} type="date" min={parentRange?.fromDate} max={parentRange?.toDate} value={form.plannedEndDate.slice(0,10)} disabled={ro("plannedEndDate")} onChange={e => field("plannedEndDate", e.target.value)}/>{error("plannedEndDate")}</div></div>
     <div><Label>8. QA/QC Reference *</Label><Input readOnly value={form.qaqcReference ?? ""}/></div>
     <div><Label>9. Audit Number / Site Visit No. *</Label><Input readOnly value={form.auditNumber ?? ""}/></div>
     <div><Label>10. QA/QC Scope *</Label><Input readOnly value={form.qaqcScope ?? ""}/></div>
@@ -535,11 +599,110 @@ function Schedules() {
   const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false); const [displaying, setDisplaying] = useState<AuditSchedule | undefined>();
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
   const query = useListAuditSchedules({ page, limit: PAGE_SIZE, parentId }); const qc = useQueryClient(); const { toast } = useToast();
+  const programme = useGetAuditProgramme(parentId, { query: { enabled: parentId !== "legacy" && !!parentId, queryKey: getGetAuditProgrammeQueryKey(parentId) } });
+  const allChildren = useListAuditSchedules({ page: 1, limit: 200, parentId });
+  const projects = useListPlatformProjects({ page: 1, limit: 200 });
+  const create = useCreateAuditSchedule();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [loadingFile, setLoadingFile] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const remove = useDeleteAuditSchedule(); const submit = useSubmitAuditSchedule(); const review = useReviewAuditSchedule();
   const items = (query.data?.items ?? []).filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
   const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] }); qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] }); toast({ title: message }); };
   const sendBack = (id: string) => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id, data: { decision: "send_back", comments } }, { onSuccess: () => done("Schedule sent back") }); };
-  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<Button onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button>}/>
+  const range = parentId !== "legacy" && programme.data ? { fromDate: programme.data.fromDate.slice(0, 10), toDate: programme.data.toDate.slice(0, 10) } : undefined;
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const first = await listAuditSchedules({ page: 1, limit: 200, parentId });
+      const children = [...first.items];
+      for (let nextPage = 2; children.length < first.total; nextPage += 1) {
+        const next = await listAuditSchedules({ page: nextPage, limit: 200, parentId });
+        children.push(...next.items);
+        if (!next.items.length) break;
+      }
+      const rows = children.map(item => ({
+      "Audit Type": item.auditTypes?.join(", ") ?? "", "Audit Category": item.auditCategory ?? "",
+      "Department / Project": item.departmentProject ?? "", Location: item.location ?? "", "Audit Title": item.title,
+      "Process / Product Owner": item.processProductOwner ?? "", "From Date": item.plannedStartDate.slice(0, 10),
+      "To Date": item.plannedEndDate.slice(0, 10), Remarks: item.remarks ?? "", "Name of L1": item.l1Name ?? "",
+      "L1 Review Status": item.l1ReviewStatus ?? "Pending", "L1 Review Comments": item.l1ReviewComments ?? "",
+      "Name of L2": item.l2Name ?? "", "L2 Review Status": item.l2ReviewStatus ?? "Pending",
+      "L2 Review Comments": item.l2ReviewComments ?? "", "Memo Description": item.memoDescription ?? "",
+      "Memo Circulation": item.memoCirculation ?? "",
+      }));
+      workbookDownload(rows, `audit-schedule-${parentId}.xlsx`, range);
+    } catch (error) {
+      toast({ title: "Unable to download audit schedule", description: errorText(error), variant: "destructive" });
+    } finally {
+      setDownloading(false);
+    }
+  };
+  const loadFile = async (file: File) => {
+    setLoadingFile(true);
+    const failures: string[] = []; let created = 0;
+    try {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+      const first = workbook.Sheets[workbook.SheetNames[0]];
+      const formulaCell = first && Object.entries(first).find(([address, cell]) =>
+        !address.startsWith("!") && Boolean((cell as XLSX.CellObject).f));
+      if (formulaCell) {
+        toast({ title: "Formula cells are not supported", description: `Replace the formula in cell ${formulaCell[0]} with its displayed value and load the file again.`, variant: "destructive" });
+        return;
+      }
+      const rows = first ? XLSX.utils.sheet_to_json<Record<string, unknown>>(first, { defval: "" }) : [];
+      if (!rows.length) { toast({ title: "No data rows found", variant: "destructive" }); return; }
+      const firstProjects = await listPlatformProjects({ page: 1, limit: 200 });
+      const projectRows = [...firstProjects.items];
+      for (let nextPage = 2; projectRows.length < firstProjects.total; nextPage += 1) {
+        const next = await listPlatformProjects({ page: nextPage, limit: 200 });
+        projectRows.push(...next.items);
+        if (!next.items.length) break;
+      }
+      for (let index = 0; index < rows.length; index += 1) {
+        const source = rows[index]; const mapped: Record<string, unknown> = {};
+        Object.entries(source).forEach(([key, value]) => { const target = scheduleHeaderAliases[normalizeHeader(key)]; if (target) mapped[target] = value; });
+        const projectText = String(mapped.departmentProject ?? "").trim();
+        const project = projectRows.find(item => item.code === projectText || item.name === projectText);
+        const start = scheduleDate(mapped.plannedStartDate); const end = scheduleDate(mapped.plannedEndDate);
+        const required = ["auditTypes", "auditCategory", "departmentProject", "location", "title", "processProductOwner", "plannedStartDate", "plannedEndDate", "l1Name", "l2Name", "memoDescription", "memoCirculation"];
+        const missing = required.filter(key => !String(mapped[key] ?? "").trim());
+        if (missing.length) { failures.push(`row ${index + 2}: missing ${missing.join(", ")}`); continue; }
+        if (!start || !end) { failures.push(`row ${index + 2}: From Date and To Date must be valid calendar dates in YYYY-MM-DD format`); continue; }
+        if (!project) { failures.push(`row ${index + 2}: Department / Project must be an active project code or exact name`); continue; }
+        if (end < start) { failures.push(`row ${index + 2}: To Date must be on or after From Date`); continue; }
+        if (range && (start < range.fromDate || end > range.toDate)) { failures.push(`row ${index + 2}: dates must be within ${range.fromDate} and ${range.toDate}`); continue; }
+        const rowParentId = parentId === "legacy" ? null : parentId;
+        const dataWithoutId = {
+          parentId: rowParentId, year: Number(start.slice(0, 4)),
+          title: String(mapped.title), projectIds: [project.id], auditTypes: String(mapped.auditTypes).split(",").map(x => x.trim()).filter(Boolean),
+          auditCategory: String(mapped.auditCategory), departmentProject: project.name, location: String(mapped.location),
+          processProductOwner: String(mapped.processProductOwner), plannedStartDate: start, plannedEndDate: end,
+          qaqcReference: `QAM-IA/${start.slice(2, 4)}-`, auditNumber: `AUD-${start.slice(0, 4)}-`,
+          qaqcScope: "System and Process audits against ISO 9001:2015", qaqcClauses: "ISO 9001 — All clauses",
+          remarks: String(mapped.remarks ?? ""), l1Name: String(mapped.l1Name), l1ReviewStatus: String(mapped.l1ReviewStatus || "Pending") as AuditSchedule["l1ReviewStatus"],
+          l1ReviewComments: String(mapped.l1ReviewComments ?? ""), l1Attachments: [], l2Name: String(mapped.l2Name),
+          l2ReviewStatus: String(mapped.l2ReviewStatus || "Pending") as AuditSchedule["l2ReviewStatus"], l2ReviewComments: String(mapped.l2ReviewComments ?? ""),
+          l2Attachments: [], memoDescription: String(mapped.memoDescription), memoCirculation: String(mapped.memoCirculation), ownerId: "", workflowState: "Draft",
+        };
+        const data: AuditSchedule = {
+          ...dataWithoutId,
+          id: await stableScheduleId(parentId, dataWithoutId),
+        } as AuditSchedule;
+        try { await create.mutateAsync({ data }); created += 1; } catch (error) { failures.push(`row ${index + 2}: ${errorText(error)}`); }
+      }
+      qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
+      qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] });
+      toast({
+        title: `Loaded ${created} audit${created === 1 ? "" : "s"}${failures.length ? `; ${failures.length} failed` : ""}`,
+        description: failures.length ? failures.join("; ") : "Every data row was created successfully.",
+        variant: failures.length ? "destructive" : "default",
+      });
+    } catch (error) { toast({ title: "Unable to read audit file", description: errorText(error), variant: "destructive" }); }
+    finally { setLoadingFile(false); if (fileInput.current) fileInput.current.value = ""; }
+  };
+  const programmePending = parentId !== "legacy" && (programme.isLoading || !programme.data);
+  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void download()} disabled={allChildren.isLoading || downloading || programmePending}><Download className="mr-2 size-4"/>{downloading ? "Downloading…" : "Download"}</Button><Button variant="outline" onClick={() => fileInput.current?.click()} disabled={loadingFile || projects.isLoading || programmePending}><Upload className="mr-2 size-4"/>{loadingFile ? "Loading…" : "Load"}</Button><input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void loadFile(file); }}/><Button disabled={programmePending} onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button></div>}/>
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
       <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/40 shrink-0">
@@ -547,7 +710,7 @@ function Schedules() {
         <Button variant={viewMode === "gantt" ? "secondary" : "ghost"} size="sm" className="h-8 px-4 font-medium" onClick={() => setViewMode("gantt")}><CalendarDays className="mr-2 size-4"/>Programme</Button>
       </div>
     </div>
-    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit audit" : "Create audit"}</DialogTitle></DialogHeader><ScheduleForm initial={editing} parentId={parentId === "legacy" ? undefined : parentId} onClose={() => setOpen(false)}/></DialogContent></Dialog>
+     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit audit" : "Create audit"}</DialogTitle></DialogHeader><ScheduleForm initial={editing} parentId={parentId === "legacy" ? undefined : parentId} parentRange={range} onClose={() => setOpen(false)}/></DialogContent></Dialog>
     <Dialog open={!!displaying} onOpenChange={isOpen => !isOpen && setDisplaying(undefined)}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">{displaying && <ScheduleDisplay schedule={displaying} onClose={() => setDisplaying(undefined)}/>}</DialogContent></Dialog>
     <State loading={query.isLoading} error={query.error} empty={!items.length}/>
     {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
