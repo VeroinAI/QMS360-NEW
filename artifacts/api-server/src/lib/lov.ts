@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { masterDataGroups, masterDataValues } from "@workspace/db";
 import { HttpError } from "./workspace";
 
@@ -7,6 +7,13 @@ type Db = typeof import("@workspace/db").db;
 type LovOptions = {
   allowLegacy?: string | string[] | null;
 };
+
+export function masterDataGroupCodeAliases(groupCode: string): string[] {
+  const normalized = groupCode.trim().toLowerCase();
+  return normalized === "departments" || normalized === "department"
+    ? ["departments", "department"]
+    : [normalized];
+}
 
 export async function assertLovValue(
   db: Db,
@@ -18,12 +25,16 @@ export async function assertLovValue(
   const legacyValues = Array.isArray(allowLegacy) ? allowLegacy : allowLegacy == null ? [] : [allowLegacy];
   if (legacyValues.includes(value)) return;
 
-  const [group] = await db.select({ id: masterDataGroups.id }).from(masterDataGroups).where(and(
+  const aliases = masterDataGroupCodeAliases(groupCode);
+  const groups = await db.select({ id: masterDataGroups.id, code: masterDataGroups.code }).from(masterDataGroups).where(and(
     eq(masterDataGroups.organizationId, organizationId),
-    eq(masterDataGroups.code, groupCode),
+    inArray(sql<string>`lower(${masterDataGroups.code})`, aliases),
     eq(masterDataGroups.status, "active"),
     isNull(masterDataGroups.deletedAt),
-  )).limit(1);
+  ));
+  const group = aliases
+    .map((alias) => groups.find((candidate) => candidate.code.toLowerCase() === alias))
+    .find(Boolean);
 
   const validValues = group
     ? await db.select({ value: masterDataValues.value }).from(masterDataValues).where(and(

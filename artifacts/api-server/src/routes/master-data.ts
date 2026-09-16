@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   CreateMasterDataGroupBody,
   CreateMasterDataGroupResponse,
@@ -15,6 +15,7 @@ import {
 import { db, masterDataGroups, masterDataValues } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { asyncHandler, HttpError, writeAuditLog } from "../lib/workspace";
+import { masterDataGroupCodeAliases } from "../lib/lov";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -84,11 +85,16 @@ router.get("/platform/master-data", requireAdmin, asyncHandler(async (req, res) 
 
 router.get("/platform/master-data/lov/:code", asyncHandler(async (req, res) => {
   const organizationId = req.currentUser!.organizationId;
-  const [group] = await db.select().from(masterDataGroups).where(and(
+  const requestedCode = String(req.params.code);
+  const aliases = masterDataGroupCodeAliases(requestedCode);
+  const groups = await db.select().from(masterDataGroups).where(and(
     eq(masterDataGroups.organizationId, organizationId),
-    eq(masterDataGroups.code, String(req.params.code)),
+    inArray(sql<string>`lower(${masterDataGroups.code})`, aliases),
     isNull(masterDataGroups.deletedAt),
-  )).limit(1);
+  ));
+  const group = aliases
+    .map((alias) => groups.find((candidate) => candidate.code.toLowerCase() === alias))
+    .find(Boolean);
   if (!group) throw new HttpError(404, "Master data group not found");
   const values = await db.select().from(masterDataValues).where(and(
     eq(masterDataValues.organizationId, organizationId),
