@@ -8,7 +8,7 @@
 import type { LimitParameter } from './limitParameter';
 import type { PageParameter } from './pageParameter';
 
-export type ListAuditSchedulesParams = {
+export type ListAuditProgrammesParams = {
 /**
  * @minimum 1
  */
@@ -18,5 +18,4 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
-parentId?: string;
 };

@@ -5425,7 +5425,8 @@ export const listAuditSchedulesQueryLimitMax = 200;
 
 export const ListAuditSchedulesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditSchedulesQueryPageDefault),
-  "limit": zod.coerce.number().min(1).max(listAuditSchedulesQueryLimitMax).default(listAuditSchedulesQueryLimitDefault)
+  "limit": zod.coerce.number().min(1).max(listAuditSchedulesQueryLimitMax).default(listAuditSchedulesQueryLimitDefault),
+  "parentId": zod.coerce.string().optional()
 })
 
 export const listAuditSchedulesResponseOneTotalMin = 0;
@@ -5447,6 +5448,7 @@ export const ListAuditSchedulesResponse = zod.object({
 }).and(zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
+  "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
   "year": zod.number(),
   "title": zod.string(),
   "projectIds": zod.array(zod.string()),
@@ -5494,6 +5496,7 @@ export const createAuditScheduleBodyGpsLngMax = 180;
 
 export const CreateAuditScheduleBody = zod.object({
   "id": zod.string(),
+  "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
   "year": zod.number(),
   "title": zod.string(),
   "projectIds": zod.array(zod.string()),
@@ -5530,6 +5533,136 @@ export const CreateAuditScheduleResponse = zod.void()
 
 
 /**
+ * @summary List annual audit programmes
+ */
+export const listAuditProgrammesQueryPageDefault = 1;
+
+export const listAuditProgrammesQueryLimitDefault = 20;
+export const listAuditProgrammesQueryLimitMax = 200;
+
+
+
+export const ListAuditProgrammesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditProgrammesQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditProgrammesQueryLimitMax).default(listAuditProgrammesQueryLimitDefault)
+})
+
+export const listAuditProgrammesResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditProgrammesResponse = zod.object({
+  "total": zod.number().min(listAuditProgrammesResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "fromDate": zod.coerce.date(),
+  "toDate": zod.coerce.date(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "childCount": zod.number(),
+  "currentApprovalRole": zod.string().nullable(),
+  "approvalRoles": zod.array(zod.string()),
+  "ownerId": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary Create an annual audit programme
+ */
+
+
+
+export const CreateAuditProgrammeBody = zod.object({
+  "title": zod.string().min(1),
+  "fromDate": zod.coerce.date(),
+  "toDate": zod.coerce.date()
+})
+
+export const CreateAuditProgrammeResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "fromDate": zod.coerce.date(),
+  "toDate": zod.coerce.date(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "childCount": zod.number(),
+  "currentApprovalRole": zod.string().nullable(),
+  "approvalRoles": zod.array(zod.string()),
+  "ownerId": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get an annual audit programme
+ */
+export const GetAuditProgrammeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetAuditProgrammeResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "fromDate": zod.coerce.date(),
+  "toDate": zod.coerce.date(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "childCount": zod.number(),
+  "currentApprovalRole": zod.string().nullable(),
+  "approvalRoles": zod.array(zod.string()),
+  "ownerId": zod.string().nullish()
+})
+
+
+/**
+ * @summary Submit programme for sequential approval
+ */
+export const SubmitAuditProgrammeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SubmitAuditProgrammeResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "fromDate": zod.coerce.date(),
+  "toDate": zod.coerce.date(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "childCount": zod.number(),
+  "currentApprovalRole": zod.string().nullable(),
+  "approvalRoles": zod.array(zod.string()),
+  "ownerId": zod.string().nullish()
+})
+
+
+/**
+ * @summary Review current programme approval step
+ */
+export const ReviewAuditProgrammeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReviewAuditProgrammeBody = zod.object({
+  "decision": zod.enum(['approve', 'send_back']),
+  "comments": zod.string().nullish()
+})
+
+export const ReviewAuditProgrammeResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "fromDate": zod.coerce.date(),
+  "toDate": zod.coerce.date(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "childCount": zod.number(),
+  "currentApprovalRole": zod.string().nullable(),
+  "approvalRoles": zod.array(zod.string()),
+  "ownerId": zod.string().nullish()
+})
+
+
+/**
  * @summary Get audit schedule
  */
 export const GetAuditScheduleParams = zod.object({
@@ -5546,6 +5679,7 @@ export const getAuditScheduleResponseGpsLngMax = 180;
 
 export const GetAuditScheduleResponse = zod.object({
   "id": zod.string(),
+  "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
   "year": zod.number(),
   "title": zod.string(),
   "projectIds": zod.array(zod.string()),
@@ -5596,6 +5730,7 @@ export const updateAuditScheduleBodyGpsLngMax = 180;
 
 export const UpdateAuditScheduleBody = zod.object({
   "id": zod.string(),
+  "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
   "year": zod.number(),
   "title": zod.string(),
   "projectIds": zod.array(zod.string()),
@@ -6627,6 +6762,7 @@ export const GetAuditScheduleReportResponse = zod.object({
 }).and(zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
+  "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
   "year": zod.number(),
   "title": zod.string(),
   "projectIds": zod.array(zod.string()),

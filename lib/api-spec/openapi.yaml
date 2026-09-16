@@ -1023,8 +1023,17 @@ paths:
   /lessons/evidence/{id}:
     delete: {operationId: deleteLessonsEvidence, tags: [lessons], summary: Soft-delete evidence, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
   /audit/schedules:
-    get: {operationId: listAuditSchedules, tags: [audit], summary: List audit schedules, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditSchedulePage"}}}
+    get: {operationId: listAuditSchedules, tags: [audit], summary: List audit schedules, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: parentId, in: query, schema: {type: string}}], responses: {"200": {$ref: "#/components/responses/AuditSchedulePage"}}}
     post: {operationId: createAuditSchedule, tags: [audit], summary: Create audit schedule, requestBody: {$ref: "#/components/requestBodies/AuditSchedule"}, responses: {"201": {description: Created}}}
+  /audit/programmes:
+    get: {operationId: listAuditProgrammes, tags: [audit], summary: List annual audit programmes, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {description: Programmes, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammePage"}}}}}}
+    post: {operationId: createAuditProgramme, tags: [audit], summary: Create an annual audit programme, requestBody: {$ref: "#/components/requestBodies/AuditProgramme"}, responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
+  /audit/programmes/{id}:
+    get: {operationId: getAuditProgramme, tags: [audit], summary: Get an annual audit programme, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Programme, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
+  /audit/programmes/{id}/submit:
+    post: {operationId: submitAuditProgramme, tags: [audit], summary: Submit programme for sequential approval, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
+  /audit/programmes/{id}/review:
+    post: {operationId: reviewAuditProgramme, tags: [audit], summary: Review current programme approval step, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
   /audit/schedules/{id}:
     get: {operationId: getAuditSchedule, tags: [audit], summary: Get audit schedule, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Schedule, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}}}
     put: {operationId: updateAuditSchedule, tags: [audit], summary: Update audit schedule, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditSchedule"}, responses: {"200": {description: Updated}}}
@@ -1199,6 +1208,7 @@ components:
     LessonFormPage: {description: Paginated forms, content: {application/json: {schema: {$ref: "#/components/schemas/LessonFormPage"}}}}
     EscalationSummaryPage: {description: Paginated escalation summary, content: {application/json: {schema: {$ref: "#/components/schemas/EscalationSummaryPage"}}}}
     AuditSchedulePage: {description: Paginated schedules, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedulePage"}}}}
+    AuditProgrammePage: {description: Paginated programmes, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammePage"}}}}
     AuditPlanPage: {description: Paginated plans, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanPage"}}}}
     AuditPage: {description: Paginated audits, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPage"}}}}
     AuditFindingPage: {description: Paginated findings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingPage"}}}}
@@ -1221,6 +1231,7 @@ components:
     NotificationTemplate: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/NotificationTemplate"}}}}
     LessonForm: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonLearnedForm"}}}}
     AuditSchedule: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}
+    AuditProgramme: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeInput"}}}}
     AuditPlan: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlan"}}}}
     Audit: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
     AuditFinding: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFinding"}}}}
@@ -2215,6 +2226,7 @@ components:
       required: [id, year, title, projectIds, plannedStartDate, plannedEndDate, workflowState]
       properties:
         id: {type: string}
+        parentId: {type: [string, "null"], description: Parent audit programme identifier}
         year: {type: number}
         title: {type: string}
         projectIds: {type: array, items: {type: string}}
@@ -2245,6 +2257,26 @@ components:
         ownerId: {type: string}
         workflowState: {$ref: "#/components/schemas/WorkflowState"}
         reviewComments: {type: [string, "null"]}
+    AuditProgramme:
+      type: object
+      required: [id, title, fromDate, toDate, workflowState, childCount, currentApprovalRole, approvalRoles]
+      properties:
+        id: {type: string}
+        title: {type: string}
+        fromDate: {type: string, format: date}
+        toDate: {type: string, format: date}
+        workflowState: {$ref: "#/components/schemas/WorkflowState"}
+        childCount: {type: number}
+        currentApprovalRole: {type: [string, "null"]}
+        approvalRoles: {type: array, items: {type: string}}
+        ownerId: {type: [string, "null"]}
+    AuditProgrammeInput:
+      type: object
+      required: [title, fromDate, toDate]
+      properties:
+        title: {type: string, minLength: 1}
+        fromDate: {type: string, format: date}
+        toDate: {type: string, format: date}
     AuditPlanUserOption:
       type: object
       required: [id, fullName]
@@ -2376,6 +2408,7 @@ components:
     LessonFormPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/LessonLearnedForm"}}}}]}
     EscalationSummaryPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/EscalationSummary"}}}}]}
     AuditSchedulePage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/AuditSchedule"}}}}]}
+    AuditProgrammePage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/AuditProgramme"}}}}]}
     AuditPlanPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/AuditPlan"}}}}]}
     AuditPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Audit"}}}}]}
     AuditFindingPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/AuditFinding"}}}}]}

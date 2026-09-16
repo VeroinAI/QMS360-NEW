@@ -11,6 +11,11 @@ import type { WorkflowState } from './workflowState';
 
 export interface AuditSchedule {
   id: string;
+  /**
+     * Parent audit programme identifier
+     * @nullable
+     */
+  parentId?: string | null;
   year: number;
   title: string;
   projectIds: string[];

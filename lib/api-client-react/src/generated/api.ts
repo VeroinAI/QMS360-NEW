@@ -46,6 +46,9 @@ import type {
   AuditPlanBody,
   AuditPlanOptions,
   AuditPlanPageResponse,
+  AuditProgramme,
+  AuditProgrammeBody,
+  AuditProgrammePage,
   AuditSchedule,
   AuditScheduleBody,
   AuditSchedulePageResponse,
@@ -133,6 +136,7 @@ import type {
   ListAuditNotificationTemplatesParams,
   ListAuditNotificationsParams,
   ListAuditPlansParams,
+  ListAuditProgrammesParams,
   ListAuditRolesParams,
   ListAuditSchedulesParams,
   ListAuditUsersParams,
@@ -14770,6 +14774,381 @@ export const useCreateAuditSchedule = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateAuditScheduleMutationOptions(options));
+    }
+
+export const getListAuditProgrammesUrl = (params?: ListAuditProgrammesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/programmes?${stringifiedParams}` : `/api/audit/programmes`
+}
+
+/**
+ * @summary List annual audit programmes
+ */
+export const listAuditProgrammes = async (params?: ListAuditProgrammesParams, options?: Parameters<typeof customFetch>[1]): Promise<AuditProgrammePage> => {
+
+  return customFetch<AuditProgrammePage>(getListAuditProgrammesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAuditProgrammesQueryKey = (params?: ListAuditProgrammesParams,) => {
+    return [
+    `/api/audit/programmes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAuditProgrammesQueryOptions = <TData = Awaited<ReturnType<typeof listAuditProgrammes>>, TError = ErrorType<unknown>>(params?: ListAuditProgrammesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditProgrammes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAuditProgrammesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditProgrammes>>> = ({ signal }) => listAuditProgrammes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditProgrammes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAuditProgrammesQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditProgrammes>>>
+export type ListAuditProgrammesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List annual audit programmes
+ */
+
+export function useListAuditProgrammes<TData = Awaited<ReturnType<typeof listAuditProgrammes>>, TError = ErrorType<unknown>>(
+ params?: ListAuditProgrammesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditProgrammes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAuditProgrammesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAuditProgrammeUrl = () => {
+
+
+
+
+  return `/api/audit/programmes`
+}
+
+/**
+ * @summary Create an annual audit programme
+ */
+export const createAuditProgramme = async (auditProgrammeBody: AuditProgrammeBody, options?: Parameters<typeof customFetch>[1]): Promise<AuditProgramme> => {
+
+  return customFetch<AuditProgramme>(getCreateAuditProgrammeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditProgrammeBody)
+  }
+);}
+
+
+
+
+
+export const getCreateAuditProgrammeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAuditProgramme>>, TError,{data: BodyType<AuditProgrammeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAuditProgramme>>, TError,{data: BodyType<AuditProgrammeBody>}, TContext> => {
+
+const mutationKey = ['createAuditProgramme'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAuditProgramme>>, {data: BodyType<AuditProgrammeBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAuditProgramme(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAuditProgrammeMutationResult = NonNullable<Awaited<ReturnType<typeof createAuditProgramme>>>
+    export type CreateAuditProgrammeMutationBody = BodyType<AuditProgrammeBody>
+    export type CreateAuditProgrammeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create an annual audit programme
+ */
+export const useCreateAuditProgramme = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAuditProgramme>>, TError,{data: BodyType<AuditProgrammeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAuditProgramme>>,
+        TError,
+        {data: BodyType<AuditProgrammeBody>},
+        TContext
+      > => {
+      return useMutation(getCreateAuditProgrammeMutationOptions(options));
+    }
+
+export const getGetAuditProgrammeUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/programmes/${id}`
+}
+
+/**
+ * @summary Get an annual audit programme
+ */
+export const getAuditProgramme = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<AuditProgramme> => {
+
+  return customFetch<AuditProgramme>(getGetAuditProgrammeUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditProgrammeQueryKey = (id: string,) => {
+    return [
+    `/api/audit/programmes/${id}`
+    ] as const;
+    }
+
+
+export const getGetAuditProgrammeQueryOptions = <TData = Awaited<ReturnType<typeof getAuditProgramme>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditProgramme>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditProgrammeQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditProgramme>>> = ({ signal }) => getAuditProgramme(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditProgramme>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditProgrammeQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditProgramme>>>
+export type GetAuditProgrammeQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get an annual audit programme
+ */
+
+export function useGetAuditProgramme<TData = Awaited<ReturnType<typeof getAuditProgramme>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditProgramme>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditProgrammeQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitAuditProgrammeUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/programmes/${id}/submit`
+}
+
+/**
+ * @summary Submit programme for sequential approval
+ */
+export const submitAuditProgramme = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<AuditProgramme> => {
+
+  return customFetch<AuditProgramme>(getSubmitAuditProgrammeUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSubmitAuditProgrammeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAuditProgramme>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitAuditProgramme>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['submitAuditProgramme'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitAuditProgramme>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  submitAuditProgramme(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitAuditProgrammeMutationResult = NonNullable<Awaited<ReturnType<typeof submitAuditProgramme>>>
+
+    export type SubmitAuditProgrammeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Submit programme for sequential approval
+ */
+export const useSubmitAuditProgramme = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAuditProgramme>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitAuditProgramme>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getSubmitAuditProgrammeMutationOptions(options));
+    }
+
+export const getReviewAuditProgrammeUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/programmes/${id}/review`
+}
+
+/**
+ * @summary Review current programme approval step
+ */
+export const reviewAuditProgramme = async (id: string,
+    approvalReviewBody: ApprovalReviewBody, options?: Parameters<typeof customFetch>[1]): Promise<AuditProgramme> => {
+
+  return customFetch<AuditProgramme>(getReviewAuditProgrammeUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(approvalReviewBody)
+  }
+);}
+
+
+
+
+
+export const getReviewAuditProgrammeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAuditProgramme>>, TError,{id: string;data: BodyType<ApprovalReviewBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewAuditProgramme>>, TError,{id: string;data: BodyType<ApprovalReviewBody>}, TContext> => {
+
+const mutationKey = ['reviewAuditProgramme'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewAuditProgramme>>, {id: string;data: BodyType<ApprovalReviewBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reviewAuditProgramme(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewAuditProgrammeMutationResult = NonNullable<Awaited<ReturnType<typeof reviewAuditProgramme>>>
+    export type ReviewAuditProgrammeMutationBody = BodyType<ApprovalReviewBody>
+    export type ReviewAuditProgrammeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Review current programme approval step
+ */
+export const useReviewAuditProgramme = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAuditProgramme>>, TError,{id: string;data: BodyType<ApprovalReviewBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewAuditProgramme>>,
+        TError,
+        {id: string;data: BodyType<ApprovalReviewBody>},
+        TContext
+      > => {
+      return useMutation(getReviewAuditProgrammeMutationOptions(options));
     }
 
 export const getGetAuditScheduleUrl = (id: string,) => {

@@ -1831,6 +1831,11 @@ export const AuditScheduleL2ReviewStatus = {
 
 export interface AuditSchedule {
   id: string;
+  /**
+     * Parent audit programme identifier
+     * @nullable
+     */
+  parentId?: string | null;
   year: number;
   title: string;
   projectIds: string[];
@@ -1876,6 +1881,27 @@ export interface AuditSchedule {
   workflowState: WorkflowState;
   /** @nullable */
   reviewComments?: string | null;
+}
+
+export interface AuditProgramme {
+  id: string;
+  title: string;
+  fromDate: string;
+  toDate: string;
+  workflowState: WorkflowState;
+  childCount: number;
+  /** @nullable */
+  currentApprovalRole: string | null;
+  approvalRoles: string[];
+  /** @nullable */
+  ownerId?: string | null;
+}
+
+export interface AuditProgrammeInput {
+  /** @minLength 1 */
+  title: string;
+  fromDate: string;
+  toDate: string;
 }
 
 export interface AuditPlanUserOption {
@@ -2266,6 +2292,10 @@ export type AuditSchedulePage = PageMeta & {
   items: AuditSchedule[];
 };
 
+export type AuditProgrammePage = PageMeta & {
+  items: AuditProgramme[];
+};
+
 export type AuditPlanPage = PageMeta & {
   items: AuditPlan[];
 };
@@ -2413,6 +2443,11 @@ export type EscalationSummaryPageResponse = EscalationSummaryPage;
 export type AuditSchedulePageResponse = AuditSchedulePage;
 
 /**
+ * Paginated programmes
+ */
+export type AuditProgrammePageResponse = AuditProgrammePage;
+
+/**
  * Paginated plans
  */
 export type AuditPlanPageResponse = AuditPlanPage;
@@ -2465,6 +2500,8 @@ export type NotificationTemplateBody = NotificationTemplate;
 export type LessonFormBody = LessonLearnedForm;
 
 export type AuditScheduleBody = AuditSchedule;
+
+export type AuditProgrammeBody = AuditProgrammeInput;
 
 export type AuditPlanBody = AuditPlan;
 
@@ -3212,6 +3249,19 @@ limit?: LimitParameter;
 };
 
 export type ListAuditSchedulesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+parentId?: string;
+};
+
+export type ListAuditProgrammesParams = {
 /**
  * @minimum 1
  */

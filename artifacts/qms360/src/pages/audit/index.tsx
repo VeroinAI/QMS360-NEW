@@ -20,6 +20,10 @@ import {
   useListAuditFindings,
   useListAuditPlans,
   useListAuditSchedules,
+  useListAuditProgrammes,
+  useCreateAuditProgramme,
+  useSubmitAuditProgramme,
+  useReviewAuditProgramme,
   useListAudits,
   useListCorrectiveActionReports,
   useListPlatformProjects,
@@ -147,7 +151,7 @@ function Metric({ label, value, icon }: { label: string; value: number; icon: Re
   return <Card><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-3xl font-semibold">{value}</p></div><div className="rounded-lg bg-accent p-3 text-accent-foreground">{icon}</div></CardContent></Card>;
 }
 
-function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: () => void }) {
+function ScheduleForm({ initial, onClose, parentId }: { initial?: AuditSchedule; onClose: () => void; parentId?: string }) {
   const qc = useQueryClient(); const { toast } = useToast();
   const fc = useFieldControls("audit", "schedule"); const ro = (key: string) => fc.fieldProps(key).disabled; const req = (key: string) => fc.fieldProps(key).required;
   const [l1Files, setL1Files] = useState<QueuedAttachment[]>([]);
@@ -155,7 +159,7 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   const [createdScheduleId, setCreatedScheduleId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<AuditSchedule>(initial ?? {
-    id: crypto.randomUUID(), year: new Date().getFullYear(), title: "", projectIds: [], auditTypes: [],
+    id: crypto.randomUUID(), parentId: parentId ?? null, year: new Date().getFullYear(), title: "", projectIds: [], auditTypes: [],
     auditCategory: "", departmentProject: "", location: "", processProductOwner: "",
     plannedStartDate: "", plannedEndDate: "", qaqcReference: `QAM-IA/${new Date().getFullYear().toString().slice(-2)}-`,
     auditNumber: `AUD-${new Date().getFullYear()}-`, qaqcScope: "System and Process audits against ISO 9001:2015",
@@ -278,6 +282,7 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
       }
       await uploadQueuedAttachments(savedScheduleId);
       qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
+      qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] });
       toast({ title: initial ? "Schedule updated" : "Schedule created" });
       onClose();
     } catch (e) {
@@ -468,15 +473,73 @@ function ScheduleGantt({ items, onDisplay }: { items: AuditSchedule[]; onDisplay
   );
 }
 
+function ProgrammeForm({ onClose }: { onClose: () => void }) {
+  const create = useCreateAuditProgramme();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [title, setTitle] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const save = () => {
+    if (!title.trim() || !fromDate || !toDate) {
+      toast({ title: "Complete the programme details", description: "Audit Title, From Date and To Date are required.", variant: "destructive" });
+      return;
+    }
+    if (toDate < fromDate) {
+      toast({ title: "Invalid date range", description: "To Date must be on or after From Date.", variant: "destructive" });
+      return;
+    }
+    create.mutate({ data: { title: title.trim(), fromDate, toDate } }, {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] });
+        toast({ title: "Audit schedule created" });
+        onClose();
+      },
+      onError: (error) => toast({ title: "Unable to create audit schedule", description: errorText(error), variant: "destructive" }),
+    });
+  };
+  return <div className="grid gap-4 py-2">
+    <div><Label htmlFor="programme-title">Audit Title</Label><Input id="programme-title" value={title} onChange={e => setTitle(e.target.value)} /></div>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div><Label htmlFor="programme-from">From Date</Label><Input id="programme-from" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} /></div>
+      <div><Label htmlFor="programme-to">To Date</Label><Input id="programme-to" type="date" value={toDate} onChange={e => setToDate(e.target.value)} /></div>
+    </div>
+    <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save} disabled={create.isPending}>Save audit schedule</Button></DialogFooter>
+  </div>;
+}
+
+function Programmes() {
+  const [page, setPage] = useState(1);
+  const [open, setOpen] = useState(false);
+  const query = useListAuditProgrammes({ page, limit: PAGE_SIZE });
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const submit = useSubmitAuditProgramme();
+  const review = useReviewAuditProgramme();
+  const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] }); toast({ title: message }); };
+  return <div className="space-y-5">
+    <PageHeader title="Audit schedules" description="Create and manage annual audit programmes" action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 size-4"/>New Schedule</Button>} />
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>New Schedule</DialogTitle></DialogHeader><ProgrammeForm onClose={() => setOpen(false)} /></DialogContent></Dialog>
+    <State loading={query.isLoading} error={query.error} empty={!(query.data?.items?.length)} label="No audit schedules found." />
+    {!!query.data?.items?.length && <Card><Table><TableHeader><TableRow><TableHead>Audit schedule</TableHead><TableHead>Dates</TableHead><TableHead>Audits</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
+      {query.data.items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" asChild><Link href={`/audit/schedules/${item.id}`}>{item.title}</Link></Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : "Annual programme"}</div></TableCell><TableCell>{date(item.fromDate)} – {date(item.toDate)}</TableCell><TableCell>{item.childCount}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
+        {item.id !== "legacy" && item.workflowState === "Draft" && <Button size="sm" disabled={item.childCount === 0 || submit.isPending} onClick={() => submit.mutate({ id: item.id }, { onSuccess: () => done("Audit schedule submitted"), onError: e => toast({ title: "Unable to submit schedule", description: errorText(e), variant: "destructive" }) })}>Submit</Button>}
+        {item.id !== "legacy" && item.workflowState === "Submitted" && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Audit schedule approved"), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id: item.id, data: { decision: "send_back", comments } }, { onSuccess: () => done("Audit schedule sent back") }); }}>Send back</Button></>}
+      </div></TableCell></TableRow>)}
+    </TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage} /></CardContent></Card>}
+  </div>;
+}
+
 function Schedules() {
+  const { parentId = "" } = useParams<{ parentId: string }>();
   const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false); const [displaying, setDisplaying] = useState<AuditSchedule | undefined>();
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
-  const query = useListAuditSchedules({ page, limit: PAGE_SIZE }); const qc = useQueryClient(); const { toast } = useToast();
+  const query = useListAuditSchedules({ page, limit: PAGE_SIZE, parentId }); const qc = useQueryClient(); const { toast } = useToast();
   const remove = useDeleteAuditSchedule(); const submit = useSubmitAuditSchedule(); const review = useReviewAuditSchedule();
   const items = (query.data?.items ?? []).filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
-  const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] }); toast({ title: message }); };
+  const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] }); qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] }); toast({ title: message }); };
   const sendBack = (id: string) => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id, data: { decision: "send_back", comments } }, { onSuccess: () => done("Schedule sent back") }); };
-  return <div className="space-y-5"><PageHeader title="Annual audit schedules" description="Build, submit and approve the annual audit programme" action={<Button onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New schedule</Button>}/>
+  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<Button onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button>}/>
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
       <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/40 shrink-0">
@@ -484,7 +547,7 @@ function Schedules() {
         <Button variant={viewMode === "gantt" ? "secondary" : "ghost"} size="sm" className="h-8 px-4 font-medium" onClick={() => setViewMode("gantt")}><CalendarDays className="mr-2 size-4"/>Programme</Button>
       </div>
     </div>
-    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit schedule" : "Create schedule"}</DialogTitle></DialogHeader><ScheduleForm initial={editing} onClose={() => setOpen(false)}/></DialogContent></Dialog>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit audit" : "Create audit"}</DialogTitle></DialogHeader><ScheduleForm initial={editing} parentId={parentId === "legacy" ? undefined : parentId} onClose={() => setOpen(false)}/></DialogContent></Dialog>
     <Dialog open={!!displaying} onOpenChange={isOpen => !isOpen && setDisplaying(undefined)}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">{displaying && <ScheduleDisplay schedule={displaying} onClose={() => setDisplaying(undefined)}/>}</DialogContent></Dialog>
     <State loading={query.isLoading} error={query.error} empty={!items.length}/>
     {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
@@ -813,7 +876,8 @@ function AuditPlanAutoSync() {
 export function AuditRoutes() {
   return <Layout><AuditPlanAutoSync/><Switch>
     <Route path="/audit" component={Dashboard}/>
-    <Route path="/audit/schedules" component={Schedules}/>
+    <Route path="/audit/schedules/:parentId" component={Schedules}/>
+    <Route path="/audit/schedules" component={Programmes}/>
     <Route path="/audit/plans/:id" component={PlanDetail}/>
     <Route path="/audit/plans" component={Plans}/>
     <Route path="/audit/audits/:id/report" component={AuditReport}/>
