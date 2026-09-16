@@ -377,23 +377,124 @@ function ScheduleForm({ initial, onClose }: { initial?: AuditSchedule; onClose: 
   </div>;
 }
 
+function ScheduleGantt({ items, onDisplay }: { items: AuditSchedule[]; onDisplay: (item: AuditSchedule) => void }) {
+  if (items.length === 0) return null;
+
+  const year = items[0]?.year ?? new Date().getFullYear();
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const daysInYear = isLeap ? 366 : 365;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const daysInMonth = [31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  const getDayOfYear = (d: Date) => {
+    const start = new Date(d.getFullYear(), 0, 0);
+    const diff = d.getTime() - start.getTime();
+    const oneDay = 1000 * 60 * 60 * 24;
+    return Math.floor(diff / oneDay);
+  };
+
+  return (
+    <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+      <div className="min-w-[1200px]">
+        <div className="flex border-b bg-muted/40 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+          <div className="w-[320px] shrink-0 border-r p-3">Title & Project</div>
+          <div className="w-[180px] shrink-0 border-r p-3">Process Owner</div>
+          <div className="w-[220px] shrink-0 border-r p-3">Ref & Scope</div>
+          <div className="w-[120px] shrink-0 border-r p-3">Status</div>
+          <div className="flex flex-1">
+            {months.map((m, i) => (
+              <div key={m} className="border-r last:border-0 p-3 text-center" style={{ width: `${(daysInMonth[i] / daysInYear) * 100}%` }}>{m}</div>
+            ))}
+          </div>
+        </div>
+        <div className="divide-y text-sm">
+          {items.map(item => {
+            const start = item.plannedStartDate ? new Date(item.plannedStartDate) : new Date();
+            const end = item.plannedEndDate ? new Date(item.plannedEndDate) : new Date();
+            
+            let left = 0;
+            let width = 0;
+            
+            if (start.getFullYear() === year || end.getFullYear() === year || (start.getFullYear() < year && end.getFullYear() > year)) {
+              const startDay = start.getFullYear() < year ? 1 : getDayOfYear(start);
+              const endDay = end.getFullYear() > year ? daysInYear : getDayOfYear(end);
+              left = ((startDay - 1) / daysInYear) * 100;
+              width = ((endDay - startDay + 1) / daysInYear) * 100;
+              if (left < 0) left = 0;
+              if (left + width > 100) width = 100 - left;
+            }
+
+            return (
+              <div key={item.id} className="flex hover:bg-muted/30 transition-colors group">
+                <div className="w-[320px] shrink-0 border-r p-3 flex flex-col justify-center">
+                  <Button variant="link" className="h-auto p-0 text-left font-semibold text-primary whitespace-normal leading-tight" onClick={() => onDisplay(item)}>
+                    {item.title}
+                  </Button>
+                  <div className="mt-1.5 text-xs text-muted-foreground font-medium">{item.departmentProject || "—"}</div>
+                </div>
+                <div className="w-[180px] shrink-0 border-r p-3 text-xs flex items-center">
+                  <span className="line-clamp-2 leading-relaxed text-muted-foreground">{item.processProductOwner || "—"}</span>
+                </div>
+                <div className="w-[220px] shrink-0 border-r p-3 text-xs flex flex-col justify-center gap-1.5">
+                  <span className="font-semibold text-foreground">{item.qaqcReference || "—"}</span>
+                  <span className="text-muted-foreground line-clamp-2 leading-relaxed" title={item.qaqcScope}>{item.qaqcScope || "—"}</span>
+                </div>
+                <div className="w-[120px] shrink-0 border-r p-3 flex items-center">
+                  <Badge variant={workflowTone(item.workflowState)} className="text-[10px] uppercase shadow-sm">{item.workflowState}</Badge>
+                </div>
+                <div className="flex flex-1 relative page-grid">
+                  <div className="absolute inset-0 flex pointer-events-none">
+                    {months.map((m, i) => (
+                      <div key={m} className="border-r border-border/40 last:border-0 h-full" style={{ width: `${(daysInMonth[i] / daysInYear) * 100}%` }} />
+                    ))}
+                  </div>
+                  {width > 0 && (
+                    <div 
+                      className="absolute top-1/2 -translate-y-1/2 h-8 rounded-md bg-primary text-primary-foreground shadow-md flex items-center overflow-hidden text-[10px] px-2 whitespace-nowrap cursor-pointer transition-transform hover:scale-[1.02] border border-primary-foreground/20 hover:brightness-110 group-hover:shadow-lg" 
+                      style={{ left: `${left}%`, width: `${width}%` }} 
+                      onClick={() => onDisplay(item)}
+                      title={`${date(item.plannedStartDate)} – ${date(item.plannedEndDate)}`}
+                    >
+                      {width > 8 && <span className="font-medium truncate">{date(item.plannedStartDate)}</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Schedules() {
   const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false); const [displaying, setDisplaying] = useState<AuditSchedule | undefined>();
+  const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
   const query = useListAuditSchedules({ page, limit: PAGE_SIZE }); const qc = useQueryClient(); const { toast } = useToast();
   const remove = useDeleteAuditSchedule(); const submit = useSubmitAuditSchedule(); const review = useReviewAuditSchedule();
   const items = (query.data?.items ?? []).filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
   const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] }); toast({ title: message }); };
   const sendBack = (id: string) => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id, data: { decision: "send_back", comments } }, { onSuccess: () => done("Schedule sent back") }); };
   return <div className="space-y-5"><PageHeader title="Annual audit schedules" description="Build, submit and approve the annual audit programme" action={<Button onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New schedule</Button>}/>
-    <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
+    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+      <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
+      <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/40 shrink-0">
+        <Button variant={viewMode === "list" ? "secondary" : "ghost"} size="sm" className="h-8 px-4 font-medium" onClick={() => setViewMode("list")}><FileText className="mr-2 size-4"/>List</Button>
+        <Button variant={viewMode === "gantt" ? "secondary" : "ghost"} size="sm" className="h-8 px-4 font-medium" onClick={() => setViewMode("gantt")}><CalendarDays className="mr-2 size-4"/>Programme</Button>
+      </div>
+    </div>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit schedule" : "Create schedule"}</DialogTitle></DialogHeader><ScheduleForm initial={editing} onClose={() => setOpen(false)}/></DialogContent></Dialog>
     <Dialog open={!!displaying} onOpenChange={isOpen => !isOpen && setDisplaying(undefined)}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">{displaying && <ScheduleDisplay schedule={displaying} onClose={() => setDisplaying(undefined)}/>}</DialogContent></Dialog>
-    <State loading={query.isLoading} error={query.error} empty={!items.length}/>{items.length > 0 && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
+    <State loading={query.isLoading} error={query.error} empty={!items.length}/>
+    {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
       <Button size="sm" variant="outline" onClick={() => setDisplaying(item)}>Display</Button>
       {item.workflowState === "Draft" && <><Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button><Button size="sm" onClick={() => submit.mutate({ id: item.id }, { onSuccess: () => done("Schedule submitted") })}>Submit</Button></>}
       {item.workflowState === "Submitted" && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved") })}>Approve</Button><Button size="sm" variant="outline" onClick={() => sendBack(item.id)}>Send back</Button></>}
       <Button size="icon" variant="ghost" aria-label="Delete" onClick={() => window.confirm("Soft-delete this schedule?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Schedule deleted") })}><Trash2 className="size-4"/></Button>
-    </div></TableCell></TableRow>)}</TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card>}</div>;
+    </div></TableCell></TableRow>)}</TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card>}
+    {items.length > 0 && viewMode === "gantt" && <div className="space-y-4"><ScheduleGantt items={items} onDisplay={setDisplaying} /><Card className="bg-transparent border-none shadow-none"><CardContent className="p-0"><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card></div>}
+  </div>;
 }
 
 function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClose: () => void }) {
