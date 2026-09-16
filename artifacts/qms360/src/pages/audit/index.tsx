@@ -17,6 +17,7 @@ import {
   useGetAuditPlanOptions,
   useGetAuditProgramme,
   getGetAuditProgrammeQueryKey,
+  getListAuditProgrammesQueryKey,
   listAuditSchedules,
   listPlatformProjects,
   useGetGeneratedAuditReport,
@@ -49,6 +50,8 @@ import {
 import type {
   AuditFinding,
   AuditPlan,
+  AuditProgramme,
+  AuditProgrammePage,
   AuditSchedule,
   ChecklistItem,
   CorrectiveActionReport,
@@ -714,7 +717,14 @@ function Programmes() {
   const { toast } = useToast();
   const submit = useSubmitAuditProgramme();
   const review = useReviewAuditProgramme();
-  const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] }); toast({ title: message }); };
+  const done = (message: string, updated?: AuditProgramme) => {
+    if (updated) {
+      qc.setQueriesData<AuditProgrammePage>({ queryKey: getListAuditProgrammesQueryKey() }, current =>
+        current ? { ...current, items: current.items.map(item => item.id === updated.id ? updated : item) } : current);
+    }
+    void qc.invalidateQueries({ queryKey: getListAuditProgrammesQueryKey() });
+    toast({ title: message });
+  };
   const openSubmission = (item: { id: string; title: string }) => {
     setSubmitting(item);
     setSubmissionSubject(item.title);
@@ -731,8 +741,8 @@ function Programmes() {
       id: submitting.id,
       data: { subject: submissionSubject.trim(), mailBody: submissionMailBody.trim() },
     }, {
-      onSuccess: () => {
-        done("Audit schedule submitted");
+      onSuccess: updated => {
+        done("Audit schedule submitted", updated);
         closeSubmission();
       },
       onError: e => toast({ title: "Unable to submit schedule", description: errorText(e), variant: "destructive" }),
@@ -757,8 +767,8 @@ function Programmes() {
     <State loading={query.isLoading} error={query.error} empty={!(query.data?.items?.length)} label="No audit schedules found." />
     {!!query.data?.items?.length && <Card><Table><TableHeader><TableRow><TableHead>Audit schedule</TableHead><TableHead>Dates</TableHead><TableHead>Audits</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
       {query.data.items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" asChild><Link href={`/audit/schedules/${item.id}`}>{item.title}</Link></Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : "Annual programme"}</div></TableCell><TableCell>{date(item.fromDate)} – {date(item.toDate)}</TableCell><TableCell>{item.childCount}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
-        {item.id !== "legacy" && item.workflowState === "Draft" && <Button size="sm" disabled={item.childCount === 0 || submit.isPending} onClick={() => openSubmission(item)}>Submit</Button>}
-        {item.id !== "legacy" && item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Audit schedule approved"), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id: item.id, data: { decision: "send_back", comments } }, { onSuccess: () => done("Audit schedule sent back") }); }}>Send back</Button></>}
+        {item.id !== "legacy" && item.canSubmit && <Button size="sm" disabled={item.childCount === 0 || submit.isPending} onClick={() => openSubmission(item)}>{item.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}
+        {item.id !== "legacy" && item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: updated => done("Audit schedule approved", updated), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id: item.id, data: { decision: "send_back", comments } }, { onSuccess: updated => done("Audit schedule sent back", updated), onError: e => toast({ title: "Unable to send back schedule", description: errorText(e), variant: "destructive" }) }); }}>Send back</Button></>}
       </div></TableCell></TableRow>)}
     </TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage} /></CardContent></Card>}
   </div>;

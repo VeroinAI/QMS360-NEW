@@ -424,11 +424,15 @@ async function canReviewApproval(req: Request, row: AnyRow) {
   if (row.workflowState !== "submitted") return false;
   const meta = scheduleMeta(row);
   const role = (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0];
-  return Boolean(role && (req.permissionAdminBypass || (await roleUserIds(actor(req).organizationId, role.id)).includes(actor(req).id)));
+  return Boolean(role && (await roleUserIds(actor(req).organizationId, role.id)).includes(actor(req).id));
 }
 
 async function programmeResponse(req: Request, row: AnyRow, childCount: number) {
-  return { ...programmeDto(row, childCount), canReview: await canReviewApproval(req, row) };
+  return {
+    ...programmeDto(row, childCount),
+    canReview: await canReviewApproval(req, row),
+    canSubmit: ["draft", "sent_back"].includes(row.workflowState) && (row.ownerId === actor(req).id || req.permissionAdminBypass),
+  };
 }
 
 async function scheduleResponse(req: Request, row: AnyRow) {
@@ -443,7 +447,7 @@ router.get("/programmes", asyncHandler(async (req, res) => {
   const legacy = (await Promise.all(legacyCandidates.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const visibleProgrammes = (await Promise.all(programmes.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const items = await Promise.all(visibleProgrammes.map(async row => programmeResponse(req, row, (await programmeChildren(req, row.id)).length)));
-  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, approvalRoles: [], canReview: false, submissionSubject: null, submissionMailBody: null });
+  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
   const offset = (page - 1) * limit;
   res.json(paginated(items.slice(offset, offset + limit), items.length, page, limit));
 }));
@@ -465,7 +469,7 @@ router.get("/programmes/:id", asyncHandler(async (req, res) => {
   if (String(req.params.id) === "legacy") {
     const children = await programmeChildren(req, "legacy");
     if (!children.length) throw new HttpError(404, "Audit programme not found");
-    res.json({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, approvalRoles: [], canReview: false, submissionSubject: null, submissionMailBody: null });
+    res.json({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
     return;
   }
   const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
@@ -514,8 +518,8 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
   if (before.workflowState !== "submitted") throw new HttpError(409, "Only submitted programmes may be reviewed");
   const meta = scheduleMeta(before); const role = (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0];
   await assertProgrammeMutationAccess(req, before);
-  const allowed = req.permissionAdminBypass || (role ? (await roleUserIds(actor(req).organizationId, role.id)).includes(actor(req).id) : false);
-  if (!allowed && !req.permissionAdminBypass) {
+  const allowed = role ? (await roleUserIds(actor(req).organizationId, role.id)).includes(actor(req).id) : false;
+  if (!allowed) {
     const wasApprovalParticipant = (await Promise.all((meta.approvalRoles ?? []).map(candidate => roleUserIds(actor(req).organizationId, candidate.id))))
       .some(ids => ids.includes(actor(req).id));
     if (wasApprovalParticipant) throw new HttpError(409, "Programme approval advanced before this review was applied");
@@ -679,8 +683,8 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
   if (!await scheduleInScope(req, before)) throw new HttpError(403, "You do not have access to this schedule");
   const meta = scheduleMeta(before);
   const role = (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0];
-  const allowed = req.permissionAdminBypass || (role ? (await roleUserIds(actor(req).organizationId, role.id)).includes(actor(req).id) : false);
-  if (!allowed && !req.permissionAdminBypass) {
+  const allowed = role ? (await roleUserIds(actor(req).organizationId, role.id)).includes(actor(req).id) : false;
+  if (!allowed) {
     const wasApprovalParticipant = (await Promise.all((meta.approvalRoles ?? []).map(candidate => roleUserIds(actor(req).organizationId, candidate.id))))
       .some(ids => ids.includes(actor(req).id));
     if (wasApprovalParticipant) throw new HttpError(409, "Schedule approval advanced before this review was applied");

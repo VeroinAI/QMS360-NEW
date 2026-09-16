@@ -5571,6 +5571,7 @@ export const ListAuditProgrammesResponse = zod.object({
   "currentApprovalRole": zod.string().nullable(),
   "approvalRoles": zod.array(zod.string()),
   "canReview": zod.boolean(),
+  "canSubmit": zod.boolean(),
   "ownerId": zod.string().nullish(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
@@ -5600,6 +5601,7 @@ export const CreateAuditProgrammeResponse = zod.object({
   "currentApprovalRole": zod.string().nullable(),
   "approvalRoles": zod.array(zod.string()),
   "canReview": zod.boolean(),
+  "canSubmit": zod.boolean(),
   "ownerId": zod.string().nullish(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
@@ -5623,6 +5625,7 @@ export const GetAuditProgrammeResponse = zod.object({
   "currentApprovalRole": zod.string().nullable(),
   "approvalRoles": zod.array(zod.string()),
   "canReview": zod.boolean(),
+  "canSubmit": zod.boolean(),
   "ownerId": zod.string().nullish(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
@@ -5657,6 +5660,7 @@ export const SubmitAuditProgrammeResponse = zod.object({
   "currentApprovalRole": zod.string().nullable(),
   "approvalRoles": zod.array(zod.string()),
   "canReview": zod.boolean(),
+  "canSubmit": zod.boolean(),
   "ownerId": zod.string().nullish(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
@@ -5685,6 +5689,7 @@ export const ReviewAuditProgrammeResponse = zod.object({
   "currentApprovalRole": zod.string().nullable(),
   "approvalRoles": zod.array(zod.string()),
   "canReview": zod.boolean(),
+  "canSubmit": zod.boolean(),
   "ownerId": zod.string().nullish(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()

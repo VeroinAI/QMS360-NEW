@@ -2263,7 +2263,7 @@ components:
         canReview: {type: boolean, readOnly: true}
     AuditProgramme:
       type: object
-      required: [id, title, fromDate, toDate, workflowState, childCount, currentApprovalRole, approvalRoles, canReview, submissionSubject, submissionMailBody]
+      required: [id, title, fromDate, toDate, workflowState, childCount, currentApprovalRole, approvalRoles, canReview, canSubmit, submissionSubject, submissionMailBody]
       properties:
         id: {type: string}
         title: {type: string}
@@ -2274,6 +2274,7 @@ components:
         currentApprovalRole: {type: [string, "null"]}
         approvalRoles: {type: array, items: {type: string}}
         canReview: {type: boolean, readOnly: true}
+        canSubmit: {type: boolean, readOnly: true}
         ownerId: {type: [string, "null"]}
         submissionSubject: {type: [string, "null"], readOnly: true}
         submissionMailBody: {type: [string, "null"], readOnly: true}

@@ -1898,6 +1898,7 @@ export interface AuditProgramme {
   currentApprovalRole: string | null;
   approvalRoles: string[];
   readonly canReview: boolean;
+  readonly canSubmit: boolean;
   /** @nullable */
   ownerId?: string | null;
   /** @nullable */
