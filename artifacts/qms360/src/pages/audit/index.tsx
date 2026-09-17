@@ -697,7 +697,7 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan }: {
                   <div className="mt-2 flex flex-wrap gap-1">
                     <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onDisplay(item)}>Display</Button>
                     {item.workflowState === "Draft" && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onEdit(item)}>Edit</Button>}
-                    <Button size="sm" className="h-7 px-2 text-xs" onClick={() => onNewPlan(item)}>New Plan</Button>
+                    <Button size="sm" className="h-7 px-2 text-xs" title={item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : "Create Audit Plan"} disabled={item.hasPlan} onClick={() => onNewPlan(item)}>New Plan</Button>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center border-r p-3 text-xs" style={{ width: fixedColumns[1].width }}>{item.departmentProject || "—"}</div>
@@ -967,7 +967,7 @@ function Schedules() {
     {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
       <Button size="sm" variant="outline" onClick={() => setDisplaying(item)}>Display</Button>
       {item.workflowState === "Draft" && <Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button>}
-      <Button size="sm" onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>
+      <Button size="sm" title={item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : "Create Audit Plan"} disabled={item.hasPlan} onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>
       {item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved") })}>Approve</Button><Button size="sm" variant="outline" onClick={() => sendBack(item.id)}>Send back</Button></>}
       <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved child audits cannot be deleted" : "Delete child audit"} disabled={item.workflowState === "Approved" || remove.isPending} onClick={() => window.confirm("Delete this child audit?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Child audit deleted"), onError: e => toast({ title: "Unable to delete child audit", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>
     </div></TableCell></TableRow>)}</TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card>}
@@ -1136,7 +1136,12 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
       activitySection: firstActivity?.section ?? "", activityRemarks: firstActivity?.remarks ?? "",
       activityAuditeeId: firstActivity?.auditeeId ?? "",
     };
-    const success = (title: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/plans"] }); toast({ title }); onClose(); };
+    const success = (title: string) => {
+      qc.invalidateQueries({ queryKey: ["/api/audit/plans"] });
+      qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
+      toast({ title });
+      onClose();
+    };
     if (initial) {
       update.mutate({ id: form.id, data: payload }, { onSuccess: () => success("Audit plan updated"), onError: e => toast({ title: "Unable to save", description: errorText(e), variant: "destructive" }) });
       return;
@@ -1199,8 +1204,13 @@ function Plans() {
   const [page, setPage] = useState(1); const [open, setOpen] = useState(false); const [search, setSearch] = useState("");
   const query = useListAuditPlans({ page, limit: PAGE_SIZE }); const schedules = useListAuditSchedules({ page: 1, limit: 100 }); const share = useShareAuditPlan(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
   const items = (query.data?.items ?? []).filter(x => x.auditTitle.toLowerCase().includes(search.toLowerCase()));
-  const refresh = (title: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/plans"] }); toast({ title }); };
-  return <div className="space-y-5"><PageHeader title="Audit plans" description="Define the Stage 2 Audit Planning programme" action={<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button><Plus className="mr-2 size-4"/>New plan</Button></DialogTrigger><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader><PlanForm schedules={schedules.data?.items ?? []} onClose={() => setOpen(false)}/></DialogContent></Dialog>}/><Input className="max-w-sm" placeholder="Search audit title…" value={search} onChange={e => setSearch(e.target.value)}/><State loading={query.isLoading} error={query.error} empty={!items.length}/>
+  const availableSchedules = (schedules.data?.items ?? []).filter(schedule => !schedule.hasPlan);
+  const refresh = (title: string) => {
+    qc.invalidateQueries({ queryKey: ["/api/audit/plans"] });
+    qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
+    toast({ title });
+  };
+  return <div className="space-y-5"><PageHeader title="Audit plans" description="Define the Stage 2 Audit Planning programme" action={<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button><Plus className="mr-2 size-4"/>New plan</Button></DialogTrigger><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader><PlanForm schedules={availableSchedules} onClose={() => setOpen(false)}/></DialogContent></Dialog>}/><Input className="max-w-sm" placeholder="Search audit title…" value={search} onChange={e => setSearch(e.target.value)}/><State loading={query.isLoading} error={query.error} empty={!items.length}/>
     <div className="grid gap-4 md:grid-cols-2">{items.map(plan => <Card key={plan.id}><CardHeader><div className="flex justify-between gap-2"><CardTitle className="text-base"><Link className="underline-offset-4 hover:underline" href={`/audit/plans/${plan.id}`}>{plan.auditTitle}</Link></CardTitle><Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div><CardDescription>{date(plan.startDateTime)} · {plan.activitySection}</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><p><b>Audit type:</b> {plan.auditTypes.join(", ")}</p><p><b>Team:</b> {plan.teamMemberIds.length} member(s)</p><p className="text-muted-foreground">{plan.description || plan.activityRemarks}</p><div className="flex justify-end gap-2"><Button size="sm" variant="outline" asChild><Link href={`/audit/plans/${plan.id}`}>{plan.status === "Draft" ? <Pencil className="mr-2 size-4"/> : <Eye className="mr-2 size-4"/>}{plan.status === "Draft" ? "Edit" : "View"}</Link></Button>{plan.status === "Draft" && <Button size="sm" onClick={() => share.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan shared") })}><Share2 className="mr-2 size-4"/>Share</Button>}<Button size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></div></CardContent></Card>)}</div>{items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}</div>;
 }
 

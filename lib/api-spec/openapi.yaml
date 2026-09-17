@@ -2231,6 +2231,7 @@ components:
         parentId: {type: [string, "null"], description: Parent audit programme identifier}
         year: {type: number}
         title: {type: string}
+        hasPlan: {type: boolean, description: Whether an active Audit Plan already exists for this schedule}
         projectIds: {type: array, items: {type: string}}
         auditTypes: {type: array, items: {type: string, description: "Values managed via /platform/master-data/lov/audit_types"}}
         auditCategory: {type: string}

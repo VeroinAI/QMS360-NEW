@@ -24,3 +24,4 @@
 - [Audit schedule programme guards](audit-schedule-programme-guards.md) — parent programmes share schedule storage; child endpoints must reject them and await every project-scope check.
 - [Process audit department scope](process-audit-department-scope.md) — Internal Process audits are department-based and projectless; authorize their full schedule-to-audit chain consistently.
 - [Audit Plan activity rows](audit-plan-activity-rows.md) — activity details are repeatable master-data rows; retain single-value fields only for backward compatibility.
+- [One Plan per Audit Schedule](one-plan-per-audit-schedule.md) — active Audit Plans are one-to-one with schedules; enforce atomically and expose occupancy on schedule responses.

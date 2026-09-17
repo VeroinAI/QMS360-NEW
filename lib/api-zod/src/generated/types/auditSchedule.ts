@@ -18,6 +18,8 @@ export interface AuditSchedule {
   parentId?: string | null;
   year: number;
   title: string;
+  /** Whether an active Audit Plan already exists for this schedule */
+  hasPlan?: boolean;
   projectIds: string[];
   auditTypes?: string[];
   auditCategory?: string;

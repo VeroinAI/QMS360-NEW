@@ -252,7 +252,7 @@ router.use(asyncHandler(async (req, _res, next) => {
   }
   next();
 }));
-const scheduleDto = (row: AnyRow, canReview = false) => {
+const scheduleDto = (row: AnyRow, canReview = false, hasPlan = false) => {
   const meta = scheduleMeta(row);
   const currentApprovalRole = row.workflowState === "submitted"
     ? (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0]?.name ?? null
@@ -274,7 +274,7 @@ const scheduleDto = (row: AnyRow, canReview = false) => {
     l2Name: meta.l2Name ?? "", l2ReviewStatus: meta.l2ReviewStatus ?? "Pending",
     l2ReviewComments: meta.l2ReviewComments ?? null, l2Attachments: meta.l2Attachments ?? [],
     memoDescription: meta.memoDescription ?? "", memoCirculation: meta.memoCirculation ?? "",
-    currentApprovalRole, approvalRoles: (meta.approvalRoles ?? []).map(role => role.name), canReview,
+    currentApprovalRole, approvalRoles: (meta.approvalRoles ?? []).map(role => role.name), canReview, hasPlan,
   };
 };
 const scheduleValues = (data: AnyRow) => ({
@@ -435,8 +435,8 @@ async function programmeResponse(req: Request, row: AnyRow, childCount: number) 
   };
 }
 
-async function scheduleResponse(req: Request, row: AnyRow) {
-  return scheduleDto(row, await canReviewApproval(req, row));
+async function scheduleResponse(req: Request, row: AnyRow, hasPlan = false) {
+  return scheduleDto(row, await canReviewApproval(req, row), hasPlan);
 }
 
 router.get("/programmes", asyncHandler(async (req, res) => {
@@ -589,8 +589,12 @@ router.get("/schedules", asyncHandler(async (req, res) => {
     return parentId === "legacy" ? !meta.parentId : parentId ? meta.parentId === parentId : true;
   });
   const scoped = (await Promise.all(filtered.map(async (row) => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
+  const planRows = await db.select({ scheduleId: auditPlans.auditScheduleId }).from(auditPlans)
+    .where(active(auditPlans, actor(req).organizationId));
+  const plannedScheduleIds = new Set(planRows.map(plan => plan.scheduleId).filter(Boolean));
   const offset = (page - 1) * limit;
-  res.json(paginated(await Promise.all(scoped.slice(offset, offset + limit).map(row => scheduleResponse(req, row))), scoped.length, page, limit));
+  res.json(paginated(await Promise.all(scoped.slice(offset, offset + limit).map(row =>
+    scheduleResponse(req, row, plannedScheduleIds.has(row.id)))), scoped.length, page, limit));
 }));
 router.post("/schedules", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditScheduleBody, req);
@@ -648,7 +652,10 @@ router.get("/schedules/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   await assertChildSchedule(row);
   if (!await scheduleInScope(req, row)) throw new HttpError(403, "You do not have access to this schedule");
-  res.json(scheduleDto(row));
+  const [plan] = await db.select({ id: auditPlans.id }).from(auditPlans).where(and(
+    active(auditPlans, actor(req).organizationId), eq(auditPlans.auditScheduleId, row.id),
+  )).limit(1);
+  res.json(scheduleDto(row, false, Boolean(plan)));
 }));
 router.put("/schedules/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditScheduleBody, req);
@@ -906,8 +913,18 @@ router.post("/plans", asyncHandler(async (req, res) => {
   const [schedule] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, data.scheduleId)));
   await assertChildSchedule(schedule);
   if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
-  data = await normalizeAuditPlan(req, data, schedule);
-  const [row] = await db.insert(auditPlans).values({ organizationId: actor(req).organizationId, projectId: schedule.projectId, ...planValues(data) }).returning();
+  const row = await db.transaction(async tx => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${actor(req).organizationId}), hashtext(${schedule.id}))`);
+    const [schedulePlan] = await tx.select({ id: auditPlans.id }).from(auditPlans).where(and(
+      active(auditPlans, actor(req).organizationId), eq(auditPlans.auditScheduleId, schedule.id),
+    )).limit(1);
+    if (schedulePlan) throw new HttpError(409, "An Audit Plan already exists for this Audit Schedule");
+    data = await normalizeAuditPlan(req, data, schedule);
+    const [created] = await tx.insert(auditPlans).values({
+      organizationId: actor(req).organizationId, projectId: schedule.projectId, ...planValues(data),
+    }).returning();
+    return created;
+  });
   await auditLog(req, "create", "audit_plan", row.id, undefined, row); res.status(201).json(planDto(row));
 }));
 router.get("/plans/:id", asyncHandler(async (req, res) => {

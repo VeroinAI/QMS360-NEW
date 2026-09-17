@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express, { type Express } from "express";
 import type { Server } from "node:http";
 import {
-  applicationAccess, auditAuditLogEntries, auditNotifications, auditPermissions, auditSchedules,
+  applicationAccess, auditAuditLogEntries, auditNotifications, auditPermissions, auditPlans, auditSchedules,
   auditUserWorkspaceRoles, auditWorkspaceRolePermissions, auditWorkspaceRoles,
   db, masterDataGroups, masterDataValues, organizations, platformRoles, users,
 } from "@workspace/db";
@@ -125,6 +125,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.delete(auditNotifications).where(eq(auditNotifications.organizationId, orgId));
   await db.delete(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, orgId));
+  await db.delete(auditPlans).where(eq(auditPlans.organizationId, orgId));
   await db.delete(auditSchedules).where(eq(auditSchedules.organizationId, orgId));
   await db.delete(auditUserWorkspaceRoles).where(eq(auditUserWorkspaceRoles.organizationId, orgId));
   await db.delete(auditWorkspaceRolePermissions).where(eq(auditWorkspaceRolePermissions.organizationId, orgId));
@@ -178,6 +179,35 @@ describe("audit programme parent/child workflow", () => {
 
     await db.update(auditSchedules).set({ workflowState: "approved" }).where(eq(auditSchedules.id, populated.json.id));
     expect((await api("DELETE", `/programmes/${populated.json.id}`, creator.token)).status).toBe(409);
+  });
+
+  it("allows only one active Audit Plan for each Audit Schedule", async () => {
+    const programme = await api("POST", "/programmes", creator.token, {
+      title: "Single Plan Programme", fromDate: "2026-01-01", toDate: "2026-12-31",
+    });
+    const schedule = await addChild(programme.json.id);
+    await db.insert(auditPlans).values({
+      organizationId: orgId, auditScheduleId: schedule.id, workflowState: "draft",
+      teamMemberIds: [creator.id], status: JSON.stringify({ auditTitle: schedule.title }),
+    });
+
+    const schedules = await api("GET", `/schedules?parentId=${programme.json.id}`, creator.token);
+    expect(schedules.status).toBe(200);
+    expect(schedules.json.items.find((item: { id: string }) => item.id === schedule.id)?.hasPlan).toBe(true);
+
+    const duplicate = await api("POST", "/plans", creator.token, {
+      id: crypto.randomUUID(), scheduleId: schedule.id, auditFeasible: true, auditTitle: schedule.title,
+      leadAuditorId: creator.id, teamMemberIds: [creator.id], auditeeId: creator.id,
+      qaqcScope: "ISO 9001", auditTypes: ["Quality Internal Process Audit"],
+      auditLanguage: "Verbal: English\nWriting: English", qaqcReference: "QAM-IA/26-",
+      startDateTime: "2026-01-01T08:00:00.000Z", endDateTime: "2026-01-01T16:00:00.000Z",
+      openingMeetingDateTime: "2026-01-01T08:00:00.000Z", closingMeetingDateTime: "2026-01-01T15:30:00.000Z",
+      activitySection: "General Requirement", activityRemarks: "Review controls",
+      activityAuditeeId: creator.id, activityDateTime: "2026-01-01T09:00:00.000Z",
+      auditPlanCirculation: "Programme Creator", status: "Draft",
+    });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.json.error).toBe("An Audit Plan already exists for this Audit Schedule");
   });
 
   it("snapshots L1/L2 roles and advances sequentially with authorization", async () => {
