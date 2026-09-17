@@ -7709,3 +7709,174 @@ export const MarkAuditNotificationReadParams = zod.object({
 export const MarkAuditNotificationReadResponse = zod.void()
 
 
+export const listEmailRulesResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+
+
+export const ListEmailRulesResponseItem = zod.object({
+  "id": zod.string(),
+  "organizationId": zod.string(),
+  "name": zod.string(),
+  "enabled": zod.boolean(),
+  "priority": zod.number(),
+  "eventType": zod.string().regex(listEmailRulesResponseEventTypeRegExp),
+  "createdByUserId": zod.string().nullish(),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "receiverUserId": zod.string().nullish(),
+  "receiverName": zod.string().nullish(),
+  "receiverEmail": zod.string().nullish()
+})
+export const ListEmailRulesResponse = zod.array(ListEmailRulesResponseItem)
+
+
+
+export const createEmailRuleBodyPriorityMin = 0;
+
+export const createEmailRuleBodyEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+
+
+export const CreateEmailRuleBody = zod.object({
+  "name": zod.string().min(1),
+  "enabled": zod.boolean(),
+  "priority": zod.number().min(createEmailRuleBodyPriorityMin),
+  "eventType": zod.string().regex(createEmailRuleBodyEventTypeRegExp),
+  "createdByUserId": zod.string().nullish(),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "receiverUserId": zod.string().nullish(),
+  "receiverName": zod.string().nullish(),
+  "receiverEmail": zod.string().nullish()
+})
+
+export const createEmailRuleResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+
+
+export const CreateEmailRuleResponse = zod.object({
+  "id": zod.string(),
+  "organizationId": zod.string(),
+  "name": zod.string(),
+  "enabled": zod.boolean(),
+  "priority": zod.number(),
+  "eventType": zod.string().regex(createEmailRuleResponseEventTypeRegExp),
+  "createdByUserId": zod.string().nullish(),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "receiverUserId": zod.string().nullish(),
+  "receiverName": zod.string().nullish(),
+  "receiverEmail": zod.string().nullish()
+})
+
+
+export const UpdateEmailRuleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const updateEmailRuleBodyPriorityMin = 0;
+
+export const updateEmailRuleBodyEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+
+
+export const UpdateEmailRuleBody = zod.object({
+  "name": zod.string().min(1),
+  "enabled": zod.boolean(),
+  "priority": zod.number().min(updateEmailRuleBodyPriorityMin),
+  "eventType": zod.string().regex(updateEmailRuleBodyEventTypeRegExp),
+  "createdByUserId": zod.string().nullish(),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "receiverUserId": zod.string().nullish(),
+  "receiverName": zod.string().nullish(),
+  "receiverEmail": zod.string().nullish()
+})
+
+export const updateEmailRuleResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+
+
+export const UpdateEmailRuleResponse = zod.object({
+  "id": zod.string(),
+  "organizationId": zod.string(),
+  "name": zod.string(),
+  "enabled": zod.boolean(),
+  "priority": zod.number(),
+  "eventType": zod.string().regex(updateEmailRuleResponseEventTypeRegExp),
+  "createdByUserId": zod.string().nullish(),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "receiverUserId": zod.string().nullish(),
+  "receiverName": zod.string().nullish(),
+  "receiverEmail": zod.string().nullish()
+})
+
+
+export const DeleteEmailRuleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteEmailRuleResponse = zod.void()
+
+
+export const ReorderEmailRulesBody = zod.object({
+  "ids": zod.array(zod.string())
+})
+
+export const reorderEmailRulesResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+
+
+export const ReorderEmailRulesResponseItem = zod.object({
+  "id": zod.string(),
+  "organizationId": zod.string(),
+  "name": zod.string(),
+  "enabled": zod.boolean(),
+  "priority": zod.number(),
+  "eventType": zod.string().regex(reorderEmailRulesResponseEventTypeRegExp),
+  "createdByUserId": zod.string().nullish(),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "receiverUserId": zod.string().nullish(),
+  "receiverName": zod.string().nullish(),
+  "receiverEmail": zod.string().nullish()
+})
+export const ReorderEmailRulesResponse = zod.array(ReorderEmailRulesResponseItem)
+
+
+export const EmailRuleEventCatalogResponseItem = zod.object({
+  "value": zod.string(),
+  "label": zod.string()
+})
+export const EmailRuleEventCatalogResponse = zod.array(EmailRuleEventCatalogResponseItem)
+
+
+export const EmailRuleUserOptionsResponseItem = zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string()
+})
+export const EmailRuleUserOptionsResponse = zod.array(EmailRuleUserOptionsResponseItem)
+
+
+export const SimulateEmailRuleBody = zod.object({
+  "eventType": zod.string(),
+  "createdByUserId": zod.string().optional()
+})
+
+export const simulateEmailRuleResponseRuleOneEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+
+
+export const SimulateEmailRuleResponse = zod.object({
+  "matched": zod.boolean(),
+  "rule": zod.union([zod.object({
+  "id": zod.string(),
+  "organizationId": zod.string(),
+  "name": zod.string(),
+  "enabled": zod.boolean(),
+  "priority": zod.number(),
+  "eventType": zod.string().regex(simulateEmailRuleResponseRuleOneEventTypeRegExp),
+  "createdByUserId": zod.string().nullish(),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "receiverUserId": zod.string().nullish(),
+  "receiverName": zod.string().nullish(),
+  "receiverEmail": zod.string().nullish()
+}),zod.null()]).optional(),
+  "recipients": zod.array(zod.object({
+  "userId": zod.string().nullish(),
+  "name": zod.string().nullish(),
+  "email": zod.string()
+}))
+})
+
+

@@ -12,6 +12,7 @@ import { applicationAccess, businessUnits, db, moduleFieldSettings, organization
 import { requireAdmin, requireAuth, requirePlatformRole } from "../middlewares/auth";
 import { hashPassword } from "../lib/auth";
 import { runEscalationSweep } from "../lib/escalation";
+import { dispatchEmailRule } from "../lib/email-rules";
 import { paginated, pagination, writeAuditLog, type AppKey } from "../lib/workspace";
 import { catalogKeys, FIELD_CATALOG } from "../lib/field-access";
 import {
@@ -110,9 +111,15 @@ router.put("/platform/users/:userId/role", requireAuth, platformAdmin, async (re
         before: { platformRole: currentRole },
         after: { platformRole: role.name },
         ipAddress: req.ip,
-      });
+      }, { dispatch: false });
     }
   });
+  for (const app of ["qaqc", "lessons", "audit"] as const) {
+    void dispatchEmailRule({
+      organizationId: actor.organizationId, app, entityType: "user",
+      action: "update_platform_role", actorId: actor.id, entityId: target.id,
+    });
+  }
   res.json(UpdateUserPlatformRoleResponse.parse({ userId: target.id, platformRole: role.name }));
 });
 

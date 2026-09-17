@@ -24,6 +24,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 
+import { EmailRulesTab } from './email-rules-tab';
+
 const icons = { platform: CloudCog, email: Mail, ai: Bot, oracle_adw: Database, bi: FileSpreadsheet, source_api: PlugZap } as Record<string, typeof CloudCog>;
 const labels = { platform: 'Platform sync', email: 'Email SMTP', ai: 'AI provider', oracle_adw: 'Oracle ADW', bi: 'BI / Excel export', source_api: 'Source system API' } as Record<string, string>;
 
@@ -439,11 +441,16 @@ export function CockpitPage() {
       {loading && <Card><CardContent className="space-y-3 py-12"><div className="h-6 w-1/3 animate-pulse rounded bg-muted" /><div className="h-28 animate-pulse rounded bg-muted" /><p className="text-sm text-muted-foreground">Checking connector health…</p></CardContent></Card>}
       {error && <Card className="border-destructive"><CardContent className="flex items-center gap-4 py-8"><ServerCog className="text-destructive" /><div className="flex-1"><p className="font-semibold">Cockpit data unavailable</p><p className="text-sm text-muted-foreground">{message(error)}</p></div><Button variant="outline" onClick={() => { connectors.refetch(); health.refetch(); jobs.refetch(); }}>Retry</Button></CardContent></Card>}
       {!loading && !error && <Tabs defaultValue="connections" className="space-y-6">
-        <TabsList><TabsTrigger value="connections">Connections</TabsTrigger><TabsTrigger value="import">Data import</TabsTrigger><TabsTrigger value="activity">Activity</TabsTrigger></TabsList>
+        <TabsList>
+          <TabsTrigger value="connections">Connections</TabsTrigger>
+          <TabsTrigger value="email">Email rules</TabsTrigger>
+          <TabsTrigger value="import">Data import</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+        </TabsList>
 
         <TabsContent value="connections" className="space-y-6">
           <section><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-display text-xl font-semibold">Connectors</h2><p className="text-sm text-muted-foreground">Secrets are securely stored and never returned or displayed.</p></div><Button onClick={() => setWizardOpen(true)}><Plus className="mr-2 h-4 w-4" />Add connection</Button></div>
-            {connectors.data?.items.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{connectors.data.items.map(connector => {
+            {connectors.data?.items.length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{connectors.data.items.filter(c => c.family !== 'email').map(connector => {
               const Icon = icons[connector.family] ?? CloudCog;
               return <Card key={connector.id} className="overflow-hidden"><CardHeader><div className="mb-3 flex items-center justify-between"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Icon className="h-5 w-5" /></span><Status value={connector.status} /></div><CardTitle>{connector.name}</CardTitle><CardDescription>{labels[connector.family] ?? connector.family}</CardDescription></CardHeader><CardContent><div className="mb-4 flex justify-between text-sm"><span className="text-muted-foreground">Last successful sync</span><span>{connector.lastSuccessfulSyncAt ? new Date(connector.lastSuccessfulSyncAt).toLocaleString() : 'Never'}</span></div>
                 <div className="space-y-2">
@@ -454,12 +461,15 @@ export function CockpitPage() {
                     </div>
                     <Button variant="outline" className="w-full" disabled={testConnection.isPending} onClick={() => testConnection.mutate({ id: connector.id }, { onSuccess: (r) => toast({ title: r.ok ? 'Connection OK' : 'Connection failed', description: r.message, variant: r.ok ? 'default' : 'destructive' }), onError: fail })}><PlugZap className="mr-2 h-4 w-4" />Test connection</Button>
                   </>}
-                  {connector.family === 'email' && <Button variant="secondary" className="w-full" disabled={testEmail.isPending} onClick={() => testEmail.mutate({ id: connector.id }, { onSuccess: (r) => refresh(r.message || 'Test email sent'), onError: fail })}><Mail className="mr-2 h-4 w-4" />Send test email</Button>}
                   <div className="grid grid-cols-[1fr_auto] gap-2"><Button variant="outline" className="w-full" onClick={() => { setPassword(''); setEditing(connector); }}>Configure</Button><Button variant="ghost" size="icon" aria-label="Delete connector" onClick={() => remove.mutate({ id: connector.id }, { onSuccess: () => refresh('Connector deleted'), onError: fail })}><Trash2 className="h-4 w-4" /></Button></div>
                 </div></CardContent></Card>;
             })}</div> : <Card><CardContent className="py-12 text-center"><p className="font-semibold">No connectors configured</p><p className="mb-4 text-sm text-muted-foreground">Add a source-system connection to start pulling project and user data.</p><Button onClick={() => setWizardOpen(true)}><Plus className="mr-2 h-4 w-4" />Add connection</Button></CardContent></Card>}
           </section>
           <FieldMappingCard connectors={connectors.data?.items ?? []} onSaved={refresh} />
+        </TabsContent>
+
+        <TabsContent value="email">
+          <EmailRulesTab connectors={connectors.data?.items ?? []} onEditConnector={(c) => { setPassword(''); setEditing(c); }} />
         </TabsContent>
 
         <TabsContent value="import"><ImportTab /></TabsContent>

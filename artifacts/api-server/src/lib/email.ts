@@ -58,6 +58,8 @@ type SmtpConfig = {
 export type EmailDeliveryInput = {
   organizationId: string;
   recipientIds: string[];
+  /** Explicit external recipients, used by organization email rules. */
+  recipients?: Array<{ email: string; name?: string | null }>;
   subject: string;
   text: string;
   context?: Record<string, unknown>;
@@ -65,7 +67,10 @@ export type EmailDeliveryInput = {
 
 export type EmailDeliveryResult =
   | { attempted: false; reason: "no_connector" | "disabled" | "incomplete_config" | "no_recipients" | "unexpected_error" }
-  | { attempted: true; sent: number; failed: number; error?: string };
+  | {
+    attempted: true; sent: number; failed: number; error?: string;
+    failedRecipients: Array<{ email: string; name?: string | null }>;
+  };
 
 function readSmtpConfig(configuration: Record<string, unknown>): SmtpConfig | null {
   const host = typeof configuration.host === "string" ? configuration.host.trim() : "";
@@ -74,8 +79,9 @@ function readSmtpConfig(configuration: Record<string, unknown>): SmtpConfig | nu
     ? configuration.secure
     : Number(configuration.port) === 465;
   const port = Number(configuration.port) || (secure ? 465 : 587);
-  const username = typeof configuration.username === "string" ? configuration.username
+  const rawUsername = typeof configuration.username === "string" ? configuration.username
     : typeof configuration.user === "string" ? configuration.user : undefined;
+  const username = rawUsername ? decryptSecret(rawUsername) : undefined;
   const rawPassword = typeof configuration.password === "string" ? configuration.password
     : typeof configuration.pass === "string" ? configuration.pass : undefined;
   const password = rawPassword ? decryptSecret(rawPassword) : undefined;
@@ -221,10 +227,11 @@ export async function deliverEmail(
 ): Promise<EmailDeliveryResult> {
   try {
     const recipientIds = [...new Set(input.recipientIds)].filter(Boolean);
-    if (!recipientIds.length) return { attempted: false, reason: "no_recipients" };
+    const explicitRecipients = (input.recipients ?? []).filter((r) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email));
+    if (!recipientIds.length && !explicitRecipients.length) return { attempted: false, reason: "no_recipients" };
     // Embedded in every recorded failure so the Cockpit sync-job retry action
     // can resend the exact original email without the caller reconstructing it.
-    const retryPayload = { recipientIds, subject: input.subject, text: input.text };
+    const retryPayload = { recipientIds, recipients: explicitRecipients, subject: input.subject, text: input.text };
 
     const connector = await findEmailConnector(database, input.organizationId);
     if (!connector) return { attempted: false, reason: "no_connector" };
@@ -247,32 +254,43 @@ export async function deliverEmail(
       eq(users.accessStatus, "active"),
       isNull(users.deletedAt),
     ));
-    if (!recipients.length) return { attempted: false, reason: "no_recipients" };
+    const allRecipients = [
+      ...recipients.map((recipient) => ({ email: recipient.email, name: null as string | null })),
+      ...explicitRecipients,
+    ];
+    if (!allRecipients.length) return { attempted: false, reason: "no_recipients" };
+    const allRecipientRetryPayload = {
+      recipientIds: [] as string[], recipients: allRecipients, subject: input.subject, text: input.text,
+    };
 
     const startedAt = Date.now();
     const errors: Array<Record<string, unknown>> = [];
+    const failedRecipients: Array<{ email: string; name?: string | null }> = [];
     let sent = 0;
     let target: SmtpTarget | null = null;
     try {
       target = await resolveSmtpTarget(config.host);
     } catch (error) {
-      errors.push({ message: error instanceof Error ? error.message : String(error), ...input.context, ...retryPayload });
+      failedRecipients.push(...allRecipients);
+      errors.push({ message: error instanceof Error ? error.message : String(error), ...input.context, ...allRecipientRetryPayload });
     }
     if (target) {
       const transporter = createTransporter(config, target);
       const from = `"${config.fromName.replaceAll('"', "")}" <${config.fromAddress}>`;
-      const results = await Promise.allSettled(recipients.map((recipient) =>
-        transporter.sendMail({ from, to: recipient.email, subject: input.subject, text: input.text })));
+      const results = await Promise.allSettled(allRecipients.map((recipient) =>
+        transporter.sendMail({ from, to: recipient.name ? `"${recipient.name.replaceAll('"', "")}" <${recipient.email}>` : recipient.email, subject: input.subject, text: input.text })));
       transporter.close();
       for (const [index, result] of results.entries()) {
         if (result.status === "fulfilled") {
           sent++;
         } else {
+          failedRecipients.push(allRecipients[index]!);
           errors.push({
-            recipient: recipients[index]!.email,
+            recipient: allRecipients[index]!.email,
             message: result.reason instanceof Error ? result.reason.message : String(result.reason),
             ...input.context,
-            ...retryPayload,
+            recipientIds: [], recipients: [allRecipients[index]!],
+            subject: input.subject, text: input.text,
           });
         }
       }
@@ -284,7 +302,11 @@ export async function deliverEmail(
       durationMs: Date.now() - startedAt, errors,
     });
     await setConnectorStatus(database, connector, errors.length ? "Failed" : "Connected");
-    return { attempted: true, sent, failed: errors.length, error: errors[0]?.message as string | undefined };
+    return {
+      attempted: true, sent, failed: errors.length,
+      failedRecipients: [...new Map(failedRecipients.map((recipient) => [recipient.email.toLowerCase(), recipient])).values()],
+      error: errors[0]?.message as string | undefined,
+    };
   } catch (error) {
     // Delivery must never break the caller; in-app notification already stands.
     console.error("Email delivery failed unexpectedly", error);

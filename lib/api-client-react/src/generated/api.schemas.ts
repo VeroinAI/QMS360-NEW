@@ -5,6 +5,96 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export type EmailEventRuleRecipientMode = typeof EmailEventRuleRecipientMode[keyof typeof EmailEventRuleRecipientMode];
+
+
+export const EmailEventRuleRecipientMode = {
+  all_users: 'all_users',
+  internal_user: 'internal_user',
+  external_email: 'external_email',
+} as const;
+
+export interface EmailEventRule {
+  id: string;
+  organizationId: string;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  /** @pattern ^[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+$ */
+  eventType: string;
+  /** @nullable */
+  createdByUserId?: string | null;
+  recipientMode: EmailEventRuleRecipientMode;
+  /** @nullable */
+  receiverUserId?: string | null;
+  /** @nullable */
+  receiverName?: string | null;
+  /** @nullable */
+  receiverEmail?: string | null;
+}
+
+export type EmailEventRuleInputRecipientMode = typeof EmailEventRuleInputRecipientMode[keyof typeof EmailEventRuleInputRecipientMode];
+
+
+export const EmailEventRuleInputRecipientMode = {
+  all_users: 'all_users',
+  internal_user: 'internal_user',
+  external_email: 'external_email',
+} as const;
+
+export interface EmailEventRuleInput {
+  /** @minLength 1 */
+  name: string;
+  enabled: boolean;
+  /** @minimum 0 */
+  priority: number;
+  /** @pattern ^[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+$ */
+  eventType: string;
+  /** @nullable */
+  createdByUserId?: string | null;
+  recipientMode: EmailEventRuleInputRecipientMode;
+  /** @nullable */
+  receiverUserId?: string | null;
+  /** @nullable */
+  receiverName?: string | null;
+  /** @nullable */
+  receiverEmail?: string | null;
+}
+
+export interface EmailRuleOrderInput {
+  ids: string[];
+}
+
+export interface EmailRuleSimulationInput {
+  eventType: string;
+  createdByUserId?: string;
+}
+
+export interface EmailRuleEventOption {
+  value: string;
+  label: string;
+}
+
+export interface EmailRuleUserOption {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
+export type EmailRuleSimulationResultRecipientsItem = {
+  /** @nullable */
+  userId?: string | null;
+  /** @nullable */
+  name?: string | null;
+  email: string;
+};
+
+export interface EmailRuleSimulationResult {
+  matched: boolean;
+  rule?: EmailEventRule | null;
+  recipients: EmailRuleSimulationResultRecipientsItem[];
+}
+
 export interface ReassignLessonsPendingActionsInput {
   /** @minItems 1 */
   lessonFormIds: string[];

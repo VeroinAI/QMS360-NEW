@@ -74,6 +74,13 @@ import type {
   DocumentGovernanceLogEntry,
   DocumentGovernancePageResponse,
   DownloadQaqcMetricsTemplateParams,
+  EmailEventRule,
+  EmailEventRuleInput,
+  EmailRuleEventOption,
+  EmailRuleOrderInput,
+  EmailRuleSimulationInput,
+  EmailRuleSimulationResult,
+  EmailRuleUserOption,
   Error,
   EscalationRulePageResponse,
   EscalationRulesBody,
@@ -20347,5 +20354,544 @@ export const useMarkAuditNotificationRead = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getMarkAuditNotificationReadMutationOptions(options));
+    }
+
+export const getListEmailRulesUrl = () => {
+
+
+
+
+  return `/api/email-rules`
+}
+
+export const listEmailRules = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailEventRule[]> => {
+
+  return customFetch<EmailEventRule[]>(getListEmailRulesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEmailRulesQueryKey = () => {
+    return [
+    `/api/email-rules`
+    ] as const;
+    }
+
+
+export const getListEmailRulesQueryOptions = <TData = Awaited<ReturnType<typeof listEmailRules>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmailRules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEmailRulesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmailRules>>> = ({ signal }) => listEmailRules({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEmailRules>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEmailRulesQueryResult = NonNullable<Awaited<ReturnType<typeof listEmailRules>>>
+export type ListEmailRulesQueryError = ErrorType<unknown>
+
+
+
+export function useListEmailRules<TData = Awaited<ReturnType<typeof listEmailRules>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmailRules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEmailRulesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateEmailRuleUrl = () => {
+
+
+
+
+  return `/api/email-rules`
+}
+
+export const createEmailRule = async (emailEventRuleInput: EmailEventRuleInput, options?: Parameters<typeof customFetch>[1]): Promise<EmailEventRule> => {
+
+  return customFetch<EmailEventRule>(getCreateEmailRuleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(emailEventRuleInput)
+  }
+);}
+
+
+
+
+
+export const getCreateEmailRuleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEmailRule>>, TError,{data: BodyType<EmailEventRuleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEmailRule>>, TError,{data: BodyType<EmailEventRuleInput>}, TContext> => {
+
+const mutationKey = ['createEmailRule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEmailRule>>, {data: BodyType<EmailEventRuleInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createEmailRule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEmailRuleMutationResult = NonNullable<Awaited<ReturnType<typeof createEmailRule>>>
+    export type CreateEmailRuleMutationBody = BodyType<EmailEventRuleInput>
+    export type CreateEmailRuleMutationError = ErrorType<unknown>
+
+    export const useCreateEmailRule = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEmailRule>>, TError,{data: BodyType<EmailEventRuleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createEmailRule>>,
+        TError,
+        {data: BodyType<EmailEventRuleInput>},
+        TContext
+      > => {
+      return useMutation(getCreateEmailRuleMutationOptions(options));
+    }
+
+export const getUpdateEmailRuleUrl = (id: string,) => {
+
+
+
+
+  return `/api/email-rules/${id}`
+}
+
+export const updateEmailRule = async (id: string,
+    emailEventRuleInput: EmailEventRuleInput, options?: Parameters<typeof customFetch>[1]): Promise<EmailEventRule> => {
+
+  return customFetch<EmailEventRule>(getUpdateEmailRuleUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(emailEventRuleInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateEmailRuleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEmailRule>>, TError,{id: string;data: BodyType<EmailEventRuleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEmailRule>>, TError,{id: string;data: BodyType<EmailEventRuleInput>}, TContext> => {
+
+const mutationKey = ['updateEmailRule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEmailRule>>, {id: string;data: BodyType<EmailEventRuleInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateEmailRule(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEmailRuleMutationResult = NonNullable<Awaited<ReturnType<typeof updateEmailRule>>>
+    export type UpdateEmailRuleMutationBody = BodyType<EmailEventRuleInput>
+    export type UpdateEmailRuleMutationError = ErrorType<unknown>
+
+    export const useUpdateEmailRule = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEmailRule>>, TError,{id: string;data: BodyType<EmailEventRuleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateEmailRule>>,
+        TError,
+        {id: string;data: BodyType<EmailEventRuleInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateEmailRuleMutationOptions(options));
+    }
+
+export const getDeleteEmailRuleUrl = (id: string,) => {
+
+
+
+
+  return `/api/email-rules/${id}`
+}
+
+export const deleteEmailRule = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteEmailRuleUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteEmailRuleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEmailRule>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteEmailRule>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteEmailRule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteEmailRule>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteEmailRule(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteEmailRuleMutationResult = NonNullable<Awaited<ReturnType<typeof deleteEmailRule>>>
+
+    export type DeleteEmailRuleMutationError = ErrorType<unknown>
+
+    export const useDeleteEmailRule = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEmailRule>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteEmailRule>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteEmailRuleMutationOptions(options));
+    }
+
+export const getReorderEmailRulesUrl = () => {
+
+
+
+
+  return `/api/email-rules/reorder`
+}
+
+export const reorderEmailRules = async (emailRuleOrderInput: EmailRuleOrderInput, options?: Parameters<typeof customFetch>[1]): Promise<EmailEventRule[]> => {
+
+  return customFetch<EmailEventRule[]>(getReorderEmailRulesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(emailRuleOrderInput)
+  }
+);}
+
+
+
+
+
+export const getReorderEmailRulesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderEmailRules>>, TError,{data: BodyType<EmailRuleOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reorderEmailRules>>, TError,{data: BodyType<EmailRuleOrderInput>}, TContext> => {
+
+const mutationKey = ['reorderEmailRules'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reorderEmailRules>>, {data: BodyType<EmailRuleOrderInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  reorderEmailRules(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReorderEmailRulesMutationResult = NonNullable<Awaited<ReturnType<typeof reorderEmailRules>>>
+    export type ReorderEmailRulesMutationBody = BodyType<EmailRuleOrderInput>
+    export type ReorderEmailRulesMutationError = ErrorType<unknown>
+
+    export const useReorderEmailRules = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderEmailRules>>, TError,{data: BodyType<EmailRuleOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reorderEmailRules>>,
+        TError,
+        {data: BodyType<EmailRuleOrderInput>},
+        TContext
+      > => {
+      return useMutation(getReorderEmailRulesMutationOptions(options));
+    }
+
+export const getEmailRuleEventCatalogUrl = () => {
+
+
+
+
+  return `/api/email-rules/catalog`
+}
+
+export const emailRuleEventCatalog = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailRuleEventOption[]> => {
+
+  return customFetch<EmailRuleEventOption[]>(getEmailRuleEventCatalogUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getEmailRuleEventCatalogQueryKey = () => {
+    return [
+    `/api/email-rules/catalog`
+    ] as const;
+    }
+
+
+export const getEmailRuleEventCatalogQueryOptions = <TData = Awaited<ReturnType<typeof emailRuleEventCatalog>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof emailRuleEventCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getEmailRuleEventCatalogQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof emailRuleEventCatalog>>> = ({ signal }) => emailRuleEventCatalog({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof emailRuleEventCatalog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type EmailRuleEventCatalogQueryResult = NonNullable<Awaited<ReturnType<typeof emailRuleEventCatalog>>>
+export type EmailRuleEventCatalogQueryError = ErrorType<unknown>
+
+
+
+export function useEmailRuleEventCatalog<TData = Awaited<ReturnType<typeof emailRuleEventCatalog>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof emailRuleEventCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getEmailRuleEventCatalogQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getEmailRuleUserOptionsUrl = () => {
+
+
+
+
+  return `/api/email-rules/options/users`
+}
+
+export const emailRuleUserOptions = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailRuleUserOption[]> => {
+
+  return customFetch<EmailRuleUserOption[]>(getEmailRuleUserOptionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getEmailRuleUserOptionsQueryKey = () => {
+    return [
+    `/api/email-rules/options/users`
+    ] as const;
+    }
+
+
+export const getEmailRuleUserOptionsQueryOptions = <TData = Awaited<ReturnType<typeof emailRuleUserOptions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof emailRuleUserOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getEmailRuleUserOptionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof emailRuleUserOptions>>> = ({ signal }) => emailRuleUserOptions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof emailRuleUserOptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type EmailRuleUserOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof emailRuleUserOptions>>>
+export type EmailRuleUserOptionsQueryError = ErrorType<unknown>
+
+
+
+export function useEmailRuleUserOptions<TData = Awaited<ReturnType<typeof emailRuleUserOptions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof emailRuleUserOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getEmailRuleUserOptionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSimulateEmailRuleUrl = () => {
+
+
+
+
+  return `/api/email-rules/simulate`
+}
+
+export const simulateEmailRule = async (emailRuleSimulationInput: EmailRuleSimulationInput, options?: Parameters<typeof customFetch>[1]): Promise<EmailRuleSimulationResult> => {
+
+  return customFetch<EmailRuleSimulationResult>(getSimulateEmailRuleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(emailRuleSimulationInput)
+  }
+);}
+
+
+
+
+
+export const getSimulateEmailRuleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof simulateEmailRule>>, TError,{data: BodyType<EmailRuleSimulationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof simulateEmailRule>>, TError,{data: BodyType<EmailRuleSimulationInput>}, TContext> => {
+
+const mutationKey = ['simulateEmailRule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof simulateEmailRule>>, {data: BodyType<EmailRuleSimulationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  simulateEmailRule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SimulateEmailRuleMutationResult = NonNullable<Awaited<ReturnType<typeof simulateEmailRule>>>
+    export type SimulateEmailRuleMutationBody = BodyType<EmailRuleSimulationInput>
+    export type SimulateEmailRuleMutationError = ErrorType<unknown>
+
+    export const useSimulateEmailRule = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof simulateEmailRule>>, TError,{data: BodyType<EmailRuleSimulationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof simulateEmailRule>>,
+        TError,
+        {data: BodyType<EmailRuleSimulationInput>},
+        TContext
+      > => {
+      return useMutation(getSimulateEmailRuleMutationOptions(options));
     }
 

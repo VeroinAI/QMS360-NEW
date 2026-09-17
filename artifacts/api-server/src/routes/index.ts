@@ -11,6 +11,7 @@ import lessonsRouter from "./lessons";
 import auditRouter from "./audit";
 import masterDataRouter from "./master-data";
 import feedbackRouter from "./feedback";
+import emailRulesRouter from "./email-rules";
 
 const router: IRouter = Router();
 
@@ -23,6 +24,7 @@ router.use(executiveRouter);
 router.use(integrationsRouter);
 router.use(notificationsRouter);
 router.use(feedbackRouter);
+router.use(emailRulesRouter);
 router.use("/qaqc", qaqcRouter);
 router.use("/lessons", lessonsRouter);
 router.use("/audit", auditRouter);

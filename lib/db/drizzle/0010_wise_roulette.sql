@@ -1,0 +1,1 @@
+ALTER TABLE "shared"."email_event_rules" ADD COLUMN "recipient_mode" text DEFAULT 'all_users' NOT NULL;

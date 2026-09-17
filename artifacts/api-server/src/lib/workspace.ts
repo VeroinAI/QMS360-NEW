@@ -10,6 +10,7 @@ import {
   notifications,
 } from "@workspace/db";
 import { deliverEmail } from "./email";
+import { dispatchEmailRule } from "./email-rules";
 
 export type AppKey = "qaqc" | "lessons" | "audit";
 
@@ -63,13 +64,21 @@ type AuditInput = {
   before?: Record<string, unknown>; after?: Record<string, unknown>; ipAddress?: string;
 };
 
-export async function writeAuditLog(database: any, app: AppKey, input: AuditInput) {
+export async function writeAuditLog(database: any, app: AppKey, input: AuditInput, options: { dispatch?: boolean } = {}) {
   const table = app === "qaqc" ? auditLogEntries : app === "lessons" ? lessonsAuditLogEntries : auditAuditLogEntries;
   const { ipAddress, ...values } = input;
   const after = input.ipAddress
     ? { ...(input.after ?? {}), _requestIp: input.ipAddress }
     : input.after;
   await database.insert(table).values({ ...values, after });
+  // Rule dispatch is deliberately fire-and-forget: SMTP configuration or
+  // recipient failures must never roll back the domain write.
+  if (options.dispatch !== false && input.entityType !== "email_event_rule" && input.entityType !== "email_rule") {
+    void dispatchEmailRule({
+      organizationId: input.organizationId, app, entityType: input.entityType,
+      action: input.action, actorId: input.actorId, entityId: input.entityId,
+    });
+  }
 }
 
 type NotifyInput = {

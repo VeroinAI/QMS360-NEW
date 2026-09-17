@@ -32,9 +32,12 @@ function connectorDto(row: typeof integrationConnectors.$inferSelect, lastSucces
   const config = maskConfig(row.configuration);
   // Basic-auth usernames are credentials too — the generic secret-key pattern
   // does not match "username", so mask them explicitly for source connectors.
-  if (family === "source_api" && config.authType === "basic" && typeof config.username === "string" && config.username) {
+  if ((family === "email" || (family === "source_api" && config.authType === "basic"))
+    && typeof config.username === "string" && config.username) {
     config.username = "********";
   }
+  if (family === "email" && typeof config.user === "string" && config.user) config.user = "********";
+  if (family === "email" && typeof config.pass === "string" && config.pass) config.pass = "********";
   const configuredStatus = typeof row.configuration.status === "string" ? row.configuration.status : undefined;
   const status = !row.isEnabled ? "Disabled" : statuses.has(configuredStatus ?? "") ? configuredStatus! : "Degraded";
   return { id: row.id, name: row.name, family, status, enabled: row.isEnabled, config, lastSuccessfulSyncAt };
@@ -58,7 +61,7 @@ function syncDto(row: typeof syncJobs.$inferSelect) {
   };
 }
 
-router.get("/integrations/connectors", requireAuth, async (req, res) => {
+router.get("/integrations/connectors", requireAuth, requireAdmin, async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = and(eq(integrationConnectors.organizationId, req.currentUser!.organizationId), isNull(integrationConnectors.deletedAt));
   const [rows, counts, syncs] = await Promise.all([
@@ -86,17 +89,31 @@ router.put("/integrations/connectors/:id", requireAuth, requireAdmin, async (req
   const old = oldRows[0];
   if (!old) { res.status(404).json({ error: "Connector not found" }); return; }
   const incoming = { ...(parsed.data.config ?? {}) };
+  if (parsed.data.family === "email") {
+    if (typeof incoming.user === "string" && !incoming.username) incoming.username = incoming.user;
+    if (typeof incoming.pass === "string" && !incoming.password) incoming.password = incoming.pass;
+    delete incoming.user;
+    delete incoming.pass;
+  }
   // Basic-auth usernames are credentials; encrypt them like other secrets
   // (the generic secret-key pattern does not match "username").
   if (typeof incoming.username === "string" && incoming.username && incoming.username !== "********"
-    && (incoming.authType ?? old.configuration.authType) === "basic") {
+    && (parsed.data.family === "email" || (incoming.authType ?? old.configuration.authType) === "basic")) {
     incoming.username = encryptSecret(incoming.username);
   }
   // Secret values (passwords, tokens, ...) are encrypted at rest; masked
   // placeholders keep the previously stored value. Legacy plaintext secrets
   // already stored are re-encrypted by encryptConfigSecrets on this save.
+  const stored = { ...old.configuration };
+  if (parsed.data.family === "email") {
+    if (typeof stored.user === "string" && !stored.username) stored.username = encryptSecret(stored.user);
+    if (typeof stored.pass === "string" && !stored.password) stored.password = encryptSecret(stored.pass);
+    if (typeof stored.username === "string" && stored.username) stored.username = encryptSecret(stored.username);
+    delete stored.user;
+    delete stored.pass;
+  }
   const merged = encryptConfigSecrets({
-    ...old.configuration,
+    ...stored,
     ...Object.fromEntries(Object.entries(incoming).filter(([, value]) => value !== "********")),
     status: parsed.data.status,
   });
@@ -107,7 +124,7 @@ router.put("/integrations/connectors/:id", requireAuth, requireAdmin, async (req
   res.json(UpdateIntegrationConnectorResponse.parse(connectorDto(row!)));
 });
 
-router.get("/integrations/sync-jobs", requireAuth, async (req, res) => {
+router.get("/integrations/sync-jobs", requireAuth, requireAdmin, async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = and(eq(syncJobs.organizationId, req.currentUser!.organizationId), isNull(syncJobs.deletedAt));
   const [rows, counts] = await Promise.all([
@@ -127,14 +144,19 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
   // Email deliveries embed their payload in every recorded failure entry so a
   // retry resends the exact original email instead of flipping a status flag.
   const entries = Array.isArray(job.errorQueue) ? job.errorQueue as Array<Record<string, unknown>> : [];
-  const payload = entries.find((entry) => Array.isArray(entry?.recipientIds) && typeof entry?.subject === "string");
+  const payloads = entries.filter((entry) =>
+    Array.isArray(entry?.recipientIds) && Array.isArray(entry?.recipients) && typeof entry?.subject === "string");
+  const payload = payloads[0];
   if (job.jobType !== "email_delivery" || !payload) {
     res.status(422).json({ error: "This job has no recorded email payload to retry" }); return;
   }
   const startedAt = Date.now();
   const result = await deliverEmail(db, {
     organizationId: orgId,
-    recipientIds: payload.recipientIds as string[],
+    recipientIds: [...new Set(payloads.flatMap((entry) => entry.recipientIds as string[]))],
+    recipients: [...new Map(payloads.flatMap((entry) =>
+      entry.recipients as Array<{ email: string; name?: string | null }>)
+      .map((recipient) => [recipient.email.toLowerCase(), recipient])).values()],
     subject: payload.subject as string,
     text: typeof payload.text === "string" ? payload.text : "",
     context: { kind: "sync_job_retry", retryOfJobId: job.id },
@@ -143,7 +165,14 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
   const message = result.attempted ? result.error : `Retry not attempted: ${result.reason}`;
   const [row] = await db.update(syncJobs).set({
     outcome,
-    errorQueue: outcome === "success" ? [] : [{ message: message ?? "Retry delivery failed", kind: "sync_job_retry" }],
+    errorQueue: outcome === "success" ? [] : [{
+      message: message ?? "Retry delivery failed", kind: "sync_job_retry",
+      recipientIds: result.attempted ? [] : [...new Set(payloads.flatMap((entry) => entry.recipientIds as string[]))],
+      recipients: result.attempted ? result.failedRecipients : [...new Map(payloads.flatMap((entry) =>
+        entry.recipients as Array<{ email: string; name?: string | null }>)
+        .map((recipient) => [recipient.email.toLowerCase(), recipient])).values()],
+      subject: payload.subject, text: typeof payload.text === "string" ? payload.text : "",
+    }],
     durationMs: Date.now() - startedAt, lastRunAt: new Date(), updatedAt: new Date(),
   }).where(eq(syncJobs.id, job.id)).returning();
   res.json(RetrySyncJobResponse.parse(syncDto(row!)));
@@ -165,7 +194,7 @@ router.post("/integrations/connectors/:id/test-email", requireAuth, requireAdmin
   res.json(SendConnectorTestEmailResponse.parse({ sent: true, message: `Test email sent to ${recipient}` }));
 });
 
-router.get("/integrations/health", requireAuth, async (req, res) => {
+router.get("/integrations/health", requireAuth, requireAdmin, async (req, res) => {
   const rows = await db.select().from(integrationConnectors).where(and(
     eq(integrationConnectors.organizationId, req.currentUser!.organizationId), isNull(integrationConnectors.deletedAt),
   ));
@@ -257,8 +286,15 @@ router.post("/integrations/connectors", requireAuth, requireAdmin, async (req, r
   const parsed = CreateIntegrationConnectorBody.safeParse(req.body);
   if (!parsed.success) { res.status(422).json({ error: "Invalid connector", details: parsed.error.issues }); return; }
   const config = { ...(parsed.data.config ?? {}) };
+  if (parsed.data.family === "email") {
+    if (typeof config.user === "string" && !config.username) config.username = config.user;
+    if (typeof config.pass === "string" && !config.password) config.password = config.pass;
+    delete config.user;
+    delete config.pass;
+  }
   // Basic-auth usernames are credentials; encrypt them like other secrets.
-  if (typeof config.username === "string" && config.username && config.authType === "basic") {
+  if (typeof config.username === "string" && config.username
+    && (parsed.data.family === "email" || config.authType === "basic")) {
     config.username = encryptSecret(config.username);
   }
   const [row] = await db.insert(integrationConnectors).values({

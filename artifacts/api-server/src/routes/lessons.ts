@@ -5,6 +5,7 @@ import { Router, type IRouter } from "express";
 import {
   and, asc, desc, eq, gte, gt, ilike, inArray, isNull, lte, ne, or, sql,
 } from "drizzle-orm";
+import { dispatchEmailRule } from "../lib/email-rules";
 import {
   AnswerLessonPromptQuestionBody,
   AssignLessonsUserRoleBody,
@@ -1008,11 +1009,15 @@ router.post("/admin/pending-actions/reassign", requireAppAdmin("lessons"), async
         before: { approverId: row.approverId, approverName: names.get(row.approverId!) ?? null },
         after: { approverId: target.id, approverName: names.get(target.id) ?? null, transferText: `Transferred by ${names.get(actor.id) ?? actor.fullName} from ${names.get(row.approverId!) ?? "Unknown"} to ${names.get(target.id) ?? target.fullName}` },
         ipAddress: req.ip,
-      });
+      }, { dispatch: false });
       reassigned.push({ id: row.id, oldApproverId: row.approverId!, referenceNumber: row.referenceNumber });
     }
   });
   for (const row of reassigned) {
+    void dispatchEmailRule({
+      organizationId: orgId, app: "lessons", entityType: "lesson_form",
+      action: "transfer", actorId: actor.id, entityId: row.id,
+    });
     const bodyText = `${row.referenceNumber} was transferred to ${names.get(target.id) ?? target.fullName} by ${names.get(actor.id) ?? actor.fullName}.`;
     for (const userId of [row.oldApproverId, target.id]) {
       try {

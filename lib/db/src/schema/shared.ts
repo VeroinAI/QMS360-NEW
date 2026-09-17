@@ -191,6 +191,23 @@ export const integrationConnectors = sharedSchema.table("integration_connectors"
   ...auditColumns,
 });
 
+export const emailEventRules = sharedSchema.table("email_event_rules", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  name: text("name").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  priority: integer("priority").notNull().default(0),
+  eventType: text("event_type").notNull(),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id),
+  recipientMode: text("recipient_mode").notNull().default("all_users"),
+  receiverUserId: uuid("receiver_user_id").references(() => users.id),
+  receiverName: text("receiver_name"),
+  receiverEmail: text("receiver_email"),
+  ...auditColumns,
+}, (table) => [
+  index("email_event_rules_org_priority_idx").on(table.organizationId, table.priority),
+]);
+
 export const syncJobs = sharedSchema.table("sync_jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),

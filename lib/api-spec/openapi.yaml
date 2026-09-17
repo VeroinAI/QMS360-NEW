@@ -1155,6 +1155,51 @@ paths:
     get: {operationId: listAuditNotifications, tags: [audit], summary: List current user's notifications, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/NotificationPage"}}}
   /audit/notifications/{id}/read:
     post: {operationId: markAuditNotificationRead, tags: [audit], summary: Mark notification read, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Marked read}}}
+  /email-rules:
+    get:
+      operationId: listEmailRules
+      tags: [integrations]
+      responses: {"200": {description: Email rules, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/EmailEventRule"}}}}}}
+    post:
+      operationId: createEmailRule
+      tags: [integrations]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/EmailEventRuleInput"}}}}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/EmailEventRule"}}}}}
+  /email-rules/{id}:
+    patch:
+      operationId: updateEmailRule
+      tags: [integrations]
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/EmailEventRuleInput"}}}}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/EmailEventRule"}}}}}
+    delete:
+      operationId: deleteEmailRule
+      tags: [integrations]
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses: {"204": {description: Deleted}}
+  /email-rules/reorder:
+    post:
+      operationId: reorderEmailRules
+      tags: [integrations]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/EmailRuleOrderInput"}}}}
+      responses: {"200": {description: Reordered, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/EmailEventRule"}}}}}}
+  /email-rules/catalog:
+    get:
+      operationId: emailRuleEventCatalog
+      tags: [integrations]
+      responses: {"200": {description: Event catalog, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/EmailRuleEventOption"}}}}}}
+  /email-rules/options/users:
+    get:
+      operationId: emailRuleUserOptions
+      tags: [integrations]
+      responses: {"200": {description: Active users, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/EmailRuleUserOption"}}}}}}
+  /email-rules/simulate:
+    post:
+      operationId: simulateEmailRule
+      tags: [integrations]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/EmailRuleSimulationInput"}}}}
+      responses: {"200": {description: Simulation result, content: {application/json: {schema: {$ref: "#/components/schemas/EmailRuleSimulationResult"}}}}}
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1258,6 +1303,73 @@ components:
     FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    EmailEventRule:
+      type: object
+      required: [id, organizationId, name, enabled, priority, eventType, recipientMode]
+      properties:
+        id: {type: string}
+        organizationId: {type: string}
+        name: {type: string}
+        enabled: {type: boolean}
+        priority: {type: number}
+        eventType: {type: string, pattern: "^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$"}
+        createdByUserId: {type: [string, "null"]}
+        recipientMode: {type: string, enum: [all_users, internal_user, external_email]}
+        receiverUserId: {type: [string, "null"]}
+        receiverName: {type: [string, "null"]}
+        receiverEmail: {type: [string, "null"]}
+    EmailEventRuleInput:
+      type: object
+      required: [name, enabled, priority, eventType, recipientMode]
+      properties:
+        name: {type: string, minLength: 1}
+        enabled: {type: boolean}
+        priority: {type: number, minimum: 0}
+        eventType: {type: string, pattern: "^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$"}
+        createdByUserId: {type: [string, "null"]}
+        recipientMode: {type: string, enum: [all_users, internal_user, external_email]}
+        receiverUserId: {type: [string, "null"]}
+        receiverName: {type: [string, "null"]}
+        receiverEmail: {type: [string, "null"]}
+    EmailRuleOrderInput:
+      type: object
+      required: [ids]
+      properties:
+        ids: {type: array, items: {type: string}}
+    EmailRuleSimulationInput:
+      type: object
+      required: [eventType]
+      properties:
+        eventType: {type: string}
+        createdByUserId: {type: string}
+    EmailRuleEventOption:
+      type: object
+      required: [value, label]
+      properties:
+        value: {type: string}
+        label: {type: string}
+    EmailRuleUserOption:
+      type: object
+      required: [id, fullName, email]
+      properties:
+        id: {type: string}
+        fullName: {type: string}
+        email: {type: string}
+    EmailRuleSimulationResult:
+      type: object
+      required: [matched, recipients]
+      properties:
+        matched: {type: boolean}
+        rule: {oneOf: [{$ref: "#/components/schemas/EmailEventRule"}, {type: "null"}]}
+        recipients:
+          type: array
+          items:
+            type: object
+            required: [email]
+            properties:
+              userId: {type: [string, "null"]}
+              name: {type: [string, "null"]}
+              email: {type: string}
     ReassignLessonsPendingActionsInput:
       type: object
       required: [lessonFormIds, targetApproverId]
