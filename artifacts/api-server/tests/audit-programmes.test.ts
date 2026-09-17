@@ -163,7 +163,7 @@ describe("audit programme parent/child workflow", () => {
 
   it("snapshots L1/L2 roles and advances sequentially with authorization", async () => {
     const created = await api("POST", "/programmes", creator.token, { title: "Approval Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
-    await addChild(created.json.id);
+    const existingChild = await addChild(created.json.id);
     const submitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token, { subject: "Approval programme", mailBody: "Please review and approve." });
     expect(submitted.status).toBe(200);
     expect(submitted.json.submissionSubject).toBe("Approval programme");
@@ -198,6 +198,17 @@ describe("audit programme parent/child workflow", () => {
     const second = await api("POST", `/programmes/${created.json.id}/review`, l2.token, { decision: "approve" });
     expect(second.status).toBe(200);
     expect(second.json.workflowState).toBe("Approved");
+    const approvedExistingChild = await api("GET", `/schedules/${existingChild.id}`, creator.token);
+    expect(approvedExistingChild.status).toBe(200);
+    expect(approvedExistingChild.json.workflowState).toBe("Approved");
+    const laterChild = await api("POST", "/schedules", creator.token, {
+      id: crypto.randomUUID(), parentId: created.json.id, year: 2026, title: "Later child schedule",
+      projectIds: [], auditTypes: ["Quality Internal Process Audit"], auditCategory: "Internal",
+      departmentProject: "Quality Department", plannedStartDate: "2026-08-01", plannedEndDate: "2026-08-02",
+      workflowState: "Draft",
+    });
+    expect(laterChild.status).toBe(201);
+    expect(laterChild.json.workflowState).toBe("Approved");
     const ownerNotice = await db.execute(sql`SELECT recipient_id, title FROM app3_audit.notifications WHERE organization_id = ${orgId} AND recipient_id = ${creator.id} AND title = 'Audit programme approved'`);
     expect(ownerNotice.rows.length).toBeGreaterThan(0);
   });

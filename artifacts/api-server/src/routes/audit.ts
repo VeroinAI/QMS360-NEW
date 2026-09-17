@@ -526,12 +526,31 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
   }
   if (!allowed) throw new HttpError(403, "Only the current approval role may review this programme");
   const nextIndex = (meta.approvalIndex ?? 0) + 1; const complete = data.decision === "approve" && nextIndex >= (meta.approvalRoles ?? []).length;
-  const [row] = await db.update(auditSchedules).set({
-    workflowState: data.decision === "send_back" ? "sent_back" : complete ? "approved" : "submitted",
-    status: JSON.stringify({ ...meta, approvalIndex: data.decision === "send_back" ? 0 : nextIndex, reviewComments: data.comments ?? null }),
-    updatedAt: new Date(),
-  }).where(and(eq(auditSchedules.id, before.id), eq(auditSchedules.workflowState, before.workflowState), eq(auditSchedules.status, before.status))).returning();
-  if (!row) throw new HttpError(409, "Programme changed while it was being reviewed");
+  const row = await db.transaction(async tx => {
+    const [current] = await tx.select().from(auditSchedules).where(and(
+      active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, before.id),
+    )).for("update");
+    if (!current || current.workflowState !== before.workflowState || current.status !== before.status) {
+      throw new HttpError(409, "Programme changed while it was being reviewed");
+    }
+    const [updated] = await tx.update(auditSchedules).set({
+      workflowState: data.decision === "send_back" ? "sent_back" : complete ? "approved" : "submitted",
+      status: JSON.stringify({ ...meta, approvalIndex: data.decision === "send_back" ? 0 : nextIndex, reviewComments: data.comments ?? null }),
+      updatedAt: new Date(),
+    }).where(eq(auditSchedules.id, before.id)).returning();
+    if (!updated) throw new HttpError(409, "Programme changed while it was being reviewed");
+    if (complete) {
+      const candidates = await tx.select().from(auditSchedules).where(active(auditSchedules, actor(req).organizationId));
+      const childIds = candidates
+        .filter(candidate => !isProgramme(candidate) && scheduleMeta(candidate).parentId === before.id)
+        .map(candidate => candidate.id);
+      if (childIds.length) {
+        await tx.update(auditSchedules).set({ workflowState: "approved", updatedAt: new Date() })
+          .where(and(eq(auditSchedules.organizationId, actor(req).organizationId), inArray(auditSchedules.id, childIds)));
+      }
+    }
+    return updated;
+  });
   if (data.decision === "send_back" && row.ownerId) await notify(db, "audit", { organizationId: actor(req).organizationId, userId: row.ownerId, type: "programme_decision", title: "Audit programme sent back", body: data.comments, entityType: "audit_programme", entityId: row.id });
   if (data.decision === "approve" && complete && row.ownerId) await notify(db, "audit", { organizationId: actor(req).organizationId, userId: row.ownerId, type: "programme_decision", title: "Audit programme approved", body: row.title, entityType: "audit_programme", entityId: row.id });
   if (data.decision === "approve" && !complete) {
@@ -583,21 +602,30 @@ router.post("/schedules", asyncHandler(async (req, res) => {
   assertScheduleDates(data);
   await assertScheduleParentDates(actor(req).organizationId, data.parentId, data);
   await assertScheduleLovs(actor(req).organizationId, data);
-  const values = scheduleValues(data);
-  const [row] = await db.insert(auditSchedules)
-    .values({ organizationId: actor(req).organizationId, ...values })
-    .onConflictDoNothing({ target: auditSchedules.id })
-    .returning();
-  if (!row) {
-    const [existing] = await db.select().from(auditSchedules).where(eq(auditSchedules.id, values.id)).limit(1);
+  const requestedValues = scheduleValues(data);
+  const result = await db.transaction(async tx => {
+    let workflowState = requestedValues.workflowState;
+    if (data.parentId) {
+      const [parent] = await tx.select().from(auditSchedules).where(and(
+        active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(data.parentId)),
+      )).for("update");
+      if (!parent || !isProgramme(parent)) throw new HttpError(422, "parentId must identify an active audit programme");
+      if (parent.workflowState === "approved") workflowState = "approved";
+    }
+    const values = { ...requestedValues, workflowState };
+    const [created] = await tx.insert(auditSchedules)
+      .values({ organizationId: actor(req).organizationId, ...values })
+      .onConflictDoNothing({ target: auditSchedules.id })
+      .returning();
+    if (created) return { row: created, created: true };
+    const [existing] = await tx.select().from(auditSchedules).where(eq(auditSchedules.id, values.id)).limit(1);
     if (existing?.organizationId === actor(req).organizationId && isMatchingScheduleCreate(existing, values)) {
-      res.status(201).json(scheduleDto(existing));
-      return;
+      return { row: existing, created: false };
     }
     throw new HttpError(409, "A schedule with this form identifier already exists. Refresh the schedule list before creating another schedule.");
-  }
-  await auditLog(req, "create", "audit_schedule", row.id, undefined, row);
-  res.status(201).json(scheduleDto(row));
+  });
+  if (result.created) await auditLog(req, "create", "audit_schedule", result.row.id, undefined, result.row);
+  res.status(201).json(scheduleDto(result.row));
 }));
 router.get("/schedules/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
