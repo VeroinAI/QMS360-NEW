@@ -844,6 +844,10 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   if (activities.some(activity => !activity.id || !activity.section?.trim() || !activity.remarks?.trim() || !activity.auditeeId)) {
     throw new HttpError(422, "Complete Activities / Section, Remarks and Auditee for every activity row");
   }
+  const normalizedActivitySections = activities.map(activity => activity.section.trim().toLocaleLowerCase());
+  if (new Set(normalizedActivitySections).size !== normalizedActivitySections.length) {
+    throw new HttpError(422, "Each Activities / Section value can be selected only once");
+  }
   await Promise.all(activities.map(activity =>
     assertLovValue(db, actor(req).organizationId, "activities", activity.section)));
   if (activities.some(activity => activity.auditeeId !== data.auditeeId)) {
