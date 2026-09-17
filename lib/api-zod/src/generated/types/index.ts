@@ -392,6 +392,8 @@ export * from './saveFieldMappingsInputMappingsItem';
 export * from './searchLessonsLogImpact';
 export * from './searchLessonsLogParams';
 export * from './searchLessonsLogWorkflowState';
+export * from './sendAuditPlanForExecutionInput';
+export * from './sendAuditPlanForExecutionInputBody';
 export * from './sendConnectorTestEmail200';
 export * from './settingsSection';
 export * from './sinceParameter';

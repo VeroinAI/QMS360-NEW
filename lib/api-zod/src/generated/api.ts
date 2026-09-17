@@ -6061,6 +6061,25 @@ export const GetAuditPlanOptionsResponse = zod.object({
 
 
 /**
+ * @summary List active roles available for Audit Plan execution notifications
+ */
+export const ListAuditPlanNotificationRolesResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "permissions": zod.array(zod.object({
+  "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation']),
+  "name": zod.string()
+})),
+  "active": zod.boolean(),
+  "systemDefault": zod.boolean().optional(),
+  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeIds": zod.array(zod.string()).optional()
+})
+export const ListAuditPlanNotificationRolesResponse = zod.array(ListAuditPlanNotificationRolesResponseItem)
+
+
+/**
  * @summary Get audit plan
  */
 export const GetAuditPlanParams = zod.object({
@@ -6185,10 +6204,14 @@ export const ShareAuditPlanResponse = zod.void()
 
 
 /**
- * @summary Send an Audit Plan to Audit Execution
+ * @summary Send an Audit Plan to Audit Execution and inform selected roles
  */
 export const SendAuditPlanForExecutionParams = zod.object({
   "id": zod.coerce.string()
+})
+
+export const SendAuditPlanForExecutionBody = zod.object({
+  "roleIds": zod.array(zod.string())
 })
 
 export const SendAuditPlanForExecutionResponse = zod.object({

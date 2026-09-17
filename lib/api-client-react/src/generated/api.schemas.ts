@@ -1074,6 +1074,10 @@ export interface RoleAssignment {
   scopeIds: string[];
 }
 
+export interface SendAuditPlanForExecutionInput {
+  roleIds: string[];
+}
+
 export type WorkspaceUserStatus = typeof WorkspaceUserStatus[keyof typeof WorkspaceUserStatus];
 
 
@@ -2565,6 +2569,8 @@ export type AuditProgrammeBody = AuditProgrammeInput;
 export type AuditProgrammeSubmissionBody = AuditProgrammeSubmission;
 
 export type AuditPlanBody = AuditPlan;
+
+export type SendAuditPlanForExecutionInputBody = SendAuditPlanForExecutionInput;
 
 export type AuditBody = Audit;
 

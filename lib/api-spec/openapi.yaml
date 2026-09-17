@@ -1050,6 +1050,8 @@ paths:
     post: {operationId: createAuditPlan, tags: [audit], summary: Create plan linked to schedule, requestBody: {$ref: "#/components/requestBodies/AuditPlan"}, responses: {"201": {description: Created}}}
   /audit/plan-options:
     get: {operationId: getAuditPlanOptions, tags: [audit], summary: List active organization users available to Audit Plan master fields, responses: {"200": {description: Plan options, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanOptions"}}}}}}
+  /audit/plan-notification-roles:
+    get: {operationId: listAuditPlanNotificationRoles, tags: [audit], summary: List active roles available for Audit Plan execution notifications, responses: {"200": {description: Active Audit roles, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Role"}}}}}}}
   /audit/plans/{id}:
     get: {operationId: getAuditPlan, tags: [audit], summary: Get audit plan, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Plan, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlan"}}}}}}
     put: {operationId: updateAuditPlan, tags: [audit], summary: Update audit plan, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditPlan"}, responses: {"200": {description: Updated}}}
@@ -1057,7 +1059,7 @@ paths:
   /audit/plans/{id}/share:
     post: {operationId: shareAuditPlan, tags: [audit], summary: Share plan with process and product owners, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"202": {description: Shared}}}
   /audit/plans/{id}/send-for-audit:
-    post: {operationId: sendAuditPlanForExecution, tags: [audit], summary: Send an Audit Plan to Audit Execution, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Existing or newly created Audit Execution, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}, "409": {description: Only draft or shared plans can be sent for audit}}}
+    post: {operationId: sendAuditPlanForExecution, tags: [audit], summary: Send an Audit Plan to Audit Execution and inform selected roles, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/SendAuditPlanForExecutionInput"}, responses: {"200": {description: Existing or newly created Audit Execution, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}, "409": {description: Only draft or shared plans can be sent for audit}}}
   /audit/audits:
     get: {operationId: listAudits, tags: [audit], summary: List audits, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditPage"}}}
     post: {operationId: createAudit, tags: [audit], summary: Create audit linked to plan, requestBody: {$ref: "#/components/requestBodies/Audit"}, responses: {"201": {description: Created}}}
@@ -1240,6 +1242,7 @@ components:
     AuditProgramme: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeInput"}}}}
     AuditProgrammeSubmission: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeSubmission"}}}}
     AuditPlan: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlan"}}}}
+    SendAuditPlanForExecutionInput: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SendAuditPlanForExecutionInput"}}}}
     Audit: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
     AuditFinding: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFinding"}}}}
     Car: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}
@@ -1941,6 +1944,14 @@ components:
       type: object
       required: [roleId, scopeType, scopeIds]
       properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, project]}, scopeIds: {type: array, items: {type: string}}}
+    SendAuditPlanForExecutionInput:
+      type: object
+      required: [roleIds]
+      properties:
+        roleIds:
+          type: array
+          uniqueItems: true
+          items: {type: string}
     WorkspaceUser:
       type: object
       required: [id, username, fullName, platformRole, workspaceRoles, status]

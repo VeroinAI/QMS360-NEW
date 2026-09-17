@@ -899,6 +899,12 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
 router.get("/plan-options", requirePermission("audit", "plans", "select"), asyncHandler(async (req, res) => {
   res.json({ users: await auditPlanUsers(actor(req).organizationId) });
 }));
+router.get("/plan-notification-roles", requirePermission("audit", "plans", "select"), asyncHandler(async (req, res) => {
+  const rows = await db.select().from(auditWorkspaceRoles)
+    .where(active(auditWorkspaceRoles, actor(req).organizationId))
+    .orderBy(asc(auditWorkspaceRoles.name));
+  res.json(await Promise.all(rows.map(auditRoleResponse)));
+}));
 router.post("/schedules/:id/feasibility", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.RecordAuditScheduleFeasibilityBody, req);
   const feedback = String(data.feedback ?? "").trim();
@@ -1038,8 +1044,16 @@ const auditValues = (data: AnyRow) => ({
   }),
 });
 router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.SendAuditPlanForExecutionBody, req);
   const planId = String(req.params.id);
   const organizationId = actor(req).organizationId;
+  const roleIds = [...new Set(data.roleIds as string[])];
+  const selectedRoles = await db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name })
+    .from(auditWorkspaceRoles)
+    .where(and(active(auditWorkspaceRoles, organizationId), inArray(auditWorkspaceRoles.id, roleIds)));
+  if (selectedRoles.length !== roleIds.length) throw new HttpError(400, "One or more selected roles are not available");
+  const informedRoleIds = selectedRoles.map(role => role.id);
+  const informedRoleNames = selectedRoles.map(role => role.name);
   const [plan] = await db.select().from(auditPlans).where(and(
     active(auditPlans, organizationId), eq(auditPlans.id, planId),
   ));
@@ -1061,12 +1075,17 @@ router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
     const workflowState = lockedPlan.workflowState.toLowerCase();
     if (existing) {
       if (["draft", "ready"].includes(workflowState)) {
-        await tx.update(auditPlans).set({ workflowState: "shared", updatedAt: new Date() }).where(eq(auditPlans.id, lockedPlan.id));
+        await tx.update(auditPlans).set({
+          workflowState: "shared",
+          status: JSON.stringify({ ...planMeta(lockedPlan), informedRoleIds, informedRoleNames }),
+          updatedAt: new Date(),
+        }).where(eq(auditPlans.id, lockedPlan.id));
         const [refreshed] = await tx.update(audits).set({ updatedAt: new Date() }).where(eq(audits.id, existing.id)).returning();
         return refreshed;
       }
       return existing;
     }
+    if (!informedRoleIds.length) throw new HttpError(400, "Select at least one role to inform");
 
     if (!["draft", "ready", "shared"].includes(workflowState)) {
       throw new HttpError(409, "Only draft or shared plans can be sent for audit");
@@ -1092,6 +1111,8 @@ router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
             title: meta.auditTitle ?? lockedPlan.scope ?? referenceNumber,
             startedAt: null,
             closedAt: null,
+            informedRoleIds,
+            informedRoleNames,
           }),
         }).returning();
       } catch (error: any) {
@@ -1102,16 +1123,21 @@ router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
     }
     if (!audit) throw new HttpError(409, "Unable to allocate a unique audit reference number");
     if (["draft", "ready"].includes(workflowState)) {
-      await tx.update(auditPlans).set({ workflowState: "shared", updatedAt: new Date() }).where(eq(auditPlans.id, lockedPlan.id));
+      await tx.update(auditPlans).set({
+        workflowState: "shared",
+        status: JSON.stringify({ ...meta, informedRoleIds, informedRoleNames }),
+        updatedAt: new Date(),
+      }).where(eq(auditPlans.id, lockedPlan.id));
     }
     created = true;
     return audit;
   });
 
   if (created) {
-    await Promise.all((planMeta(plan).processOwnerIds ?? []).map((id) => notify(db, "audit", {
+    const recipientIds = [...new Set((await Promise.all(informedRoleIds.map(roleId => roleUserIds(organizationId, roleId)))).flat())];
+    await Promise.all(recipientIds.map((id) => notify(db, "audit", {
       organizationId, userId: id, type: "audit_sent", title: "Audit sent for execution",
-      body: plan.scope ?? "An Audit Plan has been sent to Audit Execution.", entityType: "audit", entityId: result.id,
+      body: `${planMeta(plan).auditTitle ?? plan.scope ?? "An Audit Plan"} has been sent to Audit Execution.`, entityType: "audit", entityId: result.id,
     })));
     await auditLog(req, "send_for_audit", "audit_plan", plan.id, plan, result);
   }

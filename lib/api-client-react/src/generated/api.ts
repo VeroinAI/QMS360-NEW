@@ -224,11 +224,13 @@ import type {
   RegisterInput,
   RephraseBody,
   ReportFileResponse,
+  Role,
   RoleAssignmentBody,
   RoleBody,
   RolePageResponse,
   SaveFieldMappingsBody,
   SearchLessonsLogParams,
+  SendAuditPlanForExecutionInputBody,
   SendConnectorTestEmail200,
   SubmitForReviewBody,
   SyncJob,
@@ -15892,6 +15894,83 @@ export function useGetAuditPlanOptions<TData = Awaited<ReturnType<typeof getAudi
 
 
 
+export const getListAuditPlanNotificationRolesUrl = () => {
+
+
+
+
+  return `/api/audit/plan-notification-roles`
+}
+
+/**
+ * @summary List active roles available for Audit Plan execution notifications
+ */
+export const listAuditPlanNotificationRoles = async ( options?: Parameters<typeof customFetch>[1]): Promise<Role[]> => {
+
+  return customFetch<Role[]>(getListAuditPlanNotificationRolesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAuditPlanNotificationRolesQueryKey = () => {
+    return [
+    `/api/audit/plan-notification-roles`
+    ] as const;
+    }
+
+
+export const getListAuditPlanNotificationRolesQueryOptions = <TData = Awaited<ReturnType<typeof listAuditPlanNotificationRoles>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditPlanNotificationRoles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAuditPlanNotificationRolesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditPlanNotificationRoles>>> = ({ signal }) => listAuditPlanNotificationRoles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditPlanNotificationRoles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAuditPlanNotificationRolesQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditPlanNotificationRoles>>>
+export type ListAuditPlanNotificationRolesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List active roles available for Audit Plan execution notifications
+ */
+
+export function useListAuditPlanNotificationRoles<TData = Awaited<ReturnType<typeof listAuditPlanNotificationRoles>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditPlanNotificationRoles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAuditPlanNotificationRolesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetAuditPlanUrl = (id: string,) => {
 
 
@@ -16192,16 +16271,17 @@ export const getSendAuditPlanForExecutionUrl = (id: string,) => {
 }
 
 /**
- * @summary Send an Audit Plan to Audit Execution
+ * @summary Send an Audit Plan to Audit Execution and inform selected roles
  */
-export const sendAuditPlanForExecution = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+export const sendAuditPlanForExecution = async (id: string,
+    sendAuditPlanForExecutionInputBody: SendAuditPlanForExecutionInputBody, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
 
   return customFetch<Audit>(getSendAuditPlanForExecutionUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(sendAuditPlanForExecutionInputBody)
   }
 );}
 
@@ -16210,8 +16290,8 @@ export const sendAuditPlanForExecution = async (id: string, options?: Parameters
 
 
 export const getSendAuditPlanForExecutionMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, TError,{id: string}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, TError,{id: string;data: BodyType<SendAuditPlanForExecutionInputBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, TError,{id: string;data: BodyType<SendAuditPlanForExecutionInputBody>}, TContext> => {
 
 const mutationKey = ['sendAuditPlanForExecution'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -16223,10 +16303,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, {id: string}> = (props) => {
-          const {id} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, {id: string;data: BodyType<SendAuditPlanForExecutionInputBody>}> = (props) => {
+          const {id,data} = props ?? {};
 
-          return  sendAuditPlanForExecution(id,requestOptions)
+          return  sendAuditPlanForExecution(id,data,requestOptions)
         }
 
 
@@ -16237,18 +16317,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SendAuditPlanForExecutionMutationResult = NonNullable<Awaited<ReturnType<typeof sendAuditPlanForExecution>>>
-
+    export type SendAuditPlanForExecutionMutationBody = BodyType<SendAuditPlanForExecutionInputBody>
     export type SendAuditPlanForExecutionMutationError = ErrorType<void>
 
     /**
- * @summary Send an Audit Plan to Audit Execution
+ * @summary Send an Audit Plan to Audit Execution and inform selected roles
  */
 export const useSendAuditPlanForExecution = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, TError,{id: string;data: BodyType<SendAuditPlanForExecutionInputBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof sendAuditPlanForExecution>>,
         TError,
-        {id: string},
+        {id: string;data: BodyType<SendAuditPlanForExecutionInputBody>},
         TContext
       > => {
       return useMutation(getSendAuditPlanForExecutionMutationOptions(options));

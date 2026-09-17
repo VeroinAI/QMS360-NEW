@@ -24,6 +24,7 @@ import {
   useGetGeneratedAuditReport,
   useListAuditEvidence,
   useListAuditFindings,
+  useListAuditPlanNotificationRoles,
   useListAuditPlans,
   useListAuditSchedules,
   useListAuditProgrammes,
@@ -70,6 +71,7 @@ import { Badge } from "@/components/ui/badge";
 import { useGetAuditEscalations } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -1246,10 +1248,63 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
   </div>;
 }
 
+function SendForAuditDialog({ plan, open, onOpenChange, onSent }: {
+  plan?: AuditPlan;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSent: () => void;
+}) {
+  const [roleIds, setRoleIds] = useState<string[]>([]);
+  const roles = useListAuditPlanNotificationRoles();
+  const sendForAudit = useSendAuditPlanForExecution();
+  const { toast } = useToast();
+  useEffect(() => {
+    if (open) setRoleIds([]);
+  }, [open, plan?.id]);
+  const toggleRole = (roleId: string, checked: boolean) => {
+    setRoleIds(current => checked ? [...new Set([...current, roleId])] : current.filter(id => id !== roleId));
+  };
+  const submit = () => {
+    if (!plan || !roleIds.length) return;
+    sendForAudit.mutate({ id: plan.id, data: { roleIds } }, {
+      onSuccess: () => {
+        onOpenChange(false);
+        onSent();
+      },
+      onError: error => toast({ title: "Unable to send for audit", description: errorText(error), variant: "destructive" }),
+    });
+  };
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="max-w-lg">
+      <DialogHeader>
+        <DialogTitle>Send for Audit</DialogTitle>
+        <DialogDescription>Select the roles that need to be informed when this Audit Plan is sent to Audit Execution.</DialogDescription>
+      </DialogHeader>
+      <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border p-3">
+        {roles.isLoading && <p className="py-4 text-center text-sm text-muted-foreground">Loading roles…</p>}
+        {roles.error && <p className="py-4 text-center text-sm text-destructive">{errorText(roles.error)}</p>}
+        {(roles.data ?? []).map(role => <label key={role.id} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted">
+          <Checkbox checked={roleIds.includes(role.id)} onCheckedChange={checked => toggleRole(role.id, checked === true)} />
+          <span>
+            <span className="block text-sm font-medium">{role.name}</span>
+            {role.description && <span className="block text-xs text-muted-foreground">{role.description}</span>}
+          </span>
+        </label>)}
+        {!roles.isLoading && !roles.error && !(roles.data?.length) && <p className="py-4 text-center text-sm text-muted-foreground">No active roles are available.</p>}
+      </div>
+      {!roleIds.length && <p className="text-xs text-muted-foreground">Select at least one role to continue.</p>}
+      <DialogFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sendForAudit.isPending}>Cancel</Button>
+        <Button onClick={submit} disabled={!roleIds.length || roles.isLoading || sendForAudit.isPending}>{sendForAudit.isPending ? "Submitting…" : "Submit"}</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
+
 function Plans() {
-  const [page, setPage] = useState(1); const [open, setOpen] = useState(false); const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1); const [open, setOpen] = useState(false); const [search, setSearch] = useState(""); const [sendPlan, setSendPlan] = useState<AuditPlan>();
   const [, navigate] = useLocation();
-  const query = useListAuditPlans({ page, limit: PAGE_SIZE }); const knownPlans = useListAuditPlans({ page: 1, limit: 100 }); const schedules = useListAuditSchedules({ page: 1, limit: 100 }); const sendForAudit = useSendAuditPlanForExecution(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
+  const query = useListAuditPlans({ page, limit: PAGE_SIZE }); const knownPlans = useListAuditPlans({ page: 1, limit: 100 }); const schedules = useListAuditSchedules({ page: 1, limit: 100 }); const openAudit = useSendAuditPlanForExecution(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
   const items = (query.data?.items ?? []).filter(x => x.auditTitle.toLowerCase().includes(search.toLowerCase()));
   const occupiedScheduleIds = new Set((knownPlans.data?.items ?? []).map(plan => plan.scheduleId));
   const availableSchedules = (schedules.data?.items ?? []).filter(schedule =>
@@ -1261,18 +1316,23 @@ function Plans() {
     toast({ title });
   };
   return <div className="space-y-5"><PageHeader title="Audit plans" description="Define the Stage 2 Audit Planning programme" action={<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button><Plus className="mr-2 size-4"/>New plan</Button></DialogTrigger><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader><PlanForm schedules={availableSchedules} onClose={() => setOpen(false)}/></DialogContent></Dialog>}/><Input className="max-w-sm" placeholder="Search audit title…" value={search} onChange={e => setSearch(e.target.value)}/><State loading={query.isLoading} error={query.error} empty={!items.length}/>
-    <div className="grid gap-4 md:grid-cols-2">{items.map(plan => <Card key={plan.id}><CardHeader><div className="flex justify-between gap-2"><CardTitle className="text-base"><Link className="underline-offset-4 hover:underline" href={`/audit/plans/${plan.id}`}>{plan.auditTitle}</Link></CardTitle><Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div><CardDescription>{date(plan.startDateTime)} · {plan.activitySection}</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><p><b>Audit type:</b> {plan.auditTypes.join(", ")}</p><p><b>Team:</b> {plan.teamMemberIds.length} member(s)</p><p className="text-muted-foreground">{plan.description || plan.activityRemarks}</p><div className="flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" asChild><Link href={`/audit/plans/${plan.id}`}>{plan.status === "Draft" ? <Pencil className="mr-2 size-4"/> : <Eye className="mr-2 size-4"/>}{plan.status === "Draft" ? "Edit" : "View"}</Link></Button>{plan.status === "Draft" && <Button size="sm" disabled={sendForAudit.isPending} onClick={() => sendForAudit.mutate({ id: plan.id }, { onSuccess: () => refresh("Audit sent to Audit Execution"), onError: error => toast({ title: "Unable to send for audit", description: errorText(error), variant: "destructive" }) })}><Send className="mr-2 size-4"/>Send for Audit</Button>}<Button size="sm" variant="outline" disabled={plan.status === "Draft" || sendForAudit.isPending} title={plan.status === "Draft" ? "Send this plan for audit first" : "Open Audit Execution"} onClick={() => sendForAudit.mutate({ id: plan.id }, { onSuccess: audit => navigate(`/audit/audits/${audit.id}`), onError: error => toast({ title: "Unable to open Audit Execution", description: errorText(error), variant: "destructive" }) })}><ClipboardCheck className="mr-2 size-4"/>Audit</Button><Button size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></div></CardContent></Card>)}</div>{items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}</div>;
+    <div className="grid gap-4 md:grid-cols-2">{items.map(plan => <Card key={plan.id}><CardHeader><div className="flex justify-between gap-2"><CardTitle className="text-base"><Link className="underline-offset-4 hover:underline" href={`/audit/plans/${plan.id}`}>{plan.auditTitle}</Link></CardTitle><Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div><CardDescription>{date(plan.startDateTime)} · {plan.activitySection}</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><p><b>Audit type:</b> {plan.auditTypes.join(", ")}</p><p><b>Team:</b> {plan.teamMemberIds.length} member(s)</p><p className="text-muted-foreground">{plan.description || plan.activityRemarks}</p><div className="flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" asChild><Link href={`/audit/plans/${plan.id}`}>{plan.status === "Draft" ? <Pencil className="mr-2 size-4"/> : <Eye className="mr-2 size-4"/>}{plan.status === "Draft" ? "Edit" : "View"}</Link></Button>{plan.status === "Draft" && <Button size="sm" onClick={() => setSendPlan(plan)}><Send className="mr-2 size-4"/>Send for Audit</Button>}<Button size="sm" variant="outline" disabled={plan.status === "Draft" || openAudit.isPending} title={plan.status === "Draft" ? "Send this plan for audit first" : "Open Audit Execution"} onClick={() => openAudit.mutate({ id: plan.id, data: { roleIds: [] } }, { onSuccess: audit => navigate(`/audit/audits/${audit.id}`), onError: error => toast({ title: "Unable to open Audit Execution", description: errorText(error), variant: "destructive" }) })}><ClipboardCheck className="mr-2 size-4"/>Audit</Button><Button size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></div></CardContent></Card>)}</div>
+    <SendForAuditDialog plan={sendPlan} open={!!sendPlan} onOpenChange={isOpen => !isOpen && setSendPlan(undefined)} onSent={() => refresh("Audit sent to Audit Execution")} />
+    {items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}</div>;
 }
 
 function PlanDetail() {
   const { id = "" } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
+  const [sendOpen, setSendOpen] = useState(false);
   const query = useGetAuditPlan(id);
   const schedules = useListAuditSchedules({ page: 1, limit: 100 });
+  const qc = useQueryClient();
+  const { toast } = useToast();
   if (query.isLoading || query.error || !query.data) return <div className="space-y-4"><Button variant="ghost" asChild><Link href="/audit/plans"><ArrowLeft className="mr-2 size-4"/>Audit plans</Link></Button><State loading={query.isLoading} error={query.error} empty={!query.data}/></div>;
   const plan = query.data;
   const editable = plan.status === "Draft";
-  return <div className="space-y-5"><Button variant="ghost" asChild><Link href="/audit/plans"><ArrowLeft className="mr-2 size-4"/>Audit plans</Link></Button><PageHeader title={plan.auditTitle} description={editable ? "Draft Audit Plan · editable" : `${plan.status} Audit Plan · read-only`} action={<Badge variant={workflowTone(plan.status)}>{plan.status}</Badge>}/><Card><CardContent className="pt-6"><PlanForm initial={plan} readOnly={!editable} schedules={schedules.data?.items ?? []} onClose={() => navigate("/audit/plans")}/></CardContent></Card></div>;
+  return <div className="space-y-5"><Button variant="ghost" asChild><Link href="/audit/plans"><ArrowLeft className="mr-2 size-4"/>Audit plans</Link></Button><PageHeader title={plan.auditTitle} description={editable ? "Draft Audit Plan · editable" : `${plan.status} Audit Plan · read-only`} action={<div className="flex items-center gap-2">{editable && <Button onClick={() => setSendOpen(true)}><Send className="mr-2 size-4"/>Send for Audit</Button>}<Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div>}/><Card><CardContent className="pt-6"><PlanForm initial={plan} readOnly={!editable} schedules={schedules.data?.items ?? []} onClose={() => navigate("/audit/plans")}/></CardContent></Card><SendForAuditDialog plan={plan} open={sendOpen} onOpenChange={setSendOpen} onSent={() => { qc.invalidateQueries({ queryKey: ["/api/audit/plans"] }); qc.invalidateQueries({ queryKey: ["/api/audit/audits"] }); void query.refetch(); toast({ title: "Audit sent to Audit Execution" }); }} /></div>;
 }
 
 function Audits() {
