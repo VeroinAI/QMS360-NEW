@@ -478,6 +478,23 @@ router.get("/programmes/:id", asyncHandler(async (req, res) => {
   res.json(await programmeResponse(req, row, (await programmeChildren(req, row.id)).length));
 }));
 
+router.delete("/programmes/:id", asyncHandler(async (req, res) => {
+  const [before] = await db.select().from(auditSchedules).where(and(
+    active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id)),
+  ));
+  if (!before || !isProgramme(before)) throw new HttpError(404, "Audit programme not found");
+  if (before.workflowState === "approved") throw new HttpError(409, "Approved audit schedules cannot be deleted");
+  await assertProgrammeMutationAccess(req, before);
+  const candidates = await db.select().from(auditSchedules).where(active(auditSchedules, actor(req).organizationId));
+  const hasChildren = candidates.some(candidate => !isProgramme(candidate) && scheduleMeta(candidate).parentId === before.id);
+  if (hasChildren) throw new HttpError(409, "Audit schedules with child audits cannot be deleted");
+  const [row] = await db.update(auditSchedules).set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, before.id))).returning();
+  if (!row) throw new HttpError(404, "Audit programme not found");
+  await auditLog(req, "delete", "audit_programme", row.id, before, row);
+  res.status(204).end();
+}));
+
 router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.SubmitAuditProgrammeBody, req);
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
@@ -672,6 +689,8 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
 router.delete("/schedules/:id", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   await assertChildSchedule(before);
+  if (before.workflowState === "approved") throw new HttpError(409, "Approved child audits cannot be deleted");
+  if (!await scheduleInScope(req, before)) throw new HttpError(403, "You do not have access to this schedule");
   const [row] = await db.update(auditSchedules).set({ deletedAt: new Date(), updatedAt: new Date() })
     .where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id)))).returning();
   if (!row) throw new HttpError(404, "Audit schedule not found");

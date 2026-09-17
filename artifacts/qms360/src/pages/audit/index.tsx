@@ -10,6 +10,7 @@ import {
   useCreateAuditSchedule,
   useCreateFindingCars,
   useDeleteAuditPlan,
+  useDeleteAuditProgramme,
   useDeleteAuditSchedule,
   useGetAudit,
   useGetAuditDashboard,
@@ -776,6 +777,7 @@ function Programmes() {
   const { toast } = useToast();
   const submit = useSubmitAuditProgramme();
   const review = useReviewAuditProgramme();
+  const remove = useDeleteAuditProgramme();
   const done = (message: string, updated?: AuditProgramme) => {
     if (updated) {
       qc.setQueriesData<AuditProgrammePage>({ queryKey: getListAuditProgrammesQueryKey() }, current =>
@@ -828,6 +830,7 @@ function Programmes() {
       {query.data.items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" asChild><Link href={`/audit/schedules/${item.id}`}>{item.title}</Link></Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : "Annual programme"}</div></TableCell><TableCell>{date(item.fromDate)} – {date(item.toDate)}</TableCell><TableCell>{item.childCount}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
         {item.id !== "legacy" && item.canSubmit && <Button size="sm" disabled={item.childCount === 0 || submit.isPending} onClick={() => openSubmission(item)}>{item.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}
         {item.id !== "legacy" && item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: updated => done("Audit schedule approved", updated), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id: item.id, data: { decision: "send_back", comments } }, { onSuccess: updated => done("Audit schedule sent back", updated), onError: e => toast({ title: "Unable to send back schedule", description: errorText(e), variant: "destructive" }) }); }}>Send back</Button></>}
+        {item.id !== "legacy" && <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved audit schedules cannot be deleted" : item.childCount > 0 ? "Audit schedules with child audits cannot be deleted" : "Delete audit schedule"} disabled={item.workflowState === "Approved" || item.childCount > 0 || remove.isPending} onClick={() => window.confirm("Delete this audit schedule?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Audit schedule deleted"), onError: e => toast({ title: "Unable to delete audit schedule", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>}
       </div></TableCell></TableRow>)}
     </TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage} /></CardContent></Card>}
   </div>;
@@ -965,7 +968,7 @@ function Schedules() {
       {item.workflowState === "Draft" && <Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button>}
       <Button size="sm" onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>
       {item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved") })}>Approve</Button><Button size="sm" variant="outline" onClick={() => sendBack(item.id)}>Send back</Button></>}
-      <Button size="icon" variant="ghost" aria-label="Delete" onClick={() => window.confirm("Soft-delete this schedule?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Schedule deleted") })}><Trash2 className="size-4"/></Button>
+      <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved child audits cannot be deleted" : "Delete child audit"} disabled={item.workflowState === "Approved" || remove.isPending} onClick={() => window.confirm("Delete this child audit?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Child audit deleted"), onError: e => toast({ title: "Unable to delete child audit", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>
     </div></TableCell></TableRow>)}</TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card>}
     {items.length > 0 && viewMode === "gantt" && <div className="space-y-4"><ScheduleGantt items={items} onDisplay={setDisplaying} onEdit={item => { setEditing(item); setOpen(true); }} onNewPlan={setPlanning}/><Card className="bg-transparent border-none shadow-none"><CardContent className="p-0"><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card></div>}
   </div>;

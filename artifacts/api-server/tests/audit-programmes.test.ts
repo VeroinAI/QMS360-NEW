@@ -161,6 +161,25 @@ describe("audit programme parent/child workflow", () => {
     expect(programmes.json.items.some((item: { id: string }) => item.id === "legacy")).toBe(true);
   });
 
+  it("deletes only empty unapproved programmes and unapproved child audits", async () => {
+    const empty = await api("POST", "/programmes", creator.token, { title: "Deletable Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
+    expect((await api("DELETE", `/programmes/${empty.json.id}`, creator.token)).status).toBe(204);
+    expect((await api("GET", `/programmes/${empty.json.id}`, creator.token)).status).toBe(404);
+
+    const populated = await api("POST", "/programmes", creator.token, { title: "Populated Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
+    const draftChild = await addChild(populated.json.id);
+    expect((await api("DELETE", `/programmes/${populated.json.id}`, creator.token)).status).toBe(409);
+    expect((await api("DELETE", `/schedules/${draftChild.id}`, creator.token)).status).toBe(204);
+
+    const approvedChild = await addChild(populated.json.id);
+    await db.update(auditSchedules).set({ workflowState: "approved" }).where(eq(auditSchedules.id, approvedChild.id));
+    expect((await api("DELETE", `/schedules/${approvedChild.id}`, creator.token)).status).toBe(409);
+    expect((await api("GET", `/schedules/${approvedChild.id}`, creator.token)).status).toBe(200);
+
+    await db.update(auditSchedules).set({ workflowState: "approved" }).where(eq(auditSchedules.id, populated.json.id));
+    expect((await api("DELETE", `/programmes/${populated.json.id}`, creator.token)).status).toBe(409);
+  });
+
   it("snapshots L1/L2 roles and advances sequentially with authorization", async () => {
     const created = await api("POST", "/programmes", creator.token, { title: "Approval Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
     const existingChild = await addChild(created.json.id);

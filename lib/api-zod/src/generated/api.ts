@@ -5633,6 +5633,16 @@ export const GetAuditProgrammeResponse = zod.object({
 
 
 /**
+ * @summary Soft-delete an empty unapproved annual audit programme
+ */
+export const DeleteAuditProgrammeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteAuditProgrammeResponse = zod.void()
+
+
+/**
  * @summary Submit programme for sequential approval
  */
 export const SubmitAuditProgrammeParams = zod.object({
@@ -5804,7 +5814,7 @@ export const UpdateAuditScheduleResponse = zod.unknown()
 
 
 /**
- * @summary Soft-delete audit schedule
+ * @summary Soft-delete an unapproved child audit schedule
  */
 export const DeleteAuditScheduleParams = zod.object({
   "id": zod.coerce.string()

@@ -1030,6 +1030,7 @@ paths:
     post: {operationId: createAuditProgramme, tags: [audit], summary: Create an annual audit programme, requestBody: {$ref: "#/components/requestBodies/AuditProgramme"}, responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
   /audit/programmes/{id}:
     get: {operationId: getAuditProgramme, tags: [audit], summary: Get an annual audit programme, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Programme, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
+    delete: {operationId: deleteAuditProgramme, tags: [audit], summary: Soft-delete an empty unapproved annual audit programme, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}, "409": {description: Approved programmes and programmes with child audits cannot be deleted}}}
   /audit/programmes/{id}/submit:
     post: {operationId: submitAuditProgramme, tags: [audit], summary: Submit programme for sequential approval, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditProgrammeSubmission"}, responses: {"200": {description: Submitted, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
   /audit/programmes/{id}/review:
@@ -1037,7 +1038,7 @@ paths:
   /audit/schedules/{id}:
     get: {operationId: getAuditSchedule, tags: [audit], summary: Get audit schedule, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Schedule, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}}}
     put: {operationId: updateAuditSchedule, tags: [audit], summary: Update audit schedule, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditSchedule"}, responses: {"200": {description: Updated}}}
-    delete: {operationId: deleteAuditSchedule, tags: [audit], summary: Soft-delete audit schedule, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+    delete: {operationId: deleteAuditSchedule, tags: [audit], summary: Soft-delete an unapproved child audit schedule, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}, "409": {description: Approved child audit schedules cannot be deleted}}}
   /audit/schedules/{id}/submit:
     post: {operationId: submitAuditSchedule, tags: [audit], summary: Submit schedule for approval, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
   /audit/schedules/{id}/review:

@@ -15009,6 +15009,77 @@ export function useGetAuditProgramme<TData = Awaited<ReturnType<typeof getAuditP
 
 
 
+export const getDeleteAuditProgrammeUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/programmes/${id}`
+}
+
+/**
+ * @summary Soft-delete an empty unapproved annual audit programme
+ */
+export const deleteAuditProgramme = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteAuditProgrammeUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAuditProgrammeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAuditProgramme>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAuditProgramme>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteAuditProgramme'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAuditProgramme>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAuditProgramme(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAuditProgrammeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAuditProgramme>>>
+
+    export type DeleteAuditProgrammeMutationError = ErrorType<void>
+
+    /**
+ * @summary Soft-delete an empty unapproved annual audit programme
+ */
+export const useDeleteAuditProgramme = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAuditProgramme>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAuditProgramme>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteAuditProgrammeMutationOptions(options));
+    }
+
 export const getSubmitAuditProgrammeUrl = (id: string,) => {
 
 
@@ -15311,7 +15382,7 @@ export const getDeleteAuditScheduleUrl = (id: string,) => {
 }
 
 /**
- * @summary Soft-delete audit schedule
+ * @summary Soft-delete an unapproved child audit schedule
  */
 export const deleteAuditSchedule = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
 
@@ -15328,7 +15399,7 @@ export const deleteAuditSchedule = async (id: string, options?: Parameters<typeo
 
 
 
-export const getDeleteAuditScheduleMutationOptions = <TError = ErrorType<unknown>,
+export const getDeleteAuditScheduleMutationOptions = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAuditSchedule>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteAuditSchedule>>, TError,{id: string}, TContext> => {
 
@@ -15357,12 +15428,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteAuditScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAuditSchedule>>>
 
-    export type DeleteAuditScheduleMutationError = ErrorType<unknown>
+    export type DeleteAuditScheduleMutationError = ErrorType<void>
 
     /**
- * @summary Soft-delete audit schedule
+ * @summary Soft-delete an unapproved child audit schedule
  */
-export const useDeleteAuditSchedule = <TError = ErrorType<unknown>,
+export const useDeleteAuditSchedule = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAuditSchedule>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof deleteAuditSchedule>>,
