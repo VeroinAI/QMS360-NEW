@@ -858,7 +858,7 @@ function Schedules() {
   const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false); const [displaying, setDisplaying] = useState<AuditSchedule | undefined>();
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
   const [planning, setPlanning] = useState<AuditSchedule | undefined>();
-  const query = useListAuditSchedules({ page, limit: PAGE_SIZE, parentId }); const qc = useQueryClient(); const { toast } = useToast();
+  const query = useListAuditSchedules({ page, limit: PAGE_SIZE, parentId }); const planSchedules = useListAuditPlans({ page: 1, limit: 100 }); const qc = useQueryClient(); const { toast } = useToast();
   const programme = useGetAuditProgramme(parentId, { query: { enabled: parentId !== "legacy" && !!parentId, queryKey: getGetAuditProgrammeQueryKey(parentId) } });
   const allChildren = useListAuditSchedules({ page: 1, limit: 200, parentId });
   const projects = useListPlatformProjects({ page: 1, limit: 200 });
@@ -868,7 +868,10 @@ function Schedules() {
   const [loadingFile, setLoadingFile] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const remove = useDeleteAuditSchedule(); const review = useReviewAuditSchedule();
-  const items = (query.data?.items ?? []).filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
+  const occupiedScheduleIds = new Set((planSchedules.data?.items ?? []).map(plan => plan.scheduleId));
+  const items = (query.data?.items ?? [])
+    .map(schedule => occupiedScheduleIds.has(schedule.id) ? { ...schedule, hasPlan: true } : schedule)
+    .filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
   const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] }); qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] }); toast({ title: message }); };
   const sendBack = (id: string) => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id, data: { decision: "send_back", comments } }, { onSuccess: () => done("Schedule sent back") }); };
   const range = parentId !== "legacy" && programme.data ? { fromDate: programme.data.fromDate.slice(0, 10), toDate: programme.data.toDate.slice(0, 10) } : undefined;
@@ -1244,9 +1247,11 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
 function Plans() {
   const [page, setPage] = useState(1); const [open, setOpen] = useState(false); const [search, setSearch] = useState("");
   const [, navigate] = useLocation();
-  const query = useListAuditPlans({ page, limit: PAGE_SIZE }); const schedules = useListAuditSchedules({ page: 1, limit: 100 }); const sendForAudit = useSendAuditPlanForExecution(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
+  const query = useListAuditPlans({ page, limit: PAGE_SIZE }); const knownPlans = useListAuditPlans({ page: 1, limit: 100 }); const schedules = useListAuditSchedules({ page: 1, limit: 100 }); const sendForAudit = useSendAuditPlanForExecution(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
   const items = (query.data?.items ?? []).filter(x => x.auditTitle.toLowerCase().includes(search.toLowerCase()));
-  const availableSchedules = (schedules.data?.items ?? []).filter(schedule => !schedule.hasPlan && schedule.feasibilityDecision !== "cancelled");
+  const occupiedScheduleIds = new Set((knownPlans.data?.items ?? []).map(plan => plan.scheduleId));
+  const availableSchedules = (schedules.data?.items ?? []).filter(schedule =>
+    !schedule.hasPlan && !occupiedScheduleIds.has(schedule.id) && schedule.feasibilityDecision !== "cancelled");
   const refresh = (title: string) => {
     qc.invalidateQueries({ queryKey: ["/api/audit/plans"] });
     qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
