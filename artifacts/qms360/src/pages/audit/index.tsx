@@ -1074,7 +1074,8 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
   }, [options.data, schedules]);
   const users = options.data?.users ?? offlineContext?.users ?? [];
   const effectiveSchedules = schedules.length ? schedules : offlineContext?.schedules ?? [];
-  const approvedSchedules = presetSchedule ? [presetSchedule] : effectiveSchedules;
+  const approvedSchedules = (presetSchedule ? [presetSchedule] : effectiveSchedules)
+    .filter(schedule => !schedule.hasPlan && schedule.feasibilityDecision !== "cancelled");
   const clearError = (...keys: string[]) => setErrors(current => {
     const next = { ...current };
     keys.forEach(key => delete next[key]);

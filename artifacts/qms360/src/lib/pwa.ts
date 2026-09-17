@@ -57,7 +57,12 @@ export async function cacheAuditPlanContext(schedules: AuditSchedule[], users: A
   const database = await openDatabase();
   await requestResult(
     database.transaction(AUDIT_PLAN_CONTEXT_STORE, 'readwrite').objectStore(AUDIT_PLAN_CONTEXT_STORE)
-      .put({ id, cachedAt: new Date().toISOString(), schedules, users }),
+      .put({
+        id,
+        cachedAt: new Date().toISOString(),
+        schedules: schedules.filter(schedule => !schedule.hasPlan && schedule.feasibilityDecision !== 'cancelled'),
+        users,
+      }),
     'Unable to cache Audit Plan form data.',
   );
 }
