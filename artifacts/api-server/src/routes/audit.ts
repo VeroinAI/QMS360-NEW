@@ -782,7 +782,7 @@ const PLAN_LANGUAGE = "Verbal: English\nWriting: English";
 type PlanActivity = { id: string; section: string; remarks: string; auditeeId: string };
 type PlanMeta = {
   objectives?: string | null; leadAuditorId?: string; processOwnerIds?: string[]; feasibilityNotes?: string | null;
-  auditFeasible?: boolean; auditTitle?: string; auditeeId?: string; qaqcScope?: string; auditTypes?: string[];
+  auditFeasible?: boolean; auditTitle?: string; auditeeId?: string; auditeeRoleIds?: string[]; qaqcScope?: string; auditTypes?: string[];
   auditLanguage?: string; qaqcReference?: string; description?: string | null; startDateTime?: string;
   endDateTime?: string; openingMeetingDateTime?: string; closingMeetingDateTime?: string; activitySection?: string;
   activityRemarks?: string; activityAuditeeId?: string; activityDateTime?: string; auditPlanCirculation?: string;
@@ -797,6 +797,7 @@ const planDto = (row: AnyRow) => {
     id: row.id, scheduleId: row.auditScheduleId!, auditFeasible: meta.auditFeasible ?? true,
     auditTitle: meta.auditTitle ?? row.scope ?? "Audit Plan", leadAuditorId: meta.leadAuditorId ?? row.teamMemberIds[0] ?? "",
     teamMemberIds: row.teamMemberIds, auditeeId: meta.auditeeId ?? meta.processOwnerIds?.[0] ?? "",
+    auditeeRoleIds: meta.auditeeRoleIds ?? [],
     qaqcScope: meta.qaqcScope ?? row.scope ?? "", auditTypes, auditLanguage: meta.auditLanguage ?? PLAN_LANGUAGE,
     qaqcReference: meta.qaqcReference ?? "", description: meta.description ?? meta.objectives ?? null,
     startDateTime: meta.startDateTime ?? fallbackDateTime, endDateTime: meta.endDateTime ?? fallbackDateTime,
@@ -825,7 +826,7 @@ const planValues = (data: AnyRow) => ({
   status: JSON.stringify({
     objectives: data.objectives ?? null, leadAuditorId: data.leadAuditorId, processOwnerIds: data.processOwnerIds ?? [],
     feasibilityNotes: data.feasibilityNotes ?? null, auditFeasible: data.auditFeasible, auditTitle: data.auditTitle,
-    auditeeId: data.auditeeId, qaqcScope: data.qaqcScope, auditTypes: data.auditTypes, auditLanguage: data.auditLanguage,
+    auditeeId: data.auditeeId, auditeeRoleIds: data.auditeeRoleIds ?? [], qaqcScope: data.qaqcScope, auditTypes: data.auditTypes, auditLanguage: data.auditLanguage,
     qaqcReference: data.qaqcReference, description: data.description ?? null, startDateTime: data.startDateTime,
     endDateTime: data.endDateTime, openingMeetingDateTime: data.openingMeetingDateTime,
     closingMeetingDateTime: data.closingMeetingDateTime, activitySection: data.activitySection,
@@ -850,11 +851,12 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
     ? data.activities
     : [{ id: `legacy-${data.id}`, section: data.activitySection, remarks: data.activityRemarks, auditeeId: data.activityAuditeeId }];
   const required = [
-    "auditTitle", "leadAuditorId", "auditeeId", "qaqcScope", "auditLanguage", "qaqcReference",
+    "auditTitle", "leadAuditorId", "qaqcScope", "auditLanguage", "qaqcReference",
     "startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime",
     "activityDateTime", "auditPlanCirculation",
   ];
-  if (typeof data.auditFeasible !== "boolean" || required.some((key) => !String(data[key] ?? "").trim()) || !data.teamMemberIds?.length || !data.auditTypes?.length) {
+  const auditeeRoleIds = [...new Set((data.auditeeRoleIds ?? []).filter(Boolean))] as string[];
+  if (typeof data.auditFeasible !== "boolean" || required.some((key) => !String(data[key] ?? "").trim()) || !data.teamMemberIds?.length || !data.auditTypes?.length || !auditeeRoleIds.length) {
     throw new HttpError(422, "Complete all mandatory Audit Plan fields");
   }
   if (activities.some(activity => !activity.id || !activity.section?.trim() || !activity.remarks?.trim() || !activity.auditeeId)) {
@@ -866,9 +868,6 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   }
   await Promise.all(activities.map(activity =>
     assertLovValue(db, actor(req).organizationId, "activities", activity.section)));
-  if (activities.some(activity => activity.auditeeId !== data.auditeeId)) {
-    throw new HttpError(422, "Auditee for each Activity must be selected from the plan Auditee");
-  }
   const times = ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime", "activityDateTime"]
     .map((key) => [key, new Date(data[key])] as const);
   if (times.some(([, value]) => Number.isNaN(value.getTime()))) throw new HttpError(422, "Enter valid date and time values");
@@ -877,11 +876,18 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   if (byKey.closingMeetingDateTime < byKey.openingMeetingDateTime) throw new HttpError(422, "Closing Meeting must be on or after Opening Meeting");
   const options = await auditPlanUsers(actor(req).organizationId);
   const usersById = new Map(options.map((option) => [option.id, option]));
-  const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, data.auditeeId, ...activities.map(activity => activity.auditeeId)])];
+  const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, ...activities.map(activity => activity.auditeeId)])];
   if (participantIds.some((id) => !usersById.has(id))) throw new HttpError(422, "Select active QMS Audit users for all Master fields");
-  const circulationIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, data.auditeeId])];
+  const selectedRoles = await db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name })
+    .from(auditWorkspaceRoles)
+    .where(and(active(auditWorkspaceRoles, actor(req).organizationId), inArray(auditWorkspaceRoles.id, auditeeRoleIds)));
+  if (selectedRoles.length !== auditeeRoleIds.length) throw new HttpError(422, "Select active QMS Audit roles for Auditee");
+  const auditeeUserIds = [...new Set((await Promise.all(auditeeRoleIds.map(roleId => roleUserIds(actor(req).organizationId, roleId)))).flat())];
+  const circulationIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds])];
   return {
     ...data,
+    auditeeId: activities[0].auditeeId,
+    auditeeRoleIds,
     activities,
     activitySection: activities[0].section,
     activityRemarks: activities[0].remarks,
@@ -891,8 +897,11 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
     auditTypes: scheduleData.auditTypes,
     auditLanguage: PLAN_LANGUAGE,
     qaqcReference: scheduleData.qaqcReference,
-    auditPlanCirculation: circulationIds.map((id) => usersById.get(id)!.fullName).join(", "),
-    processOwnerIds: circulationIds,
+    auditPlanCirculation: [
+      ...circulationIds.map((id) => usersById.get(id)!.fullName),
+      ...selectedRoles.map(role => role.name),
+    ].join(", "),
+    processOwnerIds: auditeeUserIds,
     location: scheduleData.location,
   };
 }

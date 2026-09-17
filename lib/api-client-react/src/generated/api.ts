@@ -16060,9 +16060,9 @@ export const getUpdateAuditPlanUrl = (id: string,) => {
  * @summary Update audit plan
  */
 export const updateAuditPlan = async (id: string,
-    auditPlanBody: AuditPlanBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    auditPlanBody: AuditPlanBody, options?: Parameters<typeof customFetch>[1]): Promise<AuditPlan> => {
 
-  return customFetch<void>(getUpdateAuditPlanUrl(id),
+  return customFetch<AuditPlan>(getUpdateAuditPlanUrl(id),
   {
     ...options,
     method: 'PUT',

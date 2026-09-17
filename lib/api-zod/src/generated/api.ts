@@ -5967,6 +5967,7 @@ export const ListAuditPlansResponse = zod.object({
   "leadAuditorId": zod.string(),
   "teamMemberIds": zod.array(zod.string()).min(1),
   "auditeeId": zod.string(),
+  "auditeeRoleIds": zod.array(zod.string()).optional().describe('Active Audit workspace roles selected as Auditees'),
   "qaqcScope": zod.string(),
   "auditTypes": zod.array(zod.string()).min(1),
   "auditLanguage": zod.string(),
@@ -6015,6 +6016,7 @@ export const CreateAuditPlanBody = zod.object({
   "leadAuditorId": zod.string(),
   "teamMemberIds": zod.array(zod.string()).min(1),
   "auditeeId": zod.string(),
+  "auditeeRoleIds": zod.array(zod.string()).optional().describe('Active Audit workspace roles selected as Auditees'),
   "qaqcScope": zod.string(),
   "auditTypes": zod.array(zod.string()).min(1),
   "auditLanguage": zod.string(),
@@ -6099,6 +6101,7 @@ export const GetAuditPlanResponse = zod.object({
   "leadAuditorId": zod.string(),
   "teamMemberIds": zod.array(zod.string()).min(1),
   "auditeeId": zod.string(),
+  "auditeeRoleIds": zod.array(zod.string()).optional().describe('Active Audit workspace roles selected as Auditees'),
   "qaqcScope": zod.string(),
   "auditTypes": zod.array(zod.string()).min(1),
   "auditLanguage": zod.string(),
@@ -6150,6 +6153,7 @@ export const UpdateAuditPlanBody = zod.object({
   "leadAuditorId": zod.string(),
   "teamMemberIds": zod.array(zod.string()).min(1),
   "auditeeId": zod.string(),
+  "auditeeRoleIds": zod.array(zod.string()).optional().describe('Active Audit workspace roles selected as Auditees'),
   "qaqcScope": zod.string(),
   "auditTypes": zod.array(zod.string()).min(1),
   "auditLanguage": zod.string(),
@@ -6180,7 +6184,49 @@ export const UpdateAuditPlanBody = zod.object({
   "feasibilityNotes": zod.string().nullish().describe('Legacy compatibility field')
 })
 
-export const UpdateAuditPlanResponse = zod.unknown()
+
+
+
+
+
+export const UpdateAuditPlanResponse = zod.object({
+  "id": zod.string(),
+  "scheduleId": zod.string(),
+  "auditFeasible": zod.boolean(),
+  "auditTitle": zod.string(),
+  "leadAuditorId": zod.string(),
+  "teamMemberIds": zod.array(zod.string()).min(1),
+  "auditeeId": zod.string(),
+  "auditeeRoleIds": zod.array(zod.string()).optional().describe('Active Audit workspace roles selected as Auditees'),
+  "qaqcScope": zod.string(),
+  "auditTypes": zod.array(zod.string()).min(1),
+  "auditLanguage": zod.string(),
+  "qaqcReference": zod.string(),
+  "description": zod.string().nullish(),
+  "startDateTime": zod.coerce.date(),
+  "endDateTime": zod.coerce.date(),
+  "openingMeetingDateTime": zod.coerce.date(),
+  "closingMeetingDateTime": zod.coerce.date(),
+  "activitySection": zod.string().describe('Legacy first-row compatibility field; values come from Activities master data'),
+  "activityRemarks": zod.string(),
+  "activityAuditeeId": zod.string(),
+  "activities": zod.array(zod.object({
+  "id": zod.string(),
+  "section": zod.string(),
+  "remarks": zod.string(),
+  "auditeeId": zod.string()
+})).min(1).optional(),
+  "activityDateTime": zod.coerce.date(),
+  "auditPlanCirculation": zod.string(),
+  "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted']),
+  "scope": zod.string().optional().describe('Legacy compatibility field'),
+  "objectives": zod.string().nullish().describe('Legacy compatibility field'),
+  "criteria": zod.array(zod.string()).optional().describe('Legacy compatibility field'),
+  "auditDate": zod.coerce.date().optional().describe('Legacy compatibility field'),
+  "location": zod.string().optional().describe('Legacy compatibility field'),
+  "processOwnerIds": zod.array(zod.string()).optional().describe('Legacy compatibility field'),
+  "feasibilityNotes": zod.string().nullish().describe('Legacy compatibility field')
+})
 
 
 /**

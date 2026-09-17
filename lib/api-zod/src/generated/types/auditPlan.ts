@@ -17,6 +17,8 @@ export interface AuditPlan {
   /** @minItems 1 */
   teamMemberIds: string[];
   auditeeId: string;
+  /** Active Audit workspace roles selected as Auditees */
+  auditeeRoleIds?: string[];
   qaqcScope: string;
   /** @minItems 1 */
   auditTypes: string[];

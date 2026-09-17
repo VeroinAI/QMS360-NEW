@@ -27,3 +27,4 @@
 - [One Plan per Audit Schedule](one-plan-per-audit-schedule.md) — active Audit Plans are one-to-one with schedules; enforce atomically and expose occupancy on schedule responses.
 - [Audit feasibility decisions](audit-feasibility-decisions.md) — Cancel blocks future plans permanently; Reschedule records mandatory feedback but keeps the schedule eligible.
 - [Audit Plan execution handoff](audit-plan-execution-handoff.md) — sending a plan creates or reuses one linked Audit Execution; repeated handoff/open actions must remain idempotent.
+- [Audit Plan auditee roles](audit-plan-auditee-roles.md) — plan-level Auditee is multi-role; activity-level auditees remain independent users.
