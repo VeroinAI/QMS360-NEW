@@ -1050,16 +1050,25 @@ router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
   let created = false;
   const result = await db.transaction(async tx => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${organizationId}), hashtext(${planId}))`);
-    const [existing] = await tx.select().from(audits).where(and(
-      active(audits, organizationId), eq(audits.auditPlanId, planId),
-    )).orderBy(desc(audits.updatedAt)).limit(1);
-    if (existing) return existing;
-
     const [lockedPlan] = await tx.select().from(auditPlans).where(and(
       active(auditPlans, organizationId), eq(auditPlans.id, planId),
     ));
     if (!lockedPlan) throw new HttpError(404, "Audit plan not found");
-    if (!["draft", "shared"].includes(lockedPlan.workflowState)) {
+
+    const [existing] = await tx.select().from(audits).where(and(
+      active(audits, organizationId), eq(audits.auditPlanId, planId),
+    )).orderBy(desc(audits.updatedAt)).limit(1);
+    const workflowState = lockedPlan.workflowState.toLowerCase();
+    if (existing) {
+      if (["draft", "ready"].includes(workflowState)) {
+        await tx.update(auditPlans).set({ workflowState: "shared", updatedAt: new Date() }).where(eq(auditPlans.id, lockedPlan.id));
+        const [refreshed] = await tx.update(audits).set({ updatedAt: new Date() }).where(eq(audits.id, existing.id)).returning();
+        return refreshed;
+      }
+      return existing;
+    }
+
+    if (!["draft", "ready", "shared"].includes(workflowState)) {
       throw new HttpError(409, "Only draft or shared plans can be sent for audit");
     }
 
@@ -1092,7 +1101,7 @@ router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
       }
     }
     if (!audit) throw new HttpError(409, "Unable to allocate a unique audit reference number");
-    if (lockedPlan.workflowState === "draft") {
+    if (["draft", "ready"].includes(workflowState)) {
       await tx.update(auditPlans).set({ workflowState: "shared", updatedAt: new Date() }).where(eq(auditPlans.id, lockedPlan.id));
     }
     created = true;
