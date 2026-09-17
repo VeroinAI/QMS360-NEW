@@ -206,7 +206,7 @@ const ascii85Encode = (bytes: Uint8Array) => {
   }
   return `${encoded}~>`;
 };
-const programmePdfDownload = (rows: AuditSchedule[], fileName: string, auditTitle: string) => {
+export const buildProgrammePdf = (rows: AuditSchedule[], auditTitle: string) => {
   const year = rows[0]?.year ?? new Date().getFullYear();
   const timeline = programmeTimeline(year);
   const fixedHeaders = [
@@ -386,7 +386,10 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string, auditTitl
   pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
   offsets.slice(1).forEach(offset => { pdf += `${String(offset).padStart(10, "0")} 00000 n \n`; });
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  const url = URL.createObjectURL(new Blob([encoder.encode(pdf)], { type: "application/pdf" }));
+  return encoder.encode(pdf);
+};
+const programmePdfDownload = (rows: AuditSchedule[], fileName: string, auditTitle: string) => {
+  const url = URL.createObjectURL(new Blob([buildProgrammePdf(rows, auditTitle)], { type: "application/pdf" }));
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
