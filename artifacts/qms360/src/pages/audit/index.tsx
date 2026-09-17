@@ -401,6 +401,16 @@ const workflowTone = (value: string) =>
   value === "Approved" || value === "Closed" || value === "Accepted" || value === "Shared"
     ? "default" : value === "Rejected" || value === "Sent Back" ? "destructive" : "secondary";
 
+function FeasibilityBadge({ decision }: { decision?: AuditSchedule["feasibilityDecision"] }) {
+  if (decision === "cancelled") {
+    return <Badge variant="destructive">Cancelled</Badge>;
+  }
+  if (decision === "reschedule") {
+    return <Badge className="border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-100">Reschedule</Badge>;
+  }
+  return null;
+}
+
 function PageHeader({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) {
   return <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div><h1 className="text-2xl font-semibold tracking-tight">{title}</h1><p className="mt-1 text-sm text-muted-foreground">{description}</p></div>{action}
@@ -698,6 +708,7 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan }: {
               <div key={item.id} className="group flex min-h-24 transition-colors hover:bg-muted/30">
                 <div className="flex shrink-0 flex-col justify-center border-r p-3" style={{ width: fixedColumns[0].width }}>
                   <span className="font-medium">{item.auditCategory || "—"}</span>
+                  {item.feasibilityDecision && <div className="mt-1"><FeasibilityBadge decision={item.feasibilityDecision}/></div>}
                   <div className="mt-2 flex flex-wrap gap-1">
                     <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onDisplay(item)}>Display</Button>
                     {item.workflowState === "Draft" && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onEdit(item)}>Edit</Button>}
@@ -969,7 +980,7 @@ function Schedules() {
     <Dialog open={!!planning} onOpenChange={isOpen => !isOpen && setPlanning(undefined)}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader>{planning && <PlanForm schedules={[planning]} presetSchedule={planning} onClose={() => setPlanning(undefined)}/>}</DialogContent></Dialog>
     <Dialog open={!!displaying} onOpenChange={isOpen => !isOpen && setDisplaying(undefined)}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">{displaying && <ScheduleDisplay schedule={displaying} onClose={() => setDisplaying(undefined)}/>}</DialogContent></Dialog>
     <State loading={query.isLoading} error={query.error} empty={!items.length}/>
-    {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
+    {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><div className="flex flex-wrap gap-1"><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge><FeasibilityBadge decision={item.feasibilityDecision}/></div></TableCell><TableCell><div className="flex justify-end gap-1">
       <Button size="sm" variant="outline" onClick={() => setDisplaying(item)}>Display</Button>
       {item.workflowState === "Draft" && <Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button>}
       {item.feasibilityFeedback && <Button size="icon" variant="ghost" aria-label={`View feasibility feedback for ${item.title}`} title="View Remarks / Feedback" onClick={() => setDisplaying(item)}><Info className="size-4"/></Button>}
