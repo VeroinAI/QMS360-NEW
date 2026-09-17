@@ -1,0 +1,50 @@
+[
+  {
+    "id": "f74a0269-a666-449b-8a20-27853a493566",
+    "position": 1,
+    "filepath": "src/pages/slides/ArchitectureOverview.tsx",
+    "title": "QMS360 Technical Architecture",
+    "description": "Technical architecture overview and core stack",
+    "speakerNotes": ""
+  },
+  {
+    "id": "3b9bb8ce-96b1-49a6-9ea7-5025dcebb689",
+    "position": 2,
+    "filepath": "src/pages/slides/SystemTopology.tsx",
+    "title": "System topology: one platform, clear layers",
+    "description": "Layered system topology from users to data and external services",
+    "speakerNotes": ""
+  },
+  {
+    "id": "087103bb-b33b-4d21-9ba7-b5e44cd6aa9e",
+    "position": 3,
+    "filepath": "src/pages/slides/FrontendArchitecture.tsx",
+    "title": "Frontend architecture",
+    "description": "Frontend languages, frameworks, state, routing, and product surfaces",
+    "speakerNotes": ""
+  },
+  {
+    "id": "33ad29df-6dac-4dc4-95c8-bf52c54213f9",
+    "position": 4,
+    "filepath": "src/pages/slides/BackendArchitecture.tsx",
+    "title": "Backend, API, and data architecture",
+    "description": "Backend runtime, API contract, validation, and PostgreSQL architecture",
+    "speakerNotes": ""
+  },
+  {
+    "id": "8644a221-6f59-4dd2-b72a-69b7c6b8418e",
+    "position": 5,
+    "filepath": "src/pages/slides/SecurityAndServices.tsx",
+    "title": "Security, files, notifications, and VerionAI",
+    "description": "Cross-cutting security, storage, integrations, and AI services",
+    "speakerNotes": ""
+  },
+  {
+    "id": "e39e5a81-e4dd-4910-97f0-542ae69de948",
+    "position": 6,
+    "filepath": "src/pages/slides/RuntimeAndFlows.tsx",
+    "title": "Runtime, delivery, and end-to-end flows",
+    "description": "Build, runtime, quality gates, and key application flows",
+    "speakerNotes": ""
+  }
+]

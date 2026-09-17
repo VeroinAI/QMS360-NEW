@@ -1,0 +1,28 @@
+kind = "slides"
+previewPath = "/qms360-technical-architecture/"
+title = "QMS360 Technical Architecture"
+description = "A six-slide technical architecture presentation covering the QMS360 frontend, backend, API contracts, data layer, security, integrations, VerionAI capabilities, deployment, and end-to-end flows."
+version = "1.0.0"
+id = "artifacts/qms360-technical-architecture"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/qms360-technical-architecture/" ]
+localPort = 22845
+
+[services.development]
+run = "pnpm --filter @workspace/qms360-technical-architecture run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/qms360-technical-architecture", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/qms360-technical-architecture/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22845"
+BASE_PATH = "/qms360-technical-architecture/"
