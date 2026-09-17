@@ -211,42 +211,94 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string, auditTitl
     "Business Category", "Department / Project", "Process Owner", "Audit Number / Site Visit No",
     "QA/QC Reference", "QA/QC Scope", "QA/QC Clauses",
   ];
-  const pageWidth = 1191;
-  const pageHeight = 842;
+  const pageWidth = 1684;
+  const pageHeight = 1191;
   const margin = 18;
   const titleHeight = 44;
   const headerHeight = 42;
-  const rowHeight = 34;
-  const rowsPerPage = 20;
-  const fixedWidths = [76, 92, 80, 90, 78, 116, 88];
-  const remarksWidth = 94;
+  const minimumRowHeight = 34;
+  const fixedWidths = [105, 135, 100, 120, 105, 180, 130];
+  const remarksWidth = 130;
   const fixedWidth = fixedWidths.reduce((sum, width) => sum + width, 0);
   const timelineWidth = pageWidth - margin * 2 - fixedWidth - remarksWidth;
   const weekWidth = timelineWidth / timeline.totalSlots;
   const escapePdf = (value: string) => value
-    .normalize("NFKD").replace(/[^\x20-\x7E]/g, "")
-    .replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-  const fit = (value: unknown, width: number, size: number) => {
-    const text = String(value ?? "").trim();
-    const limit = Math.max(1, Math.floor((width - 5) / (size * 0.52)));
-    return escapePdf(text.length > limit ? `${text.slice(0, Math.max(1, limit - 3))}...` : text);
-  };
+    .normalize("NFKD")
+    .replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)")
+    .replace(/\u2013/g, "\\226").replace(/\u2014/g, "\\227")
+    .replace(/\u2018/g, "\\221").replace(/\u2019/g, "\\222")
+    .replace(/\u201c/g, "\\223").replace(/\u201d/g, "\\224")
+    .replace(/\u2022/g, "\\225").replace(/\u2026/g, "\\205")
+    .replace(/[^\x20-\x7E]/g, "");
   const text = (value: unknown, x: number, y: number, size = 5.5, bold = false) =>
-    `0 0 0 rg BT /${bold ? "F2" : "F1"} ${size} Tf ${x.toFixed(2)} ${y.toFixed(2)} Td (${fit(value, 1000, size)}) Tj ET\n`;
+    `0 0 0 rg BT /${bold ? "F2" : "F1"} ${size} Tf ${x.toFixed(2)} ${y.toFixed(2)} Td (${escapePdf(String(value ?? ""))}) Tj ET\n`;
   const centeredText = (value: unknown, x: number, y: number, width: number, size = 5, bold = false) => {
     const raw = escapePdf(String(value ?? "").trim());
-    const limit = Math.max(1, Math.floor(width / (size * 0.52)));
-    const fitted = raw.slice(0, limit);
-    const estimatedWidth = fitted.length * size * 0.52;
-    return text(fitted, x + Math.max(2, (width - estimatedWidth) / 2), y, size, bold);
+    const estimatedWidth = raw.length * size * 0.52;
+    return text(raw, x + Math.max(1, (width - estimatedWidth) / 2), y, size, bold);
+  };
+  const wrapText = (value: unknown, width: number, size = 5) => {
+    const maxCharacters = Math.max(1, Math.floor((width - 6) / (size * 0.52)));
+    const lines: string[] = [];
+    String(value ?? "").trim().split(/\r?\n/).forEach(paragraph => {
+      const words = paragraph.split(/\s+/).filter(Boolean);
+      if (words.length === 0) {
+        if (lines.length > 0) lines.push("");
+        return;
+      }
+      let line = "";
+      words.forEach(word => {
+        const chunks = word.length > maxCharacters
+          ? word.match(new RegExp(`.{1,${maxCharacters}}`, "g")) ?? [word]
+          : [word];
+        chunks.forEach(chunk => {
+          const candidate = line ? `${line} ${chunk}` : chunk;
+          if (candidate.length <= maxCharacters) {
+            line = candidate;
+          } else {
+            if (line) lines.push(line);
+            line = chunk;
+          }
+        });
+      });
+      if (line) lines.push(line);
+    });
+    return lines.length > 0 ? lines : [""];
+  };
+  const wrappedText = (value: unknown, x: number, y: number, width: number, height: number, size = 5) => {
+    const lines = wrapText(value, width, size);
+    const lineHeight = size + 2;
+    const firstBaseline = y + height / 2 + ((lines.length - 1) * lineHeight) / 2 - size * 0.35;
+    return lines.map((line, index) => text(line, x + 3, firstBaseline - index * lineHeight, size)).join("");
   };
   const rect = (x: number, y: number, width: number, height: number, fill?: [number, number, number]) =>
     `${fill ? `${fill.join(" ")} rg ${x.toFixed(2)} ${y.toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re f\n` : ""}0.45 G 0.35 w ${x.toFixed(2)} ${y.toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re S\n`;
+  const preparedRows = rows.map((item, index) => {
+    const values = [
+      item.auditCategory, item.departmentProject, item.processProductOwner, item.auditNumber,
+      item.qaqcReference, item.qaqcScope, item.qaqcClauses,
+    ];
+    const lineCount = Math.max(
+      ...values.map((value, valueIndex) => wrapText(value, fixedWidths[valueIndex], 5).length),
+      wrapText(item.remarks, remarksWidth, 5).length,
+    );
+    return { item, index, values, height: Math.max(minimumRowHeight, lineCount * 7 + 10) };
+  });
+  const tableTop = pageHeight - margin - titleHeight;
+  const headerBottom = tableTop - headerHeight;
+  const availableRowHeight = headerBottom - margin;
+  const rowPages: typeof preparedRows[] = [];
+  preparedRows.forEach(row => {
+    const currentPage = rowPages.at(-1);
+    const currentHeight = currentPage?.reduce((sum, item) => sum + item.height, 0) ?? 0;
+    if (!currentPage || (currentPage.length > 0 && currentHeight + row.height > availableRowHeight)) rowPages.push([row]);
+    else currentPage.push(row);
+  });
+  if (rowPages.length === 0) rowPages.push([]);
   const pages: string[] = [];
-  const pageCount = Math.max(1, Math.ceil(rows.length / rowsPerPage));
+  const pageCount = rowPages.length;
   for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
     let content = "";
-    const tableTop = pageHeight - margin - titleHeight;
     const headingLeftWidth = 128;
     const headingRightWidth = 84;
     const headingCenterWidth = pageWidth - margin * 2 - headingLeftWidth - headingRightWidth;
@@ -258,7 +310,6 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string, auditTitl
     content += `q ${logoWidth.toFixed(2)} 0 0 ${logoHeight.toFixed(2)} ${(margin + (headingLeftWidth - logoWidth) / 2).toFixed(2)} ${(tableTop + (titleHeight - logoHeight) / 2).toFixed(2)} cm /Logo Do Q\n`;
     content += centeredText(auditTitle, margin + headingLeftWidth, tableTop + 20, headingCenterWidth, 10, true);
     if (pageCount > 1) content += centeredText(`Page ${pageIndex + 1} of ${pageCount}`, margin + headingLeftWidth + headingCenterWidth, tableTop + 8, headingRightWidth, 4.5);
-    const headerBottom = tableTop - headerHeight;
     let x = margin;
     fixedHeaders.forEach((header, index) => {
       content += rect(x, headerBottom, fixedWidths[index], headerHeight, [0.91, 0.89, 0.95]);
@@ -283,20 +334,17 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string, auditTitl
     const remarksX = timelineX + timelineWidth;
     content += rect(remarksX, headerBottom, remarksWidth, headerHeight, [0.91, 0.89, 0.95]);
     content += centeredText("Remarks", remarksX, headerBottom + 18, remarksWidth, 5.4, true);
-    rows.slice(pageIndex * rowsPerPage, (pageIndex + 1) * rowsPerPage).forEach((item, rowIndex) => {
-      const y = headerBottom - (rowIndex + 1) * rowHeight;
-      const values = [
-        item.auditCategory, item.departmentProject, item.processProductOwner, item.auditNumber,
-        item.qaqcReference, item.qaqcScope, item.qaqcClauses,
-      ];
+    let nextRowTop = headerBottom;
+    rowPages[pageIndex].forEach(({ item, index: sourceIndex, values, height: rowHeight }) => {
+      const y = nextRowTop - rowHeight;
       let cellX = margin;
       values.forEach((value, index) => {
-        content += rect(cellX, y, fixedWidths[index], rowHeight, rowIndex % 2 ? [0.98, 0.98, 0.99] : undefined);
-        content += text(fit(value, fixedWidths[index], 5), cellX + 3, y + rowHeight / 2 - 2, 5);
+        content += rect(cellX, y, fixedWidths[index], rowHeight, sourceIndex % 2 ? [0.98, 0.98, 0.99] : undefined);
+        content += wrappedText(value, cellX, y, fixedWidths[index], rowHeight, 5);
         cellX += fixedWidths[index];
       });
       Array.from({ length: timeline.totalSlots }, (_, week) => {
-        content += rect(timelineX + week * weekWidth, y, weekWidth, rowHeight, rowIndex % 2 ? [0.98, 0.98, 0.99] : undefined);
+        content += rect(timelineX + week * weekWidth, y, weekWidth, rowHeight, sourceIndex % 2 ? [0.98, 0.98, 0.99] : undefined);
       });
       const start = Math.max(0, Math.min(timeline.totalSlots, programmeTimelinePosition(item.plannedStartDate, year, false, timeline)));
       const end = Math.max(0, Math.min(timeline.totalSlots, programmeTimelinePosition(item.plannedEndDate, year, true, timeline)));
@@ -304,8 +352,9 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string, auditTitl
       if (barWidth > 0) {
         content += `0.10 0.32 0.58 rg ${(timelineX + start * weekWidth).toFixed(2)} ${(y + 8).toFixed(2)} ${Math.max(2, barWidth).toFixed(2)} ${(rowHeight - 16).toFixed(2)} re f\n`;
       }
-      content += rect(remarksX, y, remarksWidth, rowHeight, rowIndex % 2 ? [0.98, 0.98, 0.99] : undefined);
-      content += text(fit(item.remarks, remarksWidth, 5), remarksX + 3, y + rowHeight / 2 - 2, 5);
+      content += rect(remarksX, y, remarksWidth, rowHeight, sourceIndex % 2 ? [0.98, 0.98, 0.99] : undefined);
+      content += wrappedText(item.remarks, remarksX, y, remarksWidth, rowHeight, 5);
+      nextRowTop = y;
     });
     pages.push(content);
   }
@@ -316,8 +365,8 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string, auditTitl
   const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     `<< /Type /Pages /Kids [${pageObjectIds.map(id => `${id} 0 R`).join(" ")}] /Count ${pages.length} >>`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
     `<< /Type /XObject /Subtype /Image /Width 180 /Height 59 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCII85Decode /DCTDecode] /Length ${encoder.encode(logoStream).length} >>\nstream\n${logoStream}\nendstream`,
   ];
   pages.forEach((content, index) => {
