@@ -6185,6 +6185,44 @@ export const ShareAuditPlanResponse = zod.void()
 
 
 /**
+ * @summary Send an Audit Plan to Audit Execution
+ */
+export const SendAuditPlanForExecutionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SendAuditPlanForExecutionResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "question": zod.string(),
+  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional()
+})).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
  * @summary List audits
  */
 export const listAuditsQueryPageDefault = 1;

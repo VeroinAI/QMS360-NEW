@@ -16183,6 +16183,77 @@ export const useShareAuditPlan = <TError = ErrorType<unknown>,
       return useMutation(getShareAuditPlanMutationOptions(options));
     }
 
+export const getSendAuditPlanForExecutionUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/plans/${id}/send-for-audit`
+}
+
+/**
+ * @summary Send an Audit Plan to Audit Execution
+ */
+export const sendAuditPlanForExecution = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getSendAuditPlanForExecutionUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSendAuditPlanForExecutionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['sendAuditPlanForExecution'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  sendAuditPlanForExecution(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendAuditPlanForExecutionMutationResult = NonNullable<Awaited<ReturnType<typeof sendAuditPlanForExecution>>>
+
+    export type SendAuditPlanForExecutionMutationError = ErrorType<void>
+
+    /**
+ * @summary Send an Audit Plan to Audit Execution
+ */
+export const useSendAuditPlanForExecution = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendAuditPlanForExecution>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getSendAuditPlanForExecutionMutationOptions(options));
+    }
+
 export const getListAuditsUrl = (params?: ListAuditsParams,) => {
   const normalizedParams = new URLSearchParams();
 

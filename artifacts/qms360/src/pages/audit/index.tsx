@@ -39,7 +39,7 @@ import {
   useReviewAuditSchedule,
   useReviewCarExtension,
   useReviewCorrectiveActionReport,
-  useShareAuditPlan,
+  useSendAuditPlanForExecution,
   useSubmitCorrectiveActionReport,
   useUpdateAuditChecklist,
   useUpdateAuditClosingMeeting,
@@ -63,7 +63,7 @@ import type {
 } from "@workspace/api-client-react";
 import {
   AlertTriangle, ArrowLeft, BarChart3, CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck,
-  Download, Eye, FileText, FolderOpen, Pencil, Plus, Printer, Search, Share2, ShieldCheck,
+  Download, Eye, FileText, FolderOpen, Pencil, Plus, Printer, Search, Send, ShieldCheck,
   Info, Trash2, Upload, XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -1243,16 +1243,18 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
 
 function Plans() {
   const [page, setPage] = useState(1); const [open, setOpen] = useState(false); const [search, setSearch] = useState("");
-  const query = useListAuditPlans({ page, limit: PAGE_SIZE }); const schedules = useListAuditSchedules({ page: 1, limit: 100 }); const share = useShareAuditPlan(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const query = useListAuditPlans({ page, limit: PAGE_SIZE }); const schedules = useListAuditSchedules({ page: 1, limit: 100 }); const sendForAudit = useSendAuditPlanForExecution(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
   const items = (query.data?.items ?? []).filter(x => x.auditTitle.toLowerCase().includes(search.toLowerCase()));
   const availableSchedules = (schedules.data?.items ?? []).filter(schedule => !schedule.hasPlan && schedule.feasibilityDecision !== "cancelled");
   const refresh = (title: string) => {
     qc.invalidateQueries({ queryKey: ["/api/audit/plans"] });
     qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
+    qc.invalidateQueries({ queryKey: ["/api/audit/audits"] });
     toast({ title });
   };
   return <div className="space-y-5"><PageHeader title="Audit plans" description="Define the Stage 2 Audit Planning programme" action={<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button><Plus className="mr-2 size-4"/>New plan</Button></DialogTrigger><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader><PlanForm schedules={availableSchedules} onClose={() => setOpen(false)}/></DialogContent></Dialog>}/><Input className="max-w-sm" placeholder="Search audit title…" value={search} onChange={e => setSearch(e.target.value)}/><State loading={query.isLoading} error={query.error} empty={!items.length}/>
-    <div className="grid gap-4 md:grid-cols-2">{items.map(plan => <Card key={plan.id}><CardHeader><div className="flex justify-between gap-2"><CardTitle className="text-base"><Link className="underline-offset-4 hover:underline" href={`/audit/plans/${plan.id}`}>{plan.auditTitle}</Link></CardTitle><Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div><CardDescription>{date(plan.startDateTime)} · {plan.activitySection}</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><p><b>Audit type:</b> {plan.auditTypes.join(", ")}</p><p><b>Team:</b> {plan.teamMemberIds.length} member(s)</p><p className="text-muted-foreground">{plan.description || plan.activityRemarks}</p><div className="flex justify-end gap-2"><Button size="sm" variant="outline" asChild><Link href={`/audit/plans/${plan.id}`}>{plan.status === "Draft" ? <Pencil className="mr-2 size-4"/> : <Eye className="mr-2 size-4"/>}{plan.status === "Draft" ? "Edit" : "View"}</Link></Button>{plan.status === "Draft" && <Button size="sm" onClick={() => share.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan shared") })}><Share2 className="mr-2 size-4"/>Share</Button>}<Button size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></div></CardContent></Card>)}</div>{items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}</div>;
+    <div className="grid gap-4 md:grid-cols-2">{items.map(plan => <Card key={plan.id}><CardHeader><div className="flex justify-between gap-2"><CardTitle className="text-base"><Link className="underline-offset-4 hover:underline" href={`/audit/plans/${plan.id}`}>{plan.auditTitle}</Link></CardTitle><Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div><CardDescription>{date(plan.startDateTime)} · {plan.activitySection}</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><p><b>Audit type:</b> {plan.auditTypes.join(", ")}</p><p><b>Team:</b> {plan.teamMemberIds.length} member(s)</p><p className="text-muted-foreground">{plan.description || plan.activityRemarks}</p><div className="flex flex-wrap justify-end gap-2"><Button size="sm" variant="outline" asChild><Link href={`/audit/plans/${plan.id}`}>{plan.status === "Draft" ? <Pencil className="mr-2 size-4"/> : <Eye className="mr-2 size-4"/>}{plan.status === "Draft" ? "Edit" : "View"}</Link></Button>{plan.status === "Draft" && <Button size="sm" disabled={sendForAudit.isPending} onClick={() => sendForAudit.mutate({ id: plan.id }, { onSuccess: () => refresh("Audit sent to Audit Execution"), onError: error => toast({ title: "Unable to send for audit", description: errorText(error), variant: "destructive" }) })}><Send className="mr-2 size-4"/>Send for Audit</Button>}<Button size="sm" variant="outline" disabled={plan.status === "Draft" || sendForAudit.isPending} title={plan.status === "Draft" ? "Send this plan for audit first" : "Open Audit Execution"} onClick={() => sendForAudit.mutate({ id: plan.id }, { onSuccess: audit => navigate(`/audit/audits/${audit.id}`), onError: error => toast({ title: "Unable to open Audit Execution", description: errorText(error), variant: "destructive" }) })}><ClipboardCheck className="mr-2 size-4"/>Audit</Button><Button size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></div></CardContent></Card>)}</div>{items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}</div>;
 }
 
 function PlanDetail() {
@@ -1315,7 +1317,7 @@ function AuditWorkspace() {
   if(query.isLoading||query.error||!query.data)return <div className="space-y-4"><Button variant="ghost" asChild><Link href="/audit/audits"><ArrowLeft className="mr-2 size-4"/>Audits</Link></Button><State loading={query.isLoading} error={query.error} empty={!query.data}/></div>;
   const audit=query.data;
   return <div className="space-y-5"><Button variant="ghost" asChild><Link href="/audit/audits"><ArrowLeft className="mr-2 size-4"/>All audits</Link></Button><PageHeader title={audit.title} description={`Execution workspace · ${audit.status}`} action={<Button variant="outline" asChild><Link href={`/audit/audits/${id}/report`}>View report</Link></Button>}/><Tabs defaultValue="overview"><TabsList className="h-auto flex-wrap"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="checklist">Checklist</TabsTrigger><TabsTrigger value="opening">Opening meeting</TabsTrigger><TabsTrigger value="closing">Closing meeting</TabsTrigger><TabsTrigger value="findings">Findings</TabsTrigger><TabsTrigger value="evidence">Evidence</TabsTrigger></TabsList>
-    <TabsContent value="overview"><Card><CardHeader><CardTitle>Audit overview</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><div><Label>Status</Label><p><Badge>{audit.status}</Badge></p></div><div><Label>Project</Label><p>{audit.projectId}</p></div><div><Label>Plan</Label><p>{audit.planId}</p></div><div><Label>Started</Label><p>{date(audit.startedAt)}</p></div><div><Label>Closed</Label><p>{date(audit.closedAt)}</p></div><div><Label>Checklist</Label><p>{audit.checklist?.length??0} items</p></div></CardContent></Card></TabsContent>
+    <TabsContent value="overview"><Card><CardHeader><CardTitle>Audit overview</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><div><Label>Status</Label><div><Badge>{audit.status}</Badge></div></div><div><Label>Project</Label><p>{audit.projectId}</p></div><div><Label>Plan</Label><p>{audit.planId}</p></div><div><Label>Started</Label><p>{date(audit.startedAt)}</p></div><div><Label>Closed</Label><p>{date(audit.closedAt)}</p></div><div><Label>Checklist</Label><p>{audit.checklist?.length??0} items</p></div></CardContent></Card></TabsContent>
     <TabsContent value="checklist"><Checklist auditId={id} initial={audit.checklist??[]}/></TabsContent><TabsContent value="opening"><MeetingEditor auditId={id} kind="opening" value={audit.openingMeeting}/></TabsContent><TabsContent value="closing"><MeetingEditor auditId={id} kind="closing" value={audit.closingMeeting}/></TabsContent><TabsContent value="findings"><Findings auditId={id}/></TabsContent><TabsContent value="evidence"><Evidence auditId={id}/></TabsContent></Tabs></div>;
 }
 

@@ -1037,6 +1037,77 @@ const auditValues = (data: AnyRow) => ({
     startedAt: data.startedAt?.toISOString?.() ?? data.startedAt ?? null, closedAt: data.closedAt?.toISOString?.() ?? data.closedAt ?? null,
   }),
 });
+router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
+  const planId = String(req.params.id);
+  const organizationId = actor(req).organizationId;
+  const [plan] = await db.select().from(auditPlans).where(and(
+    active(auditPlans, organizationId), eq(auditPlans.id, planId),
+  ));
+  if (!plan) throw new HttpError(404, "Audit plan not found");
+  await assertAuditProject(req, plan.projectId);
+  await assertFieldAccess(req, "audit", "audit-execution", { mode: "create" });
+
+  let created = false;
+  const result = await db.transaction(async tx => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${organizationId}), hashtext(${planId}))`);
+    const [existing] = await tx.select().from(audits).where(and(
+      active(audits, organizationId), eq(audits.auditPlanId, planId),
+    )).orderBy(desc(audits.updatedAt)).limit(1);
+    if (existing) return existing;
+
+    const [lockedPlan] = await tx.select().from(auditPlans).where(and(
+      active(auditPlans, organizationId), eq(auditPlans.id, planId),
+    ));
+    if (!lockedPlan) throw new HttpError(404, "Audit plan not found");
+    if (!["draft", "shared"].includes(lockedPlan.workflowState)) {
+      throw new HttpError(409, "Only draft or shared plans can be sent for audit");
+    }
+
+    const meta = planMeta(lockedPlan);
+    const usePattern = await hasNumberingPattern(organizationId, "audit");
+    let audit: typeof audits.$inferSelect | undefined;
+    for (let attempt = 0; attempt < 5 && !audit; attempt++) {
+      const referenceNumber = usePattern
+        ? await allocateReferenceNumber(organizationId, "audit")
+        : meta.auditTitle ?? lockedPlan.scope ?? `Audit-${lockedPlan.id.slice(0, 8)}`;
+      try {
+        [audit] = await tx.insert(audits).values({
+          organizationId,
+          auditPlanId: lockedPlan.id,
+          projectId: lockedPlan.projectId,
+          referenceNumber,
+          referenceGenerated: usePattern,
+          workflowState: "planned",
+          checklistState: {},
+          status: JSON.stringify({
+            title: meta.auditTitle ?? lockedPlan.scope ?? referenceNumber,
+            startedAt: null,
+            closedAt: null,
+          }),
+        }).returning();
+      } catch (error: any) {
+        if (error?.code === "23505" && usePattern && String(error?.message ?? "").includes("audit_reference_active_idx")) continue;
+        if (error?.code === "23505") throw new HttpError(409, "An active audit with this title already exists");
+        throw error;
+      }
+    }
+    if (!audit) throw new HttpError(409, "Unable to allocate a unique audit reference number");
+    if (lockedPlan.workflowState === "draft") {
+      await tx.update(auditPlans).set({ workflowState: "shared", updatedAt: new Date() }).where(eq(auditPlans.id, lockedPlan.id));
+    }
+    created = true;
+    return audit;
+  });
+
+  if (created) {
+    await Promise.all((planMeta(plan).processOwnerIds ?? []).map((id) => notify(db, "audit", {
+      organizationId, userId: id, type: "audit_sent", title: "Audit sent for execution",
+      body: plan.scope ?? "An Audit Plan has been sent to Audit Execution.", entityType: "audit", entityId: result.id,
+    })));
+    await auditLog(req, "send_for_audit", "audit_plan", plan.id, plan, result);
+  }
+  res.json(auditDto(result));
+}));
 router.get("/audits", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const scope = await getAuthorizedProjectScope(req, "audit");
   const where = and(active(audits, actor(req).organizationId), scope.unrestricted ? undefined : inArray(audits.projectId, scope.projectIds));

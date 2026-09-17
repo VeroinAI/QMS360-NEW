@@ -1056,6 +1056,8 @@ paths:
     delete: {operationId: deleteAuditPlan, tags: [audit], summary: Soft-delete audit plan, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
   /audit/plans/{id}/share:
     post: {operationId: shareAuditPlan, tags: [audit], summary: Share plan with process and product owners, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"202": {description: Shared}}}
+  /audit/plans/{id}/send-for-audit:
+    post: {operationId: sendAuditPlanForExecution, tags: [audit], summary: Send an Audit Plan to Audit Execution, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Existing or newly created Audit Execution, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}, "409": {description: Only draft or shared plans can be sent for audit}}}
   /audit/audits:
     get: {operationId: listAudits, tags: [audit], summary: List audits, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditPage"}}}
     post: {operationId: createAudit, tags: [audit], summary: Create audit linked to plan, requestBody: {$ref: "#/components/requestBodies/Audit"}, responses: {"201": {description: Created}}}
