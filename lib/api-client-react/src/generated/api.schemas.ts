@@ -1939,23 +1939,6 @@ export interface AuditPlanOptions {
   users: AuditPlanUserOption[];
 }
 
-export type AuditPlanActivitySection = typeof AuditPlanActivitySection[keyof typeof AuditPlanActivitySection];
-
-
-export const AuditPlanActivitySection = {
-  Opening_Meeting: 'Opening Meeting',
-  General_Requirement: 'General Requirement',
-  Design: 'Design',
-  Procurement: 'Procurement',
-  'Construction_&_Installation': 'Construction & Installation',
-  'Testing_&_Commissioning': 'Testing & Commissioning',
-  Improvements: 'Improvements',
-  Lunch: 'Lunch',
-  Break_Time: 'Break Time',
-  Site_Visit: 'Site Visit',
-  Closing_Meeting: 'Closing Meeting',
-} as const;
-
 export type AuditPlanStatus = typeof AuditPlanStatus[keyof typeof AuditPlanStatus];
 
 
@@ -1966,6 +1949,13 @@ export const AuditPlanStatus = {
   Completed: 'Completed',
   Deleted: 'Deleted',
 } as const;
+
+export interface AuditPlanActivity {
+  id: string;
+  section: string;
+  remarks: string;
+  auditeeId: string;
+}
 
 export interface AuditPlan {
   id: string;
@@ -1987,9 +1977,12 @@ export interface AuditPlan {
   endDateTime: string;
   openingMeetingDateTime: string;
   closingMeetingDateTime: string;
-  activitySection: AuditPlanActivitySection;
+  /** Legacy first-row compatibility field; values come from Activities master data */
+  activitySection: string;
   activityRemarks: string;
   activityAuditeeId: string;
+  /** @minItems 1 */
+  activities?: AuditPlanActivity[];
   activityDateTime: string;
   auditPlanCirculation: string;
   status: AuditPlanStatus;

@@ -763,16 +763,14 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
 }));
 
 const PLAN_LANGUAGE = "Verbal: English\nWriting: English";
-const PLAN_ACTIVITY_SECTIONS = [
-  "Opening Meeting", "General Requirement", "Design", "Procurement", "Construction & Installation",
-  "Testing & Commissioning", "Improvements", "Lunch", "Break Time", "Site Visit", "Closing Meeting",
-] as const;
+type PlanActivity = { id: string; section: string; remarks: string; auditeeId: string };
 type PlanMeta = {
   objectives?: string | null; leadAuditorId?: string; processOwnerIds?: string[]; feasibilityNotes?: string | null;
   auditFeasible?: boolean; auditTitle?: string; auditeeId?: string; qaqcScope?: string; auditTypes?: string[];
   auditLanguage?: string; qaqcReference?: string; description?: string | null; startDateTime?: string;
   endDateTime?: string; openingMeetingDateTime?: string; closingMeetingDateTime?: string; activitySection?: string;
   activityRemarks?: string; activityAuditeeId?: string; activityDateTime?: string; auditPlanCirculation?: string;
+  activities?: PlanActivity[];
 };
 const planMeta = (row: AnyRow): PlanMeta => parseJson(row.status, {});
 const planDto = (row: AnyRow) => {
@@ -789,6 +787,11 @@ const planDto = (row: AnyRow) => {
     openingMeetingDateTime: meta.openingMeetingDateTime ?? fallbackDateTime, closingMeetingDateTime: meta.closingMeetingDateTime ?? fallbackDateTime,
     activitySection: meta.activitySection ?? row.location ?? "General Requirement",
     activityRemarks: meta.activityRemarks ?? meta.feasibilityNotes ?? "", activityAuditeeId: meta.activityAuditeeId ?? meta.auditeeId ?? meta.processOwnerIds?.[0] ?? "",
+    activities: meta.activities?.length ? meta.activities : [{
+      id: `legacy-${row.id}`, section: meta.activitySection ?? row.location ?? "General Requirement",
+      remarks: meta.activityRemarks ?? meta.feasibilityNotes ?? "",
+      auditeeId: meta.activityAuditeeId ?? meta.auditeeId ?? meta.processOwnerIds?.[0] ?? "",
+    }],
     activityDateTime: meta.activityDateTime ?? fallbackDateTime, auditPlanCirculation: meta.auditPlanCirculation ?? "",
     scope: row.scope ?? "", objectives: meta.objectives ?? null,
     criteria: auditTypes, auditDate: row.auditDate ? new Date(row.auditDate) : new Date(0),
@@ -811,6 +814,7 @@ const planValues = (data: AnyRow) => ({
     endDateTime: data.endDateTime, openingMeetingDateTime: data.openingMeetingDateTime,
     closingMeetingDateTime: data.closingMeetingDateTime, activitySection: data.activitySection,
     activityRemarks: data.activityRemarks, activityAuditeeId: data.activityAuditeeId,
+    activities: data.activities,
     activityDateTime: data.activityDateTime, auditPlanCirculation: data.auditPlanCirculation,
   }),
 });
@@ -826,16 +830,25 @@ async function auditPlanUsers(organizationId: string) {
 }
 async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) {
   const scheduleData = scheduleDto(schedule);
+  const activities: PlanActivity[] = Array.isArray(data.activities) && data.activities.length
+    ? data.activities
+    : [{ id: `legacy-${data.id}`, section: data.activitySection, remarks: data.activityRemarks, auditeeId: data.activityAuditeeId }];
   const required = [
     "auditTitle", "leadAuditorId", "auditeeId", "qaqcScope", "auditLanguage", "qaqcReference",
     "startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime",
-    "activitySection", "activityRemarks", "activityAuditeeId", "activityDateTime", "auditPlanCirculation",
+    "activityDateTime", "auditPlanCirculation",
   ];
   if (typeof data.auditFeasible !== "boolean" || required.some((key) => !String(data[key] ?? "").trim()) || !data.teamMemberIds?.length || !data.auditTypes?.length) {
     throw new HttpError(422, "Complete all mandatory Audit Plan fields");
   }
-  if (!PLAN_ACTIVITY_SECTIONS.includes(data.activitySection)) throw new HttpError(422, "Select a valid Activities / Section value");
-  if (data.activityAuditeeId !== data.auditeeId) throw new HttpError(422, "Auditee for the Activity must be selected from the plan Auditee");
+  if (activities.some(activity => !activity.id || !activity.section?.trim() || !activity.remarks?.trim() || !activity.auditeeId)) {
+    throw new HttpError(422, "Complete Activities / Section, Remarks and Auditee for every activity row");
+  }
+  await Promise.all(activities.map(activity =>
+    assertLovValue(db, actor(req).organizationId, "activities", activity.section)));
+  if (activities.some(activity => activity.auditeeId !== data.auditeeId)) {
+    throw new HttpError(422, "Auditee for each Activity must be selected from the plan Auditee");
+  }
   const times = ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime", "activityDateTime"]
     .map((key) => [key, new Date(data[key])] as const);
   if (times.some(([, value]) => Number.isNaN(value.getTime()))) throw new HttpError(422, "Enter valid date and time values");
@@ -844,11 +857,15 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   if (byKey.closingMeetingDateTime < byKey.openingMeetingDateTime) throw new HttpError(422, "Closing Meeting must be on or after Opening Meeting");
   const options = await auditPlanUsers(actor(req).organizationId);
   const usersById = new Map(options.map((option) => [option.id, option]));
-  const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, data.auditeeId, data.activityAuditeeId])];
+  const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, data.auditeeId, ...activities.map(activity => activity.auditeeId)])];
   if (participantIds.some((id) => !usersById.has(id))) throw new HttpError(422, "Select active QMS Audit users for all Master fields");
   const circulationIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, data.auditeeId])];
   return {
     ...data,
+    activities,
+    activitySection: activities[0].section,
+    activityRemarks: activities[0].remarks,
+    activityAuditeeId: activities[0].auditeeId,
     auditTitle: scheduleData.title,
     qaqcScope: scheduleData.qaqcScope,
     auditTypes: scheduleData.auditTypes,

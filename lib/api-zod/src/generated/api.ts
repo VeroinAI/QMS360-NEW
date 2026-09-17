@@ -5871,6 +5871,7 @@ export const listAuditPlansResponseOneTotalMin = 0;
 
 
 
+
 export const ListAuditPlansResponse = zod.object({
   "total": zod.number().min(listAuditPlansResponseOneTotalMin),
   "page": zod.number().min(1),
@@ -5893,9 +5894,15 @@ export const ListAuditPlansResponse = zod.object({
   "endDateTime": zod.coerce.date(),
   "openingMeetingDateTime": zod.coerce.date(),
   "closingMeetingDateTime": zod.coerce.date(),
-  "activitySection": zod.enum(['Opening Meeting', 'General Requirement', 'Design', 'Procurement', 'Construction & Installation', 'Testing & Commissioning', 'Improvements', 'Lunch', 'Break Time', 'Site Visit', 'Closing Meeting']),
+  "activitySection": zod.string().describe('Legacy first-row compatibility field; values come from Activities master data'),
   "activityRemarks": zod.string(),
   "activityAuditeeId": zod.string(),
+  "activities": zod.array(zod.object({
+  "id": zod.string(),
+  "section": zod.string(),
+  "remarks": zod.string(),
+  "auditeeId": zod.string()
+})).min(1).optional(),
   "activityDateTime": zod.coerce.date(),
   "auditPlanCirculation": zod.string(),
   "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted']),
@@ -5917,6 +5924,7 @@ export const ListAuditPlansResponse = zod.object({
 
 
 
+
 export const CreateAuditPlanBody = zod.object({
   "id": zod.string(),
   "scheduleId": zod.string(),
@@ -5934,9 +5942,15 @@ export const CreateAuditPlanBody = zod.object({
   "endDateTime": zod.coerce.date(),
   "openingMeetingDateTime": zod.coerce.date(),
   "closingMeetingDateTime": zod.coerce.date(),
-  "activitySection": zod.enum(['Opening Meeting', 'General Requirement', 'Design', 'Procurement', 'Construction & Installation', 'Testing & Commissioning', 'Improvements', 'Lunch', 'Break Time', 'Site Visit', 'Closing Meeting']),
+  "activitySection": zod.string().describe('Legacy first-row compatibility field; values come from Activities master data'),
   "activityRemarks": zod.string(),
   "activityAuditeeId": zod.string(),
+  "activities": zod.array(zod.object({
+  "id": zod.string(),
+  "section": zod.string(),
+  "remarks": zod.string(),
+  "auditeeId": zod.string()
+})).min(1).optional(),
   "activityDateTime": zod.coerce.date(),
   "auditPlanCirculation": zod.string(),
   "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted']),
@@ -5975,6 +5989,7 @@ export const GetAuditPlanParams = zod.object({
 
 
 
+
 export const GetAuditPlanResponse = zod.object({
   "id": zod.string(),
   "scheduleId": zod.string(),
@@ -5992,9 +6007,15 @@ export const GetAuditPlanResponse = zod.object({
   "endDateTime": zod.coerce.date(),
   "openingMeetingDateTime": zod.coerce.date(),
   "closingMeetingDateTime": zod.coerce.date(),
-  "activitySection": zod.enum(['Opening Meeting', 'General Requirement', 'Design', 'Procurement', 'Construction & Installation', 'Testing & Commissioning', 'Improvements', 'Lunch', 'Break Time', 'Site Visit', 'Closing Meeting']),
+  "activitySection": zod.string().describe('Legacy first-row compatibility field; values come from Activities master data'),
   "activityRemarks": zod.string(),
   "activityAuditeeId": zod.string(),
+  "activities": zod.array(zod.object({
+  "id": zod.string(),
+  "section": zod.string(),
+  "remarks": zod.string(),
+  "auditeeId": zod.string()
+})).min(1).optional(),
   "activityDateTime": zod.coerce.date(),
   "auditPlanCirculation": zod.string(),
   "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted']),
@@ -6019,6 +6040,7 @@ export const UpdateAuditPlanParams = zod.object({
 
 
 
+
 export const UpdateAuditPlanBody = zod.object({
   "id": zod.string(),
   "scheduleId": zod.string(),
@@ -6036,9 +6058,15 @@ export const UpdateAuditPlanBody = zod.object({
   "endDateTime": zod.coerce.date(),
   "openingMeetingDateTime": zod.coerce.date(),
   "closingMeetingDateTime": zod.coerce.date(),
-  "activitySection": zod.enum(['Opening Meeting', 'General Requirement', 'Design', 'Procurement', 'Construction & Installation', 'Testing & Commissioning', 'Improvements', 'Lunch', 'Break Time', 'Site Visit', 'Closing Meeting']),
+  "activitySection": zod.string().describe('Legacy first-row compatibility field; values come from Activities master data'),
   "activityRemarks": zod.string(),
   "activityAuditeeId": zod.string(),
+  "activities": zod.array(zod.object({
+  "id": zod.string(),
+  "section": zod.string(),
+  "remarks": zod.string(),
+  "auditeeId": zod.string()
+})).min(1).optional(),
   "activityDateTime": zod.coerce.date(),
   "auditPlanCirculation": zod.string(),
   "status": zod.enum(['Draft', 'Shared', 'Active', 'Completed', 'Deleted']),

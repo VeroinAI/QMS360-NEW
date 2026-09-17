@@ -55,7 +55,7 @@ export * from './auditLogPageResponse';
 export * from './auditPage';
 export * from './auditPageResponse';
 export * from './auditPlan';
-export * from './auditPlanActivitySection';
+export * from './auditPlanActivity';
 export * from './auditPlanBody';
 export * from './auditPlanOptions';
 export * from './auditPlanPage';

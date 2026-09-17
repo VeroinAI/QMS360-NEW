@@ -5,7 +5,7 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
-import type { AuditPlanActivitySection } from './auditPlanActivitySection';
+import type { AuditPlanActivity } from './auditPlanActivity';
 import type { AuditPlanStatus } from './auditPlanStatus';
 
 export interface AuditPlan {
@@ -28,9 +28,12 @@ export interface AuditPlan {
   endDateTime: Date;
   openingMeetingDateTime: Date;
   closingMeetingDateTime: Date;
-  activitySection: AuditPlanActivitySection;
+  /** Legacy first-row compatibility field; values come from Activities master data */
+  activitySection: string;
   activityRemarks: string;
   activityAuditeeId: string;
+  /** @minItems 1 */
+  activities?: AuditPlanActivity[];
   activityDateTime: Date;
   auditPlanCirculation: string;
   status: AuditPlanStatus;

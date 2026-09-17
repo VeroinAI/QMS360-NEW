@@ -2324,9 +2324,13 @@ components:
         endDateTime: {type: string, format: date-time}
         openingMeetingDateTime: {type: string, format: date-time}
         closingMeetingDateTime: {type: string, format: date-time}
-        activitySection: {type: string, enum: [Opening Meeting, General Requirement, Design, Procurement, Construction & Installation, Testing & Commissioning, Improvements, Lunch, Break Time, Site Visit, Closing Meeting]}
+        activitySection: {type: string, description: Legacy first-row compatibility field; values come from Activities master data}
         activityRemarks: {type: string}
         activityAuditeeId: {type: string}
+        activities:
+          type: array
+          minItems: 1
+          items: {$ref: "#/components/schemas/AuditPlanActivity"}
         activityDateTime: {type: string, format: date-time}
         auditPlanCirculation: {type: string}
         status: {type: string, enum: [Draft, Shared, Active, Completed, Deleted]}
@@ -2337,6 +2341,14 @@ components:
         location: {type: string, description: Legacy compatibility field}
         processOwnerIds: {type: array, items: {type: string}, description: Legacy compatibility field}
         feasibilityNotes: {type: [string, "null"], description: Legacy compatibility field}
+    AuditPlanActivity:
+      type: object
+      required: [id, section, remarks, auditeeId]
+      properties:
+        id: {type: string}
+        section: {type: string}
+        remarks: {type: string}
+        auditeeId: {type: string}
     MeetingMinutes:
       type: object
       required: [heldAt, attendees, minutes]
