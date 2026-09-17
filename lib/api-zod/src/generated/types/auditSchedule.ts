@@ -5,6 +5,7 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { AuditScheduleFeasibilityDecision } from './auditScheduleFeasibilityDecision';
 import type { AuditScheduleL1ReviewStatus } from './auditScheduleL1ReviewStatus';
 import type { AuditScheduleL2ReviewStatus } from './auditScheduleL2ReviewStatus';
 import type { WorkflowState } from './workflowState';
@@ -20,6 +21,18 @@ export interface AuditSchedule {
   title: string;
   /** Whether an active Audit Plan already exists for this schedule */
   hasPlan?: boolean;
+  /**
+     * Latest infeasible audit decision
+     * @nullable
+     */
+  feasibilityDecision?: AuditScheduleFeasibilityDecision;
+  /**
+     * Mandatory remarks or feedback for the infeasible audit decision
+     * @nullable
+     */
+  feasibilityFeedback?: string | null;
+  /** @nullable */
+  feasibilityRecordedAt?: Date | null;
   projectIds: string[];
   auditTypes?: string[];
   auditCategory?: string;

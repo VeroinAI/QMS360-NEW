@@ -1812,6 +1812,18 @@ export interface EscalationSummary {
   lastNotifiedAt?: string | null;
 }
 
+/**
+ * Latest infeasible audit decision
+ * @nullable
+ */
+export type AuditScheduleFeasibilityDecision = typeof AuditScheduleFeasibilityDecision[keyof typeof AuditScheduleFeasibilityDecision] | null;
+
+
+export const AuditScheduleFeasibilityDecision = {
+  cancelled: 'cancelled',
+  reschedule: 'reschedule',
+} as const;
+
 export type AuditScheduleL1ReviewStatus = typeof AuditScheduleL1ReviewStatus[keyof typeof AuditScheduleL1ReviewStatus];
 
 
@@ -1841,6 +1853,18 @@ export interface AuditSchedule {
   title: string;
   /** Whether an active Audit Plan already exists for this schedule */
   hasPlan?: boolean;
+  /**
+     * Latest infeasible audit decision
+     * @nullable
+     */
+  feasibilityDecision?: AuditScheduleFeasibilityDecision;
+  /**
+     * Mandatory remarks or feedback for the infeasible audit decision
+     * @nullable
+     */
+  feasibilityFeedback?: string | null;
+  /** @nullable */
+  feasibilityRecordedAt?: string | null;
   projectIds: string[];
   auditTypes?: string[];
   auditCategory?: string;
@@ -1888,6 +1912,20 @@ export interface AuditSchedule {
   readonly currentApprovalRole: string | null;
   readonly approvalRoles: readonly string[];
   readonly canReview: boolean;
+}
+
+export type AuditScheduleFeasibilityInputDecision = typeof AuditScheduleFeasibilityInputDecision[keyof typeof AuditScheduleFeasibilityInputDecision];
+
+
+export const AuditScheduleFeasibilityInputDecision = {
+  cancelled: 'cancelled',
+  reschedule: 'reschedule',
+} as const;
+
+export interface AuditScheduleFeasibilityInput {
+  decision: AuditScheduleFeasibilityInputDecision;
+  /** @minLength 1 */
+  feedback: string;
 }
 
 export interface AuditProgramme {
@@ -2519,6 +2557,8 @@ export type NotificationTemplateBody = NotificationTemplate;
 export type LessonFormBody = LessonLearnedForm;
 
 export type AuditScheduleBody = AuditSchedule;
+
+export type AuditScheduleFeasibilityBody = AuditScheduleFeasibilityInput;
 
 export type AuditProgrammeBody = AuditProgrammeInput;
 

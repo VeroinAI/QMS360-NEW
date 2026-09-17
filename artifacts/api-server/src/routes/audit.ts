@@ -124,6 +124,9 @@ type ScheduleMeta = {
   l1Name?: string; l1ReviewStatus?: string; l1ReviewComments?: string | null; l1Attachments?: string[];
   l2Name?: string; l2ReviewStatus?: string; l2ReviewComments?: string | null; l2Attachments?: string[];
   memoDescription?: string; memoCirculation?: string;
+  feasibilityDecision?: "cancelled" | "reschedule" | null;
+  feasibilityFeedback?: string | null;
+  feasibilityRecordedAt?: string | null;
 };
 const PROCESS_AUDIT_TYPE = "Quality Internal Process Audit";
 const PRODUCT_AUDIT_TYPE = "Quality Internal Product Audit";
@@ -274,6 +277,9 @@ const scheduleDto = (row: AnyRow, canReview = false, hasPlan = false) => {
     l2Name: meta.l2Name ?? "", l2ReviewStatus: meta.l2ReviewStatus ?? "Pending",
     l2ReviewComments: meta.l2ReviewComments ?? null, l2Attachments: meta.l2Attachments ?? [],
     memoDescription: meta.memoDescription ?? "", memoCirculation: meta.memoCirculation ?? "",
+    feasibilityDecision: meta.feasibilityDecision ?? null,
+    feasibilityFeedback: meta.feasibilityFeedback ?? null,
+    feasibilityRecordedAt: meta.feasibilityRecordedAt ?? null,
     currentApprovalRole, approvalRoles: (meta.approvalRoles ?? []).map(role => role.name), canReview, hasPlan,
   };
 };
@@ -288,6 +294,9 @@ const scheduleValues = (data: AnyRow) => ({
     auditCategory: data.auditCategory, departmentProject: data.departmentProject, location: data.location,
     gpsLat: data.gpsLat ?? null, gpsLng: data.gpsLng ?? null,
     processProductOwner: data.processProductOwner, qaqcReference: data.qaqcReference, auditNumber: data.auditNumber,
+    feasibilityDecision: data.feasibilityDecision ?? null,
+    feasibilityFeedback: data.feasibilityFeedback ?? null,
+    feasibilityRecordedAt: data.feasibilityRecordedAt ?? null,
     qaqcScope: data.qaqcScope, qaqcClauses: data.qaqcClauses, remarks: data.remarks ?? null,
     l1Name: data.l1Name, l1ReviewStatus: data.l1ReviewStatus, l1ReviewComments: data.l1ReviewComments ?? null,
     l1Attachments: data.l1Attachments ?? [], l2Name: data.l2Name, l2ReviewStatus: data.l2ReviewStatus,
@@ -890,6 +899,37 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
 router.get("/plan-options", requirePermission("audit", "plans", "select"), asyncHandler(async (req, res) => {
   res.json({ users: await auditPlanUsers(actor(req).organizationId) });
 }));
+router.post("/schedules/:id/feasibility", asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.RecordAuditScheduleFeasibilityBody, req);
+  const feedback = String(data.feedback ?? "").trim();
+  if (!feedback) throw new HttpError(422, "Remarks / Feedback is required");
+  const scheduleId = String(req.params.id);
+  const updated = await db.transaction(async tx => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${actor(req).organizationId}), hashtext(${scheduleId}))`);
+    const [schedule] = await tx.select().from(auditSchedules).where(and(
+      active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, scheduleId),
+    ));
+    await assertChildSchedule(schedule);
+    if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
+    const [schedulePlan] = await tx.select({ id: auditPlans.id }).from(auditPlans).where(and(
+      active(auditPlans, actor(req).organizationId), eq(auditPlans.auditScheduleId, scheduleId),
+    )).limit(1);
+    if (schedulePlan) throw new HttpError(409, "An Audit Plan already exists for this Audit Schedule");
+    const meta = scheduleMeta(schedule);
+    const [row] = await tx.update(auditSchedules).set({
+      status: JSON.stringify({
+        ...meta,
+        feasibilityDecision: data.decision,
+        feasibilityFeedback: feedback,
+        feasibilityRecordedAt: new Date().toISOString(),
+      }),
+      updatedAt: new Date(),
+    }).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, scheduleId))).returning();
+    return row;
+  });
+  await auditLog(req, data.decision === "cancelled" ? "cancel_audit" : "reschedule_audit", "audit_schedule", updated.id, undefined, updated);
+  res.json(await scheduleResponse(req, updated, false));
+}));
 router.get("/plans", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const scope = await getAuthorizedProjectScope(req, "audit");
   const where = and(active(auditPlans, actor(req).organizationId), scope.unrestricted ? undefined : or(inArray(auditPlans.projectId, scope.projectIds), isNull(auditPlans.projectId)));
@@ -915,11 +955,18 @@ router.post("/plans", asyncHandler(async (req, res) => {
   if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
   const row = await db.transaction(async tx => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${actor(req).organizationId}), hashtext(${schedule.id}))`);
+    const [lockedSchedule] = await tx.select().from(auditSchedules).where(and(
+      active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, schedule.id),
+    ));
+    await assertChildSchedule(lockedSchedule);
+    if (scheduleMeta(lockedSchedule).feasibilityDecision === "cancelled") {
+      throw new HttpError(409, "This audit was cancelled and cannot be planned");
+    }
     const [schedulePlan] = await tx.select({ id: auditPlans.id }).from(auditPlans).where(and(
       active(auditPlans, actor(req).organizationId), eq(auditPlans.auditScheduleId, schedule.id),
     )).limit(1);
     if (schedulePlan) throw new HttpError(409, "An Audit Plan already exists for this Audit Schedule");
-    data = await normalizeAuditPlan(req, data, schedule);
+    data = await normalizeAuditPlan(req, data, lockedSchedule);
     const [created] = await tx.insert(auditPlans).values({
       organizationId: actor(req).organizationId, projectId: schedule.projectId, ...planValues(data),
     }).returning();

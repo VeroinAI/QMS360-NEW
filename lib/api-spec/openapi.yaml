@@ -1043,6 +1043,8 @@ paths:
     post: {operationId: submitAuditSchedule, tags: [audit], summary: Submit schedule for approval, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
   /audit/schedules/{id}/review:
     post: {operationId: reviewAuditSchedule, tags: [audit], summary: Approve or send back schedule, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed}}}
+  /audit/schedules/{id}/feasibility:
+    post: {operationId: recordAuditScheduleFeasibility, tags: [audit], summary: Record an infeasible audit decision, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditScheduleFeasibility"}, responses: {"200": {description: Feasibility decision recorded, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}, "409": {description: An Audit Plan already exists}}}
   /audit/plans:
     get: {operationId: listAuditPlans, tags: [audit], summary: List audit plans, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditPlanPage"}}}
     post: {operationId: createAuditPlan, tags: [audit], summary: Create plan linked to schedule, requestBody: {$ref: "#/components/requestBodies/AuditPlan"}, responses: {"201": {description: Created}}}
@@ -1232,6 +1234,7 @@ components:
     NotificationTemplate: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/NotificationTemplate"}}}}
     LessonForm: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonLearnedForm"}}}}
     AuditSchedule: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}
+    AuditScheduleFeasibility: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleFeasibilityInput"}}}}
     AuditProgramme: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeInput"}}}}
     AuditProgrammeSubmission: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeSubmission"}}}}
     AuditPlan: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlan"}}}}
@@ -2232,6 +2235,9 @@ components:
         year: {type: number}
         title: {type: string}
         hasPlan: {type: boolean, description: Whether an active Audit Plan already exists for this schedule}
+        feasibilityDecision: {type: [string, "null"], enum: [cancelled, reschedule, null], description: Latest infeasible audit decision}
+        feasibilityFeedback: {type: [string, "null"], description: Mandatory remarks or feedback for the infeasible audit decision}
+        feasibilityRecordedAt: {type: [string, "null"], format: date-time}
         projectIds: {type: array, items: {type: string}}
         auditTypes: {type: array, items: {type: string, description: "Values managed via /platform/master-data/lov/audit_types"}}
         auditCategory: {type: string}
@@ -2263,6 +2269,12 @@ components:
         currentApprovalRole: {type: [string, "null"], readOnly: true}
         approvalRoles: {type: array, items: {type: string}, readOnly: true}
         canReview: {type: boolean, readOnly: true}
+    AuditScheduleFeasibilityInput:
+      type: object
+      required: [decision, feedback]
+      properties:
+        decision: {type: string, enum: [cancelled, reschedule]}
+        feedback: {type: string, minLength: 1}
     AuditProgramme:
       type: object
       required: [id, title, fromDate, toDate, workflowState, childCount, currentApprovalRole, approvalRoles, canReview, canSubmit, submissionSubject, submissionMailBody]

@@ -52,6 +52,7 @@ import type {
   AuditProgrammeSubmissionBody,
   AuditSchedule,
   AuditScheduleBody,
+  AuditScheduleFeasibilityBody,
   AuditSchedulePageResponse,
   AuthResponse,
   BulkImportResult,
@@ -15585,6 +15586,78 @@ export const useReviewAuditSchedule = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getReviewAuditScheduleMutationOptions(options));
+    }
+
+export const getRecordAuditScheduleFeasibilityUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/schedules/${id}/feasibility`
+}
+
+/**
+ * @summary Record an infeasible audit decision
+ */
+export const recordAuditScheduleFeasibility = async (id: string,
+    auditScheduleFeasibilityBody: AuditScheduleFeasibilityBody, options?: Parameters<typeof customFetch>[1]): Promise<AuditSchedule> => {
+
+  return customFetch<AuditSchedule>(getRecordAuditScheduleFeasibilityUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditScheduleFeasibilityBody)
+  }
+);}
+
+
+
+
+
+export const getRecordAuditScheduleFeasibilityMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordAuditScheduleFeasibility>>, TError,{id: string;data: BodyType<AuditScheduleFeasibilityBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordAuditScheduleFeasibility>>, TError,{id: string;data: BodyType<AuditScheduleFeasibilityBody>}, TContext> => {
+
+const mutationKey = ['recordAuditScheduleFeasibility'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordAuditScheduleFeasibility>>, {id: string;data: BodyType<AuditScheduleFeasibilityBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordAuditScheduleFeasibility(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordAuditScheduleFeasibilityMutationResult = NonNullable<Awaited<ReturnType<typeof recordAuditScheduleFeasibility>>>
+    export type RecordAuditScheduleFeasibilityMutationBody = BodyType<AuditScheduleFeasibilityBody>
+    export type RecordAuditScheduleFeasibilityMutationError = ErrorType<void>
+
+    /**
+ * @summary Record an infeasible audit decision
+ */
+export const useRecordAuditScheduleFeasibility = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordAuditScheduleFeasibility>>, TError,{id: string;data: BodyType<AuditScheduleFeasibilityBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordAuditScheduleFeasibility>>,
+        TError,
+        {id: string;data: BodyType<AuditScheduleFeasibilityBody>},
+        TContext
+      > => {
+      return useMutation(getRecordAuditScheduleFeasibilityMutationOptions(options));
     }
 
 export const getListAuditPlansUrl = (params?: ListAuditPlansParams,) => {
