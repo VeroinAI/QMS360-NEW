@@ -127,13 +127,25 @@ const scheduleDate = (value: unknown) => {
   return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day ? candidate : "";
 };
 const programmeTimeline = (year: number) => {
-  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-  const days = [31, isLeap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const isoYearStart = (isoYear: number) => {
+    const januaryFourth = new Date(Date.UTC(isoYear, 0, 4));
+    const daysSinceMonday = (januaryFourth.getUTCDay() + 6) % 7;
+    return Date.UTC(isoYear, 0, 4 - daysSinceMonday);
+  };
+  const startTime = isoYearStart(year);
+  const endTime = isoYearStart(year + 1);
+  const totalSlots = Math.round((endTime - startTime) / weekMs);
   const labels = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const months = labels.map((label, index) => ({ label, days: days[index], weeks: Math.ceil(days[index] / 7) }));
-  const monthStartSlots = months.map((_, index) => months.slice(0, index).reduce((sum, month) => sum + month.weeks, 0));
-  const totalSlots = months.reduce((sum, month) => sum + month.weeks, 0);
-  return { months, monthStartSlots, totalSlots };
+  const monthBoundary = (month: number) => Math.max(0, Math.min(totalSlots, (Date.UTC(year, month, 1) - startTime) / weekMs));
+  const monthStartSlots = labels.map((_, index) => index === 0 ? 0 : monthBoundary(index));
+  const months = labels.map((label, index) => {
+    const startSlot = monthStartSlots[index];
+    const endSlot = index === labels.length - 1 ? totalSlots : monthBoundary(index + 1);
+    return { label, weeks: endSlot - startSlot };
+  });
+  const weekNumbers = Array.from({ length: totalSlots }, (_, index) => index + 1);
+  return { months, monthStartSlots, totalSlots, weekNumbers, startTime, weekMs };
 };
 const programmeTimelinePosition = (
   value: string | null | undefined,
@@ -144,12 +156,10 @@ const programmeTimelinePosition = (
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value?.slice(0, 10) ?? "");
   if (!match) return 0;
   const parsed = { year: Number(match[1]), month: Number(match[2]) - 1, day: Number(match[3]) };
-  if (parsed.year < year) return 0;
-  if (parsed.year > year) return timeline.totalSlots;
-  const month = timeline.months[parsed.month];
-  if (!month) return 0;
-  const dayFraction = (parsed.day - (end ? 0 : 1)) / month.days;
-  return timeline.monthStartSlots[parsed.month] + dayFraction * month.weeks;
+  const dateTime = Date.UTC(parsed.year, parsed.month, parsed.day);
+  if (dateTime < timeline.startTime) return 0;
+  if (dateTime >= timeline.startTime + timeline.totalSlots * timeline.weekMs) return timeline.totalSlots;
+  return (dateTime - timeline.startTime + (end ? 24 * 60 * 60 * 1000 : 0)) / timeline.weekMs;
 };
 const stableScheduleId = async (parentId: string, row: Record<string, unknown>) => {
   const input = new TextEncoder().encode(`${parentId}\n${JSON.stringify(row)}`);
@@ -268,7 +278,7 @@ const programmePdfDownload = (rows: AuditSchedule[], fileName: string, auditTitl
     Array.from({ length: timeline.totalSlots }, (_, week) => {
       const weekX = timelineX + week * weekWidth;
       content += rect(weekX, headerBottom, weekWidth, 21, [0.96, 0.95, 0.98]);
-      content += centeredText(String(week + 1), weekX, headerBottom + 7, weekWidth, 3.8, false);
+      content += centeredText(`W${timeline.weekNumbers[week]}`, weekX, headerBottom + 7, weekWidth, 3.8, false);
     });
     const remarksX = timelineX + timelineWidth;
     content += rect(remarksX, headerBottom, remarksWidth, headerHeight, [0.91, 0.89, 0.95]);
@@ -587,7 +597,7 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan }: {
 
   const year = items[0]?.year ?? new Date().getFullYear();
   const timeline = programmeTimeline(year);
-  const { months, monthStartSlots, totalSlots } = timeline;
+  const { months, totalSlots, weekNumbers } = timeline;
   const weekWidth = 36;
   const timelineWidth = totalSlots * weekWidth;
   const fixedColumns = [
@@ -615,9 +625,9 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan }: {
               ))}
             </div>
             <div className="flex h-8">
-              {months.flatMap((month, monthIndex) => Array.from({ length: month.weeks }, (_, week) => (
-                <div key={`${month.label}-${week}`} className="flex shrink-0 items-center justify-center border-r" style={{ width: weekWidth }}>W{monthStartSlots[monthIndex] + week + 1}</div>
-              )))}
+              {weekNumbers.map(week => (
+                <div key={week} className="flex shrink-0 items-center justify-center border-r" style={{ width: weekWidth }}>W{week}</div>
+              ))}
             </div>
           </div>
           <div className="flex h-16 shrink-0 items-center border-l px-3" style={{ width: remarksWidth }}>Remarks</div>
