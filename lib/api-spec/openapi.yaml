@@ -1055,6 +1055,24 @@ paths:
   /lessons/admin/escalation-rules:
     get: {operationId: listLessonsEscalationRules, tags: [lessons-admin], summary: List escalation rules, responses: {"200": {$ref: "#/components/responses/EscalationRulePage"}}}
     put: {operationId: updateLessonsEscalationRules, tags: [lessons-admin], summary: Replace escalation rules, requestBody: {$ref: "#/components/requestBodies/EscalationRules"}, responses: {"200": {description: Updated}}}
+  /lessons/admin/escalation-report-job:
+    get:
+      operationId: getLessonsEscalationReportJob
+      tags: [lessons-admin]
+      summary: Get the scheduled Lessons approval digest configuration
+      responses: {"200": {description: Job configuration, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsEscalationReportJob"}}}}}
+    put:
+      operationId: updateLessonsEscalationReportJob
+      tags: [lessons-admin]
+      summary: Update the scheduled Lessons approval digest configuration
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsEscalationReportJobUpdate"}}}}
+      responses: {"200": {description: Updated job, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsEscalationReportJob"}}}}}
+  /lessons/admin/escalation-report-job/run-now:
+    post:
+      operationId: runLessonsEscalationReportJob
+      tags: [lessons-admin]
+      summary: Run the Lessons approval digest immediately
+      responses: {"200": {description: Digest result, content: {application/json: {schema: {type: object, required: [sentGroups], properties: {sentGroups: {type: number, format: int32}}}}}}, "409": {description: Digest already running, content: {application/json: {schema: {type: object, required: [error, code], properties: {error: {type: string}, code: {type: string, enum: [DIGEST_BUSY]}}}}}}}
   /lessons/admin/ai-settings:
     get: {operationId: getLessonsAiSettings, tags: [lessons-admin], summary: Get AI settings, responses: {"200": {description: Settings, content: {application/json: {schema: {$ref: "#/components/schemas/AISettings"}}}}}}
     put: {operationId: updateLessonsAiSettings, tags: [lessons-admin], summary: Update AI settings, requestBody: {$ref: "#/components/requestBodies/AISettings"}, responses: {"200": {description: Updated}}}
@@ -2257,6 +2275,31 @@ components:
       type: object
       required: [id, triggerType, slaWorkingDays, recipientRoles, repeatCadenceDays, enabled]
       properties: {id: {type: string}, triggerType: {type: string}, priority: {type: [string, "null"]}, level: {type: [string, "null"]}, slaWorkingDays: {type: number, minimum: 0}, recipientRoles: {type: array, items: {type: string}}, ccRecipientRoles: {type: array, items: {type: string}}, repeatCadenceDays: {type: number, minimum: 1}, enabled: {type: boolean}, unstaffedRoles: {type: array, items: {type: string}}, unstaffedCcRoles: {type: array, items: {type: string}}}
+    LessonsEscalationReportJob:
+      type: object
+      required: [enabled, reportKey, frequency, time, weeklyDay, monthlyDay, customIntervalMinutes, timezone]
+      properties:
+        enabled: {type: boolean}
+        reportKey: {type: string, enum: [pending_lessons_approval]}
+        frequency: {type: string, enum: [custom, daily, weekly, monthly]}
+        time: {type: string, pattern: "^[0-9]{2}:[0-9]{2}$"}
+        weeklyDay: {type: number, format: int32, minimum: 0, maximum: 6}
+        monthlyDay: {type: number, format: int32, minimum: 1, maximum: 31}
+        customIntervalMinutes: {type: number, format: int32, minimum: 15}
+        timezone: {type: string}
+        lastRunAt: {type: [string, "null"], format: date-time}
+        nextRunAt: {type: [string, "null"], format: date-time}
+    LessonsEscalationReportJobUpdate:
+      type: object
+      required: [enabled, reportKey, frequency, time, weeklyDay, monthlyDay, customIntervalMinutes]
+      properties:
+        enabled: {type: boolean}
+        reportKey: {type: string, enum: [pending_lessons_approval]}
+        frequency: {type: string, enum: [custom, daily, weekly, monthly]}
+        time: {type: string, pattern: "^[0-9]{2}:[0-9]{2}$"}
+        weeklyDay: {type: number, format: int32, minimum: 0, maximum: 6}
+        monthlyDay: {type: number, format: int32, minimum: 1, maximum: 31}
+        customIntervalMinutes: {type: number, format: int32, minimum: 15}
     AISettings:
       type: object
       required: [enabled, features, provider, model, timeoutSeconds]

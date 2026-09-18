@@ -22,7 +22,12 @@ type Candidate = {
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const defaultCalendar: Calendar = { workingDays: [0, 1, 2, 3, 4], holidays: [] };
 
-function dateKey(value: Date) {
+function dateKey(value: Date, timezone?: string) {
+  if (timezone) {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(value);
+    const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${map.year}-${map.month}-${map.day}`;
+  }
   return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
 }
 
@@ -48,11 +53,29 @@ export function addBusinessDays(value: Date, days: number, calendar: Calendar = 
   return result;
 }
 
-function businessDaysElapsed(from: Date, to: Date, calendar: Calendar) {
+export function businessDaysElapsed(from: Date, to: Date, calendar: Calendar, timezone?: string) {
   if (to < from) return 0;
+  if (timezone) {
+    const civil = (value: Date) => {
+      const parts = new Intl.DateTimeFormat("en-US", { timeZone: timezone, year: "numeric", month: "numeric", day: "numeric" }).formatToParts(value);
+      const map = Object.fromEntries(parts.map((part) => [part.type, Number(part.value)]));
+      return { year: map.year!, month: map.month!, day: map.day! };
+    };
+    const start = civil(from); const end = civil(to);
+    const serial = (value: { year: number; month: number; day: number }) => Date.UTC(value.year, value.month - 1, value.day);
+    if (serial(end) <= serial(start)) return 0;
+    let elapsed = 0; const cursor = { ...start }; const configured = normalizedCalendar(calendar);
+    while (serial(cursor) < serial(end)) {
+      const next = new Date(Date.UTC(cursor.year, cursor.month - 1, cursor.day + 1));
+      cursor.year = next.getUTCFullYear(); cursor.month = next.getUTCMonth() + 1; cursor.day = next.getUTCDate();
+      const key = `${cursor.year}-${String(cursor.month).padStart(2, "0")}-${String(cursor.day).padStart(2, "0")}`;
+      if (configured.workingDays.includes(new Date(Date.UTC(cursor.year, cursor.month - 1, cursor.day)).getUTCDay()) && !configured.holidays.includes(key)) elapsed++;
+    }
+    return elapsed;
+  }
   let elapsed = 0;
   const cursor = new Date(from);
-  while (dateKey(cursor) < dateKey(to)) {
+  while (dateKey(cursor, timezone) < dateKey(to, timezone)) {
     cursor.setUTCDate(cursor.getUTCDate() + 1);
     if (isBusinessDay(cursor, calendar)) elapsed++;
   }
@@ -382,13 +405,9 @@ export async function evaluateEscalations(database: typeof db = db, organization
       ...performance,
       // missing_submission needs a persisted deadline/expected-submission signal; skip until one exists.
     ], calendars, organizationId),
-    reconcileApp(database, appTables[1]!, lessons
-      .filter((row) => row.workflowState !== "draft" || activeLessonIds.has(row.id))
-      .map((row) => ({
-      id: row.id, organizationId: row.organizationId, anchorAt: row.createdAt,
-      recordType: "lesson", triggerType: "lesson_sla" as const,
-      slaOverride: row.issueCategory.toLowerCase() === "major" && row.impact.toLowerCase() === "negative" ? 2 : 5,
-    })), calendars, organizationId),
+    // Lessons Learned approval escalation is owned by the scheduled digest.
+    // Keep this generic sweep for QA/QC and Audit only.
+    Promise.resolve(0),
     reconcileApp(database, appTables[2]!, [
       ...actions.map((row) => ({
       id: row.id, organizationId: row.organizationId, anchorAt: row.createdAt,

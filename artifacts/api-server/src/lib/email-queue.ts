@@ -67,6 +67,7 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
     senderName: input.sender?.name ?? null,
     subject: input.subject,
     bodyText: input.text,
+    bodyHtml: input.html ?? null,
     context,
     deliveryStatus: "queued",
     attemptCount: 0,
@@ -109,6 +110,7 @@ async function processClaimedEmail(database: Database, row: typeof outboundEmail
     sender: row.senderEmail ? { email: row.senderEmail, name: row.senderName } : undefined,
     subject: row.subject,
     text: row.bodyText,
+    html: row.bodyHtml ?? undefined,
     context: { ...row.context, queueId: row.id, queueAttempt: row.attemptCount + 1 },
   });
   const attemptCount = row.attemptCount + 1;

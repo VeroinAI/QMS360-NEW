@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { startEscalationScheduler } from "./lib/escalation";
 import { startEmailQueueScheduler } from "./lib/email-queue";
+import { runLessonsEscalationDigest } from "./lib/lessons-escalation-digest";
 
 const rawPort = process.env["PORT"];
 
@@ -29,4 +30,7 @@ app.listen(port, (err) => {
   logger.info("Escalation reconciliation scheduler started");
   startEmailQueueScheduler();
   logger.info("Email delivery queue scheduler started");
+  const digestTimer = setInterval(() => { void runLessonsEscalationDigest().catch((error) => logger.error({ error }, "Lessons digest scheduler failed")); }, 60_000);
+  digestTimer.unref();
+  void runLessonsEscalationDigest().catch((error) => logger.error({ error }, "Lessons digest scheduler failed"));
 });

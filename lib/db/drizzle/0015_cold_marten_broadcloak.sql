@@ -1,0 +1,2 @@
+ALTER TABLE "shared"."organization_settings" ADD COLUMN "lessons_escalation_report_job" jsonb DEFAULT '{"enabled":false,"reportKey":"pending_lessons_approval","frequency":"daily","time":"09:00","weeklyDay":1,"monthlyDay":1,"customIntervalMinutes":1440,"lastRunAt":null,"nextRunAt":null}'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "shared"."outbound_emails" ADD COLUMN "body_html" text;

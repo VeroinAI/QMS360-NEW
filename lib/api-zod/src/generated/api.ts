@@ -5300,6 +5300,88 @@ export const UpdateLessonsEscalationRulesResponse = zod.unknown()
 
 
 /**
+ * @summary Get the scheduled Lessons approval digest configuration
+ */
+export const getLessonsEscalationReportJobResponseTimeRegExp = new RegExp('^[0-9]{2}:[0-9]{2}$');
+export const getLessonsEscalationReportJobResponseWeeklyDayMin = 0;
+export const getLessonsEscalationReportJobResponseWeeklyDayMax = 6;
+
+export const getLessonsEscalationReportJobResponseMonthlyDayMax = 31;
+
+export const getLessonsEscalationReportJobResponseCustomIntervalMinutesMin = 15;
+
+
+
+export const GetLessonsEscalationReportJobResponse = zod.object({
+  "enabled": zod.boolean(),
+  "reportKey": zod.enum(['pending_lessons_approval']),
+  "frequency": zod.enum(['custom', 'daily', 'weekly', 'monthly']),
+  "time": zod.string().regex(getLessonsEscalationReportJobResponseTimeRegExp),
+  "weeklyDay": zod.number().min(getLessonsEscalationReportJobResponseWeeklyDayMin).max(getLessonsEscalationReportJobResponseWeeklyDayMax),
+  "monthlyDay": zod.number().min(1).max(getLessonsEscalationReportJobResponseMonthlyDayMax),
+  "customIntervalMinutes": zod.number().min(getLessonsEscalationReportJobResponseCustomIntervalMinutesMin),
+  "timezone": zod.string(),
+  "lastRunAt": zod.coerce.date().nullish(),
+  "nextRunAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Update the scheduled Lessons approval digest configuration
+ */
+export const updateLessonsEscalationReportJobBodyTimeRegExp = new RegExp('^[0-9]{2}:[0-9]{2}$');
+export const updateLessonsEscalationReportJobBodyWeeklyDayMin = 0;
+export const updateLessonsEscalationReportJobBodyWeeklyDayMax = 6;
+
+export const updateLessonsEscalationReportJobBodyMonthlyDayMax = 31;
+
+export const updateLessonsEscalationReportJobBodyCustomIntervalMinutesMin = 15;
+
+
+
+export const UpdateLessonsEscalationReportJobBody = zod.object({
+  "enabled": zod.boolean(),
+  "reportKey": zod.enum(['pending_lessons_approval']),
+  "frequency": zod.enum(['custom', 'daily', 'weekly', 'monthly']),
+  "time": zod.string().regex(updateLessonsEscalationReportJobBodyTimeRegExp),
+  "weeklyDay": zod.number().min(updateLessonsEscalationReportJobBodyWeeklyDayMin).max(updateLessonsEscalationReportJobBodyWeeklyDayMax),
+  "monthlyDay": zod.number().min(1).max(updateLessonsEscalationReportJobBodyMonthlyDayMax),
+  "customIntervalMinutes": zod.number().min(updateLessonsEscalationReportJobBodyCustomIntervalMinutesMin)
+})
+
+export const updateLessonsEscalationReportJobResponseTimeRegExp = new RegExp('^[0-9]{2}:[0-9]{2}$');
+export const updateLessonsEscalationReportJobResponseWeeklyDayMin = 0;
+export const updateLessonsEscalationReportJobResponseWeeklyDayMax = 6;
+
+export const updateLessonsEscalationReportJobResponseMonthlyDayMax = 31;
+
+export const updateLessonsEscalationReportJobResponseCustomIntervalMinutesMin = 15;
+
+
+
+export const UpdateLessonsEscalationReportJobResponse = zod.object({
+  "enabled": zod.boolean(),
+  "reportKey": zod.enum(['pending_lessons_approval']),
+  "frequency": zod.enum(['custom', 'daily', 'weekly', 'monthly']),
+  "time": zod.string().regex(updateLessonsEscalationReportJobResponseTimeRegExp),
+  "weeklyDay": zod.number().min(updateLessonsEscalationReportJobResponseWeeklyDayMin).max(updateLessonsEscalationReportJobResponseWeeklyDayMax),
+  "monthlyDay": zod.number().min(1).max(updateLessonsEscalationReportJobResponseMonthlyDayMax),
+  "customIntervalMinutes": zod.number().min(updateLessonsEscalationReportJobResponseCustomIntervalMinutesMin),
+  "timezone": zod.string(),
+  "lastRunAt": zod.coerce.date().nullish(),
+  "nextRunAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Run the Lessons approval digest immediately
+ */
+export const RunLessonsEscalationReportJobResponse = zod.object({
+  "sentGroups": zod.number()
+})
+
+
+/**
  * @summary Get AI settings
  */
 

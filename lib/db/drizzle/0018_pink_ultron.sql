@@ -1,0 +1,1 @@
+DROP TABLE "shared"."lessons_escalation_leases" CASCADE;

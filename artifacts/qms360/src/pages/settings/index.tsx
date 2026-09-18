@@ -19,6 +19,7 @@ import {
   useUpdateAuditEscalationRules, useUpdateAuditNotificationTemplate, useUpdateAuditRole, useUpdateNumberingPattern,
   useUpdateAuditAdminFieldControls, useUpdateLessonsAdminFieldControls, useUpdateLessonsAiSettings, useUpdateLessonsEscalationRules, useUpdateLessonsNotificationTemplate, useUpdateLessonsRole,
   useUpdateQaqcAdminFieldControls, useUpdateQaqcAiSettings, useUpdateQaqcEscalationRules, useUpdateQaqcNotificationTemplate, useUpdateQaqcRole,
+  useGetLessonsEscalationReportJob, useUpdateLessonsEscalationReportJob, useRunLessonsEscalationReportJob,
   useUpdateLessonsUserProfile,
 } from '@workspace/api-client-react';
 import { Badge } from '@/components/ui/badge';
@@ -87,6 +88,7 @@ function useAdmin(app: AppKey, page = 1, filters?: { from?: string; to?: string;
       roles: useListLessonsRoles({ page, limit: 20 }, opts('lessons')), users: useListLessonsUsers({ page, limit: 20 }, opts('lessons')),
       access: useListLessonsAccessQueue({ page, limit: 20 }, opts('lessons')), delegations: useListLessonsDelegations({ page, limit: 20 }, opts('lessons')),
       escalations: useListLessonsEscalationRules(opts('lessons')), templates: useListLessonsNotificationTemplates({ page, limit: 20 }, opts('lessons')),
+      job: useGetLessonsEscalationReportJob(opts('lessons')),
       log: useListLessonsAuditLog({ ...filters, page, limit: 20 }, opts('lessons')), ai: useGetLessonsAiSettings(opts('lessons')),
     },
     audit: {
@@ -94,6 +96,7 @@ function useAdmin(app: AppKey, page = 1, filters?: { from?: string; to?: string;
       access: useListAuditAccessQueue({ page, limit: 20 }, opts('audit')), delegations: useListAuditDelegations({ page, limit: 20 }, opts('audit')),
       escalations: useListAuditEscalationRules(opts('audit')), templates: useListAuditNotificationTemplates({ page, limit: 20 }, opts('audit')),
       log: useListAuditWorkspaceAuditLog({ ...filters, page, limit: 20 }, opts('audit')), ai: null,
+      job: useGetLessonsEscalationReportJob({ query: { enabled: false, queryKey: ['disabled-lessons-job'] } }),
     },
   };
   return q[app];
@@ -105,9 +108,9 @@ function useActions(app: AppKey) {
   const done = (message: string) => { client.invalidateQueries(); toast({ title: message }); };
   const fail = (error: unknown) => toast({ title: 'Action failed', description: errorText(error), variant: 'destructive' });
   const mutations = {
-    qaqc: { createRole: useCreateQaqcRole(), updateRole: useUpdateQaqcRole(), assign: useAssignQaqcUserRole(), removeRole: useRemoveQaqcUserRole(), decide: useDecideQaqcAccessRequest(), createDelegation: useCreateQaqcDelegation(), revoke: useRevokeQaqcDelegation(), escalation: useUpdateQaqcEscalationRules(), ai: useUpdateQaqcAiSettings(), template: useUpdateQaqcNotificationTemplate() },
-    lessons: { createRole: useCreateLessonsRole(), updateRole: useUpdateLessonsRole(), assign: useAssignLessonsUserRole(), removeRole: useRemoveLessonsUserRole(), decide: useDecideLessonsAccessRequest(), createDelegation: useCreateLessonsDelegation(), revoke: useRevokeLessonsDelegation(), escalation: useUpdateLessonsEscalationRules(), ai: useUpdateLessonsAiSettings(), template: useUpdateLessonsNotificationTemplate() },
-    audit: { createRole: useCreateAuditRole(), updateRole: useUpdateAuditRole(), assign: useAssignAuditUserRole(), removeRole: useRemoveAuditUserRole(), decide: useDecideAuditAccessRequest(), createDelegation: useCreateAuditDelegation(), revoke: useRevokeAuditDelegation(), escalation: useUpdateAuditEscalationRules(), ai: null, template: useUpdateAuditNotificationTemplate() },
+    qaqc: { createRole: useCreateQaqcRole(), updateRole: useUpdateQaqcRole(), assign: useAssignQaqcUserRole(), removeRole: useRemoveQaqcUserRole(), decide: useDecideQaqcAccessRequest(), createDelegation: useCreateQaqcDelegation(), revoke: useRevokeQaqcDelegation(), escalation: useUpdateQaqcEscalationRules(), ai: useUpdateQaqcAiSettings(), template: useUpdateQaqcNotificationTemplate(), job: useUpdateLessonsEscalationReportJob(), runJob: useRunLessonsEscalationReportJob() },
+    lessons: { createRole: useCreateLessonsRole(), updateRole: useUpdateLessonsRole(), assign: useAssignLessonsUserRole(), removeRole: useRemoveLessonsUserRole(), decide: useDecideLessonsAccessRequest(), createDelegation: useCreateLessonsDelegation(), revoke: useRevokeLessonsDelegation(), escalation: useUpdateLessonsEscalationRules(), ai: useUpdateLessonsAiSettings(), template: useUpdateLessonsNotificationTemplate(), job: useUpdateLessonsEscalationReportJob(), runJob: useRunLessonsEscalationReportJob() },
+    audit: { createRole: useCreateAuditRole(), updateRole: useUpdateAuditRole(), assign: useAssignAuditUserRole(), removeRole: useRemoveAuditUserRole(), decide: useDecideAuditAccessRequest(), createDelegation: useCreateAuditDelegation(), revoke: useRevokeAuditDelegation(), escalation: useUpdateAuditEscalationRules(), ai: null, template: useUpdateAuditNotificationTemplate(), job: useUpdateLessonsEscalationReportJob(), runJob: useRunLessonsEscalationReportJob() },
   };
   return { ...mutations[app], done, fail };
 }
@@ -433,8 +436,29 @@ function Escalations({ app }: { app: AppKey }) {
             <TableCell><Toggle checked={r.enabled} onCheckedChange={enabled => patch(r.id, { enabled })} /></TableCell>
             <TableCell><Button size="icon" variant="ghost" onClick={() => removeRule(r.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
           </TableRow>)}</TableBody></Table>}
-      </CardContent></Card>
-  </PageState>;
+       </CardContent></Card>
+       {app === 'lessons' && <LessonsDigestJob api={api as any} act={act as any} />}
+   </PageState>;
+}
+
+function LessonsDigestJob({ api, act }: { api: ReturnType<typeof useAdmin> & { job: any }; act: ReturnType<typeof useActions> }) {
+  const source = api.job?.data;
+  const [draft, setDraft] = useState<any>();
+  const value = draft ?? source;
+  if (!value) return null;
+  const save = () => act.job.mutate({ data: value }, { onSuccess: () => { act.done('Lessons approval digest saved'); setDraft(undefined); api.job.refetch(); }, onError: act.fail });
+  return <Card className="mt-5"><CardHeader><CardTitle>Pending approval digest</CardTitle><CardDescription>QMS360 sends a grouped tabular summary of submitted Lessons Learned forms that remain unapproved. The schedule uses the tenant timezone ({value.timezone}).</CardDescription></CardHeader><CardContent className="space-y-4">
+    <label className="flex items-center justify-between rounded-lg border p-4"><span><b>Enable scheduled report</b><span className="block text-sm text-muted-foreground">Only submitted forms are included; approved, sent-back, and draft forms are excluded.</span></span><Toggle checked={value.enabled} onCheckedChange={enabled => setDraft({ ...value, enabled })} /></label>
+    <div className="grid gap-4 md:grid-cols-3">
+      <div><Label>Report</Label><Select value={value.reportKey} onValueChange={reportKey => setDraft({ ...value, reportKey })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending_lessons_approval">Pending Lessons approvals</SelectItem></SelectContent></Select></div>
+      <div><Label>Frequency</Label><Select value={value.frequency} onValueChange={frequency => setDraft({ ...value, frequency })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{['custom','daily','weekly','monthly'].map(item => <SelectItem key={item} value={item}>{item[0]!.toUpperCase() + item.slice(1)}</SelectItem>)}</SelectContent></Select></div>
+      <div><Label>Run time</Label><Input type="time" value={value.time} onChange={event => setDraft({ ...value, time: event.target.value })} /></div>
+    </div>
+    {value.frequency === 'weekly' && <div><Label>Weekly day (0 Sunday – 6 Saturday)</Label><Input type="number" min={0} max={6} value={value.weeklyDay} onChange={event => setDraft({ ...value, weeklyDay: Number(event.target.value) })} /></div>}
+    {value.frequency === 'monthly' && <div><Label>Monthly day</Label><Input type="number" min={1} max={31} value={value.monthlyDay} onChange={event => setDraft({ ...value, monthlyDay: Number(event.target.value) })} /></div>}
+    {value.frequency === 'custom' && <div><Label>Custom interval (minutes, minimum 15)</Label><Input type="number" min={15} value={value.customIntervalMinutes} onChange={event => setDraft({ ...value, customIntervalMinutes: Number(event.target.value) })} /></div>}
+    <div className="flex flex-wrap items-center gap-2"><Button disabled={!draft || act.job.isPending} onClick={save}><Save className="mr-2 h-4 w-4" />Save schedule</Button><Button variant="outline" disabled={act.runJob.isPending} onClick={() => act.runJob.mutate(undefined as any, { onSuccess: () => { act.done('Lessons approval digest queued'); api.job.refetch(); }, onError: act.fail })}>Run now</Button><span className="text-sm text-muted-foreground">Last run: {value.lastRunAt ? new Date(value.lastRunAt).toLocaleString() : 'Never'} · Next run: {value.nextRunAt ? new Date(value.nextRunAt).toLocaleString() : 'Not scheduled'}</span></div>
+  </CardContent></Card>;
 }
 
 function AiSettings({ app }: { app: Exclude<AppKey, 'audit'> }) {

@@ -184,6 +184,21 @@ export const organizationSettings = sharedSchema.table("organization_settings", 
     maxRetries: 3,
     retryDelayMinutes: 15,
   }),
+  lessonsEscalationReportJob: jsonb("lessons_escalation_report_job").$type<{
+    enabled: boolean;
+    reportKey: "pending_lessons_approval";
+    frequency: "custom" | "daily" | "weekly" | "monthly";
+    time: string;
+    timezone?: string;
+    weeklyDay: number;
+    monthlyDay: number;
+    customIntervalMinutes: number;
+    lastRunAt?: string | null;
+    nextRunAt?: string | null;
+  }>().notNull().default({
+    enabled: false, reportKey: "pending_lessons_approval", frequency: "daily", time: "09:00",
+    weeklyDay: 1, monthlyDay: 1, customIntervalMinutes: 1440, lastRunAt: null, nextRunAt: null,
+  }),
   ...auditColumns,
 }, (table) => [
   uniqueIndex("organization_settings_org_active_idx").on(table.organizationId).where(sql`${table.deletedAt} IS NULL`),
@@ -236,6 +251,7 @@ export const outboundEmails = sharedSchema.table("outbound_emails", {
   senderName: text("sender_name"),
   subject: text("subject").notNull(),
   bodyText: text("body_text").notNull(),
+  bodyHtml: text("body_html"),
   context: jsonb("context").$type<Record<string, unknown>>().notNull().default({}),
   deliveryStatus: text("delivery_status").notNull().default("queued"),
   attemptCount: integer("attempt_count").notNull().default(0),
@@ -366,6 +382,19 @@ export const moduleFieldSettings = sharedSchema.table("module_field_settings", {
     .on(table.organizationId, table.module, table.formKey, table.fieldKey)
     .where(sql`${table.deletedAt} IS NULL`),
 ]);
+
+export const lessonsEscalationOccurrences = sharedSchema.table("lessons_escalation_occurrences", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  reportKey: text("report_key").notNull(),
+  occurrenceKey: text("occurrence_key").notNull(),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  ...auditColumns,
+}, (table) => [
+  uniqueIndex("lessons_escalation_occurrence_unique_idx").on(table.organizationId, table.reportKey, table.occurrenceKey),
+]);
+
 export type Organization = typeof organizations.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Project = typeof projects.$inferSelect;

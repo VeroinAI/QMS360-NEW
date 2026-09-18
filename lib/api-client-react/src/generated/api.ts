@@ -138,6 +138,8 @@ import type {
   LessonFormPageResponse,
   LessonLearnedForm,
   LessonPhotoIntentBody,
+  LessonsEscalationReportJob,
+  LessonsEscalationReportJobUpdate,
   LessonsReferenceData,
   ListAuditAccessQueueParams,
   ListAuditDelegationsParams,
@@ -239,6 +241,8 @@ import type {
   RoleAssignmentBody,
   RoleBody,
   RolePageResponse,
+  RunLessonsEscalationReportJob200,
+  RunLessonsEscalationReportJob409,
   SaveFieldMappingsBody,
   SearchLessonsLogParams,
   SendAuditPlanForExecutionInputBody,
@@ -14023,6 +14027,225 @@ export const useUpdateLessonsEscalationRules = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateLessonsEscalationRulesMutationOptions(options));
+    }
+
+export const getGetLessonsEscalationReportJobUrl = () => {
+
+
+
+
+  return `/api/lessons/admin/escalation-report-job`
+}
+
+/**
+ * @summary Get the scheduled Lessons approval digest configuration
+ */
+export const getLessonsEscalationReportJob = async ( options?: Parameters<typeof customFetch>[1]): Promise<LessonsEscalationReportJob> => {
+
+  return customFetch<LessonsEscalationReportJob>(getGetLessonsEscalationReportJobUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLessonsEscalationReportJobQueryKey = () => {
+    return [
+    `/api/lessons/admin/escalation-report-job`
+    ] as const;
+    }
+
+
+export const getGetLessonsEscalationReportJobQueryOptions = <TData = Awaited<ReturnType<typeof getLessonsEscalationReportJob>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsEscalationReportJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLessonsEscalationReportJobQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLessonsEscalationReportJob>>> = ({ signal }) => getLessonsEscalationReportJob({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLessonsEscalationReportJob>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLessonsEscalationReportJobQueryResult = NonNullable<Awaited<ReturnType<typeof getLessonsEscalationReportJob>>>
+export type GetLessonsEscalationReportJobQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the scheduled Lessons approval digest configuration
+ */
+
+export function useGetLessonsEscalationReportJob<TData = Awaited<ReturnType<typeof getLessonsEscalationReportJob>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsEscalationReportJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLessonsEscalationReportJobQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateLessonsEscalationReportJobUrl = () => {
+
+
+
+
+  return `/api/lessons/admin/escalation-report-job`
+}
+
+/**
+ * @summary Update the scheduled Lessons approval digest configuration
+ */
+export const updateLessonsEscalationReportJob = async (lessonsEscalationReportJobUpdate: LessonsEscalationReportJobUpdate, options?: Parameters<typeof customFetch>[1]): Promise<LessonsEscalationReportJob> => {
+
+  return customFetch<LessonsEscalationReportJob>(getUpdateLessonsEscalationReportJobUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(lessonsEscalationReportJobUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateLessonsEscalationReportJobMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLessonsEscalationReportJob>>, TError,{data: BodyType<LessonsEscalationReportJobUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLessonsEscalationReportJob>>, TError,{data: BodyType<LessonsEscalationReportJobUpdate>}, TContext> => {
+
+const mutationKey = ['updateLessonsEscalationReportJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLessonsEscalationReportJob>>, {data: BodyType<LessonsEscalationReportJobUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateLessonsEscalationReportJob(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLessonsEscalationReportJobMutationResult = NonNullable<Awaited<ReturnType<typeof updateLessonsEscalationReportJob>>>
+    export type UpdateLessonsEscalationReportJobMutationBody = BodyType<LessonsEscalationReportJobUpdate>
+    export type UpdateLessonsEscalationReportJobMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update the scheduled Lessons approval digest configuration
+ */
+export const useUpdateLessonsEscalationReportJob = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLessonsEscalationReportJob>>, TError,{data: BodyType<LessonsEscalationReportJobUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLessonsEscalationReportJob>>,
+        TError,
+        {data: BodyType<LessonsEscalationReportJobUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateLessonsEscalationReportJobMutationOptions(options));
+    }
+
+export const getRunLessonsEscalationReportJobUrl = () => {
+
+
+
+
+  return `/api/lessons/admin/escalation-report-job/run-now`
+}
+
+/**
+ * @summary Run the Lessons approval digest immediately
+ */
+export const runLessonsEscalationReportJob = async ( options?: Parameters<typeof customFetch>[1]): Promise<RunLessonsEscalationReportJob200> => {
+
+  return customFetch<RunLessonsEscalationReportJob200>(getRunLessonsEscalationReportJobUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRunLessonsEscalationReportJobMutationOptions = <TError = ErrorType<RunLessonsEscalationReportJob409>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runLessonsEscalationReportJob>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runLessonsEscalationReportJob>>, TError,void, TContext> => {
+
+const mutationKey = ['runLessonsEscalationReportJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runLessonsEscalationReportJob>>, void> = () => {
+
+
+          return  runLessonsEscalationReportJob(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunLessonsEscalationReportJobMutationResult = NonNullable<Awaited<ReturnType<typeof runLessonsEscalationReportJob>>>
+
+    export type RunLessonsEscalationReportJobMutationError = ErrorType<RunLessonsEscalationReportJob409>
+
+    /**
+ * @summary Run the Lessons approval digest immediately
+ */
+export const useRunLessonsEscalationReportJob = <TError = ErrorType<RunLessonsEscalationReportJob409>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runLessonsEscalationReportJob>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runLessonsEscalationReportJob>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRunLessonsEscalationReportJobMutationOptions(options));
     }
 
 export const getGetLessonsAiSettingsUrl = () => {

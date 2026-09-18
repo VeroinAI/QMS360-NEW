@@ -68,6 +68,7 @@ export type EmailDeliveryInput = {
   sender?: { email: string; name?: string | null };
   subject: string;
   text: string;
+  html?: string;
   context?: Record<string, unknown>;
 };
 
@@ -239,7 +240,7 @@ export async function deliverEmail(
     // Embedded in every recorded failure so the Cockpit sync-job retry action
     // can resend the exact original email without the caller reconstructing it.
     const explicitCcRecipients = (input.ccRecipients ?? []).filter((r) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email));
-    const retryPayload = { recipientIds, recipients: explicitRecipients, ccRecipients: explicitCcRecipients, sender: input.sender, subject: input.subject, text: input.text };
+    const retryPayload = { recipientIds, recipients: explicitRecipients, ccRecipients: explicitCcRecipients, sender: input.sender, subject: input.subject, text: input.text, html: input.html };
 
     const connector = await findEmailConnector(database, input.organizationId);
     if (!connector) return { attempted: false, reason: "no_connector" };
@@ -268,7 +269,7 @@ export async function deliverEmail(
     ];
     if (!allRecipients.length) return { attempted: false, reason: "no_recipients" };
     const allRecipientRetryPayload = {
-      recipientIds: [] as string[], recipients: allRecipients, ccRecipients: explicitCcRecipients, sender: input.sender, subject: input.subject, text: input.text,
+      recipientIds: [] as string[], recipients: allRecipients, ccRecipients: explicitCcRecipients, sender: input.sender, subject: input.subject, text: input.text, html: input.html,
     };
 
     const startedAt = Date.now();
@@ -302,6 +303,7 @@ export async function deliverEmail(
           cc: explicitCcRecipients.map((cc) => cc.name ? `"${cc.name.replaceAll('"', "")}" <${cc.email}>` : cc.email),
           subject: input.subject,
           text: input.text,
+          html: input.html,
         })));
       transporter.close();
       for (const [index, result] of results.entries()) {
@@ -319,7 +321,7 @@ export async function deliverEmail(
             recipientIds: [], recipients: [allRecipients[index]!],
             ccRecipients: explicitCcRecipients,
             sender: input.sender,
-            subject: input.subject, text: input.text,
+            subject: input.subject, text: input.text, html: input.html,
           });
         } else {
           failedRecipients.push(allRecipients[index]!);
@@ -330,7 +332,7 @@ export async function deliverEmail(
             recipientIds: [], recipients: [allRecipients[index]!],
             ccRecipients: explicitCcRecipients,
             sender: input.sender,
-            subject: input.subject, text: input.text,
+            subject: input.subject, text: input.text, html: input.html,
           });
         }
       }

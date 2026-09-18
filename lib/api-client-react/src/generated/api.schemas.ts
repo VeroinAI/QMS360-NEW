@@ -1510,6 +1510,85 @@ export interface EscalationRule {
   unstaffedCcRoles?: string[];
 }
 
+export type LessonsEscalationReportJobReportKey = typeof LessonsEscalationReportJobReportKey[keyof typeof LessonsEscalationReportJobReportKey];
+
+
+export const LessonsEscalationReportJobReportKey = {
+  pending_lessons_approval: 'pending_lessons_approval',
+} as const;
+
+export type LessonsEscalationReportJobFrequency = typeof LessonsEscalationReportJobFrequency[keyof typeof LessonsEscalationReportJobFrequency];
+
+
+export const LessonsEscalationReportJobFrequency = {
+  custom: 'custom',
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export interface LessonsEscalationReportJob {
+  enabled: boolean;
+  reportKey: LessonsEscalationReportJobReportKey;
+  frequency: LessonsEscalationReportJobFrequency;
+  /** @pattern ^[0-9]{2}:[0-9]{2}$ */
+  time: string;
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  weeklyDay: number;
+  /**
+     * @minimum 1
+     * @maximum 31
+     */
+  monthlyDay: number;
+  /** @minimum 15 */
+  customIntervalMinutes: number;
+  timezone: string;
+  /** @nullable */
+  lastRunAt?: string | null;
+  /** @nullable */
+  nextRunAt?: string | null;
+}
+
+export type LessonsEscalationReportJobUpdateReportKey = typeof LessonsEscalationReportJobUpdateReportKey[keyof typeof LessonsEscalationReportJobUpdateReportKey];
+
+
+export const LessonsEscalationReportJobUpdateReportKey = {
+  pending_lessons_approval: 'pending_lessons_approval',
+} as const;
+
+export type LessonsEscalationReportJobUpdateFrequency = typeof LessonsEscalationReportJobUpdateFrequency[keyof typeof LessonsEscalationReportJobUpdateFrequency];
+
+
+export const LessonsEscalationReportJobUpdateFrequency = {
+  custom: 'custom',
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+} as const;
+
+export interface LessonsEscalationReportJobUpdate {
+  enabled: boolean;
+  reportKey: LessonsEscalationReportJobUpdateReportKey;
+  frequency: LessonsEscalationReportJobUpdateFrequency;
+  /** @pattern ^[0-9]{2}:[0-9]{2}$ */
+  time: string;
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  weeklyDay: number;
+  /**
+     * @minimum 1
+     * @maximum 31
+     */
+  monthlyDay: number;
+  /** @minimum 15 */
+  customIntervalMinutes: number;
+}
+
 export type AISettingsFeatures = {[key: string]: boolean};
 
 export interface AISettings {
@@ -3513,6 +3592,22 @@ limit?: LimitParameter;
 export type ListLessonsDelegationPendingFormsParams = {
 projectId: string;
 delegatorId: string;
+};
+
+export type RunLessonsEscalationReportJob200 = {
+  sentGroups: number;
+};
+
+export type RunLessonsEscalationReportJob409Code = typeof RunLessonsEscalationReportJob409Code[keyof typeof RunLessonsEscalationReportJob409Code];
+
+
+export const RunLessonsEscalationReportJob409Code = {
+  DIGEST_BUSY: 'DIGEST_BUSY',
+} as const;
+
+export type RunLessonsEscalationReportJob409 = {
+  error: string;
+  code: RunLessonsEscalationReportJob409Code;
 };
 
 export type ListLessonsAuditLogParams = {

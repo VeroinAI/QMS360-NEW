@@ -21,6 +21,7 @@ import {
   UpdateLessonsAdminFieldControlsBody,
   UpdateLessonsAiSettingsBody,
   UpdateLessonsEscalationRulesBody,
+  UpdateLessonsEscalationReportJobBody,
   UpdateLessonsNotificationTemplateBody,
   UpdateLessonsRoleBody,
   UpdateLessonsUserProfileBody,
@@ -48,6 +49,7 @@ import {
   lessonsWorkspaceRolePermissions,
   lessonsWorkspaceRoles,
   platformRoles,
+  organizationSettings,
   projects,
   users,
 } from "@workspace/db";
@@ -67,6 +69,7 @@ import {
 } from "../lib/workspace";
 import { notifyWithEmail, staffedRoleNames } from "../lib/workspace";
 import { logger } from "../lib/logger";
+import { nextLessonsDigestRun, normalizeLessonsDigestJob, runLessonsEscalationDigest } from "../lib/lessons-escalation-digest";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -1631,6 +1634,39 @@ router.put("/admin/escalation-rules", asyncHandler(async (req, res) => {
   const rows = body.length ? await db.insert(lessonEscalationRules).values(body.map((r) => ({ organizationId: org, triggerKey: r.triggerType, priority: r.priority, slaWorkingDays: r.slaWorkingDays, recipientRole: r.recipientRoles.join(","), repeatCadenceDays: r.repeatCadenceDays, configuration: { level: r.level, ccRecipientRoles: r.ccRecipientRoles ?? [] }, status: r.enabled ? "active" : "inactive" }))).returning() : [];
   await audit(req, "replace", "escalation_rules", undefined, undefined, { count: rows.length });
   res.json(rows.map((r) => escalationRuleJson(r)));
+}));
+router.get("/admin/escalation-report-job", asyncHandler(async (req, res) => {
+  const [row] = await db.select({ job: organizationSettings.lessonsEscalationReportJob, timezone: organizationSettings.timezone })
+    .from(organizationSettings).where(and(eq(organizationSettings.organizationId, req.currentUser!.organizationId), isNull(organizationSettings.deletedAt))).limit(1);
+  res.json({ ...normalizeLessonsDigestJob(row?.job), timezone: row?.timezone ?? "Asia/Riyadh" });
+}));
+router.put("/admin/escalation-report-job", asyncHandler(async (req, res) => {
+  const org = req.currentUser!.organizationId;
+  const parsed = parseBody(UpdateLessonsEscalationReportJobBody, req, res); if (!parsed) return;
+  const rawJob = normalizeLessonsDigestJob(parsed);
+  const [hours, minutes] = rawJob.time.split(":").map(Number);
+  if (!["custom", "daily", "weekly", "monthly"].includes(rawJob.frequency) || !/^\d{2}:\d{2}$/.test(rawJob.time)
+    || !Number.isInteger(hours) || !Number.isInteger(minutes) || hours > 23 || minutes > 59
+    || rawJob.customIntervalMinutes < 15 || rawJob.weeklyDay < 0 || rawJob.weeklyDay > 6 || rawJob.monthlyDay < 1 || rawJob.monthlyDay > 31) {
+    res.status(422).json({ error: "Invalid Lessons escalation report schedule" }); return;
+  }
+  const [existing] = await db.select({ settings: organizationSettings.lessonsEscalationReportJob, timezone: organizationSettings.timezone }).from(organizationSettings)
+    .where(and(eq(organizationSettings.organizationId, org), isNull(organizationSettings.deletedAt))).limit(1);
+  const job = {
+    ...rawJob,
+    lastRunAt: existing?.settings.lastRunAt ?? null,
+    nextRunAt: rawJob.enabled ? nextLessonsDigestRun(new Date(), rawJob, existing?.timezone ?? "Asia/Riyadh").toISOString() : null,
+  };
+  const [row] = await db.update(organizationSettings).set({ lessonsEscalationReportJob: job, updatedAt: new Date() })
+    .where(and(eq(organizationSettings.organizationId, org), isNull(organizationSettings.deletedAt))).returning({ job: organizationSettings.lessonsEscalationReportJob, timezone: organizationSettings.timezone });
+  if (!row) { res.status(404).json({ error: "Organization settings not found" }); return; }
+  await audit(req, "update", "lessons_escalation_report_job", undefined, undefined, job);
+  res.json({ ...normalizeLessonsDigestJob(row.job), timezone: row.timezone });
+}));
+router.post("/admin/escalation-report-job/run-now", asyncHandler(async (req, res) => {
+  const result = await runLessonsEscalationDigest(req.currentUser!.organizationId, true);
+  if ("skipped" in result && result.skipped) { res.status(409).json({ error: "Lessons escalation digest is already running", code: "DIGEST_BUSY" }); return; }
+  res.json(result);
 }));
 
 function getAiSettings(org: string) {

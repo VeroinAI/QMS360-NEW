@@ -196,6 +196,7 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
     sender,
     subject: payload.subject as string,
     text: typeof payload.text === "string" ? payload.text : "",
+    html: typeof payload.html === "string" ? payload.html : undefined,
     context: { kind: "sync_job_retry", retryOfJobId: job.id },
   });
   const outcome = result.attempted && result.failed === 0 ? "success" : "failed";
@@ -210,7 +211,7 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
         .map((recipient) => [recipient.email.toLowerCase(), recipient])).values()],
       sender,
       ccRecipients,
-      subject: payload.subject, text: typeof payload.text === "string" ? payload.text : "",
+      subject: payload.subject, text: typeof payload.text === "string" ? payload.text : "", html: typeof payload.html === "string" ? payload.html : undefined,
     }],
     durationMs: Date.now() - startedAt, lastRunAt: new Date(), updatedAt: new Date(),
   }).where(eq(syncJobs.id, job.id)).returning();
