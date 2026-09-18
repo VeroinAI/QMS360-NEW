@@ -72,6 +72,7 @@ function outboundEmailDto(row: typeof outboundEmails.$inferSelect) {
   return {
     id: row.id, app, eventType: row.eventType, entityId: row.entityId,
     recipientEmail: row.recipientEmail, recipientName: row.recipientName,
+    ccRecipients: row.ccRecipients,
     senderEmail: row.senderEmail, senderName: row.senderName,
     subject: row.subject, status, attemptCount: row.attemptCount, maxAttempts: row.maxAttempts,
     nextAttemptAt: row.nextAttemptAt, lastAttemptAt: row.lastAttemptAt, sentAt: row.sentAt,
@@ -177,6 +178,13 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
       name: typeof (rawSender as Record<string, unknown>).name === "string"
         ? (rawSender as Record<string, unknown>).name as string : null,
     } : undefined;
+  const ccRecipients = Array.isArray(payload.ccRecipients)
+    ? payload.ccRecipients.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const value = entry as Record<string, unknown>;
+      if (typeof value.email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email)) return [];
+      return [{ email: value.email, name: typeof value.name === "string" ? value.name : null }];
+    }) : [];
   const startedAt = Date.now();
   const result = await deliverEmail(db, {
     organizationId: orgId,
@@ -184,6 +192,7 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
     recipients: [...new Map(payloads.flatMap((entry) =>
       entry.recipients as Array<{ email: string; name?: string | null }>)
       .map((recipient) => [recipient.email.toLowerCase(), recipient])).values()],
+    ccRecipients,
     sender,
     subject: payload.subject as string,
     text: typeof payload.text === "string" ? payload.text : "",
@@ -200,6 +209,7 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
         entry.recipients as Array<{ email: string; name?: string | null }>)
         .map((recipient) => [recipient.email.toLowerCase(), recipient])).values()],
       sender,
+      ccRecipients,
       subject: payload.subject, text: typeof payload.text === "string" ? payload.text : "",
     }],
     durationMs: Date.now() - startedAt, lastRunAt: new Date(), updatedAt: new Date(),

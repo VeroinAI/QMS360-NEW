@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { OutboundEmailApp } from './outboundEmailApp';
+import type { OutboundEmailCcRecipientsItem } from './outboundEmailCcRecipientsItem';
 import type { OutboundEmailStatus } from './outboundEmailStatus';
 
 export interface OutboundEmail {
@@ -18,6 +19,7 @@ export interface OutboundEmail {
   recipientEmail: string;
   /** @nullable */
   recipientName?: string | null;
+  ccRecipients?: OutboundEmailCcRecipientsItem[];
   /** @nullable */
   senderEmail?: string | null;
   /** @nullable */

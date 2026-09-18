@@ -40,16 +40,21 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
       isNull(users.deletedAt),
     )) : [];
   const explicit = (input.recipients ?? []).filter((recipient) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient.email));
-  const recipients = [...new Map([...internal, ...explicit]
-    .map((recipient) => [recipient.email.trim().toLowerCase(), { email: recipient.email.trim().toLowerCase(), name: recipient.name ?? null }])).values()];
+  const recipientMap = new Map([...internal, ...explicit]
+    .map((recipient) => [recipient.email.trim().toLowerCase(), { email: recipient.email.trim().toLowerCase(), name: recipient.name ?? null }]));
+  const ccRecipients = [...new Map((input.ccRecipients ?? [])
+    .filter((recipient) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient.email))
+    .map((recipient) => [recipient.email.trim().toLowerCase(), { email: recipient.email.trim().toLowerCase(), name: recipient.name ?? null }]))
+    .values()].filter((recipient) => !recipientMap.has(recipient.email));
+  const recipients = [...recipientMap.values()];
   if (!recipients.length) return { queued: 0 };
 
   const policy = await getEmailDeliveryPolicy(database, input.organizationId);
   const context = input.context ?? {};
   const eventType = typeof context.eventType === "string" ? context.eventType : null;
-  const ruleId = typeof context.ruleId === "string" ? context.ruleId : null;
+  const ruleId = context.kind === "email_event_rule" && typeof context.ruleId === "string" ? context.ruleId : null;
   const entityId = typeof context.entityId === "string" ? context.entityId : null;
-  await database.insert(outboundEmails).values(recipients.map((recipient) => ({
+  await database.insert(outboundEmails).values(recipients.map((recipient, index) => ({
     organizationId: input.organizationId,
     app: applicationFromContext(context),
     eventType,
@@ -57,6 +62,7 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
     entityId,
     recipientEmail: recipient.email,
     recipientName: recipient.name,
+    ccRecipients: index === 0 ? ccRecipients : [],
     senderEmail: input.sender?.email ?? null,
     senderName: input.sender?.name ?? null,
     subject: input.subject,
@@ -91,10 +97,15 @@ async function claimDueEmails(database: Database) {
 
 async function processClaimedEmail(database: Database, row: typeof outboundEmails.$inferSelect) {
   const attemptedAt = new Date();
+  const retryEnvelopeRecipients = Array.isArray(row.context.retryEnvelopeRecipients)
+    ? row.context.retryEnvelopeRecipients.filter((email): email is string => typeof email === "string")
+    : undefined;
   const result = await deliverEmail(database, {
     organizationId: row.organizationId,
     recipientIds: [],
     recipients: [{ email: row.recipientEmail, name: row.recipientName }],
+    ccRecipients: row.ccRecipients,
+    envelopeRecipients: retryEnvelopeRecipients,
     sender: row.senderEmail ? { email: row.senderEmail, name: row.senderName } : undefined,
     subject: row.subject,
     text: row.bodyText,
@@ -117,6 +128,9 @@ async function processClaimedEmail(database: Database, row: typeof outboundEmail
     attemptCount,
     lastAttemptAt: attemptedAt,
     lastError: error,
+    context: result.attempted && result.rejectedEnvelopeRecipients?.length
+      ? { ...row.context, retryEnvelopeRecipients: result.rejectedEnvelopeRecipients }
+      : row.context,
     nextAttemptAt: exhausted ? attemptedAt : new Date(attemptedAt.getTime() + policy.retryDelayMinutes * 60_000),
     lockedAt: null,
     updatedAt: new Date(),

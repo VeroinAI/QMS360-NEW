@@ -1554,7 +1554,8 @@ router.delete("/admin/delegations/:id", asyncHandler(async (req, res) => {
 
 function escalationRuleJson(r: typeof lessonEscalationRules.$inferSelect, staffed?: Set<string>) {
   const recipientRoles = String(r.recipientRole ?? "").split(",").map((v) => v.trim()).filter(Boolean);
-  return { id: r.id, triggerType: r.triggerKey, priority: r.priority, level: typeof r.configuration.level === "string" ? r.configuration.level : null, slaWorkingDays: r.slaWorkingDays, recipientRoles, unstaffedRoles: staffed ? recipientRoles.filter((n) => !staffed.has(n)) : undefined, repeatCadenceDays: r.repeatCadenceDays ?? 2, enabled: r.status === "active" };
+  const ccRecipientRoles = Array.isArray(r.configuration.ccRecipientRoles) ? r.configuration.ccRecipientRoles.filter((name): name is string => typeof name === "string") : [];
+  return { id: r.id, triggerType: r.triggerKey, priority: r.priority, level: typeof r.configuration.level === "string" ? r.configuration.level : null, slaWorkingDays: r.slaWorkingDays, recipientRoles, ccRecipientRoles, unstaffedRoles: staffed ? recipientRoles.filter((n) => !staffed.has(n)) : undefined, unstaffedCcRoles: staffed ? ccRecipientRoles.filter((n) => !staffed.has(n)) : undefined, repeatCadenceDays: r.repeatCadenceDays ?? 2, enabled: r.status === "active" };
 }
 // Scoped approver assignments — blank scope dimensions act as wildcards, so a
 // row with all three blank means "may approve any lesson".
@@ -1627,7 +1628,7 @@ router.put("/admin/escalation-rules", asyncHandler(async (req, res) => {
   const body = parseBody(UpdateLessonsEscalationRulesBody, req, res); if (!body) return;
   const org = req.currentUser!.organizationId;
   await db.update(lessonEscalationRules).set({ deletedAt: new Date(), status: "deleted", updatedAt: new Date() }).where(and(eq(lessonEscalationRules.organizationId, org), isNull(lessonEscalationRules.deletedAt)));
-  const rows = body.length ? await db.insert(lessonEscalationRules).values(body.map((r) => ({ organizationId: org, triggerKey: r.triggerType, priority: r.priority, slaWorkingDays: r.slaWorkingDays, recipientRole: r.recipientRoles.join(","), repeatCadenceDays: r.repeatCadenceDays, configuration: { level: r.level }, status: r.enabled ? "active" : "inactive" }))).returning() : [];
+  const rows = body.length ? await db.insert(lessonEscalationRules).values(body.map((r) => ({ organizationId: org, triggerKey: r.triggerType, priority: r.priority, slaWorkingDays: r.slaWorkingDays, recipientRole: r.recipientRoles.join(","), repeatCadenceDays: r.repeatCadenceDays, configuration: { level: r.level, ccRecipientRoles: r.ccRecipientRoles ?? [] }, status: r.enabled ? "active" : "inactive" }))).returning() : [];
   await audit(req, "replace", "escalation_rules", undefined, undefined, { count: rows.length });
   res.json(rows.map((r) => escalationRuleJson(r)));
 }));

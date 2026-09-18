@@ -338,6 +338,7 @@ export * from './numberingPatternPosition';
 export * from './organizationSettings';
 export * from './outboundEmail';
 export * from './outboundEmailApp';
+export * from './outboundEmailCcRecipientsItem';
 export * from './outboundEmailPage';
 export * from './outboundEmailPageResponse';
 export * from './outboundEmailStatus';

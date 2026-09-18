@@ -16,8 +16,10 @@ export interface EscalationRule {
   /** @minimum 0 */
   slaWorkingDays: number;
   recipientRoles: string[];
+  ccRecipientRoles?: string[];
   /** @minimum 1 */
   repeatCadenceDays: number;
   enabled: boolean;
   unstaffedRoles?: string[];
+  unstaffedCcRoles?: string[];
 }

@@ -334,13 +334,13 @@ const appTriggers: Record<AppKey, string[]> = {
 const levelOptions = ['P2', 'P1', 'L1', 'L2', 'L3'];
 const recommendedRules: Record<AppKey, Omit<EscalationRule, 'id'>[]> = {
   qaqc: [
-    { triggerType: 'approval_delay', priority: 'P2', level: 'P2', slaWorkingDays: 3, recipientRoles: ['Quality Manager'], repeatCadenceDays: 2, enabled: true },
-    { triggerType: 'performance', priority: 'L1', level: 'L1', slaWorkingDays: 0, recipientRoles: ['Quality Manager'], repeatCadenceDays: 2, enabled: true },
+    { triggerType: 'approval_delay', priority: 'P2', level: 'P2', slaWorkingDays: 3, recipientRoles: ['Quality Manager'], ccRecipientRoles: [], repeatCadenceDays: 2, enabled: true },
+    { triggerType: 'performance', priority: 'L1', level: 'L1', slaWorkingDays: 0, recipientRoles: ['Quality Manager'], ccRecipientRoles: [], repeatCadenceDays: 2, enabled: true },
   ],
-  lessons: [{ triggerType: 'lesson_sla', priority: 'P1', level: 'P1', slaWorkingDays: 5, recipientRoles: ['Quality Manager'], repeatCadenceDays: 3, enabled: true }],
+  lessons: [{ triggerType: 'lesson_sla', priority: 'P1', level: 'P1', slaWorkingDays: 5, recipientRoles: ['Quality Manager'], ccRecipientRoles: [], repeatCadenceDays: 3, enabled: true }],
   audit: [
-    { triggerType: 'approval_delay', priority: 'P2', level: 'P2', slaWorkingDays: 3, recipientRoles: ['Audit Manager'], repeatCadenceDays: 2, enabled: true },
-    { triggerType: 'finding_priority', priority: 'P1', level: 'P1', slaWorkingDays: 2, recipientRoles: ['Audit Manager'], repeatCadenceDays: 2, enabled: true },
+    { triggerType: 'approval_delay', priority: 'P2', level: 'P2', slaWorkingDays: 3, recipientRoles: ['Audit Manager'], ccRecipientRoles: [], repeatCadenceDays: 2, enabled: true },
+    { triggerType: 'finding_priority', priority: 'P1', level: 'P1', slaWorkingDays: 2, recipientRoles: ['Audit Manager'], ccRecipientRoles: [], repeatCadenceDays: 2, enabled: true },
   ],
 };
 
@@ -348,7 +348,7 @@ function Escalations({ app }: { app: AppKey }) {
   const api = useAdmin(app); const act = useActions(app); const [draft, setDraft] = useState<EscalationRule[]>();
   const rows = draft ?? api.escalations.data?.items ?? [];
   const patch = (id: string, value: Partial<EscalationRule>) => setDraft(rows.map(r => r.id === id ? { ...r, ...value } : r));
-  const addRule = () => setDraft([...rows, { id: crypto.randomUUID(), triggerType: appTriggers[app][0]!, priority: 'L1', level: 'L1', slaWorkingDays: 3, recipientRoles: [], repeatCadenceDays: 2, enabled: true }]);
+  const addRule = () => setDraft([...rows, { id: crypto.randomUUID(), triggerType: appTriggers[app][0]!, priority: 'L1', level: 'L1', slaWorkingDays: 3, recipientRoles: [], ccRecipientRoles: [], repeatCadenceDays: 2, enabled: true }]);
   const removeRule = (id: string) => setDraft(rows.filter(r => r.id !== id));
   const loadDefaults = () => setDraft(recommendedRules[app].map(r => ({ ...r, id: crypto.randomUUID(), recipientRoles: [...r.recipientRoles] })));
   // unstaffedRoles is computed server-side from active role memberships; the
@@ -361,12 +361,20 @@ function Escalations({ app }: { app: AppKey }) {
       : rule.recipientRoles.filter((name) => name !== roleName);
     patch(rule.id, { recipientRoles });
   };
+  const toggleCcRole = (rule: EscalationRule, roleName: string, checked: boolean) => {
+    const current = rule.ccRecipientRoles ?? [];
+    const ccRecipientRoles = checked
+      ? [...new Set([...current, roleName])]
+      : current.filter((name) => name !== roleName);
+    patch(rule.id, { ccRecipientRoles });
+  };
   const unstaffed = (r: EscalationRule) => r.unstaffedRoles ?? (roleNames.size ? r.recipientRoles.filter((n) => !roleNames.has(n)) : []);
+  const unstaffedCc = (r: EscalationRule) => r.unstaffedCcRoles ?? (roleNames.size ? (r.ccRecipientRoles ?? []).filter((n) => !roleNames.has(n)) : []);
   const save = () => act.escalation.mutate({ data: rows }, { onSuccess: () => { act.done('Escalation rules saved'); setDraft(undefined); api.escalations.refetch(); }, onError: act.fail });
   return <PageState loading={api.escalations.isLoading} error={api.escalations.error} onRetry={api.escalations.refetch}>
     <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Escalation rules</CardTitle><CardDescription>The workflow engine checks these rules every 15 minutes. When a record breaches its threshold, the target roles are notified in-app and by email, and the escalation advances through levels until resolved.</CardDescription></div><div className="flex shrink-0 gap-2"><Button variant="outline" onClick={loadDefaults}>Load recommended</Button><Button variant="outline" onClick={addRule}><Plus className="mr-2 h-4 w-4" />Add rule</Button><Button disabled={!draft || act.escalation.isPending} onClick={save}><Save className="mr-2 h-4 w-4" />Save changes</Button></div></CardHeader>
       <CardContent>{!rows.length ? <div className="py-12 text-center"><Clock className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p className="font-semibold">No escalation rules yet</p><p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Nothing escalates until at least one rule is enabled. Add a rule or load the recommended set for {names[app]}.</p><div className="mt-4 flex justify-center gap-2"><Button variant="outline" onClick={loadDefaults}>Load recommended</Button><Button onClick={addRule}><Plus className="mr-2 h-4 w-4" />Add rule</Button></div></div> :
-        <Table><TableHeader><TableRow><TableHead>Trigger</TableHead><TableHead>First level</TableHead><TableHead>Threshold (working days)</TableHead><TableHead>Target roles</TableHead><TableHead>Repeat (days)</TableHead><TableHead>Enabled</TableHead><TableHead /></TableRow></TableHeader>
+        <Table><TableHeader><TableRow><TableHead>Trigger</TableHead><TableHead>First level</TableHead><TableHead>Threshold (working days)</TableHead><TableHead>Target roles</TableHead><TableHead>CC roles</TableHead><TableHead>Repeat (days)</TableHead><TableHead>Enabled</TableHead><TableHead /></TableRow></TableHeader>
           <TableBody>{rows.map(r => <TableRow key={r.id}>
             <TableCell><Select value={r.triggerType} onValueChange={v => patch(r.id, { triggerType: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{appTriggers[app].map(v => <SelectItem value={v} key={v}>{triggerMeta[v]?.label ?? v}</SelectItem>)}</SelectContent></Select><p className="mt-1 text-xs text-muted-foreground">{triggerMeta[r.triggerType]?.description}</p></TableCell>
             <TableCell><Select value={r.priority ?? r.level ?? 'L1'} onValueChange={v => patch(r.id, { priority: v, level: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{levelOptions.map(v => <SelectItem value={v} key={v}>{v}</SelectItem>)}</SelectContent></Select></TableCell>
@@ -395,6 +403,31 @@ function Escalations({ app }: { app: AppKey }) {
               </DropdownMenu>
               <p className="mt-1 text-xs text-muted-foreground">Select one or more workspace roles</p>
               {unstaffed(r).length > 0 && <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">No active members for: {unstaffed(r).join(', ')} — escalations fall back to the initial admins.</p>}
+            </TableCell>
+            <TableCell>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="outline" className="w-full min-w-56 justify-between font-normal">
+                    <span className="truncate">{r.ccRecipientRoles?.length ? r.ccRecipientRoles.join(', ') : 'Select CC roles'}</span>
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                  {[...new Set([...activeRoleNames, ...(r.ccRecipientRoles ?? [])])].map(roleName => (
+                    <DropdownMenuCheckboxItem
+                      key={roleName}
+                      checked={(r.ccRecipientRoles ?? []).includes(roleName)}
+                      onSelect={event => event.preventDefault()}
+                      onCheckedChange={checked => toggleCcRole(r, roleName, checked === true)}
+                    >
+                      {roleName}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  {!activeRoleNames.length && !r.ccRecipientRoles?.length && <p className="px-2 py-1.5 text-sm text-muted-foreground">No active workspace roles</p>}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <p className="mt-1 text-xs text-muted-foreground">Email CC only; no in-app escalation</p>
+              {unstaffedCc(r).length > 0 && <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">No active members for: {unstaffedCc(r).join(', ')}</p>}
             </TableCell>
             <TableCell><Input type="number" min={1} value={r.repeatCadenceDays} onChange={e => patch(r.id, { repeatCadenceDays: Math.max(1, Number(e.target.value) || 1) })} /></TableCell>
             <TableCell><Toggle checked={r.enabled} onCheckedChange={enabled => patch(r.id, { enabled })} /></TableCell>

@@ -656,6 +656,12 @@ export const OutboundEmailApp = {
   platform: 'platform',
 } as const;
 
+export type OutboundEmailCcRecipientsItem = {
+  email: string;
+  /** @nullable */
+  name?: string | null;
+};
+
 export type OutboundEmailStatus = typeof OutboundEmailStatus[keyof typeof OutboundEmailStatus];
 
 
@@ -677,6 +683,7 @@ export interface OutboundEmail {
   recipientEmail: string;
   /** @nullable */
   recipientName?: string | null;
+  ccRecipients?: OutboundEmailCcRecipientsItem[];
   /** @nullable */
   senderEmail?: string | null;
   /** @nullable */
@@ -1495,10 +1502,12 @@ export interface EscalationRule {
   /** @minimum 0 */
   slaWorkingDays: number;
   recipientRoles: string[];
+  ccRecipientRoles?: string[];
   /** @minimum 1 */
   repeatCadenceDays: number;
   enabled: boolean;
   unstaffedRoles?: string[];
+  unstaffedCcRoles?: string[];
 }
 
 export type AISettingsFeatures = {[key: string]: boolean};

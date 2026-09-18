@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { and, eq, isNull, inArray } from "drizzle-orm";
+import { and, eq, isNull, inArray, sql } from "drizzle-orm";
 import {
   applicationAccess, auditFindings,
   auditEscalationInstances, auditEscalationRules, auditNotifications,
@@ -70,6 +70,11 @@ const appTables: AppTables[] = [
   { key: "lessons", label: "Lessons", rules: lessonEscalationRules, instances: lessonEscalationInstances, notifications: lessonNotifications, roles: lessonsWorkspaceRoles, assignments: lessonsUserWorkspaceRoles },
   { key: "audit", label: "Audit", rules: auditEscalationRules, instances: auditEscalationInstances, notifications: auditNotifications, roles: auditWorkspaceRoles, assignments: auditUserWorkspaceRoles },
 ];
+const notificationTableNames: Record<AppTables["key"], string> = {
+  qaqc: '"app1_qaqc"."notifications"',
+  lessons: '"app2_lessons"."notifications"',
+  audit: '"app3_audit"."notifications"',
+};
 
 function configuration(rule: any): Record<string, any> {
   return rule.configuration && typeof rule.configuration === "object" ? rule.configuration : {};
@@ -96,6 +101,33 @@ function intervalFor(rule: any, trigger: TriggerType, nextIndex: number) {
   return Math.max(1, rule.repeatCadenceDays ?? 2);
 }
 
+async function resolveRoleUserIds(database: typeof db, app: AppTables, organizationId: string, roleNames: string[]) {
+  if (!roleNames.length) return [];
+  const roleRows = await database.select({ id: app.roles.id }).from(app.roles).where(and(
+    eq(app.roles.organizationId, organizationId), inArray(app.roles.name, roleNames),
+    eq(app.roles.status, "active"), isNull(app.roles.deletedAt),
+  ));
+  if (!roleRows.length) return [];
+  const assignments = await database.select({ userId: app.assignments.userId }).from(app.assignments).where(and(
+    eq(app.assignments.organizationId, organizationId),
+    inArray(app.assignments.workspaceRoleId, roleRows.map((row: any) => row.id)),
+    eq(app.assignments.status, "active"), isNull(app.assignments.deletedAt),
+  ));
+  return [...new Set(assignments.map((row: any) => row.userId as string))];
+}
+
+async function resolveCcRecipients(database: typeof db, app: AppTables, rule: any) {
+  const roleNames = Array.isArray(configuration(rule).ccRecipientRoles)
+    ? configuration(rule).ccRecipientRoles.filter((name: unknown): name is string => typeof name === "string" && Boolean(name.trim()))
+    : [];
+  const userIds = await resolveRoleUserIds(database, app, rule.organizationId, roleNames);
+  if (!userIds.length) return [];
+  return database.select({ email: users.email, name: users.fullName }).from(users).where(and(
+    eq(users.organizationId, rule.organizationId), inArray(users.id, userIds),
+    eq(users.accessStatus, "active"), isNull(users.deletedAt),
+  ));
+}
+
 async function resolveRecipients(database: typeof db, app: AppTables, rule: any, level: string) {
   const config = configuration(rule);
   const levelTarget = config.recipientsByLevel?.[level];
@@ -118,18 +150,8 @@ async function resolveRecipients(database: typeof db, app: AppTables, rule: any,
   const configuredRoles = levelRoles.length ? levelRoles
     : (config.recipientRoles ?? String(rule.recipientRole ?? "").split(",")).filter(Boolean);
   if (configuredRoles.length) {
-    const roleRows = await database.select({ id: app.roles.id }).from(app.roles).where(and(
-      eq(app.roles.organizationId, rule.organizationId), inArray(app.roles.name, configuredRoles),
-      eq(app.roles.status, "active"), isNull(app.roles.deletedAt),
-    ));
-    if (roleRows.length) {
-      const assignments = await database.select({ userId: app.assignments.userId }).from(app.assignments).where(and(
-        eq(app.assignments.organizationId, rule.organizationId),
-        inArray(app.assignments.workspaceRoleId, roleRows.map((row: any) => row.id)),
-        eq(app.assignments.status, "active"), isNull(app.assignments.deletedAt),
-      ));
-      if (assignments.length) return [...new Set(assignments.map((row: any) => row.userId as string))];
-    }
+    const assignedUserIds = await resolveRoleUserIds(database, app, rule.organizationId, configuredRoles);
+    if (assignedUserIds.length) return assignedUserIds;
   }
 
   const adminColumn = app.key === "qaqc" ? applicationAccess.isInitialAdminQaqc
@@ -181,60 +203,65 @@ async function reconcileApp(
         const currentIndex = Math.max(0, levels.indexOf(existing.currentLevel ?? levels[0]!));
         const nextIndex = Math.min(currentIndex + 1, levels.length - 1);
         const level = levels[nextIndex]!;
-        // Advance the escalation state before any notification dispatch so a
-        // slow or failing channel can never cause the next sweep to re-notify.
-        await database.update(app.instances).set({
-          currentLevel: level,
-          nextEscalateAt: addBusinessDays(now, intervalFor(rule, trigger, nextIndex + 1), calendar),
-          stateNote: nextIndex === currentIndex ? `Repeated ${level} reminder` : `Advanced to ${level}`,
-          updatedAt: now,
-        }).where(eq(app.instances.id, existing.id));
-        const recipientIds = await resolveRecipients(database, app, rule, level);
+        const [recipientIds, ccRecipients] = await Promise.all([
+          resolveRecipients(database, app, rule, level),
+          resolveCcRecipients(database, app, rule),
+        ]);
         const title = `${app.label} ${level} escalation`;
         const body = `${candidate.recordType} remains unresolved at escalation level ${level}.`;
-        for (const recipientId of recipientIds) {
-          await database.insert(app.notifications).values({
-            organizationId: candidate.organizationId, recipientId,
-            title,
-            body,
-            channel: "in_app",
+        await database.transaction(async (tx) => {
+          await tx.update(app.instances).set({
+            currentLevel: level,
+            nextEscalateAt: addBusinessDays(now, intervalFor(rule, trigger, nextIndex + 1), calendar),
+            stateNote: nextIndex === currentIndex ? `Repeated ${level} reminder` : `Advanced to ${level}`,
+            updatedAt: now,
+          }).where(eq(app.instances.id, existing.id));
+          for (const recipientId of recipientIds) {
+            await tx.execute(sql`
+              INSERT INTO ${sql.raw(notificationTableNames[app.key])}
+                (organization_id, recipient_id, title, body, channel)
+              VALUES (${candidate.organizationId}, ${recipientId}, ${title}, ${body}, 'in_app')
+            `);
+          }
+          await enqueueEmail(tx as unknown as typeof db, {
+            organizationId: candidate.organizationId, recipientIds, ccRecipients, subject: title, text: body,
+            context: { app: app.key, trigger, level, recordType: candidate.recordType, recordId: candidate.id, ruleId: rule.id },
           });
-        }
-        // Fire-and-forget: SMTP latency/outages must not stall reconciliation.
-        void enqueueEmail(database, {
-          organizationId: candidate.organizationId, recipientIds, subject: title, text: body,
-          context: { app: app.key, trigger, level, recordType: candidate.recordType, recordId: candidate.id, ruleId: rule.id },
         });
         continue;
       }
       const level = levels[0]!;
       const breachAt = candidate.dueAt
         ? candidate.dueAt : addBusinessDays(candidate.anchorAt, candidate.slaOverride ?? rule.slaWorkingDays, calendar);
-      const [inserted] = await database.insert(app.instances).values({
-        organizationId: candidate.organizationId, recordType: candidate.recordType,
-        recordId: candidate.id, ruleId: rule.id, breachedAt: breachAt, status: "open",
-        currentLevel: level,
-        nextEscalateAt: addBusinessDays(now, intervalFor(rule, trigger, 1), calendar),
-        stateNote: `SLA breached at ${level}`,
-      }).onConflictDoNothing().returning({ id: app.instances.id });
-      if (!inserted) continue;
-      const recipientIds = await resolveRecipients(database, app, rule, level);
+      const [recipientIds, ccRecipients] = await Promise.all([
+        resolveRecipients(database, app, rule, level),
+        resolveCcRecipients(database, app, rule),
+      ]);
       const title = `${app.label} ${level} escalation`;
       const body = `${candidate.recordType} breached its business-day SLA and escalated to ${level}.`;
-      for (const recipientId of recipientIds) {
-        await database.insert(app.notifications).values({
-          organizationId: candidate.organizationId, recipientId,
-          title,
-          body,
-          channel: "in_app",
+      const inserted = await database.transaction(async (tx) => {
+        const [instance] = await tx.insert(app.instances).values({
+          organizationId: candidate.organizationId, recordType: candidate.recordType,
+          recordId: candidate.id, ruleId: rule.id, breachedAt: breachAt, status: "open",
+          currentLevel: level,
+          nextEscalateAt: addBusinessDays(now, intervalFor(rule, trigger, 1), calendar),
+          stateNote: `SLA breached at ${level}`,
+        }).onConflictDoNothing().returning({ id: app.instances.id });
+        if (!instance) return false;
+        for (const recipientId of recipientIds) {
+          await tx.execute(sql`
+            INSERT INTO ${sql.raw(notificationTableNames[app.key])}
+              (organization_id, recipient_id, title, body, channel)
+            VALUES (${candidate.organizationId}, ${recipientId}, ${title}, ${body}, 'in_app')
+          `);
+        }
+        await enqueueEmail(tx as unknown as typeof db, {
+          organizationId: candidate.organizationId, recipientIds, ccRecipients, subject: title, text: body,
+          context: { app: app.key, trigger, level, recordType: candidate.recordType, recordId: candidate.id, ruleId: rule.id },
         });
-      }
-      // Fire-and-forget: the instance is persisted above, so SMTP latency or
-      // outages can neither stall reconciliation nor cause duplicate sends.
-      void enqueueEmail(database, {
-        organizationId: candidate.organizationId, recipientIds, subject: title, text: body,
-        context: { app: app.key, trigger, level, recordType: candidate.recordType, recordId: candidate.id, ruleId: rule.id },
+        return true;
       });
+      if (!inserted) continue;
       created++;
     }
   }

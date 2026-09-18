@@ -1836,10 +1836,12 @@ router.delete("/admin/delegations/:id", asyncHandler(async (req, res) => {
 }));
 const ruleDto = (x: AnyRow, staffed?: Set<string>) => {
   const recipientRoles = (x.configuration?.recipientRoles ?? String(x.recipientRole ?? "").split(",").map((v: string) => v.trim()).filter(Boolean)) as string[];
+  const ccRecipientRoles = Array.isArray(x.configuration?.ccRecipientRoles) ? x.configuration.ccRecipientRoles.filter((name: unknown): name is string => typeof name === "string") : [];
   return {
     id: x.id, triggerType: x.triggerKey, priority: x.priority, level: x.configuration?.level ?? null,
-    slaWorkingDays: x.slaWorkingDays, recipientRoles,
+    slaWorkingDays: x.slaWorkingDays, recipientRoles, ccRecipientRoles,
     unstaffedRoles: staffed ? recipientRoles.filter((n) => !staffed.has(n)) : undefined,
+    unstaffedCcRoles: staffed ? ccRecipientRoles.filter((n: string) => !staffed.has(n)) : undefined,
     repeatCadenceDays: x.repeatCadenceDays ?? 1, enabled: x.status === "active",
   };
 };
@@ -1908,7 +1910,7 @@ router.put("/admin/escalation-rules", asyncHandler(async (req, res) => {
   const rows = data.length ? await db.insert(auditEscalationRules).values(data.map((x) => ({
     id: x.id, organizationId: actor(req).organizationId, triggerKey: x.triggerType, priority: x.priority,
     slaWorkingDays: x.slaWorkingDays, recipientRole: x.recipientRoles[0] ?? "Quality Manager",
-    repeatCadenceDays: x.repeatCadenceDays, configuration: { level: x.level, recipientRoles: x.recipientRoles },
+    repeatCadenceDays: x.repeatCadenceDays, configuration: { level: x.level, recipientRoles: x.recipientRoles, ccRecipientRoles: x.ccRecipientRoles ?? [] },
     status: x.enabled ? "active" : "inactive",
   }))).returning() : [];
   await auditLog(req, "replace", "escalation_rules", rows[0]?.id ?? actor(req).id, { rules: before }, { rules: rows });

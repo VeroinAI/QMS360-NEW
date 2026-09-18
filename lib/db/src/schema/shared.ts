@@ -231,6 +231,7 @@ export const outboundEmails = sharedSchema.table("outbound_emails", {
   entityId: text("entity_id"),
   recipientEmail: text("recipient_email").notNull(),
   recipientName: text("recipient_name"),
+    ccRecipients: jsonb("cc_recipients").$type<Array<{ email: string; name?: string | null }>>().notNull().default([]),
   senderEmail: text("sender_email"),
   senderName: text("sender_name"),
   subject: text("subject").notNull(),

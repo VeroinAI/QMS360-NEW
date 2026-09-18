@@ -1,0 +1,1 @@
+ALTER TABLE "shared"."outbound_emails" ADD COLUMN "cc_recipients" jsonb DEFAULT '[]'::jsonb NOT NULL;

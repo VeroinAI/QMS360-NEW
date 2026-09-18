@@ -1324,6 +1324,10 @@ export const ListOutboundEmailsResponse = zod.object({
   "entityId": zod.string().nullish(),
   "recipientEmail": zod.string(),
   "recipientName": zod.string().nullish(),
+  "ccRecipients": zod.array(zod.object({
+  "email": zod.string(),
+  "name": zod.string().nullish()
+})).optional(),
   "senderEmail": zod.string().nullish(),
   "senderName": zod.string().nullish(),
   "subject": zod.string(),
@@ -1359,6 +1363,10 @@ export const RetryOutboundEmailResponse = zod.object({
   "entityId": zod.string().nullish(),
   "recipientEmail": zod.string(),
   "recipientName": zod.string().nullish(),
+  "ccRecipients": zod.array(zod.object({
+  "email": zod.string(),
+  "name": zod.string().nullish()
+})).optional(),
   "senderEmail": zod.string().nullish(),
   "senderName": zod.string().nullish(),
   "subject": zod.string(),
@@ -3629,9 +3637,11 @@ export const ListQaqcEscalationRulesResponse = zod.object({
   "level": zod.string().nullish(),
   "slaWorkingDays": zod.number().min(listQaqcEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
+  "ccRecipientRoles": zod.array(zod.string()).optional(),
   "repeatCadenceDays": zod.number().min(1),
   "enabled": zod.boolean(),
-  "unstaffedRoles": zod.array(zod.string()).optional()
+  "unstaffedRoles": zod.array(zod.string()).optional(),
+  "unstaffedCcRoles": zod.array(zod.string()).optional()
 }))
 }))
 
@@ -3651,9 +3661,11 @@ export const UpdateQaqcEscalationRulesBodyItem = zod.object({
   "level": zod.string().nullish(),
   "slaWorkingDays": zod.number().min(updateQaqcEscalationRulesBodySlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
+  "ccRecipientRoles": zod.array(zod.string()).optional(),
   "repeatCadenceDays": zod.number().min(1),
   "enabled": zod.boolean(),
-  "unstaffedRoles": zod.array(zod.string()).optional()
+  "unstaffedRoles": zod.array(zod.string()).optional(),
+  "unstaffedCcRoles": zod.array(zod.string()).optional()
 })
 export const UpdateQaqcEscalationRulesBody = zod.array(UpdateQaqcEscalationRulesBodyItem)
 
@@ -5252,9 +5264,11 @@ export const ListLessonsEscalationRulesResponse = zod.object({
   "level": zod.string().nullish(),
   "slaWorkingDays": zod.number().min(listLessonsEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
+  "ccRecipientRoles": zod.array(zod.string()).optional(),
   "repeatCadenceDays": zod.number().min(1),
   "enabled": zod.boolean(),
-  "unstaffedRoles": zod.array(zod.string()).optional()
+  "unstaffedRoles": zod.array(zod.string()).optional(),
+  "unstaffedCcRoles": zod.array(zod.string()).optional()
 }))
 }))
 
@@ -5274,9 +5288,11 @@ export const UpdateLessonsEscalationRulesBodyItem = zod.object({
   "level": zod.string().nullish(),
   "slaWorkingDays": zod.number().min(updateLessonsEscalationRulesBodySlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
+  "ccRecipientRoles": zod.array(zod.string()).optional(),
   "repeatCadenceDays": zod.number().min(1),
   "enabled": zod.boolean(),
-  "unstaffedRoles": zod.array(zod.string()).optional()
+  "unstaffedRoles": zod.array(zod.string()).optional(),
+  "unstaffedCcRoles": zod.array(zod.string()).optional()
 })
 export const UpdateLessonsEscalationRulesBody = zod.array(UpdateLessonsEscalationRulesBodyItem)
 
@@ -7675,9 +7691,11 @@ export const ListAuditEscalationRulesResponse = zod.object({
   "level": zod.string().nullish(),
   "slaWorkingDays": zod.number().min(listAuditEscalationRulesResponseTwoItemsItemSlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
+  "ccRecipientRoles": zod.array(zod.string()).optional(),
   "repeatCadenceDays": zod.number().min(1),
   "enabled": zod.boolean(),
-  "unstaffedRoles": zod.array(zod.string()).optional()
+  "unstaffedRoles": zod.array(zod.string()).optional(),
+  "unstaffedCcRoles": zod.array(zod.string()).optional()
 }))
 }))
 
@@ -7697,9 +7715,11 @@ export const UpdateAuditEscalationRulesBodyItem = zod.object({
   "level": zod.string().nullish(),
   "slaWorkingDays": zod.number().min(updateAuditEscalationRulesBodySlaWorkingDaysMin),
   "recipientRoles": zod.array(zod.string()),
+  "ccRecipientRoles": zod.array(zod.string()).optional(),
   "repeatCadenceDays": zod.number().min(1),
   "enabled": zod.boolean(),
-  "unstaffedRoles": zod.array(zod.string()).optional()
+  "unstaffedRoles": zod.array(zod.string()).optional(),
+  "unstaffedCcRoles": zod.array(zod.string()).optional()
 })
 export const UpdateAuditEscalationRulesBody = zod.array(UpdateAuditEscalationRulesBodyItem)
 

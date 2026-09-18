@@ -914,7 +914,8 @@ router.get("/admin/escalation-rules", asyncHandler(async (req, res) => {
   res.json({
     ...result, items: result.items.map((r: any) => {
       const recipientRoles = String(r.recipientRole ?? "").split(",").map((v: string) => v.trim()).filter(Boolean);
-      return { id: r.id, triggerType: r.triggerKey, priority: r.priority, level: (r.configuration as any)?.level ?? null, slaWorkingDays: r.slaWorkingDays, recipientRoles, unstaffedRoles: recipientRoles.filter((n: string) => !staffed.has(n)), repeatCadenceDays: r.repeatCadenceDays ?? 1, enabled: r.status === "active" };
+      const ccRecipientRoles = Array.isArray((r.configuration as any)?.ccRecipientRoles) ? (r.configuration as any).ccRecipientRoles.filter((name: unknown): name is string => typeof name === "string") : [];
+      return { id: r.id, triggerType: r.triggerKey, priority: r.priority, level: (r.configuration as any)?.level ?? null, slaWorkingDays: r.slaWorkingDays, recipientRoles, ccRecipientRoles, unstaffedRoles: recipientRoles.filter((n: string) => !staffed.has(n)), unstaffedCcRoles: ccRecipientRoles.filter((n: string) => !staffed.has(n)), repeatCadenceDays: r.repeatCadenceDays ?? 1, enabled: r.status === "active" };
     }),
   });
 }));
@@ -924,7 +925,7 @@ router.put("/admin/escalation-rules", asyncHandler(async (req, res) => {
   await db.update(escalationRules).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(eq(escalationRules.organizationId, org(req)), isNull(escalationRules.deletedAt)));
   const inserted = [];
   for (const v of values) {
-    const [row] = await db.insert(escalationRules).values({ organizationId: org(req), triggerKey: v.triggerType, priority: v.priority, slaWorkingDays: v.slaWorkingDays, recipientRole: v.recipientRoles.join(","), repeatCadenceDays: v.repeatCadenceDays, configuration: { level: v.level }, status: v.enabled ? "active" : "inactive" }).returning(); inserted.push(row);
+    const [row] = await db.insert(escalationRules).values({ organizationId: org(req), triggerKey: v.triggerType, priority: v.priority, slaWorkingDays: v.slaWorkingDays, recipientRole: v.recipientRoles.join(","), repeatCadenceDays: v.repeatCadenceDays, configuration: { level: v.level, ccRecipientRoles: v.ccRecipientRoles ?? [] }, status: v.enabled ? "active" : "inactive" }).returning(); inserted.push(row);
   }
   await audit(req, "replace", "escalation_rules", inserted[0]?.id ?? old[0]?.id ?? actor(req), { rules: old }, { rules: inserted }); res.json(inserted);
 }));
