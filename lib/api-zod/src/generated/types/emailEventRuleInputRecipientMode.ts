@@ -13,4 +13,7 @@ export const EmailEventRuleInputRecipientMode = {
   all_users: 'all_users',
   internal_user: 'internal_user',
   external_email: 'external_email',
+  workspace_role: 'workspace_role',
+  project_members: 'project_members',
+  project_role: 'project_role',
 } as const;

@@ -43,9 +43,11 @@ function bodyValue(value: unknown): string | null { return typeof value === "str
 function validate(input: any) {
   if (!input || typeof input.name !== "string" || !input.name.trim() || typeof input.eventType !== "string" || !/^[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+$/.test(input.eventType)) throw new HttpError(422, "Invalid rule name or canonical eventType");
   if (!Number.isInteger(input.priority) || input.priority < 0) throw new HttpError(422, "Rule priority must be a non-negative whole number");
-  if (!["all_users", "internal_user", "external_email"].includes(input.recipientMode)) throw new HttpError(422, "Select a recipient mode");
+  if (!["all_users", "internal_user", "external_email", "workspace_role", "project_members", "project_role"].includes(input.recipientMode)) throw new HttpError(422, "Select a recipient mode");
   if (input.recipientMode === "internal_user" && !input.receiverUserId) throw new HttpError(422, "Select an internal recipient");
   if (input.recipientMode === "external_email" && (!input.receiverName?.trim() || !emailPattern.test(input.receiverEmail ?? ""))) throw new HttpError(422, "Enter a valid external recipient name and email");
+  if (["workspace_role", "project_role"].includes(input.recipientMode) && !input.recipientConfig?.roleName?.trim()) throw new HttpError(422, "Enter a workspace role name");
+  if (["project_members", "project_role"].includes(input.recipientMode) && !input.recipientConfig?.projectIds?.length) throw new HttpError(422, "Select at least one project");
 }
 async function ensureUsers(org: string, ids: Array<string | null | undefined>) {
   const wanted = [...new Set(ids.filter((id): id is string => Boolean(id)))];
@@ -78,6 +80,7 @@ router.post("/email-rules", requireAuth, requireAdmin, asyncHandler(async (req, 
       enabled: parsed.data.enabled, priority: Number(maximum?.value ?? -1) + 1,
       createdByUserId: bodyValue(parsed.data.createdByUserId), receiverUserId: bodyValue(parsed.data.receiverUserId),
       recipientMode: parsed.data.recipientMode, receiverName: bodyValue(parsed.data.receiverName), receiverEmail: bodyValue(parsed.data.receiverEmail),
+      recipientConfig: parsed.data.recipientConfig ?? {},
     }) as any).returning();
     return created!;
   });
@@ -96,6 +99,7 @@ router.patch("/email-rules/:id", requireAuth, requireAdmin, asyncHandler(async (
     eventType: parsed.data.eventType, createdByUserId: bodyValue(parsed.data.createdByUserId),
     recipientMode: parsed.data.recipientMode, receiverUserId: bodyValue(parsed.data.receiverUserId), receiverName: bodyValue(parsed.data.receiverName),
     receiverEmail: bodyValue(parsed.data.receiverEmail), updatedAt: new Date(),
+    recipientConfig: parsed.data.recipientConfig ?? {},
   }).where(eq(emailEventRules.id, existing.id)).returning();
   await writeAuditLog(db, "audit", { organizationId: req.currentUser!.organizationId, actorId: req.currentUser!.id, action: "update", entityType: "email_event_rule", entityId: existing.id, before: existing as any, after: row as any });
   res.json(row);

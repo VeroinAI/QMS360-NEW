@@ -74,6 +74,7 @@ import type {
   DocumentGovernanceLogEntry,
   DocumentGovernancePageResponse,
   DownloadQaqcMetricsTemplateParams,
+  EmailDeliverySettings,
   EmailEventRule,
   EmailEventRuleInput,
   EmailRuleEventOption,
@@ -171,6 +172,7 @@ import type {
   ListLessonsUsersParams,
   ListMaterialInspectionsParams,
   ListMyFeedbackEntriesParams,
+  ListOutboundEmailsParams,
   ListPlatformProjectsParams,
   ListPublishedExecutiveSummariesParams,
   ListQaqcAccessQueueParams,
@@ -205,6 +207,8 @@ import type {
   NumberingModuleConfig,
   NumberingPatternInput,
   OrganizationSettings,
+  OutboundEmail,
+  OutboundEmailPageResponse,
   PQIResult,
   PasswordChangeInput,
   PlatformContext,
@@ -3881,6 +3885,309 @@ export const useRetrySyncJob = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getRetrySyncJobMutationOptions(options));
+    }
+
+export const getGetEmailDeliverySettingsUrl = () => {
+
+
+
+
+  return `/api/integrations/email-settings`
+}
+
+/**
+ * @summary Get QMS360 email retention and retry policy (Super Admin only)
+ */
+export const getEmailDeliverySettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailDeliverySettings> => {
+
+  return customFetch<EmailDeliverySettings>(getGetEmailDeliverySettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmailDeliverySettingsQueryKey = () => {
+    return [
+    `/api/integrations/email-settings`
+    ] as const;
+    }
+
+
+export const getGetEmailDeliverySettingsQueryOptions = <TData = Awaited<ReturnType<typeof getEmailDeliverySettings>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmailDeliverySettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmailDeliverySettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmailDeliverySettings>>> = ({ signal }) => getEmailDeliverySettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmailDeliverySettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmailDeliverySettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getEmailDeliverySettings>>>
+export type GetEmailDeliverySettingsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get QMS360 email retention and retry policy (Super Admin only)
+ */
+
+export function useGetEmailDeliverySettings<TData = Awaited<ReturnType<typeof getEmailDeliverySettings>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmailDeliverySettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmailDeliverySettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateEmailDeliverySettingsUrl = () => {
+
+
+
+
+  return `/api/integrations/email-settings`
+}
+
+/**
+ * @summary Update QMS360 email retention and retry policy (Super Admin only)
+ */
+export const updateEmailDeliverySettings = async (emailDeliverySettings: EmailDeliverySettings, options?: Parameters<typeof customFetch>[1]): Promise<EmailDeliverySettings> => {
+
+  return customFetch<EmailDeliverySettings>(getUpdateEmailDeliverySettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(emailDeliverySettings)
+  }
+);}
+
+
+
+
+
+export const getUpdateEmailDeliverySettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEmailDeliverySettings>>, TError,{data: BodyType<EmailDeliverySettings>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEmailDeliverySettings>>, TError,{data: BodyType<EmailDeliverySettings>}, TContext> => {
+
+const mutationKey = ['updateEmailDeliverySettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEmailDeliverySettings>>, {data: BodyType<EmailDeliverySettings>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateEmailDeliverySettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEmailDeliverySettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateEmailDeliverySettings>>>
+    export type UpdateEmailDeliverySettingsMutationBody = BodyType<EmailDeliverySettings>
+    export type UpdateEmailDeliverySettingsMutationError = ErrorType<void>
+
+    /**
+ * @summary Update QMS360 email retention and retry policy (Super Admin only)
+ */
+export const useUpdateEmailDeliverySettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEmailDeliverySettings>>, TError,{data: BodyType<EmailDeliverySettings>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateEmailDeliverySettings>>,
+        TError,
+        {data: BodyType<EmailDeliverySettings>},
+        TContext
+      > => {
+      return useMutation(getUpdateEmailDeliverySettingsMutationOptions(options));
+    }
+
+export const getListOutboundEmailsUrl = (params?: ListOutboundEmailsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/integrations/email-queue?${stringifiedParams}` : `/api/integrations/email-queue`
+}
+
+/**
+ * @summary Monitor the tenant outbound email queue (Super Admin only)
+ */
+export const listOutboundEmails = async (params?: ListOutboundEmailsParams, options?: Parameters<typeof customFetch>[1]): Promise<OutboundEmailPageResponse> => {
+
+  return customFetch<OutboundEmailPageResponse>(getListOutboundEmailsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOutboundEmailsQueryKey = (params?: ListOutboundEmailsParams,) => {
+    return [
+    `/api/integrations/email-queue`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListOutboundEmailsQueryOptions = <TData = Awaited<ReturnType<typeof listOutboundEmails>>, TError = ErrorType<void>>(params?: ListOutboundEmailsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOutboundEmails>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOutboundEmailsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOutboundEmails>>> = ({ signal }) => listOutboundEmails(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOutboundEmails>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOutboundEmailsQueryResult = NonNullable<Awaited<ReturnType<typeof listOutboundEmails>>>
+export type ListOutboundEmailsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Monitor the tenant outbound email queue (Super Admin only)
+ */
+
+export function useListOutboundEmails<TData = Awaited<ReturnType<typeof listOutboundEmails>>, TError = ErrorType<void>>(
+ params?: ListOutboundEmailsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOutboundEmails>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOutboundEmailsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRetryOutboundEmailUrl = (id: string,) => {
+
+
+
+
+  return `/api/integrations/email-queue/${id}/retry`
+}
+
+/**
+ * @summary Queue one failed email for another delivery attempt (Super Admin only)
+ */
+export const retryOutboundEmail = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<OutboundEmail> => {
+
+  return customFetch<OutboundEmail>(getRetryOutboundEmailUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryOutboundEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryOutboundEmail>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryOutboundEmail>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['retryOutboundEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryOutboundEmail>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  retryOutboundEmail(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryOutboundEmailMutationResult = NonNullable<Awaited<ReturnType<typeof retryOutboundEmail>>>
+
+    export type RetryOutboundEmailMutationError = ErrorType<void>
+
+    /**
+ * @summary Queue one failed email for another delivery attempt (Super Admin only)
+ */
+export const useRetryOutboundEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryOutboundEmail>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryOutboundEmail>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getRetryOutboundEmailMutationOptions(options));
     }
 
 export const getGetIntegrationsHealthUrl = () => {

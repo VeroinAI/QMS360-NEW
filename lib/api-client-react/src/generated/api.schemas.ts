@@ -12,7 +12,15 @@ export const EmailEventRuleRecipientMode = {
   all_users: 'all_users',
   internal_user: 'internal_user',
   external_email: 'external_email',
+  workspace_role: 'workspace_role',
+  project_members: 'project_members',
+  project_role: 'project_role',
 } as const;
+
+export interface EmailRecipientConfig {
+  roleName?: string;
+  projectIds?: string[];
+}
 
 export interface EmailEventRule {
   id: string;
@@ -25,6 +33,7 @@ export interface EmailEventRule {
   /** @nullable */
   createdByUserId?: string | null;
   recipientMode: EmailEventRuleRecipientMode;
+  recipientConfig?: EmailRecipientConfig;
   /** @nullable */
   receiverUserId?: string | null;
   /** @nullable */
@@ -40,6 +49,9 @@ export const EmailEventRuleInputRecipientMode = {
   all_users: 'all_users',
   internal_user: 'internal_user',
   external_email: 'external_email',
+  workspace_role: 'workspace_role',
+  project_members: 'project_members',
+  project_role: 'project_role',
 } as const;
 
 export interface EmailEventRuleInput {
@@ -53,6 +65,7 @@ export interface EmailEventRuleInput {
   /** @nullable */
   createdByUserId?: string | null;
   recipientMode: EmailEventRuleInputRecipientMode;
+  recipientConfig?: EmailRecipientConfig;
   /** @nullable */
   receiverUserId?: string | null;
   /** @nullable */
@@ -600,6 +613,69 @@ export interface SyncJob {
   targetCount?: number;
   /** @nullable */
   error?: string | null;
+}
+
+export interface EmailDeliverySettings {
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  retentionDays: number;
+  /**
+     * @minimum 0
+     * @maximum 20
+     */
+  maxRetries: number;
+  /**
+     * @minimum 1
+     * @maximum 1440
+     */
+  retryDelayMinutes: number;
+}
+
+export type OutboundEmailApp = typeof OutboundEmailApp[keyof typeof OutboundEmailApp];
+
+
+export const OutboundEmailApp = {
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+  platform: 'platform',
+} as const;
+
+export type OutboundEmailStatus = typeof OutboundEmailStatus[keyof typeof OutboundEmailStatus];
+
+
+export const OutboundEmailStatus = {
+  queued: 'queued',
+  sending: 'sending',
+  retrying: 'retrying',
+  sent: 'sent',
+  failed: 'failed',
+} as const;
+
+export interface OutboundEmail {
+  id: string;
+  app: OutboundEmailApp;
+  /** @nullable */
+  eventType?: string | null;
+  /** @nullable */
+  entityId?: string | null;
+  recipientEmail: string;
+  /** @nullable */
+  recipientName?: string | null;
+  subject: string;
+  status: OutboundEmailStatus;
+  attemptCount: number;
+  maxAttempts: number;
+  nextAttemptAt: string;
+  /** @nullable */
+  lastAttemptAt?: string | null;
+  /** @nullable */
+  sentAt?: string | null;
+  /** @nullable */
+  lastError?: string | null;
+  createdAt: string;
 }
 
 export type IntegrationHealthStatus = typeof IntegrationHealthStatus[keyof typeof IntegrationHealthStatus];
@@ -2371,6 +2447,10 @@ export type SyncJobPage = PageMeta & {
   items: SyncJob[];
 };
 
+export type OutboundEmailPage = PageMeta & {
+  items: OutboundEmail[];
+};
+
 export type ExecutiveSummaryPage = PageMeta & {
   items: ExecutiveSummary[];
 };
@@ -2503,6 +2583,11 @@ export type IntegrationConnectorPageResponse = IntegrationConnectorPage;
  * Paginated jobs
  */
 export type SyncJobPageResponse = SyncJobPage;
+
+/**
+ * Paginated outbound emails
+ */
+export type OutboundEmailPageResponse = OutboundEmailPage;
 
 /**
  * Paginated summaries
@@ -2819,6 +2904,44 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 };
+
+export type ListOutboundEmailsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+status?: ListOutboundEmailsStatus;
+app?: ListOutboundEmailsApp;
+search?: string;
+};
+
+export type ListOutboundEmailsStatus = typeof ListOutboundEmailsStatus[keyof typeof ListOutboundEmailsStatus];
+
+
+export const ListOutboundEmailsStatus = {
+  all: 'all',
+  queued: 'queued',
+  sending: 'sending',
+  retrying: 'retrying',
+  sent: 'sent',
+  failed: 'failed',
+} as const;
+
+export type ListOutboundEmailsApp = typeof ListOutboundEmailsApp[keyof typeof ListOutboundEmailsApp];
+
+
+export const ListOutboundEmailsApp = {
+  all: 'all',
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+  platform: 'platform',
+} as const;
 
 export type ListPublishedExecutiveSummariesParams = {
 /**

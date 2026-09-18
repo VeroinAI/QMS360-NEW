@@ -78,6 +78,20 @@
       "when": 1789668836037,
       "tag": "0010_wise_roulette",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789729085233,
+      "tag": "0011_email_delivery_queue",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789729486711,
+      "tag": "0012_email_recipient_selectors",
+      "breakpoints": true
     }
   ]
 }

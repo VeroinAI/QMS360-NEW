@@ -1,13 +1,16 @@
 import { Router, raw, type IRouter } from "express";
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import {
   CreateImportTemplateBody, CreateIntegrationConnectorBody, GetConnectorFieldMappingsResponse,
-  GetIntegrationsHealthResponse, ListIntegrationConnectorsResponse, ListSyncJobsResponse,
+  GetEmailDeliverySettingsResponse, GetIntegrationsHealthResponse, ListIntegrationConnectorsResponse,
+  ListOutboundEmailsQueryParams, ListOutboundEmailsResponse, ListSyncJobsResponse,
   PullConnectorDataBody, RetrySyncJobResponse, SaveConnectorFieldMappingsBody, SendConnectorTestEmailResponse,
+  RetryOutboundEmailResponse, UpdateEmailDeliverySettingsBody, UpdateEmailDeliverySettingsResponse,
   UpdateImportTemplateBody, UpdateIntegrationConnectorBody, UpdateIntegrationConnectorResponse,
 } from "@workspace/api-zod";
-import { connectorFieldMappings, db, importTemplates, integrationConnectors, syncJobs } from "@workspace/db";
+import { connectorFieldMappings, db, importTemplates, integrationConnectors, organizationSettings, outboundEmails, syncJobs } from "@workspace/db";
 import { deliverEmail, sendConnectorTestEmail } from "../lib/email";
+import { getEmailDeliveryPolicy } from "../lib/email-queue";
 import { encryptConfigSecrets, encryptSecret } from "../lib/secrets";
 import {
   CUSTOM_FIELD_PATTERN, ENTITY_CATALOG, applyEntityRows, buildTemplateFile, ensureDefaultTemplates,
@@ -15,11 +18,12 @@ import {
   type SyncEntity,
 } from "../lib/source-sync";
 import { paginated, pagination } from "../lib/workspace";
-import { requireAdmin, requireAuth } from "../middlewares/auth";
+import { requireAdmin, requireAuth, requirePlatformRole } from "../middlewares/auth";
 
 const router: IRouter = Router();
 const families = new Set(["platform", "email", "ai", "oracle_adw", "bi", "source_api"]);
 const statuses = new Set(["Connected", "Degraded", "Failed", "Disabled"]);
+const superAdmin = requirePlatformRole("Super Admin");
 
 function maskConfig(value: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [
@@ -58,6 +62,19 @@ function syncDto(row: typeof syncJobs.$inferSelect) {
     sourceCount: typeof summary?.sourceCount === "number" ? summary.sourceCount : 0,
     targetCount: typeof summary?.targetCount === "number" ? summary.targetCount : 0,
     error: firstError ? String(firstError.message ?? firstError.error ?? "Synchronization failed") : null,
+  };
+}
+
+function outboundEmailDto(row: typeof outboundEmails.$inferSelect) {
+  const app = ["qaqc", "lessons", "audit"].includes(row.app) ? row.app : "platform";
+  const status = ["queued", "sending", "retrying", "sent", "failed"].includes(row.deliveryStatus)
+    ? row.deliveryStatus : "failed";
+  return {
+    id: row.id, app, eventType: row.eventType, entityId: row.entityId,
+    recipientEmail: row.recipientEmail, recipientName: row.recipientName,
+    subject: row.subject, status, attemptCount: row.attemptCount, maxAttempts: row.maxAttempts,
+    nextAttemptAt: row.nextAttemptAt, lastAttemptAt: row.lastAttemptAt, sentAt: row.sentAt,
+    lastError: row.lastError, createdAt: row.createdAt,
   };
 }
 
@@ -176,6 +193,74 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
     durationMs: Date.now() - startedAt, lastRunAt: new Date(), updatedAt: new Date(),
   }).where(eq(syncJobs.id, job.id)).returning();
   res.json(RetrySyncJobResponse.parse(syncDto(row!)));
+});
+
+router.get("/integrations/email-settings", requireAuth, superAdmin, async (req, res) => {
+  const policy = await getEmailDeliveryPolicy(db, req.currentUser!.organizationId);
+  res.json(GetEmailDeliverySettingsResponse.parse(policy));
+});
+
+router.put("/integrations/email-settings", requireAuth, superAdmin, async (req, res): Promise<void> => {
+  const parsed = UpdateEmailDeliverySettingsBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({ error: parsed.error.issues[0]?.message ?? "Invalid email delivery settings" });
+    return;
+  }
+  const organizationId = req.currentUser!.organizationId;
+  const [existing] = await db.select({ id: organizationSettings.id }).from(organizationSettings)
+    .where(and(eq(organizationSettings.organizationId, organizationId), isNull(organizationSettings.deletedAt))).limit(1);
+  if (existing) {
+    await db.update(organizationSettings).set({ emailDeliveryPolicy: parsed.data, updatedAt: new Date() })
+      .where(eq(organizationSettings.id, existing.id));
+  } else {
+    await db.insert(organizationSettings).values({ organizationId, emailDeliveryPolicy: parsed.data });
+  }
+  res.json(UpdateEmailDeliverySettingsResponse.parse(parsed.data));
+});
+
+router.get("/integrations/email-queue", requireAuth, superAdmin, async (req, res): Promise<void> => {
+  const parsed = ListOutboundEmailsQueryParams.safeParse(req.query);
+  if (!parsed.success) { res.status(422).json({ error: "Invalid email queue filters" }); return; }
+  const { page, limit, offset } = pagination(req);
+  const params = parsed.data;
+  const where = and(
+    eq(outboundEmails.organizationId, req.currentUser!.organizationId),
+    isNull(outboundEmails.deletedAt),
+    params.status && params.status !== "all" ? eq(outboundEmails.deliveryStatus, params.status) : undefined,
+    params.app && params.app !== "all" ? eq(outboundEmails.app, params.app) : undefined,
+    params.search?.trim() ? or(
+      ilike(outboundEmails.recipientEmail, `%${params.search.trim()}%`),
+      ilike(outboundEmails.subject, `%${params.search.trim()}%`),
+      ilike(outboundEmails.eventType, `%${params.search.trim()}%`),
+    ) : undefined,
+  );
+  const [rows, counts] = await Promise.all([
+    db.select().from(outboundEmails).where(where).orderBy(desc(outboundEmails.createdAt)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(outboundEmails).where(where),
+  ]);
+  res.json(ListOutboundEmailsResponse.parse(paginated(rows.map(outboundEmailDto), Number(counts[0]?.count ?? 0), page, limit)));
+});
+
+router.post("/integrations/email-queue/:id/retry", requireAuth, superAdmin, async (req, res): Promise<void> => {
+  const organizationId = req.currentUser!.organizationId;
+  const [existing] = await db.select().from(outboundEmails).where(and(
+    eq(outboundEmails.id, String(req.params.id)),
+    eq(outboundEmails.organizationId, organizationId),
+    isNull(outboundEmails.deletedAt),
+  )).limit(1);
+  if (!existing) { res.status(404).json({ error: "Email not found" }); return; }
+  if (existing.deliveryStatus !== "failed") {
+    res.status(409).json({ error: "Only failed emails can be retried" }); return;
+  }
+  const [updated] = await db.update(outboundEmails).set({
+    deliveryStatus: "queued",
+    maxAttempts: existing.attemptCount + 1,
+    nextAttemptAt: new Date(),
+    lastError: null,
+    lockedAt: null,
+    updatedAt: new Date(),
+  }).where(and(eq(outboundEmails.id, existing.id), eq(outboundEmails.organizationId, organizationId))).returning();
+  res.status(202).json(RetryOutboundEmailResponse.parse(outboundEmailDto(updated!)));
 });
 
 router.post("/integrations/connectors/:id/test-email", requireAuth, requireAdmin, async (req, res): Promise<void> => {

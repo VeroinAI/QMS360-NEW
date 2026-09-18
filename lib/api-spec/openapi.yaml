@@ -534,6 +534,48 @@ paths:
       parameters: [{$ref: "#/components/parameters/Id"}]
       responses:
         "202": {description: Retry queued, content: {application/json: {schema: {$ref: "#/components/schemas/SyncJob"}}}}
+  /integrations/email-settings:
+    get:
+      operationId: getEmailDeliverySettings
+      tags: [integrations]
+      summary: Get QMS360 email retention and retry policy (Super Admin only)
+      responses:
+        "200": {description: Email delivery settings, content: {application/json: {schema: {$ref: "#/components/schemas/EmailDeliverySettings"}}}}
+        "403": {description: Super Admin access required}
+    put:
+      operationId: updateEmailDeliverySettings
+      tags: [integrations]
+      summary: Update QMS360 email retention and retry policy (Super Admin only)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/EmailDeliverySettings"}}}}
+      responses:
+        "200": {description: Updated email delivery settings, content: {application/json: {schema: {$ref: "#/components/schemas/EmailDeliverySettings"}}}}
+        "403": {description: Super Admin access required}
+        "422": {description: Invalid settings}
+  /integrations/email-queue:
+    get:
+      operationId: listOutboundEmails
+      tags: [integrations]
+      summary: Monitor the tenant outbound email queue (Super Admin only)
+      parameters:
+        - {$ref: "#/components/parameters/Page"}
+        - {$ref: "#/components/parameters/Limit"}
+        - {name: status, in: query, schema: {type: string, enum: [all, queued, sending, retrying, sent, failed]}}
+        - {name: app, in: query, schema: {type: string, enum: [all, qaqc, lessons, audit, platform]}}
+        - {name: search, in: query, schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/OutboundEmailPage"}
+        "403": {description: Super Admin access required}
+  /integrations/email-queue/{id}/retry:
+    post:
+      operationId: retryOutboundEmail
+      tags: [integrations]
+      summary: Queue one failed email for another delivery attempt (Super Admin only)
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "202": {description: Email queued, content: {application/json: {schema: {$ref: "#/components/schemas/OutboundEmail"}}}}
+        "403": {description: Super Admin access required}
+        "404": {description: Email not found}
+        "409": {description: Email is not failed}
   /integrations/health:
     get:
       operationId: getIntegrationsHealth
@@ -1253,6 +1295,7 @@ components:
     BusinessUnitPage: {description: Paginated business units, content: {application/json: {schema: {$ref: "#/components/schemas/BusinessUnitPage"}}}}
     IntegrationConnectorPage: {description: Paginated connectors, content: {application/json: {schema: {$ref: "#/components/schemas/IntegrationConnectorPage"}}}}
     SyncJobPage: {description: Paginated jobs, content: {application/json: {schema: {$ref: "#/components/schemas/SyncJobPage"}}}}
+    OutboundEmailPage: {description: Paginated outbound emails, content: {application/json: {schema: {$ref: "#/components/schemas/OutboundEmailPage"}}}}
     ExecutiveSummaryPage: {description: Paginated summaries, content: {application/json: {schema: {$ref: "#/components/schemas/ExecutiveSummaryPage"}}}}
     ReferenceItemPage: {description: Paginated reference items, content: {application/json: {schema: {$ref: "#/components/schemas/ReferenceItemPage"}}}}
     QAQCMetricPage: {description: Paginated metrics, content: {application/json: {schema: {$ref: "#/components/schemas/QAQCMetricPage"}}}}
@@ -1328,7 +1371,8 @@ components:
         priority: {type: number}
         eventType: {type: string, pattern: "^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$"}
         createdByUserId: {type: [string, "null"]}
-        recipientMode: {type: string, enum: [all_users, internal_user, external_email]}
+        recipientMode: {type: string, enum: [all_users, internal_user, external_email, workspace_role, project_members, project_role]}
+        recipientConfig: {$ref: "#/components/schemas/EmailRecipientConfig"}
         receiverUserId: {type: [string, "null"]}
         receiverName: {type: [string, "null"]}
         receiverEmail: {type: [string, "null"]}
@@ -1341,10 +1385,16 @@ components:
         priority: {type: number, minimum: 0}
         eventType: {type: string, pattern: "^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$"}
         createdByUserId: {type: [string, "null"]}
-        recipientMode: {type: string, enum: [all_users, internal_user, external_email]}
+        recipientMode: {type: string, enum: [all_users, internal_user, external_email, workspace_role, project_members, project_role]}
+        recipientConfig: {$ref: "#/components/schemas/EmailRecipientConfig"}
         receiverUserId: {type: [string, "null"]}
         receiverName: {type: [string, "null"]}
         receiverEmail: {type: [string, "null"]}
+    EmailRecipientConfig:
+      type: object
+      properties:
+        roleName: {type: string}
+        projectIds: {type: array, items: {type: string}}
     EmailRuleOrderInput:
       type: object
       required: [ids]
@@ -1866,6 +1916,32 @@ components:
       type: object
       required: [id, connectorId, status, startedAt]
       properties: {id: {type: string}, connectorId: {type: string}, status: {type: string, enum: [queued, running, succeeded, failed]}, schedule: {type: [string, "null"]}, startedAt: {type: string, format: date-time}, completedAt: {type: [string, "null"], format: date-time}, durationMs: {type: [number, "null"]}, sourceCount: {type: number}, targetCount: {type: number}, error: {type: [string, "null"]}}
+    EmailDeliverySettings:
+      type: object
+      required: [retentionDays, maxRetries, retryDelayMinutes]
+      properties:
+        retentionDays: {type: number, multipleOf: 1, minimum: 1, maximum: 3650}
+        maxRetries: {type: number, multipleOf: 1, minimum: 0, maximum: 20}
+        retryDelayMinutes: {type: number, multipleOf: 1, minimum: 1, maximum: 1440}
+    OutboundEmail:
+      type: object
+      required: [id, app, recipientEmail, subject, status, attemptCount, maxAttempts, nextAttemptAt, createdAt]
+      properties:
+        id: {type: string}
+        app: {type: string, enum: [qaqc, lessons, audit, platform]}
+        eventType: {type: [string, "null"]}
+        entityId: {type: [string, "null"]}
+        recipientEmail: {type: string}
+        recipientName: {type: [string, "null"]}
+        subject: {type: string}
+        status: {type: string, enum: [queued, sending, retrying, sent, failed]}
+        attemptCount: {type: number, multipleOf: 1}
+        maxAttempts: {type: number, multipleOf: 1}
+        nextAttemptAt: {type: string, format: date-time}
+        lastAttemptAt: {type: [string, "null"], format: date-time}
+        sentAt: {type: [string, "null"], format: date-time}
+        lastError: {type: [string, "null"]}
+        createdAt: {type: string, format: date-time}
     IntegrationHealth:
       type: object
       required: [status, connectors]
@@ -2577,6 +2653,7 @@ components:
     BusinessUnitPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/BusinessUnit"}}}}]}
     IntegrationConnectorPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/IntegrationConnector"}}}}]}
     SyncJobPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/SyncJob"}}}}]}
+    OutboundEmailPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/OutboundEmail"}}}}]}
     ExecutiveSummaryPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/ExecutiveSummary"}}}}]}
     ReferenceItemPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}}}]}
     QAQCMetricPage: {allOf: [{$ref: "#/components/schemas/PageMeta"}, {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/QAQCMetricEntry"}}}}]}

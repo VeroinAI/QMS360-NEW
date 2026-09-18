@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startEscalationScheduler } from "./lib/escalation";
+import { startEmailQueueScheduler } from "./lib/email-queue";
 
 const rawPort = process.env["PORT"];
 
@@ -26,4 +27,6 @@ app.listen(port, (err) => {
 
   startEscalationScheduler(app);
   logger.info("Escalation reconciliation scheduler started");
+  startEmailQueueScheduler();
+  logger.info("Email delivery queue scheduler started");
 });

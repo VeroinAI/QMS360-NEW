@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EmailEventRuleRecipientMode } from './emailEventRuleRecipientMode';
+import type { EmailRecipientConfig } from './emailRecipientConfig';
 
 export interface EmailEventRule {
   id: string;
@@ -18,6 +19,7 @@ export interface EmailEventRule {
   /** @nullable */
   createdByUserId?: string | null;
   recipientMode: EmailEventRuleRecipientMode;
+  recipientConfig?: EmailRecipientConfig;
   /** @nullable */
   receiverUserId?: string | null;
   /** @nullable */

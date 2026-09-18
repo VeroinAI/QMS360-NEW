@@ -7,7 +7,7 @@ import {
   useGetConnectorFieldMappings, useGetIntegrationsHealth, useListImportTemplates,
   useListIntegrationConnectors, useListSyncJobs, usePullConnectorData, useRetrySyncJob,
   useSaveConnectorFieldMappings, useSendConnectorTestEmail, useTestConnectorConnection,
-  useUpdateImportTemplate, useUpdateIntegrationConnector,
+  useUpdateImportTemplate, useUpdateIntegrationConnector, useGetCurrentUser,
 } from '@workspace/api-client-react';
 import type { ImportTemplate, ImportTemplateColumn, IntegrationConnector, PullResult } from '@workspace/api-client-react';
 import { Activity, ArrowLeft, Bot, CloudCog, Copy, Database, Download, FileSpreadsheet, FileUp, Mail, PlugZap, Plus, RefreshCw, Save, ServerCog, Trash2 } from 'lucide-react';
@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 
 import { EmailRulesTab } from './email-rules-tab';
+import { EmailQueueTab } from './email-queue-tab';
 
 const icons = { platform: CloudCog, email: Mail, ai: Bot, oracle_adw: Database, bi: FileSpreadsheet, source_api: PlugZap } as Record<string, typeof CloudCog>;
 const labels = { platform: 'Platform sync', email: 'Email SMTP', ai: 'AI provider', oracle_adw: 'Oracle ADW', bi: 'BI / Excel export', source_api: 'Source system API' } as Record<string, string>;
@@ -401,6 +402,7 @@ export function CockpitPage() {
   const [password, setPassword] = useState('');
   const [wizardOpen, setWizardOpen] = useState(false);
   const connectors = useListIntegrationConnectors({ page: 1, limit: 50 });
+  const currentUser = useGetCurrentUser();
   const health = useGetIntegrationsHealth();
   const jobs = useListSyncJobs({ page, limit: 10 });
   const update = useUpdateIntegrationConnector();
@@ -444,6 +446,7 @@ export function CockpitPage() {
         <TabsList>
           <TabsTrigger value="connections">Connections</TabsTrigger>
           <TabsTrigger value="email">Email rules</TabsTrigger>
+          {currentUser.data?.platformRole === 'Super Admin' && <TabsTrigger value="email-queue">Email queue</TabsTrigger>}
           <TabsTrigger value="import">Data import</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
@@ -471,6 +474,7 @@ export function CockpitPage() {
         <TabsContent value="email">
           <EmailRulesTab connectors={connectors.data?.items ?? []} onEditConnector={(c) => { setPassword(''); setEditing(c); }} />
         </TabsContent>
+        {currentUser.data?.platformRole === 'Super Admin' && <TabsContent value="email-queue"><EmailQueueTab /></TabsContent>}
 
         <TabsContent value="import"><ImportTab /></TabsContent>
 

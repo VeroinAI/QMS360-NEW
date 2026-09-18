@@ -10,7 +10,7 @@ import {
   notifications, organizationSettings, qaqcMetricEntries, qualityAssessmentBriefs,
   targetBenchmarks, userWorkspaceRoles, users, workspaceRoles,
 } from "@workspace/db";
-import { deliverEmail } from "./email";
+import { enqueueEmail } from "./email-queue";
 
 type TriggerType = "approval_delay" | "missing_submission" | "lesson_sla" | "performance" | "finding_priority";
 type Calendar = { workingDays: Array<number | string>; holidays: string[] };
@@ -201,7 +201,7 @@ async function reconcileApp(
           });
         }
         // Fire-and-forget: SMTP latency/outages must not stall reconciliation.
-        void deliverEmail(database, {
+        void enqueueEmail(database, {
           organizationId: candidate.organizationId, recipientIds, subject: title, text: body,
           context: { app: app.key, trigger, level, recordType: candidate.recordType, recordId: candidate.id, ruleId: rule.id },
         });
@@ -231,7 +231,7 @@ async function reconcileApp(
       }
       // Fire-and-forget: the instance is persisted above, so SMTP latency or
       // outages can neither stall reconciliation nor cause duplicate sends.
-      void deliverEmail(database, {
+      void enqueueEmail(database, {
         organizationId: candidate.organizationId, recipientIds, subject: title, text: body,
         context: { app: app.key, trigger, level, recordType: candidate.recordType, recordId: candidate.id, ruleId: rule.id },
       });

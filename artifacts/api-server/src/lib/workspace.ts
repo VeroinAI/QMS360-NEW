@@ -9,7 +9,7 @@ import {
   lessonsAuditLogEntries,
   notifications,
 } from "@workspace/db";
-import { deliverEmail } from "./email";
+import { enqueueEmail } from "./email-queue";
 import { dispatchEmailRule } from "./email-rules";
 
 export type AppKey = "qaqc" | "lessons" | "audit";
@@ -168,7 +168,7 @@ export async function markNotificationRead(database: any, app: AppKey, organizat
  */
 export async function notifyWithEmail(database: any, app: AppKey, input: NotifyInput) {
   await notify(database, app, input);
-  void deliverEmail(database, {
+  void enqueueEmail(database, {
     organizationId: input.organizationId,
     recipientIds: [input.userId],
     subject: input.title,

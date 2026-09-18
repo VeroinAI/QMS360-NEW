@@ -4,6 +4,7 @@ import {
   getListEmailRulesQueryKey,
   useListEmailRules, useCreateEmailRule, useUpdateEmailRule, useDeleteEmailRule,
   useReorderEmailRules, useEmailRuleEventCatalog, useEmailRuleUserOptions,
+  useListPlatformProjects,
   useSimulateEmailRule,
   useCreateIntegrationConnector,
   useSendConnectorTestEmail
@@ -205,7 +206,13 @@ function EmailRulesList() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {rule.receiverEmail ? (
+                    {rule.recipientMode === 'workspace_role' ? (
+                      <span className="text-sm">Send to role: {rule.recipientConfig?.roleName}</span>
+                    ) : rule.recipientMode === 'project_members' ? (
+                      <span className="text-sm">Send to project members</span>
+                    ) : rule.recipientMode === 'project_role' ? (
+                      <span className="text-sm">Send to project role: {rule.recipientConfig?.roleName}</span>
+                    ) : rule.receiverEmail ? (
                       <span className="text-sm">Send to: {rule.receiverName} &lt;{rule.receiverEmail}&gt;</span>
                     ) : rule.receiverUserId ? (
                       <span className="text-sm">Send to specific user</span>
@@ -247,16 +254,22 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
   const update = useUpdateEmailRule();
   const eventsQuery = useEmailRuleEventCatalog();
   const usersQuery = useEmailRuleUserOptions();
+  const projectsQuery = useListPlatformProjects({ page: 1, limit: 200 });
   
   const [draft, setDraft] = useState({
     name: rule?.name ?? '',
     enabled: rule?.enabled ?? true,
     eventType: rule?.eventType ?? '',
     createdByUserId: rule?.createdByUserId ?? '',
-    receiverMode: rule?.receiverEmail ? 'external' : (rule?.receiverUserId ? 'user' : 'default'),
+    receiverMode: rule?.recipientMode === 'workspace_role' ? 'role'
+      : rule?.recipientMode === 'project_members' ? 'project'
+        : rule?.recipientMode === 'project_role' ? 'project_role'
+          : rule?.receiverEmail ? 'external' : (rule?.receiverUserId ? 'user' : 'default'),
     receiverUserId: rule?.receiverUserId ?? '',
     receiverName: rule?.receiverName ?? '',
     receiverEmail: rule?.receiverEmail ?? '',
+    roleName: rule?.recipientConfig?.roleName ?? '',
+    projectId: rule?.recipientConfig?.projectIds?.[0] ?? '',
   });
 
   const set = (patch: Partial<typeof draft>) => setDraft(d => ({ ...d, ...patch }));
@@ -268,14 +281,30 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
       priority: rule?.priority ?? 999,
       eventType: draft.eventType,
       createdByUserId: draft.createdByUserId || null,
-      recipientMode: draft.receiverMode === 'user' ? 'internal_user' as const : draft.receiverMode === 'external' ? 'external_email' as const : 'all_users' as const,
+      recipientMode: draft.receiverMode === 'user' ? 'internal_user' as const
+        : draft.receiverMode === 'external' ? 'external_email' as const
+          : draft.receiverMode === 'role' ? 'workspace_role' as const
+            : draft.receiverMode === 'project' ? 'project_members' as const
+              : draft.receiverMode === 'project_role' ? 'project_role' as const : 'all_users' as const,
       receiverUserId: draft.receiverMode === 'user' && draft.receiverUserId ? draft.receiverUserId : null,
       receiverName: draft.receiverMode === 'external' ? draft.receiverName.trim() : null,
       receiverEmail: draft.receiverMode === 'external' ? draft.receiverEmail.trim() : null,
+      recipientConfig: {
+        ...(draft.receiverMode === 'role' || draft.receiverMode === 'project_role' ? { roleName: draft.roleName.trim() } : {}),
+        ...(draft.receiverMode === 'project' || draft.receiverMode === 'project_role' ? { projectIds: draft.projectId ? [draft.projectId] : [] } : {}),
+      },
     };
     
     if (draft.receiverMode === 'external' && (!payload.receiverEmail || !payload.receiverName)) {
       toast({ title: 'Validation error', description: 'External recipient requires both name and email.', variant: 'destructive' });
+      return;
+    }
+    if ((draft.receiverMode === 'role' || draft.receiverMode === 'project_role') && !draft.roleName.trim()) {
+      toast({ title: 'Validation error', description: 'Enter a workspace role name.', variant: 'destructive' });
+      return;
+    }
+    if ((draft.receiverMode === 'project' || draft.receiverMode === 'project_role') && !draft.projectId) {
+      toast({ title: 'Validation error', description: 'Select a project.', variant: 'destructive' });
       return;
     }
 
@@ -294,6 +323,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
 
   const events = eventsQuery.data ?? [];
   const users = usersQuery.data ?? [];
+  const projects = projectsQuery.data?.items ?? [];
   
   const busy = create.isPending || update.isPending;
   const isNew = !rule;
@@ -354,11 +384,14 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
             <div className="space-y-3">
               <div>
                 <Label>Recipient mode</Label>
-                <Select value={draft.receiverMode} onValueChange={v => set({ receiverMode: v as 'default' | 'user' | 'external' })}>
+                <Select value={draft.receiverMode} onValueChange={v => set({ receiverMode: v as typeof draft.receiverMode })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">All active users</SelectItem>
                     <SelectItem value="user">Specific internal user</SelectItem>
+                    <SelectItem value="role">Application workspace role</SelectItem>
+                    <SelectItem value="project">All members of a project</SelectItem>
+                    <SelectItem value="project_role">Role members in a project</SelectItem>
                     <SelectItem value="external">Specific external address</SelectItem>
                   </SelectContent>
                 </Select>
@@ -392,6 +425,12 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                     <Input value={draft.receiverEmail} type="email" onChange={e => set({ receiverEmail: e.target.value })} placeholder="john@example.com" />
                   </div>
                 </div>
+              )}
+              {(draft.receiverMode === 'role' || draft.receiverMode === 'project_role') && (
+                <div><Label>Workspace role name</Label><Input className="mt-2" value={draft.roleName} onChange={e => set({ roleName: e.target.value })} placeholder="e.g. Auditor, QA/QC Manager" /><p className="mt-1 text-xs text-muted-foreground">The role is resolved in the application selected by the event type.</p></div>
+              )}
+              {(draft.receiverMode === 'project' || draft.receiverMode === 'project_role') && (
+                <div><Label>Project</Label><Select value={draft.projectId} onValueChange={projectId => set({ projectId })}><SelectTrigger className="mt-2"><SelectValue placeholder="Select project..." /></SelectTrigger><SelectContent>{projects.map(project => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}</SelectContent></Select></div>
               )}
             </div>
           </div>

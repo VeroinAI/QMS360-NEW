@@ -1,0 +1,10 @@
+---
+name: Outbound email delivery semantics
+description: Durable behavioral rules for QMS360 event email delivery, retries, and monitoring.
+---
+
+Application-event emails must be persisted as one queue row per resolved recipient before SMTP delivery. Status, attempts, retry timing, and errors are tracked per recipient. Connector test emails remain a synchronous direct-send diagnostic path.
+
+**Why:** SMTP failures must never roll back application workflows, while Super Admins still need an accurate recipient-level delivery trail and reliable automatic retries.
+
+**How to apply:** New production notification paths enqueue resolved recipients and include application/event context. Use the tenant-wide organization policy for retention, retry count, and retry delay. Keep queue reads, claims, retries, and cleanup tenant-scoped.

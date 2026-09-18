@@ -175,6 +175,15 @@ export const organizationSettings = sharedSchema.table("organization_settings", 
     startingNumber: number;
     nextNumber: number;
   }>>().notNull().default({}),
+  emailDeliveryPolicy: jsonb("email_delivery_policy").$type<{
+    retentionDays: number;
+    maxRetries: number;
+    retryDelayMinutes: number;
+  }>().notNull().default({
+    retentionDays: 90,
+    maxRetries: 3,
+    retryDelayMinutes: 15,
+  }),
   ...auditColumns,
 }, (table) => [
   uniqueIndex("organization_settings_org_active_idx").on(table.organizationId).where(sql`${table.deletedAt} IS NULL`),
@@ -200,12 +209,42 @@ export const emailEventRules = sharedSchema.table("email_event_rules", {
   eventType: text("event_type").notNull(),
   createdByUserId: uuid("created_by_user_id").references(() => users.id),
   recipientMode: text("recipient_mode").notNull().default("all_users"),
+  recipientConfig: jsonb("recipient_config").$type<{
+    roleName?: string;
+    projectIds?: string[];
+  }>().notNull().default({}),
   receiverUserId: uuid("receiver_user_id").references(() => users.id),
   receiverName: text("receiver_name"),
   receiverEmail: text("receiver_email"),
   ...auditColumns,
 }, (table) => [
   index("email_event_rules_org_priority_idx").on(table.organizationId, table.priority),
+]);
+
+export const outboundEmails = sharedSchema.table("outbound_emails", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  app: text("app").notNull(),
+  eventType: text("event_type"),
+  ruleId: uuid("rule_id").references(() => emailEventRules.id),
+  entityId: text("entity_id"),
+  recipientEmail: text("recipient_email").notNull(),
+  recipientName: text("recipient_name"),
+  subject: text("subject").notNull(),
+  bodyText: text("body_text").notNull(),
+  context: jsonb("context").$type<Record<string, unknown>>().notNull().default({}),
+  deliveryStatus: text("delivery_status").notNull().default("queued"),
+  attemptCount: integer("attempt_count").notNull().default(0),
+  maxAttempts: integer("max_attempts").notNull().default(4),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+  lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  lockedAt: timestamp("locked_at", { withTimezone: true }),
+  ...auditColumns,
+}, (table) => [
+  index("outbound_emails_org_created_idx").on(table.organizationId, table.createdAt),
+  index("outbound_emails_status_next_idx").on(table.deliveryStatus, table.nextAttemptAt),
 ]);
 
 export const syncJobs = sharedSchema.table("sync_jobs", {

@@ -1223,6 +1223,153 @@ export const RetrySyncJobResponse = zod.object({
 
 
 /**
+ * @summary Get QMS360 email retention and retry policy (Super Admin only)
+ */
+export const getEmailDeliverySettingsResponseRetentionDaysMax = 3650;
+export const getEmailDeliverySettingsResponseRetentionDaysMultipleOf = 1;
+
+export const getEmailDeliverySettingsResponseMaxRetriesMin = 0;
+export const getEmailDeliverySettingsResponseMaxRetriesMax = 20;
+export const getEmailDeliverySettingsResponseMaxRetriesMultipleOf = 1;
+
+export const getEmailDeliverySettingsResponseRetryDelayMinutesMax = 1440;
+export const getEmailDeliverySettingsResponseRetryDelayMinutesMultipleOf = 1;
+
+
+
+export const GetEmailDeliverySettingsResponse = zod.object({
+  "retentionDays": zod.number().min(1).max(getEmailDeliverySettingsResponseRetentionDaysMax).multipleOf(getEmailDeliverySettingsResponseRetentionDaysMultipleOf),
+  "maxRetries": zod.number().min(getEmailDeliverySettingsResponseMaxRetriesMin).max(getEmailDeliverySettingsResponseMaxRetriesMax).multipleOf(getEmailDeliverySettingsResponseMaxRetriesMultipleOf),
+  "retryDelayMinutes": zod.number().min(1).max(getEmailDeliverySettingsResponseRetryDelayMinutesMax).multipleOf(getEmailDeliverySettingsResponseRetryDelayMinutesMultipleOf)
+})
+
+
+/**
+ * @summary Update QMS360 email retention and retry policy (Super Admin only)
+ */
+export const updateEmailDeliverySettingsBodyRetentionDaysMax = 3650;
+export const updateEmailDeliverySettingsBodyRetentionDaysMultipleOf = 1;
+
+export const updateEmailDeliverySettingsBodyMaxRetriesMin = 0;
+export const updateEmailDeliverySettingsBodyMaxRetriesMax = 20;
+export const updateEmailDeliverySettingsBodyMaxRetriesMultipleOf = 1;
+
+export const updateEmailDeliverySettingsBodyRetryDelayMinutesMax = 1440;
+export const updateEmailDeliverySettingsBodyRetryDelayMinutesMultipleOf = 1;
+
+
+
+export const UpdateEmailDeliverySettingsBody = zod.object({
+  "retentionDays": zod.number().min(1).max(updateEmailDeliverySettingsBodyRetentionDaysMax).multipleOf(updateEmailDeliverySettingsBodyRetentionDaysMultipleOf),
+  "maxRetries": zod.number().min(updateEmailDeliverySettingsBodyMaxRetriesMin).max(updateEmailDeliverySettingsBodyMaxRetriesMax).multipleOf(updateEmailDeliverySettingsBodyMaxRetriesMultipleOf),
+  "retryDelayMinutes": zod.number().min(1).max(updateEmailDeliverySettingsBodyRetryDelayMinutesMax).multipleOf(updateEmailDeliverySettingsBodyRetryDelayMinutesMultipleOf)
+})
+
+export const updateEmailDeliverySettingsResponseRetentionDaysMax = 3650;
+export const updateEmailDeliverySettingsResponseRetentionDaysMultipleOf = 1;
+
+export const updateEmailDeliverySettingsResponseMaxRetriesMin = 0;
+export const updateEmailDeliverySettingsResponseMaxRetriesMax = 20;
+export const updateEmailDeliverySettingsResponseMaxRetriesMultipleOf = 1;
+
+export const updateEmailDeliverySettingsResponseRetryDelayMinutesMax = 1440;
+export const updateEmailDeliverySettingsResponseRetryDelayMinutesMultipleOf = 1;
+
+
+
+export const UpdateEmailDeliverySettingsResponse = zod.object({
+  "retentionDays": zod.number().min(1).max(updateEmailDeliverySettingsResponseRetentionDaysMax).multipleOf(updateEmailDeliverySettingsResponseRetentionDaysMultipleOf),
+  "maxRetries": zod.number().min(updateEmailDeliverySettingsResponseMaxRetriesMin).max(updateEmailDeliverySettingsResponseMaxRetriesMax).multipleOf(updateEmailDeliverySettingsResponseMaxRetriesMultipleOf),
+  "retryDelayMinutes": zod.number().min(1).max(updateEmailDeliverySettingsResponseRetryDelayMinutesMax).multipleOf(updateEmailDeliverySettingsResponseRetryDelayMinutesMultipleOf)
+})
+
+
+/**
+ * @summary Monitor the tenant outbound email queue (Super Admin only)
+ */
+export const listOutboundEmailsQueryPageDefault = 1;
+
+export const listOutboundEmailsQueryLimitDefault = 20;
+export const listOutboundEmailsQueryLimitMax = 200;
+
+
+
+export const ListOutboundEmailsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listOutboundEmailsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listOutboundEmailsQueryLimitMax).default(listOutboundEmailsQueryLimitDefault),
+  "status": zod.enum(['all', 'queued', 'sending', 'retrying', 'sent', 'failed']).optional(),
+  "app": zod.enum(['all', 'qaqc', 'lessons', 'audit', 'platform']).optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const listOutboundEmailsResponseOneTotalMin = 0;
+
+
+
+export const listOutboundEmailsResponseTwoItemsItemAttemptCountMultipleOf = 1;
+
+export const listOutboundEmailsResponseTwoItemsItemMaxAttemptsMultipleOf = 1;
+
+
+
+export const ListOutboundEmailsResponse = zod.object({
+  "total": zod.number().min(listOutboundEmailsResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "app": zod.enum(['qaqc', 'lessons', 'audit', 'platform']),
+  "eventType": zod.string().nullish(),
+  "entityId": zod.string().nullish(),
+  "recipientEmail": zod.string(),
+  "recipientName": zod.string().nullish(),
+  "subject": zod.string(),
+  "status": zod.enum(['queued', 'sending', 'retrying', 'sent', 'failed']),
+  "attemptCount": zod.number().multipleOf(listOutboundEmailsResponseTwoItemsItemAttemptCountMultipleOf),
+  "maxAttempts": zod.number().multipleOf(listOutboundEmailsResponseTwoItemsItemMaxAttemptsMultipleOf),
+  "nextAttemptAt": zod.coerce.date(),
+  "lastAttemptAt": zod.coerce.date().nullish(),
+  "sentAt": zod.coerce.date().nullish(),
+  "lastError": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Queue one failed email for another delivery attempt (Super Admin only)
+ */
+export const RetryOutboundEmailParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const retryOutboundEmailResponseAttemptCountMultipleOf = 1;
+
+export const retryOutboundEmailResponseMaxAttemptsMultipleOf = 1;
+
+
+
+export const RetryOutboundEmailResponse = zod.object({
+  "id": zod.string(),
+  "app": zod.enum(['qaqc', 'lessons', 'audit', 'platform']),
+  "eventType": zod.string().nullish(),
+  "entityId": zod.string().nullish(),
+  "recipientEmail": zod.string(),
+  "recipientName": zod.string().nullish(),
+  "subject": zod.string(),
+  "status": zod.enum(['queued', 'sending', 'retrying', 'sent', 'failed']),
+  "attemptCount": zod.number().multipleOf(retryOutboundEmailResponseAttemptCountMultipleOf),
+  "maxAttempts": zod.number().multipleOf(retryOutboundEmailResponseMaxAttemptsMultipleOf),
+  "nextAttemptAt": zod.coerce.date(),
+  "lastAttemptAt": zod.coerce.date().nullish(),
+  "sentAt": zod.coerce.date().nullish(),
+  "lastError": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Get aggregate integration health
  */
 export const GetIntegrationsHealthResponse = zod.object({
@@ -7744,7 +7891,11 @@ export const ListEmailRulesResponseItem = zod.object({
   "priority": zod.number(),
   "eventType": zod.string().regex(listEmailRulesResponseEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientConfig": zod.object({
+  "roleName": zod.string().optional(),
+  "projectIds": zod.array(zod.string()).optional()
+}).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
   "receiverEmail": zod.string().nullish()
@@ -7764,7 +7915,11 @@ export const CreateEmailRuleBody = zod.object({
   "priority": zod.number().min(createEmailRuleBodyPriorityMin),
   "eventType": zod.string().regex(createEmailRuleBodyEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientConfig": zod.object({
+  "roleName": zod.string().optional(),
+  "projectIds": zod.array(zod.string()).optional()
+}).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
   "receiverEmail": zod.string().nullish()
@@ -7781,7 +7936,11 @@ export const CreateEmailRuleResponse = zod.object({
   "priority": zod.number(),
   "eventType": zod.string().regex(createEmailRuleResponseEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientConfig": zod.object({
+  "roleName": zod.string().optional(),
+  "projectIds": zod.array(zod.string()).optional()
+}).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
   "receiverEmail": zod.string().nullish()
@@ -7804,7 +7963,11 @@ export const UpdateEmailRuleBody = zod.object({
   "priority": zod.number().min(updateEmailRuleBodyPriorityMin),
   "eventType": zod.string().regex(updateEmailRuleBodyEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientConfig": zod.object({
+  "roleName": zod.string().optional(),
+  "projectIds": zod.array(zod.string()).optional()
+}).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
   "receiverEmail": zod.string().nullish()
@@ -7821,7 +7984,11 @@ export const UpdateEmailRuleResponse = zod.object({
   "priority": zod.number(),
   "eventType": zod.string().regex(updateEmailRuleResponseEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientConfig": zod.object({
+  "roleName": zod.string().optional(),
+  "projectIds": zod.array(zod.string()).optional()
+}).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
   "receiverEmail": zod.string().nullish()
@@ -7850,7 +8017,11 @@ export const ReorderEmailRulesResponseItem = zod.object({
   "priority": zod.number(),
   "eventType": zod.string().regex(reorderEmailRulesResponseEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientConfig": zod.object({
+  "roleName": zod.string().optional(),
+  "projectIds": zod.array(zod.string()).optional()
+}).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
   "receiverEmail": zod.string().nullish()
@@ -7891,7 +8062,11 @@ export const SimulateEmailRuleResponse = zod.object({
   "priority": zod.number(),
   "eventType": zod.string().regex(simulateEmailRuleResponseRuleOneEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientConfig": zod.object({
+  "roleName": zod.string().optional(),
+  "projectIds": zod.array(zod.string()).optional()
+}).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
   "receiverEmail": zod.string().nullish()
