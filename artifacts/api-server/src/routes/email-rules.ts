@@ -23,7 +23,7 @@ const knownEvents = [
   "lessons.delegation.create", "lessons.delegation.revoke", "lessons.escalation_rules.replace",
   "lessons.evidence.confirm", "lessons.evidence.create_intent", "lessons.evidence.create_photo_intent", "lessons.evidence.delete",
   "lessons.field_controls.update", "lessons.lesson_form.approve", "lessons.lesson_form.create", "lessons.lesson_form.delete",
-  "lessons.lesson_form.reject", "lessons.lesson_form.submit", "lessons.lesson_form.transfer", "lessons.lesson_form.update",
+  "lessons.lesson_form.reject", "lessons.lesson_form.send_back", "lessons.lesson_form.submit", "lessons.lesson_form.transfer", "lessons.lesson_form.update",
   "lessons.notification.mark_read", "lessons.notification_template.update", "lessons.role.create", "lessons.role.update",
   "lessons.user_profile.update", "lessons.user_role.assign_role", "lessons.user_role.remove_role",
   "audit.user.update_email", "audit.user.update_platform_role",
@@ -44,8 +44,9 @@ function validate(input: any) {
   if (!input || typeof input.name !== "string" || !input.name.trim() || typeof input.eventType !== "string" || !/^[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+$/.test(input.eventType)) throw new HttpError(422, "Invalid rule name or canonical eventType");
   if (!Number.isInteger(input.priority) || input.priority < 0) throw new HttpError(422, "Rule priority must be a non-negative whole number");
   if (!["all_users", "internal_user", "external_email", "workspace_role", "project_members", "project_role", "linked_approver", "linked_creator"].includes(input.recipientMode)) throw new HttpError(422, "Select a recipient mode");
-  if (input.recipientMode === "linked_approver" && input.eventType !== "lessons.lesson_form.submit") throw new HttpError(422, "Linked approver recipients are only available for Lessons Learned submission");
-  if (input.recipientMode === "linked_creator" && input.eventType !== "lessons.lesson_form.approve") throw new HttpError(422, "Linked creator recipients are only available for Lessons Learned approval");
+  const isLessonsFormEvent = input.eventType.startsWith("lessons.lesson_form.");
+  if (input.recipientMode === "linked_approver" && !isLessonsFormEvent) throw new HttpError(422, "Linked Lessons approver is only available for Lessons Learned form events");
+  if (input.recipientMode === "linked_creator" && !isLessonsFormEvent) throw new HttpError(422, "Linked Lessons creator is only available for Lessons Learned form events");
   if (input.recipientMode === "internal_user" && !input.receiverUserId) throw new HttpError(422, "Select an internal recipient");
   if (input.recipientMode === "external_email" && (!input.receiverName?.trim() || !emailPattern.test(input.receiverEmail ?? ""))) throw new HttpError(422, "Enter a valid external recipient name and email");
   if (["workspace_role", "project_role"].includes(input.recipientMode) && !input.recipientConfig?.roleName?.trim()) throw new HttpError(422, "Enter a workspace role name");

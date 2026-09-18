@@ -52,14 +52,16 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
         isNull(users.deletedAt),
       )).limit(1);
     if (form) {
-      recipients = [{ email: form.approverEmail, name: form.approverName }];
       const [creator] = await database.select({ email: users.email, name: users.fullName }).from(users).where(and(
         eq(users.id, form.creatorId), eq(users.organizationId, event.organizationId),
         eq(users.accessStatus, "active"), isNull(users.deletedAt),
       )).limit(1);
-      if (creator) sender = creator;
+      if (creator) {
+        recipients = [{ email: form.approverEmail, name: form.approverName }];
+        sender = creator;
+      }
     }
-  } else if (rule.recipientMode === "linked_creator" && event.app === "lessons" && event.entityType === "lesson_form" && event.action === "approve" && event.entityId && event.actorId) {
+  } else if (rule.recipientMode === "linked_creator" && event.app === "lessons" && event.entityType === "lesson_form" && event.entityId && event.actorId) {
     const [form] = await database.select({
       creatorEmail: users.email,
       creatorName: users.fullName,
@@ -73,13 +75,13 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
         isNull(users.deletedAt),
       )).limit(1);
     if (form) {
-      const [approvingUser] = await database.select({ email: users.email, name: users.fullName }).from(users).where(and(
+      const [triggeringUser] = await database.select({ email: users.email, name: users.fullName }).from(users).where(and(
         eq(users.id, event.actorId), eq(users.organizationId, event.organizationId),
         eq(users.accessStatus, "active"), isNull(users.deletedAt),
       )).limit(1);
-      if (approvingUser) {
+      if (triggeringUser) {
         recipients = [{ email: form.creatorEmail, name: form.creatorName }];
-        sender = approvingUser;
+        sender = triggeringUser;
       }
     }
   } else if (["workspace_role", "project_members", "project_role"].includes(rule.recipientMode)) {

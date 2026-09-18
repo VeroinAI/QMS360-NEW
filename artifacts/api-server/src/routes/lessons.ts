@@ -5,7 +5,7 @@ import { Router, type IRouter } from "express";
 import {
   and, asc, desc, eq, gte, gt, ilike, inArray, isNull, lte, ne, or, sql,
 } from "drizzle-orm";
-import { dispatchEmailRule } from "../lib/email-rules";
+import { dispatchEmailRule, resolveEmailRule } from "../lib/email-rules";
 import {
   AnswerLessonPromptQuestionBody,
   AssignLessonsUserRoleBody,
@@ -809,7 +809,19 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
   await audit(req, body.decision, "lesson_form", before.id, beforeJson, { ...rowJson, remarks: body.comments, delegatedFrom });
   try {
     const notification = { organizationId: before.organizationId, userId: before.creatorId, type: `lesson_${state}`, title: `Lesson ${publicState(state)}`, body: body.comments?.trim() || `${before.referenceNumber} was approved.`, entityType: "lesson_form", entityId: before.id };
-    if (body.decision === "approve") await notify(db, "lessons", notification);
+    let hasRuleOwnedEmail = body.decision === "approve";
+    if (!hasRuleOwnedEmail) {
+      try {
+        const resolved = await resolveEmailRule(db, {
+          organizationId: before.organizationId, app: "lessons", entityType: "lesson_form",
+          action: body.decision, actorId: req.currentUser!.id, entityId: before.id,
+        });
+        hasRuleOwnedEmail = Boolean(resolved.rule);
+      } catch (error) {
+        logger.error({ err: error, app: "lessons", action: body.decision, lessonId: before.id }, "Could not check for a review email rule");
+      }
+    }
+    if (hasRuleOwnedEmail) await notify(db, "lessons", notification);
     else await notifyWithEmail(db, "lessons", notification);
   } catch (error) {
     logger.error({ err: error, app: "lessons", action: body.decision, lessonId: before.id, recipientId: before.creatorId }, "Lesson notification persistence failed after review");

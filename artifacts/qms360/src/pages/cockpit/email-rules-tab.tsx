@@ -367,7 +367,11 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                 <select
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
                   value={draft.eventType}
-                  onChange={event => set({ eventType: event.target.value })}
+                  onChange={event => {
+                    const eventType = event.target.value;
+                    const linkedModeSelected = draft.receiverMode === 'linked_approver' || draft.receiverMode === 'linked_creator';
+                    set({ eventType, ...(linkedModeSelected && !eventType.startsWith('lessons.lesson_form.') ? { receiverMode: 'default' as const } : {}) });
+                  }}
                 >
                   <option value="">Select an event...</option>
                   {events.map(ev => <option key={ev.value} value={ev.value}>{ev.label} ({ev.value})</option>)}
@@ -402,8 +406,8 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                     <SelectItem value="role">Application workspace role</SelectItem>
                     <SelectItem value="project">All members of a project</SelectItem>
                     <SelectItem value="project_role">Role members in a project</SelectItem>
-                    <SelectItem value="linked_approver" disabled={draft.eventType !== 'lessons.lesson_form.submit'}>Linked Lessons approver</SelectItem>
-                    <SelectItem value="linked_creator" disabled={draft.eventType !== 'lessons.lesson_form.approve'}>Linked Lessons creator</SelectItem>
+                    <SelectItem value="linked_approver" disabled={!draft.eventType.startsWith('lessons.lesson_form.')}>Linked Lessons approver</SelectItem>
+                    <SelectItem value="linked_creator" disabled={!draft.eventType.startsWith('lessons.lesson_form.')}>Linked Lessons creator</SelectItem>
                     <SelectItem value="external">Specific external address</SelectItem>
                   </SelectContent>
                 </Select>
