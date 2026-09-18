@@ -3,7 +3,7 @@ import { useGetMasterDataLov } from '@workspace/api-client-react';
 export function useLov(code: string) {
   const query = useGetMasterDataLov(code);
   return {
-    options: query.data?.values.map(({ value, label }) => ({ value, label })) ?? [],
+    options: query.data?.values.map(({ value, label, metadata }) => ({ value, label, metadata })) ?? [],
     isLoading: query.isLoading,
     error: query.error,
   };
