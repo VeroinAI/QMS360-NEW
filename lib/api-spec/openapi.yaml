@@ -1371,7 +1371,7 @@ components:
         priority: {type: number}
         eventType: {type: string, pattern: "^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$"}
         createdByUserId: {type: [string, "null"]}
-        recipientMode: {type: string, enum: [all_users, internal_user, external_email, workspace_role, project_members, project_role]}
+        recipientMode: {type: string, enum: [all_users, internal_user, external_email, workspace_role, project_members, project_role, linked_approver]}
         recipientConfig: {$ref: "#/components/schemas/EmailRecipientConfig"}
         receiverUserId: {type: [string, "null"]}
         receiverName: {type: [string, "null"]}
@@ -1385,7 +1385,7 @@ components:
         priority: {type: number, minimum: 0}
         eventType: {type: string, pattern: "^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$"}
         createdByUserId: {type: [string, "null"]}
-        recipientMode: {type: string, enum: [all_users, internal_user, external_email, workspace_role, project_members, project_role]}
+        recipientMode: {type: string, enum: [all_users, internal_user, external_email, workspace_role, project_members, project_role, linked_approver]}
         recipientConfig: {$ref: "#/components/schemas/EmailRecipientConfig"}
         receiverUserId: {type: [string, "null"]}
         receiverName: {type: [string, "null"]}
@@ -1395,6 +1395,7 @@ components:
       properties:
         roleName: {type: string}
         projectIds: {type: array, items: {type: string}}
+        senderMode: {type: string, enum: [form_creator]}
     EmailRuleOrderInput:
       type: object
       required: [ids]
@@ -1933,6 +1934,8 @@ components:
         entityId: {type: [string, "null"]}
         recipientEmail: {type: string}
         recipientName: {type: [string, "null"]}
+        senderEmail: {type: [string, "null"]}
+        senderName: {type: [string, "null"]}
         subject: {type: string}
         status: {type: string, enum: [queued, sending, retrying, sent, failed]}
         attemptCount: {type: number, multipleOf: 1}

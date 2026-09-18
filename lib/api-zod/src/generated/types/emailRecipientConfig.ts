@@ -5,8 +5,10 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { EmailRecipientConfigSenderMode } from './emailRecipientConfigSenderMode';
 
 export interface EmailRecipientConfig {
   roleName?: string;
   projectIds?: string[];
+  senderMode?: EmailRecipientConfigSenderMode;
 }

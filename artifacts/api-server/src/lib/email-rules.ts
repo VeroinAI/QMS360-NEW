@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import {
   auditUserWorkspaceRoles, auditWorkspaceRoles, db, emailEventRules,
-  lessonsUserWorkspaceRoles, lessonsWorkspaceRoles, userWorkspaceRoles, users, workspaceRoles,
+  lessonLearnedForms, lessonsUserWorkspaceRoles, lessonsWorkspaceRoles, userWorkspaceRoles, users, workspaceRoles,
 } from "@workspace/db";
 import { enqueueEmail } from "./email-queue";
 import { logger } from "./logger";
@@ -21,8 +21,9 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
   const rule = rules.find((candidate) =>
     candidate.eventType === `${event.app}.${event.entityType}.${event.action}` &&
     (!candidate.createdByUserId || candidate.createdByUserId === event.actorId));
-  if (!rule) return { rule: null, recipients: [] as Array<{ email: string; name?: string | null }> };
+  if (!rule) return { rule: null, recipients: [] as Array<{ email: string; name?: string | null }>, sender: null as { email: string; name?: string | null } | null };
   let recipients: Array<{ email: string; name?: string | null }> = [];
+  let sender: { email: string; name?: string | null } | null = null;
   if (rule.recipientMode === "external_email" && rule.receiverEmail && emailPattern.test(rule.receiverEmail)) {
     recipients = [{ email: rule.receiverEmail, name: rule.receiverName }];
   } else if (rule.recipientMode === "internal_user" && rule.receiverUserId) {
@@ -36,6 +37,28 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
       eq(users.organizationId, event.organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt),
     ));
     recipients = rows.map((row) => ({ email: row.email, name: row.name }));
+  } else if (rule.recipientMode === "linked_approver" && event.app === "lessons" && event.entityType === "lesson_form" && event.entityId) {
+    const [form] = await database.select({
+      approverEmail: users.email,
+      approverName: users.fullName,
+      creatorId: lessonLearnedForms.creatorId,
+    }).from(lessonLearnedForms)
+      .innerJoin(users, eq(lessonLearnedForms.approverId, users.id))
+      .where(and(
+        eq(lessonLearnedForms.id, event.entityId),
+        eq(lessonLearnedForms.organizationId, event.organizationId),
+        eq(users.organizationId, event.organizationId),
+        eq(users.accessStatus, "active"),
+        isNull(users.deletedAt),
+      )).limit(1);
+    if (form) {
+      recipients = [{ email: form.approverEmail, name: form.approverName }];
+      const [creator] = await database.select({ email: users.email, name: users.fullName }).from(users).where(and(
+        eq(users.id, form.creatorId), eq(users.organizationId, event.organizationId),
+        eq(users.accessStatus, "active"), isNull(users.deletedAt),
+      )).limit(1);
+      if (creator) sender = creator;
+    }
   } else if (["workspace_role", "project_members", "project_role"].includes(rule.recipientMode)) {
     const config = rule.recipientConfig ?? {};
     const projectIds = (config.projectIds ?? []).filter(Boolean);
@@ -60,7 +83,7 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
         eq(appTables.assignments.status, "active"), isNull(appTables.assignments.deletedAt),
       ];
       if (rule.recipientMode === "project_role") {
-        if (!projectIds.length) return { rule, recipients: [] };
+        if (!projectIds.length) return { rule, recipients: [], sender };
         conditions.push(inArray(users.projectId, projectIds));
       }
       const rows = await database.select({ email: users.email, name: users.fullName }).from(appTables.assignments)
@@ -70,7 +93,7 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
       recipients = rows.map((row) => ({ email: row.email, name: row.name }));
     }
   }
-  return { rule, recipients: [...new Map(recipients.map((item) => [item.email.toLowerCase(), item])).values()] };
+  return { rule, recipients: [...new Map(recipients.map((item) => [item.email.toLowerCase(), item])).values()], sender };
 }
 
 export async function dispatchEmailRule(event: AuditEvent) {
@@ -79,6 +102,7 @@ export async function dispatchEmailRule(event: AuditEvent) {
     if (!result.rule || !result.recipients.length) return result;
     await enqueueEmail(db, {
       organizationId: event.organizationId, recipientIds: [], recipients: result.recipients,
+      sender: result.sender ?? undefined,
       subject: `QMS360: ${event.entityType.replaceAll("_", " ")} ${event.action.replaceAll("_", " ")}`,
       text: `A ${event.entityType.replaceAll("_", " ")} record was ${event.action.replaceAll("_", " ")} in QMS360.${event.entityId ? `\n\nRecord reference: ${event.entityId}` : ""}`,
       context: { kind: "email_event_rule", app: event.app, ruleId: result.rule.id, eventType: result.rule.eventType, entityId: event.entityId },

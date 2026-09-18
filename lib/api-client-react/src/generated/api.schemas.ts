@@ -15,11 +15,20 @@ export const EmailEventRuleRecipientMode = {
   workspace_role: 'workspace_role',
   project_members: 'project_members',
   project_role: 'project_role',
+  linked_approver: 'linked_approver',
+} as const;
+
+export type EmailRecipientConfigSenderMode = typeof EmailRecipientConfigSenderMode[keyof typeof EmailRecipientConfigSenderMode];
+
+
+export const EmailRecipientConfigSenderMode = {
+  form_creator: 'form_creator',
 } as const;
 
 export interface EmailRecipientConfig {
   roleName?: string;
   projectIds?: string[];
+  senderMode?: EmailRecipientConfigSenderMode;
 }
 
 export interface EmailEventRule {
@@ -52,6 +61,7 @@ export const EmailEventRuleInputRecipientMode = {
   workspace_role: 'workspace_role',
   project_members: 'project_members',
   project_role: 'project_role',
+  linked_approver: 'linked_approver',
 } as const;
 
 export interface EmailEventRuleInput {
@@ -664,6 +674,10 @@ export interface OutboundEmail {
   recipientEmail: string;
   /** @nullable */
   recipientName?: string | null;
+  /** @nullable */
+  senderEmail?: string | null;
+  /** @nullable */
+  senderName?: string | null;
   subject: string;
   status: OutboundEmailStatus;
   attemptCount: number;

@@ -60,6 +60,8 @@ export type EmailDeliveryInput = {
   recipientIds: string[];
   /** Explicit external recipients, used by organization email rules. */
   recipients?: Array<{ email: string; name?: string | null }>;
+  /** Optional visible sender. SMTP authentication and envelope delivery still use the connector sender. */
+  sender?: { email: string; name?: string | null };
   subject: string;
   text: string;
   context?: Record<string, unknown>;
@@ -231,7 +233,7 @@ export async function deliverEmail(
     if (!recipientIds.length && !explicitRecipients.length) return { attempted: false, reason: "no_recipients" };
     // Embedded in every recorded failure so the Cockpit sync-job retry action
     // can resend the exact original email without the caller reconstructing it.
-    const retryPayload = { recipientIds, recipients: explicitRecipients, subject: input.subject, text: input.text };
+    const retryPayload = { recipientIds, recipients: explicitRecipients, sender: input.sender, subject: input.subject, text: input.text };
 
     const connector = await findEmailConnector(database, input.organizationId);
     if (!connector) return { attempted: false, reason: "no_connector" };
@@ -260,7 +262,7 @@ export async function deliverEmail(
     ];
     if (!allRecipients.length) return { attempted: false, reason: "no_recipients" };
     const allRecipientRetryPayload = {
-      recipientIds: [] as string[], recipients: allRecipients, subject: input.subject, text: input.text,
+      recipientIds: [] as string[], recipients: allRecipients, sender: input.sender, subject: input.subject, text: input.text,
     };
 
     const startedAt = Date.now();
@@ -276,9 +278,18 @@ export async function deliverEmail(
     }
     if (target) {
       const transporter = createTransporter(config, target);
-      const from = `"${config.fromName.replaceAll('"', "")}" <${config.fromAddress}>`;
+      const visibleSender = input.sender && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.sender.email)
+        ? input.sender : { email: config.fromAddress, name: config.fromName };
+      const from = `"${(visibleSender.name ?? visibleSender.email).replaceAll('"', "")}" <${visibleSender.email}>`;
       const results = await Promise.allSettled(allRecipients.map((recipient) =>
-        transporter.sendMail({ from, to: recipient.name ? `"${recipient.name.replaceAll('"', "")}" <${recipient.email}>` : recipient.email, subject: input.subject, text: input.text })));
+        transporter.sendMail({
+          from,
+          envelope: { from: config.fromAddress, to: recipient.email },
+          replyTo: visibleSender.email,
+          to: recipient.name ? `"${recipient.name.replaceAll('"', "")}" <${recipient.email}>` : recipient.email,
+          subject: input.subject,
+          text: input.text,
+        })));
       transporter.close();
       for (const [index, result] of results.entries()) {
         if (result.status === "fulfilled") {
@@ -290,6 +301,7 @@ export async function deliverEmail(
             message: result.reason instanceof Error ? result.reason.message : String(result.reason),
             ...input.context,
             recipientIds: [], recipients: [allRecipients[index]!],
+            sender: input.sender,
             subject: input.subject, text: input.text,
           });
         }

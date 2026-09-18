@@ -18,6 +18,10 @@ export interface OutboundEmail {
   recipientEmail: string;
   /** @nullable */
   recipientName?: string | null;
+  /** @nullable */
+  senderEmail?: string | null;
+  /** @nullable */
+  senderName?: string | null;
   subject: string;
   status: OutboundEmailStatus;
   attemptCount: number;

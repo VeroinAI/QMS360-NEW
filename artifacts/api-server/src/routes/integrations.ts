@@ -72,6 +72,7 @@ function outboundEmailDto(row: typeof outboundEmails.$inferSelect) {
   return {
     id: row.id, app, eventType: row.eventType, entityId: row.entityId,
     recipientEmail: row.recipientEmail, recipientName: row.recipientName,
+    senderEmail: row.senderEmail, senderName: row.senderName,
     subject: row.subject, status, attemptCount: row.attemptCount, maxAttempts: row.maxAttempts,
     nextAttemptAt: row.nextAttemptAt, lastAttemptAt: row.lastAttemptAt, sentAt: row.sentAt,
     lastError: row.lastError, createdAt: row.createdAt,
@@ -167,6 +168,15 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
   if (job.jobType !== "email_delivery" || !payload) {
     res.status(422).json({ error: "This job has no recorded email payload to retry" }); return;
   }
+  const rawSender = payload.sender;
+  const sender = rawSender && typeof rawSender === "object"
+    && typeof (rawSender as Record<string, unknown>).email === "string"
+    && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((rawSender as Record<string, unknown>).email as string)
+    ? {
+      email: (rawSender as Record<string, unknown>).email as string,
+      name: typeof (rawSender as Record<string, unknown>).name === "string"
+        ? (rawSender as Record<string, unknown>).name as string : null,
+    } : undefined;
   const startedAt = Date.now();
   const result = await deliverEmail(db, {
     organizationId: orgId,
@@ -174,6 +184,7 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
     recipients: [...new Map(payloads.flatMap((entry) =>
       entry.recipients as Array<{ email: string; name?: string | null }>)
       .map((recipient) => [recipient.email.toLowerCase(), recipient])).values()],
+    sender,
     subject: payload.subject as string,
     text: typeof payload.text === "string" ? payload.text : "",
     context: { kind: "sync_job_retry", retryOfJobId: job.id },
@@ -188,6 +199,7 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
       recipients: result.attempted ? result.failedRecipients : [...new Map(payloads.flatMap((entry) =>
         entry.recipients as Array<{ email: string; name?: string | null }>)
         .map((recipient) => [recipient.email.toLowerCase(), recipient])).values()],
+      sender,
       subject: payload.subject, text: typeof payload.text === "string" ? payload.text : "",
     }],
     durationMs: Date.now() - startedAt, lastRunAt: new Date(), updatedAt: new Date(),

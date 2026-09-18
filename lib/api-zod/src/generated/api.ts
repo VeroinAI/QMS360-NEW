@@ -1324,6 +1324,8 @@ export const ListOutboundEmailsResponse = zod.object({
   "entityId": zod.string().nullish(),
   "recipientEmail": zod.string(),
   "recipientName": zod.string().nullish(),
+  "senderEmail": zod.string().nullish(),
+  "senderName": zod.string().nullish(),
   "subject": zod.string(),
   "status": zod.enum(['queued', 'sending', 'retrying', 'sent', 'failed']),
   "attemptCount": zod.number().multipleOf(listOutboundEmailsResponseTwoItemsItemAttemptCountMultipleOf),
@@ -1357,6 +1359,8 @@ export const RetryOutboundEmailResponse = zod.object({
   "entityId": zod.string().nullish(),
   "recipientEmail": zod.string(),
   "recipientName": zod.string().nullish(),
+  "senderEmail": zod.string().nullish(),
+  "senderName": zod.string().nullish(),
   "subject": zod.string(),
   "status": zod.enum(['queued', 'sending', 'retrying', 'sent', 'failed']),
   "attemptCount": zod.number().multipleOf(retryOutboundEmailResponseAttemptCountMultipleOf),
@@ -7891,10 +7895,11 @@ export const ListEmailRulesResponseItem = zod.object({
   "priority": zod.number(),
   "eventType": zod.string().regex(listEmailRulesResponseEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
-  "projectIds": zod.array(zod.string()).optional()
+  "projectIds": zod.array(zod.string()).optional(),
+  "senderMode": zod.enum(['form_creator']).optional()
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -7915,10 +7920,11 @@ export const CreateEmailRuleBody = zod.object({
   "priority": zod.number().min(createEmailRuleBodyPriorityMin),
   "eventType": zod.string().regex(createEmailRuleBodyEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
-  "projectIds": zod.array(zod.string()).optional()
+  "projectIds": zod.array(zod.string()).optional(),
+  "senderMode": zod.enum(['form_creator']).optional()
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -7936,10 +7942,11 @@ export const CreateEmailRuleResponse = zod.object({
   "priority": zod.number(),
   "eventType": zod.string().regex(createEmailRuleResponseEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
-  "projectIds": zod.array(zod.string()).optional()
+  "projectIds": zod.array(zod.string()).optional(),
+  "senderMode": zod.enum(['form_creator']).optional()
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -7963,10 +7970,11 @@ export const UpdateEmailRuleBody = zod.object({
   "priority": zod.number().min(updateEmailRuleBodyPriorityMin),
   "eventType": zod.string().regex(updateEmailRuleBodyEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
-  "projectIds": zod.array(zod.string()).optional()
+  "projectIds": zod.array(zod.string()).optional(),
+  "senderMode": zod.enum(['form_creator']).optional()
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -7984,10 +7992,11 @@ export const UpdateEmailRuleResponse = zod.object({
   "priority": zod.number(),
   "eventType": zod.string().regex(updateEmailRuleResponseEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
-  "projectIds": zod.array(zod.string()).optional()
+  "projectIds": zod.array(zod.string()).optional(),
+  "senderMode": zod.enum(['form_creator']).optional()
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -8017,10 +8026,11 @@ export const ReorderEmailRulesResponseItem = zod.object({
   "priority": zod.number(),
   "eventType": zod.string().regex(reorderEmailRulesResponseEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
-  "projectIds": zod.array(zod.string()).optional()
+  "projectIds": zod.array(zod.string()).optional(),
+  "senderMode": zod.enum(['form_creator']).optional()
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -8062,10 +8072,11 @@ export const SimulateEmailRuleResponse = zod.object({
   "priority": zod.number(),
   "eventType": zod.string().regex(simulateEmailRuleResponseRuleOneEventTypeRegExp),
   "createdByUserId": zod.string().nullish(),
-  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role']),
+  "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
-  "projectIds": zod.array(zod.string()).optional()
+  "projectIds": zod.array(zod.string()).optional(),
+  "senderMode": zod.enum(['form_creator']).optional()
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),

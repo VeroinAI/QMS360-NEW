@@ -212,6 +212,7 @@ export const emailEventRules = sharedSchema.table("email_event_rules", {
   recipientConfig: jsonb("recipient_config").$type<{
     roleName?: string;
     projectIds?: string[];
+    senderMode?: "form_creator";
   }>().notNull().default({}),
   receiverUserId: uuid("receiver_user_id").references(() => users.id),
   receiverName: text("receiver_name"),
@@ -230,6 +231,8 @@ export const outboundEmails = sharedSchema.table("outbound_emails", {
   entityId: text("entity_id"),
   recipientEmail: text("recipient_email").notNull(),
   recipientName: text("recipient_name"),
+  senderEmail: text("sender_email"),
+  senderName: text("sender_name"),
   subject: text("subject").notNull(),
   bodyText: text("body_text").notNull(),
   context: jsonb("context").$type<Record<string, unknown>>().notNull().default({}),

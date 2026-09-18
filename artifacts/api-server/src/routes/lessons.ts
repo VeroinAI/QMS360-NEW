@@ -733,13 +733,21 @@ router.post("/forms/:id/submit", asyncHandler(async (req, res) => {
   if (!stored.some((p) => p.category === "before") || !stored.some((p) => p.category === "after")) {
     throw new HttpError(422, "At least one before and one after photo are required before submitting for approval");
   }
-  const [row] = await db.update(lessonLearnedForms).set({ workflowState: "submitted", submittedAt: new Date(), submittedById: req.currentUser!.id, updatedAt: new Date() }).where(eq(lessonLearnedForms.id, before.id)).returning();
+  const [row] = await db.update(lessonLearnedForms).set({
+    workflowState: "submitted", submittedAt: new Date(), submittedById: req.currentUser!.id, updatedAt: new Date(),
+  }).where(and(
+    eq(lessonLearnedForms.id, before.id),
+    eq(lessonLearnedForms.organizationId, before.organizationId),
+    eq(lessonLearnedForms.workflowState, "draft"),
+    isNull(lessonLearnedForms.deletedAt),
+  )).returning();
+  if (!row) throw new HttpError(409, "This lesson form has already been submitted");
   await audit(req, "submit", "lesson_form", before.id, await formJsonNamed(before), await formJsonNamed(row!));
   // Notification persistence is best effort. The state transition and audit
   // record above are authoritative and must not be reported as a workflow
   // failure when the notification store is unavailable.
   try {
-    await notifyWithEmail(db, "lessons", { organizationId: before.organizationId, userId: before.approverId, type: "lesson_submitted", title: "Lesson awaiting approval", body: `${before.referenceNumber} is ready for review.`, entityType: "lesson_form", entityId: before.id });
+    await notify(db, "lessons", { organizationId: before.organizationId, userId: before.approverId, type: "lesson_submitted", title: "Lesson awaiting approval", body: `${before.referenceNumber} is ready for review.`, entityType: "lesson_form", entityId: before.id });
   } catch (error) {
     logger.error({ err: error, app: "lessons", action: "submit", lessonId: before.id, recipientId: before.approverId }, "Lesson notification persistence failed after submit");
   }

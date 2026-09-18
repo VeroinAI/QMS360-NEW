@@ -16,4 +16,5 @@ export const EmailEventRuleRecipientMode = {
   workspace_role: 'workspace_role',
   project_members: 'project_members',
   project_role: 'project_role',
+  linked_approver: 'linked_approver',
 } as const;

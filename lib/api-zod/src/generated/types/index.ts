@@ -126,6 +126,7 @@ export * from './emailEventRuleInput';
 export * from './emailEventRuleInputRecipientMode';
 export * from './emailEventRuleRecipientMode';
 export * from './emailRecipientConfig';
+export * from './emailRecipientConfigSenderMode';
 export * from './emailRuleEventOption';
 export * from './emailRuleOrderInput';
 export * from './emailRuleSimulationInput';
