@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -35,7 +36,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { CockpitPage } from '../cockpit';
 import type { AISettings, EscalationRule, FieldControlSetting, NotificationTemplate, NumberingModuleConfig, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
-import { AlertCircle, ArrowLeft, Bell, Sparkles, Check, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Plus, Save, Search, Settings2, ShieldCheck, SlidersHorizontal, Trash2, Users } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Bell, Sparkles, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Plus, Save, Search, Settings2, ShieldCheck, SlidersHorizontal, Trash2, Users } from 'lucide-react';
 import { fieldControlRegistry } from '@/lib/field-controls';
 import { userFacingApiError } from '@/lib/api-error';
 import { useEffect, useState } from 'react';
@@ -353,6 +354,13 @@ function Escalations({ app }: { app: AppKey }) {
   // unstaffedRoles is computed server-side from active role memberships; the
   // name-existence fallback covers unsaved draft rows.
   const roleNames = new Set((api.roles.data?.items ?? []).map((role) => role.name as string));
+  const activeRoleNames = (api.roles.data?.items ?? []).filter((role) => role.active).map((role) => role.name);
+  const toggleRole = (rule: EscalationRule, roleName: string, checked: boolean) => {
+    const recipientRoles = checked
+      ? [...new Set([...rule.recipientRoles, roleName])]
+      : rule.recipientRoles.filter((name) => name !== roleName);
+    patch(rule.id, { recipientRoles });
+  };
   const unstaffed = (r: EscalationRule) => r.unstaffedRoles ?? (roleNames.size ? r.recipientRoles.filter((n) => !roleNames.has(n)) : []);
   const save = () => act.escalation.mutate({ data: rows }, { onSuccess: () => { act.done('Escalation rules saved'); setDraft(undefined); api.escalations.refetch(); }, onError: act.fail });
   return <PageState loading={api.escalations.isLoading} error={api.escalations.error} onRetry={api.escalations.refetch}>
@@ -363,7 +371,31 @@ function Escalations({ app }: { app: AppKey }) {
             <TableCell><Select value={r.triggerType} onValueChange={v => patch(r.id, { triggerType: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{appTriggers[app].map(v => <SelectItem value={v} key={v}>{triggerMeta[v]?.label ?? v}</SelectItem>)}</SelectContent></Select><p className="mt-1 text-xs text-muted-foreground">{triggerMeta[r.triggerType]?.description}</p></TableCell>
             <TableCell><Select value={r.priority ?? r.level ?? 'L1'} onValueChange={v => patch(r.id, { priority: v, level: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{levelOptions.map(v => <SelectItem value={v} key={v}>{v}</SelectItem>)}</SelectContent></Select></TableCell>
             <TableCell><Input type="number" min={0} value={r.slaWorkingDays} onChange={e => patch(r.id, { slaWorkingDays: Math.max(0, Number(e.target.value) || 0) })} /></TableCell>
-            <TableCell><Input value={r.recipientRoles.join(', ')} placeholder="Quality Manager" onChange={e => patch(r.id, { recipientRoles: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })} /><p className="mt-1 text-xs text-muted-foreground">Workspace role names, comma separated</p>{unstaffed(r).length > 0 && <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">No active members for: {unstaffed(r).join(', ')} — escalations fall back to the initial admins.</p>}</TableCell>
+            <TableCell>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="outline" className="w-full min-w-56 justify-between font-normal">
+                    <span className="truncate">{r.recipientRoles.length ? r.recipientRoles.join(', ') : 'Select target roles'}</span>
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                  {[...new Set([...activeRoleNames, ...r.recipientRoles])].map(roleName => (
+                    <DropdownMenuCheckboxItem
+                      key={roleName}
+                      checked={r.recipientRoles.includes(roleName)}
+                      onSelect={event => event.preventDefault()}
+                      onCheckedChange={checked => toggleRole(r, roleName, checked === true)}
+                    >
+                      {roleName}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  {!activeRoleNames.length && !r.recipientRoles.length && <p className="px-2 py-1.5 text-sm text-muted-foreground">No active workspace roles</p>}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <p className="mt-1 text-xs text-muted-foreground">Select one or more workspace roles</p>
+              {unstaffed(r).length > 0 && <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">No active members for: {unstaffed(r).join(', ')} — escalations fall back to the initial admins.</p>}
+            </TableCell>
             <TableCell><Input type="number" min={1} value={r.repeatCadenceDays} onChange={e => patch(r.id, { repeatCadenceDays: Math.max(1, Number(e.target.value) || 1) })} /></TableCell>
             <TableCell><Toggle checked={r.enabled} onCheckedChange={enabled => patch(r.id, { enabled })} /></TableCell>
             <TableCell><Button size="icon" variant="ghost" onClick={() => removeRule(r.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
