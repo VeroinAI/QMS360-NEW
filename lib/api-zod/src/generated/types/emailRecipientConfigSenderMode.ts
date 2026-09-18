@@ -11,4 +11,5 @@ export type EmailRecipientConfigSenderMode = typeof EmailRecipientConfigSenderMo
 
 export const EmailRecipientConfigSenderMode = {
   form_creator: 'form_creator',
+  approving_user: 'approving_user',
 } as const;

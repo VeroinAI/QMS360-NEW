@@ -59,6 +59,29 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
       )).limit(1);
       if (creator) sender = creator;
     }
+  } else if (rule.recipientMode === "linked_creator" && event.app === "lessons" && event.entityType === "lesson_form" && event.action === "approve" && event.entityId && event.actorId) {
+    const [form] = await database.select({
+      creatorEmail: users.email,
+      creatorName: users.fullName,
+    }).from(lessonLearnedForms)
+      .innerJoin(users, eq(lessonLearnedForms.creatorId, users.id))
+      .where(and(
+        eq(lessonLearnedForms.id, event.entityId),
+        eq(lessonLearnedForms.organizationId, event.organizationId),
+        eq(users.organizationId, event.organizationId),
+        eq(users.accessStatus, "active"),
+        isNull(users.deletedAt),
+      )).limit(1);
+    if (form) {
+      const [approvingUser] = await database.select({ email: users.email, name: users.fullName }).from(users).where(and(
+        eq(users.id, event.actorId), eq(users.organizationId, event.organizationId),
+        eq(users.accessStatus, "active"), isNull(users.deletedAt),
+      )).limit(1);
+      if (approvingUser) {
+        recipients = [{ email: form.creatorEmail, name: form.creatorName }];
+        sender = approvingUser;
+      }
+    }
   } else if (["workspace_role", "project_members", "project_role"].includes(rule.recipientMode)) {
     const config = rule.recipientConfig ?? {};
     const projectIds = (config.projectIds ?? []).filter(Boolean);

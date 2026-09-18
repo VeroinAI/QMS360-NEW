@@ -212,7 +212,7 @@ export const emailEventRules = sharedSchema.table("email_event_rules", {
   recipientConfig: jsonb("recipient_config").$type<{
     roleName?: string;
     projectIds?: string[];
-    senderMode?: "form_creator";
+    senderMode?: "form_creator" | "approving_user";
   }>().notNull().default({}),
   receiverUserId: uuid("receiver_user_id").references(() => users.id),
   receiverName: text("receiver_name"),

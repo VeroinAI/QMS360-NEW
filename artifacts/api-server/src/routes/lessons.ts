@@ -808,7 +808,9 @@ router.post("/forms/:id/review", asyncHandler(async (req, res) => {
   const [beforeJson, rowJson] = await Promise.all([formJsonNamed(before), formJsonNamed(row!)]);
   await audit(req, body.decision, "lesson_form", before.id, beforeJson, { ...rowJson, remarks: body.comments, delegatedFrom });
   try {
-    await notifyWithEmail(db, "lessons", { organizationId: before.organizationId, userId: before.creatorId, type: `lesson_${state}`, title: `Lesson ${publicState(state)}`, body: body.comments?.trim() || `${before.referenceNumber} was approved.`, entityType: "lesson_form", entityId: before.id });
+    const notification = { organizationId: before.organizationId, userId: before.creatorId, type: `lesson_${state}`, title: `Lesson ${publicState(state)}`, body: body.comments?.trim() || `${before.referenceNumber} was approved.`, entityType: "lesson_form", entityId: before.id };
+    if (body.decision === "approve") await notify(db, "lessons", notification);
+    else await notifyWithEmail(db, "lessons", notification);
   } catch (error) {
     logger.error({ err: error, app: "lessons", action: body.decision, lessonId: before.id, recipientId: before.creatorId }, "Lesson notification persistence failed after review");
   }

@@ -17,4 +17,5 @@ export const EmailEventRuleInputRecipientMode = {
   project_members: 'project_members',
   project_role: 'project_role',
   linked_approver: 'linked_approver',
+  linked_creator: 'linked_creator',
 } as const;

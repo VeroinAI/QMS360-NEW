@@ -208,6 +208,8 @@ function EmailRulesList() {
                   <TableCell>
                     {rule.recipientMode === 'linked_approver' ? (
                       <span className="text-sm">Send from form creator to linked approver</span>
+                    ) : rule.recipientMode === 'linked_creator' ? (
+                      <span className="text-sm">Send from approving user to form creator</span>
                     ) : rule.recipientMode === 'workspace_role' ? (
                       <span className="text-sm">Send to role: {rule.recipientConfig?.roleName}</span>
                     ) : rule.recipientMode === 'project_members' ? (
@@ -264,6 +266,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
     eventType: rule?.eventType ?? '',
     createdByUserId: rule?.createdByUserId ?? '',
     receiverMode: rule?.recipientMode === 'linked_approver' ? 'linked_approver'
+      : rule?.recipientMode === 'linked_creator' ? 'linked_creator'
       : rule?.recipientMode === 'workspace_role' ? 'role'
       : rule?.recipientMode === 'project_members' ? 'project'
         : rule?.recipientMode === 'project_role' ? 'project_role'
@@ -289,12 +292,14 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
           : draft.receiverMode === 'role' ? 'workspace_role' as const
             : draft.receiverMode === 'project' ? 'project_members' as const
               : draft.receiverMode === 'project_role' ? 'project_role' as const
-                : draft.receiverMode === 'linked_approver' ? 'linked_approver' as const : 'all_users' as const,
+                : draft.receiverMode === 'linked_approver' ? 'linked_approver' as const
+                  : draft.receiverMode === 'linked_creator' ? 'linked_creator' as const : 'all_users' as const,
       receiverUserId: draft.receiverMode === 'user' && draft.receiverUserId ? draft.receiverUserId : null,
       receiverName: draft.receiverMode === 'external' ? draft.receiverName.trim() : null,
       receiverEmail: draft.receiverMode === 'external' ? draft.receiverEmail.trim() : null,
       recipientConfig: {
         ...(draft.receiverMode === 'linked_approver' ? { senderMode: 'form_creator' as const } : {}),
+        ...(draft.receiverMode === 'linked_creator' ? { senderMode: 'approving_user' as const } : {}),
         ...(draft.receiverMode === 'role' || draft.receiverMode === 'project_role' ? { roleName: draft.roleName.trim() } : {}),
         ...(draft.receiverMode === 'project' || draft.receiverMode === 'project_role' ? { projectIds: draft.projectId ? [draft.projectId] : [] } : {}),
       },
@@ -398,6 +403,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                     <SelectItem value="project">All members of a project</SelectItem>
                     <SelectItem value="project_role">Role members in a project</SelectItem>
                     <SelectItem value="linked_approver" disabled={draft.eventType !== 'lessons.lesson_form.submit'}>Linked Lessons approver</SelectItem>
+                    <SelectItem value="linked_creator" disabled={draft.eventType !== 'lessons.lesson_form.approve'}>Linked Lessons creator</SelectItem>
                     <SelectItem value="external">Specific external address</SelectItem>
                   </SelectContent>
                 </Select>
@@ -405,6 +411,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                   <p className="mt-1 text-xs text-muted-foreground">Leaves recipient fields blank. The system will send this email to every active user in your organization.</p>
                 )}
                 {draft.receiverMode === 'linked_approver' && <p className="mt-1 text-xs text-muted-foreground">Uses the approver linked to this Lessons Learned form. The form creator is used as the visible sender and Reply-To address.</p>}
+                {draft.receiverMode === 'linked_creator' && <p className="mt-1 text-xs text-muted-foreground">Uses the creator of this Lessons Learned form as recipient. The approving user is used as the visible sender and Reply-To address.</p>}
               </div>
               
               {draft.receiverMode === 'user' && (

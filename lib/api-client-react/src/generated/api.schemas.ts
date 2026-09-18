@@ -16,6 +16,7 @@ export const EmailEventRuleRecipientMode = {
   project_members: 'project_members',
   project_role: 'project_role',
   linked_approver: 'linked_approver',
+  linked_creator: 'linked_creator',
 } as const;
 
 export type EmailRecipientConfigSenderMode = typeof EmailRecipientConfigSenderMode[keyof typeof EmailRecipientConfigSenderMode];
@@ -23,6 +24,7 @@ export type EmailRecipientConfigSenderMode = typeof EmailRecipientConfigSenderMo
 
 export const EmailRecipientConfigSenderMode = {
   form_creator: 'form_creator',
+  approving_user: 'approving_user',
 } as const;
 
 export interface EmailRecipientConfig {
@@ -62,6 +64,7 @@ export const EmailEventRuleInputRecipientMode = {
   project_members: 'project_members',
   project_role: 'project_role',
   linked_approver: 'linked_approver',
+  linked_creator: 'linked_creator',
 } as const;
 
 export interface EmailEventRuleInput {
