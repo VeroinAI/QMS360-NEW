@@ -427,6 +427,8 @@ export * from './updateMasterDataGroupInputAppScope';
 export * from './updateMasterDataValueInput';
 export * from './updateMasterDataValueInputMetadata';
 export * from './uploadIntent';
+export * from './userEmailUpdate';
+export * from './userEmailUpdateResult';
 export * from './userProfileUpdate';
 export * from './workflowState';
 export * from './workingCalendar';

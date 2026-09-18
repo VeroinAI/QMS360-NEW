@@ -221,6 +221,20 @@ paths:
         "204": {description: Sign-in password set}
         "403": {description: Administrator access required}
         "404": {description: User not found}
+  /platform/users/{userId}/email:
+    put:
+      operationId: updateUserEmail
+      tags: [platform]
+      summary: Change a user's sign-in email address
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: "#/components/parameters/UserId"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/UserEmailUpdate"}}}}
+      responses:
+        "200": {description: Email updated, content: {application/json: {schema: {$ref: "#/components/schemas/UserEmailUpdateResult"}}}}
+        "403": {description: Administrator access required}
+        "404": {description: User not found}
+        "409": {description: Email is already used by another user}
+        "422": {description: Invalid email address}
   /platform/roles:
     get:
       operationId: listPlatformRoles
@@ -1623,6 +1637,17 @@ components:
       required: [password]
       properties:
         password: {type: string, minLength: 8, maxLength: 128}
+    UserEmailUpdate:
+      type: object
+      required: [email]
+      properties:
+        email: {type: string, minLength: 3, maxLength: 320, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"}
+    UserEmailUpdateResult:
+      type: object
+      required: [userId, email]
+      properties:
+        userId: {type: string}
+        email: {type: string}
     Project:
       type: object
       required: [id, code, name, businessUnit, status]

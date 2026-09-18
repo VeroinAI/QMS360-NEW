@@ -291,6 +291,30 @@ export const SetUserTemporaryPasswordResponse = zod.void()
 
 
 /**
+ * @summary Change a user's sign-in email address
+ */
+export const UpdateUserEmailParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const updateUserEmailBodyEmailMin = 3;
+export const updateUserEmailBodyEmailMax = 320;
+
+
+export const updateUserEmailBodyEmailRegExp = new RegExp('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+
+
+export const UpdateUserEmailBody = zod.object({
+  "email": zod.string().min(updateUserEmailBodyEmailMin).max(updateUserEmailBodyEmailMax).regex(updateUserEmailBodyEmailRegExp)
+})
+
+export const UpdateUserEmailResponse = zod.object({
+  "userId": zod.string(),
+  "email": zod.string()
+})
+
+
+/**
  * @summary List assignable platform roles
  */
 export const ListPlatformRolesResponseItem = zod.object({

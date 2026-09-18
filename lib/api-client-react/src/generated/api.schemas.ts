@@ -376,6 +376,20 @@ export interface TemporaryPasswordInput {
   password: string;
 }
 
+export interface UserEmailUpdate {
+  /**
+     * @minLength 3
+     * @maxLength 320
+     * @pattern ^[^\s@]+@[^\s@]+\.[^\s@]+$
+     */
+  email: string;
+}
+
+export interface UserEmailUpdateResult {
+  userId: string;
+  email: string;
+}
+
 export interface Project {
   id: string;
   code: string;

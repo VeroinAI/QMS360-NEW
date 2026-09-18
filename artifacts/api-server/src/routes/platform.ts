@@ -5,6 +5,7 @@ import {
   GetPlatformContextResponse, GetPlatformReferenceDataResponse,
   ListBusinessUnitsResponse, ListPlatformProjectsResponse, ResetNumberingPatternResponse,
   SetUserTemporaryPasswordBody, UpdateUserPlatformRoleBody, UpdateUserPlatformRoleResponse,
+  UpdateUserEmailBody, UpdateUserEmailResponse,
   UpdateFieldSettingsBody, UpdateFieldSettingsResponse, UpdateNumberingPatternBody, UpdateNumberingPatternResponse, UpdateOrganizationSettingsBody,
   UpdateOrganizationSettingsResponse,
 } from "@workspace/api-zod";
@@ -143,6 +144,64 @@ router.put("/platform/users/:userId/temporary-password", requireAuth, requirePla
     return;
   }
   res.status(204).send();
+});
+
+router.put("/platform/users/:userId/email", requireAuth, platformAdmin, async (req, res): Promise<void> => {
+  const parsed = UpdateUserEmailBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({ error: "Enter a valid email address" });
+    return;
+  }
+  const actor = req.currentUser!;
+  const targetId = String(req.params.userId);
+  const email = parsed.data.email.trim().toLowerCase();
+  const [target, duplicate] = await Promise.all([
+    db.select({ id: users.id, email: users.email }).from(users).where(and(
+      eq(users.id, targetId), eq(users.organizationId, actor.organizationId), isNull(users.deletedAt),
+    )).limit(1).then((rows) => rows[0]),
+    db.select({ id: users.id }).from(users).where(and(
+      eq(users.organizationId, actor.organizationId),
+      sql`lower(${users.email}) = ${email}`,
+      isNull(users.deletedAt),
+    )).limit(1).then((rows) => rows[0]),
+  ]);
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  if (duplicate && duplicate.id !== target.id) {
+    res.status(409).json({ error: "This email address is already used by another user" });
+    return;
+  }
+  if (target.email.toLowerCase() !== email) {
+    try {
+      await db.transaction(async (tx) => {
+        await tx.update(users).set({ email, updatedAt: new Date() }).where(and(
+          eq(users.id, target.id), eq(users.organizationId, actor.organizationId), isNull(users.deletedAt),
+        ));
+        for (const app of ["qaqc", "lessons", "audit"] as const) {
+          await writeAuditLog(tx, app, {
+            organizationId: actor.organizationId, actorId: actor.id,
+            action: "update_email", entityType: "user", entityId: target.id,
+            before: { email: target.email }, after: { email }, ipAddress: req.ip,
+          }, { dispatch: false });
+        }
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code === "23505") {
+        res.status(409).json({ error: "This email address is already used by another user" });
+        return;
+      }
+      throw error;
+    }
+    for (const app of ["qaqc", "lessons", "audit"] as const) {
+      void dispatchEmailRule({
+        organizationId: actor.organizationId, app, entityType: "user",
+        action: "update_email", actorId: actor.id, entityId: target.id,
+      });
+    }
+  }
+  res.json(UpdateUserEmailResponse.parse({ userId: target.id, email }));
 });
 
 const appDefinitions = [

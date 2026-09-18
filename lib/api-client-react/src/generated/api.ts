@@ -246,6 +246,8 @@ import type {
   UpdateMasterDataGroupInput,
   UpdateMasterDataValueInput,
   UploadIntent,
+  UserEmailUpdate,
+  UserEmailUpdateResult,
   UserProfileUpdate,
   WorkspaceUserPageResponse
 } from './api.schemas';
@@ -1284,6 +1286,78 @@ export const useSetUserTemporaryPassword = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSetUserTemporaryPasswordMutationOptions(options));
+    }
+
+export const getUpdateUserEmailUrl = (userId: string,) => {
+
+
+
+
+  return `/api/platform/users/${userId}/email`
+}
+
+/**
+ * @summary Change a user's sign-in email address
+ */
+export const updateUserEmail = async (userId: string,
+    userEmailUpdate: UserEmailUpdate, options?: Parameters<typeof customFetch>[1]): Promise<UserEmailUpdateResult> => {
+
+  return customFetch<UserEmailUpdateResult>(getUpdateUserEmailUrl(userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userEmailUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateUserEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserEmail>>, TError,{userId: string;data: BodyType<UserEmailUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateUserEmail>>, TError,{userId: string;data: BodyType<UserEmailUpdate>}, TContext> => {
+
+const mutationKey = ['updateUserEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUserEmail>>, {userId: string;data: BodyType<UserEmailUpdate>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updateUserEmail(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateUserEmailMutationResult = NonNullable<Awaited<ReturnType<typeof updateUserEmail>>>
+    export type UpdateUserEmailMutationBody = BodyType<UserEmailUpdate>
+    export type UpdateUserEmailMutationError = ErrorType<void>
+
+    /**
+ * @summary Change a user's sign-in email address
+ */
+export const useUpdateUserEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserEmail>>, TError,{userId: string;data: BodyType<UserEmailUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateUserEmail>>,
+        TError,
+        {userId: string;data: BodyType<UserEmailUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateUserEmailMutationOptions(options));
     }
 
 export const getListPlatformRolesUrl = () => {
