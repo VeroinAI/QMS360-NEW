@@ -30,3 +30,4 @@
 - [Audit Plan auditee roles](audit-plan-auditee-roles.md) — plan-level Auditee is multi-role; activity-level auditees remain independent users.
 - [Outbound email delivery semantics](outbound-email-delivery-semantics.md) — event emails queue per recipient; policy is tenant-wide; test messages remain direct.
 - [Lessons approval escalation digest](lessons-approval-escalation-digest.md) — submittedAt-based working-day thresholds feed grouped scheduled reports, not per-form Lessons escalation emails.
+- [Production schema synchronization](production-schema-synchronization.md) — a successful publish can still leave QMS360 production behind development; verify live schema when APIs return missing-relation errors.
