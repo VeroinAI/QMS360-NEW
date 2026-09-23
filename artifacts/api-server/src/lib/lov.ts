@@ -10,8 +10,8 @@ type LovOptions = {
 
 export function masterDataGroupCodeAliases(groupCode: string): string[] {
   const normalized = groupCode.trim().toLowerCase();
-  return normalized === "departments" || normalized === "department"
-    ? ["departments", "department"]
+  return ["departments", "department", "department master"].includes(normalized)
+    ? ["departments", "department", "department master"]
     : [normalized];
 }
 
