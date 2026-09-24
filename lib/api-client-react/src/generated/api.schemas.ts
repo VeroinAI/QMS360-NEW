@@ -1308,6 +1308,26 @@ export interface WorkspaceUser {
   lastAccessAt?: string | null;
 }
 
+export type AuditWorkspaceUser = WorkspaceUser & ({
+  /** @nullable */
+  designation: string | null;
+  /** @nullable */
+  signatureUrl: string | null;
+});
+
+export interface PageMeta {
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 1 */
+  page: number;
+  /** @minimum 1 */
+  limit: number;
+}
+
+export type AuditWorkspaceUserPage = PageMeta & {
+  items: AuditWorkspaceUser[];
+};
+
 export interface PlatformRole {
   id: string;
   name: string;
@@ -1332,6 +1352,33 @@ export interface UserProfileUpdate {
      * @nullable
      */
   signatureDataUrl?: string | null;
+}
+
+export interface AuditUserProfileUpdateResult {
+  id: string;
+  /** @nullable */
+  designation: string | null;
+  /** @nullable */
+  signatureUrl: string | null;
+}
+
+export interface Signatory {
+  userId: string;
+  name: string;
+  /** @nullable */
+  designation: string | null;
+  role: string;
+  /**
+     * Inline data URL for this signatory's stored signature
+     * @nullable
+     */
+  signatureDataUrl: string | null;
+}
+
+export interface AuditProgrammeSignatories {
+  preparedBy: Signatory | null;
+  reviewedBy: Signatory[];
+  approvedBy: Signatory | null;
 }
 
 export type AccessRequestStatus = typeof AccessRequestStatus[keyof typeof AccessRequestStatus];
@@ -2525,15 +2572,6 @@ export interface ReportDelivery {
   downloadUrl?: string | null;
   /** @nullable */
   message?: string | null;
-}
-
-export interface PageMeta {
-  /** @minimum 0 */
-  total: number;
-  /** @minimum 1 */
-  page: number;
-  /** @minimum 1 */
-  limit: number;
 }
 
 export type ProjectPage = PageMeta & {

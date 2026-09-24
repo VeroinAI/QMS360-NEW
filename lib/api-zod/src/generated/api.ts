@@ -5924,6 +5924,38 @@ export const DeleteAuditProgrammeResponse = zod.void()
 
 
 /**
+ * @summary Get programme signatories from creator and approval history
+ */
+export const GetAuditProgrammeSignatoriesParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetAuditProgrammeSignatoriesResponse = zod.object({
+  "preparedBy": zod.union([zod.object({
+  "userId": zod.string(),
+  "name": zod.string(),
+  "designation": zod.string().nullable(),
+  "role": zod.string(),
+  "signatureDataUrl": zod.string().nullable().describe('Inline data URL for this signatory\'s stored signature')
+}),zod.null()]),
+  "reviewedBy": zod.array(zod.object({
+  "userId": zod.string(),
+  "name": zod.string(),
+  "designation": zod.string().nullable(),
+  "role": zod.string(),
+  "signatureDataUrl": zod.string().nullable().describe('Inline data URL for this signatory\'s stored signature')
+})),
+  "approvedBy": zod.union([zod.object({
+  "userId": zod.string(),
+  "name": zod.string(),
+  "designation": zod.string().nullable(),
+  "role": zod.string(),
+  "signatureDataUrl": zod.string().nullable().describe('Inline data URL for this signatory\'s stored signature')
+}),zod.null()])
+})
+
+
+/**
  * @summary Submit programme for sequential approval
  */
 export const SubmitAuditProgrammeParams = zod.object({
@@ -7557,8 +7589,8 @@ export const ListAuditUsersResponse = zod.object({
   "username": zod.string(),
   "fullName": zod.string(),
   "email": zod.string().nullish(),
-  "designation": zod.string().nullish(),
-  "signatureUrl": zod.string().nullish(),
+  "designation": zod.string().nullable(),
+  "signatureUrl": zod.string().nullable(),
   "platformRole": zod.string(),
   "workspaceRoles": zod.array(zod.object({
   "id": zod.string(),
@@ -7575,8 +7607,40 @@ export const ListAuditUsersResponse = zod.object({
 })),
   "status": zod.enum(['Not Requested', 'Active', 'Deactivated']),
   "lastAccessAt": zod.coerce.date().nullish()
+}).and(zod.object({
+  "designation": zod.string().nullable(),
+  "signatureUrl": zod.string().nullable()
+})))
 }))
-}))
+
+
+/**
+ * @summary Update a user's designation and signature (admin)
+ */
+export const UpdateAuditUserProfileParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const UpdateAuditUserProfileBody = zod.object({
+  "designation": zod.string().nullish(),
+  "signatureDataUrl": zod.string().nullish().describe('data:image\/... base64 payload; null clears the signature')
+})
+
+export const UpdateAuditUserProfileResponse = zod.object({
+  "id": zod.string(),
+  "designation": zod.string().nullable(),
+  "signatureUrl": zod.string().nullable()
+})
+
+
+/**
+ * @summary Stream an organization's user's signature image (Audit admin)
+ */
+export const GetAuditAdminUserSignatureParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const GetAuditAdminUserSignatureResponse = zod.unknown()
 
 
 /**

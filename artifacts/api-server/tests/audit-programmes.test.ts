@@ -4,7 +4,7 @@ import type { Server } from "node:http";
 import {
   applicationAccess, auditAuditLogEntries, auditNotifications, auditPermissions, auditPlans, auditSchedules,
   auditUserWorkspaceRoles, auditWorkspaceRolePermissions, auditWorkspaceRoles,
-  db, masterDataGroups, masterDataValues, organizations, platformRoles, users,
+  db, masterDataGroups, masterDataValues, organizations, platformRoles, projects, users,
 } from "@workspace/db";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import auditRouter from "../src/routes/audit";
@@ -52,6 +52,10 @@ async function role(name: string, permissionIds: string[]) {
 
 async function assign(userId: string, roleId: string) {
   await db.insert(auditUserWorkspaceRoles).values({ organizationId: orgId, userId, workspaceRoleId: roleId });
+}
+
+async function assignScope(userId: string, roleId: string, projectIds: string[]) {
+  await db.insert(auditUserWorkspaceRoles).values({ organizationId: orgId, userId, workspaceRoleId: roleId, projectIds });
 }
 
 async function addChild(parentId: string) {
@@ -134,6 +138,7 @@ afterAll(async () => {
   await db.delete(masterDataValues).where(eq(masterDataValues.organizationId, orgId));
   await db.delete(masterDataGroups).where(eq(masterDataGroups.organizationId, orgId));
   await db.delete(applicationAccess).where(eq(applicationAccess.organizationId, orgId));
+  await db.delete(projects).where(eq(projects.organizationId, orgId));
   await db.delete(users).where(eq(users.organizationId, orgId));
   await db.delete(platformRoles).where(eq(platformRoles.organizationId, orgId));
   await db.delete(organizations).where(eq(organizations.id, orgId));
@@ -141,6 +146,62 @@ afterAll(async () => {
 });
 
 describe("audit programme parent/child workflow", () => {
+  it("enforces user assignment visibility and all-child programme scope before serving private signatories", async () => {
+    const [projectA, projectB] = await db.insert(projects).values([
+      { organizationId: orgId, code: `SA-${orgId.slice(0, 6)}`, name: "Scope A" },
+      { organizationId: orgId, code: `SB-${orgId.slice(0, 6)}`, name: "Scope B" },
+    ]).returning();
+    const view = await permission("view_all");
+    const adminRole = await role("Audit Scoped Administrator", [view.id]);
+    const memberRole = await role("Audit Scoped Member", [view.id]);
+    const createScopedUser = async (name: string) => {
+      const [row] = await db.insert(users).values({
+        organizationId: orgId, email: `${name.toLowerCase().replaceAll(" ", ".")}@scope.test.invalid`,
+        username: `${name.toLowerCase().replaceAll(" ", ".")}`, fullName: name,
+      }).returning();
+      return row!;
+    };
+    const scopedAdmin = await createScopedUser("Scoped Admin");
+    const inScopeTarget = await createScopedUser("In Scope Target");
+    const outOfScopeTarget = await createScopedUser("Out Scope Target");
+    await assignScope(scopedAdmin.id, adminRole.id, [projectA!.id]);
+    await assignScope(inScopeTarget.id, memberRole.id, [projectA!.id]);
+    await assignScope(outOfScopeTarget.id, memberRole.id, [projectB!.id]);
+    await db.update(users).set({ signaturePath: "gcs:must-not-be-read" }).where(eq(users.id, outOfScopeTarget.id));
+    await db.insert(applicationAccess).values({ organizationId: orgId, username: scopedAdmin.username, canOpenAudit: true });
+    const scopedToken = issueToken(scopedAdmin);
+
+    const forbiddenProfile = await api("PUT", `/admin/users/${outOfScopeTarget.id}/profile`, scopedToken, { designation: "Changed" });
+    expect(forbiddenProfile.status).toBe(403);
+    const [unchangedTarget] = await db.select().from(users).where(eq(users.id, outOfScopeTarget.id));
+    expect(unchangedTarget?.designation).toBeNull();
+    expect(unchangedTarget?.signaturePath).toBe("gcs:must-not-be-read");
+    const forbiddenSignature = await api("GET", `/admin/users/${outOfScopeTarget.id}/signature`, scopedToken);
+    expect(forbiddenSignature.status).toBe(403);
+    await db.update(users).set({ signaturePath: null }).where(eq(users.id, outOfScopeTarget.id));
+    expect((await api("GET", `/admin/users/${outOfScopeTarget.id}/signature`, scopedToken)).status).toBe(403);
+    for (const mime of ["image/png", "image/jpeg", "image/webp"]) {
+      const invalidImage = await api("PUT", `/admin/users/${inScopeTarget.id}/profile`, scopedToken, {
+        signatureDataUrl: `data:${mime};base64,AAAA`,
+      });
+      expect(invalidImage.status).toBe(422);
+    }
+
+    const programme = await api("POST", "/programmes", creator.token, {
+      title: "Mixed-scope programme", fromDate: "2026-01-01", toDate: "2026-12-31",
+    });
+    for (const [projectId, title] of [[projectA!.id, "Visible child"], [projectB!.id, "Hidden child"]]) {
+      await db.insert(auditSchedules).values({
+        organizationId: orgId, year: 2026, title, ownerId: creator.id, workflowState: "draft",
+        status: JSON.stringify({ parentId: programme.json.id, projectIds: [projectId], plannedStartDate: "2026-01-01", plannedEndDate: "2026-01-02" }),
+      });
+    }
+    expect((await api("GET", `/programmes/${programme.json.id}/signatories`, scopedToken)).status).toBe(403);
+    const organizationAdminResult = await api("GET", `/programmes/${programme.json.id}/signatories`, admin.token);
+    expect(organizationAdminResult.status).toBe(200);
+    expect(organizationAdminResult.json.preparedBy.userId).toBe(creator.id);
+  });
+
   it("creates a programme and rejects submitting it without a child", async () => {
     const created = await api("POST", "/programmes", creator.token, { title: "2026 Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
     expect(created.status).toBe(201);
@@ -219,6 +280,13 @@ describe("audit programme parent/child workflow", () => {
     expect(submitted.json.submissionMailBody).toBe("Please review and approve.");
     expect(submitted.json.currentApprovalRole).toBe("L1 Programme Approver");
     expect(submitted.json.canReview).toBe(false);
+    const pendingSignatories = await api("GET", `/programmes/${created.json.id}/signatories`, creator.token);
+    expect(pendingSignatories.status).toBe(200);
+    expect(pendingSignatories.json).toMatchObject({
+      preparedBy: { userId: creator.id, role: "Audit Contributor", signatureDataUrl: null },
+      reviewedBy: [],
+      approvedBy: null,
+    });
     const [l1List, l2List] = await Promise.all([
       api("GET", "/programmes", l1.token),
       api("GET", "/programmes", l2.token),
@@ -232,6 +300,11 @@ describe("audit programme parent/child workflow", () => {
     expect(first.status).toBe(200);
     expect(first.json.currentApprovalRole).toBe("L2 Programme Approver");
     expect(first.json.canReview).toBe(false);
+    const partiallyReviewedSignatories = await api("GET", `/programmes/${created.json.id}/signatories`, creator.token);
+    expect(partiallyReviewedSignatories.json.reviewedBy).toEqual([
+      { userId: l1.id, name: "L1 Approver", designation: null, role: "L1 Programme Approver", signatureDataUrl: null },
+    ]);
+    expect(partiallyReviewedSignatories.json.approvedBy).toBeNull();
     const sentBack = await api("POST", `/programmes/${created.json.id}/review`, l2.token, { decision: "send_back", comments: "Please revise and resubmit." });
     expect(sentBack.status).toBe(200);
     expect(sentBack.json.workflowState).toBe("Sent Back");
@@ -247,6 +320,13 @@ describe("audit programme parent/child workflow", () => {
     const second = await api("POST", `/programmes/${created.json.id}/review`, l2.token, { decision: "approve" });
     expect(second.status).toBe(200);
     expect(second.json.workflowState).toBe("Approved");
+    const approvedSignatories = await api("GET", `/programmes/${created.json.id}/signatories`, creator.token);
+    expect(approvedSignatories.json.reviewedBy).toEqual([
+      { userId: l1.id, name: "L1 Approver", designation: null, role: "L1 Programme Approver", signatureDataUrl: null },
+    ]);
+    expect(approvedSignatories.json.approvedBy).toEqual({
+      userId: l2.id, name: "L2 Approver", designation: null, role: "L2 Programme Approver", signatureDataUrl: null,
+    });
     const approvedExistingChild = await api("GET", `/schedules/${existingChild.id}`, creator.token);
     expect(approvedExistingChild.status).toBe(200);
     expect(approvedExistingChild.json.workflowState).toBe("Approved");

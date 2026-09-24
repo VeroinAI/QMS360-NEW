@@ -20,6 +20,7 @@ import {
   useGetAuditProgramme,
   getGetAuditProgrammeQueryKey,
   getListAuditProgrammesQueryKey,
+  getAuditProgrammeSignatories,
   listAuditSchedules,
   listPlatformProjects,
   useGetGeneratedAuditReport,
@@ -107,6 +108,18 @@ const scheduleImportHeaders = [
   "Audit Type", "Audit Category", "Department / Project", "Location", "Audit Title",
   "Process / Product Owner", "From Date", "To Date", "Remarks",
 ];
+type ProgrammeSignatory = {
+  userId: string;
+  name: string;
+  designation: string | null;
+  role: string;
+  signatureDataUrl: string | null;
+};
+export type ProgrammeSignatories = {
+  preparedBy: ProgrammeSignatory | null;
+  reviewedBy: ProgrammeSignatory[];
+  approvedBy: ProgrammeSignatory | null;
+};
 const normalizeHeader = (value: unknown) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 const scheduleHeaderAliases: Record<string, string> = {
   audittype: "auditTypes", audittypevalue: "auditTypes", auditcategory: "auditCategory",
@@ -210,7 +223,7 @@ const ascii85Encode = (bytes: Uint8Array) => {
   }
   return `${encoded}~>`;
 };
-export const buildProgrammePdf = (rows: AuditSchedule[], auditTitle: string) => {
+export const buildProgrammePdf = (rows: AuditSchedule[], auditTitle: string, signatories?: ProgrammeSignatories) => {
   const year = rows[0]?.year ?? new Date().getFullYear();
   const timeline = programmeTimeline(year);
   const fixedHeaders = [
@@ -222,6 +235,9 @@ export const buildProgrammePdf = (rows: AuditSchedule[], auditTitle: string) => 
   const margin = 18;
   const titleHeight = 44;
   const headerHeight = 42;
+  const signatureFooterHeight = signatories
+    ? Math.max(112, 30 + (signatories.reviewedBy?.length ?? 0) * 62)
+    : 0;
   const minimumRowHeight = 34;
   const fixedWidths = [105, 135, 100, 120, 105, 180, 130];
   const remarksWidth = 130;
@@ -301,6 +317,36 @@ export const buildProgrammePdf = (rows: AuditSchedule[], auditTitle: string) => 
     else currentPage.push(row);
   });
   if (rowPages.length === 0) rowPages.push([]);
+  if (signatories) {
+    const lastPage = rowPages.at(-1)!;
+    const footerRowCapacity = availableRowHeight - signatureFooterHeight;
+    let lastPageHeight = lastPage.reduce((sum, item) => sum + item.height, 0);
+    const movedRows: typeof preparedRows = [];
+    while (lastPage.length > 0 && lastPageHeight > footerRowCapacity) {
+      const row = lastPage.at(-1)!;
+      if (lastPageHeight - row.height < 0) break;
+      lastPage.pop();
+      movedRows.unshift(row);
+      lastPageHeight -= row.height;
+    }
+    if (movedRows.length > 0) {
+      if (lastPage.length === 0) rowPages.pop();
+      rowPages.push(movedRows);
+      if (movedRows.reduce((sum, item) => sum + item.height, 0) > footerRowCapacity) rowPages.push([]);
+    } else if (lastPageHeight > footerRowCapacity) rowPages.push([]);
+  }
+  const signatureImages = Array.from(new Set([
+    signatories?.preparedBy,
+    ...(signatories?.reviewedBy ?? []),
+    signatories?.approvedBy,
+  ].filter((person): person is ProgrammeSignatory => Boolean(person?.signatureDataUrl))
+    .map(person => person.signatureDataUrl!)))
+    .map(dataUrl => {
+      const match = /^data:image\/jpeg;base64,([A-Za-z0-9+/]+=*)$/.exec(dataUrl);
+      if (!match) throw new Error("Programme signatures must be converted to JPEG before PDF generation.");
+      const bytes = Uint8Array.from(atob(match[1]), character => character.charCodeAt(0));
+      return { dataUrl, bytes, stream: ascii85Encode(bytes) };
+    });
   const pages: string[] = [];
   const pageCount = rowPages.length;
   for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
@@ -362,6 +408,45 @@ export const buildProgrammePdf = (rows: AuditSchedule[], auditTitle: string) => 
       content += wrappedText(item.remarks, remarksX, y, remarksWidth, rowHeight, 5);
       nextRowTop = y;
     });
+    if (signatories && pageIndex === pageCount - 1) {
+      const footerY = margin;
+      const footerWidth = (pageWidth - margin * 2) / 3;
+      const signatureGroups = [
+        { label: "Prepared By", people: signatories.preparedBy ? [signatories.preparedBy] : [] },
+        { label: "Reviewed By", people: signatories.reviewedBy ?? [] },
+        { label: "Approved By", people: signatories.approvedBy ? [signatories.approvedBy] : [] },
+      ];
+      signatureGroups.forEach((group, columnIndex) => {
+        const footerX = margin + columnIndex * footerWidth;
+        content += rect(footerX, footerY, footerWidth, signatureFooterHeight);
+        content += text(group.label, footerX + 5, footerY + signatureFooterHeight - 14, 7, true);
+        const people = group.people;
+        if (people.length === 0) return;
+        const availablePeopleHeight = signatureFooterHeight - 26;
+        const personHeight = people.length === 1 ? availablePeopleHeight : availablePeopleHeight / people.length;
+        people.forEach((person, personIndex) => {
+          const personTop = footerY + signatureFooterHeight - 23 - personIndex * personHeight;
+          if (person.signatureDataUrl) {
+            const imageIndex = signatureImages.findIndex(image => image.dataUrl === person.signatureDataUrl);
+            if (imageIndex < 0) throw new Error("Programme signatures must be converted to JPEG before PDF generation.");
+            const imageWidth = Math.min(100, footerWidth - 12);
+            const imageHeight = 18;
+            const imageX = footerX + (footerWidth - imageWidth) / 2;
+            const imageY = personTop - 28;
+            content += `q ${imageWidth.toFixed(2)} 0 0 ${imageHeight.toFixed(2)} ${imageX.toFixed(2)} ${imageY.toFixed(2)} cm /Sig${imageIndex} Do Q\n`;
+          }
+          const metadata = [person.name, person.designation, person.role].filter(Boolean);
+          let metadataY = personTop - 40;
+          metadata.forEach((value, lineIndex) => {
+            const lines = wrapText(value, footerWidth - 14, 6).slice(0, 2);
+            for (const line of lines) {
+              content += centeredText(line, footerX, metadataY, footerWidth, lineIndex === 0 ? 6.5 : 6, lineIndex === 0);
+              metadataY -= 9;
+            }
+          });
+        });
+      });
+    }
     pages.push(content);
   }
   const encoder = new TextEncoder();
@@ -375,10 +460,15 @@ export const buildProgrammePdf = (rows: AuditSchedule[], auditTitle: string) => 
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
     `<< /Type /XObject /Subtype /Image /Width 180 /Height 59 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCII85Decode /DCTDecode] /Length ${encoder.encode(logoStream).length} >>\nstream\n${logoStream}\nendstream`,
   ];
+  const signatureObjectIds = signatureImages.map((_, index) => 6 + pages.length * 2 + index);
   pages.forEach((content, index) => {
     const contentId = 7 + index * 2;
-    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << /Logo 5 0 R >> >> /Contents ${contentId} 0 R >>`);
+    const signatureResources = signatureObjectIds.map((id, signatureIndex) => `/Sig${signatureIndex} ${id} 0 R`).join(" ");
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << /Logo 5 0 R ${signatureResources} >> >> /Contents ${contentId} 0 R >>`);
     objects.push(`<< /Length ${encoder.encode(content).length} >>\nstream\n${content}endstream`);
+  });
+  signatureImages.forEach(image => {
+    objects.push(`<< /Type /XObject /Subtype /Image /Width 180 /Height 59 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCII85Decode /DCTDecode] /Length ${encoder.encode(image.stream).length} >>\nstream\n${image.stream}\nendstream`);
   });
   let pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
   const offsets = [0];
@@ -392,8 +482,55 @@ export const buildProgrammePdf = (rows: AuditSchedule[], auditTitle: string) => 
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
   return encoder.encode(pdf);
 };
-const programmePdfDownload = (rows: AuditSchedule[], fileName: string, auditTitle: string) => {
-  const url = URL.createObjectURL(new Blob([buildProgrammePdf(rows, auditTitle)], { type: "application/pdf" }));
+const prepareProgrammeSignatories = async (signatories: ProgrammeSignatories): Promise<ProgrammeSignatories> => {
+  const convertSignature = async (person: ProgrammeSignatory | null) => {
+    if (!person?.signatureDataUrl) return person;
+    if (!/^data:image\/(?:png|webp|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(person.signatureDataUrl)) {
+      throw new Error(`Unable to decode signature for ${person.name || "programme signatory"}.`);
+    }
+    try {
+      const image = new Image();
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Image decoding failed"));
+        image.src = person.signatureDataUrl!;
+      });
+      if (!image.naturalWidth || !image.naturalHeight) throw new Error("Image has no dimensions");
+      const canvas = document.createElement("canvas");
+      canvas.width = 180;
+      canvas.height = 59;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas is unavailable");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      const scale = Math.min(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight);
+      const imageWidth = image.naturalWidth * scale;
+      const imageHeight = image.naturalHeight * scale;
+      context.drawImage(image, (canvas.width - imageWidth) / 2, (canvas.height - imageHeight) / 2, imageWidth, imageHeight);
+      const jpeg = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("JPEG conversion failed")), "image/jpeg", 0.92);
+      });
+      const signatureDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("JPEG conversion failed"));
+        reader.onerror = () => reject(new Error("JPEG conversion failed"));
+        reader.readAsDataURL(jpeg);
+      });
+      return { ...person, signatureDataUrl };
+    } catch {
+      throw new Error(`Unable to decode or convert signature for ${person.name || "programme signatory"}.`);
+    }
+  };
+  const [preparedBy, approvedBy, reviewedBy] = await Promise.all([
+    convertSignature(signatories.preparedBy),
+    convertSignature(signatories.approvedBy),
+    Promise.all(signatories.reviewedBy.map(convertSignature)),
+  ]);
+  return { preparedBy, approvedBy, reviewedBy: reviewedBy as ProgrammeSignatory[] };
+};
+const programmePdfDownload = async (rows: AuditSchedule[], fileName: string, auditTitle: string, signatories?: ProgrammeSignatories) => {
+  const normalizedSignatories = signatories ? await prepareProgrammeSignatories(signatories) : undefined;
+  const url = URL.createObjectURL(new Blob([buildProgrammePdf(rows, auditTitle, normalizedSignatories)], { type: "application/pdf" }));
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
@@ -894,7 +1031,10 @@ function Schedules() {
       "Process / Product Owner": item.processProductOwner ?? "", "From Date": item.plannedStartDate.slice(0, 10),
       "To Date": item.plannedEndDate.slice(0, 10), Remarks: item.remarks ?? "",
       }));
-      if (viewMode === "gantt") programmePdfDownload(children, `audit-programme-${parentId}.pdf`, programme.data?.title ?? "");
+      if (viewMode === "gantt") {
+        const signatories = parentId !== "legacy" ? await getAuditProgrammeSignatories(parentId) as ProgrammeSignatories : undefined;
+        await programmePdfDownload(children, `audit-programme-${parentId}.pdf`, programme.data?.title ?? "", signatories);
+      }
       else workbookDownload(rows, `audit-schedule-${parentId}.xlsx`, range);
     } catch (error) {
       toast({ title: "Unable to download audit schedule", description: errorText(error), variant: "destructive" });

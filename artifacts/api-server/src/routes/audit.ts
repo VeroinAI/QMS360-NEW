@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { PDFDocument } from "pdf-lib";
 import * as Api from "@workspace/api-zod";
 import { allocateReferenceNumber, hasNumberingPattern } from "../lib/numbering";
 import {
@@ -31,6 +32,7 @@ import { assertCanManageAssignmentScope, assertProjectAccess, canManageAssignmen
 import { assertProjectInOrg, assertProjectScopeInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
+import { getObject, storeObject } from "../lib/objectStorage";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
 import { asyncHandler, HttpError, listNotifications, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
@@ -90,6 +92,72 @@ const auditLog = (req: Request, action: string, entityType: string, entityId: st
     organizationId: actor(req).organizationId, actorId: actor(req).id, action, entityType, entityId,
     before, after, ipAddress: req.ip,
   });
+async function assertAuditUserManagementScope(req: Request, userId: string) {
+  if (req.permissionAdminBypass || userId === actor(req).id) return;
+  const assignments = await db.select({
+    projectIds: auditUserWorkspaceRoles.projectIds,
+    businessUnitIds: auditUserWorkspaceRoles.businessUnitIds,
+  }).from(auditUserWorkspaceRoles).where(and(
+    eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId),
+    eq(auditUserWorkspaceRoles.userId, userId),
+    isNull(auditUserWorkspaceRoles.deletedAt),
+  ));
+  if (!assignments.some(assignment => canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds))) {
+    throw new HttpError(403, "You do not have access to manage this user's Audit profile");
+  }
+}
+
+const MAX_SIGNATURE_DIMENSION = 4096;
+const MAX_SIGNATURE_PIXELS = 16_000_000;
+function assertImageDimensions(width: number, height: number) {
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1
+    || width > MAX_SIGNATURE_DIMENSION || height > MAX_SIGNATURE_DIMENSION
+    || width * height > MAX_SIGNATURE_PIXELS) {
+    throw new HttpError(422, "Signature image dimensions are invalid or too large");
+  }
+}
+function readWebpDimensions(bytes: Buffer) {
+  if (bytes.length < 26 || bytes.toString("ascii", 0, 4) !== "RIFF"
+    || bytes.toString("ascii", 8, 12) !== "WEBP" || bytes.readUInt32LE(4) + 8 !== bytes.length) {
+    throw new HttpError(422, "Signature image bytes do not match the declared MIME type");
+  }
+  let offset = 12;
+  let dimensions: { width: number; height: number } | null = null;
+  let validFrame = false;
+  while (offset + 8 <= bytes.length) {
+    const type = bytes.toString("ascii", offset, offset + 4);
+    const size = bytes.readUInt32LE(offset + 4);
+    const start = offset + 8;
+    const end = start + size;
+    if (end > bytes.length) throw new HttpError(422, "Signature image is malformed");
+    if (type === "VP8 " && size >= 10 && bytes[start + 3] === 0x9d
+      && bytes[start + 4] === 0x01 && bytes[start + 5] === 0x2a) {
+      dimensions = { width: bytes.readUInt16LE(start + 6) & 0x3fff, height: bytes.readUInt16LE(start + 8) & 0x3fff };
+      validFrame = true;
+    } else if (type === "VP8L" && size >= 5 && bytes[start] === 0x2f) {
+      const b1 = bytes[start + 1]!, b2 = bytes[start + 2]!, b3 = bytes[start + 3]!, b4 = bytes[start + 4]!;
+      dimensions = { width: 1 + b1 + ((b2 & 0x3f) << 8), height: 1 + ((b2 >> 6) | (b3 << 2) | ((b4 & 0x0f) << 10)) };
+      validFrame = true;
+    }
+    offset = end + (size & 1);
+  }
+  if (offset !== bytes.length || !validFrame || !dimensions) throw new HttpError(422, "Signature image is malformed");
+  assertImageDimensions(dimensions.width, dimensions.height);
+}
+async function validateSignatureImage(bytes: Buffer, mimeType: string) {
+  try {
+    if (mimeType === "image/webp") {
+      readWebpDimensions(bytes);
+      return;
+    }
+    const document = await PDFDocument.create();
+    const image = mimeType === "image/png" ? await document.embedPng(bytes) : await document.embedJpg(bytes);
+    assertImageDimensions(image.width, image.height);
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(422, "Signature must be a valid PNG, JPEG or WebP image");
+  }
+}
 const dateOnly = (value: Date | string | null | undefined) => value ? new Date(value).toISOString().slice(0, 10) : null;
 const parseJson = <T>(value: string | null | undefined, fallback: T): T => {
   if (!value) return fallback;
@@ -485,6 +553,101 @@ router.get("/programmes/:id", asyncHandler(async (req, res) => {
   if (!row || !scheduleMeta(row).programme) throw new HttpError(404, "Audit programme not found");
   if (!await scheduleInScope(req, row)) throw new HttpError(403, "You do not have access to this programme");
   res.json(await programmeResponse(req, row, (await programmeChildren(req, row.id)).length));
+}));
+
+router.get("/programmes/:id/signatories", asyncHandler(async (req, res) => {
+  const [programme] = await db.select().from(auditSchedules).where(and(
+    active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id)),
+  ));
+  if (!programme || !isProgramme(programme)) throw new HttpError(404, "Audit programme not found");
+  if (!await scheduleInScope(req, programme)) throw new HttpError(403, "You do not have access to this programme");
+  await assertProgrammeMutationAccess(req, programme);
+
+  const history = await db.select().from(auditAuditLogEntries).where(and(
+    eq(auditAuditLogEntries.organizationId, actor(req).organizationId),
+    eq(auditAuditLogEntries.entityType, "audit_programme"),
+    eq(auditAuditLogEntries.entityId, programme.id),
+  )).orderBy(asc(auditAuditLogEntries.createdAt), asc(auditAuditLogEntries.id));
+  let latestSubmitIndex = -1;
+  for (let index = 0; index < history.length; index += 1) {
+    if (history[index]!.action === "submit") latestSubmitIndex = index;
+  }
+
+  const cycle = latestSubmitIndex < 0 ? [] : history.slice(latestSubmitIndex);
+  const submissionMeta = parseJson<ScheduleMeta>(
+    (cycle[0]?.after as AnyRow | null)?.status as string | undefined, {},
+  );
+  const approvalRoles = submissionMeta.approvalRoles ?? [];
+  const approvals = cycle.filter(entry => entry.action === "approve" && entry.actorId);
+  const cycleSentBack = cycle.some(entry => entry.action === "send_back");
+  const intermediateApprovals = cycleSentBack ? [] : approvals.filter(entry => {
+    const before = entry.before as AnyRow | null;
+    const meta = parseJson<ScheduleMeta>(before?.status, {});
+    const index = meta.approvalIndex;
+    return Number.isInteger(index) && index! >= 0 && index! < approvalRoles.length - 1;
+  });
+  const finalApproval = programme.workflowState === "approved" && !cycleSentBack
+    ? approvals.find(entry => {
+      const meta = parseJson<ScheduleMeta>((entry.before as AnyRow | null)?.status, {});
+      return meta.approvalIndex === approvalRoles.length - 1 && approvalRoles.length > 0;
+    })
+    : undefined;
+
+  const signerIds = [...new Set([
+    programme.ownerId,
+    ...intermediateApprovals.map(entry => entry.actorId!),
+    ...(finalApproval?.actorId ? [finalApproval.actorId] : []),
+  ].filter((id): id is string => Boolean(id)))];
+  const signerRows = signerIds.length ? await db.select({
+    id: users.id, fullName: users.fullName, designation: users.designation, signaturePath: users.signaturePath,
+  }).from(users).where(and(
+    eq(users.organizationId, actor(req).organizationId), inArray(users.id, signerIds),
+  )) : [];
+  const signerById = new Map(signerRows.map(user => [user.id, user]));
+  const activeAssignments = signerIds.length ? await db.select({
+    userId: auditUserWorkspaceRoles.userId, roleName: auditWorkspaceRoles.name,
+  }).from(auditUserWorkspaceRoles).innerJoin(auditWorkspaceRoles, and(
+    eq(auditWorkspaceRoles.id, auditUserWorkspaceRoles.workspaceRoleId),
+    eq(auditWorkspaceRoles.organizationId, actor(req).organizationId),
+    eq(auditWorkspaceRoles.status, "active"), isNull(auditWorkspaceRoles.deletedAt),
+  )).where(and(
+    eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId),
+    inArray(auditUserWorkspaceRoles.userId, signerIds),
+    eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
+  )).orderBy(asc(auditWorkspaceRoles.name)) : [];
+  const roleByUser = new Map<string, string>();
+  for (const assignment of activeAssignments) {
+    if (!roleByUser.has(assignment.userId)) roleByUser.set(assignment.userId, assignment.roleName);
+  }
+  const signatureDataUrl = async (userId: string) => {
+    const path = signerById.get(userId)?.signaturePath;
+    if (!path) return null;
+    const object = await getObject(path.startsWith("gcs:") ? path.slice(4) : path);
+    const mimeType = object.headers.get("content-type");
+    if (!mimeType?.startsWith("image/")) throw new HttpError(500, "Stored signature has an invalid content type");
+    return `data:${mimeType};base64,${Buffer.from(await object.arrayBuffer()).toString("base64")}`;
+  };
+  const makeSignatory = async (userId: string, role: string): Promise<AnyRow | null> => {
+    const user = signerById.get(userId);
+    if (!user) return null;
+    return {
+      userId: user.id, name: user.fullName, designation: user.designation,
+      role, signatureDataUrl: await signatureDataUrl(userId),
+    };
+  };
+  const preparedBy = programme.ownerId
+    ? await makeSignatory(programme.ownerId, roleByUser.get(programme.ownerId) ?? "Prepared by")
+    : null;
+  const reviewedBy = (await Promise.all(intermediateApprovals.map(async entry => {
+    const before = entry.before as AnyRow | null;
+    const meta = parseJson<ScheduleMeta>(before?.status, {});
+    const role = Number.isInteger(meta.approvalIndex) ? approvalRoles[meta.approvalIndex!]?.name : undefined;
+    return makeSignatory(entry.actorId!, role ?? "Reviewed by");
+  }))).filter(Boolean);
+  const approvedBy = finalApproval?.actorId
+    ? await makeSignatory(finalApproval.actorId, approvalRoles[approvalRoles.length - 1]?.name ?? "Approved by")
+    : null;
+  res.json({ preparedBy, reviewedBy, approvedBy });
 }));
 
 router.delete("/programmes/:id", asyncHandler(async (req, res) => {
@@ -1726,13 +1889,61 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
   const visibleAssignments = assignments.filter((assignment) => canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds));
   const roles = visibleAssignments.length ? await db.select().from(auditWorkspaceRoles).where(inArray(auditWorkspaceRoles.id, visibleAssignments.map((x) => x.workspaceRoleId))) : [];
   res.json(paginated(rows.map((x) => ({
-    id: x.id, username: x.username, fullName: x.fullName, email: x.email, platformRole: availablePlatformRoles.find((role) => role.id === x.platformRoleId)?.name ?? "Employee",
+    id: x.id, username: x.username, fullName: x.fullName, email: x.email, designation: x.designation,
+    signatureUrl: x.signaturePath ? `/api/audit/admin/users/${x.id}/signature` : null,
+    platformRole: availablePlatformRoles.find((role) => role.id === x.platformRoleId)?.name ?? "Employee",
     workspaceRoles: roles.filter((role) => visibleAssignments.some((a) => a.userId === x.id && a.workspaceRoleId === role.id)).map((role) => {
       const assignment = visibleAssignments.find((a) => a.userId === x.id && a.workspaceRoleId === role.id)!;
       return { id: role.id, name: role.name, description: role.description, permissions: [], active: role.status === "active", systemDefault: role.isSystem, scopeType: assignment.projectIds?.length ? "project" as const : "organization" as const, scopeIds: assignment.projectIds ?? [] };
     }),
     status: x.accessStatus === "active" ? "Active" : x.accessStatus === "deactivated" ? "Deactivated" : "Not Requested", lastAccessAt: x.lastAccessAt,
   })), visibleRows.length, page, limit));
+}));
+router.put("/admin/users/:userId/profile", requireAuditAdmin, asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.UpdateLessonsUserProfileBody, req);
+  const [target] = await db.select().from(users).where(and(
+    eq(users.id, String(req.params.userId)), eq(users.organizationId, actor(req).organizationId), isNull(users.deletedAt),
+  )).limit(1);
+  if (!target) throw new HttpError(404, "User not found");
+  await assertAuditUserManagementScope(req, target.id);
+  let signaturePath = target.signaturePath;
+  if (data.signatureDataUrl) {
+    if (data.signatureDataUrl.length > 720 * 1024) throw new HttpError(422, "Signature image exceeds the 512KB limit");
+    const match = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/.exec(data.signatureDataUrl);
+    if (!match) throw new HttpError(422, "Signature must be a PNG, JPEG or WebP image");
+    if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(match[2]!)) {
+      throw new HttpError(422, "Signature image must contain valid base64 data");
+    }
+    const bytes = Buffer.from(match[2]!, "base64");
+    if (bytes.length > 512 * 1024) throw new HttpError(422, "Signature image exceeds the 512KB limit");
+    if (!bytes.length || bytes.toString("base64") !== match[2]) throw new HttpError(422, "Signature image must contain valid base64 data");
+    await validateSignatureImage(bytes, match[1]!);
+    signaturePath = `gcs:${await storeObject(`qms360/signatures/${target.id}`, bytes, match[1]!)}`;
+  } else if (data.signatureDataUrl === null) {
+    signaturePath = null;
+  }
+  const [row] = await db.update(users).set({
+    designation: data.designation === undefined ? target.designation : (data.designation?.trim() || null),
+    signaturePath, updatedAt: new Date(),
+  }).where(eq(users.id, target.id)).returning();
+  await auditLog(req, "update", "user_profile", row!.id,
+    { designation: target.designation, hasSignature: Boolean(target.signaturePath) },
+    { designation: row!.designation, hasSignature: Boolean(row!.signaturePath) });
+  res.json({ id: row!.id, designation: row!.designation, signatureUrl: row!.signaturePath ? `/api/audit/admin/users/${row!.id}/signature` : null });
+}));
+router.get("/admin/users/:userId/signature", requireAuditAdmin, asyncHandler(async (req, res) => {
+  const [target] = await db.select({ signaturePath: users.signaturePath }).from(users).where(and(
+    eq(users.id, String(req.params.userId)), eq(users.organizationId, actor(req).organizationId), isNull(users.deletedAt),
+  )).limit(1);
+  if (!target) throw new HttpError(404, "User not found");
+  await assertAuditUserManagementScope(req, String(req.params.userId));
+  if (!target.signaturePath) throw new HttpError(404, "Signature not found");
+  const signaturePath = target.signaturePath;
+  const object = await getObject(signaturePath.startsWith("gcs:") ? signaturePath.slice(4) : signaturePath);
+  res.setHeader("content-type", object.headers.get("content-type") ?? "image/png");
+  res.setHeader("cache-control", "private, max-age=60");
+  const { Readable } = await import("node:stream");
+  Readable.fromWeb(object.body as any).pipe(res);
 }));
 router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.AssignAuditUserRoleBody, req);

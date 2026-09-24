@@ -1105,6 +1105,8 @@ paths:
   /audit/programmes/{id}:
     get: {operationId: getAuditProgramme, tags: [audit], summary: Get an annual audit programme, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Programme, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
     delete: {operationId: deleteAuditProgramme, tags: [audit], summary: Soft-delete an empty unapproved annual audit programme, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}, "409": {description: Approved programmes and programmes with child audits cannot be deleted}}}
+  /audit/programmes/{id}/signatories:
+    get: {operationId: getAuditProgrammeSignatories, tags: [audit], summary: Get programme signatories from creator and approval history, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Programme signatories, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeSignatories"}}}}, "403": {description: Programme is outside the caller's organization or scope}, "404": {description: Programme not found}}}
   /audit/programmes/{id}/submit:
     post: {operationId: submitAuditProgramme, tags: [audit], summary: Submit programme for sequential approval, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditProgrammeSubmission"}, responses: {"200": {description: Submitted, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
   /audit/programmes/{id}/review:
@@ -1199,7 +1201,11 @@ paths:
   /audit/admin/roles/{id}:
     put: {operationId: updateAuditRole, tags: [audit-admin], summary: Update role, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"200": {description: Updated}}}
   /audit/admin/users:
-    get: {operationId: listAuditUsers, tags: [audit-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
+    get: {operationId: listAuditUsers, tags: [audit-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {description: Audit users, content: {application/json: {schema: {$ref: "#/components/schemas/AuditWorkspaceUserPage"}}}}}}
+  /audit/admin/users/{userId}/profile:
+    put: {operationId: updateAuditUserProfile, tags: [audit-admin], summary: Update a user's designation and signature (admin), parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/UserProfileUpdate"}}}}, responses: {"200": {description: Updated profile, content: {application/json: {schema: {$ref: "#/components/schemas/AuditUserProfileUpdateResult"}}}}, "403": {description: Audit administrator access required}, "404": {description: User not found}, "422": {description: Invalid profile or signature data}}}
+  /audit/admin/users/{userId}/signature:
+    get: {operationId: getAuditAdminUserSignature, tags: [audit-admin], summary: Stream an organization's user's signature image (Audit admin), parameters: [{$ref: "#/components/parameters/UserId"}], responses: {"200": {description: Private signature image, content: {image/png: {}, image/jpeg: {}, image/webp: {}}}, "403": {description: Audit administrator access required}, "404": {description: Signature not found}}}
   /audit/admin/users/{userId}/roles:
     post: {operationId: assignAuditUserRole, tags: [audit-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
   /audit/admin/users/{userId}/roles/{id}:
@@ -2191,6 +2197,18 @@ components:
       type: object
       required: [id, username, fullName, platformRole, workspaceRoles, status]
       properties: {id: {type: string}, username: {type: string}, fullName: {type: string}, email: {type: [string, "null"]}, designation: {type: [string, "null"]}, signatureUrl: {type: [string, "null"]}, platformRole: {type: string}, workspaceRoles: {type: array, items: {$ref: "#/components/schemas/Role"}}, status: {type: string, enum: [Not Requested, Active, Deactivated]}, lastAccessAt: {type: [string, "null"], format: date-time}}
+    AuditWorkspaceUser:
+      allOf:
+        - {$ref: "#/components/schemas/WorkspaceUser"}
+        - type: object
+          required: [designation, signatureUrl]
+          properties: {designation: {type: [string, "null"]}, signatureUrl: {type: [string, "null"], format: uri-reference}}
+    AuditWorkspaceUserPage:
+      allOf:
+        - {$ref: "#/components/schemas/PageMeta"}
+        - type: object
+          required: [items]
+          properties: {items: {type: array, items: {$ref: "#/components/schemas/AuditWorkspaceUser"}}}
     PlatformRole:
       type: object
       required: [id, name]
@@ -2214,6 +2232,26 @@ components:
       properties:
         designation: {type: [string, "null"]}
         signatureDataUrl: {type: [string, "null"], description: "data:image/... base64 payload; null clears the signature"}
+    AuditUserProfileUpdateResult:
+      type: object
+      required: [id, designation, signatureUrl]
+      properties: {id: {type: string}, designation: {type: [string, "null"]}, signatureUrl: {type: [string, "null"], format: uri-reference}}
+    Signatory:
+      type: object
+      required: [userId, name, designation, role, signatureDataUrl]
+      properties:
+        userId: {type: string}
+        name: {type: string}
+        designation: {type: [string, "null"]}
+        role: {type: string}
+        signatureDataUrl: {type: [string, "null"], description: Inline data URL for this signatory's stored signature}
+    AuditProgrammeSignatories:
+      type: object
+      required: [preparedBy, reviewedBy, approvedBy]
+      properties:
+        preparedBy: {oneOf: [{$ref: "#/components/schemas/Signatory"}, {type: "null"}]}
+        reviewedBy: {type: array, items: {$ref: "#/components/schemas/Signatory"}}
+        approvedBy: {oneOf: [{$ref: "#/components/schemas/Signatory"}, {type: "null"}]}
     AccessRequest:
       type: object
       required: [id, userId, fullName, username, email, requestedRoleId, status, requestedAt]

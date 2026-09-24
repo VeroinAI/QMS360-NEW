@@ -49,11 +49,14 @@ import type {
   AuditProgramme,
   AuditProgrammeBody,
   AuditProgrammePage,
+  AuditProgrammeSignatories,
   AuditProgrammeSubmissionBody,
   AuditSchedule,
   AuditScheduleBody,
   AuditScheduleFeasibilityBody,
   AuditSchedulePageResponse,
+  AuditUserProfileUpdateResult,
+  AuditWorkspaceUserPage,
   AuthResponse,
   BulkImportResult,
   BusinessUnitPageResponse,
@@ -15694,6 +15697,83 @@ export const useDeleteAuditProgramme = <TError = ErrorType<void>,
       return useMutation(getDeleteAuditProgrammeMutationOptions(options));
     }
 
+export const getGetAuditProgrammeSignatoriesUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/programmes/${id}/signatories`
+}
+
+/**
+ * @summary Get programme signatories from creator and approval history
+ */
+export const getAuditProgrammeSignatories = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<AuditProgrammeSignatories> => {
+
+  return customFetch<AuditProgrammeSignatories>(getGetAuditProgrammeSignatoriesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditProgrammeSignatoriesQueryKey = (id: string,) => {
+    return [
+    `/api/audit/programmes/${id}/signatories`
+    ] as const;
+    }
+
+
+export const getGetAuditProgrammeSignatoriesQueryOptions = <TData = Awaited<ReturnType<typeof getAuditProgrammeSignatories>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditProgrammeSignatories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditProgrammeSignatoriesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditProgrammeSignatories>>> = ({ signal }) => getAuditProgrammeSignatories(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditProgrammeSignatories>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditProgrammeSignatoriesQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditProgrammeSignatories>>>
+export type GetAuditProgrammeSignatoriesQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get programme signatories from creator and approval history
+ */
+
+export function useGetAuditProgrammeSignatories<TData = Awaited<ReturnType<typeof getAuditProgrammeSignatories>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditProgrammeSignatories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditProgrammeSignatoriesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getSubmitAuditProgrammeUrl = (id: string,) => {
 
 
@@ -19676,9 +19756,9 @@ export const getListAuditUsersUrl = (params?: ListAuditUsersParams,) => {
 /**
  * @summary List users
  */
-export const listAuditUsers = async (params?: ListAuditUsersParams, options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceUserPageResponse> => {
+export const listAuditUsers = async (params?: ListAuditUsersParams, options?: Parameters<typeof customFetch>[1]): Promise<AuditWorkspaceUserPage> => {
 
-  return customFetch<WorkspaceUserPageResponse>(getListAuditUsersUrl(params),
+  return customFetch<AuditWorkspaceUserPage>(getListAuditUsersUrl(params),
   {
     ...options,
     method: 'GET'
@@ -19730,6 +19810,155 @@ export function useListAuditUsers<TData = Awaited<ReturnType<typeof listAuditUse
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListAuditUsersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAuditUserProfileUrl = (userId: string,) => {
+
+
+
+
+  return `/api/audit/admin/users/${userId}/profile`
+}
+
+/**
+ * @summary Update a user's designation and signature (admin)
+ */
+export const updateAuditUserProfile = async (userId: string,
+    userProfileUpdate: UserProfileUpdate, options?: Parameters<typeof customFetch>[1]): Promise<AuditUserProfileUpdateResult> => {
+
+  return customFetch<AuditUserProfileUpdateResult>(getUpdateAuditUserProfileUrl(userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userProfileUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditUserProfileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditUserProfile>>, TError,{userId: string;data: BodyType<UserProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditUserProfile>>, TError,{userId: string;data: BodyType<UserProfileUpdate>}, TContext> => {
+
+const mutationKey = ['updateAuditUserProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditUserProfile>>, {userId: string;data: BodyType<UserProfileUpdate>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updateAuditUserProfile(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditUserProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditUserProfile>>>
+    export type UpdateAuditUserProfileMutationBody = BodyType<UserProfileUpdate>
+    export type UpdateAuditUserProfileMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a user's designation and signature (admin)
+ */
+export const useUpdateAuditUserProfile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditUserProfile>>, TError,{userId: string;data: BodyType<UserProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditUserProfile>>,
+        TError,
+        {userId: string;data: BodyType<UserProfileUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditUserProfileMutationOptions(options));
+    }
+
+export const getGetAuditAdminUserSignatureUrl = (userId: string,) => {
+
+
+
+
+  return `/api/audit/admin/users/${userId}/signature`
+}
+
+/**
+ * @summary Stream an organization's user's signature image (Audit admin)
+ */
+export const getAuditAdminUserSignature = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetAuditAdminUserSignatureUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditAdminUserSignatureQueryKey = (userId: string,) => {
+    return [
+    `/api/audit/admin/users/${userId}/signature`
+    ] as const;
+    }
+
+
+export const getGetAuditAdminUserSignatureQueryOptions = <TData = Awaited<ReturnType<typeof getAuditAdminUserSignature>>, TError = ErrorType<void>>(userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditAdminUserSignature>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditAdminUserSignatureQueryKey(userId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditAdminUserSignature>>> = ({ signal }) => getAuditAdminUserSignature(userId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: userId !== null && userId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditAdminUserSignature>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditAdminUserSignatureQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditAdminUserSignature>>>
+export type GetAuditAdminUserSignatureQueryError = ErrorType<void>
+
+
+/**
+ * @summary Stream an organization's user's signature image (Audit admin)
+ */
+
+export function useGetAuditAdminUserSignature<TData = Awaited<ReturnType<typeof getAuditAdminUserSignature>>, TError = ErrorType<void>>(
+ userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditAdminUserSignature>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditAdminUserSignatureQueryOptions(userId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
