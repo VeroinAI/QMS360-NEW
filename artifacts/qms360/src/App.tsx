@@ -62,14 +62,13 @@ function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-7 shadow-lg">
         <p className="text-xs font-bold uppercase tracking-widest text-accent">Welcome to QMS360</p>
         <h2 className="mt-3 text-3xl font-bold">Sign in</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Algihaz platform sign-in (UAT simulation)</p>
+        <p className="mt-2 text-sm text-muted-foreground">Sign in with your QMS360 account.</p>
         {error && <div className="mt-5 rounded-lg bg-destructive p-3 text-sm text-destructive-foreground">{error}</div>}
         <form onSubmit={submit} className="mt-6 space-y-4">
           <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" required value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" /></div>
           <div className="space-y-2"><Label htmlFor="password">Password</Label><Input id="password" type="password" minLength={8} required value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" /></div>
           <Button className="w-full" type="submit" disabled={login.isPending}>{login.isPending ? 'Signing in…' : 'Sign in'}</Button>
         </form>
-        <div className="mt-6 rounded-lg bg-muted p-3 text-xs text-muted-foreground"><strong>UAT demo:</strong> noura.alharbi@algihaz.com / Demo1234!</div>
       </div>
     </section>
   </div>;

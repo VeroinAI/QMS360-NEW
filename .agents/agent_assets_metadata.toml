@@ -22,3 +22,17 @@ mtime_ms = 1789199769689
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/013ec3fd-62ab-4254-8c6a-c06eace08109/0398a7e0-caba-4539-94cd-953097519050"
 storage_version_token = "1789199908745605"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "yMJQ6d_2-KQRi9xSlNlAB"
+uri = "file://delivery/qms360-frontend.zip"
+type = "unspecified"
+title = "QMS360 frontend ZIP"
+description = "Production static build; extract its contents to the web root and route /api to the backend."
+logical_id = "d8150c7a-fab9-44b1-a530-3874d6dd8344"
+content_hash = "sha256:7fe23711e254fa774504d27e373fb773ddf25d74e5d53e72f46e10bdb17996fd"
+size = 561355
+mtime_ms = 1790512414389
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/d8150c7a-fab9-44b1-a530-3874d6dd8344/77959ddb-14a2-4873-b584-56648580ae6e"
+storage_version_token = "1790512443935405"
+content_type = "application/octet-stream"
