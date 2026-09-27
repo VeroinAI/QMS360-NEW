@@ -31,4 +31,4 @@
 - [Outbound email delivery semantics](outbound-email-delivery-semantics.md) — event emails queue per recipient; policy is tenant-wide; test messages remain direct.
 - [Lessons approval escalation digest](lessons-approval-escalation-digest.md) — submittedAt-based working-day thresholds feed grouped scheduled reports, not per-form Lessons escalation emails.
 - [Production schema synchronization](production-schema-synchronization.md) — a successful publish can still leave QMS360 production behind development; verify live schema when APIs return missing-relation errors.
-- [AWS client handoff](aws-client-handoff.md) — prefer private source access over a public monorepo; production frontend must not display UAT credentials, and SQL handoff needs migration tracking.
+- [AWS client handoff](aws-client-handoff.md) — temporary public clone is the user's chosen handoff; it remains an irreversible disclosure, and manually run SQL needs migration tracking.
