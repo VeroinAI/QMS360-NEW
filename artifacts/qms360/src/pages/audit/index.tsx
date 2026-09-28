@@ -928,10 +928,41 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
   </Dialog>;
 }
 
+function ProgrammeSendBackDialog({ item, onClose, onSentBack }: {
+  item: { id: string; title: string };
+  onClose: () => void;
+  onSentBack: (updated: AuditProgramme) => void;
+}) {
+  const [comments, setComments] = useState("");
+  const review = useReviewAuditProgramme();
+  const { toast } = useToast();
+  const sendBack = () => {
+    if (!comments.trim()) return;
+    review.mutate({ id: item.id, data: { decision: "send_back", comments: comments.trim() } }, {
+      onSuccess: updated => { onSentBack(updated); onClose(); },
+      onError: e => toast({ title: "Unable to send back schedule", description: errorText(e), variant: "destructive" }),
+    });
+  };
+  return <Dialog open onOpenChange={isOpen => !isOpen && onClose()}>
+    <DialogContent className="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>Send back audit schedule</DialogTitle>
+        <DialogDescription>Provide the required remarks for sending {item.title} back.</DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-2 py-2">
+        <Label htmlFor="schedule-send-back-comments">Send-back remarks *</Label>
+        <Textarea id="schedule-send-back-comments" value={comments} onChange={event => setComments(event.target.value)} rows={6} autoFocus/>
+      </div>
+      <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={sendBack} disabled={review.isPending || !comments.trim()}>Send back</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
+
 function Programmes() {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState<{ id: string; title: string }>();
+  const [sendingBack, setSendingBack] = useState<{ id: string; title: string }>();
   const query = useListAuditProgrammes({ page, limit: PAGE_SIZE });
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -951,11 +982,12 @@ function Programmes() {
     <PageHeader title="Audit schedules" description="Create and manage annual audit programmes" action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 size-4"/>New Schedule</Button>} />
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>New Schedule</DialogTitle></DialogHeader><ProgrammeForm onClose={() => setOpen(false)} /></DialogContent></Dialog>
     {submitting && <ProgrammeSubmitDialog key={submitting.id} item={submitting} onClose={() => setSubmitting(undefined)} onSubmitted={updated => done("Audit schedule submitted", updated)}/>}
+    {sendingBack && <ProgrammeSendBackDialog key={sendingBack.id} item={sendingBack} onClose={() => setSendingBack(undefined)} onSentBack={updated => done("Audit schedule sent back", updated)}/>}
     <State loading={query.isLoading} error={query.error} empty={!(query.data?.items?.length)} label="No audit schedules found." />
     {!!query.data?.items?.length && <Card><Table><TableHeader><TableRow><TableHead>Audit schedule</TableHead><TableHead>Dates</TableHead><TableHead>Audits</TableHead><TableHead>Status</TableHead><TableHead>Pending approver</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
       {query.data.items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" asChild><Link href={`/audit/schedules/${item.id}`}>{item.title}</Link></Button><div className="text-xs text-muted-foreground">Annual programme</div></TableCell><TableCell>{date(item.fromDate)} – {date(item.toDate)}</TableCell><TableCell>{item.childCount}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell>{item.workflowState === "Submitted" ? <><div className="font-medium">{item.currentApproverNames.length ? item.currentApproverNames.join(", ") : "No active assignee"}</div><div className="text-xs text-muted-foreground">{item.currentApprovalRole ?? "Approval role unavailable"}</div></> : "—"}</TableCell><TableCell><div className="flex justify-end gap-1">
         {item.id !== "legacy" && item.canSubmit && <Button size="sm" disabled={item.childCount === 0 || !!submitting} onClick={() => setSubmitting(item)}>{item.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}
-        {item.id !== "legacy" && item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: updated => done("Audit schedule approved", updated), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id: item.id, data: { decision: "send_back", comments } }, { onSuccess: updated => done("Audit schedule sent back", updated), onError: e => toast({ title: "Unable to send back schedule", description: errorText(e), variant: "destructive" }) }); }}>Send back</Button></>}
+        {item.id !== "legacy" && item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: updated => done("Audit schedule approved", updated), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button><Button size="sm" variant="outline" onClick={() => setSendingBack(item)}>Send back</Button></>}
         {item.id !== "legacy" && <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved audit schedules cannot be deleted" : item.childCount > 0 ? "Audit schedules with child audits cannot be deleted" : "Delete audit schedule"} disabled={item.workflowState === "Approved" || item.childCount > 0 || remove.isPending} onClick={() => window.confirm("Delete this audit schedule?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Audit schedule deleted"), onError: e => toast({ title: "Unable to delete audit schedule", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>}
       </div></TableCell></TableRow>)}
     </TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage} /></CardContent></Card>}
