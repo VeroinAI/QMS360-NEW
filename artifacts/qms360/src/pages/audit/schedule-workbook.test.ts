@@ -72,6 +72,55 @@ describe("audit schedule spreadsheet", () => {
     ]);
   });
 
+  it("links the category dropdown to the selected type without offering old incompatible values", async () => {
+    const linkedOptions = {
+      ...options,
+      auditTypes: [
+        { value: "Quality Internal Process Audit", label: "Process" },
+        { value: "Quality Internal Product Audit", label: "Product" },
+        { value: "Unlinked Audit", label: "Unlinked" },
+      ],
+      auditCategories: [
+        { value: "Business Unit", label: "Business Unit", metadata: { auditTypeValues: ["Quality Internal Process Audit"] } },
+        { value: "Regional Office", label: "Regional Office", metadata: { auditTypeValues: ["Quality Internal Process Audit", "Quality Internal Product Audit"] } },
+        { value: "Project", label: "Project", metadata: { auditTypeValues: ["Quality Internal Product Audit"] } },
+        { value: "Old Category", label: "Old Category", metadata: {} },
+      ],
+    };
+    const previous = {
+      auditTypes: ["Quality Internal Product Audit"], auditCategory: "Old Category",
+      departmentProject: "Plant A", title: "Older schedule",
+      plannedStartDate: "2026-10-01", plannedEndDate: "2026-10-02",
+    } as AuditSchedule;
+    const workbook = await createScheduleWorkbook([previous], linkedOptions);
+    const { default: ExcelJS } = await import("exceljs");
+    const reopened = new ExcelJS.Workbook();
+    await reopened.xlsx.load(await workbook.xlsx.writeBuffer());
+    const sheet = reopened.getWorksheet("Audit Schedules")!;
+    const lists = reopened.getWorksheet("Dropdown Values")!;
+
+    expect(sheet.getCell("B2").value).toBe("Old Category");
+    expect(sheet.getCell("B2").dataValidation.formulae).toEqual([
+      'INDIRECT("AuditCategoryType"&MATCH($A2,AuditTypes,0))',
+    ]);
+    expect(sheet.getCell("B3").dataValidation.formulae).toEqual([
+      'INDIRECT("AuditCategoryType"&MATCH($A3,AuditTypes,0))',
+    ]);
+    expect(lists.state).toBe("veryHidden");
+    expect([lists.getCell("F2").value, lists.getCell("F3").value, lists.getCell("F4").value])
+      .toEqual(["Business Unit", "Regional Office", null]);
+    expect([lists.getCell("G2").value, lists.getCell("G3").value, lists.getCell("G4").value])
+      .toEqual(["Regional Office", "Project", null]);
+    expect(lists.getCell("H2").value).toBeNull();
+    expect(reopened.definedNames.getRanges("AuditCategoryType1").ranges)
+      .toEqual(["'Dropdown Values'!$F$2:$F$3"]);
+    expect(reopened.definedNames.getRanges("AuditCategoryType2").ranges)
+      .toEqual(["'Dropdown Values'!$G$2:$G$3"]);
+    expect(reopened.definedNames.getRanges("AuditCategoryType3").ranges)
+      .toEqual(["'Dropdown Values'!$H$2"]);
+    expect(reopened.getWorksheet("Instructions")?.getCell("B4").value).toContain("reselect the category");
+  });
+
   it("exports an existing project as one code-and-name choice without duplicating its name", async () => {
     const row = {
       auditTypes: ["Quality Internal Product Audit"], auditCategory: "Internal",

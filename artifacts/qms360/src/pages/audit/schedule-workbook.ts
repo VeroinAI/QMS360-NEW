@@ -1,4 +1,5 @@
 import type { AuditSchedule } from "@workspace/api-client-react";
+import { categoryOptionsForAuditType, linkedAuditTypes } from "./audit-category-options";
 
 export const scheduleImportHeaders = [
   "Audit Type", "Audit Category", "Department / Project", "Location", "Audit Title",
@@ -17,7 +18,7 @@ const scheduleHeaderAliases: Record<string, string> = {
 export const scheduleFieldForHeader = (header: string) =>
   scheduleHeaderAliases[header.trim().toLowerCase().replace(/[^a-z0-9]/g, "")];
 
-type Option = { value: string; label: string };
+type Option = { value: string; label: string; metadata?: Record<string, unknown> };
 type Project = { id?: string; code?: string | null; name: string };
 type ProgrammeRange = { fromDate: string; toDate: string };
 
@@ -64,8 +65,10 @@ export async function createScheduleWorkbook(
 
   const lists = workbook.addWorksheet("Dropdown Values", { state: "veryHidden" });
   const unique = (values: string[]) => [...new Set(values.map(value => value.trim()).filter(Boolean))];
+  const typeValues = unique([...options.auditTypes.map(x => x.value), ...schedules.flatMap(x => x.auditTypes ?? [])]);
+  const categoriesAreLinked = options.auditCategories.some(category => linkedAuditTypes(category).length > 0);
   const columns = [
-    { name: "AuditTypes", values: unique([...options.auditTypes.map(x => x.value), ...schedules.flatMap(x => x.auditTypes ?? [])]) },
+    { name: "AuditTypes", values: typeValues },
     { name: "AuditCategories", values: unique([...options.auditCategories.map(x => x.value), ...schedules.map(x => x.auditCategory ?? "")]) },
     { name: "Departments", values: unique([...options.departments.flatMap(x => [x.label, x.value]), ...schedules.filter(x => x.auditTypes?.includes("Quality Internal Process Audit")).map(x => x.departmentProject ?? "")]) },
     { name: "Projects", values: unique([
@@ -77,10 +80,20 @@ export async function createScheduleWorkbook(
     ]) },
     { name: "ProcessOwners", values: unique([...options.processOwners.map(x => x.value), ...schedules.map(x => x.processProductOwner ?? "")]) },
   ];
+  if (categoriesAreLinked) {
+    typeValues.forEach((auditType, index) => {
+      columns.push({
+        name: `AuditCategoryType${index + 1}`,
+        // Do not add historical, now-incompatible values to the selectable list.
+        // Existing exported cells keep their values, but new choices follow current links.
+        values: unique(categoryOptionsForAuditType(options.auditCategories, auditType).map(category => category.value)),
+      });
+    });
+  }
   columns.forEach(({ name, values }, index) => {
     lists.getCell(1, index + 1).value = name;
     values.forEach((value, row) => { lists.getCell(row + 2, index + 1).value = value; });
-    const letter = String.fromCharCode(65 + index);
+    const letter = lists.getColumn(index + 1).letter;
     workbook.definedNames.add(`'Dropdown Values'!$${letter}$2:$${letter}$${Math.max(2, values.length + 1)}`, name);
   });
   const listValidation = (formula: string) => ({
@@ -91,7 +104,9 @@ export async function createScheduleWorkbook(
   const lastRow = Math.min(1_048_576, Math.max(1001, schedules.length + 501));
   for (let row = 2; row <= lastRow; row += 1) {
     sheet.getCell(`A${row}`).dataValidation = listValidation("AuditTypes");
-    sheet.getCell(`B${row}`).dataValidation = listValidation("AuditCategories");
+    sheet.getCell(`B${row}`).dataValidation = listValidation(categoriesAreLinked
+      ? `INDIRECT("AuditCategoryType"&MATCH($A${row},AuditTypes,0))`
+      : "AuditCategories");
     sheet.getCell(`C${row}`).dataValidation = listValidation(`IF($A${row}="Quality Internal Process Audit",Departments,Projects)`);
     sheet.getCell(`F${row}`).dataValidation = listValidation("ProcessOwners");
   }
@@ -101,7 +116,7 @@ export async function createScheduleWorkbook(
     ["Audit Schedule Import Instructions"],
     ["Template columns", scheduleImportHeaders.join(", ")],
     ["Mandatory columns", "Audit Type, Audit Category, Department / Project, Audit Title, Process / Product Owner, From Date (YYYY-MM-DD), To Date (YYYY-MM-DD)"],
-    ["Dropdown fields", "Audit Type, Audit Category, Department / Project, Process / Product Owner. The Department / Project dropdown depends on Audit Type."],
+    ["Dropdown fields", `Audit Type, Audit Category, Department / Project, Process / Product Owner. The Department / Project dropdown depends on Audit Type.${categoriesAreLinked ? " The Audit Category dropdown also depends on Audit Type; reselect the category if you change the type." : ""}`],
     ["Date format", "YYYY-MM-DD"],
     ["Parent range", range ? `${range.fromDate} through ${range.toDate}` : "No parent range"],
   ].forEach(row => instructions.addRow(row));
