@@ -2,8 +2,20 @@ import type { AuditSchedule } from "@workspace/api-client-react";
 
 export const scheduleImportHeaders = [
   "Audit Type", "Audit Category", "Department / Project", "Location", "Audit Title",
-  "Process / Product Owner", "From Date", "To Date", "Remarks",
+  "Process / Product Owner", "From Date (YYYY-MM-DD)", "To Date (YYYY-MM-DD)", "Remarks",
 ];
+
+const scheduleHeaderAliases: Record<string, string> = {
+  audittype: "auditTypes", audittypevalue: "auditTypes", auditcategory: "auditCategory",
+  departmentproject: "departmentProject", project: "departmentProject", location: "location",
+  audittitle: "title", processeeproductowner: "processProductOwner", processproductowner: "processProductOwner",
+  fromdate: "plannedStartDate", fromdateyyyymmdd: "plannedStartDate", startdate: "plannedStartDate",
+  todate: "plannedEndDate", todateyyyymmdd: "plannedEndDate", enddate: "plannedEndDate",
+  remarks: "remarks",
+};
+
+export const scheduleFieldForHeader = (header: string) =>
+  scheduleHeaderAliases[header.trim().toLowerCase().replace(/[^a-z0-9]/g, "")];
 
 type Option = { value: string; label: string };
 type Project = { id?: string; code?: string | null; name: string };
@@ -35,7 +47,7 @@ export async function createScheduleWorkbook(
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Audit Schedules", { views: [{ state: "frozen", ySplit: 1 }] });
   sheet.addRow(scheduleImportHeaders);
-  sheet.columns = [27, 24, 32, 25, 38, 30, 16, 16, 42].map(width => ({ width }));
+  sheet.columns = [27, 24, 32, 25, 38, 30, 25, 25, 42].map(width => ({ width }));
   sheet.getRow(1).font = { bold: true };
   for (const item of schedules) {
     const project = item.auditTypes?.includes("Quality Internal Process Audit")
@@ -88,7 +100,7 @@ export async function createScheduleWorkbook(
   [
     ["Audit Schedule Import Instructions"],
     ["Template columns", scheduleImportHeaders.join(", ")],
-    ["Mandatory columns", "Audit Type, Audit Category, Department / Project, Audit Title, Process / Product Owner, From Date, To Date"],
+    ["Mandatory columns", "Audit Type, Audit Category, Department / Project, Audit Title, Process / Product Owner, From Date (YYYY-MM-DD), To Date (YYYY-MM-DD)"],
     ["Dropdown fields", "Audit Type, Audit Category, Department / Project, Process / Product Owner. The Department / Project dropdown depends on Audit Type."],
     ["Date format", "YYYY-MM-DD"],
     ["Parent range", range ? `${range.fromDate} through ${range.toDate}` : "No parent range"],

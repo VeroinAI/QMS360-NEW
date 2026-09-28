@@ -86,7 +86,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
-import { downloadScheduleWorkbook, resolveScheduleProject } from "./schedule-workbook";
+import { downloadScheduleWorkbook, resolveScheduleProject, scheduleFieldForHeader } from "./schedule-workbook";
 import { useLov, withLegacyOption } from "@/lib/use-lov";
 import { useFieldAccess } from "@/lib/use-field-access";
 import { useFieldControls } from "@/lib/field-controls";
@@ -115,14 +115,6 @@ export type ProgrammeSignatories = {
   preparedBy: ProgrammeSignatory | null;
   reviewedBy: ProgrammeSignatory[];
   approvedBy: ProgrammeSignatory | null;
-};
-const normalizeHeader = (value: unknown) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-const scheduleHeaderAliases: Record<string, string> = {
-  audittype: "auditTypes", audittypevalue: "auditTypes", auditcategory: "auditCategory",
-  departmentproject: "departmentProject", project: "departmentProject", location: "location",
-  audittitle: "title", processeeproductowner: "processProductOwner", processproductowner: "processProductOwner",
-  fromdate: "plannedStartDate", startdate: "plannedStartDate", todate: "plannedEndDate", enddate: "plannedEndDate",
-  remarks: "remarks",
 };
 const scheduleDate = (value: unknown) => {
   if (value instanceof Date) {
@@ -1057,7 +1049,7 @@ function Schedules() {
       }
       for (let index = 0; index < rows.length; index += 1) {
         const source = rows[index]; const mapped: Record<string, unknown> = {};
-        Object.entries(source).forEach(([key, value]) => { const target = scheduleHeaderAliases[normalizeHeader(key)]; if (target) mapped[target] = value; });
+        Object.entries(source).forEach(([key, value]) => { const target = scheduleFieldForHeader(key); if (target) mapped[target] = value; });
         const departmentProjectText = String(mapped.departmentProject ?? "").trim();
         const importedAuditTypes = String(mapped.auditTypes).split(",").map(value => value.trim()).filter(Boolean);
         const isImportedProcessAudit = importedAuditTypes.includes(PROCESS_AUDIT_TYPE);
