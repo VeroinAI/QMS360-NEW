@@ -32,3 +32,4 @@
 - [Lessons approval escalation digest](lessons-approval-escalation-digest.md) — submittedAt-based working-day thresholds feed grouped scheduled reports, not per-form Lessons escalation emails.
 - [Production schema synchronization](production-schema-synchronization.md) — a successful publish can still leave QMS360 production behind development; verify live schema when APIs return missing-relation errors.
 - [AWS client handoff](aws-client-handoff.md) — temporary public clone is the user's chosen handoff; it remains an irreversible disclosure, and manually run SQL needs migration tracking.
+- [Workspace package installation](workspace-package-installation.md) — package installer targets root; pnpm rejects unscoped root installs, so use artifact-filtered pnpm for leaf-only dependencies.

@@ -373,8 +373,7 @@ const scheduleValues = (data: AnyRow) => ({
   }),
 });
 const isMatchingScheduleCreate = (row: AnyRow, values: ReturnType<typeof scheduleValues>) =>
-  row.deletedAt == null
-  && row.year === values.year
+  row.year === values.year
   && row.title === values.title
   && row.projectId === values.projectId
   && (row.ownerId ?? null) === (values.ownerId ?? null)
@@ -810,14 +809,26 @@ router.post("/schedules", asyncHandler(async (req, res) => {
       .values({ organizationId: actor(req).organizationId, ...values })
       .onConflictDoNothing({ target: auditSchedules.id })
       .returning();
-    if (created) return { row: created, created: true };
+    if (created) return { row: created, created: true, restored: false };
     const [existing] = await tx.select().from(auditSchedules).where(eq(auditSchedules.id, values.id)).limit(1);
     if (existing?.organizationId === actor(req).organizationId && isMatchingScheduleCreate(existing, values)) {
-      return { row: existing, created: false };
+      if (existing.deletedAt) {
+        // Spreadsheet rows keep a deterministic ID for safe retries. Re-importing
+        // an unchanged row after deletion should revive it, not collide with its tombstone.
+        const [plan] = await tx.select({ id: auditPlans.id }).from(auditPlans).where(and(
+          active(auditPlans, actor(req).organizationId), eq(auditPlans.auditScheduleId, existing.id),
+        )).limit(1);
+        if (plan) throw new HttpError(409, "A deleted audit with an active plan cannot be reloaded");
+        const [restored] = await tx.update(auditSchedules).set({ deletedAt: null, updatedAt: new Date() })
+          .where(and(eq(auditSchedules.id, existing.id), eq(auditSchedules.organizationId, actor(req).organizationId)))
+          .returning();
+        return { row: restored, created: true, restored: true };
+      }
+      return { row: existing, created: false, restored: false };
     }
     throw new HttpError(409, "A schedule with this form identifier already exists. Refresh the schedule list before creating another schedule.");
   });
-  if (result.created) await auditLog(req, "create", "audit_schedule", result.row.id, undefined, result.row);
+  if (result.created) await auditLog(req, result.restored ? "restore" : "create", "audit_schedule", result.row.id, undefined, result.row);
   res.status(201).json(scheduleDto(result.row));
 }));
 router.get("/schedules/:id", asyncHandler(async (req, res) => {
