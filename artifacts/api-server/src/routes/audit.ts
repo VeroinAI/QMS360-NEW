@@ -23,6 +23,8 @@ import {
   audits,
   correctiveActionReports,
   db,
+  masterDataGroups,
+  masterDataValues,
   organizationSettings,
   platformRoles,
   users,
@@ -416,6 +418,50 @@ async function assertScheduleLovs(organizationId: string, data: AnyRow, legacy?:
     if (typeof value === "string" && value.trim()) {
       await assertLovValue(db, organizationId, group, value, { allowLegacy: legacyValue });
     }
+  }
+}
+
+/** Enforce category/type metadata only after at least one active category defines a mapping. */
+async function assertScheduleCategoryTypes(
+  organizationId: string,
+  category: string,
+  auditTypes: string[],
+  previous?: ScheduleMeta,
+) {
+  const previousTypes = previous?.auditTypes ?? [];
+  const sortedPreviousTypes = [...previousTypes].sort();
+  const unchangedTypes = auditTypes.length === previousTypes.length
+    && [...auditTypes].sort().every((value, index) => value === sortedPreviousTypes[index]);
+  if (previous?.auditCategory === category && unchangedTypes) return;
+
+  const categoryRows = await db.select({
+    value: masterDataValues.value,
+    metadata: masterDataValues.metadata,
+  }).from(masterDataValues)
+    .innerJoin(masterDataGroups, eq(masterDataGroups.id, masterDataValues.groupId))
+    .where(and(
+      eq(masterDataGroups.organizationId, organizationId),
+      eq(masterDataGroups.code, "audit_categories"),
+      eq(masterDataGroups.status, "active"),
+      isNull(masterDataGroups.deletedAt),
+      eq(masterDataValues.organizationId, organizationId),
+      eq(masterDataValues.active, true),
+      eq(masterDataValues.status, "active"),
+      isNull(masterDataValues.deletedAt),
+    ));
+  const mappings = new Map(categoryRows.map(row => {
+    const configured = row.metadata.auditTypeValues;
+    const values = Array.isArray(configured)
+      ? configured.filter((value): value is string => typeof value === "string" && value.length > 0)
+      : [];
+    return [row.value, values];
+  }));
+  if (![...mappings.values()].some(values => values.length > 0)) return;
+
+  const allowedTypes = mappings.get(category) ?? [];
+  const incompatible = auditTypes.filter(value => !allowedTypes.includes(value));
+  if (incompatible.length) {
+    throw new HttpError(422, `Audit category "${category}" is not configured for selected audit type(s): ${incompatible.join(", ")}`);
   }
 }
 
@@ -906,6 +952,7 @@ router.post("/schedules", asyncHandler(async (req, res) => {
   await Promise.all((data.auditTypes ?? []).map((value: string) =>
     assertLovValue(db, actor(req).organizationId, "audit_types", value)));
   await assertLovValue(db, actor(req).organizationId, "audit_categories", data.auditCategory);
+  await assertScheduleCategoryTypes(actor(req).organizationId, data.auditCategory, data.auditTypes ?? []);
   assertScheduleDates(data);
   await assertScheduleParentDates(actor(req).organizationId, data.parentId, data);
   await assertScheduleLovs(actor(req).organizationId, data);
@@ -984,6 +1031,7 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
   await Promise.all((data.auditTypes ?? []).map((value: string) =>
     assertLovValue(db, actor(req).organizationId, "audit_types", value, { allowLegacy: scheduleMeta(before).auditTypes })));
   await assertLovValue(db, actor(req).organizationId, "audit_categories", data.auditCategory, { allowLegacy: [scheduleMeta(before).auditCategory ?? ""] });
+  await assertScheduleCategoryTypes(actor(req).organizationId, data.auditCategory, data.auditTypes ?? [], scheduleMeta(before));
   assertScheduleDates(data);
   await assertScheduleParentDates(actor(req).organizationId, data.parentId, data);
   await assertScheduleLovs(actor(req).organizationId, data, scheduleMeta(before));

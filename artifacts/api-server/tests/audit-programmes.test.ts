@@ -504,4 +504,80 @@ describe("audit programme parent/child workflow", () => {
     });
     expect(product.status).toBe(422);
   });
+
+  it("validates category/type mappings on create while preserving unchanged legacy pairs on update", async () => {
+    const [categoryGroup] = await db.select().from(masterDataGroups).where(and(
+      eq(masterDataGroups.organizationId, orgId), eq(masterDataGroups.code, "audit_categories"),
+    ));
+    const [typesGroup] = await db.select().from(masterDataGroups).where(and(
+      eq(masterDataGroups.organizationId, orgId), eq(masterDataGroups.code, "audit_types"),
+    ));
+    const [internal] = await db.select().from(masterDataValues).where(and(
+      eq(masterDataValues.organizationId, orgId), eq(masterDataValues.groupId, categoryGroup!.id),
+      eq(masterDataValues.value, "Internal"), isNull(masterDataValues.deletedAt),
+    ));
+    const originalMetadata = internal!.metadata;
+    await db.insert(masterDataValues).values(["Financial Audit", "Operational Audit"].map(value => ({
+      organizationId: orgId, groupId: typesGroup!.id, value, label: value,
+    })));
+    let otherCategoryId: string | undefined;
+
+    const base = {
+      id: crypto.randomUUID(), year: 2026, projectIds: [],
+      auditTypes: ["Financial Audit", "Operational Audit"],
+      auditCategory: "Internal", plannedStartDate: "2026-05-01",
+      plannedEndDate: "2026-05-02", workflowState: "Draft",
+    };
+    try {
+      const legacy = await api("POST", "/schedules", creator.token, { ...base, title: "Unmapped legacy pair" });
+      expect(legacy.status, JSON.stringify(legacy.json)).toBe(201);
+      const [otherCategory] = await db.insert(masterDataValues).values({
+        organizationId: orgId, groupId: categoryGroup!.id, value: "Other", label: "Other",
+        metadata: { auditTypeValues: ["Operational Audit"] },
+      }).returning();
+      otherCategoryId = otherCategory!.id;
+      await db.update(masterDataValues).set({ metadata: { auditTypeValues: ["Financial Audit"] } })
+        .where(eq(masterDataValues.id, internal!.id));
+
+      const matching = await api("POST", "/schedules", creator.token, {
+        ...base, id: crypto.randomUUID(), title: "Mapped internal pair",
+        auditTypes: ["Financial Audit"],
+      });
+      expect(matching.status).toBe(201);
+      const otherMatching = await api("POST", "/schedules", creator.token, {
+        ...base, id: crypto.randomUUID(), title: "Mapped other pair",
+        auditCategory: "Other", auditTypes: ["Operational Audit"],
+      });
+      expect(otherMatching.status).toBe(201);
+
+      const mismatch = await api("POST", "/schedules", creator.token, {
+        ...base, id: crypto.randomUUID(), title: "Mismatched category",
+        auditTypes: ["Operational Audit"],
+      });
+      expect(mismatch.status).toBe(422);
+      expect(mismatch.json.error).toContain("Audit category");
+
+      const unchangedLegacy = await api("PUT", `/schedules/${legacy.json.id}`, creator.token, {
+        ...legacy.json, title: "Edited legacy schedule",
+        auditTypes: [...base.auditTypes].reverse(),
+      });
+      expect(unchangedLegacy.status).toBe(200);
+      const changedLegacyTypes = await api("PUT", `/schedules/${legacy.json.id}`, creator.token, {
+        ...unchangedLegacy.json, auditTypes: ["Operational Audit"],
+      });
+      expect(changedLegacyTypes.status).toBe(422);
+      const changedLegacyCategory = await api("PUT", `/schedules/${legacy.json.id}`, creator.token, {
+        ...unchangedLegacy.json, auditCategory: "Other",
+      });
+      expect(changedLegacyCategory.status).toBe(422);
+    } finally {
+      await db.update(masterDataValues).set({ metadata: originalMetadata })
+        .where(eq(masterDataValues.id, internal!.id));
+      if (otherCategoryId) await db.delete(masterDataValues).where(eq(masterDataValues.id, otherCategoryId));
+      await db.delete(masterDataValues).where(and(
+        eq(masterDataValues.organizationId, orgId), eq(masterDataValues.groupId, typesGroup!.id),
+        sql`${masterDataValues.value} IN ('Financial Audit', 'Operational Audit')`,
+      ));
+    }
+  });
 });

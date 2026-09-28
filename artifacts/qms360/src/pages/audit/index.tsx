@@ -93,6 +93,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { downloadScheduleWorkbook, resolveScheduleProject, scheduleFieldForHeader } from "./schedule-workbook";
 import { useLov, withLegacyOption } from "@/lib/use-lov";
+import { categoryOptionsForAuditType } from "./audit-category-options";
 import { useFieldAccess } from "@/lib/use-field-access";
 import { useFieldControls } from "@/lib/field-controls";
 import {
@@ -635,6 +636,13 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     label: project.code ? `${project.code} — ${project.name}` : project.name,
   }));
   const selectedAuditType = form.auditTypes?.[0] ?? "";
+  const filteredCategories = categoryOptionsForAuditType(auditCategories.options, selectedAuditType);
+  const legacyCategoryUnchanged = Boolean(initial && initial.auditCategory === form.auditCategory &&
+    initial.auditTypes?.length === form.auditTypes?.length &&
+    initial.auditTypes?.every(type => form.auditTypes?.includes(type)));
+  const categoryOptions = legacyCategoryUnchanged
+    ? withLegacyOption(filteredCategories, form.auditCategory)
+    : filteredCategories;
   const selectedAuditTypeLabel = auditTypes.options.find(option => option.value === selectedAuditType)?.label;
   const isProcessAudit = selectedAuditType === PROCESS_AUDIT_TYPE || selectedAuditTypeLabel === PROCESS_AUDIT_TYPE;
   const selectedProjectId = form.projectIds?.[0]
@@ -664,10 +672,15 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     });
   };
   const selectAuditType = (value: string) => {
-    setForm(current => ({ ...current, auditTypes: [value], projectIds: [], departmentProject: "" }));
+    setForm(current => ({
+      ...current, auditTypes: [value], projectIds: [], departmentProject: "",
+      auditCategory: categoryOptionsForAuditType(auditCategories.options, value)
+        .some(option => option.value === current.auditCategory) ? current.auditCategory : "",
+    }));
     setErrors(current => {
       const next = { ...current };
       delete next.auditTypes;
+      delete next.auditCategory;
       delete next.departmentProject;
       delete next.projectIds;
       return next;
@@ -689,6 +702,9 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     const missing: Record<string, string> = {};
     if (!form.auditTypes?.length) missing.auditTypes = "Audit Type is required.";
     if (!form.auditCategory) missing.auditCategory = "Audit Category is required.";
+    else if (!categoryOptions.some(option => option.value === form.auditCategory)) {
+      missing.auditCategory = "Choose an Audit Category linked to the selected Audit Type.";
+    }
     if (!form.departmentProject?.trim() || (!isProcessAudit && !form.projectIds?.length)) missing.departmentProject = `${isProcessAudit ? "Department" : "Project"} is required.`;
     if (!form.title.trim()) missing.title = "Audit Title is required.";
     if (!form.processProductOwner?.trim()) missing.processProductOwner = "Process / Product Owner is required.";
@@ -753,7 +769,7 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
   const invalid = (key: keyof AuditSchedule) => errors[key] ? "border-destructive focus-visible:ring-destructive" : "";
   return <div className="grid gap-4 py-2">
     <div id="schedule-auditTypes"><Label>1. Audit Type *</Label><Select value={form.auditTypes?.[0] ?? ""} disabled={auditTypes.isLoading || ro("auditTypes")} onValueChange={selectAuditType}><SelectTrigger aria-invalid={!!errors.auditTypes} className={invalid("auditTypes")}><SelectValue placeholder="Select audit type"/></SelectTrigger><SelectContent>{withLegacyOption(auditTypes.options, form.auditTypes?.[0]).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditTypes")}</div>
-    <div id="schedule-auditCategory"><Label>2. Audit Category *</Label><Select value={form.auditCategory ?? ""} disabled={auditCategories.isLoading || ro("auditCategory")} onValueChange={v => field("auditCategory", v)}><SelectTrigger aria-invalid={!!errors.auditCategory} className={invalid("auditCategory")}><SelectValue placeholder="Select category"/></SelectTrigger><SelectContent>{withLegacyOption(auditCategories.options, form.auditCategory).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("auditCategory")}</div>
+    <div id="schedule-auditCategory"><Label>2. Audit Category *</Label><Select value={form.auditCategory ?? ""} disabled={!selectedAuditType || auditCategories.isLoading || ro("auditCategory")} onValueChange={v => field("auditCategory", v)}><SelectTrigger aria-invalid={!!errors.auditCategory} className={invalid("auditCategory")}><SelectValue placeholder={selectedAuditType ? "Select category" : "Select Audit Type first"}/></SelectTrigger><SelectContent>{categoryOptions.map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{selectedAuditType && !auditCategories.isLoading && !filteredCategories.length && <p className="mt-1 text-xs text-muted-foreground">No Audit Categories are linked to this Audit Type in master data.</p>}{error("auditCategory")}</div>
     <div id="schedule-departmentProject">
       <Label>3. {isProcessAudit ? "Department" : "Project"} *</Label>
       <Select value={isProcessAudit ? selectedDepartmentValue : selectedProjectId}
