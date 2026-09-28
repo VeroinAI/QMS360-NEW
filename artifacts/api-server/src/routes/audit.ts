@@ -1081,6 +1081,12 @@ router.post("/schedules/:id/feasibility", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.RecordAuditScheduleFeasibilityBody, req);
   const feedback = String(data.feedback ?? "").trim();
   if (!feedback) throw new HttpError(422, "Remarks / Feedback is required");
+  const fromDate = data.decision === "reschedule" ? dateOnly(data.fromDate) : null;
+  const toDate = data.decision === "reschedule" ? dateOnly(data.toDate) : null;
+  if (data.decision === "reschedule") {
+    if (!fromDate || !toDate) throw new HttpError(422, "From Date and To Date are required to reschedule an audit");
+    assertScheduleDates({ plannedStartDate: fromDate, plannedEndDate: toDate });
+  }
   const scheduleId = String(req.params.id);
   const updated = await db.transaction(async tx => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${actor(req).organizationId}), hashtext(${scheduleId}))`);
@@ -1094,9 +1100,13 @@ router.post("/schedules/:id/feasibility", asyncHandler(async (req, res) => {
     )).limit(1);
     if (schedulePlan) throw new HttpError(409, "An Audit Plan already exists for this Audit Schedule");
     const meta = scheduleMeta(schedule);
+    if (data.decision === "reschedule") {
+      await assertScheduleParentDates(actor(req).organizationId, meta.parentId, { plannedStartDate: fromDate, plannedEndDate: toDate });
+    }
     const [row] = await tx.update(auditSchedules).set({
       status: JSON.stringify({
         ...meta,
+        ...(data.decision === "reschedule" ? { plannedStartDate: fromDate, plannedEndDate: toDate } : {}),
         feasibilityDecision: data.decision,
         feasibilityFeedback: feedback,
         feasibilityRecordedAt: new Date().toISOString(),

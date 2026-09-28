@@ -2262,6 +2262,10 @@ export interface AuditScheduleFeasibilityInput {
   decision: AuditScheduleFeasibilityInputDecision;
   /** @minLength 1 */
   feedback: string;
+  /** Required when rescheduling an audit */
+  fromDate?: string;
+  /** Required when rescheduling an audit */
+  toDate?: string;
 }
 
 export interface AuditProgramme {

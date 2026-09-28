@@ -61,7 +61,6 @@ import type {
   AuditSchedule,
   ChecklistItem,
   CorrectiveActionReport,
-  EvidenceFile,
   MeetingMinutes,
 } from "@workspace/api-client-react";
 import {
@@ -100,7 +99,6 @@ import {
 const PAGE_SIZE = 10;
 const date = (value?: string | null) => value ? new Date(value).toLocaleDateString() : "—";
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Something went wrong.";
-const fileSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 type ProgrammeRange = { fromDate: string; toDate: string };
 const PROCESS_AUDIT_TYPE = "Quality Internal Process Audit";
 const PRODUCT_AUDIT_TYPE = "Quality Internal Product Audit";
@@ -1139,65 +1137,11 @@ function Schedules() {
 }
 
 function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClose: () => void }) {
-  const { toast } = useToast();
-  const evidence = useListAuditEvidence({ recordType: "audit_schedule", recordId: schedule.id, page: 1, limit: 100 });
-  const [fileActionId, setFileActionId] = useState<string | null>(null);
-  const openFile = async (file: EvidenceFile) => {
-    if (!file.storageUrl) return;
-    const preview = window.open("", "_blank");
-    if (!preview) {
-      toast({ title: "Pop-up blocked", description: "Allow pop-ups for QMS360 to open this attachment.", variant: "destructive" });
-      return;
-    }
-    setFileActionId(file.id);
-    try {
-      const token = localStorage.getItem("qms360_token");
-      const response = await fetch(file.storageUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      if (!response.ok) throw new Error(`Unable to open ${file.fileName}`);
-      const url = URL.createObjectURL(await response.blob());
-      preview.location.href = url;
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch (error) {
-      preview.close();
-      toast({ title: "Unable to open attachment", description: errorText(error), variant: "destructive" });
-    } finally {
-      setFileActionId(null);
-    }
-  };
-  const downloadFile = async (file: EvidenceFile) => {
-    if (!file.storageUrl) return;
-    setFileActionId(file.id);
-    try {
-      const token = localStorage.getItem("qms360_token");
-      const response = await fetch(file.storageUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      if (!response.ok) throw new Error(`Unable to download ${file.fileName}`);
-      const url = URL.createObjectURL(await response.blob());
-      const anchor = document.createElement("a");
-      anchor.href = url; anchor.download = file.fileName; anchor.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    } catch (error) {
-      toast({ title: "Unable to download attachment", description: errorText(error), variant: "destructive" });
-    } finally {
-      setFileActionId(null);
-    }
-  };
-  const attachments = (category: "l1-review" | "l2-review") => (evidence.data?.items ?? []).filter(file => file.category === category);
-  const AttachmentList = ({ category, title }: { category: "l1-review" | "l2-review"; title: string }) => {
-    const files = attachments(category);
-    return <div className="rounded-lg border p-4"><h3 className="font-medium">{title}</h3>
-      {evidence.isLoading ? <p className="mt-2 text-sm text-muted-foreground">Loading attachments…</p>
-        : evidence.isError ? <p className="mt-2 text-sm text-destructive">Attachments could not be loaded.</p>
-          : files.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">No files attached.</p>
-            : <div className="mt-3 space-y-2">{files.map(file => <div key={file.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/50 p-3"><div className="min-w-0"><p className="truncate text-sm font-medium">{file.fileName}</p><p className="text-xs text-muted-foreground">{fileSize(file.sizeBytes)} · {file.status}</p></div><div className="flex gap-2">{file.storageUrl ? <><Button size="sm" variant="outline" disabled={fileActionId === file.id} onClick={() => void openFile(file)}>Open</Button><Button size="sm" disabled={fileActionId === file.id} onClick={() => void downloadFile(file)}><Download className="mr-2 size-4"/>Download</Button></> : <Badge variant="secondary">Not uploaded</Badge>}</div></div>)}</div>}
-    </div>;
-  };
   const Field = ({ label, value }: { label: string; value?: string | null }) => <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 whitespace-pre-wrap text-sm">{value?.trim() || "—"}</p></div>;
-  return <><DialogHeader><DialogTitle>Audit Schedule</DialogTitle><p className="text-sm text-muted-foreground">Read-only schedule details and review attachments.</p></DialogHeader>
+  return <><DialogHeader><DialogTitle>Audit Schedule</DialogTitle><p className="text-sm text-muted-foreground">Read-only audit details.</p></DialogHeader>
     <div className="space-y-6 py-2"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">{schedule.title}</h2><p className="mt-1 text-sm text-muted-foreground">Schedule year {schedule.year}</p></div><Badge variant={workflowTone(schedule.workflowState)}>{schedule.workflowState}</Badge></div>
       {schedule.feasibilityFeedback && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4"><h3 className="font-medium text-amber-950">Audit feasibility feedback</h3><div className="mt-3 grid gap-3 sm:grid-cols-2"><Field label="Decision" value={schedule.feasibilityDecision === "cancelled" ? "Audit cancelled" : "Audit to be rescheduled"}/><Field label="Recorded at" value={schedule.feasibilityRecordedAt ? new Date(schedule.feasibilityRecordedAt).toLocaleString() : null}/><div className="sm:col-span-2"><Field label="Remarks / Feedback" value={schedule.feasibilityFeedback}/></div></div></div>}
       <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2"><Field label="Audit type" value={schedule.auditTypes?.join(", ")}/><Field label="Audit category" value={schedule.auditCategory}/><Field label="Department / project" value={schedule.departmentProject}/><Field label="Process / product owner" value={schedule.processProductOwner}/><Field label="Planned dates" value={`${date(schedule.plannedStartDate)} – ${date(schedule.plannedEndDate)}`}/><Field label="Location" value={schedule.location}/><Field label="QA/QC reference" value={schedule.qaqcReference}/><Field label="Audit number / site visit no." value={schedule.auditNumber}/><Field label="QA/QC scope" value={schedule.qaqcScope}/><Field label="QA/QC clauses" value={schedule.qaqcClauses}/><Field label="Remarks" value={schedule.remarks}/><Field label="Memo circulation" value={schedule.memoCirculation}/></div>
-      <div className="grid gap-4 md:grid-cols-2"><div className="rounded-lg border p-4"><h3 className="font-medium">L1 review</h3><div className="mt-3 grid gap-3"><Field label="Reviewer" value={schedule.l1Name}/><Field label="Status" value={schedule.l1ReviewStatus}/><Field label="Comments" value={schedule.l1ReviewComments}/></div></div><div className="rounded-lg border p-4"><h3 className="font-medium">L2 review</h3><div className="mt-3 grid gap-3"><Field label="Reviewer" value={schedule.l2Name}/><Field label="Status" value={schedule.l2ReviewStatus}/><Field label="Comments" value={schedule.l2ReviewComments}/></div></div></div>
-      <div><h3 className="mb-3 font-medium">Attached files</h3><div className="grid gap-4 md:grid-cols-2"><AttachmentList category="l1-review" title="L1 attachments"/><AttachmentList category="l2-review" title="L2 attachments"/></div></div>
       <Field label="Memo description" value={schedule.memoDescription}/>
     </div>
     <DialogFooter><Button onClick={onClose}>Close</Button></DialogFooter></>;
@@ -1218,6 +1162,9 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
   const [feasibilityOpen, setFeasibilityOpen] = useState(false);
   const [feasibilityFeedback, setFeasibilityFeedback] = useState("");
   const [feasibilityError, setFeasibilityError] = useState("");
+  const [feasibilityFromDate, setFeasibilityFromDate] = useState("");
+  const [feasibilityToDate, setFeasibilityToDate] = useState("");
+  const [feasibilityDateError, setFeasibilityDateError] = useState("");
   const [offlineContext, setOfflineContext] = useState<AuditPlanOfflineContext | null>(null);
   const fc = useFieldControls("audit", "plan"); const ro = (key: string) => fc.fieldProps(key).disabled;
   const create = useCreateAuditPlan(); const update = useUpdateAuditPlan(); const recordFeasibility = useRecordAuditScheduleFeasibility(); const qc = useQueryClient(); const { toast } = useToast();
@@ -1361,10 +1308,23 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
       setFeasibilityError("Remarks / Feedback is required.");
       return;
     }
-    recordFeasibility.mutate({ id: form.scheduleId, data: { decision, feedback } }, {
+    if (decision === "reschedule") {
+      if (!feasibilityFromDate || !feasibilityToDate) {
+        setFeasibilityDateError("From Date and To Date are required to reschedule.");
+        return;
+      }
+      if (feasibilityToDate < feasibilityFromDate) {
+        setFeasibilityDateError("To Date must be on or after From Date.");
+        return;
+      }
+    }
+    recordFeasibility.mutate({ id: form.scheduleId, data: {
+      decision, feedback,
+      ...(decision === "reschedule" ? { fromDate: feasibilityFromDate, toDate: feasibilityToDate } : {}),
+    } }, {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
-        toast({ title: decision === "cancelled" ? "Audit cancelled" : "Audit marked for rescheduling" });
+        toast({ title: decision === "cancelled" ? "Audit cancelled" : "Audit dates rescheduled" });
         setFeasibilityOpen(false);
         onClose();
       },
@@ -1373,9 +1333,9 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
   };
   return <div className="grid gap-4 py-2">
     {!navigator.onLine && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">You are offline. This plan will be saved on this device and synchronized automatically when the network returns.</div>}
-    <div className="rounded-lg border bg-muted/30 p-4"><Label>Source Audit Schedule *</Label><Select value={form.scheduleId} disabled={disabled("scheduleId")} onValueChange={selectSchedule}><SelectTrigger className="mt-2" {...invalid("scheduleId")}><SelectValue placeholder="Select an audit schedule"/></SelectTrigger><SelectContent>{approvedSchedules.map(schedule => <SelectItem key={schedule.id} value={schedule.id}>{schedule.title}</SelectItem>)}</SelectContent></Select><ErrorText name="scheduleId"/>{!approvedSchedules.length && <p className="mt-2 text-xs text-muted-foreground">{navigator.onLine ? "No Audit Schedules are available for a new Plan." : "No Audit Schedules are available offline. Connect once to cache current schedule data."}</p>}</div>
+    <div className="rounded-lg border bg-muted/30 p-4"><Label>Source Audit *</Label><Select value={form.scheduleId} disabled={disabled("scheduleId")} onValueChange={selectSchedule}><SelectTrigger className="mt-2" {...invalid("scheduleId")}><SelectValue placeholder="Select an audit"/></SelectTrigger><SelectContent>{approvedSchedules.map(schedule => <SelectItem key={schedule.id} value={schedule.id}>{schedule.title}</SelectItem>)}</SelectContent></Select><ErrorText name="scheduleId"/>{!approvedSchedules.length && <p className="mt-2 text-xs text-muted-foreground">{navigator.onLine ? "No Audits are available for a new Plan." : "No Audits are available offline. Connect once to cache current schedule data."}</p>}</div>
     <div><Label>1. Audit Feasible *</Label><RadioGroup className="mt-2 flex gap-6" value={form.auditFeasible ? "yes" : "no"} disabled={disabled("auditFeasible")} onValueChange={value => { const feasible = value === "yes"; set("auditFeasible", feasible); if (!feasible) setFeasibilityOpen(true); }}><div className="flex items-center gap-2"><RadioGroupItem value="yes" id="plan-feasible-yes"/><Label htmlFor="plan-feasible-yes">Yes</Label></div><div className="flex items-center gap-2"><RadioGroupItem value="no" id="plan-feasible-no"/><Label htmlFor="plan-feasible-no">No</Label></div></RadioGroup></div>
-    <Dialog open={feasibilityOpen} onOpenChange={open => { setFeasibilityOpen(open); if (!open) setForm(current => ({ ...current, auditFeasible: true })); }}><DialogContent><DialogHeader><DialogTitle>Audit is not feasible</DialogTitle><DialogDescription>Enter the required feedback, then cancel this audit permanently or keep it available for a future plan.</DialogDescription></DialogHeader><div><Label htmlFor="feasibility-feedback">Remarks / Feedback *</Label><Textarea id="feasibility-feedback" className="mt-2" rows={5} value={feasibilityFeedback} aria-invalid={!!feasibilityError} onChange={event => { setFeasibilityFeedback(event.target.value); setFeasibilityError(""); }} placeholder="Enter remarks or feedback"/>{feasibilityError && <p className="mt-1 text-sm text-destructive">{feasibilityError}</p>}</div><DialogFooter><Button variant="destructive" disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("cancelled")}>Cancel Audit</Button><Button disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("reschedule")}>Reschedule Audit</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={feasibilityOpen} onOpenChange={open => { setFeasibilityOpen(open); if (!open) setForm(current => ({ ...current, auditFeasible: true })); }}><DialogContent><DialogHeader><DialogTitle>Audit is not feasible</DialogTitle><DialogDescription>Enter the required feedback. New dates are required only to reschedule the audit; canceling does not require dates.</DialogDescription></DialogHeader><div><Label htmlFor="feasibility-feedback">Remarks / Feedback *</Label><Textarea id="feasibility-feedback" className="mt-2" rows={5} value={feasibilityFeedback} aria-invalid={!!feasibilityError} onChange={event => { setFeasibilityFeedback(event.target.value); setFeasibilityError(""); }} placeholder="Enter remarks or feedback"/>{feasibilityError && <p className="mt-1 text-sm text-destructive">{feasibilityError}</p>}</div><div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="feasibility-from-date">From Date</Label><Input id="feasibility-from-date" type="date" className="mt-2" value={feasibilityFromDate} aria-invalid={!!feasibilityDateError} onChange={event => { setFeasibilityFromDate(event.target.value); setFeasibilityDateError(""); }}/></div><div><Label htmlFor="feasibility-to-date">To Date</Label><Input id="feasibility-to-date" type="date" className="mt-2" min={feasibilityFromDate || undefined} value={feasibilityToDate} aria-invalid={!!feasibilityDateError} onChange={event => { setFeasibilityToDate(event.target.value); setFeasibilityDateError(""); }}/></div>{feasibilityDateError && <p className="text-sm text-destructive sm:col-span-2">{feasibilityDateError}</p>}</div><DialogFooter><Button variant="destructive" disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("cancelled")}>Cancel Audit</Button><Button disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("reschedule")}>Reschedule Audit</Button></DialogFooter></DialogContent></Dialog>
     <fieldset disabled={!form.auditFeasible} className={`grid gap-4 ${!form.auditFeasible ? "opacity-50" : ""}`}>
     <div><Label>2. Audit Title *</Label><Input className="mt-2" readOnly disabled={readOnly} value={form.auditTitle} {...invalid("auditTitle")} placeholder="Generated from Audit Schedule"/><ErrorText name="auditTitle"/></div>
     <div><Label>3. Lead / Internal Auditor *</Label><Select value={form.leadAuditorId} disabled={disabled("leadAuditorId")} onValueChange={value => set("leadAuditorId", value)}><SelectTrigger className="mt-2" {...invalid("leadAuditorId")}><SelectValue placeholder="Select lead auditor"/></SelectTrigger><SelectContent>{users.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><ErrorText name="leadAuditorId"/></div>

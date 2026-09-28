@@ -6181,7 +6181,9 @@ export const RecordAuditScheduleFeasibilityParams = zod.object({
 
 export const RecordAuditScheduleFeasibilityBody = zod.object({
   "decision": zod.enum(['cancelled', 'reschedule']),
-  "feedback": zod.string().min(1)
+  "feedback": zod.string().min(1),
+  "fromDate": zod.coerce.date().optional().describe('Required when rescheduling an audit'),
+  "toDate": zod.coerce.date().optional().describe('Required when rescheduling an audit')
 })
 
 export const recordAuditScheduleFeasibilityResponseGpsLatMin = -90;

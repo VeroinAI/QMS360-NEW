@@ -2586,6 +2586,8 @@ components:
       properties:
         decision: {type: string, enum: [cancelled, reschedule]}
         feedback: {type: string, minLength: 1}
+        fromDate: {type: string, format: date, description: Required when rescheduling an audit}
+        toDate: {type: string, format: date, description: Required when rescheduling an audit}
     AuditProgramme:
       type: object
       required: [id, title, fromDate, toDate, workflowState, childCount, currentApprovalRole, approvalRoles, canReview, canSubmit, submissionSubject, submissionMailBody]

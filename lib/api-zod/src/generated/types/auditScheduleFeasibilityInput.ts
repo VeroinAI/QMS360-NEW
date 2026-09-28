@@ -11,4 +11,8 @@ export interface AuditScheduleFeasibilityInput {
   decision: AuditScheduleFeasibilityInputDecision;
   /** @minLength 1 */
   feedback: string;
+  /** Required when rescheduling an audit */
+  fromDate?: Date;
+  /** Required when rescheduling an audit */
+  toDate?: Date;
 }
