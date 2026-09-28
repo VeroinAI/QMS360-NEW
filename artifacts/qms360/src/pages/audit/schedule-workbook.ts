@@ -6,8 +6,15 @@ export const scheduleImportHeaders = [
 ];
 
 type Option = { value: string; label: string };
-type Project = { code?: string | null; name: string };
+type Project = { id?: string; code?: string | null; name: string };
 type ProgrammeRange = { fromDate: string; toDate: string };
+
+export const projectDropdownLabel = (project: Project) =>
+  project.code?.trim() ? `${project.code.trim()} — ${project.name}` : project.name;
+
+export const resolveScheduleProject = <T extends Project>(projects: T[], text: string) =>
+  projects.find(project => projectDropdownLabel(project) === text)
+  ?? projects.find(project => project.code === text || project.name === text);
 
 export type ScheduleWorkbookOptions = {
   auditTypes: Option[];
@@ -31,8 +38,13 @@ export async function createScheduleWorkbook(
   sheet.columns = [27, 24, 32, 25, 38, 30, 16, 16, 42].map(width => ({ width }));
   sheet.getRow(1).font = { bold: true };
   for (const item of schedules) {
+    const project = item.auditTypes?.includes("Quality Internal Process Audit")
+      ? undefined
+      : options.projects.find(candidate => candidate.id && item.projectIds?.includes(candidate.id))
+        ?? resolveScheduleProject(options.projects, item.departmentProject ?? "");
     sheet.addRow([
-      item.auditTypes?.join(", ") ?? "", item.auditCategory ?? "", item.departmentProject ?? "",
+      item.auditTypes?.join(", ") ?? "", item.auditCategory ?? "",
+      project ? projectDropdownLabel(project) : item.departmentProject ?? "",
       item.location ?? "", item.title, item.processProductOwner ?? "",
       item.plannedStartDate.slice(0, 10), item.plannedEndDate.slice(0, 10), item.remarks ?? "",
     ]);
@@ -44,7 +56,13 @@ export async function createScheduleWorkbook(
     { name: "AuditTypes", values: unique([...options.auditTypes.map(x => x.value), ...schedules.flatMap(x => x.auditTypes ?? [])]) },
     { name: "AuditCategories", values: unique([...options.auditCategories.map(x => x.value), ...schedules.map(x => x.auditCategory ?? "")]) },
     { name: "Departments", values: unique([...options.departments.flatMap(x => [x.label, x.value]), ...schedules.filter(x => x.auditTypes?.includes("Quality Internal Process Audit")).map(x => x.departmentProject ?? "")]) },
-    { name: "Projects", values: unique([...options.projects.flatMap(x => [x.name, x.code ?? ""]), ...schedules.filter(x => !x.auditTypes?.includes("Quality Internal Process Audit")).map(x => x.departmentProject ?? "")]) },
+    { name: "Projects", values: unique([
+      ...options.projects.map(projectDropdownLabel),
+      ...schedules.filter(x => !x.auditTypes?.includes("Quality Internal Process Audit"))
+        .filter(x => !options.projects.some(project => project.id && x.projectIds?.includes(project.id))
+          && !resolveScheduleProject(options.projects, x.departmentProject ?? ""))
+        .map(x => x.departmentProject ?? ""),
+    ]) },
     { name: "ProcessOwners", values: unique([...options.processOwners.map(x => x.value), ...schedules.map(x => x.processProductOwner ?? "")]) },
   ];
   columns.forEach(({ name, values }, index) => {

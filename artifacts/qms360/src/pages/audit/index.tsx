@@ -86,7 +86,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
-import { downloadScheduleWorkbook } from "./schedule-workbook";
+import { downloadScheduleWorkbook, resolveScheduleProject } from "./schedule-workbook";
 import { useLov, withLegacyOption } from "@/lib/use-lov";
 import { useFieldAccess } from "@/lib/use-field-access";
 import { useFieldControls } from "@/lib/field-controls";
@@ -1061,7 +1061,7 @@ function Schedules() {
         const departmentProjectText = String(mapped.departmentProject ?? "").trim();
         const importedAuditTypes = String(mapped.auditTypes).split(",").map(value => value.trim()).filter(Boolean);
         const isImportedProcessAudit = importedAuditTypes.includes(PROCESS_AUDIT_TYPE);
-        const project = isImportedProcessAudit ? undefined : projectRows.find(item => item.code === departmentProjectText || item.name === departmentProjectText);
+        const project = isImportedProcessAudit ? undefined : resolveScheduleProject(projectRows, departmentProjectText);
         const department = isImportedProcessAudit
           ? departments.options.find(item => item.value === departmentProjectText || item.label === departmentProjectText)
           : undefined;
@@ -1071,7 +1071,7 @@ function Schedules() {
         if (missing.length) { failures.push(`row ${index + 2}: missing ${missing.join(", ")}`); continue; }
         if (!start || !end) { failures.push(`row ${index + 2}: From Date and To Date must be valid calendar dates in YYYY-MM-DD format`); continue; }
         if (isImportedProcessAudit && !department) { failures.push(`row ${index + 2}: Department / Project must be an active department value or exact name`); continue; }
-        if (!isImportedProcessAudit && !project) { failures.push(`row ${index + 2}: Department / Project must be an active project code or exact name`); continue; }
+        if (!isImportedProcessAudit && !project) { failures.push(`row ${index + 2}: Department / Project must be an active project choice, code, or exact name`); continue; }
         if (end < start) { failures.push(`row ${index + 2}: To Date must be on or after From Date`); continue; }
         if (range && (start < range.fromDate || end > range.toDate)) { failures.push(`row ${index + 2}: dates must be within ${range.fromDate} and ${range.toDate}`); continue; }
         const rowParentId = parentId === "legacy" ? null : parentId;
