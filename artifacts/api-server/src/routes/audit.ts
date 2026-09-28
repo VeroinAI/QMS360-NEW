@@ -28,7 +28,7 @@ import {
   users,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
-import { assertCanManageAssignmentScope, assertProjectAccess, canManageAssignmentScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
+import { assertCanManageAssignmentScope, assertProjectAccess, canManageAssignmentScope, getAppAdminScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg, assertProjectScopeInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
@@ -269,11 +269,26 @@ async function assertAuditRecordAccess(req: Request, recordType: string, recordI
       .where(and(eq(auditFindings.id, recordId), active(auditFindings, actor(req).organizationId), isNull(audits.deletedAt)));
     projectId = row?.projectId;
   } else if (recordType === "corrective_action_report" || recordType === "car") {
-    const [row] = await db.select({ projectId: audits.projectId }).from(correctiveActionReports)
+    const [row] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(correctiveActionReports)
       .innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id))
       .innerJoin(audits, eq(auditFindings.auditId, audits.id))
-      .where(and(eq(correctiveActionReports.id, recordId), active(correctiveActionReports, actor(req).organizationId), isNull(auditFindings.deletedAt), isNull(audits.deletedAt)));
+      .where(and(
+        eq(correctiveActionReports.id, recordId),
+        active(correctiveActionReports, actor(req).organizationId),
+        eq(auditFindings.organizationId, actor(req).organizationId),
+        isNull(auditFindings.deletedAt),
+        eq(audits.organizationId, actor(req).organizationId),
+        isNull(audits.deletedAt),
+      ));
     projectId = row?.projectId;
+    if (!projectId && row?.planId && await isProcessPlanId(actor(req).organizationId, row.planId)) {
+      // The detail route has already passed the router-wide parent-chain scope guard.
+      // That guard explicitly permits scoped process-audit records without project IDs.
+      if (req.path === `/cars/${recordId}`) return;
+      const scope = await getAuthorizedProjectScope(req, "audit");
+      if (scope.unrestricted || scope.projectIds.length > 0) return;
+      throw new HttpError(403, "You do not have access to this project");
+    }
   } else {
     throw new HttpError(422, "Unsupported audit evidence record type");
   }
@@ -313,7 +328,15 @@ router.use(asyncHandler(async (req, _res, next) => {
     const [row] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(correctiveActionReports)
       .innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id))
       .innerJoin(audits, eq(auditFindings.auditId, audits.id))
-      .where(and(eq(correctiveActionReports.id, id), eq(audits.organizationId, actor(req).organizationId), isNull(correctiveActionReports.deletedAt)));
+      .where(and(
+        eq(correctiveActionReports.id, id),
+        eq(correctiveActionReports.organizationId, actor(req).organizationId),
+        isNull(correctiveActionReports.deletedAt),
+        eq(auditFindings.organizationId, actor(req).organizationId),
+        isNull(auditFindings.deletedAt),
+        eq(audits.organizationId, actor(req).organizationId),
+        isNull(audits.deletedAt),
+      ));
     if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; else allowProjectless = await isProcessPlanId(actor(req).organizationId, row.planId); }
   }
   if (recordFound) {
@@ -514,6 +537,39 @@ async function canReviewApproval(req: Request, row: AnyRow) {
   const role = (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0];
   return Boolean(role && (await roleUserIds(actor(req).organizationId, role.id)).includes(actor(req).id));
 }
+
+type MyActionKind = "programme" | "schedule" | "plan" | "audit" | "car";
+type MyActionItem = {
+  kind: MyActionKind; id: string; title: string; action: string;
+  status: string; href: string; dueDate: string | null;
+};
+
+const moduleSelectScope = (req: Request, module: string) =>
+  getAuthorizedProjectScope(req, "audit", { module, action: "select" });
+const moduleFullScope = (req: Request, module: string) =>
+  getAuthorizedProjectScope(req, "audit", { module, action: "full" });
+const scopeHasSelectAccess = (scope: Awaited<ReturnType<typeof moduleSelectScope>>) =>
+  scope.unrestricted || scope.projectIds.length > 0;
+const hasActionPermission = (
+  selectScope: Awaited<ReturnType<typeof moduleSelectScope>>,
+  fullScope: Awaited<ReturnType<typeof moduleFullScope>>,
+) => scopeHasSelectAccess(selectScope) && scopeHasSelectAccess(fullScope);
+function myActionProjectInScope(projectId: string | null | undefined,
+  selectScope: Awaited<ReturnType<typeof moduleSelectScope>>,
+  fullScope: Awaited<ReturnType<typeof moduleFullScope>>,
+  effectiveScope: Awaited<ReturnType<typeof moduleSelectScope>>,
+  allowProjectless = false) {
+  if (!scopeHasSelectAccess(selectScope) || !scopeHasSelectAccess(fullScope) || !scopeHasSelectAccess(effectiveScope)) return false;
+  if (!projectId) return allowProjectless;
+  return (selectScope.unrestricted || selectScope.projectIds.includes(projectId))
+    && (fullScope.unrestricted || fullScope.projectIds.includes(projectId))
+    && (effectiveScope.unrestricted || effectiveScope.projectIds.includes(projectId));
+}
+const myActionDate = (value: unknown) => {
+  if (!value) return null;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+};
 
 async function programmeResponse(req: Request, row: AnyRow, childCount: number) {
   const meta = scheduleMeta(row);
@@ -1625,6 +1681,227 @@ const carDto = (row: AnyRow) => {
     effectivenessVerified: meta.effectivenessVerified ?? false, closedAt: meta.closedAt ? new Date(meta.closedAt) : null,
   };
 };
+
+router.get("/my-actions", asyncHandler(async (req, res) => {
+  const { page, limit, offset } = pagination(req);
+  const organizationId = actor(req).organizationId;
+  const userId = actor(req).id;
+  const [
+    scheduleScope, planScope, auditScope, carScope,
+    scheduleFullScope, planFullScope, auditFullScope, carFullScope,
+    effectiveScope,
+  ] = await Promise.all([
+    moduleSelectScope(req, "schedules"),
+    moduleSelectScope(req, "plans"),
+    moduleSelectScope(req, "audits"),
+    moduleSelectScope(req, "cars"),
+    moduleFullScope(req, "schedules"),
+    moduleFullScope(req, "plans"),
+    moduleFullScope(req, "audits"),
+    moduleFullScope(req, "cars"),
+    getAuthorizedProjectScope(req, "audit"),
+  ]);
+  if (![scheduleScope, planScope, auditScope, carScope].some(scopeHasSelectAccess)) {
+    throw new HttpError(403, "Audit select access is required");
+  }
+  if (![hasActionPermission(scheduleScope, scheduleFullScope), hasActionPermission(planScope, planFullScope),
+    hasActionPermission(auditScope, auditFullScope), hasActionPermission(carScope, carFullScope)].some(Boolean)) {
+    res.json(Api.ListAuditMyActionsResponse.parse(paginated([], 0, page, limit)));
+    return;
+  }
+
+  const itemsByRecord = new Map<string, MyActionItem>();
+  const add = (item: MyActionItem) => itemsByRecord.set(`${item.kind}:${item.id}`, item);
+
+  const scheduleRows = [
+    hasActionPermission(scheduleScope, scheduleFullScope), hasActionPermission(planScope, planFullScope),
+    hasActionPermission(auditScope, auditFullScope), hasActionPermission(carScope, carFullScope),
+  ].some(Boolean)
+    ? await db.select().from(auditSchedules).where(active(auditSchedules, organizationId))
+    : [];
+  const schedulesById = new Map(scheduleRows.map(row => [row.id, row]));
+  const scheduleProjectIds = (row: AnyRow) => scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
+  const scheduleIsInActionScope = (row: AnyRow) => {
+    const projectIds = scheduleProjectIds(row);
+    if (!projectIds.length) {
+      return isProcessAuditSchedule(row) && hasActionPermission(scheduleScope, scheduleFullScope)
+        && scopeHasSelectAccess(effectiveScope);
+    }
+    return projectIds.every((projectId: string) =>
+      (scheduleScope.unrestricted || scheduleScope.projectIds.includes(projectId))
+      && (scheduleFullScope.unrestricted || scheduleFullScope.projectIds.includes(projectId))
+      && (effectiveScope.unrestricted || effectiveScope.projectIds.includes(projectId)));
+  };
+  const programmesWithScopedChildren = new Set(scheduleRows.flatMap(child => {
+    const meta = scheduleMeta(child);
+    return !meta.programme && meta.parentId && scheduleIsInActionScope(child) ? [meta.parentId] : [];
+  }));
+  const scheduleRecordIsVisible = (row: AnyRow) => {
+    if (!isProgramme(row)) return scheduleIsInActionScope(row);
+    if (row.ownerId === userId) return hasActionPermission(scheduleScope, scheduleFullScope)
+      && scopeHasSelectAccess(effectiveScope);
+    return programmesWithScopedChildren.has(row.id);
+  };
+  const processScheduleIds = new Set(scheduleRows
+    .filter(row => !isProgramme(row) && isProcessAuditSchedule(row))
+    .map(row => row.id));
+  const currentApprovalRoleIds = hasActionPermission(scheduleScope, scheduleFullScope) ? [...new Set(scheduleRows.flatMap(row => {
+    if (row.workflowState !== "submitted") return [];
+    const meta = scheduleMeta(row);
+    const role = (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0];
+    return role?.id ? [role.id] : [];
+  }))] : [];
+  const currentApprovalAssignments = currentApprovalRoleIds.length
+    ? await db.select({
+      roleId: auditUserWorkspaceRoles.workspaceRoleId,
+      userId: auditUserWorkspaceRoles.userId,
+    }).from(auditUserWorkspaceRoles)
+      .innerJoin(users, eq(users.id, auditUserWorkspaceRoles.userId))
+      .where(and(
+        eq(auditUserWorkspaceRoles.organizationId, organizationId),
+        inArray(auditUserWorkspaceRoles.workspaceRoleId, currentApprovalRoleIds),
+        eq(auditUserWorkspaceRoles.status, "active"),
+        isNull(auditUserWorkspaceRoles.deletedAt),
+        eq(users.accessStatus, "active"),
+        isNull(users.deletedAt),
+      ))
+    : [];
+  const approvalReviewers = new Map<string, Set<string>>();
+  for (const assignment of currentApprovalAssignments) {
+    const members = approvalReviewers.get(assignment.roleId) ?? new Set<string>();
+    members.add(assignment.userId);
+    approvalReviewers.set(assignment.roleId, members);
+  }
+  for (const row of scheduleRows) {
+    const programme = isProgramme(row);
+    if (!scheduleRecordIsVisible(row)) continue;
+    const ownerAction = row.ownerId === userId && ["draft", "sent_back"].includes(row.workflowState);
+    const meta = scheduleMeta(row);
+    const currentRole = (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0];
+    const reviewAction = row.workflowState === "submitted"
+      && Boolean(currentRole && approvalReviewers.get(currentRole.id)?.has(userId));
+    if (!ownerAction && !reviewAction) continue;
+    const id = row.id;
+    let href: string;
+    if (programme) {
+      href = `/audit/schedules/${encodeURIComponent(id)}`;
+    } else {
+      const parentId = meta.parentId;
+      const parentRow = typeof parentId === "string" ? schedulesById.get(parentId) : undefined;
+      const parentIsUsable = typeof parentId === "string" && parentId !== "legacy"
+        && Boolean(parentRow && isProgramme(parentRow));
+      const legacyContext = parentId == null || parentId === "" || parentId === "legacy";
+      if (!parentIsUsable && !legacyContext) continue;
+      const contextId = parentIsUsable ? parentId : "legacy";
+      href = `/audit/schedules/${encodeURIComponent(contextId)}?focusSchedule=${encodeURIComponent(id)}`;
+    }
+    add({
+      kind: programme ? "programme" : "schedule",
+      id,
+      title: row.title,
+      action: reviewAction ? "Review" : "Continue",
+      status: ({ draft: "Draft", submitted: "Submitted", sent_back: "Sent Back" } as AnyRow)[row.workflowState] ?? row.workflowState,
+      href,
+      dueDate: myActionDate(meta.plannedStartDate ?? meta.fromDate),
+    });
+  }
+
+  const planRows = [hasActionPermission(planScope, planFullScope), hasActionPermission(auditScope, auditFullScope),
+    hasActionPermission(carScope, carFullScope)].some(Boolean)
+    ? await db.select().from(auditPlans).where(active(auditPlans, organizationId))
+    : [];
+  const plansById = new Map(planRows.map(row => [row.id, row]));
+  for (const row of planRows) {
+    if (!hasActionPermission(planScope, planFullScope)) continue;
+    if (!["draft", "shared", "active", "ready"].includes(String(row.workflowState).toLowerCase())) continue;
+    const meta = planMeta(row);
+    const assigned = meta.leadAuditorId === userId
+      || (Array.isArray(row.teamMemberIds) && row.teamMemberIds.includes(userId))
+      || (meta.processOwnerIds ?? []).includes(userId);
+    if (!assigned) continue;
+    const processSchedule = Boolean(row.auditScheduleId && processScheduleIds.has(row.auditScheduleId));
+    if (!myActionProjectInScope(row.projectId, planScope, planFullScope, effectiveScope, processSchedule)) continue;
+    const title = meta.auditTitle ?? row.scope ?? "Audit Plan";
+    add({
+      kind: "plan", id: row.id, title,
+      action: "Continue",
+      status: ({ draft: "Draft", shared: "Shared", active: "Active", ready: "Ready" } as AnyRow)[String(row.workflowState).toLowerCase()] ?? row.workflowState,
+      href: `/audit/plans/${encodeURIComponent(row.id)}`,
+      dueDate: myActionDate(row.auditDate ?? meta.startDateTime),
+    });
+  }
+
+  const auditRows = hasActionPermission(auditScope, auditFullScope) ? await db.select({ audit: audits }).from(audits)
+    .innerJoin(auditPlans, eq(audits.auditPlanId, auditPlans.id))
+    .where(and(active(audits, organizationId), active(auditPlans, organizationId))) : [];
+  for (const { audit: row } of auditRows) {
+    if (!["planned", "scheduled", "in progress", "report draft", "car follow-up"].includes(String(row.workflowState).toLowerCase())) continue;
+    const plan = plansById.get(row.auditPlanId ?? "");
+    if (!plan) continue;
+    const meta = planMeta(plan);
+    const assigned = meta.leadAuditorId === userId
+      || (Array.isArray(plan.teamMemberIds) && plan.teamMemberIds.includes(userId));
+    if (!assigned) continue;
+    const processSchedule = Boolean(plan.auditScheduleId && processScheduleIds.has(plan.auditScheduleId));
+    if (!myActionProjectInScope(row.projectId, auditScope, auditFullScope, effectiveScope, processSchedule)) continue;
+    const auditInfo = auditMeta(row);
+    const displayStatus = ({ planned: "Planned", scheduled: "Planned", "in progress": "In Progress", "report draft": "Report Draft", "car follow-up": "CAR Follow-up" } as AnyRow)[String(row.workflowState).toLowerCase()] ?? row.workflowState;
+    add({
+      kind: "audit", id: row.id, title: auditInfo.title ?? row.referenceNumber,
+      action: "Continue", status: displayStatus,
+      href: `/audit/audits/${encodeURIComponent(row.id)}`,
+      dueDate: myActionDate(plan.auditDate ?? meta.startDateTime),
+    });
+  }
+
+  const carReviewerScope = hasActionPermission(carScope, carFullScope) ? await getAppAdminScope(req, "audit") : null;
+  const actionableCarConditions = [
+    and(eq(correctiveActionReports.ownerId, userId), inArray(correctiveActionReports.workflowState, ["open", "draft", "rejected"])),
+    ...(carReviewerScope !== null ? [eq(correctiveActionReports.workflowState, "submitted")] : []),
+  ];
+  const carsWithParents = hasActionPermission(carScope, carFullScope) && actionableCarConditions.length ? await db.select({
+    car: correctiveActionReports, audit: audits,
+  }).from(correctiveActionReports)
+    .innerJoin(auditFindings, and(
+      eq(correctiveActionReports.auditFindingId, auditFindings.id),
+      eq(auditFindings.organizationId, organizationId),
+      isNull(auditFindings.deletedAt),
+    ))
+    .innerJoin(audits, and(
+      eq(auditFindings.auditId, audits.id),
+      eq(audits.organizationId, organizationId),
+      isNull(audits.deletedAt),
+    ))
+    .where(and(
+      active(correctiveActionReports, organizationId), active(auditFindings, organizationId), active(audits, organizationId),
+      or(...actionableCarConditions),
+    )) : [];
+  for (const { car, audit: parentAudit } of carsWithParents) {
+    const ownerAction = car.ownerId === userId && ["open", "draft", "rejected"].includes(String(car.workflowState).toLowerCase());
+    const reviewerAction = car.workflowState === "submitted" && carReviewerScope !== null;
+    if (!ownerAction && !reviewerAction) continue;
+    const plan = plansById.get(parentAudit.auditPlanId ?? "");
+    const processSchedule = Boolean(plan?.auditScheduleId && processScheduleIds.has(plan.auditScheduleId));
+    if (!myActionProjectInScope(parentAudit.projectId, carScope, carFullScope, effectiveScope, processSchedule)) continue;
+    add({
+      kind: "car", id: car.id,
+      title: `Corrective action: ${car.responsibleDepartment}`,
+      action: reviewerAction ? "Review" : car.workflowState === "rejected" ? "Revise" : "Complete",
+      status: ({ open: "Open", draft: "Draft", submitted: "Submitted", rejected: "Rejected" } as AnyRow)[car.workflowState] ?? car.workflowState,
+      href: `/audit/cars/${encodeURIComponent(car.id)}`,
+      dueDate: myActionDate(car.dueDate),
+    });
+  }
+
+  const items = [...itemsByRecord.values()].sort((a, b) => {
+    if (a.dueDate && b.dueDate && a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+    if (a.dueDate && !b.dueDate) return -1;
+    if (!a.dueDate && b.dueDate) return 1;
+    return a.title.localeCompare(b.title) || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id);
+  });
+  res.json(Api.ListAuditMyActionsResponse.parse(paginated(items.slice(offset, offset + limit), items.length, page, limit)));
+}));
+
 router.post("/findings/:id/cars", asyncHandler(async (req, res) => {
   const data = body<{ responsibleDepartments: string[] }>(Api.CreateFindingCarsBody, req);
   const departments = [...new Set(data.responsibleDepartments.map((x) => x.trim()).filter(Boolean))];
@@ -1652,6 +1929,15 @@ router.get("/cars", asyncHandler(async (req, res) => {
     db.select({ car: correctiveActionReports }).from(correctiveActionReports).innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id)).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(where).orderBy(desc(correctiveActionReports.updatedAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(correctiveActionReports).innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id)).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(where),
   ]); res.json(paginated(rows.map((row) => carDto(row.car)), Number(count), page, limit));
+}));
+router.get("/cars/:id", asyncHandler(async (req, res) => {
+  const [row] = await db.select().from(correctiveActionReports).where(and(
+    active(correctiveActionReports, actor(req).organizationId),
+    eq(correctiveActionReports.id, String(req.params.id)),
+  ));
+  if (!row) throw new HttpError(404, "CAR not found");
+  await assertAuditRecordAccess(req, "car", row.id);
+  res.json(Api.GetCorrectiveActionReportResponse.parse(carDto(row)));
 }));
 router.put("/cars/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateCorrectiveActionReportBody, req);

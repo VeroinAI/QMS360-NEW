@@ -2695,6 +2695,35 @@ export type AuditPlanPage = PageMeta & {
   items: AuditPlan[];
 };
 
+export type AuditMyActionKind = typeof AuditMyActionKind[keyof typeof AuditMyActionKind];
+
+
+export const AuditMyActionKind = {
+  programme: 'programme',
+  schedule: 'schedule',
+  plan: 'plan',
+  audit: 'audit',
+  car: 'car',
+} as const;
+
+export interface AuditMyAction {
+  kind: AuditMyActionKind;
+  id: string;
+  title: string;
+  action: string;
+  status: string;
+  href: string;
+  /** @nullable */
+  dueDate: string | null;
+}
+
+export interface AuditMyActionsPage {
+  items: AuditMyAction[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export type AuditPage = PageMeta & {
   items: Audit[];
 };
@@ -3719,6 +3748,18 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 parentId?: string;
+};
+
+export type ListAuditMyActionsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
 };
 
 export type ListAuditProgrammesParams = {

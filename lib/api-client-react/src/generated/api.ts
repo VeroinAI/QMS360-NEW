@@ -41,6 +41,7 @@ import type {
   AuditFindingBody,
   AuditFindingPageResponse,
   AuditLogPageResponse,
+  AuditMyActionsPage,
   AuditPageResponse,
   AuditPlan,
   AuditPlanBody,
@@ -65,6 +66,7 @@ import type {
   ChecklistBody,
   ConnectorConnectionTestResult,
   ContainerSsoInput,
+  CorrectiveActionReport,
   CreateCarsBody,
   CreateMasterDataGroupInput,
   CreateMasterDataValueInput,
@@ -148,6 +150,7 @@ import type {
   ListAuditDelegationsParams,
   ListAuditEvidenceParams,
   ListAuditFindingsParams,
+  ListAuditMyActionsParams,
   ListAuditNotificationTemplatesParams,
   ListAuditNotificationsParams,
   ListAuditPlansParams,
@@ -15394,6 +15397,90 @@ export const useCreateAuditSchedule = <TError = ErrorType<unknown>,
       return useMutation(getCreateAuditScheduleMutationOptions(options));
     }
 
+export const getListAuditMyActionsUrl = (params?: ListAuditMyActionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/my-actions?${stringifiedParams}` : `/api/audit/my-actions`
+}
+
+/**
+ * @summary List actionable Audit records assigned to the current user
+ */
+export const listAuditMyActions = async (params?: ListAuditMyActionsParams, options?: Parameters<typeof customFetch>[1]): Promise<AuditMyActionsPage> => {
+
+  return customFetch<AuditMyActionsPage>(getListAuditMyActionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAuditMyActionsQueryKey = (params?: ListAuditMyActionsParams,) => {
+    return [
+    `/api/audit/my-actions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAuditMyActionsQueryOptions = <TData = Awaited<ReturnType<typeof listAuditMyActions>>, TError = ErrorType<void>>(params?: ListAuditMyActionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditMyActions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAuditMyActionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditMyActions>>> = ({ signal }) => listAuditMyActions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditMyActions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAuditMyActionsQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditMyActions>>>
+export type ListAuditMyActionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List actionable Audit records assigned to the current user
+ */
+
+export function useListAuditMyActions<TData = Awaited<ReturnType<typeof listAuditMyActions>>, TError = ErrorType<void>>(
+ params?: ListAuditMyActionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditMyActions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAuditMyActionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListAuditProgrammesUrl = (params?: ListAuditProgrammesParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -18135,6 +18222,83 @@ export function useListCorrectiveActionReports<TData = Awaited<ReturnType<typeof
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListCorrectiveActionReportsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCorrectiveActionReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/cars/${id}`
+}
+
+/**
+ * @summary Get a corrective action report
+ */
+export const getCorrectiveActionReport = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<CorrectiveActionReport> => {
+
+  return customFetch<CorrectiveActionReport>(getGetCorrectiveActionReportUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCorrectiveActionReportQueryKey = (id: string,) => {
+    return [
+    `/api/audit/cars/${id}`
+    ] as const;
+    }
+
+
+export const getGetCorrectiveActionReportQueryOptions = <TData = Awaited<ReturnType<typeof getCorrectiveActionReport>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCorrectiveActionReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCorrectiveActionReportQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCorrectiveActionReport>>> = ({ signal }) => getCorrectiveActionReport(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCorrectiveActionReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCorrectiveActionReportQueryResult = NonNullable<Awaited<ReturnType<typeof getCorrectiveActionReport>>>
+export type GetCorrectiveActionReportQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a corrective action report
+ */
+
+export function useGetCorrectiveActionReport<TData = Awaited<ReturnType<typeof getCorrectiveActionReport>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCorrectiveActionReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCorrectiveActionReportQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

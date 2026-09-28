@@ -13,6 +13,9 @@ import {
   useDeleteAuditProgramme,
   useDeleteAuditSchedule,
   useGetAudit,
+  useGetAuditSchedule,
+  useGetCorrectiveActionReport,
+  getGetCorrectiveActionReportQueryKey,
   useGetAuditDashboard,
   useGetAuditPlan,
   getGetAuditPlanQueryKey,
@@ -29,10 +32,12 @@ import {
   useListAuditFindings,
   useListAuditPlanNotificationRoles,
   useListAuditPlans,
+  useListAuditMyActions,
   useListAuditSchedules,
   useListAuditProgrammes,
   useCreateAuditProgramme,
   useSubmitAuditProgramme,
+  useSubmitAuditSchedule,
   useReviewAuditProgramme,
   useListAudits,
   useListCorrectiveActionReports,
@@ -544,12 +549,32 @@ function Pager({ page, total, onPage }: { page: number; total: number; onPage: (
 }
 
 function AuditNav() {
-  const links = [["Dashboard", "/audit"], ["Schedules", "/audit/schedules"], ["Plans", "/audit/plans"], ["Audits", "/audit/audits"], ["CAR register", "/audit/cars"], ["Reports", "/audit/reports"]];
+  const links = [["Dashboard", "/audit"], ["For my Action", "/audit/my-actions"], ["Schedules", "/audit/schedules"], ["Plans", "/audit/plans"], ["Audits", "/audit/audits"], ["CAR register", "/audit/cars"], ["Reports", "/audit/reports"]];
   return <nav className="flex gap-1 overflow-x-auto border-b pb-3">{links.map(([label, href]) => <Button key={href} variant="ghost" size="sm" asChild><Link href={href}>{label}</Link></Button>)}</nav>;
 }
 
 function Layout({ children }: { children: React.ReactNode }) {
   return <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8"><div className="rounded-xl bg-primary p-6 text-primary-foreground"><div className="flex items-center gap-3"><ShieldCheck className="size-8"/><div><p className="font-semibold">QMS Audit Management</p><p className="text-sm opacity-80">ISO 9001 audit lifecycle workspace</p></div></div></div><AuditNav/>{children}</main>;
+}
+
+function MyActions() {
+  const [page, setPage] = useState(1);
+  const query = useListAuditMyActions({ page, limit: PAGE_SIZE }, { query: { queryKey: ["/api/audit/my-actions", { page, limit: PAGE_SIZE }], refetchInterval: 30000 } });
+  return <div className="space-y-5">
+    <PageHeader title="For my Action" description="Audit work awaiting your review or completion."/>
+    <State loading={query.isLoading} error={query.error} empty={!query.data?.items.length} label="No audit items require your action."/>
+    {!!query.data?.items.length && <Card className="overflow-x-auto"><Table>
+      <TableHeader><TableRow><TableHead>Action item</TableHead><TableHead>Type</TableHead><TableHead>Status</TableHead><TableHead>Due date</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+      <TableBody>{query.data.items.map(item => <TableRow key={`${item.kind}:${item.id}`}>
+        <TableCell><Link href={item.href} className="font-semibold text-primary hover:underline">{item.title}</Link></TableCell>
+        <TableCell className="capitalize">{({ programme: "Audit schedule", schedule: "Audit", plan: "Audit plan", audit: "Audit execution", car: "Corrective action" } as const)[item.kind]}</TableCell>
+        <TableCell><Badge variant={workflowTone(item.status)}>{item.status}</Badge></TableCell>
+        <TableCell>{item.dueDate ? date(item.dueDate) : "—"}</TableCell>
+        <TableCell className="text-right"><Button size="sm" asChild><Link href={item.href}>{item.action}</Link></Button></TableCell>
+      </TableRow>)}</TableBody>
+    </Table></Card>}
+    {!!query.data?.total && <Pager page={page} total={query.data.total} onPage={setPage}/>}
+  </div>;
 }
 
 function Dashboard() {
@@ -976,6 +1001,7 @@ function Programmes() {
     void qc.invalidateQueries({ queryKey: getListAuditProgrammesQueryKey() });
     void qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
     void qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] });
+    void qc.invalidateQueries({ queryKey: ["/api/audit/my-actions"] });
     toast({ title: message });
   };
   return <div className="space-y-5">
@@ -996,11 +1022,15 @@ function Programmes() {
 
 function Schedules() {
   const { parentId = "" } = useParams<{ parentId: string }>();
+  const focusId = new URLSearchParams(window.location.search).get("focusSchedule") ?? "";
   const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false); const [displaying, setDisplaying] = useState<AuditSchedule | undefined>();
   const [submitting, setSubmitting] = useState<{ id: string; title: string }>();
+  const [sendingProgrammeBack, setSendingProgrammeBack] = useState<{ id: string; title: string }>();
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
   const [planning, setPlanning] = useState<AuditSchedule | undefined>();
   const query = useListAuditSchedules({ page, limit: PAGE_SIZE, parentId }); const planSchedules = useListAuditPlans({ page: 1, limit: 100 }); const qc = useQueryClient(); const { toast } = useToast();
+  const focused = useGetAuditSchedule(focusId, { query: { enabled: !!focusId, queryKey: ["/api/audit/schedules", focusId] } });
+  const submitFocused = useSubmitAuditSchedule();
   const programme = useGetAuditProgramme(parentId, { query: { enabled: parentId !== "legacy" && !!parentId, queryKey: getGetAuditProgrammeQueryKey(parentId) } });
   const allChildren = useListAuditSchedules({ page: 1, limit: 200, parentId });
   const projects = useListPlatformProjects({ page: 1, limit: 200 });
@@ -1010,11 +1040,12 @@ function Schedules() {
   const [loadingFile, setLoadingFile] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const remove = useDeleteAuditSchedule(); const review = useReviewAuditSchedule();
+  const reviewProgramme = useReviewAuditProgramme();
   const occupiedScheduleIds = new Set((planSchedules.data?.items ?? []).map(plan => plan.scheduleId));
   const items = (query.data?.items ?? [])
     .map(schedule => occupiedScheduleIds.has(schedule.id) ? { ...schedule, hasPlan: true } : schedule)
     .filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
-  const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] }); qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] }); toast({ title: message }); };
+  const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] }); qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] }); qc.invalidateQueries({ queryKey: ["/api/audit/my-actions"] }); toast({ title: message }); };
   const parentSubmitted = programme.data?.workflowState === "Submitted";
   const programmeSubmitted = (updated: AuditProgramme) => {
     qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated);
@@ -1132,8 +1163,24 @@ function Schedules() {
     finally { setLoadingFile(false); if (fileInput.current) fileInput.current.value = ""; }
   };
   const programmePending = parentId !== "legacy" && (programme.isLoading || !programme.data);
-  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void download()} disabled={allChildren.isLoading || downloading || programmePending}><Download className="mr-2 size-4"/>{downloading ? "Downloading…" : "Download"}</Button><Button variant="outline" onClick={() => fileInput.current?.click()} disabled={loadingFile || projects.isLoading || programmePending || parentSubmitted}><Upload className="mr-2 size-4"/>{loadingFile ? "Loading…" : "Load"}</Button><input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void loadFile(file); }}/>{parentId !== "legacy" && programme.data?.canSubmit && <Button variant="outline" disabled={programmePending || !programme.data.childCount || !!submitting} onClick={() => setSubmitting({ id: parentId, title: programme.data.title })}>{programme.data.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}<Button disabled={programmePending || parentSubmitted} title={parentSubmitted ? "New audits cannot be created while the audit schedule is submitted" : undefined} onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button></div>}/>
+  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void download()} disabled={allChildren.isLoading || downloading || programmePending}><Download className="mr-2 size-4"/>{downloading ? "Downloading…" : "Download"}</Button><Button variant="outline" onClick={() => fileInput.current?.click()} disabled={loadingFile || projects.isLoading || programmePending || parentSubmitted}><Upload className="mr-2 size-4"/>{loadingFile ? "Loading…" : "Load"}</Button><input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void loadFile(file); }}/>{parentId !== "legacy" && programme.data?.canSubmit && <Button variant="outline" disabled={programmePending || !programme.data.childCount || !!submitting} onClick={() => setSubmitting({ id: parentId, title: programme.data.title })}>{programme.data.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}{programme.data?.workflowState === "Submitted" && programme.data.canReview && <><Button disabled={reviewProgramme.isPending} onClick={() => reviewProgramme.mutate({ id: parentId, data: { decision: "approve" } }, { onSuccess: updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule approved"); }, onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve schedule</Button><Button variant="outline" onClick={() => setSendingProgrammeBack({ id: parentId, title: programme.data!.title })}>Send back</Button></>}<Button disabled={programmePending || parentSubmitted} title={parentSubmitted ? "New audits cannot be created while the audit schedule is submitted" : undefined} onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button></div>}/>
+    {focusId && <Card><CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
+      {focused.isLoading ? <p>Loading action item…</p> : focused.error ? <p className="text-destructive">{errorText(focused.error)}</p> : focused.data && focused.data.parentId === (parentId === "legacy" ? null : parentId) ? <>
+        <div><p className="text-xs font-semibold uppercase text-muted-foreground">Your action item</p><p className="font-semibold">{focused.data.title}</p><Badge variant={workflowTone(focused.data.workflowState)}>{focused.data.workflowState}</Badge></div>
+        <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDisplaying(focused.data)}>Display</Button>
+          {["Draft", "Sent Back"].includes(focused.data.workflowState) && focused.data.ownerId && <>
+            <Button variant="outline" onClick={() => { setEditing(focused.data); setOpen(true); }}>Edit</Button>
+            <Button disabled={submitFocused.isPending} onClick={() => submitFocused.mutate({ id: focused.data.id }, { onSuccess: () => done("Schedule submitted"), onError: e => toast({ title: "Unable to submit schedule", description: errorText(e), variant: "destructive" }) })}>Submit</Button>
+          </>}
+          {focused.data.workflowState === "Submitted" && focused.data.canReview && <>
+            <Button disabled={review.isPending} onClick={() => review.mutate({ id: focused.data.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved"), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button>
+            <Button variant="outline" onClick={() => sendBack(focused.data.id)}>Send back</Button>
+          </>}
+        </div>
+      </> : <p className="text-muted-foreground">This action item is no longer available in this schedule.</p>}
+    </CardContent></Card>}
     {submitting && <ProgrammeSubmitDialog key={submitting.id} item={submitting} onClose={() => setSubmitting(undefined)} onSubmitted={programmeSubmitted}/>}
+    {sendingProgrammeBack && <ProgrammeSendBackDialog key={sendingProgrammeBack.id} item={sendingProgrammeBack} onClose={() => setSendingProgrammeBack(undefined)} onSentBack={updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule sent back"); }}/>}
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
       <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/40 shrink-0">
@@ -1542,6 +1589,50 @@ function Cars() {
     <div className="space-y-3">{query.data?.items.map(car=>{const overdue=car.status!=="Closed"&&new Date(car.dueDate)<new Date();return <Card key={car.id} className={overdue?"border-destructive":""}><CardContent className="pt-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap gap-2"><Badge variant={workflowTone(car.status)}>{car.status}</Badge>{overdue&&<Badge variant="destructive">Overdue · priority may auto-upgrade</Badge>}{car.extensionStatus&&<Badge variant="outline">Extension {car.extensionStatus}</Badge>}</div><h3 className="mt-3 font-semibold">{car.responsibleDepartment}</h3><p className="text-sm text-muted-foreground">Due {date(car.dueDate)} · Owner {car.ownerId}</p><p className="mt-2 text-sm"><b>Root cause:</b> {car.rootCause||"Not provided"}</p></div><div className="flex max-w-lg flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={()=>setEdit(car)}>Edit response</Button>{["Open","Draft","Rejected"].includes(car.status)&&<Button size="sm" onClick={()=>submit.mutate({id:car.id},{onSuccess:()=>refresh("CAR submitted")})}>Submit</Button>}{car.status==="Submitted"&&<><Button size="sm" onClick={()=>review.mutate({id:car.id,data:{decision:"accept"}},{onSuccess:()=>refresh("CAR accepted")})}>Accept</Button><Button size="sm" variant="outline" onClick={()=>{const comments=window.prompt("Rejection remarks");review.mutate({id:car.id,data:{decision:"reject",comments}},{onSuccess:()=>refresh("CAR rejected")})}}>Reject</Button></>}{car.status==="Accepted"&&car.extensionStatus!=="pending"&&<Button size="sm" variant="outline" onClick={()=>requestExtension(car.id)}>Extension</Button>}{car.extensionStatus==="pending"&&<><Button size="sm" onClick={()=>extensionReview.mutate({id:car.id,data:{decision:"approve"}},{onSuccess:()=>refresh("Extension approved")})}>Approve extension</Button><Button size="sm" variant="outline" onClick={()=>{const comments=window.prompt("Rejection remarks (required)");if(!comments?.trim())return;extensionReview.mutate({id:car.id,data:{decision:"reject",comments}},{onSuccess:()=>refresh("Extension rejected")})}}>Reject extension</Button><Button size="sm" variant="ghost" onClick={()=>window.confirm("Withdraw this extension request? The CAR returns to its previous step.")&&extensionCancel.mutate({id:car.id},{onSuccess:()=>refresh("Extension withdrawn")})}>Withdraw</Button></>}{car.status==="Accepted"&&<Button size="sm" onClick={()=>window.confirm("Verify effectiveness and close this CAR?")&&close.mutate({id:car.id},{onSuccess:()=>refresh("CAR closed")})}>Close</Button>}</div></div></CardContent></Card>})}</div>{query.data?.items.length?<Pager page={page} total={query.data.total} onPage={setPage}/>:null}</div>;
 }
 
+function CarActionDetail() {
+  const { id = "" } = useParams<{ id: string }>();
+  const query = useGetCorrectiveActionReport(id);
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const submit = useSubmitCorrectiveActionReport();
+  const review = useReviewCorrectiveActionReport();
+  const refresh = (message: string) => {
+    void qc.invalidateQueries({ queryKey: ["/api/audit/cars"] });
+    void qc.invalidateQueries({ queryKey: getGetCorrectiveActionReportQueryKey(id) });
+    void qc.invalidateQueries({ queryKey: ["/api/audit/my-actions"] });
+    toast({ title: message });
+  };
+  const failure = (error: unknown) => toast({ title: "Unable to update CAR", description: errorText(error), variant: "destructive" });
+  const car = query.data;
+  return <div className="space-y-5">
+    <Button variant="ghost" asChild><Link href="/audit/my-actions"><ArrowLeft className="mr-2 size-4"/>For my Action</Link></Button>
+    <PageHeader title="Corrective action" description="Complete or review this assigned corrective action."/>
+    <State loading={query.isLoading} error={query.error} empty={!car} label="Corrective action not found."/>
+    {car && <Card><CardContent className="space-y-5 pt-6">
+      <div><div className="flex flex-wrap gap-2"><Badge variant={workflowTone(car.status)}>{car.status}</Badge>{car.extensionStatus && <Badge variant="outline">Extension {car.extensionStatus}</Badge>}</div>
+        <h2 className="mt-3 text-lg font-semibold">{car.responsibleDepartment}</h2>
+        <p className="text-sm text-muted-foreground">Due {date(car.dueDate)}</p></div>
+      <div className="grid gap-4 text-sm md:grid-cols-3">
+        <div><p className="font-medium">Root cause</p><p className="whitespace-pre-wrap">{car.rootCause || "Not provided"}</p></div>
+        <div><p className="font-medium">Correction</p><p className="whitespace-pre-wrap">{car.correction || "Not provided"}</p></div>
+        <div><p className="font-medium">Corrective action</p><p className="whitespace-pre-wrap">{car.correctiveAction || "Not provided"}</p></div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {["Open", "Draft", "Rejected"].includes(car.status) && <>
+          <Button variant="outline" onClick={() => setEditing(true)}>Edit response</Button>
+          <Button disabled={submit.isPending} onClick={() => submit.mutate({ id: car.id }, { onSuccess: () => refresh("CAR submitted"), onError: failure })}>Submit</Button>
+        </>}
+        {car.status === "Submitted" && <>
+          <Button disabled={review.isPending} onClick={() => review.mutate({ id: car.id, data: { decision: "accept" } }, { onSuccess: () => refresh("CAR accepted"), onError: failure })}>Accept</Button>
+          <Button variant="outline" disabled={review.isPending} onClick={() => { const comments = window.prompt("Rejection remarks (required)"); if (comments?.trim()) review.mutate({ id: car.id, data: { decision: "reject", comments: comments.trim() } }, { onSuccess: () => refresh("CAR rejected"), onError: failure }); }}>Reject</Button>
+        </>}
+      </div>
+    </CardContent></Card>}
+    <Dialog open={editing} onOpenChange={setEditing}><DialogContent><DialogHeader><DialogTitle>CAR response</DialogTitle></DialogHeader>{car && <CarEditor car={car} onClose={() => { setEditing(false); refresh("CAR updated"); }}/>}</DialogContent></Dialog>
+  </div>;
+}
+
 const reportCards=[["Open vs closed audits","open-vs-closed"],["Findings log","findings-log"],["Audit ageing","ageing"],["CAR status & closure","car-status"],["Annual audit schedule","schedule"]];
 function Reports() {
   return <div className="space-y-5"><PageHeader title="Report centre" description="Operational audit reports and export files"/><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{reportCards.map(([title,path])=><Card key={path}><CardHeader><div className="mb-2 w-fit rounded-lg bg-accent p-2 text-accent-foreground"><BarChart3 className="size-5"/></div><CardTitle className="text-base">{title}</CardTitle><CardDescription>Current live audit workspace data</CardDescription></CardHeader><CardContent><Button variant="outline" className="w-full" asChild><a href={`/api/audit/reports/${path}?format=csv`} download><Download className="mr-2 size-4"/>Download CSV</a></Button></CardContent></Card>)}</div></div>;
@@ -1581,6 +1672,7 @@ function AuditPlanAutoSync() {
 export function AuditRoutes() {
   return <Layout><AuditPlanAutoSync/><Switch>
     <Route path="/audit" component={Dashboard}/>
+    <Route path="/audit/my-actions" component={MyActions}/>
     <Route path="/audit/schedules/:parentId" component={Schedules}/>
     <Route path="/audit/schedules" component={Programmes}/>
     <Route path="/audit/plans/:id" component={PlanDetail}/>
@@ -1588,6 +1680,7 @@ export function AuditRoutes() {
     <Route path="/audit/audits/:id/report" component={AuditReport}/>
     <Route path="/audit/audits/:id" component={AuditWorkspace}/>
     <Route path="/audit/audits" component={Audits}/>
+    <Route path="/audit/cars/:id" component={CarActionDetail}/>
     <Route path="/audit/cars" component={Cars}/>
     <Route path="/audit/reports" component={Reports}/>
     <Route><Missing/></Route>

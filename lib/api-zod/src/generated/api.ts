@@ -5817,6 +5817,37 @@ export const CreateAuditScheduleResponse = zod.void()
 
 
 /**
+ * @summary List actionable Audit records assigned to the current user
+ */
+export const listAuditMyActionsQueryPageDefault = 1;
+
+export const listAuditMyActionsQueryLimitDefault = 20;
+export const listAuditMyActionsQueryLimitMax = 200;
+
+
+
+export const ListAuditMyActionsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditMyActionsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditMyActionsQueryLimitMax).default(listAuditMyActionsQueryLimitDefault)
+})
+
+export const ListAuditMyActionsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "kind": zod.enum(['programme', 'schedule', 'plan', 'audit', 'car']),
+  "id": zod.string(),
+  "title": zod.string(),
+  "action": zod.string(),
+  "status": zod.string(),
+  "href": zod.string(),
+  "dueDate": zod.coerce.date().nullable()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number()
+})
+
+
+/**
  * @summary List annual audit programmes
  */
 export const listAuditProgrammesQueryPageDefault = 1;
@@ -7053,6 +7084,33 @@ export const ListCorrectiveActionReportsResponse = zod.object({
   "closedAt": zod.coerce.date().nullish()
 }))
 }))
+
+
+/**
+ * @summary Get a corrective action report
+ */
+export const GetCorrectiveActionReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetCorrectiveActionReportResponse = zod.object({
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish()
+})
 
 
 /**

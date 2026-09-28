@@ -7,7 +7,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Settings, X,
 } from 'lucide-react';
 import {
-  useGetOrganizationSettings, useListAuditNotifications, useListLessonsNotifications,
+  useGetOrganizationSettings, useListAuditMyActions, useListAuditNotifications, useListLessonsNotifications,
   useListPlatformProjects, useListQaqcNotifications, useSearchLessonsLog
 } from '@workspace/api-client-react';
 import type { CurrentUser } from '@workspace/api-client-react';
@@ -27,7 +27,8 @@ const appNav = {
     ['New lesson', '/lessons/new', FileText], ['Notifications', '/lessons/notifications', Bell],
   ],
   audit: [
-    ['Overview', '/audit', LayoutDashboard], ['Programme', '/audit/schedules', ClipboardCheck],
+    ['Overview', '/audit', LayoutDashboard], ['For my Action', '/audit/my-actions', ClipboardCheck],
+    ['Programme', '/audit/schedules', ClipboardCheck],
     ['Audits', '/audit/audits', FileText], ['Reports', '/audit/reports', Download],
   ],
 } as const;
@@ -60,6 +61,10 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
   const userPendingQuery = useSearchLessonsLog(
     { pendingApproval: true, limit: 1 },
     { query: { enabled: section === 'lessons' && !!user.id, refetchInterval: 30000, queryKey: ['/api/lessons/log', 'pendingApproval', user.id, { limit: 1 }] } }
+  );
+  const auditPendingQuery = useListAuditMyActions(
+    { page: 1, limit: 1 },
+    { query: { enabled: section === 'audit' && !!user.id, refetchInterval: 30000, queryKey: ['/api/audit/my-actions', user.id, { page: 1, limit: 1 }] } }
   );
 
   useEffect(() => {
@@ -104,14 +109,17 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
         </div>
         <nav className="flex-1 space-y-1 p-3">
           {nav.map(([label, href, Icon]) => {
-            const isApprovals = href === '/lessons/approvals';
-            const count = isApprovals ? userPendingQuery.data?.total : null;
-            const isError = isApprovals && userPendingQuery.isError;
+            const isLessonsActions = href === '/lessons/approvals';
+            const isAuditActions = href === '/audit/my-actions';
+            const isApprovals = isLessonsActions || isAuditActions;
+            const count = isLessonsActions ? userPendingQuery.data?.total : isAuditActions ? auditPendingQuery.data?.total : null;
+            const isError = (isLessonsActions && userPendingQuery.isError) || (isAuditActions && auditPendingQuery.isError);
+            const actionLabel = isAuditActions ? 'audit' : 'lessons';
             return (
             <Link key={href as string} href={href as string} onClick={() => setMobileOpen(false)}
               className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm ${location === href ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}`}>
               <div className="flex items-center gap-3"><Icon className="h-4 w-4 shrink-0" />{!collapsed && label}</div>
-              {!collapsed && isApprovals && count !== undefined && count !== null && count > 0 && <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-destructive-foreground" aria-label={`${count} lessons For my Action`}>{count}</span>}
+              {!collapsed && isApprovals && count !== undefined && count !== null && count > 0 && <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-bold text-destructive-foreground" aria-label={`${count} ${actionLabel} For my Action`}>{count}</span>}
               {!collapsed && isApprovals && isError && <span className="text-[10px] font-bold text-destructive" title="For my Action count unavailable" aria-label="For my Action count unavailable">!</span>}
             </Link>
           )})}
