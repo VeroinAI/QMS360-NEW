@@ -2,13 +2,16 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Server } from "node:http";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import {
+  applicationAccess,
   auditAuditLogEntries,
   auditPermissions,
+  auditUserWorkspaceRoles,
   auditWorkspaceRolePermissions,
   auditWorkspaceRoles,
   db,
   organizations,
   platformRoles,
+  projects,
   users,
 } from "@workspace/db";
 import app from "../src/app";
@@ -19,12 +22,13 @@ let baseUrl: string;
 const suffix = Math.random().toString(36).slice(2, 9);
 let organizationId: string;
 let adminToken: string;
+let scopedAdminToken: string;
 
-async function api(method: string, path: string, body?: unknown) {
+async function api(method: string, path: string, body?: unknown, token = adminToken) {
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {
-      authorization: `Bearer ${adminToken}`,
+      authorization: `Bearer ${token}`,
       ...(body === undefined ? {} : { "content-type": "application/json" }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -64,11 +68,14 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
+  await db.delete(applicationAccess).where(eq(applicationAccess.organizationId, organizationId));
   await db.delete(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, organizationId));
+  await db.delete(auditUserWorkspaceRoles).where(eq(auditUserWorkspaceRoles.organizationId, organizationId));
   await db.delete(auditWorkspaceRolePermissions).where(eq(auditWorkspaceRolePermissions.organizationId, organizationId));
   await db.delete(auditWorkspaceRoles).where(eq(auditWorkspaceRoles.organizationId, organizationId));
   await db.delete(auditPermissions).where(eq(auditPermissions.organizationId, organizationId));
   await db.delete(users).where(eq(users.organizationId, organizationId));
+  await db.delete(projects).where(eq(projects.organizationId, organizationId));
   await db.delete(platformRoles).where(eq(platformRoles.organizationId, organizationId));
   await db.delete(organizations).where(eq(organizations.id, organizationId));
 });
@@ -165,5 +172,178 @@ describe("Audit role permission persistence", () => {
       active: false,
       systemDefault: false,
     }));
+  });
+});
+
+describe("Audit access queue for role holders without access rows", () => {
+  async function createRoleHolder(suffixPart: string) {
+    const [user] = await db.insert(users).values({
+      organizationId,
+      email: `audit-queue-${suffixPart}.${suffix}@example.test`,
+      username: `audit-queue-${suffixPart}.${suffix}`,
+      fullName: `Audit Queue ${suffixPart}`,
+    }).returning();
+    const [role] = await db.insert(auditWorkspaceRoles).values({
+      organizationId,
+      name: `Audit Queue Role ${suffixPart} ${suffix}`,
+    }).returning();
+    const assignment = await api("POST", `/audit/admin/users/${user!.id}/roles`, {
+      roleId: role!.id,
+      scopeType: "organization",
+      scopeIds: [],
+    });
+    expect(assignment.status).toBe(200);
+    return { user: user!, role: role! };
+  }
+
+  it("lists and approves a missing access row without granting other applications", async () => {
+    const { user, role } = await createRoleHolder("approve");
+    const beforeApproval = await db.select().from(applicationAccess).where(and(
+      eq(applicationAccess.organizationId, organizationId),
+      eq(applicationAccess.username, user.username),
+      isNull(applicationAccess.deletedAt),
+    ));
+    expect(beforeApproval).toHaveLength(0);
+    const queue = await api("GET", "/audit/admin/access-queue?limit=200");
+
+    expect(queue.status).toBe(200);
+    expect(queue.json.items).toContainEqual(expect.objectContaining({
+      id: `missing:${user.id}`,
+      userId: user.id,
+      username: user.username,
+      requestedRoleId: role.id,
+      status: "pending",
+    }));
+    expect(queue.json.total).toBeGreaterThanOrEqual(1);
+
+    const decision = await api("POST", `/audit/admin/access-queue/missing:${user.id}/decision`, { decision: "approve" });
+    expect(decision.status).toBe(200);
+    expect(decision.json).toEqual(expect.objectContaining({
+      username: user.username,
+      canOpenAudit: true,
+      canOpenQaqc: false,
+      canOpenLessons: false,
+    }));
+    const accessRows = await db.select().from(applicationAccess).where(and(
+      eq(applicationAccess.organizationId, organizationId),
+      eq(applicationAccess.username, user.username),
+      isNull(applicationAccess.deletedAt),
+    ));
+    expect(accessRows).toHaveLength(1);
+  });
+
+  it("records a rejection and does not offer that user as pending again", async () => {
+    const { user } = await createRoleHolder("reject");
+    const decision = await api("POST", `/audit/admin/access-queue/missing:${user.id}/decision`, { decision: "reject" });
+
+    expect(decision.status).toBe(200);
+    expect(decision.json).toEqual(expect.objectContaining({
+      username: user.username,
+      canOpenAudit: false,
+      status: "active",
+    }));
+    await db.update(applicationAccess).set({ status: "rejected" }).where(and(
+      eq(applicationAccess.organizationId, organizationId),
+      eq(applicationAccess.username, user.username),
+      isNull(applicationAccess.deletedAt),
+    ));
+    await db.update(applicationAccess).set({ status: "active" }).where(and(
+      eq(applicationAccess.organizationId, organizationId),
+      eq(applicationAccess.username, user.username),
+      isNull(applicationAccess.deletedAt),
+    ));
+    const queue = await api("GET", "/audit/admin/access-queue?limit=200");
+    expect(queue.json.items).not.toContainEqual(expect.objectContaining({ userId: user.id }));
+    const repeatDecision = await api("POST", `/audit/admin/access-queue/missing:${user.id}/decision`, { decision: "approve" });
+    expect(repeatDecision.status).toBe(409);
+  });
+
+  it("keeps an unrelated application's rejected status from hiding an Audit request", async () => {
+    const { user } = await createRoleHolder("other-app-reject");
+    const [access] = await db.insert(applicationAccess).values({
+      organizationId,
+      username: user.username,
+      status: "rejected",
+      canOpenAudit: false,
+    }).returning();
+
+    const queue = await api("GET", "/audit/admin/access-queue?limit=200");
+    expect(queue.json.items).toContainEqual(expect.objectContaining({
+      id: access!.id,
+      username: user.username,
+    }));
+    const decision = await api("POST", `/audit/admin/access-queue/${access!.id}/decision`, { decision: "approve" });
+    expect(decision.status).toBe(200);
+    expect(decision.json).toEqual(expect.objectContaining({
+      canOpenAudit: true,
+      status: "rejected",
+    }));
+  });
+
+  it("rejects a real access-row decision outside the administrator's project scope", async () => {
+    const [managedProject] = await db.insert(projects).values({
+      organizationId,
+      code: `SCOPE${suffix}`,
+      name: `Managed scope ${suffix}`,
+    }).returning();
+    const [outsideProject] = await db.insert(projects).values({
+      organizationId,
+      code: `OUTSIDE${suffix}`,
+      name: `Outside scope ${suffix}`,
+    }).returning();
+    const [admin] = await db.insert(users).values({
+      organizationId,
+      email: `audit-queue-scoped-admin.${suffix}@example.test`,
+      username: `audit-queue-scoped-admin.${suffix}`,
+      fullName: "Audit Queue Scoped Admin",
+    }).returning();
+    const [adminRole] = await db.insert(auditWorkspaceRoles).values({
+      organizationId,
+      name: `Audit Administrator ${suffix}`,
+    }).returning();
+    await db.insert(auditUserWorkspaceRoles).values({
+      organizationId,
+      userId: admin!.id,
+      workspaceRoleId: adminRole!.id,
+      projectIds: [managedProject!.id],
+      status: "active",
+    });
+    await db.insert(applicationAccess).values({
+      organizationId,
+      username: admin!.username,
+      canOpenAudit: true,
+    });
+    scopedAdminToken = issueToken(admin!);
+
+    const [target] = await db.insert(users).values({
+      organizationId,
+      email: `audit-queue-out-of-scope.${suffix}@example.test`,
+      username: `audit-queue-out-of-scope.${suffix}`,
+      fullName: "Audit Queue Out of Scope",
+    }).returning();
+    const [role] = await db.insert(auditWorkspaceRoles).values({
+      organizationId,
+      name: `Audit Out-of-Scope Role ${suffix}`,
+    }).returning();
+    await db.insert(auditUserWorkspaceRoles).values({
+      organizationId,
+      userId: target!.id,
+      workspaceRoleId: role!.id,
+      projectIds: [outsideProject!.id],
+      status: "active",
+    });
+    const [access] = await db.insert(applicationAccess).values({
+      organizationId,
+      username: target!.username,
+      canOpenAudit: false,
+    }).returning();
+
+    const decision = await api(
+      "POST",
+      `/audit/admin/access-queue/${access!.id}/decision`,
+      { decision: "approve" },
+      scopedAdminToken,
+    );
+    expect(decision.status).toBe(403);
   });
 });

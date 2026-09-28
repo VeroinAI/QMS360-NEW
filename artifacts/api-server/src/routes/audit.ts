@@ -2353,22 +2353,195 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
 }));
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const where = and(eq(applicationAccess.organizationId, actor(req).organizationId), eq(applicationAccess.canOpenAudit, false), isNull(applicationAccess.deletedAt));
-  const [rows, [{ count }]] = await Promise.all([
-    db.select().from(applicationAccess).where(where).orderBy(desc(applicationAccess.createdAt)).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(applicationAccess).where(where),
+  const organizationId = actor(req).organizationId;
+  const [orgUsers, assignments, accessRows] = await Promise.all([
+    db.select().from(users).where(and(
+      eq(users.organizationId, organizationId), eq(users.accessStatus, "active"),
+      eq(users.status, "active"), isNull(users.deletedAt),
+    )),
+    db.select({
+      userId: users.id, username: users.username, roleId: auditWorkspaceRoles.id,
+      assignmentId: auditUserWorkspaceRoles.id, projectIds: auditUserWorkspaceRoles.projectIds,
+      businessUnitIds: auditUserWorkspaceRoles.businessUnitIds, createdAt: auditUserWorkspaceRoles.createdAt,
+    }).from(auditUserWorkspaceRoles)
+      .innerJoin(users, and(
+        eq(users.id, auditUserWorkspaceRoles.userId), eq(users.organizationId, organizationId),
+        eq(users.accessStatus, "active"), eq(users.status, "active"), isNull(users.deletedAt),
+      ))
+      .innerJoin(auditWorkspaceRoles, and(eq(auditWorkspaceRoles.id, auditUserWorkspaceRoles.workspaceRoleId), eq(auditWorkspaceRoles.organizationId, organizationId), isNull(auditWorkspaceRoles.deletedAt)))
+      .where(and(
+        eq(auditUserWorkspaceRoles.organizationId, organizationId),
+        eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
+        eq(auditWorkspaceRoles.status, "active"),
+      )),
+    db.select().from(applicationAccess).where(and(
+      eq(applicationAccess.organizationId, organizationId),
+      isNull(applicationAccess.deletedAt),
+    )),
   ]);
-  const orgUsers = await db.select().from(users).where(and(eq(users.organizationId, actor(req).organizationId), isNull(users.deletedAt)));
+  const auditedRejections = accessRows.length
+    ? await db.select({ entityId: auditAuditLogEntries.entityId }).from(auditAuditLogEntries).where(and(
+      eq(auditAuditLogEntries.organizationId, organizationId),
+      eq(auditAuditLogEntries.entityType, "application_access"),
+      eq(auditAuditLogEntries.action, "reject_access"),
+      inArray(auditAuditLogEntries.entityId, accessRows.map((row) => row.id)),
+    ))
+    : [];
+  const auditRejectedIds = new Set(auditedRejections.map((row) => row.entityId));
   const byUsername = activeUserIdentityByUsername(orgUsers, actor(req).organizationId);
-  res.json(paginated(rows.map((x) => ({ id: x.id, ...accessRequestIdentity(x.username, byUsername), requestedRoleId: "", status: "pending", requestedAt: x.createdAt })), Number(count), page, limit));
+  const manageableAssignments = assignments.filter((assignment) =>
+    canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds));
+  const assignmentsByUsername = new Map<string, typeof manageableAssignments>();
+  for (const assignment of manageableAssignments) {
+    const rows = assignmentsByUsername.get(assignment.username) ?? [];
+    rows.push(assignment);
+    assignmentsByUsername.set(assignment.username, rows);
+  }
+  const activeAccessByUsername = new Set(accessRows.map((row) => row.username));
+  const entries = accessRows
+    .filter((row) => !row.canOpenAudit && !auditRejectedIds.has(row.id) && byUsername.has(row.username) && assignmentsByUsername.has(row.username))
+    .map((row) => ({
+      id: row.id, ...accessRequestIdentity(row.username, byUsername), requestedRoleId: "",
+      status: "pending", requestedAt: row.createdAt,
+    }));
+  for (const [username, userAssignments] of assignmentsByUsername) {
+    if (activeAccessByUsername.has(username)) continue;
+    const requester = byUsername.get(username);
+    if (!requester) continue;
+    const roleAssignment = userAssignments[0]!;
+    entries.push({
+      id: `missing:${requester.id}`, ...accessRequestIdentity(username, byUsername),
+      requestedRoleId: roleAssignment.roleId, status: "pending", requestedAt: roleAssignment.createdAt,
+    });
+  }
+  entries.sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+  res.json(paginated(entries.slice(offset, offset + limit), entries.length, page, limit));
 }));
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.DecideAuditAccessRequestBody, req);
-  const [before] = await db.select().from(applicationAccess).where(and(eq(applicationAccess.id, String(req.params.id)), eq(applicationAccess.organizationId, actor(req).organizationId), isNull(applicationAccess.deletedAt)));
-  if (!before) throw new HttpError(404, "Access request not found");
-  if (before.canOpenAudit) throw new HttpError(409, "Access request has already been decided");
-  const [row] = await db.update(applicationAccess).set({ canOpenAudit: data.decision === "approve", status: data.decision === "approve" ? "active" : "rejected", updatedAt: new Date() }).where(eq(applicationAccess.id, before.id)).returning();
-  await auditLog(req, `${data.decision}_access`, "application_access", row.id, before, row); res.json(row);
+  const requestId = String(req.params.id);
+  if (requestId.startsWith("missing:")) {
+    const userId = requestId.slice("missing:".length);
+    const created = await db.transaction(async (tx) => {
+      const [user] = await tx.select().from(users).where(and(
+        eq(users.id, userId), eq(users.organizationId, actor(req).organizationId),
+        eq(users.accessStatus, "active"), eq(users.status, "active"), isNull(users.deletedAt),
+      )).for("update");
+      if (!user) throw new HttpError(404, "Active Audit role assignment not found");
+      const assignedRoles = await tx.select({
+        projectIds: auditUserWorkspaceRoles.projectIds,
+        businessUnitIds: auditUserWorkspaceRoles.businessUnitIds,
+      }).from(auditUserWorkspaceRoles)
+        .innerJoin(auditWorkspaceRoles, and(
+          eq(auditWorkspaceRoles.id, auditUserWorkspaceRoles.workspaceRoleId),
+          eq(auditWorkspaceRoles.organizationId, actor(req).organizationId),
+          eq(auditWorkspaceRoles.status, "active"), isNull(auditWorkspaceRoles.deletedAt),
+        ))
+        .where(and(
+          eq(auditUserWorkspaceRoles.userId, user.id),
+          eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId),
+          eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
+        ));
+      if (!assignedRoles.length) throw new HttpError(404, "Active Audit role assignment not found");
+      const manageable = assignedRoles.find((assignment) =>
+        canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds));
+      if (!manageable) throw new HttpError(403, "You may only manage role assignments within your assigned projects");
+      assertCanManageAssignmentScope(req, manageable.projectIds, manageable.businessUnitIds);
+      const [existingAccess] = await tx.select().from(applicationAccess).where(and(
+        eq(applicationAccess.organizationId, actor(req).organizationId),
+        eq(applicationAccess.username, user.username), isNull(applicationAccess.deletedAt),
+      )).limit(1);
+      if (existingAccess) throw new HttpError(409, "User already has an application access record");
+      const [row] = await tx.insert(applicationAccess).values({
+        organizationId: actor(req).organizationId,
+        username: user.username,
+        canOpenAudit: data.decision === "approve",
+      }).returning();
+      if (!row) throw new HttpError(500, "Failed to record access decision");
+      await writeAuditLog(tx, "audit", {
+        organizationId: actor(req).organizationId,
+        actorId: actor(req).id,
+        action: `${data.decision}_access`,
+        entityType: "application_access",
+        entityId: row.id,
+        after: row,
+        ipAddress: req.ip,
+      });
+      return row;
+    });
+    res.json(created);
+    return;
+  }
+  const decided = await db.transaction(async (tx) => {
+    const [candidate] = await tx.select({
+      username: applicationAccess.username,
+    }).from(applicationAccess).where(and(
+      eq(applicationAccess.id, requestId),
+      eq(applicationAccess.organizationId, actor(req).organizationId),
+      isNull(applicationAccess.deletedAt),
+    ));
+    if (!candidate) throw new HttpError(404, "Access request not found");
+    const [user] = await tx.select().from(users).where(and(
+      eq(users.organizationId, actor(req).organizationId),
+      eq(users.username, candidate.username),
+      eq(users.accessStatus, "active"), eq(users.status, "active"), isNull(users.deletedAt),
+    )).for("update");
+    if (!user) throw new HttpError(404, "Active Audit role assignment not found");
+    const [before] = await tx.select().from(applicationAccess).where(and(
+      eq(applicationAccess.id, requestId),
+      eq(applicationAccess.organizationId, actor(req).organizationId),
+      isNull(applicationAccess.deletedAt),
+    )).for("update");
+    if (!before) throw new HttpError(404, "Access request not found");
+    if (before.username !== candidate.username) throw new HttpError(409, "Access request changed while being decided");
+    if (before.canOpenAudit) throw new HttpError(409, "Access request has already been decided");
+    const assignedRoles = await tx.select({
+      projectIds: auditUserWorkspaceRoles.projectIds,
+      businessUnitIds: auditUserWorkspaceRoles.businessUnitIds,
+    }).from(auditUserWorkspaceRoles)
+      .innerJoin(auditWorkspaceRoles, and(
+        eq(auditWorkspaceRoles.id, auditUserWorkspaceRoles.workspaceRoleId),
+        eq(auditWorkspaceRoles.organizationId, actor(req).organizationId),
+        eq(auditWorkspaceRoles.status, "active"), isNull(auditWorkspaceRoles.deletedAt),
+      ))
+      .where(and(
+        eq(auditUserWorkspaceRoles.userId, user.id),
+        eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId),
+        eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
+      ));
+    if (!assignedRoles.length) throw new HttpError(404, "Active Audit role assignment not found");
+    const manageable = assignedRoles.find((assignment) =>
+      canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds));
+    if (!manageable) throw new HttpError(403, "You may only manage role assignments within your assigned projects");
+    assertCanManageAssignmentScope(req, manageable.projectIds, manageable.businessUnitIds);
+    const [priorRejection] = await tx.select({ id: auditAuditLogEntries.id }).from(auditAuditLogEntries).where(and(
+      eq(auditAuditLogEntries.organizationId, actor(req).organizationId),
+      eq(auditAuditLogEntries.entityType, "application_access"),
+      eq(auditAuditLogEntries.entityId, before.id),
+      eq(auditAuditLogEntries.action, "reject_access"),
+    )).limit(1);
+    if (priorRejection) throw new HttpError(409, "Access request has already been decided");
+    const [row] = await tx.update(applicationAccess).set({
+      canOpenAudit: data.decision === "approve",
+      updatedAt: new Date(),
+    }).where(and(
+      eq(applicationAccess.id, before.id),
+      eq(applicationAccess.canOpenAudit, false),
+    )).returning();
+    if (!row) throw new HttpError(409, "Access request has already been decided");
+    await writeAuditLog(tx, "audit", {
+      organizationId: actor(req).organizationId,
+      actorId: actor(req).id,
+      action: `${data.decision}_access`,
+      entityType: "application_access",
+      entityId: row.id,
+      before,
+      after: row,
+      ipAddress: req.ip,
+    });
+    return row;
+  });
+  res.json(decided);
 }));
 const delegationDto = (x: AnyRow, peopleById = new Map<string, AnyRow>()) => {
   const personFields = (prefix: "delegator" | "delegate", userId: string) => {

@@ -33,3 +33,4 @@
 - [Production schema synchronization](production-schema-synchronization.md) — a successful publish can still leave QMS360 production behind development; verify live schema when APIs return missing-relation errors.
 - [AWS client handoff](aws-client-handoff.md) — temporary public clone is the user's chosen handoff; it remains an irreversible disclosure, and manually run SQL needs migration tracking.
 - [Workspace package installation](workspace-package-installation.md) — package installer targets root; pnpm rejects unscoped root installs, so use artifact-filtered pnpm for leaf-only dependencies.
+- [Audit application approval policy](audit-application-approval-policy.md) — Audit role assignment must not itself unlock the application; keep a separate administrator approval step.
