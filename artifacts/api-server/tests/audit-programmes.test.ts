@@ -221,6 +221,7 @@ describe("audit programme parent/child workflow", () => {
     });
     const programmes = await api("GET", "/programmes", creator.token);
     expect(programmes.json.items.some((item: { id: string }) => item.id === "legacy")).toBe(true);
+    expect(programmes.json.items.find((item: { id: string }) => item.id === "legacy").currentApproverNames).toEqual([]);
   });
 
   it("deletes only empty unapproved programmes and unapproved child audits", async () => {
@@ -271,15 +272,66 @@ describe("audit programme parent/child workflow", () => {
     expect(duplicate.json.error).toBe("An Audit Plan already exists for this Audit Schedule");
   });
 
+  it("blocks child create, tombstone restoration, and new plans while a programme is submitted", async () => {
+    const programme = await api("POST", "/programmes", creator.token, {
+      title: "Submitted programme guards", fromDate: "2026-01-01", toDate: "2026-12-31",
+    });
+    const importPayload = {
+      id: crypto.randomUUID(), parentId: programme.json.id, year: 2026, title: "Restorable audit",
+      projectIds: [], auditTypes: ["Quality Internal Process Audit"], auditCategory: "Internal",
+      departmentProject: "Quality Department", plannedStartDate: "2026-04-01", plannedEndDate: "2026-04-02",
+      workflowState: "Draft",
+    };
+    const tombstone = await api("POST", "/schedules", creator.token, importPayload);
+    expect(tombstone.status).toBe(201);
+    expect((await api("DELETE", `/schedules/${tombstone.json.id}`, creator.token)).status).toBe(204);
+    const activeChild = await addChild(programme.json.id);
+    const submitted = await api("POST", `/programmes/${programme.json.id}/submit`, creator.token, {
+      subject: "Guarded programme", mailBody: "Please review this programme.",
+    });
+    expect(submitted.status).toBe(200);
+
+    const createBlocked = await api("POST", "/schedules", creator.token, {
+      ...importPayload, id: crypto.randomUUID(), title: "New audit",
+    });
+    expect(createBlocked.status).toBe(409);
+    const restoreBlocked = await api("POST", "/schedules", creator.token, importPayload);
+    expect(restoreBlocked.status).toBe(409);
+
+    const plan = await api("POST", "/plans", creator.token, {
+      id: crypto.randomUUID(), scheduleId: activeChild.id, auditFeasible: true, auditTitle: activeChild.title,
+      leadAuditorId: creator.id, teamMemberIds: [creator.id], auditeeId: creator.id,
+      qaqcScope: "ISO 9001", auditTypes: ["Quality Internal Process Audit"],
+      auditLanguage: "Verbal: English\nWriting: English", qaqcReference: "QAM-IA/26-",
+      startDateTime: "2026-01-01T08:00:00.000Z", endDateTime: "2026-01-01T16:00:00.000Z",
+      openingMeetingDateTime: "2026-01-01T08:00:00.000Z", closingMeetingDateTime: "2026-01-01T15:30:00.000Z",
+      activitySection: "General Requirement", activityRemarks: "Review controls",
+      activityAuditeeId: creator.id, activityDateTime: "2026-01-01T09:00:00.000Z",
+      auditPlanCirculation: "Programme Creator", status: "Draft",
+    });
+    expect(plan.status).toBe(409);
+  });
+
   it("snapshots L1/L2 roles and advances sequentially with authorization", async () => {
     const created = await api("POST", "/programmes", creator.token, { title: "Approval Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
     const existingChild = await addChild(created.json.id);
+    const independentlySubmittedChild = await addChild(created.json.id);
+    await db.update(auditSchedules).set({
+      workflowState: "submitted",
+      status: JSON.stringify({ parentId: created.json.id, independentlySubmitted: true }),
+    }).where(eq(auditSchedules.id, independentlySubmittedChild.id));
     const submitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token, { subject: "Approval programme", mailBody: "Please review and approve." });
     expect(submitted.status).toBe(200);
     expect(submitted.json.submissionSubject).toBe("Approval programme");
     expect(submitted.json.submissionMailBody).toBe("Please review and approve.");
     expect(submitted.json.currentApprovalRole).toBe("L1 Programme Approver");
+    expect(submitted.json.currentApproverNames).toEqual(["L1 Approver"]);
     expect(submitted.json.canReview).toBe(false);
+    expect((await api("GET", `/schedules/${existingChild.id}`, creator.token)).json.workflowState).toBe("Submitted");
+    expect((await api("GET", `/schedules/${independentlySubmittedChild.id}`, creator.token)).json.workflowState).toBe("Submitted");
+    const [independentRowAfterSubmit] = await db.select().from(auditSchedules).where(eq(auditSchedules.id, independentlySubmittedChild.id));
+    expect(JSON.parse(independentRowAfterSubmit!.status)).toMatchObject({ independentlySubmitted: true });
+    expect((await api("GET", `/programmes/${created.json.id}`, creator.token)).json.currentApproverNames).toEqual(["L1 Approver"]);
     const pendingSignatories = await api("GET", `/programmes/${created.json.id}/signatories`, creator.token);
     expect(pendingSignatories.status).toBe(200);
     expect(pendingSignatories.json).toMatchObject({
@@ -291,7 +343,9 @@ describe("audit programme parent/child workflow", () => {
       api("GET", "/programmes", l1.token),
       api("GET", "/programmes", l2.token),
     ]);
-    expect(l1List.json.items.find((item: { id: string }) => item.id === created.json.id).canReview).toBe(true);
+    expect(l1List.json.items.find((item: { id: string }) => item.id === created.json.id)).toMatchObject({
+      canReview: true, currentApproverNames: ["L1 Approver"],
+    });
     expect(l2List.json.items.find((item: { id: string }) => item.id === created.json.id).canReview).toBe(false);
     expect((await api("POST", `/programmes/${created.json.id}/review`, admin.token, { decision: "approve" })).status).toBe(403);
     const blocked = await api("POST", `/programmes/${created.json.id}/review`, creator.token, { decision: "approve" });
@@ -299,6 +353,7 @@ describe("audit programme parent/child workflow", () => {
     const first = await api("POST", `/programmes/${created.json.id}/review`, l1.token, { decision: "approve" });
     expect(first.status).toBe(200);
     expect(first.json.currentApprovalRole).toBe("L2 Programme Approver");
+    expect(first.json.currentApproverNames).toEqual(["L2 Approver"]);
     expect(first.json.canReview).toBe(false);
     const partiallyReviewedSignatories = await api("GET", `/programmes/${created.json.id}/signatories`, creator.token);
     expect(partiallyReviewedSignatories.json.reviewedBy).toEqual([
@@ -309,12 +364,19 @@ describe("audit programme parent/child workflow", () => {
     expect(sentBack.status).toBe(200);
     expect(sentBack.json.workflowState).toBe("Sent Back");
     expect(sentBack.json.currentApprovalRole).toBeNull();
+    expect(sentBack.json.currentApproverNames).toEqual([]);
     expect(sentBack.json.canReview).toBe(false);
+    expect((await api("GET", `/schedules/${existingChild.id}`, creator.token)).json.workflowState).toBe("Draft");
+    expect((await api("GET", `/schedules/${independentlySubmittedChild.id}`, creator.token)).json.workflowState).toBe("Submitted");
+    const newlyDraftChild = await addChild(created.json.id);
     const creatorList = await api("GET", "/programmes", creator.token);
     expect(creatorList.json.items.find((item: { id: string }) => item.id === created.json.id).canSubmit).toBe(true);
     const resubmitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token, { subject: "Revised approval programme", mailBody: "The requested revisions are complete." });
     expect(resubmitted.status).toBe(200);
     expect(resubmitted.json.currentApprovalRole).toBe("L1 Programme Approver");
+    expect(resubmitted.json.currentApproverNames).toEqual(["L1 Approver"]);
+    expect((await api("GET", `/schedules/${existingChild.id}`, creator.token)).json.workflowState).toBe("Submitted");
+    expect((await api("GET", `/schedules/${newlyDraftChild.id}`, creator.token)).json.workflowState).toBe("Submitted");
     expect((await api("POST", `/programmes/${created.json.id}/review`, l2.token, { decision: "approve" })).status).toBe(409);
     expect((await api("POST", `/programmes/${created.json.id}/review`, l1.token, { decision: "approve" })).status).toBe(200);
     const second = await api("POST", `/programmes/${created.json.id}/review`, l2.token, { decision: "approve" });

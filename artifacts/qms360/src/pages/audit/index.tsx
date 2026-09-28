@@ -765,11 +765,12 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
   </div>;
 }
 
-function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan }: {
+function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan, planCreationDisabled }: {
   items: AuditSchedule[];
   onDisplay: (item: AuditSchedule) => void;
   onEdit: (item: AuditSchedule) => void;
   onNewPlan: (item: AuditSchedule) => void;
+  planCreationDisabled: boolean;
 }) {
   if (items.length === 0) return null;
 
@@ -826,7 +827,7 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan }: {
                     <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onDisplay(item)}>Display</Button>
                     {item.workflowState === "Draft" && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onEdit(item)}>Edit</Button>}
                     {item.feasibilityFeedback && <Button size="icon" variant="ghost" className="size-7" aria-label="View feasibility feedback" title="View Remarks / Feedback" onClick={() => onDisplay(item)}><Info className="size-4"/></Button>}
-                    <Button size="sm" className="h-7 px-2 text-xs" title={item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => onNewPlan(item)}>New Plan</Button>
+                    <Button size="sm" className="h-7 px-2 text-xs" title={planCreationDisabled ? "New plans cannot be created while the audit schedule is submitted" : item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={planCreationDisabled || item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => onNewPlan(item)}>New Plan</Button>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center border-r p-3 text-xs" style={{ width: fixedColumns[1].width }}>{item.departmentProject || "—"}</div>
@@ -896,16 +897,44 @@ function ProgrammeForm({ onClose }: { onClose: () => void }) {
   </div>;
 }
 
+function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
+  item: { id: string; title: string };
+  onClose: () => void;
+  onSubmitted: (updated: AuditProgramme) => void;
+}) {
+  const [subject, setSubject] = useState(item.title);
+  const [mailBody, setMailBody] = useState("");
+  const submit = useSubmitAuditProgramme();
+  const { toast } = useToast();
+  const submitProgramme = () => {
+    if (!subject.trim() || !mailBody.trim()) return;
+    submit.mutate({ id: item.id, data: { subject: subject.trim(), mailBody: mailBody.trim() } }, {
+      onSuccess: updated => { onSubmitted(updated); onClose(); },
+      onError: e => toast({ title: "Unable to submit schedule", description: errorText(e), variant: "destructive" }),
+    });
+  };
+  return <Dialog open onOpenChange={isOpen => !isOpen && onClose()}>
+    <DialogContent className="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>Submit audit schedule</DialogTitle>
+        <DialogDescription>Enter the email content to retain with this approval submission. Email delivery will be enabled separately.</DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-4 py-2">
+        <div className="grid gap-2"><Label htmlFor="schedule-submission-subject">Subject</Label><Input id="schedule-submission-subject" value={subject} onChange={event => setSubject(event.target.value)} maxLength={200}/></div>
+        <div className="grid gap-2"><Label htmlFor="schedule-submission-body">Mail Body</Label><Textarea id="schedule-submission-body" value={mailBody} onChange={event => setMailBody(event.target.value)} rows={8} maxLength={10000}/></div>
+      </div>
+      <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={submitProgramme} disabled={submit.isPending || !subject.trim() || !mailBody.trim()}>Submit for approval</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
+
 function Programmes() {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState<{ id: string; title: string }>();
-  const [submissionSubject, setSubmissionSubject] = useState("");
-  const [submissionMailBody, setSubmissionMailBody] = useState("");
   const query = useListAuditProgrammes({ page, limit: PAGE_SIZE });
   const qc = useQueryClient();
   const { toast } = useToast();
-  const submit = useSubmitAuditProgramme();
   const review = useReviewAuditProgramme();
   const remove = useDeleteAuditProgramme();
   const done = (message: string, updated?: AuditProgramme) => {
@@ -914,51 +943,18 @@ function Programmes() {
         current ? { ...current, items: current.items.map(item => item.id === updated.id ? updated : item) } : current);
     }
     void qc.invalidateQueries({ queryKey: getListAuditProgrammesQueryKey() });
+    void qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
+    void qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] });
     toast({ title: message });
-  };
-  const openSubmission = (item: { id: string; title: string }) => {
-    setSubmitting(item);
-    setSubmissionSubject(item.title);
-    setSubmissionMailBody("");
-  };
-  const closeSubmission = () => {
-    setSubmitting(undefined);
-    setSubmissionSubject("");
-    setSubmissionMailBody("");
-  };
-  const submitProgramme = () => {
-    if (!submitting || !submissionSubject.trim() || !submissionMailBody.trim()) return;
-    submit.mutate({
-      id: submitting.id,
-      data: { subject: submissionSubject.trim(), mailBody: submissionMailBody.trim() },
-    }, {
-      onSuccess: updated => {
-        done("Audit schedule submitted", updated);
-        closeSubmission();
-      },
-      onError: e => toast({ title: "Unable to submit schedule", description: errorText(e), variant: "destructive" }),
-    });
   };
   return <div className="space-y-5">
     <PageHeader title="Audit schedules" description="Create and manage annual audit programmes" action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 size-4"/>New Schedule</Button>} />
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>New Schedule</DialogTitle></DialogHeader><ProgrammeForm onClose={() => setOpen(false)} /></DialogContent></Dialog>
-    <Dialog open={!!submitting} onOpenChange={isOpen => !isOpen && closeSubmission()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Submit audit schedule</DialogTitle>
-          <DialogDescription>Enter the email content to retain with this approval submission. Email delivery will be enabled separately.</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-2">
-          <div className="grid gap-2"><Label htmlFor="schedule-submission-subject">Subject</Label><Input id="schedule-submission-subject" value={submissionSubject} onChange={event => setSubmissionSubject(event.target.value)} maxLength={200} /></div>
-          <div className="grid gap-2"><Label htmlFor="schedule-submission-body">Mail Body</Label><Textarea id="schedule-submission-body" value={submissionMailBody} onChange={event => setSubmissionMailBody(event.target.value)} rows={8} maxLength={10000} /></div>
-        </div>
-        <DialogFooter><Button variant="outline" onClick={closeSubmission}>Cancel</Button><Button onClick={submitProgramme} disabled={submit.isPending || !submissionSubject.trim() || !submissionMailBody.trim()}>Submit for approval</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
+    {submitting && <ProgrammeSubmitDialog key={submitting.id} item={submitting} onClose={() => setSubmitting(undefined)} onSubmitted={updated => done("Audit schedule submitted", updated)}/>}
     <State loading={query.isLoading} error={query.error} empty={!(query.data?.items?.length)} label="No audit schedules found." />
-    {!!query.data?.items?.length && <Card><Table><TableHeader><TableRow><TableHead>Audit schedule</TableHead><TableHead>Dates</TableHead><TableHead>Audits</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
-      {query.data.items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" asChild><Link href={`/audit/schedules/${item.id}`}>{item.title}</Link></Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : "Annual programme"}</div></TableCell><TableCell>{date(item.fromDate)} – {date(item.toDate)}</TableCell><TableCell>{item.childCount}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell><div className="flex justify-end gap-1">
-        {item.id !== "legacy" && item.canSubmit && <Button size="sm" disabled={item.childCount === 0 || submit.isPending} onClick={() => openSubmission(item)}>{item.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}
+    {!!query.data?.items?.length && <Card><Table><TableHeader><TableRow><TableHead>Audit schedule</TableHead><TableHead>Dates</TableHead><TableHead>Audits</TableHead><TableHead>Status</TableHead><TableHead>Pending approver</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
+      {query.data.items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" asChild><Link href={`/audit/schedules/${item.id}`}>{item.title}</Link></Button><div className="text-xs text-muted-foreground">Annual programme</div></TableCell><TableCell>{date(item.fromDate)} – {date(item.toDate)}</TableCell><TableCell>{item.childCount}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell>{item.workflowState === "Submitted" ? <><div className="font-medium">{item.currentApproverNames.length ? item.currentApproverNames.join(", ") : "No active assignee"}</div><div className="text-xs text-muted-foreground">{item.currentApprovalRole ?? "Approval role unavailable"}</div></> : "—"}</TableCell><TableCell><div className="flex justify-end gap-1">
+        {item.id !== "legacy" && item.canSubmit && <Button size="sm" disabled={item.childCount === 0 || !!submitting} onClick={() => setSubmitting(item)}>{item.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}
         {item.id !== "legacy" && item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: updated => done("Audit schedule approved", updated), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id: item.id, data: { decision: "send_back", comments } }, { onSuccess: updated => done("Audit schedule sent back", updated), onError: e => toast({ title: "Unable to send back schedule", description: errorText(e), variant: "destructive" }) }); }}>Send back</Button></>}
         {item.id !== "legacy" && <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved audit schedules cannot be deleted" : item.childCount > 0 ? "Audit schedules with child audits cannot be deleted" : "Delete audit schedule"} disabled={item.workflowState === "Approved" || item.childCount > 0 || remove.isPending} onClick={() => window.confirm("Delete this audit schedule?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Audit schedule deleted"), onError: e => toast({ title: "Unable to delete audit schedule", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>}
       </div></TableCell></TableRow>)}
@@ -969,6 +965,7 @@ function Programmes() {
 function Schedules() {
   const { parentId = "" } = useParams<{ parentId: string }>();
   const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false); const [displaying, setDisplaying] = useState<AuditSchedule | undefined>();
+  const [submitting, setSubmitting] = useState<{ id: string; title: string }>();
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
   const [planning, setPlanning] = useState<AuditSchedule | undefined>();
   const query = useListAuditSchedules({ page, limit: PAGE_SIZE, parentId }); const planSchedules = useListAuditPlans({ page: 1, limit: 100 }); const qc = useQueryClient(); const { toast } = useToast();
@@ -986,6 +983,11 @@ function Schedules() {
     .map(schedule => occupiedScheduleIds.has(schedule.id) ? { ...schedule, hasPlan: true } : schedule)
     .filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
   const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] }); qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] }); toast({ title: message }); };
+  const parentSubmitted = programme.data?.workflowState === "Submitted";
+  const programmeSubmitted = (updated: AuditProgramme) => {
+    qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated);
+    done("Audit schedule submitted");
+  };
   const sendBack = (id: string) => { const comments = window.prompt("Send-back remarks (required)"); if (comments?.trim()) review.mutate({ id, data: { decision: "send_back", comments } }, { onSuccess: () => done("Schedule sent back") }); };
   const range = parentId !== "legacy" && programme.data ? { fromDate: programme.data.fromDate.slice(0, 10), toDate: programme.data.toDate.slice(0, 10) } : undefined;
   const download = async () => {
@@ -1098,7 +1100,8 @@ function Schedules() {
     finally { setLoadingFile(false); if (fileInput.current) fileInput.current.value = ""; }
   };
   const programmePending = parentId !== "legacy" && (programme.isLoading || !programme.data);
-  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void download()} disabled={allChildren.isLoading || downloading || programmePending}><Download className="mr-2 size-4"/>{downloading ? "Downloading…" : "Download"}</Button><Button variant="outline" onClick={() => fileInput.current?.click()} disabled={loadingFile || projects.isLoading || programmePending}><Upload className="mr-2 size-4"/>{loadingFile ? "Loading…" : "Load"}</Button><input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void loadFile(file); }}/><Button disabled={programmePending} onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button></div>}/>
+  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void download()} disabled={allChildren.isLoading || downloading || programmePending}><Download className="mr-2 size-4"/>{downloading ? "Downloading…" : "Download"}</Button><Button variant="outline" onClick={() => fileInput.current?.click()} disabled={loadingFile || projects.isLoading || programmePending || parentSubmitted}><Upload className="mr-2 size-4"/>{loadingFile ? "Loading…" : "Load"}</Button><input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void loadFile(file); }}/>{parentId !== "legacy" && programme.data?.canSubmit && <Button variant="outline" disabled={programmePending || !programme.data.childCount || !!submitting} onClick={() => setSubmitting({ id: parentId, title: programme.data.title })}>{programme.data.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}<Button disabled={programmePending || parentSubmitted} title={parentSubmitted ? "New audits cannot be created while the audit schedule is submitted" : undefined} onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button></div>}/>
+    {submitting && <ProgrammeSubmitDialog key={submitting.id} item={submitting} onClose={() => setSubmitting(undefined)} onSubmitted={programmeSubmitted}/>}
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
       <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/40 shrink-0">
@@ -1114,11 +1117,11 @@ function Schedules() {
       <Button size="sm" variant="outline" onClick={() => setDisplaying(item)}>Display</Button>
       {item.workflowState === "Draft" && <Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button>}
       {item.feasibilityFeedback && <Button size="icon" variant="ghost" aria-label={`View feasibility feedback for ${item.title}`} title="View Remarks / Feedback" onClick={() => setDisplaying(item)}><Info className="size-4"/></Button>}
-      <Button size="sm" title={item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>
+      <Button size="sm" title={parentSubmitted ? "New plans cannot be created while the audit schedule is submitted" : item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={parentSubmitted || item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>
       {item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved") })}>Approve</Button><Button size="sm" variant="outline" onClick={() => sendBack(item.id)}>Send back</Button></>}
       <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved child audits cannot be deleted" : "Delete child audit"} disabled={item.workflowState === "Approved" || remove.isPending} onClick={() => window.confirm("Delete this child audit?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Child audit deleted"), onError: e => toast({ title: "Unable to delete child audit", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>
     </div></TableCell></TableRow>)}</TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card>}
-    {items.length > 0 && viewMode === "gantt" && <div className="space-y-4"><ScheduleGantt items={items} onDisplay={setDisplaying} onEdit={item => { setEditing(item); setOpen(true); }} onNewPlan={setPlanning}/><Card className="bg-transparent border-none shadow-none"><CardContent className="p-0"><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card></div>}
+    {items.length > 0 && viewMode === "gantt" && <div className="space-y-4"><ScheduleGantt items={items} onDisplay={setDisplaying} onEdit={item => { setEditing(item); setOpen(true); }} onNewPlan={setPlanning} planCreationDisabled={parentSubmitted}/><Card className="bg-transparent border-none shadow-none"><CardContent className="p-0"><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card></div>}
   </div>;
 }
 

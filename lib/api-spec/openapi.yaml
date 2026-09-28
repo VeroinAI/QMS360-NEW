@@ -2590,7 +2590,7 @@ components:
         toDate: {type: string, format: date, description: Required when rescheduling an audit}
     AuditProgramme:
       type: object
-      required: [id, title, fromDate, toDate, workflowState, childCount, currentApprovalRole, approvalRoles, canReview, canSubmit, submissionSubject, submissionMailBody]
+      required: [id, title, fromDate, toDate, workflowState, childCount, currentApprovalRole, currentApproverNames, approvalRoles, canReview, canSubmit, submissionSubject, submissionMailBody]
       properties:
         id: {type: string}
         title: {type: string}
@@ -2599,6 +2599,7 @@ components:
         workflowState: {$ref: "#/components/schemas/WorkflowState"}
         childCount: {type: number}
         currentApprovalRole: {type: [string, "null"]}
+        currentApproverNames: {type: array, items: {type: string}, readOnly: true}
         approvalRoles: {type: array, items: {type: string}}
         canReview: {type: boolean, readOnly: true}
         canSubmit: {type: boolean, readOnly: true}

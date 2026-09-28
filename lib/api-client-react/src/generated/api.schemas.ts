@@ -2277,6 +2277,7 @@ export interface AuditProgramme {
   childCount: number;
   /** @nullable */
   currentApprovalRole: string | null;
+  readonly currentApproverNames: readonly string[];
   approvalRoles: string[];
   readonly canReview: boolean;
   readonly canSubmit: boolean;
