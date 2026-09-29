@@ -283,6 +283,7 @@ export * from './limitParameter';
 export * from './listAuditAccessQueueParams';
 export * from './listAuditDelegationsParams';
 export * from './listAuditEvidenceParams';
+export * from './listAuditEvidenceScope';
 export * from './listAuditFindingsParams';
 export * from './listAuditMyActionsParams';
 export * from './listAuditNotificationsParams';

@@ -38,7 +38,7 @@ export async function evidenceLimits(organizationId: string) {
 export async function createEvidenceIntent(input: EvidenceIntentInput) {
   validateEvidenceFile(input.mimeType, input.sizeBytes, await evidenceLimits(input.organizationId));
   const table = evidenceTable(input.app);
-  const directUpload = input.app === "audit" && ["organization_chart", "good_practices"].includes(input.category);
+  const directUpload = input.app === "audit" && ["organization_chart", "good_practices", "attachment"].includes(input.category);
   if (input.clientReference) {
     const [existing] = await db.select({ id: table.id }).from(table).where(and(
       eq(table.organizationId, input.organizationId),
@@ -75,7 +75,7 @@ export async function confirmEvidence(database: any, app: AppKey, id: string, or
     const [pending] = await database.select().from(table).where(and(
       eq(table.id, id), eq(table.organizationId, organizationId), isNull(table.deletedAt),
     )).limit(1);
-    if (pending && ["organization_chart", "good_practices"].includes(pending.category) && pending.status !== "stored") {
+    if (pending && ["organization_chart", "good_practices", "attachment"].includes(pending.category) && pending.status !== "stored") {
       if (!pending.storageKey.startsWith("gcs:")) throw new Error("Evidence upload is not ready");
       let object: Response;
       try {

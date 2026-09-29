@@ -1210,7 +1210,7 @@ paths:
   /audit/cars/{id}/close:
     post: {operationId: closeCorrectiveActionReport, tags: [audit], summary: Verify effectiveness and close CAR, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Closed}}}
   /audit/evidence:
-    get: {operationId: listAuditEvidence, tags: [audit], summary: List audit evidence, parameters: [{$ref: "#/components/parameters/RecordType"}, {$ref: "#/components/parameters/RecordId"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/EvidencePage"}}}
+    get: {operationId: listAuditEvidence, tags: [audit], summary: List audit evidence, parameters: [{$ref: "#/components/parameters/RecordType"}, {$ref: "#/components/parameters/RecordId"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: scope, in: query, schema: {type: string, enum: [attachments]}}], responses: {"200": {$ref: "#/components/responses/EvidencePage"}}}
     post: {operationId: createAuditEvidenceIntent, tags: [audit], summary: Create evidence upload intent, requestBody: {$ref: "#/components/requestBodies/EvidenceIntent"}, responses: {"201": {description: Upload intent, content: {application/json: {schema: {$ref: "#/components/schemas/UploadIntent"}}}}}}
   /audit/evidence/{id}/confirm:
     put: {operationId: confirmAuditEvidence, tags: [audit], summary: Confirm evidence upload, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Confirmed}}}

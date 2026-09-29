@@ -130,7 +130,7 @@ export function GoodPracticesEditor({ auditId, saved, onUpdated }: {
     }
   };
   const remove = (row: PracticeDraft) => {
-    if (row.evidenceId && !window.confirm("Remove this row? Its attachment will remain available in Evidence files.")) return;
+    if (row.evidenceId && !window.confirm("Remove this row? Its uploaded file will remain available in the Attachment tile.")) return;
     setRows(current => current.filter(item => item.id !== row.id));
     setDirty(true);
   };

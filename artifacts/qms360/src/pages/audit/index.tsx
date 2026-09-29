@@ -98,6 +98,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { AdditionalDocumentSections } from "./additional-document-sections";
+import { AuditAttachments } from "./audit-attachments";
 import * as XLSX from "xlsx";
 import { downloadScheduleWorkbook, resolveScheduleProject, scheduleCategoryLinkError, scheduleFieldForHeader } from "./schedule-workbook";
 import { checklistFindings, downloadChecklistWorkbook, parseChecklistWorkbook } from "./checklist-workbook";
@@ -1784,7 +1785,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
       if (draft.file && !fileId) {
         const type = draft.file.type || "application/octet-stream";
         const upload = await intent.mutateAsync({ data: {
-          recordType: "audit", recordId: auditId, category: type.startsWith("image/") ? "image" : "document",
+          recordType: "audit", recordId: auditId, category: "checklist",
           fileName: draft.file.name, mimeType: type, sizeBytes: draft.file.size,
           clientReference: uploadReference.current,
         } });
@@ -1862,19 +1863,13 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
   </Card>;
 }
 
-function Evidence({ auditId }: { auditId: string }) {
-  const query=useListAuditEvidence({recordType:"audit",recordId:auditId,page:1,limit:100}); const intent=useCreateAuditEvidenceIntent(); const confirm=useConfirmAuditEvidence(); const qc=useQueryClient(); const {toast}=useToast();
-  const upload=async(file:File)=>{const max=file.type.startsWith("video/")?200:file.type.startsWith("image/")?8:25;if(file.size>max*1024*1024){toast({title:`File exceeds ${max}MB limit`,variant:"destructive"});return;}intent.mutate({data:{recordType:"audit",recordId:auditId,category:file.type.split("/")[0]||"document",fileName:file.name,mimeType:file.type||"application/octet-stream",sizeBytes:file.size,clientReference:crypto.randomUUID()}},{onSuccess:async data=>{try{const response=await fetch(data.uploadUrl,{method:"PUT",body:file,headers:{"Content-Type":file.type||"application/octet-stream"}});if(!response.ok)throw new Error("Storage upload failed");confirm.mutate({id:data.id},{onSuccess:()=>{qc.invalidateQueries({queryKey:["/api/audit/evidence"]});toast({title:"Evidence uploaded"});}})}catch(e){toast({title:"Upload failed",description:errorText(e),variant:"destructive"})}}})};
-  return <Card><CardHeader><div className="flex justify-between"><div><CardTitle>Evidence files</CardTitle><CardDescription>Photos ≤8MB · video ≤200MB / 3min · documents ≤25MB</CardDescription></div><Button asChild><Label className="cursor-pointer"><Upload className="mr-2 size-4"/>Upload<input className="hidden" type="file" onChange={e=>e.target.files?.[0]&&upload(e.target.files[0])}/></Label></Button></div></CardHeader><CardContent><State loading={query.isLoading} error={query.error} empty={!query.data?.items.length}/><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{query.data?.items.map(file=><div key={file.id} className="flex items-center gap-3 rounded-lg border p-3"><div className="rounded bg-muted p-2"><FileText className="size-5"/></div><div className="min-w-0"><p className="truncate text-sm font-medium">{file.fileName}</p><p className="text-xs text-muted-foreground">{(file.sizeBytes/1024/1024).toFixed(1)}MB · {file.status}</p></div></div>)}</div></CardContent></Card>;
-}
-
 function AuditWorkspace() {
   const {id=""}=useParams<{id:string}>(); const query=useGetAudit(id);
   if(query.isLoading||query.error||!query.data)return <div className="space-y-4"><Button variant="ghost" asChild><Link href="/audit/audits"><ArrowLeft className="mr-2 size-4"/>Audits</Link></Button><State loading={query.isLoading} error={query.error} empty={!query.data}/></div>;
   const audit=query.data;
   return <div className="space-y-5"><Button variant="ghost" asChild><Link href="/audit/audits"><ArrowLeft className="mr-2 size-4"/>All audits</Link></Button><PageHeader title={audit.title} description={`Execution workspace · ${audit.status}`} action={<Button variant="outline" asChild><Link href={`/audit/audits/${id}/report`}>View report</Link></Button>}/><Tabs defaultValue="overview"><TabsList className="h-auto flex-wrap"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="checklist">Checklist</TabsTrigger><TabsTrigger value="opening">Opening meeting</TabsTrigger><TabsTrigger value="findings">Findings</TabsTrigger><TabsTrigger value="evidence">Additional Documents</TabsTrigger><TabsTrigger value="closing">Closing meeting</TabsTrigger></TabsList>
     <TabsContent value="overview"><Card><CardHeader><CardTitle>Audit overview</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><div><Label>Status</Label><div><Badge>{audit.status}</Badge></div></div><div><Label>Project</Label><p>{audit.projectId}</p></div><div><Label>Plan</Label><p>{audit.planId}</p></div><div><Label>Started</Label><p>{date(audit.startedAt)}</p></div><div><Label>Closed</Label><p>{date(audit.closedAt)}</p></div><div><Label>Checklist</Label><p>{audit.checklist?.length??0} items</p></div></CardContent></Card></TabsContent>
-    <TabsContent value="checklist"><Checklist auditId={id} initial={(audit.checklist??[]).filter(item => item.source !== "finding")}/></TabsContent><TabsContent value="opening"><MeetingEditor auditId={id} kind="opening" value={audit.openingMeeting}/></TabsContent><TabsContent value="findings"><FindingsGrid auditId={id} items={audit.checklist??[]}/></TabsContent><TabsContent value="evidence"><div className="space-y-4"><AdditionalDocumentSections auditId={id} documents={audit.additionalDocuments}/><Evidence auditId={id}/></div></TabsContent><TabsContent value="closing"><MeetingEditor auditId={id} kind="closing" value={audit.closingMeeting}/></TabsContent></Tabs></div>;
+    <TabsContent value="checklist"><Checklist auditId={id} initial={(audit.checklist??[]).filter(item => item.source !== "finding")}/></TabsContent><TabsContent value="opening"><MeetingEditor auditId={id} kind="opening" value={audit.openingMeeting}/></TabsContent><TabsContent value="findings"><FindingsGrid auditId={id} items={audit.checklist??[]}/></TabsContent><TabsContent value="evidence"><div className="space-y-4"><AdditionalDocumentSections auditId={id} documents={audit.additionalDocuments}/><AuditAttachments auditId={id}/></div></TabsContent><TabsContent value="closing"><MeetingEditor auditId={id} kind="closing" value={audit.closingMeeting}/></TabsContent></Tabs></div>;
 }
 
 function CarEditor({car,onClose}:{car:CorrectiveActionReport;onClose:()=>void}) {

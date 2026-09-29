@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LimitParameter } from './limitParameter';
+import type { ListAuditEvidenceScope } from './listAuditEvidenceScope';
 import type { PageParameter } from './pageParameter';
 import type { RecordIdParameter } from './recordIdParameter';
 import type { RecordTypeParameter } from './recordTypeParameter';
@@ -22,4 +23,5 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+scope?: ListAuditEvidenceScope;
 };

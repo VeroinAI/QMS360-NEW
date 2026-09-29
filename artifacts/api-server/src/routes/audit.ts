@@ -2812,7 +2812,23 @@ router.get("/evidence", asyncHandler(async (req, res) => {
   const { page, limit } = parsed.data;
   await assertAuditRecordAccess(req, parsed.data.recordType, parsed.data.recordId);
   const all = await listEvidence(db, "audit", actor(req).organizationId, parsed.data.recordType, parsed.data.recordId);
-  res.json(paginated(all.slice((page - 1) * limit, page * limit).map(evidenceDto), all.length, page, limit));
+  if (parsed.data.scope !== "attachments") {
+    res.json(paginated(all.slice((page - 1) * limit, page * limit).map(evidenceDto), all.length, page, limit));
+    return;
+  }
+  if (parsed.data.recordType !== "audit") throw new HttpError(422, "Attachment scope is only available for audits");
+  const [audit] = await db.select({ checklistState: audits.checklistState }).from(audits).where(and(
+    active(audits, actor(req).organizationId), eq(audits.id, parsed.data.recordId),
+  )).limit(1);
+  if (!audit) throw new HttpError(404, "Audit not found");
+  const checklistIds = new Set(
+    (Array.isArray(audit.checklistState) ? audit.checklistState : [])
+      .flatMap((item: AnyRow) => Array.isArray(item.evidenceIds) ? item.evidenceIds : []),
+  );
+  const attachments = all.filter((file: AnyRow) =>
+    file.status === "stored" && !checklistIds.has(file.id) && file.category !== "checklist")
+    .sort((a: AnyRow, b: AnyRow) => b.createdAt.getTime() - a.createdAt.getTime());
+  res.json(paginated(attachments.slice((page - 1) * limit, page * limit).map(evidenceDto), attachments.length, page, limit));
 }));
 
 async function scopedAuditRows(req: Request, projectId?: string, module = "audits") {

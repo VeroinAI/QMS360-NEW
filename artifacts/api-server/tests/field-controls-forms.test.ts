@@ -711,6 +711,60 @@ describe("Conforming and Good Practices", () => {
   });
 });
 
+describe("Audit Attachment tile", () => {
+  it("hides Checklist files, keeps older standalone uploads, and confirms multiple independent attachments", async () => {
+    const legacyChecklistId = crypto.randomUUID();
+    const legacyStandaloneId = crypto.randomUUID();
+    const newChecklistId = crypto.randomUUID();
+    await db.insert(auditEvidenceFiles).values([
+      { id: legacyChecklistId, organizationId: orgId, recordType: "audit", recordId: auditId,
+        category: "document", fileName: "old-checklist.pdf", mimeType: "application/pdf",
+        sizeBytes: 12, storageKey: "", uploadedById: admin.id, status: "stored" },
+      { id: legacyStandaloneId, organizationId: orgId, recordType: "audit", recordId: auditId,
+        category: "document", fileName: "old-attachment.pdf", mimeType: "application/pdf",
+        sizeBytes: 12, storageKey: "", uploadedById: admin.id, status: "stored" },
+      { id: newChecklistId, organizationId: orgId, recordType: "audit", recordId: auditId,
+        category: "checklist", fileName: "new-checklist.pdf", mimeType: "application/pdf",
+        sizeBytes: 12, storageKey: "", uploadedById: admin.id, status: "stored" },
+    ]);
+    const [audit] = await db.select({ checklistState: audits.checklistState }).from(audits).where(eq(audits.id, auditId));
+    await db.update(audits).set({ checklistState: [
+      ...(audit!.checklistState as any[]), { id: crypto.randomUUID(), evidenceIds: [legacyChecklistId] },
+    ] as any }).where(eq(audits.id, auditId));
+    const listPath = `/audit/evidence?recordType=audit&recordId=${auditId}&page=1&limit=200`;
+    const before = await api("GET", `${listPath}&scope=attachments`, { token: admin.token });
+    expect(before.status).toBe(200);
+    expect(before.json.items.map((file: { id: string }) => file.id)).toContain(legacyStandaloneId);
+    expect(before.json.items.map((file: { id: string }) => file.id)).not.toContain(legacyChecklistId);
+    expect(before.json.items.map((file: { id: string }) => file.id)).not.toContain(newChecklistId);
+    const unfiltered = await api("GET", listPath, { token: admin.token });
+    expect(unfiltered.json.items.map((file: { id: string }) => file.id)).toContain(legacyChecklistId);
+
+    const attachedIds: string[] = [];
+    for (const fileName of ["first.pdf", "second.pdf"]) {
+      const created = await api("POST", "/audit/evidence", { token: admin.token, body: {
+        recordType: "audit", recordId: auditId, category: "attachment",
+        fileName, mimeType: "application/pdf", sizeBytes: 12, clientReference: crypto.randomUUID(),
+      } });
+      expect(created.status).toBe(201);
+      expect(created.json.uploadUrl).toBe(`https://storage.example.invalid/qms360/audit/${created.json.id}`);
+      testObjects.set(`qms360/audit/${created.json.id}`, {
+        bytes: new TextEncoder().encode("file content"), mimeType: "application/pdf",
+      });
+      expect((await api("PUT", `/audit/evidence/${created.json.id}/confirm`, { token: admin.token })).status).toBe(200);
+      attachedIds.push(created.json.id);
+    }
+    const listed = await api("GET", `${listPath}&scope=attachments`, { token: admin.token });
+    expect(listed.json.items.map((file: { id: string }) => file.id)).toEqual(
+      expect.arrayContaining([legacyStandaloneId, ...attachedIds]),
+    );
+    const paged = await api("GET", `/audit/evidence?recordType=audit&recordId=${auditId}&page=1&limit=1&scope=attachments`, { token: admin.token });
+    expect(paged.json.total).toBe(listed.json.total);
+    expect(paged.json.items).toHaveLength(1);
+    await db.update(audits).set({ checklistState: audit!.checklistState }).where(eq(audits.id, auditId));
+  });
+});
+
 describe("Audit evidence for projectless Process audits", () => {
   it("stores and links authenticated attachments for project-backed and Process audits", async () => {
     const [schedule] = await db.insert(auditSchedules).values({

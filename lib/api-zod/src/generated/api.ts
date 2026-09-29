@@ -8588,7 +8588,8 @@ export const ListAuditEvidenceQueryParams = zod.object({
   "recordType": zod.coerce.string(),
   "recordId": zod.coerce.string(),
   "page": zod.coerce.number().min(1).default(listAuditEvidenceQueryPageDefault),
-  "limit": zod.coerce.number().min(1).max(listAuditEvidenceQueryLimitMax).default(listAuditEvidenceQueryLimitDefault)
+  "limit": zod.coerce.number().min(1).max(listAuditEvidenceQueryLimitMax).default(listAuditEvidenceQueryLimitDefault),
+  "scope": zod.enum(['attachments']).optional()
 })
 
 export const listAuditEvidenceResponseOneTotalMin = 0;

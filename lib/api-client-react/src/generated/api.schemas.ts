@@ -4070,7 +4070,15 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+scope?: ListAuditEvidenceScope;
 };
+
+export type ListAuditEvidenceScope = typeof ListAuditEvidenceScope[keyof typeof ListAuditEvidenceScope];
+
+
+export const ListAuditEvidenceScope = {
+  attachments: 'attachments',
+} as const;
 
 export type GetAuditOpenVsClosedReportParams = {
 projectId?: ProjectIdParameter;
