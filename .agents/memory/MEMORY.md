@@ -35,6 +35,7 @@
 - [Workspace package installation](workspace-package-installation.md) — package installer targets root; pnpm rejects unscoped root installs, so use artifact-filtered pnpm for leaf-only dependencies.
 - [Audit application approval policy](audit-application-approval-policy.md) — Audit role assignment must not itself unlock the application; keep a separate administrator approval step.
 - [Audit type-category links](audit-type-category-links.md) — administrators maintain category-to-type links in master data; do not infer a hardcoded mapping from existing schedules.
+- [Task rebase verification](task-rebase-verification.md) — after resolving overlapping task edits, rerun focused tests against the final rebased tree; semantic merging can scramble test bodies.
 - [Audit Team Lead marker](audit-team-lead-marker.md) — role authorization identifies future Audit Team Lead workflows; it must not grant unrelated actions by itself.
 - [Audit Program Manager marker](audit-program-manager-marker.md) — permits only post-approval Team Lead changes on scoped Audit Schedules, not general edit or approval.
 - [Product / Process Owner marker](product-process-owner-marker.md) — assigned Audit users can be selected as Schedule owners; the marker alone grants no Audit actions.

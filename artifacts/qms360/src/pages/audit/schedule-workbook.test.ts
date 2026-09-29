@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import type { AuditSchedule } from "@workspace/api-client-react";
-import { createScheduleWorkbook, resolveScheduleProject, scheduleFieldForHeader, scheduleImportHeaders } from "./schedule-workbook";
+import { createScheduleWorkbook, resolveScheduleProject, scheduleCategoryLinkError, scheduleFieldForHeader, scheduleImportHeaders } from "./schedule-workbook";
 
 const options = {
   auditTypes: [{ value: "Quality Internal Process Audit", label: "Quality Internal Process Audit" }],
@@ -102,25 +102,25 @@ describe("audit schedule spreadsheet", () => {
 
     expect(sheet.getCell("B2").value).toBe("Old Category");
     expect(sheet.getCell("B2").dataValidation.formulae).toEqual([
-      'INDIRECT("AuditCategoryType"&MATCH($A2,AuditTypes,0))',
+      'INDIRECT(IFERROR(VLOOKUP($A2,AuditCategoryMap,2,FALSE),"EmptyAuditCategories"))',
     ]);
     expect(sheet.getCell("B3").dataValidation.formulae).toEqual([
-      'INDIRECT("AuditCategoryType"&MATCH($A3,AuditTypes,0))',
+      'INDIRECT(IFERROR(VLOOKUP($A3,AuditCategoryMap,2,FALSE),"EmptyAuditCategories"))',
     ]);
     expect(lists.state).toBe("veryHidden");
     expect(lists.getCell("E2").value).toBe("Eligible Owner");
     expect(lists.getCell("E3").value).toBeNull();
-    expect([lists.getCell("F2").value, lists.getCell("F3").value, lists.getCell("F4").value])
+    expect([lists.getCell("I2").value, lists.getCell("I3").value, lists.getCell("I4").value])
       .toEqual(["Business Unit", "Regional Office", null]);
-    expect([lists.getCell("G2").value, lists.getCell("G3").value, lists.getCell("G4").value])
+    expect([lists.getCell("J2").value, lists.getCell("J3").value, lists.getCell("J4").value])
       .toEqual(["Regional Office", "Project", null]);
-    expect(lists.getCell("H2").value).toBeNull();
-    expect(reopened.definedNames.getRanges("AuditCategoryType1").ranges)
-      .toEqual(["'Dropdown Values'!$F$2:$F$3"]);
-    expect(reopened.definedNames.getRanges("AuditCategoryType2").ranges)
-      .toEqual(["'Dropdown Values'!$G$2:$G$3"]);
-    expect(reopened.definedNames.getRanges("AuditCategoryType3").ranges)
-      .toEqual(["'Dropdown Values'!$H$2"]);
+    expect(lists.getCell("H4").value).toBe("EmptyAuditCategories");
+    expect(reopened.definedNames.getRanges("EmptyAuditCategories").ranges).toEqual(["'Dropdown Values'!$G$5"]);
+    expect(lists.getCell("G5").value).toBeNull();
+    expect(reopened.definedNames.getRanges("ScheduleCategories1").ranges)
+      .toEqual(["'Dropdown Values'!$I$2:$I$3"]);
+    expect(reopened.definedNames.getRanges("ScheduleCategories2").ranges)
+      .toEqual(["'Dropdown Values'!$J$2:$J$3"]);
     expect(reopened.getWorksheet("Instructions")?.getCell("B4").value).toContain("reselect the category");
   });
 
@@ -144,5 +144,53 @@ describe("audit schedule spreadsheet", () => {
     const loaded = XLSX.read(bytes, { type: "array" });
     const data = XLSX.utils.sheet_to_json<Record<string, string>>(loaded.Sheets["Audit Schedules"]);
     expect(resolveScheduleProject(options.projects, data[0]["Department / Project"])?.id).toBe("project-1");
+  });
+
+  it("keeps unrestricted categories when links are absent, including historical values", async () => {
+    const row = {
+      auditTypes: ["Process"], auditCategory: "Historical", title: "Existing",
+      plannedStartDate: "2026-10-01", plannedEndDate: "2026-10-02",
+    } as AuditSchedule;
+    const workbook = await createScheduleWorkbook([row], {
+      ...options, auditTypes: [{ value: "Process", label: "Process" }],
+      auditCategories: [{ value: "Current", label: "Current", metadata: {} }],
+    });
+    const { default: ExcelJS } = await import("exceljs");
+    const reopened = new ExcelJS.Workbook();
+    await reopened.xlsx.load(await workbook.xlsx.writeBuffer());
+    expect(reopened.getWorksheet("Audit Schedules")!.getCell("B2").value).toBe("Historical");
+    expect(reopened.getWorksheet("Audit Schedules")!.getCell("B3").dataValidation.formulae).toEqual(["AuditCategories"]);
+    expect(reopened.getWorksheet("Dropdown Values")!.getCell("B3").value).toBe("Historical");
+    expect(scheduleCategoryLinkError([{ value: "Current", label: "Current" }], ["Process"], "Historical")).toBeNull();
+  });
+
+  it("maps a multi-type export only to categories linked to every type", async () => {
+    const categories = [
+      { value: "Process only", label: "Process only", metadata: { auditTypeValues: ["Process"] } },
+      { value: "Shared", label: "Shared", metadata: { auditTypeValues: ["Process", "Product"] } },
+      { value: "Product only", label: "Product only", metadata: { auditTypeValues: ["Product"] } },
+    ];
+    const row = {
+      auditTypes: ["Process", "Product"], auditCategory: "Shared", title: "Combined",
+      plannedStartDate: "2026-10-01", plannedEndDate: "2026-10-02",
+    } as AuditSchedule;
+    const workbook = await createScheduleWorkbook([row], {
+      ...options, auditTypes: ["Process", "Product"].map(value => ({ value, label: value })),
+      auditCategories: categories,
+    });
+    const { default: ExcelJS } = await import("exceljs");
+    const reopened = new ExcelJS.Workbook();
+    await reopened.xlsx.load(await workbook.xlsx.writeBuffer());
+    const sheet = reopened.getWorksheet("Audit Schedules")!;
+    const lists = reopened.getWorksheet("Dropdown Values")!;
+    expect(sheet.getCell("A2").value).toBe("Process, Product");
+    expect(sheet.getCell("B2").value).toBe("Shared");
+    expect(lists.getCell("G4").value).toBe("Process, Product");
+    expect(lists.getCell("H4").value).toBe("ScheduleCategories3");
+    expect(reopened.definedNames.getRanges("ScheduleCategories3").ranges).toEqual(["'Dropdown Values'!$K$2"]);
+    expect(lists.getCell("K2").value).toBe("Shared");
+    expect(lists.getCell("K3").value).toBeNull();
+    expect(scheduleCategoryLinkError(categories, row.auditTypes, "Shared")).toBeNull();
+    expect(scheduleCategoryLinkError(categories, row.auditTypes, "Process only")).toContain("Product");
   });
 });

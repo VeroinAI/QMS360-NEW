@@ -37,6 +37,16 @@ export type ScheduleWorkbookOptions = {
   projects: Project[];
 };
 
+export function scheduleCategoryLinkError(
+  categories: Option[], auditTypes: string[], category: string,
+): string | null {
+  if (!categories.some(option => linkedAuditTypes(option).length)) return null;
+  const incompatible = auditTypes.filter(type =>
+    !categoryOptionsForAuditType(categories, type).some(option => option.value === category));
+  return incompatible.length
+    ? `Audit Category "${category}" is not linked to Audit Type(s) ${incompatible.join(", ")} in master data`
+    : null;
+}
 export async function createScheduleWorkbook(
   schedules: AuditSchedule[],
   options: ScheduleWorkbookOptions,
@@ -65,11 +75,14 @@ export async function createScheduleWorkbook(
 
   const lists = workbook.addWorksheet("Dropdown Values", { state: "veryHidden" });
   const unique = (values: string[]) => [...new Set(values.map(value => value.trim()).filter(Boolean))];
-  const typeValues = unique([...options.auditTypes.map(x => x.value), ...schedules.flatMap(x => x.auditTypes ?? [])]);
-  const categoriesAreLinked = options.auditCategories.some(category => linkedAuditTypes(category).length > 0);
+  const linkedCategories = options.auditCategories.some(category => linkedAuditTypes(category).length > 0);
+  const auditTypeChoices = unique([
+    ...options.auditTypes.map(x => x.value),
+    ...schedules.map(x => x.auditTypes?.join(", ") ?? ""),
+  ]);
   const columns = [
-    { name: "AuditTypes", values: typeValues },
-    { name: "AuditCategories", values: unique([...options.auditCategories.map(x => x.value), ...schedules.map(x => x.auditCategory ?? "")]) },
+    { name: "AuditTypes", values: auditTypeChoices },
+    { name: "AuditCategories", values: unique([...options.auditCategories.map(x => x.value), ...(!linkedCategories ? schedules.map(x => x.auditCategory ?? "") : [])]) },
     { name: "Departments", values: unique([...options.departments.flatMap(x => [x.label, x.value]), ...schedules.filter(x => x.auditTypes?.includes("Quality Internal Process Audit")).map(x => x.departmentProject ?? "")]) },
     { name: "Projects", values: unique([
       ...options.projects.map(projectDropdownLabel),
@@ -78,26 +91,44 @@ export async function createScheduleWorkbook(
           && !resolveScheduleProject(options.projects, x.departmentProject ?? ""))
         .map(x => x.departmentProject ?? ""),
     ]) },
-    // Only currently authorized users are valid choices; old exported cells
-    // keep their historical text without making it a selectable owner.
+    // Preserve old cell text but never offer a formerly authorized owner as a new selection.
     { name: "ProcessOwners", values: unique(options.processOwners.map(x => x.value)) },
   ];
-  if (categoriesAreLinked) {
-    typeValues.forEach((auditType, index) => {
-      columns.push({
-        name: `AuditCategoryType${index + 1}`,
-        // Do not add historical, now-incompatible values to the selectable list.
-        // Existing exported cells keep their values, but new choices follow current links.
-        values: unique(categoryOptionsForAuditType(options.auditCategories, auditType).map(category => category.value)),
-      });
-    });
-  }
   columns.forEach(({ name, values }, index) => {
     lists.getCell(1, index + 1).value = name;
     values.forEach((value, row) => { lists.getCell(row + 2, index + 1).value = value; });
     const letter = lists.getColumn(index + 1).letter;
     workbook.definedNames.add(`'Dropdown Values'!$${letter}$2:$${letter}$${Math.max(2, values.length + 1)}`, name);
   });
+  if (linkedCategories) {
+    // Store type -> named range separately from the legacy flat category list.
+    // Excel's INDIRECT resolves the name returned by VLOOKUP for each schedule row.
+    lists.getCell("G1").value = "Audit Type";
+    lists.getCell("H1").value = "Category Range";
+    // Reserve a blank cell below the mapping, away from populated owner lists.
+    const emptyCategoryRow = Math.max(3, columns[0].values.length + 2);
+    workbook.definedNames.add(`'Dropdown Values'!$G$${emptyCategoryRow}`, "EmptyAuditCategories");
+    columns[0].values.forEach((type, index) => {
+      const name = `ScheduleCategories${index + 1}`;
+      const column = lists.getColumn(9 + index);
+      const letter = column.letter;
+      const selectedTypes = type.split(",").map(value => value.trim()).filter(Boolean);
+      const values = unique(options.auditCategories
+        .filter(category => selectedTypes.every(selected =>
+          categoryOptionsForAuditType(options.auditCategories, selected).some(option => option.value === category.value)))
+        .map(category => category.value));
+      lists.getCell(index + 2, 7).value = type;
+      lists.getCell(index + 2, 8).value = values.length ? name : "EmptyAuditCategories";
+      lists.getCell(1, 9 + index).value = name;
+      values.forEach((value, row) => { lists.getCell(row + 2, 9 + index).value = value; });
+      if (values.length) {
+        workbook.definedNames.add(`'Dropdown Values'!$${letter}$2:$${letter}$${values.length + 1}`, name);
+      }
+    });
+    workbook.definedNames.add(
+      `'Dropdown Values'!$G$2:$H$${Math.max(2, columns[0].values.length + 1)}`, "AuditCategoryMap",
+    );
+  }
   const listValidation = (formula: string) => ({
     type: "list" as const, allowBlank: true, showErrorMessage: true,
     errorStyle: "error" as const, errorTitle: "Select a listed value",
@@ -106,8 +137,8 @@ export async function createScheduleWorkbook(
   const lastRow = Math.min(1_048_576, Math.max(1001, schedules.length + 501));
   for (let row = 2; row <= lastRow; row += 1) {
     sheet.getCell(`A${row}`).dataValidation = listValidation("AuditTypes");
-    sheet.getCell(`B${row}`).dataValidation = listValidation(categoriesAreLinked
-      ? `INDIRECT("AuditCategoryType"&MATCH($A${row},AuditTypes,0))`
+    sheet.getCell(`B${row}`).dataValidation = listValidation(linkedCategories
+      ? `INDIRECT(IFERROR(VLOOKUP($A${row},AuditCategoryMap,2,FALSE),"EmptyAuditCategories"))`
       : "AuditCategories");
     sheet.getCell(`C${row}`).dataValidation = listValidation(`IF($A${row}="Quality Internal Process Audit",Departments,Projects)`);
     sheet.getCell(`F${row}`).dataValidation = listValidation("ProcessOwners");
@@ -118,7 +149,7 @@ export async function createScheduleWorkbook(
     ["Audit Schedule Import Instructions"],
     ["Template columns", scheduleImportHeaders.join(", ")],
     ["Mandatory columns", "Audit Type, Audit Category, Department / Project, Audit Title, Process / Product Owner, From Date (YYYY-MM-DD), To Date (YYYY-MM-DD)"],
-    ["Dropdown fields", `Audit Type, Audit Category, Department / Project, Process / Product Owner (active Audit users assigned the Product / Process Owner authorization). The Department / Project dropdown depends on Audit Type.${categoriesAreLinked ? " The Audit Category dropdown also depends on Audit Type; reselect the category if you change the type." : ""}`],
+    ["Dropdown fields", "Audit Type, Audit Category, Department / Project, Process / Product Owner (active Audit users assigned the Product / Process Owner authorization). The Audit Category dropdown follows the Audit Type when links are configured in master data; reselect the category if you change the type. The Department / Project dropdown depends on Audit Type."],
     ["Date format", "YYYY-MM-DD"],
     ["Parent range", range ? `${range.fromDate} through ${range.toDate}` : "No parent range"],
   ].forEach(row => instructions.addRow(row));

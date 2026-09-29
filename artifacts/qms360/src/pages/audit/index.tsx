@@ -95,7 +95,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
-import { downloadScheduleWorkbook, resolveScheduleProject, scheduleFieldForHeader } from "./schedule-workbook";
+import { downloadScheduleWorkbook, resolveScheduleProject, scheduleCategoryLinkError, scheduleFieldForHeader } from "./schedule-workbook";
 import { useLov, withLegacyOption } from "@/lib/use-lov";
 import { categoryOptionsForAuditType } from "./audit-category-options";
 import { useFieldAccess } from "@/lib/use-field-access";
@@ -1219,6 +1219,7 @@ function Schedules() {
       }
       const rows = first ? XLSX.utils.sheet_to_json<Record<string, unknown>>(first, { defval: "" }) : [];
       if (!rows.length) { toast({ title: "No data rows found", variant: "destructive" }); return; }
+      const auditCategories = await getMasterDataLov("audit_categories");
       const eligibleOwners = new Set((await listAuditProcessProductOwners()).map(user => user.fullName));
       const firstProjects = await listPlatformProjects({ page: 1, limit: 200 });
       const projectRows = [...firstProjects.items];
@@ -1241,6 +1242,8 @@ function Schedules() {
         const required = ["auditTypes", "auditCategory", "departmentProject", "title", "processProductOwner", "plannedStartDate", "plannedEndDate"];
         const missing = required.filter(key => !String(mapped[key] ?? "").trim());
         if (missing.length) { failures.push(`row ${index + 2}: missing ${missing.join(", ")}`); continue; }
+        const categoryError = scheduleCategoryLinkError(auditCategories.values, importedAuditTypes, String(mapped.auditCategory).trim());
+        if (categoryError) { failures.push(`row ${index + 2}: ${categoryError}`); continue; }
         if (!eligibleOwners.has(String(mapped.processProductOwner).trim())) { failures.push(`row ${index + 2}: Process / Product Owner must be an active Audit user with Product / Process Owner authorization`); continue; }
         if (!start || !end) { failures.push(`row ${index + 2}: From Date and To Date must be valid calendar dates in YYYY-MM-DD format`); continue; }
         if (isImportedProcessAudit && !department) { failures.push(`row ${index + 2}: Department / Project must be an active department value or exact name`); continue; }
