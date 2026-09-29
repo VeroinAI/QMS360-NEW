@@ -43,3 +43,5 @@
 - [Audit Schedule numbering policy](audit-schedule-numbering-policy.md) — QA/QC Reference uses each audit's From Date year; yearless Audit Numbers remain unique per project/department across years.
 - [Checklist evidence vs import](checklist-workbook-import-ux.md) — the Evidence picker always attaches its file, including Excel; Upload Excel alone imports rows.
 - [Audit meeting attendee identity](opening-meeting-attendee-identity.md) — opening and closing selections use Audit user IDs; preserve old typed names and resolve IDs for display.
+- [Orval UUID format compatibility](orval-uuid-format.md) — new OpenAPI uuid formats generate unavailable z.uuid() in this workspace; validate references at the server boundary.
+- [Audit finding record coexistence](audit-finding-coexistence.md) — preserve older standalone findings and CAR links while the Findings workspace uses checklist-backed rows.

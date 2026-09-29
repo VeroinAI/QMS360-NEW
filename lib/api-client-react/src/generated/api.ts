@@ -40,7 +40,9 @@ import type {
   AuditChecklistImportItem,
   AuditChecklistItemInput,
   AuditFinding,
+  AuditFindingActionTakerInput,
   AuditFindingBody,
+  AuditFindingItemInput,
   AuditFindingPageResponse,
   AuditLogPageResponse,
   AuditMyActionsPage,
@@ -18227,6 +18229,152 @@ export const useImportAuditChecklistItems = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getImportAuditChecklistItemsMutationOptions(options));
+    }
+
+export const getCreateAuditFindingItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/finding-items`
+}
+
+/**
+ * @summary Add a finding-only row to this audit
+ */
+export const createAuditFindingItem = async (id: string,
+    auditFindingItemInput: AuditFindingItemInput, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getCreateAuditFindingItemUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditFindingItemInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAuditFindingItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAuditFindingItem>>, TError,{id: string;data: BodyType<AuditFindingItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAuditFindingItem>>, TError,{id: string;data: BodyType<AuditFindingItemInput>}, TContext> => {
+
+const mutationKey = ['createAuditFindingItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAuditFindingItem>>, {id: string;data: BodyType<AuditFindingItemInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createAuditFindingItem(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAuditFindingItemMutationResult = NonNullable<Awaited<ReturnType<typeof createAuditFindingItem>>>
+    export type CreateAuditFindingItemMutationBody = BodyType<AuditFindingItemInput>
+    export type CreateAuditFindingItemMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a finding-only row to this audit
+ */
+export const useCreateAuditFindingItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAuditFindingItem>>, TError,{id: string;data: BodyType<AuditFindingItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAuditFindingItem>>,
+        TError,
+        {id: string;data: BodyType<AuditFindingItemInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAuditFindingItemMutationOptions(options));
+    }
+
+export const getAssignAuditFindingActionTakerUrl = (id: string,
+    itemId: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/finding-items/${itemId}/action-taker`
+}
+
+/**
+ * @summary Assign an active QMS Audit user to a finding
+ */
+export const assignAuditFindingActionTaker = async (id: string,
+    itemId: string,
+    auditFindingActionTakerInput: AuditFindingActionTakerInput, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getAssignAuditFindingActionTakerUrl(id,itemId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditFindingActionTakerInput)
+  }
+);}
+
+
+
+
+
+export const getAssignAuditFindingActionTakerMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignAuditFindingActionTaker>>, TError,{id: string;itemId: string;data: BodyType<AuditFindingActionTakerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof assignAuditFindingActionTaker>>, TError,{id: string;itemId: string;data: BodyType<AuditFindingActionTakerInput>}, TContext> => {
+
+const mutationKey = ['assignAuditFindingActionTaker'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignAuditFindingActionTaker>>, {id: string;itemId: string;data: BodyType<AuditFindingActionTakerInput>}> = (props) => {
+          const {id,itemId,data} = props ?? {};
+
+          return  assignAuditFindingActionTaker(id,itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssignAuditFindingActionTakerMutationResult = NonNullable<Awaited<ReturnType<typeof assignAuditFindingActionTaker>>>
+    export type AssignAuditFindingActionTakerMutationBody = BodyType<AuditFindingActionTakerInput>
+    export type AssignAuditFindingActionTakerMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Assign an active QMS Audit user to a finding
+ */
+export const useAssignAuditFindingActionTaker = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignAuditFindingActionTaker>>, TError,{id: string;itemId: string;data: BodyType<AuditFindingActionTakerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof assignAuditFindingActionTaker>>,
+        TError,
+        {id: string;itemId: string;data: BodyType<AuditFindingActionTakerInput>},
+        TContext
+      > => {
+      return useMutation(getAssignAuditFindingActionTakerMutationOptions(options));
     }
 
 export const getListAuditFindingsUrl = (params?: ListAuditFindingsParams,) => {

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ChecklistItemAuditFinding } from './checklistItemAuditFinding';
+import type { ChecklistItemSource } from './checklistItemSource';
 
 export interface ChecklistItem {
   id: string;
@@ -21,4 +22,8 @@ export interface ChecklistItem {
   /** @nullable */
   notes?: string | null;
   evidenceIds?: string[];
+  /** Finding-only row, excluded from the Checklist tab */
+  source?: ChecklistItemSource;
+  actionTakerId?: string;
+  clientReference?: string;
 }

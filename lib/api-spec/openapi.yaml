@@ -1173,6 +1173,10 @@ paths:
     put: {operationId: editAuditChecklistItem, tags: [audit], summary: Edit a checklist item, parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string}}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditChecklistItemInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/audits/{id}/checklist/import:
     post: {operationId: importAuditChecklistItems, tags: [audit], summary: Update existing checklist items and append new ones atomically from a spreadsheet, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {type: array, minItems: 1, maxItems: 500, items: {$ref: "#/components/schemas/AuditChecklistImportItem"}}}}}, responses: {"201": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
+  /audit/audits/{id}/finding-items:
+    post: {operationId: createAuditFindingItem, tags: [audit], summary: Add a finding-only row to this audit, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingItemInput"}}}}, responses: {"201": {description: Updated audit with new finding, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
+  /audit/audits/{id}/finding-items/{itemId}/action-taker:
+    patch: {operationId: assignAuditFindingActionTaker, tags: [audit], summary: Assign an active QMS Audit user to a finding, parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string}}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingActionTakerInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/findings:
     get: {operationId: listAuditFindings, tags: [audit], summary: List audit findings, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditFindingPage"}}}
     post: {operationId: createAuditFinding, tags: [audit], summary: Create audit finding, requestBody: {$ref: "#/components/requestBodies/AuditFinding"}, responses: {"201": {description: Created}}}
@@ -2736,7 +2740,22 @@ components:
     ChecklistItem:
       type: object
       required: [id, question]
-      properties: {id: {type: string}, clause: {type: [string, "null"]}, auditArea: {type: string}, question: {type: string}, description: {type: [string, "null"]}, auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}, result: {type: string, description: "Legacy values managed via /platform/master-data/lov/checklist_results"}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}}
+      properties: {id: {type: string}, clause: {type: [string, "null"]}, auditArea: {type: string}, question: {type: string}, description: {type: [string, "null"]}, auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}, result: {type: string, description: "Legacy values managed via /platform/master-data/lov/checklist_results"}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}, source: {type: string, enum: [finding], description: "Finding-only row, excluded from the Checklist tab"}, actionTakerId: {type: string}, clientReference: {type: string}}
+    AuditFindingItemInput:
+      type: object
+      required: [clause, auditArea, auditFinding, actionTakerId]
+      properties:
+        clause: {type: string, minLength: 1}
+        auditArea: {type: string, minLength: 1}
+        description: {type: string}
+        auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI]}
+        evidenceIds: {type: array, items: {type: string}}
+        actionTakerId: {type: string}
+        clientReference: {type: string, minLength: 1, maxLength: 100}
+    AuditFindingActionTakerInput:
+      type: object
+      required: [actionTakerId]
+      properties: {actionTakerId: {type: string}}
     AuditChecklistItemInput:
       type: object
       required: [clause, auditArea, question]

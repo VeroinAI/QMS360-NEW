@@ -438,6 +438,50 @@ describe("Audit meeting attendee selection", () => {
     } });
     expect(legacyClosing.status).toBe(200);
     expect(legacyClosing.json.closingMeeting.attendees).toEqual([attendee!.id, "Original closing attendee"]);
+
+    const findingPath = `/audit/audits/${auditId}/finding-items`;
+    const finding = { clause: "9.2", auditArea: "Construction", description: "Missing records", auditFinding: "Moderate NC", actionTakerId: attendee!.id, clientReference: crypto.randomUUID() };
+    const invalidTaker = await api("POST", findingPath, { token: admin.token, body: { ...finding, actionTakerId: unapproved!.id } });
+    expect(invalidTaker.status).toBe(422);
+    const notApplicable = await api("POST", findingPath, { token: admin.token, body: { ...finding, auditFinding: "Not applicable" } });
+    expect(notApplicable.status).toBe(422);
+    const foreignEvidence = await api("POST", findingPath, { token: admin.token, body: { ...finding, evidenceIds: [crypto.randomUUID()] } });
+    expect(foreignEvidence.status).toBe(422);
+    const created = await api("POST", findingPath, { token: admin.token, body: finding });
+    expect(created.status).toBe(201);
+    const addedItem = created.json.checklist.at(-1);
+    expect(addedItem).toEqual(expect.objectContaining({ source: "finding", question: "", ...finding, evidenceIds: [] }));
+    const repeated = await api("POST", findingPath, { token: admin.token, body: finding });
+    expect(repeated.status).toBe(201);
+    expect(repeated.json.checklist).toHaveLength(created.json.checklist.length);
+    expect(repeated.json.checklist.at(-1).id).toBe(addedItem.id);
+    const invalidAssignment = await api("PATCH", `${findingPath}/${addedItem.id}/action-taker`, { token: admin.token, body: { actionTakerId: unapproved!.id } });
+    expect(invalidAssignment.status).toBe(422);
+    const assigned = await api("PATCH", `${findingPath}/${addedItem.id}/action-taker`, { token: admin.token, body: { actionTakerId: member.id } });
+    expect(assigned.status).toBe(200);
+    expect(assigned.json.checklist.at(-1)).toEqual(expect.objectContaining({ id: addedItem.id, actionTakerId: member.id }));
+    const auditReloaded = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+    expect(auditReloaded.json.checklist.at(-1)).toEqual(expect.objectContaining({ id: addedItem.id, actionTakerId: member.id }));
+    const checklistFinding = await api("POST", `/audit/audits/${auditId}/checklist/items`, { token: admin.token, body: {
+      clause: "8.1", auditArea: "QMS", question: "Are controls current?", auditFinding: "OFI",
+    } });
+    expect(checklistFinding.status).toBe(201);
+    const checklistId = checklistFinding.json.checklist.at(-1).id;
+    const checklistAssigned = await api("PATCH", `${findingPath}/${checklistId}/action-taker`, { token: admin.token, body: { actionTakerId: attendee!.id } });
+    expect(checklistAssigned.status).toBe(200);
+    const editedChecklist = await api("PUT", `/audit/audits/${auditId}/checklist/items/${checklistId}`, { token: admin.token, body: {
+      clause: "8.1", auditArea: "QMS", question: "Are controls current?", description: "Updated on checklist", auditFinding: "OFI",
+    } });
+    expect(editedChecklist.status).toBe(200);
+    expect(editedChecklist.json.checklist.at(-1)).toEqual(expect.objectContaining({ id: checklistId, description: "Updated on checklist", actionTakerId: attendee!.id }));
+    const [stored] = await db.select({ checklistState: audits.checklistState }).from(audits).where(eq(audits.id, auditId));
+    const legacyId = crypto.randomUUID();
+    await db.update(audits).set({ checklistState: [...stored!.checklistState as any[], {
+      id: legacyId, clause: "Old", question: "Historical check", result: "Observation",
+    }] as any }).where(eq(audits.id, auditId));
+    const legacyAssigned = await api("PATCH", `${findingPath}/${legacyId}/action-taker`, { token: admin.token, body: { actionTakerId: member.id } });
+    expect(legacyAssigned.status).toBe(200);
+    expect(legacyAssigned.json.checklist.at(-1)).toEqual(expect.objectContaining({ id: legacyId, result: "Observation", actionTakerId: member.id }));
   });
 });
 

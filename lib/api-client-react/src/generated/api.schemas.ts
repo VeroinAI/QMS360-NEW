@@ -2451,6 +2451,16 @@ export const ChecklistItemAuditFinding = {
   Not_applicable: 'Not applicable',
 } as const;
 
+/**
+ * Finding-only row, excluded from the Checklist tab
+ */
+export type ChecklistItemSource = typeof ChecklistItemSource[keyof typeof ChecklistItemSource];
+
+
+export const ChecklistItemSource = {
+  finding: 'finding',
+} as const;
+
 export interface ChecklistItem {
   id: string;
   /** @nullable */
@@ -2465,6 +2475,40 @@ export interface ChecklistItem {
   /** @nullable */
   notes?: string | null;
   evidenceIds?: string[];
+  /** Finding-only row, excluded from the Checklist tab */
+  source?: ChecklistItemSource;
+  actionTakerId?: string;
+  clientReference?: string;
+}
+
+export type AuditFindingItemInputAuditFinding = typeof AuditFindingItemInputAuditFinding[keyof typeof AuditFindingItemInputAuditFinding];
+
+
+export const AuditFindingItemInputAuditFinding = {
+  Minor_NC: 'Minor NC',
+  Moderate_NC: 'Moderate NC',
+  Major_NC: 'Major NC',
+  OFI: 'OFI',
+} as const;
+
+export interface AuditFindingItemInput {
+  /** @minLength 1 */
+  clause: string;
+  /** @minLength 1 */
+  auditArea: string;
+  description?: string;
+  auditFinding: AuditFindingItemInputAuditFinding;
+  evidenceIds?: string[];
+  actionTakerId: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  clientReference?: string;
+}
+
+export interface AuditFindingActionTakerInput {
+  actionTakerId: string;
 }
 
 export type AuditChecklistItemInputAuditFinding = typeof AuditChecklistItemInputAuditFinding[keyof typeof AuditChecklistItemInputAuditFinding];

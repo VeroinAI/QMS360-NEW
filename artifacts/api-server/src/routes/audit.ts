@@ -1948,7 +1948,12 @@ router.put("/audits/:id/checklist", asyncHandler(async (req, res) => {
     if (item.result) await assertLovValue(db, actor(req).organizationId, "checklist_results", item.result, { allowLegacy: legacyResults });
     if (item.auditArea) await assertLovValue(db, actor(req).organizationId, "Audit Area", item.auditArea, { allowLegacy: previous?.auditArea });
   }));
-  const [row] = await db.update(audits).set({ checklistState: data as any, updatedAt: new Date() }).where(eq(audits.id, before.id)).returning();
+  const merged = data.filter(item => item.source !== "finding").map(item => {
+    const previous = existingItems.get(item.id);
+    return previous ? { ...item, source: previous.source, actionTakerId: previous.actionTakerId } : item;
+  });
+  merged.push(...[...existingItems.values()].filter(item => item.source === "finding"));
+  const [row] = await db.update(audits).set({ checklistState: merged as any, updatedAt: new Date() }).where(eq(audits.id, before.id)).returning();
   await auditLog(req, "update_checklist", "audit", row.id, before, row); res.json(auditDto(row));
 }));
 
@@ -2005,6 +2010,7 @@ router.put("/audits/:id/checklist/items/:itemId", asyncHandler(async (req, res) 
     const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
     const previous = checklist.find(item => item.id === itemId);
     if (!previous) throw new HttpError(404, "Checklist item not found");
+    if (previous.source === "finding") throw new HttpError(404, "Checklist item not found");
     await assertLovValue(db, organizationId, "Audit Area", data.auditArea.trim(), { allowLegacy: previous.auditArea });
     const submittedIds = [...new Set((data.evidenceIds ?? previous.evidenceIds ?? []) as string[])];
     const priorIds = new Set((previous.evidenceIds ?? []) as string[]);
@@ -2040,6 +2046,7 @@ router.post("/audits/:id/checklist/import", asyncHandler(async (req, res) => {
     for (const [index, item] of data.entries()) {
       const previous = item.id ? existing.get(item.id) : undefined;
       if (item.id && !previous) throw new HttpError(422, `Row ${index + 2}: Checklist item is not in this audit`);
+      if (previous?.source === "finding") throw new HttpError(422, `Row ${index + 2}: finding-only rows cannot be imported as checklist items`);
       const area = item.auditArea.trim();
       const checkKey = `${area}\0${previous?.auditArea === area ? "legacy" : "active"}`;
       if (!checkedAreas.has(checkKey)) {
@@ -2058,6 +2065,62 @@ router.post("/audits/:id/checklist/import", asyncHandler(async (req, res) => {
   });
   await auditLog(req, "import_checklist_items", "audit", row.id, before, row);
   res.status(201).json(auditDto(row));
+}));
+
+router.post("/audits/:id/finding-items", asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.CreateAuditFindingItemBody, req);
+  const organizationId = actor(req).organizationId;
+  const auditId = String(req.params.id);
+  if (!data.clause.trim() || !data.auditArea.trim()) throw new HttpError(422, "Clause and Audit Area are required");
+  await assertLovValue(db, organizationId, "Audit Area", data.auditArea.trim());
+  const eligible = await eligibleMeetingAttendees(organizationId);
+  if (!eligible.some(user => user.id === data.actionTakerId)) throw new HttpError(422, "Select an active QMS Audit user as Action Taker");
+  const evidenceIds = await checklistEvidenceIds(organizationId, auditId, data.evidenceIds ?? []);
+  const { before, row, created } = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    const checklist = Array.isArray(before.checklistState) ? before.checklistState : [];
+    if (data.clientReference && checklist.some((entry: AnyRow) => entry.source === "finding" && entry.clientReference === data.clientReference)) {
+      return { before, row: before, created: false };
+    }
+    const item = {
+      id: randomUUID(), source: "finding", question: "", clause: data.clause.trim(),
+      auditArea: data.auditArea.trim(), description: data.description?.trim() || null,
+      auditFinding: data.auditFinding, evidenceIds, actionTakerId: data.actionTakerId,
+      ...(data.clientReference ? { clientReference: data.clientReference } : {}),
+    };
+    const [row] = await tx.update(audits).set({ checklistState: [...checklist, item] as any, updatedAt: new Date() })
+      .where(eq(audits.id, auditId)).returning();
+    return { before, row, created: true };
+  });
+  if (created) await auditLog(req, "add_finding_item", "audit", auditId, before, row);
+  res.status(201).json(auditDto(row));
+}));
+
+router.patch("/audits/:id/finding-items/:itemId/action-taker", asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.AssignAuditFindingActionTakerBody, req);
+  const organizationId = actor(req).organizationId;
+  const auditId = String(req.params.id);
+  if (!(await eligibleMeetingAttendees(organizationId)).some(user => user.id === data.actionTakerId)) {
+    throw new HttpError(422, "Select an active QMS Audit user as Action Taker");
+  }
+  const { before, row } = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
+    const item = checklist.find(entry => entry.id === String(req.params.itemId));
+    const classification = item?.auditFinding || item?.result;
+    if (!item || typeof classification !== "string" || !classification.trim() || classification.trim().toLowerCase() === "not applicable") {
+      throw new HttpError(404, "Finding not found");
+    }
+    const [row] = await tx.update(audits).set({
+      checklistState: checklist.map(entry => entry.id === item.id ? { ...entry, actionTakerId: data.actionTakerId } : entry) as any,
+      updatedAt: new Date(),
+    }).where(eq(audits.id, auditId)).returning();
+    return { before, row };
+  });
+  await auditLog(req, "assign_finding_action_taker", "audit", auditId, before, row);
+  res.json(auditDto(row));
 }));
 
 type FindingMeta = { title?: string; clause?: string | null; responsibleDepartments?: string[]; evidenceIds?: string[]; raisedAt?: string };

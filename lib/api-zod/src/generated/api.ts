@@ -6707,7 +6707,10 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
-  "evidenceIds": zod.array(zod.string()).optional()
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
 })).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -6767,7 +6770,10 @@ export const ListAuditsResponse = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
-  "evidenceIds": zod.array(zod.string()).optional()
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
 })).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -6805,7 +6811,10 @@ export const CreateAuditBody = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
-  "evidenceIds": zod.array(zod.string()).optional()
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
 })).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -6848,7 +6857,10 @@ export const GetAuditResponse = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
-  "evidenceIds": zod.array(zod.string()).optional()
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
 })).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -6889,7 +6901,10 @@ export const UpdateAuditBody = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
-  "evidenceIds": zod.array(zod.string()).optional()
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
 })).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -6973,7 +6988,10 @@ export const UpdateAuditChecklistBodyItem = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
-  "evidenceIds": zod.array(zod.string()).optional()
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
 })
 export const UpdateAuditChecklistBody = zod.array(UpdateAuditChecklistBodyItem)
 
@@ -7028,7 +7046,10 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
-  "evidenceIds": zod.array(zod.string()).optional()
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
 })).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7084,7 +7105,10 @@ export const EditAuditChecklistItemResponse = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
-  "evidenceIds": zod.array(zod.string()).optional()
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
 })).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7141,7 +7165,119 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
+})).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Add a finding-only row to this audit
+ */
+export const CreateAuditFindingItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+export const createAuditFindingItemBodyClientReferenceMax = 100;
+
+
+
+export const CreateAuditFindingItemBody = zod.object({
+  "clause": zod.string().min(1),
+  "auditArea": zod.string().min(1),
+  "description": zod.string().optional(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI']),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "actionTakerId": zod.string(),
+  "clientReference": zod.string().min(1).max(createAuditFindingItemBodyClientReferenceMax).optional()
+})
+
+export const CreateAuditFindingItemResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
+})).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Assign an active QMS Audit user to a finding
+ */
+export const AssignAuditFindingActionTakerParams = zod.object({
+  "id": zod.coerce.string(),
+  "itemId": zod.coerce.string()
+})
+
+export const AssignAuditFindingActionTakerBody = zod.object({
+  "actionTakerId": zod.string()
+})
+
+export const AssignAuditFindingActionTakerResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
 })).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7752,7 +7888,10 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
   "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
-  "evidenceIds": zod.array(zod.string()).optional()
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
 })).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
