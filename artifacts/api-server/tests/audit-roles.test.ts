@@ -260,6 +260,36 @@ describe("Audit access queue for role holders without access rows", () => {
     expect(repeatDecision.status).toBe(409);
   });
 
+  it("requests Audit approval again when an unapproved user receives a role after rejection", async () => {
+    const { user, role } = await createRoleHolder("reassigned");
+    const firstQueue = await api("GET", "/audit/admin/access-queue?limit=200");
+    expect(firstQueue.json.items).toContainEqual(expect.objectContaining({
+      id: `missing:${user.id}`, status: "pending",
+    }));
+    const rejected = await api("POST", `/audit/admin/access-queue/missing:${user.id}/decision`, { decision: "reject" });
+    expect(rejected.status).toBe(200);
+    expect(rejected.json.canOpenAudit).toBe(false);
+    const hidden = await api("GET", "/audit/admin/access-queue?limit=200");
+    expect(hidden.json.items).not.toContainEqual(expect.objectContaining({ username: user.username }));
+
+    const assignment = await api("POST", `/audit/admin/users/${user.id}/roles`, {
+      roleId: role.id, scopeType: "organization", scopeIds: [],
+    });
+    expect(assignment.status).toBe(200);
+    const pending = await api("GET", "/audit/admin/access-queue?limit=200");
+    expect(pending.json.items).toContainEqual(expect.objectContaining({
+      id: rejected.json.id, username: user.username, status: "pending",
+    }));
+    const beforeApproval = await db.select().from(applicationAccess).where(eq(applicationAccess.id, rejected.json.id));
+    expect(beforeApproval[0]?.canOpenAudit).toBe(false);
+
+    const approved = await api("POST", `/audit/admin/access-queue/${rejected.json.id}/decision`, { decision: "approve" });
+    expect(approved.status).toBe(200);
+    expect(approved.json.canOpenAudit).toBe(true);
+    const afterApproval = await api("GET", "/audit/admin/access-queue?limit=200");
+    expect(afterApproval.json.items).not.toContainEqual(expect.objectContaining({ username: user.username }));
+  });
+
   it("keeps an unrelated application's rejected status from hiding an Audit request", async () => {
     const { user } = await createRoleHolder("other-app-reject");
     const [access] = await db.insert(applicationAccess).values({
@@ -280,6 +310,28 @@ describe("Audit access queue for role holders without access rows", () => {
       canOpenAudit: true,
       status: "rejected",
     }));
+  });
+
+  it("adds an existing unapproved account to the queue on role assignment without changing its access", async () => {
+    const [user] = await db.insert(users).values({
+      organizationId, email: `audit-existing.${suffix}@example.test`,
+      username: `audit-existing.${suffix}`, fullName: "Existing Unapproved",
+    }).returning();
+    const [access] = await db.insert(applicationAccess).values({
+      organizationId, username: user!.username, canOpenAudit: false, canOpenLessons: true,
+    }).returning();
+    const [role] = await db.insert(auditWorkspaceRoles).values({
+      organizationId, name: `Audit Existing Role ${suffix}`,
+    }).returning();
+    expect((await api("POST", `/audit/admin/users/${user!.id}/roles`, {
+      roleId: role!.id, scopeType: "organization", scopeIds: [],
+    })).status).toBe(200);
+    const queue = await api("GET", "/audit/admin/access-queue?limit=200");
+    expect(queue.json.items).toContainEqual(expect.objectContaining({
+      id: access!.id, username: user!.username, status: "pending",
+    }));
+    const [stillUnapproved] = await db.select().from(applicationAccess).where(eq(applicationAccess.id, access!.id));
+    expect(stillUnapproved).toMatchObject({ canOpenAudit: false, canOpenLessons: true });
   });
 
   it("rejects a real access-row decision outside the administrator's project scope", async () => {

@@ -2530,7 +2530,28 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   if (data.scopeType === "business_unit") throw new HttpError(422, "Business-unit scope is not supported; choose organization or project");
   const values = { organizationId: actor(req).organizationId, userId: user.id, workspaceRoleId: role.id, projectIds: data.scopeType === "project" ? await assertProjectScopeInOrg(db, actor(req).organizationId, data.scopeIds) : [], businessUnitIds: [], status: "active", updatedAt: new Date() };
   assertCanManageAssignmentScope(req, values.projectIds, values.businessUnitIds);
-  const [row] = existing ? await db.update(auditUserWorkspaceRoles).set(values).where(eq(auditUserWorkspaceRoles.id, existing.id)).returning() : await db.insert(auditUserWorkspaceRoles).values(values).returning();
+  const row = await db.transaction(async tx => {
+    const [assigned] = existing
+      ? await tx.update(auditUserWorkspaceRoles).set(values).where(eq(auditUserWorkspaceRoles.id, existing.id)).returning()
+      : await tx.insert(auditUserWorkspaceRoles).values(values).returning();
+    // Role assignment and the renewed request must commit together. A role
+    // never grants application access: only an approval can set canOpenAudit.
+    const accessRows = await tx.select().from(applicationAccess).where(and(
+      eq(applicationAccess.organizationId, actor(req).organizationId),
+      eq(applicationAccess.username, user.username),
+      isNull(applicationAccess.deletedAt),
+    ));
+    if (!accessRows.some(access => access.canOpenAudit)) {
+      for (const access of accessRows) {
+        await writeAuditLog(tx, "audit", {
+          organizationId: actor(req).organizationId, actorId: actor(req).id,
+          action: "request_access", entityType: "application_access", entityId: access.id,
+          after: { userId: user.id, roleId: role.id }, ipAddress: req.ip,
+        }, { dispatch: false });
+      }
+    }
+    return assigned;
+  });
   await auditLog(req, "assign_role", "user_workspace_role", row.id, existing, row); res.json(row);
 }));
 router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) => {
@@ -2549,6 +2570,26 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
   await auditLog(req, "remove_role", "user_workspace_role", assignment.id, assignment, { userId, roleId });
   res.status(204).end();
 }));
+
+async function latestAuditAccessDecisions(organizationId: string, accessIds: string[]) {
+  const latest = new Map<string, { action: string; requestedAt: Date }>();
+  if (!accessIds.length) return latest;
+  const events = await db.select({
+    entityId: auditAuditLogEntries.entityId,
+    action: auditAuditLogEntries.action,
+    createdAt: auditAuditLogEntries.createdAt,
+  }).from(auditAuditLogEntries).where(and(
+    eq(auditAuditLogEntries.organizationId, organizationId),
+    eq(auditAuditLogEntries.entityType, "application_access"),
+    inArray(auditAuditLogEntries.action, ["reject_access", "request_access"]),
+    inArray(auditAuditLogEntries.entityId, accessIds),
+  )).orderBy(asc(auditAuditLogEntries.createdAt));
+  for (const event of events) {
+    if (event.entityId) latest.set(event.entityId, { action: event.action, requestedAt: event.createdAt });
+  }
+  return latest;
+}
+
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const organizationId = actor(req).organizationId;
@@ -2577,15 +2618,7 @@ router.get("/admin/access-queue", asyncHandler(async (req, res) => {
       isNull(applicationAccess.deletedAt),
     )),
   ]);
-  const auditedRejections = accessRows.length
-    ? await db.select({ entityId: auditAuditLogEntries.entityId }).from(auditAuditLogEntries).where(and(
-      eq(auditAuditLogEntries.organizationId, organizationId),
-      eq(auditAuditLogEntries.entityType, "application_access"),
-      eq(auditAuditLogEntries.action, "reject_access"),
-      inArray(auditAuditLogEntries.entityId, accessRows.map((row) => row.id)),
-    ))
-    : [];
-  const auditRejectedIds = new Set(auditedRejections.map((row) => row.entityId));
+  const decisions = await latestAuditAccessDecisions(organizationId, accessRows.map(row => row.id));
   const byUsername = activeUserIdentityByUsername(orgUsers, actor(req).organizationId);
   const manageableAssignments = assignments.filter((assignment) =>
     canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds));
@@ -2596,11 +2629,12 @@ router.get("/admin/access-queue", asyncHandler(async (req, res) => {
     assignmentsByUsername.set(assignment.username, rows);
   }
   const activeAccessByUsername = new Set(accessRows.map((row) => row.username));
+  const approvedUsernames = new Set(accessRows.filter(row => row.canOpenAudit).map(row => row.username));
   const entries = accessRows
-    .filter((row) => !row.canOpenAudit && !auditRejectedIds.has(row.id) && byUsername.has(row.username) && assignmentsByUsername.has(row.username))
+    .filter((row) => !approvedUsernames.has(row.username) && decisions.get(row.id)?.action !== "reject_access" && byUsername.has(row.username) && assignmentsByUsername.has(row.username))
     .map((row) => ({
       id: row.id, ...accessRequestIdentity(row.username, byUsername), requestedRoleId: "",
-      status: "pending", requestedAt: row.createdAt,
+      status: "pending", requestedAt: decisions.get(row.id)?.requestedAt ?? row.createdAt,
     }));
   for (const [username, userAssignments] of assignmentsByUsername) {
     if (activeAccessByUsername.has(username)) continue;
@@ -2712,13 +2746,8 @@ router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) =>
       canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds));
     if (!manageable) throw new HttpError(403, "You may only manage role assignments within your assigned projects");
     assertCanManageAssignmentScope(req, manageable.projectIds, manageable.businessUnitIds);
-    const [priorRejection] = await tx.select({ id: auditAuditLogEntries.id }).from(auditAuditLogEntries).where(and(
-      eq(auditAuditLogEntries.organizationId, actor(req).organizationId),
-      eq(auditAuditLogEntries.entityType, "application_access"),
-      eq(auditAuditLogEntries.entityId, before.id),
-      eq(auditAuditLogEntries.action, "reject_access"),
-    )).limit(1);
-    if (priorRejection) throw new HttpError(409, "Access request has already been decided");
+    const decisions = await latestAuditAccessDecisions(actor(req).organizationId, [before.id]);
+    if (decisions.get(before.id)?.action === "reject_access") throw new HttpError(409, "Access request has already been decided");
     const [row] = await tx.update(applicationAccess).set({
       canOpenAudit: data.decision === "approve",
       updatedAt: new Date(),
