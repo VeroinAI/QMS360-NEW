@@ -1237,6 +1237,7 @@ export const PermissionKey = {
   export: 'export',
   delegate: 'delegate',
   memo_circulation: 'memo_circulation',
+  audit_team_lead: 'audit_team_lead',
 } as const;
 
 export interface Permission {
