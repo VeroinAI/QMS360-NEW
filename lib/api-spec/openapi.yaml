@@ -2604,13 +2604,14 @@ components:
         toDate: {type: string, format: date, description: Required when rescheduling an audit}
     AuditProgramme:
       type: object
-      required: [id, title, fromDate, toDate, teamLeadIds, workflowState, childCount, currentApprovalRole, currentApproverNames, approvalRoles, canReview, canSubmit, submissionSubject, submissionMailBody]
+      required: [id, title, fromDate, toDate, teamLeadIds, teamLeadNames, workflowState, childCount, currentApprovalRole, currentApproverNames, approvalRoles, canReview, canSubmit, submissionSubject, submissionMailBody]
       properties:
         id: {type: string}
         title: {type: string}
         fromDate: {type: string, format: date}
         toDate: {type: string, format: date}
         teamLeadIds: {type: array, items: {type: string}}
+        teamLeadNames: {type: array, items: {type: string}, readOnly: true, description: Names of the users selected as Audit Team Leads when this programme was created}
         workflowState: {$ref: "#/components/schemas/WorkflowState"}
         childCount: {type: number}
         currentApprovalRole: {type: [string, "null"]}

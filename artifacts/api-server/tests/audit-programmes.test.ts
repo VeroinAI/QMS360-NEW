@@ -194,7 +194,15 @@ describe("audit programme parent/child workflow", () => {
     const created = await api("POST", "/programmes", creator.token, { ...details, teamLeadIds: [creator.id] });
     expect(created.status).toBe(201);
     expect(created.json.teamLeadIds).toEqual([creator.id]);
-    expect((await api("GET", `/programmes/${created.json.id}`, creator.token)).json.teamLeadIds).toEqual([creator.id]);
+    expect(created.json.teamLeadNames).toEqual(["Programme Creator"]);
+    const savedDetails = await api("GET", `/programmes/${created.json.id}`, creator.token);
+    expect(savedDetails.json).toMatchObject({
+      title: details.title, teamLeadIds: [creator.id], teamLeadNames: ["Programme Creator"],
+    });
+    expect(savedDetails.json.fromDate.slice(0, 10)).toBe(details.fromDate);
+    expect(savedDetails.json.toDate.slice(0, 10)).toBe(details.toDate);
+    const programmeList = await api("GET", "/programmes", creator.token);
+    expect(programmeList.json.items.find((item: { id: string }) => item.id === created.json.id)?.teamLeadNames).toEqual(["Programme Creator"]);
     const child = await addChild(created.json.id);
     const schedules = await api("GET", `/schedules?parentId=${created.json.id}`, creator.token);
     expect(schedules.json.items.find((item: { id: string }) => item.id === child.id)?.teamLeadIds).toEqual([creator.id]);

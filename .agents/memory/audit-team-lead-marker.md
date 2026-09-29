@@ -14,3 +14,9 @@ New Audit programmes capture the selected Team Lead user IDs at creation. Child 
 **Why:** A user's assignment may change after schedule creation, but the Plan must honor the leads selected for that schedule; older programmes have no historical selection to enforce.
 
 **How to apply:** Resolve new selection options from active role assignments and Audit application access, then enforce the saved parent IDs when creating or updating a Plan. Do not silently substitute the current role membership for the saved selection.
+
+When displaying an existing programme's selected leads, resolve names from its saved user IDs rather than from the currently eligible Audit Team Lead list. Include former/inactive users' names when their user records remain available, and identify missing records explicitly.
+
+**Why:** Eligibility can change after a programme is created; a current-role lookup would make historical schedule details silently lose names even though the selected IDs are still stored.
+
+**How to apply:** Keep creation-time eligibility checks separate from read-only display of the saved selection.

@@ -623,8 +623,13 @@ async function programmeResponse(req: Request, row: AnyRow, childCount: number) 
   const currentRole = row.workflowState === "submitted"
     ? (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0]
     : null;
+  const selectedIds = meta.teamLeadIds ?? [];
+  const selectedUsers = selectedIds.length ? await db.select({ id: users.id, fullName: users.fullName })
+    .from(users).where(and(eq(users.organizationId, actor(req).organizationId), inArray(users.id, selectedIds))) : [];
+  const namesById = new Map(selectedUsers.map(user => [user.id, user.fullName]));
   return {
     ...programmeDto(row, childCount),
+    teamLeadNames: selectedIds.map(id => namesById.get(id) ?? `User unavailable (${id.slice(0, 8)})`),
     currentApproverNames: currentRole ? await roleUserNames(actor(req).organizationId, currentRole.id) : [],
     canReview: await canReviewApproval(req, row),
     canSubmit: ["draft", "sent_back"].includes(row.workflowState) && (row.ownerId === actor(req).id || req.permissionAdminBypass),
@@ -681,7 +686,7 @@ router.get("/programmes", asyncHandler(async (req, res) => {
   const legacy = (await Promise.all(legacyCandidates.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const visibleProgrammes = (await Promise.all(programmes.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const items = await Promise.all(visibleProgrammes.map(async row => programmeResponse(req, row, (await programmeChildren(req, row.id)).length)));
-  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
+  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], teamLeadNames: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
   const offset = (page - 1) * limit;
   res.json(paginated(items.slice(offset, offset + limit), items.length, page, limit));
 }));
@@ -706,7 +711,7 @@ router.get("/programmes/:id", asyncHandler(async (req, res) => {
   if (String(req.params.id) === "legacy") {
     const children = await programmeChildren(req, "legacy");
     if (!children.length) throw new HttpError(404, "Audit programme not found");
-    res.json({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
+    res.json({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], teamLeadNames: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
     return;
   }
   const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
