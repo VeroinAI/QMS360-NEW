@@ -77,6 +77,19 @@ export async function downloadChecklistWorkbook(areas: AuditAreaOption[], items:
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+/** Identify a checklist template even when a browser or user renamed the file. */
+export function isChecklistWorkbook(bytes: ArrayBuffer): boolean {
+  try {
+    const workbook = XLSX.read(bytes, { type: "array", sheetRows: 1 });
+    const sheet = workbook.Sheets.Checklist;
+    if (!sheet) return false;
+    const header = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, range: 0 })[0] ?? [];
+    return checklistHeaders.every((name, index) => String(header[index] ?? "").trim() === name);
+  } catch {
+    return false;
+  }
+}
+
 export function parseChecklistWorkbook(bytes: ArrayBuffer, areas: AuditAreaOption[], existing: ChecklistItem[] = []): ChecklistImportRow[] {
   const workbook = XLSX.read(bytes, { type: "array" });
   const sheet = workbook.Sheets.Checklist;
