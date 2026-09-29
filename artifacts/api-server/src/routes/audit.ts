@@ -1911,13 +1911,11 @@ async function updateMeeting(req: Request, kind: "opening" | "closing", schema: 
   const data = body<AnyRow>(schema, req);
   const [before] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit not found");
-  if (kind === "opening") {
-    const eligibleIds = new Set((await eligibleMeetingAttendees(actor(req).organizationId)).map(user => user.id));
-    // Existing free-text minutes remain editable without forcing a retrospective user match.
-    const previous = new Set((auditMeta(before).openingMeeting?.attendees ?? []) as string[]);
-    if (data.attendees.some((id: string) => !eligibleIds.has(id) && !previous.has(id))) {
-      throw new HttpError(422, "Select attendees from active QMS Audit users");
-    }
+  const eligibleIds = new Set((await eligibleMeetingAttendees(actor(req).organizationId)).map(user => user.id));
+  // Existing free-text minutes remain editable without forcing a retrospective user match.
+  const previous = new Set((auditMeta(before)[`${kind}Meeting`]?.attendees ?? []) as string[]);
+  if (data.attendees.some((id: string) => !eligibleIds.has(id) && !previous.has(id))) {
+    throw new HttpError(422, "Select attendees from active QMS Audit users");
   }
   await assertFieldAccess(req, "audit", "audit-execution", {
     mode: "update",

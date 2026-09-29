@@ -27,7 +27,6 @@ import {
   useGetAuditPlanOptions,
   useListAuditTeamLeads,
   useListAuditMeetingAttendees,
-  getListAuditMeetingAttendeesQueryKey,
   useListAuditProcessProductOwners,
   listAuditProcessProductOwners,
   useGetAuditProgramme,
@@ -1673,7 +1672,7 @@ function MeetingEditor({ auditId, kind, value }: { auditId: string; kind: "openi
   const qc = useQueryClient(); const { toast } = useToast();
   const fa = useFieldAccess("audit"); const locked = fa.readOnly("audit-execution", `${kind}Meeting`);
   const opening = useUpdateAuditOpeningMeeting(); const closing = useUpdateAuditClosingMeeting();
-  const attendeeOptions = useListAuditMeetingAttendees(auditId, { query: { enabled: kind === "opening", queryKey: getListAuditMeetingAttendeesQueryKey(auditId) } });
+  const attendeeOptions = useListAuditMeetingAttendees(auditId);
   const users = attendeeOptions.data ?? [];
   const toggleAttendee = (id: string) => setForm(current => ({
     ...current, attendees: current.attendees.includes(id)
@@ -1689,16 +1688,16 @@ function MeetingEditor({ auditId, kind, value }: { auditId: string; kind: "openi
   };
   return <Card><CardHeader><CardTitle className="capitalize">{kind} meeting minutes</CardTitle></CardHeader><CardContent className="space-y-4">
     <div><Label>Held at</Label><Input type="datetime-local" value={form.heldAt?.slice(0,16)} disabled={locked} onChange={e=>setForm(v=>({...v,heldAt:e.target.value}))}/></div>
-    {kind === "opening" ? <div className="space-y-2">
-      <Label id="opening-meeting-attendees">Attendees</Label>
+    <div className="space-y-2">
+      <Label id={`${kind}-meeting-attendees`}>Attendees</Label>
       <Popover open={attendeePickerOpen} onOpenChange={setAttendeePickerOpen}>
-        <PopoverTrigger asChild><Button type="button" variant="outline" role="combobox" aria-labelledby="opening-meeting-attendees" aria-expanded={attendeePickerOpen} disabled={locked || attendeeOptions.isLoading || !!attendeeOptions.error} className="w-full justify-between font-normal">{attendeeOptions.isLoading ? "Loading Audit users…" : `Select Audit users${form.attendees.length ? ` (${form.attendees.length} selected)` : ""}`}<ChevronDown className="ml-2 size-4 opacity-50"/></Button></PopoverTrigger>
+        <PopoverTrigger asChild><Button type="button" variant="outline" role="combobox" aria-labelledby={`${kind}-meeting-attendees`} aria-expanded={attendeePickerOpen} disabled={locked || attendeeOptions.isLoading || !!attendeeOptions.error} className="w-full justify-between font-normal">{attendeeOptions.isLoading ? "Loading Audit users…" : `Select Audit users${form.attendees.length ? ` (${form.attendees.length} selected)` : ""}`}<ChevronDown className="ml-2 size-4 opacity-50"/></Button></PopoverTrigger>
         <PopoverContent align="start" className="w-[min(28rem,calc(100vw-2rem))] p-0"><Command><CommandInput placeholder="Search Audit users…"/><CommandList><CommandEmpty>No matching Audit users.</CommandEmpty><CommandGroup>{users.map(user => <CommandItem key={user.id} value={`${user.fullName} ${user.designation ?? ""} ${user.id}`} onSelect={() => toggleAttendee(user.id)}><Check className={`mr-2 size-4 ${form.attendees.includes(user.id) ? "opacity-100" : "opacity-0"}`}/><span>{user.fullName}{user.designation ? <span className="text-muted-foreground"> — {user.designation}</span> : null}</span></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent>
       </Popover>
       {attendeeOptions.error && <p className="text-sm text-destructive">Unable to load Audit users. <button type="button" className="underline" onClick={() => void attendeeOptions.refetch()}>Retry</button></p>}
       {form.attendees.length > 0 && <div className="flex flex-wrap gap-2">{form.attendees.map(id => <Badge key={id} variant="secondary" className="gap-1.5 py-1">{meetingAttendeeLabel(id, users)}{!locked && <button type="button" aria-label={`Remove ${meetingAttendeeLabel(id, users)}`} onClick={() => toggleAttendee(id)}><XCircle className="size-3.5"/></button>}</Badge>)}</div>}
-    </div> : <div><Label>Attendees (comma separated)</Label><Input value={form.attendees.join(", ")} disabled={locked} onChange={e=>setForm(v=>({...v,attendees:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)}))}/></div>}
-    <div><Label>Minutes</Label><Textarea rows={8} value={form.minutes} disabled={locked} onChange={e=>setForm(v=>({...v,minutes:e.target.value}))}/></div><Button onClick={save} disabled={locked || opening.isPending || closing.isPending || (kind === "opening" && (attendeeOptions.isLoading || !!attendeeOptions.error))}>Save minutes</Button>
+    </div>
+    <div><Label>Minutes</Label><Textarea rows={8} value={form.minutes} disabled={locked} onChange={e=>setForm(v=>({...v,minutes:e.target.value}))}/></div><Button onClick={save} disabled={locked || opening.isPending || closing.isPending || attendeeOptions.isLoading || !!attendeeOptions.error}>Save minutes</Button>
   </CardContent></Card>;
 }
 
@@ -1968,7 +1967,7 @@ function AuditReport() {
   if(query.isLoading||query.error||!query.data)return <State loading={query.isLoading} error={query.error} empty={!query.data}/>;
   const r=query.data;
   return <div className="space-y-5 print:p-0"><div className="flex justify-between print:hidden"><Button variant="ghost" asChild><Link href={`/audit/audits/${id}`}><ArrowLeft className="mr-2 size-4"/>Workspace</Link></Button><div className="flex gap-2"><Button variant="outline" asChild><a href={`/api/audit/audits/${id}/report?format=csv`} download><Download className="mr-2 size-4"/>CSV</a></Button><Button onClick={()=>window.print()}><Printer className="mr-2 size-4"/>Print</Button></div></div><Card><CardHeader className="border-b bg-primary text-primary-foreground"><CardTitle className="text-2xl">Audit Report</CardTitle><CardDescription className="text-primary-foreground/80">Generated {new Date(r.generatedAt).toLocaleString()}</CardDescription></CardHeader><CardContent className="space-y-8 pt-6"><section><h2 className="text-xl font-semibold">{r.audit.title}</h2><div className="mt-3 grid gap-2 text-sm sm:grid-cols-3"><p><b>Status:</b> {r.audit.status}</p><p><b>Project:</b> {r.audit.projectId}</p><p><b>Started:</b> {date(r.audit.startedAt)}</p></div></section>
-    <section className="grid gap-4 md:grid-cols-2">{[["Opening meeting",r.audit.openingMeeting],["Closing meeting",r.audit.closingMeeting]].map(([name,m])=>{const meeting=m as MeetingMinutes|undefined;return <div key={name as string} className="rounded-lg border p-4"><h3 className="font-semibold">{name as string}</h3>{meeting?<><p className="mt-1 text-sm">{date(meeting.heldAt)} · {name === "Opening meeting" ? meeting.attendees.map(id => meetingAttendeeLabel(id, attendeeOptions.data ?? [])).join(", ") : meeting.attendees.join(", ")}</p><p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{meeting.minutes}</p></>:<p className="mt-2 text-sm text-muted-foreground">Not recorded.</p>}</div>})}</section>
+    <section className="grid gap-4 md:grid-cols-2">{[["Opening meeting",r.audit.openingMeeting],["Closing meeting",r.audit.closingMeeting]].map(([name,m])=>{const meeting=m as MeetingMinutes|undefined;return <div key={name as string} className="rounded-lg border p-4"><h3 className="font-semibold">{name as string}</h3>{meeting?<><p className="mt-1 text-sm">{date(meeting.heldAt)} · {meeting.attendees.map(id => meetingAttendeeLabel(id, attendeeOptions.data ?? [])).join(", ")}</p><p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{meeting.minutes}</p></>:<p className="mt-2 text-sm text-muted-foreground">Not recorded.</p>}</div>})}</section>
     <section><h3 className="mb-3 font-semibold">Findings</h3>{r.findings.length?<Table><TableHeader><TableRow><TableHead>Finding</TableHead><TableHead>Classification</TableHead><TableHead>Priority / Risk</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{r.findings.map(f=><TableRow key={f.id}><TableCell><b>{f.title}</b><p className="text-xs text-muted-foreground">{f.description}</p></TableCell><TableCell>{f.classification}</TableCell><TableCell>{f.priority} / {f.riskLevel}</TableCell><TableCell>{f.status}</TableCell></TableRow>)}</TableBody></Table>:<p className="text-sm text-muted-foreground">No findings.</p>}</section>
     <section><h3 className="mb-3 font-semibold">Corrective Action Reports</h3>{r.cars.length?<Table><TableHeader><TableRow><TableHead>Department</TableHead><TableHead>Due</TableHead><TableHead>Root cause</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{r.cars.map(c=><TableRow key={c.id}><TableCell>{c.responsibleDepartment}</TableCell><TableCell>{date(c.dueDate)}</TableCell><TableCell>{c.rootCause||"—"}</TableCell><TableCell>{c.status}</TableCell></TableRow>)}</TableBody></Table>:<p className="text-sm text-muted-foreground">No CARs.</p>}</section></CardContent></Card></div>;
 }

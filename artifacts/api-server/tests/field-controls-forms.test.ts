@@ -376,8 +376,8 @@ describe("Audit checklist items", () => {
   });
 });
 
-describe("Audit opening meeting attendee selection", () => {
-  it("offers active Audit users and preserves selected IDs and legacy names", async () => {
+describe("Audit meeting attendee selection", () => {
+  it("offers active Audit users and preserves selected IDs and legacy names in both meetings", async () => {
     const [role] = await db.select().from(auditWorkspaceRoles).where(eq(auditWorkspaceRoles.organizationId, orgId)).limit(1);
     const [attendee] = await db.insert(users).values({
       organizationId: orgId, username: `meeting.attendee.${suffix}`,
@@ -416,6 +416,28 @@ describe("Audit opening meeting attendee selection", () => {
     } });
     expect(legacy.status).toBe(200);
     expect(legacy.json.openingMeeting.attendees).toEqual([member.id, "Original typed attendee"]);
+
+    const invalidClosing = await api("PUT", `/audit/audits/${auditId}/closing-meeting`, { token: admin.token, body: {
+      heldAt: "2026-10-10T16:00:00.000Z", attendees: [unapproved!.id], minutes: "Closing remarks",
+    } });
+    expect(invalidClosing.status).toBe(422);
+    const savedClosing = await api("PUT", `/audit/audits/${auditId}/closing-meeting`, { token: admin.token, body: {
+      heldAt: "2026-10-10T16:00:00.000Z", attendees: [member.id, attendee!.id], minutes: "Closing remarks",
+    } });
+    expect(savedClosing.status).toBe(200);
+    const closingReloaded = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+    expect(closingReloaded.json.closingMeeting.attendees).toEqual([member.id, attendee!.id]);
+    const [withClosing] = await db.select({ status: audits.status }).from(audits).where(eq(audits.id, auditId));
+    await db.update(audits).set({ status: JSON.stringify({
+      ...JSON.parse(withClosing!.status), closingMeeting: {
+        heldAt: "2026-10-10T16:00:00.000Z", attendees: ["Original closing attendee"], minutes: "Legacy closing minutes",
+      },
+    }) }).where(eq(audits.id, auditId));
+    const legacyClosing = await api("PUT", `/audit/audits/${auditId}/closing-meeting`, { token: admin.token, body: {
+      heldAt: "2026-10-10T16:00:00.000Z", attendees: [attendee!.id, "Original closing attendee"], minutes: "Legacy closing minutes",
+    } });
+    expect(legacyClosing.status).toBe(200);
+    expect(legacyClosing.json.closingMeeting.attendees).toEqual([attendee!.id, "Original closing attendee"]);
   });
 });
 
