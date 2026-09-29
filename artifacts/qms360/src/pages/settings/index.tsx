@@ -552,20 +552,19 @@ function AuditScheduleNumberingEditor({ initial, onSaved }: { initial: AuditSche
   const [form, setForm] = useState(initial);
   const update = useUpdateAuditScheduleNumbering();
   const { toast } = useToast();
-  const year = String(new Date().getFullYear()).slice(-2);
   const change = (field: keyof AuditScheduleNumbering, key: 'prefix' | 'start' | 'end', value: string) =>
     setForm(current => ({ ...current, [field]: { ...current[field], [key]: key === 'prefix' ? value : Number(value) } }));
   const valid = [form.qaqcReference, form.auditNumber].every(range =>
     range.prefix.trim() && Number.isInteger(range.start) && Number.isInteger(range.end) &&
     range.start >= 1 && range.end <= 999 && range.end >= range.start) && form.qaqcReference.start === 1;
-  return <Card><CardHeader><CardTitle>Audit Schedule fields 8 and 9</CardTitle><CardDescription>Separate prefixes and three-digit ranges. The two-digit year is the calendar year when each number is assigned. Existing numbers are not changed when settings are saved.</CardDescription></CardHeader>
+  return <Card><CardHeader><CardTitle>Audit Schedule fields 8 and 9</CardTitle><CardDescription>Separate prefixes and three-digit ranges. Only QA/QC Reference includes a two-digit year, taken from each audit's From Date. Existing numbers are not changed when settings are saved.</CardDescription></CardHeader>
     <CardContent className="space-y-5">{(['qaqcReference', 'auditNumber'] as const).map(field => <section key={field} className="space-y-3 rounded-lg border p-4">
-      <div><h3 className="font-medium">{field === 'qaqcReference' ? '8. QA/QC Reference' : '9. Audit Number / Site Visit No.'}</h3><p className="text-sm text-muted-foreground">{field === 'qaqcReference' ? 'Assigned by From Date when the parent Audit Schedule is submitted. Always starts at 001 within each schedule.' : 'Assigned when each audit is created; numbering is separate for every department or project and calendar year.'}</p></div>
+      <div><h3 className="font-medium">{field === 'qaqcReference' ? '8. QA/QC Reference' : '9. Audit Number / Site Visit No.'}</h3><p className="text-sm text-muted-foreground">{field === 'qaqcReference' ? 'Assigned in From Date order when the parent Audit Schedule is submitted. The two-digit year comes from that audit’s From Date; numbering starts at 001 within each schedule.' : 'Assigned when each audit is created. No year is added, and the sequence continues separately for each department or project.'}</p></div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div><Label htmlFor={`${field}-prefix`}>Prefix</Label><Input id={`${field}-prefix`} maxLength={20} value={form[field].prefix} onChange={e => change(field, 'prefix', e.target.value)} /></div>
         <div><Label htmlFor={`${field}-start`}>First number</Label><Input id={`${field}-start`} type="number" min={1} max={999} disabled={field === 'qaqcReference'} value={form[field].start} onChange={e => change(field, 'start', e.target.value)} /></div>
         <div><Label htmlFor={`${field}-end`}>Last number</Label><Input id={`${field}-end`} type="number" min={1} max={999} value={form[field].end} onChange={e => change(field, 'end', e.target.value)} /></div>
-      </div><p className="text-sm text-muted-foreground">Example: <span className="font-mono">{form[field].prefix}{year}-{String(form[field].start).padStart(3, '0')}</span></p>
+      </div><p className="text-sm text-muted-foreground">{field === 'qaqcReference' ? 'Example (From Date: 10-12-2026)' : 'Example'}: <span className="font-mono">{form[field].prefix}{field === 'qaqcReference' ? '26-' : ''}{String(form[field].start).padStart(3, '0')}</span></p>
     </section>)}
     <Button disabled={!valid || update.isPending} onClick={() => update.mutate({ data: form }, { onSuccess: onSaved, onError: error => toast({ title: 'Unable to save numbering', description: error instanceof Error ? error.message : 'Request failed', variant: 'destructive' }) })}><Save className="mr-2 size-4" />Save schedule numbering</Button>
   </CardContent></Card>;

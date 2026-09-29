@@ -1,5 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { db, organizationSettings, organizations } from "@workspace/db";
+import { db, organizationSettings } from "@workspace/db";
 
 export type NumberRange = { prefix: string; start: number; end: number };
 export type ScheduleNumbering = { qaqcReference: NumberRange; auditNumber: NumberRange };
@@ -32,12 +32,10 @@ export async function lockScheduleNumbering(tx: Tx, organizationId: string) {
   return { settings, config: scheduleNumberingFromMap(settings.documentNumbering as Record<string, unknown>) };
 }
 
-export async function calendarYear(tx: Tx, organizationId: string) {
-  const [org] = await tx.select({ timezone: organizations.timezone }).from(organizations)
-    .where(eq(organizations.id, organizationId));
-  return Number(new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: org?.timezone ?? "UTC" }).format(new Date()));
+export function formatQaqcReference(range: NumberRange, fromDate: string, sequence: number) {
+  return `${range.prefix}${fromDate.slice(2, 4)}-${String(sequence).padStart(3, "0")}`;
 }
 
-export function formatScheduleNumber(range: NumberRange, year: number, sequence: number) {
-  return `${range.prefix}${String(year).slice(-2)}-${String(sequence).padStart(3, "0")}`;
+export function formatAuditNumber(range: NumberRange, sequence: number) {
+  return `${range.prefix}${String(sequence).padStart(3, "0")}`;
 }

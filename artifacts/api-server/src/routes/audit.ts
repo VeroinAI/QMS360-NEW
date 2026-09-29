@@ -39,7 +39,7 @@ import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, wr
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
 import { asyncHandler, HttpError, listNotifications, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
-import { calendarYear, formatScheduleNumber, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
+import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
 
 const router = Router();
 const requireAuditAdmin = requireAppAdmin("audit");
@@ -934,7 +934,6 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
   const { row, childCount } = await db.transaction(async tx => {
     // Lock numbering before the parent, matching the order in child creation.
     const { config } = await lockScheduleNumbering(tx, actor(req).organizationId);
-    const year = await calendarYear(tx, actor(req).organizationId);
     const [current] = await tx.select().from(auditSchedules).where(and(
       active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, before.id),
     )).for("update");
@@ -951,12 +950,13 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
       String(scheduleMeta(a).plannedStartDate ?? "").localeCompare(String(scheduleMeta(b).plannedStartDate ?? ""))
       || a.id.localeCompare(b.id));
     for (const [index, child] of sorted.entries()) {
-      if (!scheduleMeta(child).plannedStartDate) throw new HttpError(422, "All audits need a From Date before submission");
+      const fromDate = scheduleMeta(child).plannedStartDate;
+      if (!fromDate || !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) throw new HttpError(422, "All audits need a valid From Date before submission");
       await tx.update(auditSchedules).set({
         status: JSON.stringify({
           ...scheduleMeta(child),
-          qaqcReference: formatScheduleNumber(config.qaqcReference, year, index + 1),
-          qaqcReferenceYear: year, qaqcReferenceSequence: index + 1,
+          qaqcReference: formatQaqcReference(config.qaqcReference, fromDate, index + 1),
+          qaqcReferenceYear: Number(fromDate.slice(0, 4)), qaqcReferenceSequence: index + 1,
         }), updatedAt: new Date(),
       }).where(eq(auditSchedules.id, child.id));
     }
@@ -1114,7 +1114,6 @@ router.post("/schedules", asyncHandler(async (req, res) => {
   const requestedValues = scheduleValues(data);
   const result = await db.transaction(async tx => {
     const { config } = await lockScheduleNumbering(tx, actor(req).organizationId);
-    const year = await calendarYear(tx, actor(req).organizationId);
     const [existingId] = await tx.select().from(auditSchedules).where(eq(auditSchedules.id, requestedValues.id)).limit(1);
     // Retry with the same identifier must not consume a number or replace the first allocation.
     if (existingId) {
@@ -1153,17 +1152,17 @@ router.post("/schedules", asyncHandler(async (req, res) => {
     const schedulesForOrg = await tx.select({ status: auditSchedules.status }).from(auditSchedules)
       .where(eq(auditSchedules.organizationId, actor(req).organizationId));
     const used = schedulesForOrg.map(candidate => scheduleMeta(candidate)).flatMap(meta => [
-      ...(meta.auditNumberScope === scopeKey && meta.auditNumberYear === year ? [Number(meta.auditNumberSequence) || 0] : []),
-      ...(meta.auditNumberHistory ?? []).filter(entry => entry.scope === scopeKey && entry.year === year).map(entry => entry.sequence),
+      ...(meta.auditNumberScope === scopeKey ? [Number(meta.auditNumberSequence) || 0] : []),
+      ...(meta.auditNumberHistory ?? []).filter(entry => entry.scope === scopeKey).map(entry => entry.sequence),
     ]);
     const sequence = Math.max(config.auditNumber.start - 1, ...used) + 1;
-    if (sequence > config.auditNumber.end) throw new HttpError(409, "Audit Number range is exhausted for this department/project and year");
+    if (sequence > config.auditNumber.end) throw new HttpError(409, "Audit Number range is exhausted for this department/project");
     const values = {
       ...requestedValues, workflowState,
       status: JSON.stringify({
         ...scheduleMeta({ status: requestedValues.status }),
-        qaqcReference: "", auditNumber: formatScheduleNumber(config.auditNumber, year, sequence),
-        auditNumberScope: scopeKey, auditNumberYear: year, auditNumberSequence: sequence,
+        qaqcReference: "", auditNumber: formatAuditNumber(config.auditNumber, sequence),
+        auditNumberScope: scopeKey, auditNumberSequence: sequence,
       }),
     };
     const [created] = await tx.insert(auditSchedules)
@@ -1178,11 +1177,14 @@ router.post("/schedules", asyncHandler(async (req, res) => {
           ...siblings.map(candidate => scheduleMeta(candidate).qaqcReferenceSequence ?? 0)) + 1;
         if (referenceSequence > config.qaqcReference.end)
           throw new HttpError(409, "QA/QC Reference range is exhausted for this Audit Schedule");
+        const fromDate = scheduleMeta(created).plannedStartDate;
+        if (!fromDate || !/^\d{4}-\d{2}-\d{2}$/.test(fromDate))
+          throw new HttpError(422, "A valid From Date is required for a QA/QC Reference");
         const [numbered] = await tx.update(auditSchedules).set({
           status: JSON.stringify({
             ...scheduleMeta(created),
-            qaqcReference: formatScheduleNumber(config.qaqcReference, year, referenceSequence),
-            qaqcReferenceYear: year, qaqcReferenceSequence: referenceSequence,
+            qaqcReference: formatQaqcReference(config.qaqcReference, fromDate, referenceSequence),
+            qaqcReferenceYear: Number(fromDate.slice(0, 4)), qaqcReferenceSequence: referenceSequence,
           }),
         }).where(eq(auditSchedules.id, created.id)).returning();
         return { row: numbered, created: true, restored: false };
@@ -1269,20 +1271,19 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
       auditNumberHistory: originalMeta.auditNumberHistory ?? [],
     };
     if (originalMeta.auditNumberScope && originalMeta.auditNumberScope !== newScope) {
-      const year = await calendarYear(tx, actor(req).organizationId);
       const candidates = await tx.select({ status: auditSchedules.status }).from(auditSchedules)
         .where(eq(auditSchedules.organizationId, actor(req).organizationId));
       const used = candidates.map(candidate => scheduleMeta(candidate)).flatMap(meta => [
-        ...(meta.auditNumberScope === newScope && meta.auditNumberYear === year ? [Number(meta.auditNumberSequence) || 0] : []),
-        ...(meta.auditNumberHistory ?? []).filter(entry => entry.scope === newScope && entry.year === year).map(entry => entry.sequence),
+        ...(meta.auditNumberScope === newScope ? [Number(meta.auditNumberSequence) || 0] : []),
+        ...(meta.auditNumberHistory ?? []).filter(entry => entry.scope === newScope).map(entry => entry.sequence),
       ]);
       const sequence = Math.max(config.auditNumber.start - 1, ...used) + 1;
-      if (sequence > config.auditNumber.end) throw new HttpError(409, "Audit Number range is exhausted for this department/project and year");
-      numberMeta = { auditNumber: formatScheduleNumber(config.auditNumber, year, sequence),
-        auditNumberScope: newScope, auditNumberYear: year, auditNumberSequence: sequence,
+      if (sequence > config.auditNumber.end) throw new HttpError(409, "Audit Number range is exhausted for this department/project");
+      numberMeta = { auditNumber: formatAuditNumber(config.auditNumber, sequence),
+        auditNumberScope: newScope, auditNumberYear: undefined, auditNumberSequence: sequence,
         auditNumberHistory: [
           ...(originalMeta.auditNumberHistory ?? []),
-          { scope: originalMeta.auditNumberScope, year: originalMeta.auditNumberYear ?? year,
+          { scope: originalMeta.auditNumberScope, year: originalMeta.auditNumberYear ?? 0,
             sequence: originalMeta.auditNumberSequence ?? 0 },
         ] };
     }
@@ -1319,19 +1320,21 @@ router.post("/schedules/:id/submit", asyncHandler(async (req, res) => {
   if (unstaffed.length) throw new HttpError(422, `Approval role has no active users: ${unstaffed.join(", ")}`);
   const row = await db.transaction(async tx => {
     const { config } = await lockScheduleNumbering(tx, actor(req).organizationId);
-    const year = await calendarYear(tx, actor(req).organizationId);
     const [current] = await tx.select().from(auditSchedules).where(and(
       active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, before.id),
     )).for("update");
     if (!current || current.workflowState !== before.workflowState || current.status !== before.status)
       throw new HttpError(409, "Schedule changed while it was being submitted");
     const meta = scheduleMeta(current);
+    const fromDate = meta.plannedStartDate;
+    if (!meta.parentId && (!fromDate || !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)))
+      throw new HttpError(422, "A valid From Date is required for a QA/QC Reference");
     const [updated] = await tx.update(auditSchedules).set({
       workflowState: "submitted",
       status: JSON.stringify({
         ...meta,
-        qaqcReference: meta.parentId ? meta.qaqcReference : (meta.qaqcReference || formatScheduleNumber(config.qaqcReference, year, 1)),
-        qaqcReferenceYear: meta.parentId ? meta.qaqcReferenceYear : (meta.qaqcReferenceYear ?? year),
+        qaqcReference: meta.parentId ? meta.qaqcReference : formatQaqcReference(config.qaqcReference, fromDate!, 1),
+        qaqcReferenceYear: meta.parentId ? meta.qaqcReferenceYear : Number(fromDate!.slice(0, 4)),
         qaqcReferenceSequence: meta.parentId ? meta.qaqcReferenceSequence : (meta.qaqcReferenceSequence ?? 1),
         approvalRoles: roles, approvalIndex: 0, reviewComments: null,
       }),

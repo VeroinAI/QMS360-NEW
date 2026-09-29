@@ -161,21 +161,20 @@ describe("audit programme parent/child workflow", () => {
       ...settings, qaqcReference: { ...settings.qaqcReference, start: 2 },
     })).status).toBe(422);
     const programme = await api("POST", "/programmes", creator.token, {
-      title: "Ordered references", fromDate: "2026-01-01", toDate: "2026-12-31",
+      title: "Ordered references", fromDate: "2026-01-01", toDate: "2027-12-31",
     });
     const payload = (title: string, date: string, department: string) => ({
-      id: crypto.randomUUID(), parentId: programme.json.id, year: 2026, title,
+      id: crypto.randomUUID(), parentId: programme.json.id, year: Number(date.slice(0, 4)), title,
       projectIds: [], auditTypes: ["Quality Internal Process Audit"], auditCategory: "Internal",
       departmentProject: department, plannedStartDate: date, plannedEndDate: date,
       qaqcReference: "tampered", auditNumber: "tampered", workflowState: "Draft",
     });
-    const laterPayload = payload("Later", "2026-08-01", "Quality Department");
+    const laterPayload = payload("Later", "2027-01-15", "Quality Department");
     const later = await api("POST", "/schedules", creator.token, laterPayload);
-    const first = await api("POST", "/schedules", creator.token, payload("First", "2026-02-01", "Quality Department"));
+    const first = await api("POST", "/schedules", creator.token, payload("First", "2026-12-10", "Quality Department"));
     expect([later.status, first.status]).toEqual([201, 201]);
-    const year = String(new Date().getFullYear()).slice(-2);
-    expect(later.json.auditNumber).toBe(`AUD-${year}-005`);
-    expect(first.json.auditNumber).toBe(`AUD-${year}-006`);
+    expect(later.json.auditNumber).toBe("AUD-005");
+    expect(first.json.auditNumber).toBe("AUD-006");
     expect(first.json.qaqcReference).toBe("");
     const retry = await api("POST", "/schedules", creator.token, laterPayload);
     expect(retry.status).toBe(201);
@@ -184,7 +183,7 @@ describe("audit programme parent/child workflow", () => {
       ...first.json, title: "Edited first", auditNumber: "tampered", qaqcReference: "tampered",
     });
     expect(edited.status).toBe(200);
-    expect(edited.json.auditNumber).toBe(`AUD-${year}-006`);
+    expect(edited.json.auditNumber).toBe("AUD-006");
     expect(edited.json.qaqcReference).toBe("");
     const exhausted = await api("POST", "/schedules", creator.token, payload("Overflow", "2026-09-01", "Quality Department"));
     expect(exhausted.status).toBe(409);
@@ -192,9 +191,9 @@ describe("audit programme parent/child workflow", () => {
       subject: "Ordered references", mailBody: "Please review.",
     });
     expect(submitted.status).toBe(200);
-    expect((await api("GET", `/schedules/${first.json.id}`, creator.token)).json.qaqcReference).toBe(`QAM-IA/${year}-001`);
-    expect((await api("GET", `/schedules/${later.json.id}`, creator.token)).json.qaqcReference).toBe(`QAM-IA/${year}-002`);
-    expect((await api("GET", `/schedules/${later.json.id}`, creator.token)).json.auditNumber).toBe(`AUD-${year}-005`);
+    expect((await api("GET", `/schedules/${first.json.id}`, creator.token)).json.qaqcReference).toBe("QAM-IA/26-001");
+    expect((await api("GET", `/schedules/${later.json.id}`, creator.token)).json.qaqcReference).toBe("QAM-IA/27-002");
+    expect((await api("GET", `/schedules/${later.json.id}`, creator.token)).json.auditNumber).toBe("AUD-005");
     // Restore defaults so the range limit does not affect unrelated workflow tests.
     expect((await api("PUT", "/admin/schedule-numbering", admin.token, {
       qaqcReference: { prefix: "QAM-IA/", start: 1, end: 999 },
@@ -205,9 +204,10 @@ describe("audit programme parent/child workflow", () => {
     await db.update(auditSchedules).set({ workflowState: "approved" })
       .where(eq(auditSchedules.id, programme.json.id));
     const added = await api("POST", "/schedules", creator.token,
-      payload("After approval", "2026-11-01", "Quality Department"));
+      payload("After approval", "2027-11-01", "Quality Department"));
     expect(added.status).toBe(201);
-    expect(added.json.qaqcReference).toBe(`QAM-IA/${year}-003`);
+    expect(added.json.qaqcReference).toBe("QAM-IA/27-003");
+    expect(added.json.auditNumber).toBe("AUD-007");
   });
   it("lists the two programmes awaiting an approver who has review access but no edit grant", async () => {
     const [project] = await db.insert(projects).values({
