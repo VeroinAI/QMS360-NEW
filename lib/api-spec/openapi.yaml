@@ -1114,6 +1114,8 @@ paths:
     post: {operationId: createAuditProgramme, tags: [audit], summary: Create an annual audit programme, requestBody: {$ref: "#/components/requestBodies/AuditProgramme"}, responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
   /audit/team-leads:
     get: {operationId: listAuditTeamLeads, tags: [audit], summary: List active Audit users assigned a role marked Audit Team Lead, responses: {"200": {description: Eligible team leads, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}}}}}}
+  /audit/process-product-owners:
+    get: {operationId: listAuditProcessProductOwners, tags: [audit], summary: List active Audit users assigned a role marked Product / Process Owner, responses: {"200": {description: Eligible owners, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}}}}, "403": {description: Audit Schedule select access required}}}
   /audit/programmes/{id}:
     get: {operationId: getAuditProgramme, tags: [audit], summary: Get an annual audit programme, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Programme, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
     delete: {operationId: deleteAuditProgramme, tags: [audit], summary: Soft-delete an empty unapproved annual audit programme, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}, "409": {description: Approved programmes and programmes with child audits cannot be deleted}}}

@@ -8,7 +8,7 @@ const options = {
   auditCategories: [{ value: "Internal", label: "Internal" }],
   departments: [{ value: "Operations", label: "Operations" }],
   projects: [{ id: "project-1", code: "PR-1", name: "Plant A" }, { id: "project-2", code: "PR-2", name: "Plant B" }],
-  processOwners: [{ value: "Quality", label: "Quality" }],
+  processOwners: [{ value: "Eligible Owner", label: "Eligible Owner" }],
 };
 
 describe("audit schedule spreadsheet", () => {
@@ -38,6 +38,7 @@ describe("audit schedule spreadsheet", () => {
     const projects = reopened.getWorksheet("Dropdown Values")!;
     expect(projects.getCell("D2").value).toBe("PR-1 — Plant A");
     expect(projects.getCell("D3").value).toBe("PR-2 — Plant B");
+    expect(projects.getCell("E2").value).toBe("Eligible Owner");
     expect(projects.getCell("D4").value).toBeNull();
     expect(resolveScheduleProject(options.projects, "PR-1 — Plant A")?.id).toBe("project-1");
     expect(resolveScheduleProject(options.projects, "PR-1")?.id).toBe("project-1");
@@ -107,6 +108,8 @@ describe("audit schedule spreadsheet", () => {
       'INDIRECT("AuditCategoryType"&MATCH($A3,AuditTypes,0))',
     ]);
     expect(lists.state).toBe("veryHidden");
+    expect(lists.getCell("E2").value).toBe("Eligible Owner");
+    expect(lists.getCell("E3").value).toBeNull();
     expect([lists.getCell("F2").value, lists.getCell("F3").value, lists.getCell("F4").value])
       .toEqual(["Business Unit", "Regional Office", null]);
     expect([lists.getCell("G2").value, lists.getCell("G3").value, lists.getCell("G4").value])

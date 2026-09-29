@@ -21,6 +21,8 @@ import {
   getGetAuditPlanQueryKey,
   useGetAuditPlanOptions,
   useListAuditTeamLeads,
+  useListAuditProcessProductOwners,
+  listAuditProcessProductOwners,
   useGetAuditProgramme,
   getGetAuditProgrammeQueryKey,
   getListAuditProgrammesQueryKey,
@@ -629,7 +631,9 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
   const create = useCreateAuditSchedule(); const update = useUpdateAuditSchedule();
   const auditTypes = useLov("audit_types");
   const auditCategories = useLov("audit_categories");
-  const processOwners = useLov("process_product_owners");
+  const processOwners = useListAuditProcessProductOwners();
+  const processOwnerOptions = [...new Set((processOwners.data ?? []).map(user => user.fullName))]
+    .map(name => ({ value: name, label: name }));
   const departments = useLov("departments");
   const projects = useListPlatformProjects({ page: 1, limit: 200 });
   const projectRows = projects.data?.items ?? [];
@@ -797,7 +801,7 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     </div>
     <div id="schedule-location"><Label>4. Location</Label><Input value={form.location ?? ""} disabled={ro("location")} onChange={e => field("location", e.target.value)} placeholder="Optional"/></div>
     <div id="schedule-title"><Label>5. Audit Title *</Label><Input aria-invalid={!!errors.title} className={invalid("title")} value={form.title} disabled={ro("title")} onChange={e => field("title", e.target.value)}/>{error("title")}</div>
-    <div id="schedule-processProductOwner"><Label>6. Process / Product Owner *</Label><Select value={form.processProductOwner ?? ""} disabled={processOwners.isLoading || ro("processProductOwner")} onValueChange={v => field("processProductOwner", v)}><SelectTrigger aria-invalid={!!errors.processProductOwner} className={invalid("processProductOwner")}><SelectValue placeholder="Select owner"/></SelectTrigger><SelectContent>{withLegacyOption(processOwners.options, form.processProductOwner).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("processProductOwner")}</div>
+    <div id="schedule-processProductOwner"><Label>6. Process / Product Owner *</Label><Select value={form.processProductOwner ?? ""} disabled={processOwners.isLoading || !!processOwners.error || ro("processProductOwner")} onValueChange={v => field("processProductOwner", v)}><SelectTrigger aria-invalid={!!errors.processProductOwner} className={invalid("processProductOwner")}><SelectValue placeholder="Select owner"/></SelectTrigger><SelectContent>{withLegacyOption(processOwnerOptions, initial?.processProductOwner === form.processProductOwner ? form.processProductOwner : "").map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("processProductOwner")}{processOwners.error && <p className="mt-1 text-xs text-destructive">Unable to load eligible owners. <button type="button" className="underline" onClick={() => processOwners.refetch()}>Retry</button></p>}{!processOwners.isLoading && !processOwners.error && !processOwnerOptions.length && <p className="mt-1 text-xs text-muted-foreground">Assign an active Audit user the Product / Process Owner authorization to select an owner.</p>}</div>
      <div className="grid grid-cols-2 gap-3"><div id="schedule-plannedStartDate"><Label>7. From Date *</Label><Input aria-invalid={!!errors.plannedStartDate} className={invalid("plannedStartDate")} type="date" min={parentRange?.fromDate} max={parentRange?.toDate} value={form.plannedStartDate.slice(0,10)} disabled={ro("plannedStartDate")} onChange={e => field("plannedStartDate", e.target.value)}/>{error("plannedStartDate")}</div><div id="schedule-plannedEndDate"><Label>To Date *</Label><Input aria-invalid={!!errors.plannedEndDate} className={invalid("plannedEndDate")} type="date" min={parentRange?.fromDate} max={parentRange?.toDate} value={form.plannedEndDate.slice(0,10)} disabled={ro("plannedEndDate")} onChange={e => field("plannedEndDate", e.target.value)}/>{error("plannedEndDate")}</div></div>
     <div><Label>8. QA/QC Reference *</Label><Input readOnly value={form.qaqcReference ?? ""} placeholder="Assigned when Audit Schedule is submitted"/></div>
     <div><Label>9. Audit Number / Site Visit No. *</Label><Input readOnly value={form.auditNumber ?? ""} placeholder="Assigned when this audit is saved"/></div>
@@ -1179,7 +1183,7 @@ function Schedules() {
       else {
         const [auditTypes, auditCategories, processOwners, departmentLov, firstProjects] = await Promise.all([
           getMasterDataLov("audit_types"), getMasterDataLov("audit_categories"),
-          getMasterDataLov("process_product_owners"), getMasterDataLov("departments"),
+          listAuditProcessProductOwners(), getMasterDataLov("departments"),
           listPlatformProjects({ page: 1, limit: 200 }),
         ]);
         const projectRows = [...firstProjects.items];
@@ -1190,7 +1194,8 @@ function Schedules() {
         }
         await downloadScheduleWorkbook(children, `audit-schedule-${parentId}.xlsx`, {
           auditTypes: auditTypes.values, auditCategories: auditCategories.values,
-          processOwners: processOwners.values, departments: departmentLov.values,
+          processOwners: [...new Set(processOwners.map(user => user.fullName))].map(name => ({ value: name, label: name })),
+          departments: departmentLov.values,
           projects: projectRows,
         }, range);
       }
@@ -1214,6 +1219,7 @@ function Schedules() {
       }
       const rows = first ? XLSX.utils.sheet_to_json<Record<string, unknown>>(first, { defval: "" }) : [];
       if (!rows.length) { toast({ title: "No data rows found", variant: "destructive" }); return; }
+      const eligibleOwners = new Set((await listAuditProcessProductOwners()).map(user => user.fullName));
       const firstProjects = await listPlatformProjects({ page: 1, limit: 200 });
       const projectRows = [...firstProjects.items];
       for (let nextPage = 2; projectRows.length < firstProjects.total; nextPage += 1) {
@@ -1235,6 +1241,7 @@ function Schedules() {
         const required = ["auditTypes", "auditCategory", "departmentProject", "title", "processProductOwner", "plannedStartDate", "plannedEndDate"];
         const missing = required.filter(key => !String(mapped[key] ?? "").trim());
         if (missing.length) { failures.push(`row ${index + 2}: missing ${missing.join(", ")}`); continue; }
+        if (!eligibleOwners.has(String(mapped.processProductOwner).trim())) { failures.push(`row ${index + 2}: Process / Product Owner must be an active Audit user with Product / Process Owner authorization`); continue; }
         if (!start || !end) { failures.push(`row ${index + 2}: From Date and To Date must be valid calendar dates in YYYY-MM-DD format`); continue; }
         if (isImportedProcessAudit && !department) { failures.push(`row ${index + 2}: Department / Project must be an active department value or exact name`); continue; }
         if (!isImportedProcessAudit && !project) { failures.push(`row ${index + 2}: Department / Project must be an active project choice, code, or exact name`); continue; }

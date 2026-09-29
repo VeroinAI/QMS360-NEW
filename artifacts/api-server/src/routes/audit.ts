@@ -416,9 +416,13 @@ const isMatchingScheduleCreate = (row: AnyRow, values: ReturnType<typeof schedul
 
 /** Validate schedule fields against audit-scope master data; blank values are allowed (field controls govern requiredness). */
 async function assertScheduleLovs(organizationId: string, data: AnyRow, legacy?: ScheduleMeta) {
-  const checks: Array<[string, unknown, string | null | undefined]> = [
-    ["process_product_owners", data.processProductOwner, legacy?.processProductOwner],
-  ];
+  const ownerName = typeof data.processProductOwner === "string" ? data.processProductOwner.trim() : "";
+  if (ownerName && ownerName !== legacy?.processProductOwner?.trim() &&
+    !(await auditUsersWithMarker(organizationId, "product_process_owner")).some(user => user.fullName === ownerName)) {
+    throw new HttpError(422, "Select an active Audit user with Product / Process Owner authorization");
+  }
+  data.processProductOwner = ownerName;
+  const checks: Array<[string, unknown, string | null | undefined]> = [];
   if ((data.auditTypes ?? []).includes(PROCESS_AUDIT_TYPE)) {
     checks.push(["departments", data.departmentProject, legacy?.departmentProject]);
   }
@@ -699,7 +703,7 @@ async function scheduleResponse(req: Request, row: AnyRow, hasPlan = false, pare
   return scheduleDto(row, await canReviewApproval(req, row), hasPlan, parent && isProgramme(parent) ? scheduleMeta(parent).teamLeadIds ?? null : null);
 }
 
-async function auditTeamLeadUsers(organizationId: string) {
+async function auditUsersWithMarker(organizationId: string, permissionKey: "audit_team_lead" | "product_process_owner") {
   const rows = await db.select({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
     .innerJoin(applicationAccess, and(
       eq(applicationAccess.username, users.username), eq(applicationAccess.organizationId, organizationId),
@@ -721,15 +725,20 @@ async function auditTeamLeadUsers(organizationId: string) {
     .innerJoin(auditPermissions, and(
       eq(auditPermissions.id, auditWorkspaceRolePermissions.permissionId),
       eq(auditPermissions.organizationId, organizationId),
-      eq(auditPermissions.key, "audit_team_lead"), isNull(auditPermissions.deletedAt),
+      eq(auditPermissions.key, permissionKey), isNull(auditPermissions.deletedAt),
     ))
     .where(and(eq(users.organizationId, organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt)))
     .orderBy(asc(users.fullName));
   return [...new Map(rows.map(row => [row.id, row])).values()];
 }
 
+const auditTeamLeadUsers = (organizationId: string) => auditUsersWithMarker(organizationId, "audit_team_lead");
+
 router.get("/team-leads", requirePermission("audit", "schedules", "select"), asyncHandler(async (req, res) => {
   res.json(await auditTeamLeadUsers(actor(req).organizationId));
+}));
+router.get("/process-product-owners", requirePermission("audit", "schedules", "select"), asyncHandler(async (req, res) => {
+  res.json(await auditUsersWithMarker(actor(req).organizationId, "product_process_owner"));
 }));
 router.get("/programmes", asyncHandler(async (req, res) => {
   const { page, limit } = pagination(req);

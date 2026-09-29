@@ -5943,6 +5943,17 @@ export const ListAuditTeamLeadsResponse = zod.array(ListAuditTeamLeadsResponseIt
 
 
 /**
+ * @summary List active Audit users assigned a role marked Product / Process Owner
+ */
+export const ListAuditProcessProductOwnersResponseItem = zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+})
+export const ListAuditProcessProductOwnersResponse = zod.array(ListAuditProcessProductOwnersResponseItem)
+
+
+/**
  * @summary Get an annual audit programme
  */
 export const GetAuditProgrammeParams = zod.object({

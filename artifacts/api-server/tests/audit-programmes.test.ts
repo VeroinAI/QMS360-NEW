@@ -150,6 +150,43 @@ afterAll(async () => {
 });
 
 describe("audit programme parent/child workflow", () => {
+  it("offers only active Product / Process Owner users and enforces that selection on Audit Schedules", async () => {
+    const marker = await permission("product_process_owner");
+    const ownerRole = await role("Product and Process Owners", [marker.id]);
+    await assign(l1.id, ownerRole.id);
+    const owners = await api("GET", "/process-product-owners", creator.token);
+    expect(owners.status).toBe(200);
+    expect(owners.json).toEqual(expect.arrayContaining([expect.objectContaining({ id: l1.id, fullName: "L1 Approver" })]));
+    expect(owners.json.some((user: { id: string }) => user.id === creator.id)).toBe(false);
+
+    const payload = {
+      id: crypto.randomUUID(), year: 2026, title: "Owner assignment", projectIds: [],
+      auditTypes: ["Quality Internal Process Audit"], auditCategory: "Internal",
+      departmentProject: "Quality Department", plannedStartDate: "2026-06-01",
+      plannedEndDate: "2026-06-02", workflowState: "Draft",
+    };
+    const unassigned = await api("POST", "/schedules", creator.token, {
+      ...payload, processProductOwner: "Programme Creator",
+    });
+    expect(unassigned.status).toBe(422);
+    const created = await api("POST", "/schedules", creator.token, {
+      ...payload, processProductOwner: "L1 Approver",
+    });
+    expect(created.status).toBe(201);
+    expect(created.json.processProductOwner).toBe("L1 Approver");
+    const changed = await api("PUT", `/schedules/${created.json.id}`, creator.token, {
+      ...created.json, processProductOwner: "Programme Creator",
+    });
+    expect(changed.status).toBe(422);
+
+    await db.update(auditWorkspaceRoles).set({ status: "inactive" }).where(eq(auditWorkspaceRoles.id, ownerRole.id));
+    expect((await api("GET", "/process-product-owners", creator.token)).json).toEqual([]);
+    const legacyEdit = await api("PUT", `/schedules/${created.json.id}`, creator.token, {
+      ...created.json, title: "Existing owner preserved",
+    });
+    expect(legacyEdit.status).toBe(200);
+    expect(legacyEdit.json.processProductOwner).toBe("L1 Approver");
+  });
   it("keeps field 9 unique by department and assigns field 8 in From Date order on submission", async () => {
     const settings = {
       qaqcReference: { prefix: "QAM-IA/", start: 1, end: 3 },

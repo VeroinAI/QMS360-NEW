@@ -78,7 +78,9 @@ export async function createScheduleWorkbook(
           && !resolveScheduleProject(options.projects, x.departmentProject ?? ""))
         .map(x => x.departmentProject ?? ""),
     ]) },
-    { name: "ProcessOwners", values: unique([...options.processOwners.map(x => x.value), ...schedules.map(x => x.processProductOwner ?? "")]) },
+    // Only currently authorized users are valid choices; old exported cells
+    // keep their historical text without making it a selectable owner.
+    { name: "ProcessOwners", values: unique(options.processOwners.map(x => x.value)) },
   ];
   if (categoriesAreLinked) {
     typeValues.forEach((auditType, index) => {
@@ -116,7 +118,7 @@ export async function createScheduleWorkbook(
     ["Audit Schedule Import Instructions"],
     ["Template columns", scheduleImportHeaders.join(", ")],
     ["Mandatory columns", "Audit Type, Audit Category, Department / Project, Audit Title, Process / Product Owner, From Date (YYYY-MM-DD), To Date (YYYY-MM-DD)"],
-    ["Dropdown fields", `Audit Type, Audit Category, Department / Project, Process / Product Owner. The Department / Project dropdown depends on Audit Type.${categoriesAreLinked ? " The Audit Category dropdown also depends on Audit Type; reselect the category if you change the type." : ""}`],
+    ["Dropdown fields", `Audit Type, Audit Category, Department / Project, Process / Product Owner (active Audit users assigned the Product / Process Owner authorization). The Department / Project dropdown depends on Audit Type.${categoriesAreLinked ? " The Audit Category dropdown also depends on Audit Type; reselect the category if you change the type." : ""}`],
     ["Date format", "YYYY-MM-DD"],
     ["Parent range", range ? `${range.fromDate} through ${range.toDate}` : "No parent range"],
   ].forEach(row => instructions.addRow(row));

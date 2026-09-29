@@ -15716,6 +15716,83 @@ export function useListAuditTeamLeads<TData = Awaited<ReturnType<typeof listAudi
 
 
 
+export const getListAuditProcessProductOwnersUrl = () => {
+
+
+
+
+  return `/api/audit/process-product-owners`
+}
+
+/**
+ * @summary List active Audit users assigned a role marked Product / Process Owner
+ */
+export const listAuditProcessProductOwners = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanUserOption[]> => {
+
+  return customFetch<AuditPlanUserOption[]>(getListAuditProcessProductOwnersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAuditProcessProductOwnersQueryKey = () => {
+    return [
+    `/api/audit/process-product-owners`
+    ] as const;
+    }
+
+
+export const getListAuditProcessProductOwnersQueryOptions = <TData = Awaited<ReturnType<typeof listAuditProcessProductOwners>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditProcessProductOwners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAuditProcessProductOwnersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditProcessProductOwners>>> = ({ signal }) => listAuditProcessProductOwners({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditProcessProductOwners>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAuditProcessProductOwnersQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditProcessProductOwners>>>
+export type ListAuditProcessProductOwnersQueryError = ErrorType<void>
+
+
+/**
+ * @summary List active Audit users assigned a role marked Product / Process Owner
+ */
+
+export function useListAuditProcessProductOwners<TData = Awaited<ReturnType<typeof listAuditProcessProductOwners>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditProcessProductOwners>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAuditProcessProductOwnersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetAuditProgrammeUrl = (id: string,) => {
 
 
