@@ -5,7 +5,7 @@ import { Readable } from "node:stream";
 import express, { Router, type IRouter } from "express";
 import { and, eq, isNull } from "drizzle-orm";
 import {
-  applicationAccess, auditFindings, auditSchedules, audits, correctiveActionReports, customerSatisfactionEntries,
+  applicationAccess, auditFindings, auditPlans, auditSchedules, audits, correctiveActionReports, customerSatisfactionEntries,
   db, documentGovernanceLogEntries, lessonLearnedForms, materialInspectionEntries, qaqcMetricEntries,
   qualityAssessmentBriefs, qtbtEntries,
 } from "@workspace/db";
@@ -38,9 +38,10 @@ const appAccessColumns = {
   audit: applicationAccess.canOpenAudit,
 };
 type EvidenceParent = {
-  projectId: string;
+  projectId: string | null;
   projectIds?: string[];
   module: string;
+  allowProjectless?: boolean;
   creatorId?: string;
   approverId?: string | null;
 };
@@ -76,8 +77,22 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
       return projectIds.length ? { projectId: projectIds[0]!, projectIds, module: "schedules" } : null;
     }
     if (["audit", "audit_execution"].includes(row.recordType)) {
-      const [parent] = await db.select({ projectId: audits.projectId }).from(audits).where(and(eq(audits.id, row.recordId), eq(audits.organizationId, organizationId), isNull(audits.deletedAt)));
-      return parent?.projectId ? { projectId: parent.projectId, module: "audits" } : null;
+      const [parent] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(audits).where(and(eq(audits.id, row.recordId), eq(audits.organizationId, organizationId), isNull(audits.deletedAt)));
+      if (parent?.projectId) return { projectId: parent.projectId, module: "audits" };
+      if (!parent?.planId) return null;
+      const [schedule] = await db.select({ status: auditSchedules.status }).from(auditPlans)
+        .innerJoin(auditSchedules, eq(auditPlans.auditScheduleId, auditSchedules.id))
+        .where(and(
+          eq(auditPlans.id, parent.planId), eq(auditPlans.organizationId, organizationId), isNull(auditPlans.deletedAt),
+          eq(auditSchedules.organizationId, organizationId), isNull(auditSchedules.deletedAt),
+        ));
+      try {
+        const types = JSON.parse(schedule?.status ?? "{}")?.auditTypes;
+        if (Array.isArray(types) && types.includes("Quality Internal Process Audit")) {
+          return { projectId: null, module: "audits", allowProjectless: true };
+        }
+      } catch { /* Invalid or legacy status is not evidence of a Process audit. */ }
+      return null;
     }
     if (["audit_finding", "finding"].includes(row.recordType)) {
       const [parent] = await db.select({ projectId: audits.projectId }).from(auditFindings).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(and(eq(auditFindings.id, row.recordId), eq(auditFindings.organizationId, organizationId), isNull(auditFindings.deletedAt), isNull(audits.deletedAt)));
@@ -118,7 +133,9 @@ async function authorizeEvidence(req: express.Request, found: NonNullable<Awaite
   const parent = await evidenceProject(found, user.organizationId);
   if (!parent) return false;
   const scope = await getAuthorizedProjectScope(req, found.app as RbacAppKey, { module: parent.module, action });
-  if (!scope.unrestricted && (parent.projectIds ?? [parent.projectId]).some((projectId) => !scope.projectIds.includes(projectId))) return false;
+  if (parent.allowProjectless) {
+    if (!scope.unrestricted && !scope.projectIds.length) return false;
+  } else if (!scope.unrestricted && (parent.projectIds ?? [parent.projectId!]).some((projectId) => !scope.projectIds.includes(projectId))) return false;
   if (found.app === "lessons" && action === "select") {
     const [lesson] = await db.select().from(lessonLearnedForms).where(and(
       eq(lessonLearnedForms.id, found.row.recordId),

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import express, { type Express } from "express";
 import type { Server } from "node:http";
 import { and, eq } from "drizzle-orm";
@@ -11,8 +11,25 @@ import {
 } from "@workspace/db";
 import lessonsRouter from "../src/routes/lessons";
 import auditRouter from "../src/routes/audit";
+import filesRouter from "../src/routes/files";
 import { issueToken } from "../src/lib/auth";
 import { writeFieldControls } from "../src/lib/field-controls";
+
+const testObjects = vi.hoisted(() => new Map<string, { bytes: Uint8Array; mimeType: string }>());
+vi.mock("../src/lib/objectStorage", () => ({
+  storeObject: async (key: string, bytes: Buffer, mimeType: string) => {
+    testObjects.set(key, { bytes: Uint8Array.from(bytes), mimeType });
+    return `/test-bucket/${key}`;
+  },
+  getObject: async (key: string) => {
+    const object = testObjects.get(key.replace(/^\/test-bucket\//, ""));
+    if (!object) throw new Error("Object not found");
+    return new Response(new Blob([object.bytes.slice().buffer as ArrayBuffer]), {
+      headers: { "Content-Type": object.mimeType, "Content-Length": String(object.bytes.length) },
+    });
+  },
+  removeObject: async (key: string) => { testObjects.delete(key.replace(/^\/test-bucket\//, "")); },
+}));
 
 // Route-level regression tests for server-side Form Fields enforcement
 // (organization_settings.branding.fieldControls) on the Lessons and Audit
@@ -140,6 +157,7 @@ const findingBody = (overrides: Record<string, unknown> = {}) => ({
 beforeAll(async () => {
   app = express();
   app.use(express.json());
+  app.use("/api/files", filesRouter);
   app.use("/api/lessons", lessonsRouter);
   app.use("/api/audit", auditRouter);
   await new Promise<void>((resolve) => { server = app.listen(0, "127.0.0.1", () => resolve()); });
@@ -359,7 +377,7 @@ describe("Audit checklist items", () => {
 });
 
 describe("Audit evidence for projectless Process audits", () => {
-  it("creates, confirms and lists attachments only when the audit belongs to a Process plan", async () => {
+  it("stores and links authenticated attachments for project-backed and Process audits", async () => {
     const [schedule] = await db.insert(auditSchedules).values({
       organizationId: orgId, year: 2026, title: "Department process audit",
       status: JSON.stringify({ auditTypes: ["Quality Internal Process Audit"], departmentProject: "Quality Department" }),
@@ -373,16 +391,36 @@ describe("Audit evidence for projectless Process audits", () => {
     const attachment = {
       recordType: "audit", recordId: processAudit!.id, category: "document",
       fileName: "inspection.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      sizeBytes: 123, clientReference: crypto.randomUUID(),
+      sizeBytes: 12, clientReference: crypto.randomUUID(),
     };
-    const intent = await api("POST", "/audit/evidence", { token: admin.token, body: attachment });
-    expect(intent.status).toBe(201);
-    expect(intent.json.uploadUrl).toBe(`/api/files/${intent.json.id}`);
-    const confirmed = await api("PUT", `/audit/evidence/${intent.json.id}/confirm`, { token: admin.token });
-    expect(confirmed.status).toBe(200);
-    const listed = await api("GET", `/audit/evidence?recordType=audit&recordId=${processAudit!.id}&page=1&limit=20`, { token: admin.token });
-    expect(listed.status).toBe(200);
-    expect(listed.json.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: intent.json.id, status: "confirmed" })]));
+    const bytes = Buffer.from("file content");
+    for (const recordId of [auditId, processAudit!.id]) {
+      const intent = await api("POST", "/audit/evidence", { token: admin.token, body: {
+        ...attachment, recordId, clientReference: crypto.randomUUID(),
+      } });
+      expect(intent.status).toBe(201);
+      expect(intent.json.uploadUrl).toBe(`/api/files/${intent.json.id}`);
+      const fileUrl = `${new URL(baseUrl).origin}${intent.json.uploadUrl}`;
+      const unauthenticated = await fetch(fileUrl, { method: "PUT", headers: { "Content-Type": attachment.mimeType }, body: bytes });
+      expect(unauthenticated.status).toBe(401);
+      const uploaded = await fetch(fileUrl, { method: "PUT", headers: {
+        authorization: `Bearer ${admin.token}`, "Content-Type": attachment.mimeType,
+      }, body: bytes });
+      expect(uploaded.status).toBe(200);
+      const confirmed = await api("PUT", `/audit/evidence/${intent.json.id}/confirm`, { token: admin.token });
+      expect(confirmed.status).toBe(200);
+      const linked = await api("POST", `/audit/audits/${recordId}/checklist/items`, { token: admin.token, body: {
+        clause: "9.2", auditArea: "Construction", question: "Evidence attached", evidenceIds: [intent.json.id],
+      } });
+      expect(linked.status).toBe(201);
+      expect(linked.json.checklist).toEqual(expect.arrayContaining([expect.objectContaining({ evidenceIds: [intent.json.id] })]));
+      const listed = await api("GET", `/audit/evidence?recordType=audit&recordId=${recordId}&page=1&limit=20`, { token: admin.token });
+      expect(listed.status).toBe(200);
+      expect(listed.json.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: intent.json.id, status: "confirmed" })]));
+      const downloaded = await fetch(fileUrl, { headers: { authorization: `Bearer ${admin.token}` } });
+      expect(downloaded.status).toBe(200);
+      expect(await downloaded.text()).toBe("file content");
+    }
 
     const [orphan] = await db.insert(audits).values({
       organizationId: orgId, referenceNumber: `ORPHAN-EVIDENCE-${suffix}`,

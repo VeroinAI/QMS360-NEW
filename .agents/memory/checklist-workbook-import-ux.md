@@ -1,10 +1,10 @@
 ---
-name: Checklist workbook import UX
-description: Why Checklist templates selected in the item evidence picker should offer import in place.
+name: Checklist evidence vs import
+description: The explicit separation between attaching Checklist evidence and importing workbook rows.
 ---
 
-If a Checklist template is selected from an item's evidence picker, offer an explicit way to import it from that context rather than just telling the user to close the editor and find another upload control. Warn that unsaved item edits will be discarded on a successful import, and leave the editor intact if the import fails.
+The Checklist item's Evidence picker always attaches the selected file to that item, even if it is an Excel template. Importing worksheet rows is reserved for the separate Upload Excel control in the Checklist header. Do not automatically reinterpret an Evidence selection as a workbook import.
 
-**Why:** A warning-only redirect was encountered repeatedly as an error; it did not help the user finish the workbook import.
+**Why:** The user explicitly clarified that clicking Evidence and attaching a file should store it as an attachment through QMS360's existing process; earlier attempts to redirect or offer workbook import from that picker did not match the requested behavior.
 
-**How to apply:** When adjusting Checklist upload or attachment flows, distinguish spreadsheet evidence from a Checklist template by workbook contents as well as its download filename, and keep a direct import path available wherever users select a template.
+**How to apply:** Keep the Evidence picker and workbook import separate. Evidence uses the authenticated QMS360 file-upload flow and is linked to its Checklist item; only Upload Excel parses worksheet rows. Make both controls' labels explain the distinction without blocking attachment of a workbook.

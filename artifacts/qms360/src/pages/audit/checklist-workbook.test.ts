@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import type { ChecklistItem } from "@workspace/api-client-react";
-import { checklistHeaders, createChecklistWorkbook, isChecklistWorkbook, parseChecklistWorkbook } from "./checklist-workbook";
+import { checklistHeaders, createChecklistWorkbook, parseChecklistWorkbook } from "./checklist-workbook";
 
 describe("Audit Checklist Excel template", () => {
   const areas = [
@@ -16,7 +16,6 @@ describe("Audit Checklist Excel template", () => {
     await reopened.xlsx.load(bytes);
     const sheet = reopened.getWorksheet("Checklist")!;
     const lists = reopened.getWorksheet("Dropdown Values")!;
-    expect(isChecklistWorkbook(new Uint8Array(bytes).buffer as ArrayBuffer)).toBe(true);
     expect(sheet.getRow(1).values?.slice(1, 6)).toEqual([...checklistHeaders]);
     expect(sheet.getCell("F1").value).toBe("Item ID");
     expect(sheet.getCell("B2").dataValidation.formulae).toEqual(["ChecklistAuditAreas"]);
@@ -104,13 +103,4 @@ describe("Audit Checklist Excel template", () => {
     expect(() => parseChecklistWorkbook(XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer, areas)).toThrow(/Row 2.*Item ID/);
   });
 
-  it("distinguishes a renamed Checklist workbook from an unrelated evidence spreadsheet", () => {
-    const unrelated = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(unrelated, XLSX.utils.aoa_to_sheet([["Report", "Result"], ["A", "Pass"]]), "Results");
-    const bytes = XLSX.write(unrelated, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
-    expect(isChecklistWorkbook(bytes)).toBe(false);
-    const renamed = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(renamed, XLSX.utils.aoa_to_sheet([[...checklistHeaders, "Item ID"], ["1", "Area", "Question"]]), "Checklist");
-    expect(isChecklistWorkbook(XLSX.write(renamed, { type: "array", bookType: "xlsx" }) as ArrayBuffer)).toBe(true);
-  });
 });

@@ -41,4 +41,4 @@
 - [Product / Process Owner marker](product-process-owner-marker.md) — assigned Audit users can be selected as Schedule owners; the marker alone grants no Audit actions.
 - [Audit Area master data reuse](audit-area-master-data.md) — Audit Checklist uses the existing shared “Audit Area” group; do not create a parallel audit_areas list.
 - [Audit Schedule numbering policy](audit-schedule-numbering-policy.md) — QA/QC Reference uses each audit's From Date year; yearless Audit Numbers remain unique per project/department across years.
-- [Checklist workbook import UX](checklist-workbook-import-ux.md) — selecting a template as item evidence should offer import in place; a warning-only redirect left users stuck.
+- [Checklist evidence vs import](checklist-workbook-import-ux.md) — the Evidence picker always attaches its file, including Excel; Upload Excel alone imports rows.
