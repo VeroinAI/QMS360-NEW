@@ -42,6 +42,8 @@ export * from './approverScopeInput';
 export * from './appSettings';
 export * from './audit';
 export * from './auditBody';
+export * from './auditChecklistImportItem';
+export * from './auditChecklistImportItemAuditFinding';
 export * from './auditChecklistItemInput';
 export * from './auditChecklistItemInputAuditFinding';
 export * from './auditFinding';

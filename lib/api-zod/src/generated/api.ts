@@ -7077,7 +7077,7 @@ export const EditAuditChecklistItemResponse = zod.object({
 
 
 /**
- * @summary Append checklist items atomically from a spreadsheet
+ * @summary Update existing checklist items and append new ones atomically from a spreadsheet
  */
 export const ImportAuditChecklistItemsParams = zod.object({
   "id": zod.coerce.string()
@@ -7088,13 +7088,14 @@ export const ImportAuditChecklistItemsParams = zod.object({
 
 
 
+
 export const ImportAuditChecklistItemsBodyItem = zod.object({
+  "id": zod.string().min(1).optional().describe('Existing checklist item ID; omit for a new item'),
   "clause": zod.string().min(1),
-  "auditArea": zod.string().min(1).describe('Value in the Audit Area master-data group'),
+  "auditArea": zod.string().min(1).describe('Value resolved from the Audit Area master-data name'),
   "question": zod.string().min(1),
   "description": zod.string().optional(),
-  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
-  "evidenceIds": zod.array(zod.string()).optional()
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional()
 })
 export const ImportAuditChecklistItemsBody = zod.array(ImportAuditChecklistItemsBodyItem).min(1).max(500)
 

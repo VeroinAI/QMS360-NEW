@@ -266,7 +266,7 @@ afterAll(async () => {
 
 describe("Audit checklist items", () => {
   it("appends valid rows, preserves legacy rows and rejects missing or non-master Audit Areas", async () => {
-    const historical = { id: crypto.randomUUID(), clause: "Old", question: "Previous question", result: "Observation", notes: "Earlier notes" };
+    const historical = { id: crypto.randomUUID(), clause: "Old", question: "Previous question", result: "Observation", notes: "Earlier notes", evidenceIds: ["legacy-proof"] };
     await db.update(audits).set({ checklistState: [historical] as any }).where(eq(audits.id, auditId));
     const path = `/audit/audits/${auditId}/checklist/items`;
     const input = { clause: "9.2", auditArea: "Construction", question: "Are records complete?", description: "Evidence checked", auditFinding: "Moderate NC" };
@@ -333,6 +333,27 @@ describe("Audit checklist items", () => {
       expect.objectContaining({ question: first.question, evidenceIds: [] }),
       expect.objectContaining({ question: "Second imported question", auditFinding: "Not applicable" }),
     ]);
+    const newId = imported.json.checklist.at(-2).id;
+    const reloaded = await api("POST", `${path}/import`, { token: admin.token, body: [
+      { id: newId, clause: "1.1", auditArea: "Construction", question: "Edited from Excel", description: "" },
+      { id: original[0].id, clause: "Old", auditArea: "QMS", question: "Previous question", description: "Earlier notes" },
+    ] });
+    expect(reloaded.status).toBe(201);
+    expect(reloaded.json.checklist).toHaveLength(original.length + 2);
+    expect(reloaded.json.checklist.at(-2)).toEqual(expect.objectContaining({ id: newId, question: "Edited from Excel" }));
+    expect(reloaded.json.checklist[0]).toEqual(expect.objectContaining({
+      id: original[0].id, auditArea: "QMS", result: "Observation", notes: "Earlier notes", evidenceIds: ["legacy-proof"],
+    }));
+    const duplicateIds = await api("POST", `${path}/import`, { token: admin.token, body: [
+      { id: newId, ...first }, { id: newId, ...first },
+    ] });
+    expect(duplicateIds.status).toBe(422);
+    const foreignId = await api("POST", `${path}/import`, { token: admin.token, body: [
+      first, { id: crypto.randomUUID(), ...first },
+    ] });
+    expect(foreignId.status).toBe(422);
+    const final = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+    expect(final.json.checklist).toHaveLength(original.length + 2);
   });
 });
 

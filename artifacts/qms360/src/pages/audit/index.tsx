@@ -1702,7 +1702,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
   };
   const download = async () => {
     setDownloading(true);
-    try { await downloadChecklistWorkbook(areas.options.map(option => option.value)); }
+    try { await downloadChecklistWorkbook(areas.options, initial); }
     catch (error) { toast({ title: "Unable to download template", description: errorText(error), variant: "destructive" }); }
     finally { setDownloading(false); }
   };
@@ -1710,11 +1710,13 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
     setImporting(true);
     try {
       if (file.size > 5 * 1024 * 1024) throw new Error("The Excel file exceeds the 5 MB import limit.");
-      const rows = parseChecklistWorkbook(await file.arrayBuffer(), areas.options.map(option => option.value));
+      const rows = parseChecklistWorkbook(await file.arrayBuffer(), areas.options, initial);
       const saved = await importItems.mutateAsync({ id: auditId, data: rows });
       qc.setQueryData(getGetAuditQueryKey(auditId), saved);
       void qc.invalidateQueries({ queryKey: getGetAuditQueryKey(auditId) });
-      toast({ title: `${rows.length} checklist item${rows.length === 1 ? "" : "s"} imported` });
+      const updates = rows.filter(row => row.id).length;
+      const additions = rows.length - updates;
+      toast({ title: `Checklist loaded`, description: `${updates} updated, ${additions} added.` });
     } catch (error) {
       toast({ title: "Unable to import checklist", description: errorText(error), variant: "destructive" });
     } finally {

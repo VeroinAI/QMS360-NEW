@@ -37,6 +37,7 @@ import type {
   ApproverScopeInput,
   Audit,
   AuditBody,
+  AuditChecklistImportItem,
   AuditChecklistItemInput,
   AuditFinding,
   AuditFindingBody,
@@ -18088,17 +18089,17 @@ export const getImportAuditChecklistItemsUrl = (id: string,) => {
 }
 
 /**
- * @summary Append checklist items atomically from a spreadsheet
+ * @summary Update existing checklist items and append new ones atomically from a spreadsheet
  */
 export const importAuditChecklistItems = async (id: string,
-    auditChecklistItemInput: AuditChecklistItemInput[], options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+    auditChecklistImportItem: AuditChecklistImportItem[], options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
 
   return customFetch<Audit>(getImportAuditChecklistItemsUrl(id),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(auditChecklistItemInput)
+    body: JSON.stringify(auditChecklistImportItem)
   }
 );}
 
@@ -18107,8 +18108,8 @@ export const importAuditChecklistItems = async (id: string,
 
 
 export const getImportAuditChecklistItemsMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importAuditChecklistItems>>, TError,{id: string;data: BodyType<AuditChecklistItemInput[]>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof importAuditChecklistItems>>, TError,{id: string;data: BodyType<AuditChecklistItemInput[]>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importAuditChecklistItems>>, TError,{id: string;data: BodyType<AuditChecklistImportItem[]>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importAuditChecklistItems>>, TError,{id: string;data: BodyType<AuditChecklistImportItem[]>}, TContext> => {
 
 const mutationKey = ['importAuditChecklistItems'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -18120,7 +18121,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importAuditChecklistItems>>, {id: string;data: BodyType<AuditChecklistItemInput[]>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importAuditChecklistItems>>, {id: string;data: BodyType<AuditChecklistImportItem[]>}> = (props) => {
           const {id,data} = props ?? {};
 
           return  importAuditChecklistItems(id,data,requestOptions)
@@ -18134,18 +18135,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ImportAuditChecklistItemsMutationResult = NonNullable<Awaited<ReturnType<typeof importAuditChecklistItems>>>
-    export type ImportAuditChecklistItemsMutationBody = BodyType<AuditChecklistItemInput[]>
+    export type ImportAuditChecklistItemsMutationBody = BodyType<AuditChecklistImportItem[]>
     export type ImportAuditChecklistItemsMutationError = ErrorType<unknown>
 
     /**
- * @summary Append checklist items atomically from a spreadsheet
+ * @summary Update existing checklist items and append new ones atomically from a spreadsheet
  */
 export const useImportAuditChecklistItems = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importAuditChecklistItems>>, TError,{id: string;data: BodyType<AuditChecklistItemInput[]>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importAuditChecklistItems>>, TError,{id: string;data: BodyType<AuditChecklistImportItem[]>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof importAuditChecklistItems>>,
         TError,
-        {id: string;data: BodyType<AuditChecklistItemInput[]>},
+        {id: string;data: BodyType<AuditChecklistImportItem[]>},
         TContext
       > => {
       return useMutation(getImportAuditChecklistItemsMutationOptions(options));

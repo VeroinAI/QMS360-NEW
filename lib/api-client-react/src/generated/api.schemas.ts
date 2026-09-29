@@ -2493,6 +2493,36 @@ export interface AuditChecklistItemInput {
   evidenceIds?: string[];
 }
 
+export type AuditChecklistImportItemAuditFinding = typeof AuditChecklistImportItemAuditFinding[keyof typeof AuditChecklistImportItemAuditFinding];
+
+
+export const AuditChecklistImportItemAuditFinding = {
+  Minor_NC: 'Minor NC',
+  Moderate_NC: 'Moderate NC',
+  Major_NC: 'Major NC',
+  OFI: 'OFI',
+  Not_applicable: 'Not applicable',
+} as const;
+
+export interface AuditChecklistImportItem {
+  /**
+     * Existing checklist item ID; omit for a new item
+     * @minLength 1
+     */
+  id?: string;
+  /** @minLength 1 */
+  clause: string;
+  /**
+     * Value resolved from the Audit Area master-data name
+     * @minLength 1
+     */
+  auditArea: string;
+  /** @minLength 1 */
+  question: string;
+  description?: string;
+  auditFinding?: AuditChecklistImportItemAuditFinding;
+}
+
 export type AuditStatus = typeof AuditStatus[keyof typeof AuditStatus];
 
 
