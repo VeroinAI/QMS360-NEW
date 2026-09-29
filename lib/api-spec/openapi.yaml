@@ -1177,6 +1177,10 @@ paths:
     post: {operationId: createAuditFindingItem, tags: [audit], summary: Add a finding-only row to this audit, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingItemInput"}}}}, responses: {"201": {description: Updated audit with new finding, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/audits/{id}/finding-items/{itemId}/action-taker:
     patch: {operationId: assignAuditFindingActionTaker, tags: [audit], summary: Assign an active QMS Audit user to a finding, parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string}}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingActionTakerInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
+  /audit/audits/{id}/additional-documents/organization-chart:
+    put: {operationId: replaceAuditOrganizationChart, tags: [audit], summary: Attach or replace the single organization chart, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditOrganizationChartInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}, "409": {description: Organization chart changed since it was viewed}}}
+  /audit/audits/{id}/additional-documents/{section}:
+    put: {operationId: updateAuditDocumentStatus, tags: [audit], summary: Save design or procurement status rows, parameters: [{$ref: "#/components/parameters/Id"}, {name: section, in: path, required: true, schema: {type: string, enum: [design-status, procurement-status]}}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditDocumentStatusInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/findings:
     get: {operationId: listAuditFindings, tags: [audit], summary: List audit findings, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditFindingPage"}}}
     post: {operationId: createAuditFinding, tags: [audit], summary: Create audit finding, requestBody: {$ref: "#/components/requestBodies/AuditFinding"}, responses: {"201": {description: Created}}}
@@ -2776,10 +2780,36 @@ components:
         question: {type: string, minLength: 1}
         description: {type: string}
         auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}
+    AuditDocumentStatusRow:
+      type: object
+      required: [id, label, value, remarks]
+      properties:
+        id: {type: string, minLength: 1, maxLength: 100}
+        label: {type: string, minLength: 1, maxLength: 120}
+        value: {type: [number, "null"], minimum: 0, maximum: 1000000000}
+        remarks: {type: string, maxLength: 4000}
+    AuditDocumentStatusInput:
+      type: object
+      required: [rows]
+      properties:
+        rows: {type: array, maxItems: 100, items: {$ref: "#/components/schemas/AuditDocumentStatusRow"}}
+    AuditOrganizationChartInput:
+      type: object
+      required: [evidenceId, previousId]
+      properties:
+        evidenceId: {type: string, minLength: 1}
+        previousId: {type: [string, "null"]}
+    AuditAdditionalDocuments:
+      type: object
+      properties:
+        organizationChartId: {type: [string, "null"]}
+        organizationChartFileName: {type: [string, "null"]}
+        designStatus: {type: array, items: {$ref: "#/components/schemas/AuditDocumentStatusRow"}}
+        procurementStatus: {type: array, items: {$ref: "#/components/schemas/AuditDocumentStatusRow"}}
     Audit:
       type: object
       required: [id, planId, projectId, title, status]
-      properties: {id: {type: string}, planId: {type: string}, projectId: {type: string}, title: {type: string}, status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Closed, Deleted]}, openingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, checklist: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}, startedAt: {type: [string, "null"], format: date-time}, closedAt: {type: [string, "null"], format: date-time}}
+      properties: {id: {type: string}, planId: {type: string}, projectId: {type: string}, title: {type: string}, status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Closed, Deleted]}, openingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, checklist: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}, additionalDocuments: {$ref: "#/components/schemas/AuditAdditionalDocuments"}, startedAt: {type: [string, "null"], format: date-time}, closedAt: {type: [string, "null"], format: date-time}}
     AuditFinding:
       type: object
       required: [id, auditId, title, description, classification, priority, riskLevel, responsibleDepartments, status]

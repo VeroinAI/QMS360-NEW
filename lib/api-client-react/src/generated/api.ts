@@ -39,6 +39,7 @@ import type {
   AuditBody,
   AuditChecklistImportItem,
   AuditChecklistItemInput,
+  AuditDocumentStatusInput,
   AuditFinding,
   AuditFindingActionTakerInput,
   AuditFindingBody,
@@ -46,6 +47,7 @@ import type {
   AuditFindingPageResponse,
   AuditLogPageResponse,
   AuditMyActionsPage,
+  AuditOrganizationChartInput,
   AuditPageResponse,
   AuditPlan,
   AuditPlanBody,
@@ -18375,6 +18377,152 @@ export const useAssignAuditFindingActionTaker = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAssignAuditFindingActionTakerMutationOptions(options));
+    }
+
+export const getReplaceAuditOrganizationChartUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/additional-documents/organization-chart`
+}
+
+/**
+ * @summary Attach or replace the single organization chart
+ */
+export const replaceAuditOrganizationChart = async (id: string,
+    auditOrganizationChartInput: AuditOrganizationChartInput, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getReplaceAuditOrganizationChartUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditOrganizationChartInput)
+  }
+);}
+
+
+
+
+
+export const getReplaceAuditOrganizationChartMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replaceAuditOrganizationChart>>, TError,{id: string;data: BodyType<AuditOrganizationChartInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof replaceAuditOrganizationChart>>, TError,{id: string;data: BodyType<AuditOrganizationChartInput>}, TContext> => {
+
+const mutationKey = ['replaceAuditOrganizationChart'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replaceAuditOrganizationChart>>, {id: string;data: BodyType<AuditOrganizationChartInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  replaceAuditOrganizationChart(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReplaceAuditOrganizationChartMutationResult = NonNullable<Awaited<ReturnType<typeof replaceAuditOrganizationChart>>>
+    export type ReplaceAuditOrganizationChartMutationBody = BodyType<AuditOrganizationChartInput>
+    export type ReplaceAuditOrganizationChartMutationError = ErrorType<void>
+
+    /**
+ * @summary Attach or replace the single organization chart
+ */
+export const useReplaceAuditOrganizationChart = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replaceAuditOrganizationChart>>, TError,{id: string;data: BodyType<AuditOrganizationChartInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof replaceAuditOrganizationChart>>,
+        TError,
+        {id: string;data: BodyType<AuditOrganizationChartInput>},
+        TContext
+      > => {
+      return useMutation(getReplaceAuditOrganizationChartMutationOptions(options));
+    }
+
+export const getUpdateAuditDocumentStatusUrl = (id: string,
+    section: 'design-status' | 'procurement-status',) => {
+
+
+
+
+  return `/api/audit/audits/${id}/additional-documents/${section}`
+}
+
+/**
+ * @summary Save design or procurement status rows
+ */
+export const updateAuditDocumentStatus = async (id: string,
+    section: 'design-status' | 'procurement-status',
+    auditDocumentStatusInput: AuditDocumentStatusInput, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getUpdateAuditDocumentStatusUrl(id,section),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditDocumentStatusInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditDocumentStatusMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditDocumentStatus>>, TError,{id: string;section: 'design-status' | 'procurement-status';data: BodyType<AuditDocumentStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditDocumentStatus>>, TError,{id: string;section: 'design-status' | 'procurement-status';data: BodyType<AuditDocumentStatusInput>}, TContext> => {
+
+const mutationKey = ['updateAuditDocumentStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditDocumentStatus>>, {id: string;section: 'design-status' | 'procurement-status';data: BodyType<AuditDocumentStatusInput>}> = (props) => {
+          const {id,section,data} = props ?? {};
+
+          return  updateAuditDocumentStatus(id,section,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditDocumentStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditDocumentStatus>>>
+    export type UpdateAuditDocumentStatusMutationBody = BodyType<AuditDocumentStatusInput>
+    export type UpdateAuditDocumentStatusMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save design or procurement status rows
+ */
+export const useUpdateAuditDocumentStatus = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditDocumentStatus>>, TError,{id: string;section: 'design-status' | 'procurement-status';data: BodyType<AuditDocumentStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditDocumentStatus>>,
+        TError,
+        {id: string;section: 'design-status' | 'procurement-status';data: BodyType<AuditDocumentStatusInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditDocumentStatusMutationOptions(options));
     }
 
 export const getListAuditFindingsUrl = (params?: ListAuditFindingsParams,) => {

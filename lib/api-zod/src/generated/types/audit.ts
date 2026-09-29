@@ -5,6 +5,7 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { AuditAdditionalDocuments } from './auditAdditionalDocuments';
 import type { AuditStatus } from './auditStatus';
 import type { ChecklistItem } from './checklistItem';
 import type { MeetingMinutes } from './meetingMinutes';
@@ -18,6 +19,7 @@ export interface Audit {
   openingMeeting?: MeetingMinutes;
   closingMeeting?: MeetingMinutes;
   checklist?: ChecklistItem[];
+  additionalDocuments?: AuditAdditionalDocuments;
   /** @nullable */
   startedAt?: Date | null;
   /** @nullable */

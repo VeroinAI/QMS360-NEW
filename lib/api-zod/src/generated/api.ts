@@ -6680,6 +6680,26 @@ export const SendAuditPlanForExecutionBody = zod.object({
   "roleIds": zod.array(zod.string())
 })
 
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
+
 export const SendAuditPlanForExecutionResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
@@ -6712,6 +6732,22 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "actionTakerId": zod.string().optional(),
   "clientReference": zod.string().optional()
 })).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemValueMin).max(sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemValueMin).max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -6735,6 +6771,24 @@ export const ListAuditsQueryParams = zod.object({
 export const listAuditsResponseOneTotalMin = 0;
 
 
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
 
 
 
@@ -6775,6 +6829,22 @@ export const ListAuditsResponse = zod.object({
   "actionTakerId": zod.string().optional(),
   "clientReference": zod.string().optional()
 })).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemValueMin).max(listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMin).max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 }))
@@ -6784,6 +6854,26 @@ export const ListAuditsResponse = zod.object({
 /**
  * @summary Create audit linked to plan
  */
+export const createAuditBodyAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const createAuditBodyAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const createAuditBodyAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const createAuditBodyAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const createAuditBodyAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const createAuditBodyAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const createAuditBodyAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const createAuditBodyAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const createAuditBodyAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const createAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
+
 export const CreateAuditBody = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
@@ -6816,6 +6906,22 @@ export const CreateAuditBody = zod.object({
   "actionTakerId": zod.string().optional(),
   "clientReference": zod.string().optional()
 })).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(createAuditBodyAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(createAuditBodyAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(createAuditBodyAdditionalDocumentsDesignStatusItemValueMin).max(createAuditBodyAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(createAuditBodyAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(createAuditBodyAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(createAuditBodyAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(createAuditBodyAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditBodyAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(createAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -6829,6 +6935,26 @@ export const CreateAuditResponse = zod.void()
 export const GetAuditParams = zod.object({
   "id": zod.coerce.string()
 })
+
+export const getAuditResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const getAuditResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const getAuditResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const getAuditResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const getAuditResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const getAuditResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const getAuditResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const getAuditResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const getAuditResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const getAuditResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
 
 export const GetAuditResponse = zod.object({
   "id": zod.string(),
@@ -6862,6 +6988,22 @@ export const GetAuditResponse = zod.object({
   "actionTakerId": zod.string().optional(),
   "clientReference": zod.string().optional()
 })).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(getAuditResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(getAuditResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(getAuditResponseAdditionalDocumentsDesignStatusItemValueMin).max(getAuditResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(getAuditResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(getAuditResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(getAuditResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(getAuditResponseAdditionalDocumentsProcurementStatusItemValueMin).max(getAuditResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(getAuditResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -6873,6 +7015,26 @@ export const GetAuditResponse = zod.object({
 export const UpdateAuditParams = zod.object({
   "id": zod.coerce.string()
 })
+
+export const updateAuditBodyAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const updateAuditBodyAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const updateAuditBodyAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const updateAuditBodyAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const updateAuditBodyAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const updateAuditBodyAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const updateAuditBodyAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const updateAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
 
 export const UpdateAuditBody = zod.object({
   "id": zod.string(),
@@ -6906,6 +7068,22 @@ export const UpdateAuditBody = zod.object({
   "actionTakerId": zod.string().optional(),
   "clientReference": zod.string().optional()
 })).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditBodyAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditBodyAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(updateAuditBodyAdditionalDocumentsDesignStatusItemValueMin).max(updateAuditBodyAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditBodyAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditBodyAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditBodyAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -7019,6 +7197,26 @@ export const CreateAuditChecklistItemBody = zod.object({
   "evidenceIds": zod.array(zod.string()).optional()
 })
 
+export const createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
+
 export const CreateAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
@@ -7051,6 +7249,22 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "actionTakerId": zod.string().optional(),
   "clientReference": zod.string().optional()
 })).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMin).max(createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -7077,6 +7291,26 @@ export const EditAuditChecklistItemBody = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
   "evidenceIds": zod.array(zod.string()).optional()
 })
+
+export const editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
 
 export const EditAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
@@ -7110,6 +7344,22 @@ export const EditAuditChecklistItemResponse = zod.object({
   "actionTakerId": zod.string().optional(),
   "clientReference": zod.string().optional()
 })).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMin).max(editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -7137,6 +7387,26 @@ export const ImportAuditChecklistItemsBodyItem = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional()
 })
 export const ImportAuditChecklistItemsBody = zod.array(ImportAuditChecklistItemsBodyItem).min(1).max(500)
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
 
 export const ImportAuditChecklistItemsResponse = zod.object({
   "id": zod.string(),
@@ -7170,6 +7440,22 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "actionTakerId": zod.string().optional(),
   "clientReference": zod.string().optional()
 })).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemValueMin).max(importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMin).max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -7197,6 +7483,26 @@ export const CreateAuditFindingItemBody = zod.object({
   "actionTakerId": zod.string(),
   "clientReference": zod.string().min(1).max(createAuditFindingItemBodyClientReferenceMax).optional()
 })
+
+export const createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
 
 export const CreateAuditFindingItemResponse = zod.object({
   "id": zod.string(),
@@ -7230,6 +7536,22 @@ export const CreateAuditFindingItemResponse = zod.object({
   "actionTakerId": zod.string().optional(),
   "clientReference": zod.string().optional()
 })).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemValueMin).max(createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -7246,6 +7568,26 @@ export const AssignAuditFindingActionTakerParams = zod.object({
 export const AssignAuditFindingActionTakerBody = zod.object({
   "actionTakerId": zod.string()
 })
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
 
 export const AssignAuditFindingActionTakerResponse = zod.object({
   "id": zod.string(),
@@ -7279,6 +7621,213 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "actionTakerId": zod.string().optional(),
   "clientReference": zod.string().optional()
 })).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemValueMin).max(assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMin).max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Attach or replace the single organization chart
+ */
+export const ReplaceAuditOrganizationChartParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const ReplaceAuditOrganizationChartBody = zod.object({
+  "evidenceId": zod.string().min(1),
+  "previousId": zod.string().nullable()
+})
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
+
+export const ReplaceAuditOrganizationChartResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemValueMin).max(replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMin).max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Save design or procurement status rows
+ */
+export const UpdateAuditDocumentStatusParams = zod.object({
+  "id": zod.coerce.string(),
+  "section": zod.enum(['design-status', 'procurement-status'])
+})
+
+export const updateAuditDocumentStatusBodyRowsItemIdMax = 100;
+
+export const updateAuditDocumentStatusBodyRowsItemLabelMax = 120;
+
+export const updateAuditDocumentStatusBodyRowsItemValueMin = 0;
+export const updateAuditDocumentStatusBodyRowsItemValueMax = 1000000000;
+
+export const updateAuditDocumentStatusBodyRowsItemRemarksMax = 4000;
+
+export const updateAuditDocumentStatusBodyRowsMax = 100;
+
+
+
+export const UpdateAuditDocumentStatusBody = zod.object({
+  "rows": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditDocumentStatusBodyRowsItemIdMax),
+  "label": zod.string().min(1).max(updateAuditDocumentStatusBodyRowsItemLabelMax),
+  "value": zod.number().min(updateAuditDocumentStatusBodyRowsItemValueMin).max(updateAuditDocumentStatusBodyRowsItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditDocumentStatusBodyRowsItemRemarksMax)
+})).max(updateAuditDocumentStatusBodyRowsMax)
+})
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
+
+export const UpdateAuditDocumentStatusResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemValueMin).max(updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -7860,6 +8409,26 @@ export const GetGeneratedAuditReportParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+
+
 export const GetGeneratedAuditReportResponse = zod.object({
   "audit": zod.object({
   "id": zod.string(),
@@ -7893,6 +8462,22 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "actionTakerId": zod.string().optional(),
   "clientReference": zod.string().optional()
 })).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemValueMin).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemValueMin).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional()
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 }),

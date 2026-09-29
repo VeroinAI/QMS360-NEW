@@ -485,6 +485,134 @@ describe("Audit meeting attendee selection", () => {
   });
 });
 
+describe("Audit additional documents", () => {
+  const design = [
+    ["status-a", "Status A"], ["status-b", "Status B"], ["status-c", "Status C"],
+    ["status-d", "Status D"], ["under-review", "Under Review(U/R)"], ["cancelled", "Cancelled"],
+  ];
+  const procurement = [
+    ["total-items-tracked", "Total items tracked"], ["purchase-order-issued", "Purchase order issued"],
+    ["in-manufacturing", "In manufacturing"], ["fat-completed", "FAT completed"],
+    ["fat-pending", "FAT pending / report under approval"], ["shipped", "Shipped / in transit"],
+    ["received-at-site", "Received at site"], ["past-planned-receipt-date", "Past planned receipt date"],
+  ];
+  const rows = (labels: string[][]): Array<{ id: string; label: string; value: number | null; remarks: string }> =>
+    labels.map(([id, label]) => ({ id, label, value: null, remarks: "" }));
+
+  it("persists numeric rows, custom lines and remarks without changing other sections", async () => {
+    const path = `/audit/audits/${auditId}/additional-documents`;
+    const designRows = [...rows(design), { id: crypto.randomUUID(), label: "Custom design item", value: 3.5, remarks: "First line\nSecond line" }];
+    designRows[0]!.value = 12;
+    const savedDesign = await api("PUT", `${path}/design-status`, { token: admin.token, body: { rows: designRows } });
+    expect(savedDesign.status).toBe(200);
+    const procurementRows = rows(procurement);
+    procurementRows[0]!.value = 27;
+    const savedProcurement = await api("PUT", `${path}/procurement-status`, { token: admin.token, body: { rows: procurementRows } });
+    expect(savedProcurement.status).toBe(200);
+    const reloaded = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+    expect(reloaded.json.additionalDocuments.designStatus).toEqual(designRows);
+    expect(reloaded.json.additionalDocuments.procurementStatus).toEqual(procurementRows);
+    expect(reloaded.json.checklist).toEqual(savedDesign.json.checklist);
+    expect((await api("PUT", `${path}/design-status`, { token: admin.token, body: { rows: [{ ...designRows[0], value: -1 }] } })).status).toBe(422);
+    expect((await api("PUT", `${path}/design-status`, { token: admin.token, body: { rows: [...designRows, designRows[0]] } })).status).toBe(422);
+  });
+
+  it("replaces one confirmed chart atomically and rejects stale or unrelated files", async () => {
+    const path = `/audit/audits/${auditId}/additional-documents/organization-chart`;
+    const createFile = async (fileName: string, recordId = auditId) => {
+      const [file] = await db.insert(auditEvidenceFiles).values({
+        organizationId: orgId, recordType: "audit", recordId, category: "organization_chart",
+        fileName, mimeType: "application/pdf", sizeBytes: 12, storageKey: "",
+        uploadedById: admin.id, status: "stored",
+      }).returning();
+      return file!.id;
+    };
+    const first = await createFile("chart.pdf");
+    const second = await createFile("updated.pdf");
+    const wrongAudit = await createFile("other.pdf", crypto.randomUUID());
+    const invalid = await createFile("chart.png");
+    expect((await api("PUT", path, { token: admin.token, body: { evidenceId: wrongAudit, previousId: null } })).status).toBe(422);
+    expect((await api("PUT", path, { token: admin.token, body: { evidenceId: invalid, previousId: null } })).status).toBe(422);
+    expect((await api("PUT", path, { token: admin.token, body: { evidenceId: first, previousId: null } })).status).toBe(200);
+    const stale = await api("PUT", path, { token: admin.token, body: { evidenceId: second, previousId: null } });
+    expect(stale.status).toBe(409);
+    const [stillThere] = await db.select({ deletedAt: auditEvidenceFiles.deletedAt }).from(auditEvidenceFiles).where(eq(auditEvidenceFiles.id, first));
+    expect(stillThere!.deletedAt).toBeNull();
+    const replaced = await api("PUT", path, { token: admin.token, body: { evidenceId: second, previousId: first } });
+    expect(replaced.status).toBe(200);
+    expect(replaced.json.additionalDocuments.organizationChartFileName).toBe("updated.pdf");
+    expect((await api("PUT", path, { token: admin.token, body: { evidenceId: second, previousId: first } })).status).toBe(200);
+    const [removed] = await db.select({ deletedAt: auditEvidenceFiles.deletedAt }).from(auditEvidenceFiles).where(eq(auditEvidenceFiles.id, first));
+    expect(removed!.deletedAt).not.toBeNull();
+    const reloaded = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+    expect(reloaded.json.additionalDocuments.organizationChartId).toBe(second);
+    expect(reloaded.json.additionalDocuments.designStatus).toHaveLength(7);
+    // The old chart must remain downloadable if a checklist cites the same evidence.
+    const [audit] = await db.select({ checklistState: audits.checklistState }).from(audits).where(eq(audits.id, auditId));
+    await db.update(audits).set({ checklistState: [
+      ...(Array.isArray(audit!.checklistState) ? audit!.checklistState : []),
+      { id: crypto.randomUUID(), question: "Document reviewed?", evidenceIds: [second] },
+    ] as any }).where(eq(audits.id, auditId));
+    const third = await createFile("next.pdf");
+    expect((await api("PUT", path, { token: admin.token, body: { evidenceId: third, previousId: second } })).status).toBe(200);
+    const [shared] = await db.select({ deletedAt: auditEvidenceFiles.deletedAt }).from(auditEvidenceFiles).where(eq(auditEvidenceFiles.id, second));
+    expect(shared!.deletedAt).toBeNull();
+  });
+
+  it("accepts PDF, Word, Excel and PowerPoint uploads for an Organization Chart", async () => {
+    const types = [
+      ["chart.pdf", "application/pdf"], ["chart.doc", "application/msword"],
+      ["chart.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+      ["chart.xls", "application/vnd.ms-excel"],
+      ["chart.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+      ["chart.ppt", "application/vnd.ms-powerpoint"],
+      ["chart.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+    ];
+    for (const [fileName, mimeType] of types) {
+      const intent = await api("POST", "/audit/evidence", { token: admin.token, body: {
+        recordType: "audit", recordId: auditId, category: "organization_chart",
+        fileName, mimeType, sizeBytes: 12, clientReference: crypto.randomUUID(),
+      } });
+      expect(intent.status, fileName).toBe(201);
+      const upload = await fetch(`${baseUrl.replace(/\/api$/, "")}${intent.json.uploadUrl}`, {
+        method: "PUT", headers: { authorization: `Bearer ${admin.token}`, "content-type": mimeType }, body: "file content",
+      });
+      expect(upload.status, fileName).toBe(200);
+      expect((await api("PUT", `/audit/evidence/${intent.json.id}/confirm`, { token: admin.token })).status).toBe(200);
+      const current = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+      const attached = await api("PUT", `/audit/audits/${auditId}/additional-documents/organization-chart`, {
+        token: admin.token, body: { evidenceId: intent.json.id, previousId: current.json.additionalDocuments.organizationChartId },
+      });
+      expect(attached.status, fileName).toBe(200);
+      expect(attached.json.additionalDocuments.organizationChartFileName).toBe(fileName);
+    }
+  });
+
+  it("keeps additional documents when an audit is edited through the older audit form", async () => {
+    const [plan] = await db.insert(auditPlans).values({ organizationId: orgId, projectId }).returning();
+    const [audit] = await db.insert(audits).values({
+      organizationId: orgId, projectId, auditPlanId: plan!.id, referenceNumber: `META-${suffix}`,
+      status: JSON.stringify({ title: "Status audit", additionalDocuments: {
+        organizationChartId: null, designStatus: [{ id: "status-a", label: "Status A", value: 7, remarks: "Tracked" }],
+      } }),
+    }).returning();
+    try {
+      const path = `/audit/audits/${audit!.id}`;
+      const before = await api("GET", path, { token: admin.token });
+      const update = await api("PUT", path, { token: admin.token, body: {
+        ...before.json, title: "Audit with saved documents",
+      } });
+      expect(update.status, JSON.stringify(update.json)).toBe(200);
+      expect(update.json.additionalDocuments).toEqual(before.json.additionalDocuments);
+      const reloaded = await api("GET", path, { token: admin.token });
+      expect(reloaded.json.additionalDocuments).toEqual(before.json.additionalDocuments);
+    } finally {
+      await db.delete(audits).where(eq(audits.id, audit!.id));
+      await db.delete(auditPlans).where(eq(auditPlans.id, plan!.id));
+    }
+  });
+});
+
 describe("Audit evidence for projectless Process audits", () => {
   it("stores and links authenticated attachments for project-backed and Process audits", async () => {
     const [schedule] = await db.insert(auditSchedules).values({

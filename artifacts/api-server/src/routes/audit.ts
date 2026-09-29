@@ -1705,7 +1705,7 @@ router.post("/plans/:id/share", asyncHandler(async (req, res) => {
   await auditLog(req, "share", "audit_plan", row.id, before, row); res.status(202).json(planDto(row));
 }));
 
-type AuditMeta = { title?: string; openingMeeting?: AnyRow; closingMeeting?: AnyRow; startedAt?: string | null; closedAt?: string | null };
+type AuditMeta = { title?: string; openingMeeting?: AnyRow; closingMeeting?: AnyRow; startedAt?: string | null; closedAt?: string | null; additionalDocuments?: AnyRow };
 const auditMeta = (row: AnyRow): AuditMeta => parseJson(row.status, {});
 const auditDto = (row: AnyRow) => {
   const meta = auditMeta(row);
@@ -1715,6 +1715,12 @@ const auditDto = (row: AnyRow) => {
     openingMeeting: meta.openingMeeting ? { ...meta.openingMeeting, heldAt: new Date(meta.openingMeeting.heldAt) } : undefined,
     closingMeeting: meta.closingMeeting ? { ...meta.closingMeeting, heldAt: new Date(meta.closingMeeting.heldAt) } : undefined,
     checklist: Array.isArray(row.checklistState) ? row.checklistState : [],
+    additionalDocuments: {
+      organizationChartId: meta.additionalDocuments?.organizationChartId ?? null,
+      organizationChartFileName: meta.additionalDocuments?.organizationChartFileName ?? null,
+      designStatus: meta.additionalDocuments?.designStatus ?? [],
+      procurementStatus: meta.additionalDocuments?.procurementStatus ?? [],
+    },
     startedAt: meta.startedAt ? new Date(meta.startedAt) : null, closedAt: meta.closedAt ? new Date(meta.closedAt) : null,
   };
 };
@@ -1893,8 +1899,18 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
   // Generated reference numbers are immutable, regardless of the current pattern config.
   if (before.referenceGenerated) values.referenceNumber = before.referenceNumber;
   await assertFieldAccess(req, "audit", "audit-execution", { mode: "update", current: auditDto(before) });
-  const [row] = await db.update(audits).set({ ...values, id: undefined, updatedAt: new Date() }).where(eq(audits.id, before.id)).returning();
-  await auditLog(req, "update", "audit", row.id, before, row); res.json(auditDto(row));
+  // Lock before merging metadata so a concurrent document save cannot be overwritten.
+  const { locked, row } = await db.transaction(async tx => {
+    const [locked] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, before.id))).for("update");
+    if (!locked) throw new HttpError(404, "Audit not found");
+    const [row] = await tx.update(audits).set({
+      ...values, id: undefined,
+      status: JSON.stringify({ ...auditMeta(locked), ...parseJson(values.status, {}) }),
+      updatedAt: new Date(),
+    }).where(eq(audits.id, before.id)).returning();
+    return { locked, row };
+  });
+  await auditLog(req, "update", "audit", row.id, locked, row); res.json(auditDto(row));
 }));
 router.delete("/audits/:id", asyncHandler(async (req, res) => {
   const [row] = await db.update(audits).set({ deletedAt: new Date(), updatedAt: new Date() })
@@ -2120,6 +2136,101 @@ router.patch("/audits/:id/finding-items/:itemId/action-taker", asyncHandler(asyn
     return { before, row };
   });
   await auditLog(req, "assign_finding_action_taker", "audit", auditId, before, row);
+  res.json(auditDto(row));
+}));
+
+const documentStatusLabels: Record<string, Array<[string, string]>> = {
+  "design-status": [
+    ["status-a", "Status A"], ["status-b", "Status B"], ["status-c", "Status C"],
+    ["status-d", "Status D"], ["under-review", "Under Review(U/R)"], ["cancelled", "Cancelled"],
+  ],
+  "procurement-status": [
+    ["total-items-tracked", "Total items tracked"], ["purchase-order-issued", "Purchase order issued"],
+    ["in-manufacturing", "In manufacturing"], ["fat-completed", "FAT completed"],
+    ["fat-pending", "FAT pending / report under approval"], ["shipped", "Shipped / in transit"],
+    ["received-at-site", "Received at site"], ["past-planned-receipt-date", "Past planned receipt date"],
+  ],
+};
+
+router.put("/audits/:id/additional-documents/organization-chart", asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.ReplaceAuditOrganizationChartBody, req);
+  const organizationId = actor(req).organizationId;
+  const auditId = String(req.params.id);
+  await assertAuditRecordAccess(req, "audit", auditId);
+  const { before, row, replaced } = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    const meta = auditMeta(before);
+    const currentId = meta.additionalDocuments?.organizationChartId ?? null;
+    // An identical retry must not remove the current chart.
+    if (currentId === data.evidenceId) return { before, row: before, replaced: false };
+    if (currentId !== data.previousId) throw new HttpError(409, "Organization chart changed. Refresh before replacing it.");
+    const [file] = await tx.select().from(auditEvidenceFiles).where(and(
+      eq(auditEvidenceFiles.id, data.evidenceId), eq(auditEvidenceFiles.organizationId, organizationId),
+      eq(auditEvidenceFiles.recordType, "audit"), eq(auditEvidenceFiles.recordId, auditId),
+      eq(auditEvidenceFiles.status, "stored"), isNull(auditEvidenceFiles.deletedAt),
+    ));
+    if (!file || file.category !== "organization_chart") throw new HttpError(422, "Upload and confirm an Organization Chart file for this audit first");
+    const extensions: Record<string, string[]> = {
+      pdf: ["application/pdf"], doc: ["application/msword"], docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+      xls: ["application/vnd.ms-excel"], xlsx: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+      ppt: ["application/vnd.ms-powerpoint"], pptx: ["application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+    };
+    const extension = file.fileName.split(".").pop()?.toLowerCase() ?? "";
+    if (!extensions[extension] || ![...extensions[extension], "application/octet-stream"].includes(file.mimeType)) {
+      throw new HttpError(422, "Organization chart must be a PDF, Word, Excel or PowerPoint file");
+    }
+    const additionalDocuments = { ...meta.additionalDocuments, organizationChartId: file.id, organizationChartFileName: file.fileName };
+    const [row] = await tx.update(audits).set({
+      status: JSON.stringify({ ...meta, additionalDocuments }), updatedAt: new Date(),
+    }).where(eq(audits.id, auditId)).returning();
+    // An older chart may also be cited by a checklist or meeting. Unlink it
+    // from this section, but leave shared evidence accessible at those links.
+    const referenced = currentId && (
+      (Array.isArray(before.checklistState) && before.checklistState.some((item: AnyRow) => item.evidenceIds?.includes(currentId))) ||
+      meta.openingMeeting?.evidenceIds?.includes(currentId) || meta.closingMeeting?.evidenceIds?.includes(currentId)
+    );
+    if (currentId && !referenced) await tx.update(auditEvidenceFiles).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(
+      eq(auditEvidenceFiles.id, currentId), eq(auditEvidenceFiles.organizationId, organizationId),
+      eq(auditEvidenceFiles.recordType, "audit"), eq(auditEvidenceFiles.recordId, auditId), isNull(auditEvidenceFiles.deletedAt),
+    ));
+    return { before, row, replaced: true };
+  });
+  if (replaced) await auditLog(req, "replace_organization_chart", "audit", auditId, before, row);
+  res.json(auditDto(row));
+}));
+
+router.put("/audits/:id/additional-documents/:section", asyncHandler(async (req, res) => {
+  const section = String(req.params.section);
+  const fixed = documentStatusLabels[section];
+  if (!fixed) throw new HttpError(404, "Document status section not found");
+  const data = body<AnyRow>(Api.UpdateAuditDocumentStatusBody, req);
+  const fixedLabels = new Map(fixed);
+  const ids = new Set<string>();
+  const rows = data.rows.map((entry: AnyRow) => {
+    const id = entry.id.trim(), label = entry.label.trim();
+    if (!id || !label || ids.has(id)) throw new HttpError(422, "Each status row needs a unique name and ID");
+    ids.add(id);
+    if (fixedLabels.has(id) && fixedLabels.get(id) !== label) throw new HttpError(422, "Default status labels cannot be changed");
+    if (entry.value !== null && (!Number.isFinite(entry.value) || entry.value < 0)) throw new HttpError(422, "Enter a non-negative numeric value");
+    return { id, label, value: entry.value, remarks: entry.remarks.trim() };
+  });
+  if (fixed.some(([id]) => !ids.has(id))) throw new HttpError(422, "All default status rows must be included");
+  const organizationId = actor(req).organizationId;
+  const auditId = String(req.params.id);
+  await assertAuditRecordAccess(req, "audit", auditId);
+  const { before, row } = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    const meta = auditMeta(before);
+    const key = section === "design-status" ? "designStatus" : "procurementStatus";
+    const [row] = await tx.update(audits).set({
+      status: JSON.stringify({ ...meta, additionalDocuments: { ...meta.additionalDocuments, [key]: rows } }),
+      updatedAt: new Date(),
+    }).where(eq(audits.id, auditId)).returning();
+    return { before, row };
+  });
+  await auditLog(req, "update_document_status", "audit", auditId, before, row);
   res.json(auditDto(row));
 }));
 

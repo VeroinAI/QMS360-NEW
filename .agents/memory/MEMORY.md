@@ -45,3 +45,4 @@
 - [Audit meeting attendee identity](opening-meeting-attendee-identity.md) — opening and closing selections use Audit user IDs; preserve old typed names and resolve IDs for display.
 - [Orval UUID format compatibility](orval-uuid-format.md) — new OpenAPI uuid formats generate unavailable z.uuid() in this workspace; validate references at the server boundary.
 - [Audit finding record coexistence](audit-finding-coexistence.md) — preserve older standalone findings and CAR links while the Findings workspace uses checklist-backed rows.
+- [Audit document replacement safety](audit-document-replacement-safety.md) — unlink charts without deleting evidence cited elsewhere; merge audit metadata under a row lock.

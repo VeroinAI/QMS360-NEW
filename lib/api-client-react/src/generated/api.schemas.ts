@@ -2567,6 +2567,48 @@ export interface AuditChecklistImportItem {
   auditFinding?: AuditChecklistImportItemAuditFinding;
 }
 
+export interface AuditDocumentStatusRow {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  label: string;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     * @nullable
+     */
+  value: number | null;
+  /** @maxLength 4000 */
+  remarks: string;
+}
+
+export interface AuditDocumentStatusInput {
+  /** @maxItems 100 */
+  rows: AuditDocumentStatusRow[];
+}
+
+export interface AuditOrganizationChartInput {
+  /** @minLength 1 */
+  evidenceId: string;
+  /** @nullable */
+  previousId: string | null;
+}
+
+export interface AuditAdditionalDocuments {
+  /** @nullable */
+  organizationChartId?: string | null;
+  /** @nullable */
+  organizationChartFileName?: string | null;
+  designStatus?: AuditDocumentStatusRow[];
+  procurementStatus?: AuditDocumentStatusRow[];
+}
+
 export type AuditStatus = typeof AuditStatus[keyof typeof AuditStatus];
 
 
@@ -2588,6 +2630,7 @@ export interface Audit {
   openingMeeting?: MeetingMinutes;
   closingMeeting?: MeetingMinutes;
   checklist?: ChecklistItem[];
+  additionalDocuments?: AuditAdditionalDocuments;
   /** @nullable */
   startedAt?: string | null;
   /** @nullable */
