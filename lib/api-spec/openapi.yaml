@@ -2793,6 +2793,7 @@ components:
       required: [rows]
       properties:
         rows: {type: array, maxItems: 100, items: {$ref: "#/components/schemas/AuditDocumentStatusRow"}}
+        remarks: {type: string, maxLength: 500000}
     AuditOrganizationChartInput:
       type: object
       required: [evidenceId, previousId]
@@ -2805,7 +2806,9 @@ components:
         organizationChartId: {type: [string, "null"]}
         organizationChartFileName: {type: [string, "null"]}
         designStatus: {type: array, items: {$ref: "#/components/schemas/AuditDocumentStatusRow"}}
+        designRemarks: {type: string}
         procurementStatus: {type: array, items: {$ref: "#/components/schemas/AuditDocumentStatusRow"}}
+        procurementRemarks: {type: string}
     Audit:
       type: object
       required: [id, planId, projectId, title, status]

@@ -1707,6 +1707,14 @@ router.post("/plans/:id/share", asyncHandler(async (req, res) => {
 
 type AuditMeta = { title?: string; openingMeeting?: AnyRow; closingMeeting?: AnyRow; startedAt?: string | null; closedAt?: string | null; additionalDocuments?: AnyRow };
 const auditMeta = (row: AnyRow): AuditMeta => parseJson(row.status, {});
+const legacyDocumentRemarks = (rows: unknown): string => Array.isArray(rows)
+  ? rows.filter((entry: AnyRow) => typeof entry.remarks === "string" && entry.remarks.trim())
+    .map((entry: AnyRow) => `${entry.label}: ${entry.remarks}`).join("\n")
+  : "";
+const documentRemarks = (documents: AnyRow | undefined, section: "designStatus" | "procurementStatus"): string => {
+  const key = section === "designStatus" ? "designRemarks" : "procurementRemarks";
+  return typeof documents?.[key] === "string" ? documents[key] : legacyDocumentRemarks(documents?.[section]);
+};
 const auditDto = (row: AnyRow) => {
   const meta = auditMeta(row);
   return {
@@ -1719,7 +1727,9 @@ const auditDto = (row: AnyRow) => {
       organizationChartId: meta.additionalDocuments?.organizationChartId ?? null,
       organizationChartFileName: meta.additionalDocuments?.organizationChartFileName ?? null,
       designStatus: meta.additionalDocuments?.designStatus ?? [],
+      designRemarks: documentRemarks(meta.additionalDocuments, "designStatus"),
       procurementStatus: meta.additionalDocuments?.procurementStatus ?? [],
+      procurementRemarks: documentRemarks(meta.additionalDocuments, "procurementStatus"),
     },
     startedAt: meta.startedAt ? new Date(meta.startedAt) : null, closedAt: meta.closedAt ? new Date(meta.closedAt) : null,
   };
@@ -2224,8 +2234,10 @@ router.put("/audits/:id/additional-documents/:section", asyncHandler(async (req,
     if (!before) throw new HttpError(404, "Audit not found");
     const meta = auditMeta(before);
     const key = section === "design-status" ? "designStatus" : "procurementStatus";
+    const remarksKey = section === "design-status" ? "designRemarks" : "procurementRemarks";
+    const remarks = data.remarks ?? legacyDocumentRemarks(rows);
     const [row] = await tx.update(audits).set({
-      status: JSON.stringify({ ...meta, additionalDocuments: { ...meta.additionalDocuments, [key]: rows } }),
+      status: JSON.stringify({ ...meta, additionalDocuments: { ...meta.additionalDocuments, [key]: rows, [remarksKey]: remarks } }),
       updatedAt: new Date(),
     }).where(eq(audits.id, auditId)).returning();
     return { before, row };

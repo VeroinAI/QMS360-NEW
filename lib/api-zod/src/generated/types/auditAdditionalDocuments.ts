@@ -13,5 +13,7 @@ export interface AuditAdditionalDocuments {
   /** @nullable */
   organizationChartFileName?: string | null;
   designStatus?: AuditDocumentStatusRow[];
+  designRemarks?: string;
   procurementStatus?: AuditDocumentStatusRow[];
+  procurementRemarks?: string;
 }

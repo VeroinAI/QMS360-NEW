@@ -516,9 +516,36 @@ describe("Audit additional documents", () => {
     const reloaded = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
     expect(reloaded.json.additionalDocuments.designStatus).toEqual(designRows);
     expect(reloaded.json.additionalDocuments.procurementStatus).toEqual(procurementRows);
+    expect(reloaded.json.additionalDocuments.designRemarks).toBe("Custom design item: First line\nSecond line");
+    expect(reloaded.json.additionalDocuments.procurementRemarks).toBe("");
     expect(reloaded.json.checklist).toEqual(savedDesign.json.checklist);
     expect((await api("PUT", `${path}/design-status`, { token: admin.token, body: { rows: [{ ...designRows[0], value: -1 }] } })).status).toBe(422);
     expect((await api("PUT", `${path}/design-status`, { token: admin.token, body: { rows: [...designRows, designRows[0]] } })).status).toBe(422);
+  });
+
+  it("saves one independent remark for each status tile without losing row values", async () => {
+    const path = `/audit/audits/${auditId}`;
+    const before = await api("GET", path, { token: admin.token });
+    const documents = before.json.additionalDocuments;
+    const designRows = documents.designStatus.map((row: { id: string; label: string; value: number | null }) => ({ ...row, remarks: "" }));
+    const procurementRows = documents.procurementStatus.map((row: { id: string; label: string; value: number | null }) => ({ ...row, remarks: "" }));
+    const designRemark = "All design documents reviewed.\nPending final approval.";
+    const procurementRemark = "Supplier delivery is on schedule.";
+    const savedDesign = await api("PUT", `${path}/additional-documents/design-status`, {
+      token: admin.token, body: { rows: designRows, remarks: designRemark },
+    });
+    expect(savedDesign.status).toBe(200);
+    const savedProcurement = await api("PUT", `${path}/additional-documents/procurement-status`, {
+      token: admin.token, body: { rows: procurementRows, remarks: procurementRemark },
+    });
+    expect(savedProcurement.status).toBe(200);
+    const reloaded = await api("GET", path, { token: admin.token });
+    expect(reloaded.json.additionalDocuments).toEqual(expect.objectContaining({
+      designStatus: designRows, procurementStatus: procurementRows,
+      designRemarks: designRemark, procurementRemarks: procurementRemark,
+    }));
+    expect(reloaded.json.additionalDocuments.designStatus[0].value).toBe(12);
+    expect(reloaded.json.additionalDocuments.procurementStatus[0].value).toBe(27);
   });
 
   it("replaces one confirmed chart atomically and rejects stale or unrelated files", async () => {

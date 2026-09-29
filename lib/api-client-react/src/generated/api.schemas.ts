@@ -2591,6 +2591,8 @@ export interface AuditDocumentStatusRow {
 export interface AuditDocumentStatusInput {
   /** @maxItems 100 */
   rows: AuditDocumentStatusRow[];
+  /** @maxLength 500000 */
+  remarks?: string;
 }
 
 export interface AuditOrganizationChartInput {
@@ -2606,7 +2608,9 @@ export interface AuditAdditionalDocuments {
   /** @nullable */
   organizationChartFileName?: string | null;
   designStatus?: AuditDocumentStatusRow[];
+  designRemarks?: string;
   procurementStatus?: AuditDocumentStatusRow[];
+  procurementRemarks?: string;
 }
 
 export type AuditStatus = typeof AuditStatus[keyof typeof AuditStatus];

@@ -28,7 +28,7 @@ const procurementLabels = [
   ["received-at-site", "Received at site"], ["past-planned-receipt-date", "Past planned receipt date"],
 ] as const;
 type StatusSection = "design-status" | "procurement-status";
-type DraftRow = { id: string; label: string; value: string; remarks: string };
+type DraftRow = { id: string; label: string; value: string };
 const allowedExtensions = /\.(pdf|docx?|xlsx?|pptx?)$/i;
 const mimeByExtension: Record<string, string> = {
   pdf: "application/pdf", doc: "application/msword",
@@ -160,34 +160,38 @@ function toDraftRows(fixed: readonly (readonly [string, string])[], saved: Audit
   const byId = new Map(saved.map(row => [row.id, row]));
   const defaults = fixed.map(([id, label]) => {
     const row = byId.get(id);
-    return { id, label, value: row?.value == null ? "" : String(row.value), remarks: row?.remarks ?? "" };
+    return { id, label, value: row?.value == null ? "" : String(row.value) };
   });
   const fixedIds = new Set<string>(fixed.map(([id]) => id));
   return [...defaults, ...saved.filter(row => !fixedIds.has(row.id)).map(row => ({
-    id: row.id, label: row.label, value: row.value == null ? "" : String(row.value), remarks: row.remarks,
+    id: row.id, label: row.label, value: row.value == null ? "" : String(row.value),
   }))];
 }
 
-function StatusRows({ auditId, section, saved, onUpdated }: {
-  auditId: string; section: StatusSection; saved?: AuditDocumentStatusRow[]; onUpdated: (audit: Audit) => void;
+function StatusRows({ auditId, section, saved, savedRemarks, onUpdated }: {
+  auditId: string; section: StatusSection; saved?: AuditDocumentStatusRow[]; savedRemarks?: string; onUpdated: (audit: Audit) => void;
 }) {
   const fixed = section === "design-status" ? designLabels : procurementLabels;
   const fixedIds = new Set<string>(fixed.map(([id]) => id));
   const { toast } = useToast();
   const mutation = useUpdateAuditDocumentStatus();
   const [rows, setRows] = useState<DraftRow[]>(() => toDraftRows(fixed, saved));
+  const [remarks, setRemarks] = useState(savedRemarks ?? "");
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
-    if (!dirty) setRows(toDraftRows(fixed, saved));
-  }, [saved, dirty, section]);
+    if (!dirty) {
+      setRows(toDraftRows(fixed, saved));
+      setRemarks(savedRemarks ?? "");
+    }
+  }, [saved, savedRemarks, dirty, section]);
 
-  const change = (id: string, key: "label" | "value" | "remarks", value: string) => {
+  const change = (id: string, key: "label" | "value", value: string) => {
     setRows(current => current.map(row => row.id === id ? { ...row, [key]: value } : row));
     setDirty(true);
   };
   const add = () => {
-    setRows(current => [...current, { id: crypto.randomUUID(), label: "", value: "", remarks: "" }]);
+    setRows(current => [...current, { id: crypto.randomUUID(), label: "", value: "" }]);
     setDirty(true);
   };
   const remove = (id: string) => {
@@ -201,7 +205,7 @@ function StatusRows({ auditId, section, saved, onUpdated }: {
     }
     const parsed = rows.map(row => {
       const value = row.value.trim();
-      return { id: row.id, label: row.label.trim(), value: value === "" ? null : Number(value), remarks: row.remarks };
+      return { id: row.id, label: row.label.trim(), value: value === "" ? null : Number(value), remarks: "" };
     });
     if (parsed.some(row => row.value !== null && (!/^\d+(?:\.\d+)?$/.test(rows.find(item => item.id === row.id)!.value.trim()) || !Number.isFinite(row.value) || row.value > 1_000_000_000))) {
       toast({ title: "Enter a valid non-negative numeric value (up to 1,000,000,000)", variant: "destructive" });
@@ -209,7 +213,7 @@ function StatusRows({ auditId, section, saved, onUpdated }: {
     }
     setSaving(true);
     try {
-      const updated = await mutation.mutateAsync({ id: auditId, section, data: { rows: parsed } });
+      const updated = await mutation.mutateAsync({ id: auditId, section, data: { rows: parsed, remarks } });
       setDirty(false);
       onUpdated(updated);
       toast({ title: `${section === "design-status" ? "Design" : "Procurement"} Status saved` });
@@ -221,18 +225,23 @@ function StatusRows({ auditId, section, saved, onUpdated }: {
   };
   return <div className="space-y-4">
     <div className="overflow-x-auto">
-      <div className="min-w-[650px] space-y-3">
-        <div className="grid grid-cols-[minmax(190px,1fr)_130px_minmax(240px,1.4fr)_32px] gap-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <span>Status</span><span>Value</span><span>Remarks</span><span className="sr-only">Actions</span>
+      <div className="grid min-w-[650px] grid-cols-[minmax(350px,1.2fr)_minmax(240px,1fr)] gap-5">
+        <div className="space-y-3">
+          <div className="grid grid-cols-[minmax(160px,1fr)_130px_32px] gap-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <span>Status</span><span>Value</span><span className="sr-only">Actions</span>
+          </div>
+          {rows.map(row => <div key={row.id} className="grid grid-cols-[minmax(160px,1fr)_130px_32px] items-start gap-3">
+            {fixedIds.has(row.id)
+              ? <span className="py-2 text-sm font-medium">{row.label}</span>
+              : <Input aria-label="Additional status name" placeholder="Status name" maxLength={120} value={row.label} onChange={event => change(row.id, "label", event.target.value)} disabled={saving}/>}
+            <Input type="number" min="0" max="1000000000" step="any" inputMode="decimal" aria-label={`${row.label || "Additional status"} value`} placeholder="Enter number" value={row.value} onChange={event => change(row.id, "value", event.target.value)} disabled={saving}/>
+            {!fixedIds.has(row.id) && <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${row.label || "additional line"}`} onClick={() => remove(row.id)} disabled={saving}><Trash2 className="size-4" aria-hidden="true"/></Button>}
+          </div>)}
         </div>
-        {rows.map(row => <div key={row.id} className="grid grid-cols-[minmax(190px,1fr)_130px_minmax(240px,1.4fr)_32px] items-start gap-3">
-          {fixedIds.has(row.id)
-            ? <span className="py-2 text-sm font-medium">{row.label}</span>
-            : <Input aria-label="Additional status name" placeholder="Status name" maxLength={120} value={row.label} onChange={event => change(row.id, "label", event.target.value)} disabled={saving}/>}
-          <Input type="number" min="0" max="1000000000" step="any" inputMode="decimal" aria-label={`${row.label || "Additional status"} value`} placeholder="Enter number" value={row.value} onChange={event => change(row.id, "value", event.target.value)} disabled={saving}/>
-          <Textarea aria-label={`${row.label || "Additional status"} remarks`} placeholder="Enter remarks" rows={2} maxLength={4000} value={row.remarks} onChange={event => change(row.id, "remarks", event.target.value)} disabled={saving}/>
-          {!fixedIds.has(row.id) && <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${row.label || "additional line"}`} onClick={() => remove(row.id)} disabled={saving}><Trash2 className="size-4" aria-hidden="true"/></Button>}
-        </div>)}
+        <div className="flex flex-col gap-3">
+          <label htmlFor={`remarks-${section}`} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Remarks</label>
+          <Textarea id={`remarks-${section}`} aria-label={`${section === "design-status" ? "Design" : "Procurement"} Status remarks`} placeholder="Enter remarks for this section" className="min-h-[240px] flex-1 resize-y" maxLength={500000} value={remarks} onChange={event => { setRemarks(event.target.value); setDirty(true); }} disabled={saving}/>
+        </div>
       </div>
     </div>
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -258,11 +267,11 @@ export function AdditionalDocumentSections({ auditId, documents }: { auditId: st
     </AccordionItem>
     <AccordionItem value="design-status" className="rounded-lg border bg-card px-5 shadow-sm">
       <AccordionTrigger className="py-5 text-base hover:no-underline">Design Status</AccordionTrigger>
-      <AccordionContent className="border-t pt-4"><StatusRows auditId={auditId} section="design-status" saved={documents?.designStatus} onUpdated={onUpdated}/></AccordionContent>
+      <AccordionContent className="border-t pt-4"><StatusRows auditId={auditId} section="design-status" saved={documents?.designStatus} savedRemarks={documents?.designRemarks} onUpdated={onUpdated}/></AccordionContent>
     </AccordionItem>
     <AccordionItem value="procurement-status" className="rounded-lg border bg-card px-5 shadow-sm">
       <AccordionTrigger className="py-5 text-base hover:no-underline">Procurement Status</AccordionTrigger>
-      <AccordionContent className="border-t pt-4"><StatusRows auditId={auditId} section="procurement-status" saved={documents?.procurementStatus} onUpdated={onUpdated}/></AccordionContent>
+      <AccordionContent className="border-t pt-4"><StatusRows auditId={auditId} section="procurement-status" saved={documents?.procurementStatus} savedRemarks={documents?.procurementRemarks} onUpdated={onUpdated}/></AccordionContent>
     </AccordionItem>
     <AccordionItem value="good-practices" className="rounded-lg border bg-card px-5 shadow-sm">
       <AccordionTrigger className="py-5 text-base hover:no-underline">Conforming and Good Practices</AccordionTrigger>

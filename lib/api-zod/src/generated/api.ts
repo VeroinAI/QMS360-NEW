@@ -6741,12 +6741,14 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "value": zod.number().min(sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemValueMin).max(sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemValueMin).max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -6838,12 +6840,14 @@ export const ListAuditsResponse = zod.object({
   "value": zod.number().min(listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemValueMin).max(listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMin).max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -6915,12 +6919,14 @@ export const CreateAuditBody = zod.object({
   "value": zod.number().min(createAuditBodyAdditionalDocumentsDesignStatusItemValueMin).max(createAuditBodyAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditBodyAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(createAuditBodyAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(createAuditBodyAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(createAuditBodyAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditBodyAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -6997,12 +7003,14 @@ export const GetAuditResponse = zod.object({
   "value": zod.number().min(getAuditResponseAdditionalDocumentsDesignStatusItemValueMin).max(getAuditResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(getAuditResponseAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(getAuditResponseAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(getAuditResponseAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(getAuditResponseAdditionalDocumentsProcurementStatusItemValueMin).max(getAuditResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(getAuditResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7077,12 +7085,14 @@ export const UpdateAuditBody = zod.object({
   "value": zod.number().min(updateAuditBodyAdditionalDocumentsDesignStatusItemValueMin).max(updateAuditBodyAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(updateAuditBodyAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(updateAuditBodyAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(updateAuditBodyAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(updateAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7258,12 +7268,14 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "value": zod.number().min(createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMin).max(createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7353,12 +7365,14 @@ export const EditAuditChecklistItemResponse = zod.object({
   "value": zod.number().min(editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMin).max(editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7449,12 +7463,14 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "value": zod.number().min(importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemValueMin).max(importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMin).max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7545,12 +7561,14 @@ export const CreateAuditFindingItemResponse = zod.object({
   "value": zod.number().min(createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemValueMin).max(createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7630,12 +7648,14 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "value": zod.number().min(assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemValueMin).max(assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMin).max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7718,12 +7738,14 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "value": zod.number().min(replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemValueMin).max(replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMin).max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7749,6 +7771,8 @@ export const updateAuditDocumentStatusBodyRowsItemRemarksMax = 4000;
 
 export const updateAuditDocumentStatusBodyRowsMax = 100;
 
+export const updateAuditDocumentStatusBodyRemarksMax = 500000;
+
 
 
 export const UpdateAuditDocumentStatusBody = zod.object({
@@ -7757,7 +7781,8 @@ export const UpdateAuditDocumentStatusBody = zod.object({
   "label": zod.string().min(1).max(updateAuditDocumentStatusBodyRowsItemLabelMax),
   "value": zod.number().min(updateAuditDocumentStatusBodyRowsItemValueMin).max(updateAuditDocumentStatusBodyRowsItemValueMax).nullable(),
   "remarks": zod.string().max(updateAuditDocumentStatusBodyRowsItemRemarksMax)
-})).max(updateAuditDocumentStatusBodyRowsMax)
+})).max(updateAuditDocumentStatusBodyRowsMax),
+  "remarks": zod.string().max(updateAuditDocumentStatusBodyRemarksMax).optional()
 })
 
 export const updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
@@ -7821,12 +7846,14 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "value": zod.number().min(updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemValueMin).max(updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -8471,12 +8498,14 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "value": zod.number().min(getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemValueMin).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemValueMax).nullable(),
   "remarks": zod.string().max(getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemRemarksMax)
 })).optional(),
+  "designRemarks": zod.string().optional(),
   "procurementStatus": zod.array(zod.object({
   "id": zod.string().min(1).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemIdMax),
   "label": zod.string().min(1).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemLabelMax),
   "value": zod.number().min(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemValueMin).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemRemarksMax)
-})).optional()
+})).optional(),
+  "procurementRemarks": zod.string().optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()

@@ -10,4 +10,6 @@ import type { AuditDocumentStatusRow } from './auditDocumentStatusRow';
 export interface AuditDocumentStatusInput {
   /** @maxItems 100 */
   rows: AuditDocumentStatusRow[];
+  /** @maxLength 500000 */
+  remarks?: string;
 }
