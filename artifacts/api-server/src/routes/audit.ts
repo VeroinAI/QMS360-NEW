@@ -1918,16 +1918,8 @@ router.put("/audits/:id/checklist", asyncHandler(async (req, res) => {
   await auditLog(req, "update_checklist", "audit", row.id, before, row); res.json(auditDto(row));
 }));
 
-router.post("/audits/:id/checklist/items", asyncHandler(async (req, res) => {
-  const data = body<AnyRow>(Api.CreateAuditChecklistItemBody, req);
-  const organizationId = actor(req).organizationId;
-  const auditId = String(req.params.id);
-  const clause = data.clause.trim();
-  const auditArea = data.auditArea.trim();
-  const question = data.question.trim();
-  if (!clause || !auditArea || !question) throw new HttpError(422, "Clause, Audit Area and Audit Question are required");
-  await assertLovValue(db, organizationId, "Audit Area", auditArea);
-  const evidenceIds = [...new Set(data.evidenceIds ?? [])] as string[];
+async function checklistEvidenceIds(organizationId: string, auditId: string, ids: string[]) {
+  const evidenceIds = [...new Set(ids)];
   if (evidenceIds.length) {
     const files = await db.select({ id: auditEvidenceFiles.id }).from(auditEvidenceFiles).where(and(
       eq(auditEvidenceFiles.organizationId, organizationId), eq(auditEvidenceFiles.recordType, "audit"),
@@ -1936,23 +1928,85 @@ router.post("/audits/:id/checklist/items", asyncHandler(async (req, res) => {
     ));
     if (files.length !== evidenceIds.length) throw new HttpError(422, "Evidence must be uploaded to this audit before linking it");
   }
+  return evidenceIds;
+}
+
+const checklistItemValues = (data: AnyRow, evidenceIds: string[]) => ({
+  clause: data.clause.trim(), auditArea: data.auditArea.trim(), question: data.question.trim(),
+  description: data.description?.trim() || null, auditFinding: data.auditFinding || null, evidenceIds,
+});
+
+router.post("/audits/:id/checklist/items", asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.CreateAuditChecklistItemBody, req);
+  const organizationId = actor(req).organizationId;
+  const auditId = String(req.params.id);
+  if (!data.clause.trim() || !data.auditArea.trim() || !data.question.trim()) throw new HttpError(422, "Clause, Audit Area and Audit Question are required");
+  await assertLovValue(db, organizationId, "Audit Area", data.auditArea.trim());
+  const evidenceIds = await checklistEvidenceIds(organizationId, auditId, data.evidenceIds ?? []);
   const { before, row } = await db.transaction(async tx => {
     const [before] = await tx.select().from(audits).where(and(
       active(audits, organizationId), eq(audits.id, auditId),
     )).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
     const checklist = Array.isArray(before.checklistState) ? before.checklistState : [];
-    const item = {
-      id: randomUUID(), clause, auditArea, question,
-      description: data.description?.trim() || null,
-      auditFinding: data.auditFinding || null, evidenceIds,
-    };
+    const item = { id: randomUUID(), ...checklistItemValues(data, evidenceIds) };
     const [row] = await tx.update(audits).set({
       checklistState: [...checklist, item] as any, updatedAt: new Date(),
     }).where(eq(audits.id, auditId)).returning();
     return { before, row };
   });
   await auditLog(req, "add_checklist_item", "audit", row.id, before, row);
+  res.status(201).json(auditDto(row));
+}));
+
+router.put("/audits/:id/checklist/items/:itemId", asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.EditAuditChecklistItemBody, req);
+  const organizationId = actor(req).organizationId;
+  const auditId = String(req.params.id);
+  const itemId = String(req.params.itemId);
+  if (!data.clause.trim() || !data.auditArea.trim() || !data.question.trim()) throw new HttpError(422, "Clause, Audit Area and Audit Question are required");
+  const { before, row } = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
+    const previous = checklist.find(item => item.id === itemId);
+    if (!previous) throw new HttpError(404, "Checklist item not found");
+    await assertLovValue(db, organizationId, "Audit Area", data.auditArea.trim(), { allowLegacy: previous.auditArea });
+    const submittedIds = [...new Set((data.evidenceIds ?? previous.evidenceIds ?? []) as string[])];
+    const priorIds = new Set((previous.evidenceIds ?? []) as string[]);
+    await checklistEvidenceIds(organizationId, auditId, submittedIds.filter(id => !priorIds.has(id)));
+    const evidenceIds = submittedIds;
+    const updated = checklist.map(item => item.id === itemId
+      ? { ...item, ...checklistItemValues(data, evidenceIds) } : item);
+    const [row] = await tx.update(audits).set({ checklistState: updated as any, updatedAt: new Date() }).where(eq(audits.id, auditId)).returning();
+    return { before, row };
+  });
+  await auditLog(req, "edit_checklist_item", "audit", row.id, before, row);
+  res.json(auditDto(row));
+}));
+
+router.post("/audits/:id/checklist/import", asyncHandler(async (req, res) => {
+  const data = body<AnyRow[]>(Api.ImportAuditChecklistItemsBody, req);
+  const organizationId = actor(req).organizationId;
+  const auditId = String(req.params.id);
+  for (const [index, item] of data.entries()) {
+    if (!item.clause.trim() || !item.auditArea.trim() || !item.question.trim()) {
+      throw new HttpError(422, `Row ${index + 2}: Clause, Audit Area and Audit Question are required`);
+    }
+    if (item.evidenceIds?.length) throw new HttpError(422, `Row ${index + 2}: upload evidence from the Checklist after importing`);
+  }
+  for (const area of new Set(data.map(item => item.auditArea.trim()))) {
+    await assertLovValue(db, organizationId, "Audit Area", area);
+  }
+  const { before, row } = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    const checklist = Array.isArray(before.checklistState) ? before.checklistState : [];
+    const incoming = data.map(item => ({ id: randomUUID(), ...checklistItemValues(item, []) }));
+    const [row] = await tx.update(audits).set({ checklistState: [...checklist, ...incoming] as any, updatedAt: new Date() }).where(eq(audits.id, auditId)).returning();
+    return { before, row };
+  });
+  await auditLog(req, "import_checklist_items", "audit", row.id, before, row);
   res.status(201).json(auditDto(row));
 }));
 

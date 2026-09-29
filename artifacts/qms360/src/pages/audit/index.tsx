@@ -6,6 +6,8 @@ import {
   useConfirmAuditEvidence,
   useCreateAuditEvidenceIntent,
   useCreateAuditChecklistItem,
+  useEditAuditChecklistItem,
+  useImportAuditChecklistItems,
   useCreateAuditFinding,
   useCreateAuditPlan,
   useCreateAuditSchedule,
@@ -98,6 +100,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import { downloadScheduleWorkbook, resolveScheduleProject, scheduleCategoryLinkError, scheduleFieldForHeader } from "./schedule-workbook";
+import { checklistFindings, downloadChecklistWorkbook, parseChecklistWorkbook } from "./checklist-workbook";
 import { useLov, withLegacyOption } from "@/lib/use-lov";
 import { categoryOptionsForAuditType } from "./audit-category-options";
 import { useFieldAccess } from "@/lib/use-field-access";
@@ -1664,10 +1667,14 @@ function MeetingEditor({ auditId, kind, value }: { auditId: string; kind: "openi
 }
 
 function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistItem[] }) {
-  const empty = () => ({ clause: "", auditArea: "", question: "", description: "", auditFinding: "", file: null as File | null });
+  const empty = () => ({ clause: "", auditArea: "", question: "", description: "", auditFinding: "", evidenceIds: [] as string[], file: null as File | null });
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<ChecklistItem | null>(null);
   const [draft, setDraft] = useState(empty);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const uploadInput = useRef<HTMLInputElement>(null);
   const [uploadedId, setUploadedId] = useState<string | null>(null);
   const uploadReference = useRef(crypto.randomUUID());
   const qc = useQueryClient();
@@ -1675,10 +1682,46 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
   const areas = useLov("Audit Area");
   const evidence = useListAuditEvidence({ recordType: "audit", recordId: auditId, page: 1, limit: 200 });
   const addItem = useCreateAuditChecklistItem();
+  const editItem = useEditAuditChecklistItem();
+  const importItems = useImportAuditChecklistItems();
   const intent = useCreateAuditEvidenceIntent();
   const confirm = useConfirmAuditEvidence();
-  const update = (key: keyof ReturnType<typeof empty>, value: string | File | null) => setDraft(current => ({ ...current, [key]: value }));
-  const reset = () => { setOpen(false); setDraft(empty()); setUploadedId(null); uploadReference.current = crypto.randomUUID(); };
+  const update = (key: keyof ReturnType<typeof empty>, value: string | File | null | string[]) => setDraft(current => ({ ...current, [key]: value }));
+  const reset = () => { setOpen(false); setEditing(null); setDraft(empty()); setUploadedId(null); uploadReference.current = crypto.randomUUID(); };
+  const openEdit = (item: ChecklistItem) => {
+    setEditing(item);
+    setDraft({
+      clause: item.clause ?? "", auditArea: item.auditArea ?? "", question: item.question,
+      description: item.description ?? item.notes ?? "",
+      auditFinding: item.auditFinding ?? (checklistFindings.find(value => value === item.result) ?? ""),
+      evidenceIds: item.evidenceIds ?? [], file: null,
+    });
+    setUploadedId(null);
+    uploadReference.current = crypto.randomUUID();
+    setOpen(true);
+  };
+  const download = async () => {
+    setDownloading(true);
+    try { await downloadChecklistWorkbook(areas.options.map(option => option.value)); }
+    catch (error) { toast({ title: "Unable to download template", description: errorText(error), variant: "destructive" }); }
+    finally { setDownloading(false); }
+  };
+  const importFile = async (file: File) => {
+    setImporting(true);
+    try {
+      if (file.size > 5 * 1024 * 1024) throw new Error("The Excel file exceeds the 5 MB import limit.");
+      const rows = parseChecklistWorkbook(await file.arrayBuffer(), areas.options.map(option => option.value));
+      const saved = await importItems.mutateAsync({ id: auditId, data: rows });
+      qc.setQueryData(getGetAuditQueryKey(auditId), saved);
+      void qc.invalidateQueries({ queryKey: getGetAuditQueryKey(auditId) });
+      toast({ title: `${rows.length} checklist item${rows.length === 1 ? "" : "s"} imported` });
+    } catch (error) {
+      toast({ title: "Unable to import checklist", description: errorText(error), variant: "destructive" });
+    } finally {
+      if (uploadInput.current) uploadInput.current.value = "";
+      setImporting(false);
+    }
+  };
   const save = async () => {
     if (!draft.clause.trim() || !draft.auditArea || !draft.question.trim()) {
       toast({ title: "Clause, Audit Area and Audit Question are required", variant: "destructive" });
@@ -1704,15 +1747,18 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
         fileId = upload.id;
         setUploadedId(fileId);
       }
-      const saved = await addItem.mutateAsync({ id: auditId, data: {
+      const data = {
         clause: draft.clause.trim(), auditArea: draft.auditArea, question: draft.question.trim(),
         description: draft.description.trim(), ...(draft.auditFinding ? { auditFinding: draft.auditFinding as "Minor NC" | "Moderate NC" | "Major NC" | "OFI" | "Not applicable" } : {}),
-        evidenceIds: fileId ? [fileId] : [],
-      } });
+        evidenceIds: [...new Set([...draft.evidenceIds, ...(fileId ? [fileId] : [])])],
+      };
+      const saved = editing
+        ? await editItem.mutateAsync({ id: auditId, itemId: editing.id, data })
+        : await addItem.mutateAsync({ id: auditId, data });
       qc.setQueryData(getGetAuditQueryKey(auditId), saved);
       void qc.invalidateQueries({ queryKey: getGetAuditQueryKey(auditId) });
       if (fileId) void qc.invalidateQueries({ queryKey: ["/api/audit/evidence"] });
-      toast({ title: "Checklist item saved" });
+      toast({ title: editing ? "Checklist item updated" : "Checklist item saved" });
       reset();
     } catch (error) {
       toast({ title: "Unable to save checklist item", description: errorText(error), variant: "destructive" });
@@ -1720,17 +1766,22 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
       setSaving(false);
     }
   };
-  const findings = ["Minor NC", "Moderate NC", "Major NC", "OFI", "Not applicable"];
+  const findings = checklistFindings;
   const filesById = new Map((evidence.data?.items ?? []).map(file => [file.id, file]));
   return <Card>
-    <CardHeader className="flex-row items-center justify-between gap-3">
+    <CardHeader className="flex-row flex-wrap items-center justify-between gap-3">
       <div><CardTitle>Checklist</CardTitle><CardDescription>Clause-level audit questions and findings</CardDescription></div>
-      <Button onClick={() => setOpen(true)}><Plus className="mr-2 size-4"/>New Item</Button>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" disabled={downloading || areas.isLoading || !!areas.error || !areas.options.length} onClick={() => void download()}><Download className="mr-2 size-4"/>{downloading ? "Preparing…" : "Download Template"}</Button>
+        <Button variant="outline" disabled={importing || areas.isLoading || !!areas.error || !areas.options.length} onClick={() => uploadInput.current?.click()}><Upload className="mr-2 size-4"/>{importing ? "Importing…" : "Upload Excel"}</Button>
+        <input ref={uploadInput} className="hidden" type="file" accept=".xlsx" onChange={event => { const file = event.target.files?.[0]; if (file) void importFile(file); }}/>
+        <Button onClick={() => { setEditing(null); setDraft(empty()); setOpen(true); }}><Plus className="mr-2 size-4"/>New Item</Button>
+      </div>
     </CardHeader>
     <CardContent>
       <div className="overflow-x-auto rounded-md border">
         <Table className="min-w-[1050px]">
-          <TableHeader><TableRow><TableHead>Clause</TableHead><TableHead>Audit Area</TableHead><TableHead>Audit Question</TableHead><TableHead>Description</TableHead><TableHead>Audit Findings</TableHead><TableHead>Evidence</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Clause</TableHead><TableHead>Audit Area</TableHead><TableHead>Audit Question</TableHead><TableHead>Description</TableHead><TableHead>Audit Findings</TableHead><TableHead>Evidence</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
           <TableBody>{initial.length ? initial.map(item => <TableRow key={item.id}>
             <TableCell className="align-top">{item.clause || "—"}</TableCell>
             <TableCell className="align-top">{areas.options.find(area => area.value === item.auditArea)?.label ?? item.auditArea ?? "—"}</TableCell>
@@ -1743,22 +1794,23 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
                 ? <a key={id} className="block text-primary underline" href={file.storageUrl} target="_blank" rel="noopener noreferrer">{file.fileName}</a>
                 : <span key={id} className="block text-muted-foreground">File unavailable</span>;
             }) : "—"}</TableCell>
-          </TableRow>) : <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">No checklist items yet. Select New Item to add one.</TableCell></TableRow>}</TableBody>
+            <TableCell className="align-top"><Button size="sm" variant="outline" onClick={() => openEdit(item)}><Pencil className="mr-2 size-3"/>Edit</Button></TableCell>
+          </TableRow>) : <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">No checklist items yet. Select New Item or upload an Excel template to add some.</TableCell></TableRow>}</TableBody>
         </Table>
       </div>
     </CardContent>
     <Dialog open={open} onOpenChange={value => { if (!value && !saving) reset(); else if (value) setOpen(true); }}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader><DialogTitle>New Checklist Item</DialogTitle><DialogDescription>Add a question and optionally attach evidence. Nothing is saved until you select Save.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{editing ? "Edit Checklist Item" : "New Checklist Item"}</DialogTitle><DialogDescription>{editing ? "Update this question and its evidence." : "Add a question and optionally attach evidence. Nothing is saved until you select Save."}</DialogDescription></DialogHeader>
         <div className="space-y-4">
           <div><Label htmlFor="checklist-clause">Clause *</Label><Input id="checklist-clause" value={draft.clause} onChange={event => update("clause", event.target.value)} placeholder="Enter audit clause"/></div>
           <div><Label>Audit Area *</Label><Select value={draft.auditArea} onValueChange={value => update("auditArea", value)} disabled={areas.isLoading || !!areas.error}><SelectTrigger><SelectValue placeholder="Select Audit Area"/></SelectTrigger><SelectContent>{areas.options.map(area => <SelectItem key={area.value} value={area.value}>{area.label}</SelectItem>)}</SelectContent></Select>{areas.error && <p className="mt-1 text-sm text-destructive">Unable to load Audit Area master data. <button type="button" className="underline" onClick={() => areas.refetch()}>Retry</button></p>}{!areas.isLoading && !areas.error && !areas.options.length && <p className="mt-1 text-sm text-muted-foreground">No active Audit Area values are configured in master data.</p>}</div>
           <div><Label htmlFor="checklist-question">Audit Question *</Label><Input id="checklist-question" value={draft.question} onChange={event => update("question", event.target.value)} placeholder="Enter the audit question"/></div>
           <div><Label htmlFor="checklist-description">Description</Label><Textarea id="checklist-description" rows={4} value={draft.description} onChange={event => update("description", event.target.value)} placeholder="Description or findings"/></div>
           <div><Label>Audit Findings</Label><Select value={draft.auditFinding} onValueChange={value => update("auditFinding", value)}><SelectTrigger><SelectValue placeholder="Select a finding (optional)"/></SelectTrigger><SelectContent>{findings.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>{draft.auditFinding && <button type="button" className="mt-1 text-xs text-muted-foreground underline" onClick={() => update("auditFinding", "")}>Clear selection</button>}</div>
-          <div><Label htmlFor="checklist-evidence">Evidence (optional)</Label><Input id="checklist-evidence" type="file" accept="image/*,.xlsx,.xls,.doc,.docx,.pdf,.ppt,.pptx" onChange={event => { update("file", event.target.files?.[0] ?? null); setUploadedId(null); uploadReference.current = crypto.randomUUID(); }}/><p className="mt-1 text-xs text-muted-foreground">Photos and office documents; organization evidence size limits apply.</p>{draft.file && <p className="mt-1 text-sm">{draft.file.name}</p>}</div>
+          <div><Label htmlFor="checklist-evidence">Evidence (optional)</Label>{draft.evidenceIds.map(id => <div key={id} className="flex items-center justify-between gap-2 text-sm"><span>{filesById.get(id)?.fileName ?? "Attached file"}</span><button type="button" className="text-destructive underline" onClick={() => update("evidenceIds", draft.evidenceIds.filter(value => value !== id))}>Remove from item</button></div>)}<Input id="checklist-evidence" type="file" accept="image/*,.xlsx,.xls,.doc,.docx,.pdf,.ppt,.pptx" onChange={event => { update("file", event.target.files?.[0] ?? null); setUploadedId(null); uploadReference.current = crypto.randomUUID(); }}/><p className="mt-1 text-xs text-muted-foreground">Photos and office documents; organization evidence size limits apply.</p>{draft.file && <p className="mt-1 text-sm">{draft.file.name}</p>}</div>
         </div>
-        <DialogFooter><Button variant="outline" disabled={saving} onClick={reset}>Cancel</Button><Button disabled={saving || areas.isLoading || !!areas.error} onClick={save}>{saving ? "Saving…" : "Save"}</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" disabled={saving} onClick={reset}>Cancel</Button><Button disabled={saving || areas.isLoading || !!areas.error} onClick={save}>{saving ? "Saving…" : editing ? "Save Changes" : "Save"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   </Card>;

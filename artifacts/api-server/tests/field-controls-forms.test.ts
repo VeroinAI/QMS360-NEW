@@ -294,6 +294,46 @@ describe("Audit checklist items", () => {
     const detail = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
     expect(detail.json.checklist).toHaveLength(3);
   });
+
+  it("edits only the selected item and imports a valid workbook batch without partial rows", async () => {
+    const path = `/audit/audits/${auditId}/checklist`;
+    const before = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+    const original = before.json.checklist;
+    const selected = original[1];
+    const invalidEdit = await api("PUT", `${path}/items/${selected.id}`, { token: admin.token, body: {
+      clause: "10", auditArea: "Not configured", question: "Updated?",
+    } });
+    expect(invalidEdit.status).toBe(422);
+    const missing = await api("PUT", `${path}/items/${crypto.randomUUID()}`, { token: admin.token, body: {
+      clause: "10", auditArea: "QMS", question: "Updated?",
+    } });
+    expect(missing.status).toBe(404);
+    const changed = await api("PUT", `${path}/items/${selected.id}`, { token: admin.token, body: {
+      clause: "10", auditArea: "QMS", question: "Updated?", description: "", auditFinding: "OFI",
+    } });
+    expect(changed.status).toBe(200);
+    expect(changed.json.checklist).toHaveLength(original.length);
+    expect(changed.json.checklist[0]).toEqual(original[0]);
+    expect(changed.json.checklist[2]).toEqual(original[2]);
+    expect(changed.json.checklist[1]).toEqual(expect.objectContaining({ id: selected.id, clause: "10", auditArea: "QMS", question: "Updated?", auditFinding: "OFI" }));
+
+    const first = { clause: "1.1", auditArea: "Construction", question: "First imported question" };
+    const rejected = await api("POST", `${path}/import`, { token: admin.token, body: [
+      first, { clause: "1.2", auditArea: "Invalid", question: "Bad import row" },
+    ] });
+    expect(rejected.status).toBe(422);
+    const still = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+    expect(still.json.checklist).toHaveLength(original.length);
+    const imported = await api("POST", `${path}/import`, { token: admin.token, body: [
+      first, { clause: "1.2", auditArea: "QMS", question: "Second imported question", auditFinding: "Not applicable" },
+    ] });
+    expect(imported.status).toBe(201);
+    expect(imported.json.checklist).toHaveLength(original.length + 2);
+    expect(imported.json.checklist.slice(-2)).toEqual([
+      expect.objectContaining({ question: first.question, evidenceIds: [] }),
+      expect.objectContaining({ question: "Second imported question", auditFinding: "Not applicable" }),
+    ]);
+  });
 });
 
 describe("Lessons application access", () => {

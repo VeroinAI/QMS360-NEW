@@ -18005,6 +18005,152 @@ export const useCreateAuditChecklistItem = <TError = ErrorType<unknown>,
       return useMutation(getCreateAuditChecklistItemMutationOptions(options));
     }
 
+export const getEditAuditChecklistItemUrl = (id: string,
+    itemId: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/checklist/items/${itemId}`
+}
+
+/**
+ * @summary Edit a checklist item
+ */
+export const editAuditChecklistItem = async (id: string,
+    itemId: string,
+    auditChecklistItemInput: AuditChecklistItemInput, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getEditAuditChecklistItemUrl(id,itemId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditChecklistItemInput)
+  }
+);}
+
+
+
+
+
+export const getEditAuditChecklistItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof editAuditChecklistItem>>, TError,{id: string;itemId: string;data: BodyType<AuditChecklistItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof editAuditChecklistItem>>, TError,{id: string;itemId: string;data: BodyType<AuditChecklistItemInput>}, TContext> => {
+
+const mutationKey = ['editAuditChecklistItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof editAuditChecklistItem>>, {id: string;itemId: string;data: BodyType<AuditChecklistItemInput>}> = (props) => {
+          const {id,itemId,data} = props ?? {};
+
+          return  editAuditChecklistItem(id,itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EditAuditChecklistItemMutationResult = NonNullable<Awaited<ReturnType<typeof editAuditChecklistItem>>>
+    export type EditAuditChecklistItemMutationBody = BodyType<AuditChecklistItemInput>
+    export type EditAuditChecklistItemMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Edit a checklist item
+ */
+export const useEditAuditChecklistItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof editAuditChecklistItem>>, TError,{id: string;itemId: string;data: BodyType<AuditChecklistItemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof editAuditChecklistItem>>,
+        TError,
+        {id: string;itemId: string;data: BodyType<AuditChecklistItemInput>},
+        TContext
+      > => {
+      return useMutation(getEditAuditChecklistItemMutationOptions(options));
+    }
+
+export const getImportAuditChecklistItemsUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/checklist/import`
+}
+
+/**
+ * @summary Append checklist items atomically from a spreadsheet
+ */
+export const importAuditChecklistItems = async (id: string,
+    auditChecklistItemInput: AuditChecklistItemInput[], options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getImportAuditChecklistItemsUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditChecklistItemInput)
+  }
+);}
+
+
+
+
+
+export const getImportAuditChecklistItemsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importAuditChecklistItems>>, TError,{id: string;data: BodyType<AuditChecklistItemInput[]>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importAuditChecklistItems>>, TError,{id: string;data: BodyType<AuditChecklistItemInput[]>}, TContext> => {
+
+const mutationKey = ['importAuditChecklistItems'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importAuditChecklistItems>>, {id: string;data: BodyType<AuditChecklistItemInput[]>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  importAuditChecklistItems(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportAuditChecklistItemsMutationResult = NonNullable<Awaited<ReturnType<typeof importAuditChecklistItems>>>
+    export type ImportAuditChecklistItemsMutationBody = BodyType<AuditChecklistItemInput[]>
+    export type ImportAuditChecklistItemsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Append checklist items atomically from a spreadsheet
+ */
+export const useImportAuditChecklistItems = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importAuditChecklistItems>>, TError,{id: string;data: BodyType<AuditChecklistItemInput[]>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importAuditChecklistItems>>,
+        TError,
+        {id: string;data: BodyType<AuditChecklistItemInput[]>},
+        TContext
+      > => {
+      return useMutation(getImportAuditChecklistItemsMutationOptions(options));
+    }
+
 export const getListAuditFindingsUrl = (params?: ListAuditFindingsParams,) => {
   const normalizedParams = new URLSearchParams();
 
