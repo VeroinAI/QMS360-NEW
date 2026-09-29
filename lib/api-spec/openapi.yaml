@@ -2195,7 +2195,7 @@ components:
     Permission:
       type: object
       required: [key, name]
-      properties: {key: {type: string, enum: [data_entry, submit, approve_reject, view_own_scope, view_all, configure_masters, manage_integrations, manage_ai_settings, export, delegate, memo_circulation, audit_team_lead, audit_program_manager]}, name: {type: string}}
+      properties: {key: {type: string, enum: [data_entry, submit, approve_reject, view_own_scope, view_all, configure_masters, manage_integrations, manage_ai_settings, export, delegate, memo_circulation, audit_team_lead, audit_program_manager, product_process_owner]}, name: {type: string}}
     Role:
       type: object
       required: [id, name, permissions, active]
