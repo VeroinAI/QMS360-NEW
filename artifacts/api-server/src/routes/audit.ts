@@ -49,8 +49,11 @@ const auditModules: Array<[string, string]> = [
   ["/findings", "findings"], ["/cars", "cars"],
 ];
 for (const [path, module] of auditModules) {
-  router.use(path, (req, res, next) =>
-    requirePermission("audit", module, req.method === "GET" ? "select" : "full")(req, res, next));
+  router.use(path, (req, res, next) => {
+    // This single mutation uses the Audit Program Manager marker, not create/edit.
+    if (path === "/programmes" && req.method === "PATCH" && /\/programmes\/[^/]+\/team-leads\/?(?:\?|$)/.test(req.originalUrl)) return next();
+    return requirePermission("audit", module, req.method === "GET" ? "select" : "full")(req, res, next);
+  });
 }
 const auditEvidenceModules: Record<string, string> = {
   audit_schedule: "schedules",
@@ -530,6 +533,51 @@ async function assertProgrammeMutationAccess(req: Request, parent: AnyRow, child
   if (visible.some(inScope => !inScope)) throw new HttpError(403, "You do not have access to every child audit in this programme");
 }
 
+async function programmeManagementChildren(req: Request, parent: AnyRow) {
+  const rows = await db.select().from(auditSchedules).where(active(auditSchedules, actor(req).organizationId));
+  return rows.filter(row => !isProgramme(row) && scheduleMeta(row).parentId === parent.id);
+}
+
+async function hasProgrammeManagerMarker(req: Request, children: AnyRow[]) {
+  const assignments = await db.select({
+    projectIds: auditUserWorkspaceRoles.projectIds,
+    businessUnitIds: auditUserWorkspaceRoles.businessUnitIds,
+  }).from(auditUserWorkspaceRoles)
+    .innerJoin(auditWorkspaceRoles, and(
+      eq(auditWorkspaceRoles.id, auditUserWorkspaceRoles.workspaceRoleId),
+      eq(auditWorkspaceRoles.organizationId, actor(req).organizationId),
+      eq(auditWorkspaceRoles.status, "active"), isNull(auditWorkspaceRoles.deletedAt),
+    ))
+    .innerJoin(auditWorkspaceRolePermissions, and(
+      eq(auditWorkspaceRolePermissions.workspaceRoleId, auditWorkspaceRoles.id),
+      eq(auditWorkspaceRolePermissions.organizationId, actor(req).organizationId),
+      isNull(auditWorkspaceRolePermissions.deletedAt),
+    ))
+    .innerJoin(auditPermissions, and(
+      eq(auditPermissions.id, auditWorkspaceRolePermissions.permissionId),
+      eq(auditPermissions.organizationId, actor(req).organizationId),
+      eq(auditPermissions.key, "audit_program_manager"), isNull(auditPermissions.deletedAt),
+    ))
+    .where(and(
+      eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId),
+      eq(auditUserWorkspaceRoles.userId, actor(req).id),
+      eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
+    ));
+  if (!assignments.length) return false;
+  if (assignments.some(row => !row.projectIds?.length && !row.businessUnitIds?.length)) return true;
+  const allowed = new Set(assignments.flatMap(row => row.projectIds ?? []));
+  return children.every(child => {
+    const ids = scheduleMeta(child).projectIds ?? (child.projectId ? [child.projectId] : []);
+    return ids.length > 0 && ids.every(id => allowed.has(id));
+  });
+}
+
+async function canManageProgrammeLeads(req: Request, row: AnyRow, children: AnyRow[]) {
+  if (row.workflowState !== "approved" || !await hasProgrammeManagerMarker(req, children)) return false;
+  if (req.permissionAdminBypass) return true;
+  return (await Promise.all(children.map(child => scheduleInScope(req, child)))).every(Boolean);
+}
+
 async function approvalRoleChain(organizationId: string) {
   const rows = await db.select({
     id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name,
@@ -633,6 +681,7 @@ async function programmeResponse(req: Request, row: AnyRow, childCount: number) 
     currentApproverNames: currentRole ? await roleUserNames(actor(req).organizationId, currentRole.id) : [],
     canReview: await canReviewApproval(req, row),
     canSubmit: ["draft", "sent_back"].includes(row.workflowState) && (row.ownerId === actor(req).id || req.permissionAdminBypass),
+    canManageTeamLeads: row.workflowState === "approved" && await canManageProgrammeLeads(req, row, await programmeManagementChildren(req, row)),
   };
 }
 
@@ -686,7 +735,7 @@ router.get("/programmes", asyncHandler(async (req, res) => {
   const legacy = (await Promise.all(legacyCandidates.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const visibleProgrammes = (await Promise.all(programmes.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const items = await Promise.all(visibleProgrammes.map(async row => programmeResponse(req, row, (await programmeChildren(req, row.id)).length)));
-  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], teamLeadNames: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
+  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], teamLeadNames: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, canManageTeamLeads: false, submissionSubject: null, submissionMailBody: null });
   const offset = (page - 1) * limit;
   res.json(paginated(items.slice(offset, offset + limit), items.length, page, limit));
 }));
@@ -711,13 +760,50 @@ router.get("/programmes/:id", asyncHandler(async (req, res) => {
   if (String(req.params.id) === "legacy") {
     const children = await programmeChildren(req, "legacy");
     if (!children.length) throw new HttpError(404, "Audit programme not found");
-    res.json({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], teamLeadNames: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
+    res.json({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], teamLeadNames: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, canManageTeamLeads: false, submissionSubject: null, submissionMailBody: null });
     return;
   }
   const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   if (!row || !scheduleMeta(row).programme) throw new HttpError(404, "Audit programme not found");
   if (!await scheduleInScope(req, row)) throw new HttpError(403, "You do not have access to this programme");
   res.json(await programmeResponse(req, row, (await programmeChildren(req, row.id)).length));
+}));
+
+router.patch("/programmes/:id/team-leads", asyncHandler(async (req, res) => {
+  const data = body<{ teamLeadIds: string[] }>(Api.UpdateAuditProgrammeTeamLeadsBody, req);
+  if (!data.teamLeadIds.length || new Set(data.teamLeadIds).size !== data.teamLeadIds.length) {
+    throw new HttpError(422, "Select at least one distinct Audit Team Lead");
+  }
+  const eligibleIds = new Set((await auditTeamLeadUsers(actor(req).organizationId)).map(user => user.id));
+  const id = String(req.params.id);
+  const updated = await db.transaction(async tx => {
+    const [before] = await tx.select().from(auditSchedules).where(and(
+      active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, id),
+    )).for("update");
+    if (!before || !isProgramme(before)) throw new HttpError(404, "Audit schedule not found");
+    if (before.workflowState !== "approved") throw new HttpError(409, "Only approved Audit Schedules can have their Team Leads changed");
+    const children = await programmeManagementChildren(req, before);
+    if (!await canManageProgrammeLeads(req, before, children)) throw new HttpError(403, "Audit Program Manager permission and access to all child audits required");
+    await assertProgrammeMutationAccess(req, before, children);
+    const previous = scheduleMeta(before).teamLeadIds ?? [];
+    if (data.teamLeadIds.some(userId => !previous.includes(userId) && !eligibleIds.has(userId))) {
+      throw new HttpError(422, "New Team Leads must be active users assigned an Audit Team Lead role");
+    }
+    const removed = previous.filter(userId => !data.teamLeadIds.includes(userId));
+    if (removed.length && children.length) {
+      const plans = await tx.select().from(auditPlans)
+        .where(and(active(auditPlans, actor(req).organizationId), inArray(auditPlans.auditScheduleId, children.map(child => child.id))));
+      if (plans.some(plan => removed.includes(planMeta(plan).leadAuditorId ?? plan.teamMemberIds[0] ?? ""))) {
+        throw new HttpError(409, "A selected Team Lead is already assigned to an active Audit Plan");
+      }
+    }
+    const [row] = await tx.update(auditSchedules).set({
+      status: JSON.stringify({ ...scheduleMeta(before), teamLeadIds: data.teamLeadIds }), updatedAt: new Date(),
+    }).where(eq(auditSchedules.id, id)).returning();
+    return { before, row, childCount: children.length };
+  });
+  await auditLog(req, "update_team_leads", "audit_programme", id, updated.before, updated.row);
+  res.json(await programmeResponse(req, updated.row, updated.childCount));
 }));
 
 router.get("/programmes/:id/signatories", asyncHandler(async (req, res) => {

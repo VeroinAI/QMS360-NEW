@@ -227,6 +227,31 @@ describe("audit programme parent/child workflow", () => {
     });
     expect(validPlan.status).toBe(201);
     expect(validPlan.json.leadAuditorId).toBe(creator.id);
+
+    const managerPermission = await permission("audit_program_manager");
+    const managerRole = await role("Audit Program Managers", [managerPermission.id]);
+    await assign(l2.id, managerRole.id);
+    const secondLeadRole = await role("Additional Audit Team Lead", [(await permission("audit_team_lead")).id]);
+    await assign(l1.id, secondLeadRole.id);
+    const path = `/programmes/${created.json.id}/team-leads`;
+    expect(await api("PATCH", path, l2.token, { teamLeadIds: [creator.id, l1.id] })).toMatchObject({ status: 409 });
+    expect((await api("GET", `/programmes/${created.json.id}`, l2.token)).json.canManageTeamLeads).toBe(false);
+    await db.update(auditSchedules).set({ workflowState: "approved" }).where(eq(auditSchedules.id, created.json.id));
+    expect((await api("GET", `/programmes/${created.json.id}`, creator.token)).json.canManageTeamLeads).toBe(false);
+    expect((await api("GET", `/programmes/${created.json.id}`, l2.token)).json.canManageTeamLeads).toBe(true);
+    expect((await api("PATCH", path, creator.token, { teamLeadIds: [creator.id, l1.id] })).status).toBe(403);
+    expect((await api("PATCH", path, l2.token, { teamLeadIds: [] })).status).toBe(422);
+    expect((await api("PATCH", path, l2.token, { teamLeadIds: [creator.id, l2.id] })).status).toBe(422);
+    const added = await api("PATCH", path, l2.token, { teamLeadIds: [creator.id, l1.id] });
+    expect(added.status).toBe(200);
+    expect(added.json.teamLeadNames).toEqual(["Programme Creator", "L1 Approver"]);
+    expect((await api("PATCH", path, l2.token, { teamLeadIds: [l1.id] })).status).toBe(409);
+    const removed = await api("PATCH", path, l2.token, { teamLeadIds: [creator.id] });
+    expect(removed.status).toBe(200);
+    expect(removed.json.teamLeadIds).toEqual([creator.id]);
+    expect((await api("GET", `/schedules/${child.id}`, creator.token)).json.teamLeadIds).toEqual([creator.id]);
+    await db.update(auditWorkspaceRoles).set({ status: "inactive" }).where(eq(auditWorkspaceRoles.id, managerRole.id));
+    expect((await api("PATCH", path, l2.token, { teamLeadIds: [creator.id, l1.id] })).status).toBe(403);
   });
   it("enforces user assignment visibility and all-child programme scope before serving private signatories", async () => {
     const [projectA, projectB] = await db.insert(projects).values([

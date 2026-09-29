@@ -5880,7 +5880,7 @@ export const ListAuditProgrammesResponse = zod.object({
   "fromDate": zod.coerce.date(),
   "toDate": zod.coerce.date(),
   "teamLeadIds": zod.array(zod.string()),
-  "teamLeadNames": zod.array(zod.string()).describe('Names of the users selected as Audit Team Leads when this programme was created'),
+  "teamLeadNames": zod.array(zod.string()).describe('Names of the currently selected Audit Team Leads'),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
@@ -5888,6 +5888,7 @@ export const ListAuditProgrammesResponse = zod.object({
   "approvalRoles": zod.array(zod.string()),
   "canReview": zod.boolean(),
   "canSubmit": zod.boolean(),
+  "canManageTeamLeads": zod.boolean(),
   "ownerId": zod.string().nullish(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
@@ -5915,7 +5916,7 @@ export const CreateAuditProgrammeResponse = zod.object({
   "fromDate": zod.coerce.date(),
   "toDate": zod.coerce.date(),
   "teamLeadIds": zod.array(zod.string()),
-  "teamLeadNames": zod.array(zod.string()).describe('Names of the users selected as Audit Team Leads when this programme was created'),
+  "teamLeadNames": zod.array(zod.string()).describe('Names of the currently selected Audit Team Leads'),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
@@ -5923,6 +5924,7 @@ export const CreateAuditProgrammeResponse = zod.object({
   "approvalRoles": zod.array(zod.string()),
   "canReview": zod.boolean(),
   "canSubmit": zod.boolean(),
+  "canManageTeamLeads": zod.boolean(),
   "ownerId": zod.string().nullish(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
@@ -5953,7 +5955,7 @@ export const GetAuditProgrammeResponse = zod.object({
   "fromDate": zod.coerce.date(),
   "toDate": zod.coerce.date(),
   "teamLeadIds": zod.array(zod.string()),
-  "teamLeadNames": zod.array(zod.string()).describe('Names of the users selected as Audit Team Leads when this programme was created'),
+  "teamLeadNames": zod.array(zod.string()).describe('Names of the currently selected Audit Team Leads'),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
@@ -5961,6 +5963,7 @@ export const GetAuditProgrammeResponse = zod.object({
   "approvalRoles": zod.array(zod.string()),
   "canReview": zod.boolean(),
   "canSubmit": zod.boolean(),
+  "canManageTeamLeads": zod.boolean(),
   "ownerId": zod.string().nullish(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
@@ -5975,6 +5978,41 @@ export const DeleteAuditProgrammeParams = zod.object({
 })
 
 export const DeleteAuditProgrammeResponse = zod.void()
+
+
+/**
+ * @summary Update selected Audit Team Leads on an approved schedule as an Audit Program Manager
+ */
+export const UpdateAuditProgrammeTeamLeadsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const UpdateAuditProgrammeTeamLeadsBody = zod.object({
+  "teamLeadIds": zod.array(zod.string()).min(1)
+})
+
+export const UpdateAuditProgrammeTeamLeadsResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "fromDate": zod.coerce.date(),
+  "toDate": zod.coerce.date(),
+  "teamLeadIds": zod.array(zod.string()),
+  "teamLeadNames": zod.array(zod.string()).describe('Names of the currently selected Audit Team Leads'),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "childCount": zod.number(),
+  "currentApprovalRole": zod.string().nullable(),
+  "currentApproverNames": zod.array(zod.string()),
+  "approvalRoles": zod.array(zod.string()),
+  "canReview": zod.boolean(),
+  "canSubmit": zod.boolean(),
+  "canManageTeamLeads": zod.boolean(),
+  "ownerId": zod.string().nullish(),
+  "submissionSubject": zod.string().nullable(),
+  "submissionMailBody": zod.string().nullable()
+})
 
 
 /**
@@ -6033,7 +6071,7 @@ export const SubmitAuditProgrammeResponse = zod.object({
   "fromDate": zod.coerce.date(),
   "toDate": zod.coerce.date(),
   "teamLeadIds": zod.array(zod.string()),
-  "teamLeadNames": zod.array(zod.string()).describe('Names of the users selected as Audit Team Leads when this programme was created'),
+  "teamLeadNames": zod.array(zod.string()).describe('Names of the currently selected Audit Team Leads'),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
@@ -6041,6 +6079,7 @@ export const SubmitAuditProgrammeResponse = zod.object({
   "approvalRoles": zod.array(zod.string()),
   "canReview": zod.boolean(),
   "canSubmit": zod.boolean(),
+  "canManageTeamLeads": zod.boolean(),
   "ownerId": zod.string().nullish(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
@@ -6065,7 +6104,7 @@ export const ReviewAuditProgrammeResponse = zod.object({
   "fromDate": zod.coerce.date(),
   "toDate": zod.coerce.date(),
   "teamLeadIds": zod.array(zod.string()),
-  "teamLeadNames": zod.array(zod.string()).describe('Names of the users selected as Audit Team Leads when this programme was created'),
+  "teamLeadNames": zod.array(zod.string()).describe('Names of the currently selected Audit Team Leads'),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
@@ -6073,6 +6112,7 @@ export const ReviewAuditProgrammeResponse = zod.object({
   "approvalRoles": zod.array(zod.string()),
   "canReview": zod.boolean(),
   "canSubmit": zod.boolean(),
+  "canManageTeamLeads": zod.boolean(),
   "ownerId": zod.string().nullish(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()

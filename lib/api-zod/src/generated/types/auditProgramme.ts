@@ -13,7 +13,7 @@ export interface AuditProgramme {
   fromDate: Date;
   toDate: Date;
   teamLeadIds: string[];
-  /** Names of the users selected as Audit Team Leads when this programme was created */
+  /** Names of the currently selected Audit Team Leads */
   readonly teamLeadNames: readonly string[];
   workflowState: WorkflowState;
   childCount: number;
@@ -23,6 +23,7 @@ export interface AuditProgramme {
   approvalRoles: string[];
   readonly canReview: boolean;
   readonly canSubmit: boolean;
+  readonly canManageTeamLeads: boolean;
   /** @nullable */
   ownerId?: string | null;
   /** @nullable */

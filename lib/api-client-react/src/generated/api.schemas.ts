@@ -2281,7 +2281,7 @@ export interface AuditProgramme {
   fromDate: string;
   toDate: string;
   teamLeadIds: string[];
-  /** Names of the users selected as Audit Team Leads when this programme was created */
+  /** Names of the currently selected Audit Team Leads */
   readonly teamLeadNames: readonly string[];
   workflowState: WorkflowState;
   childCount: number;
@@ -2291,6 +2291,7 @@ export interface AuditProgramme {
   approvalRoles: string[];
   readonly canReview: boolean;
   readonly canSubmit: boolean;
+  readonly canManageTeamLeads: boolean;
   /** @nullable */
   ownerId?: string | null;
   /** @nullable */
@@ -2304,6 +2305,11 @@ export interface AuditProgrammeInput {
   title: string;
   fromDate: string;
   toDate: string;
+  /** @minItems 1 */
+  teamLeadIds: string[];
+}
+
+export interface AuditProgrammeTeamLeadsInput {
   /** @minItems 1 */
   teamLeadIds: string[];
 }
@@ -2945,6 +2951,8 @@ export type AuditScheduleBody = AuditSchedule;
 export type AuditScheduleFeasibilityBody = AuditScheduleFeasibilityInput;
 
 export type AuditProgrammeBody = AuditProgrammeInput;
+
+export type AuditProgrammeTeamLeadsBody = AuditProgrammeTeamLeadsInput;
 
 export type AuditProgrammeSubmissionBody = AuditProgrammeSubmission;
 

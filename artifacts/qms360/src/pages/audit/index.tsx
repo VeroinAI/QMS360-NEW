@@ -58,6 +58,7 @@ import {
   useUpdateAuditPlan,
   useUpdateCorrectiveActionReport,
   useUpdateAuditSchedule,
+  useUpdateAuditProgrammeTeamLeads,
 } from "@workspace/api-client-react";
 import type {
   AuditFinding,
@@ -1030,7 +1031,7 @@ function ProgrammeDetailsDialog({ item, onClose }: { item: AuditProgramme; onClo
     <DialogContent className="max-w-lg">
       <DialogHeader>
         <DialogTitle>Audit Schedule details</DialogTitle>
-        <DialogDescription>Information saved when this Audit Schedule was created.</DialogDescription>
+        <DialogDescription>Schedule dates and current Audit Team Lead selection.</DialogDescription>
       </DialogHeader>
       <dl className="grid gap-4 py-2 sm:grid-cols-2">
         <div className="sm:col-span-2"><dt className="text-sm text-muted-foreground">Audit Title</dt><dd className="font-medium">{item.title}</dd></div>
@@ -1048,12 +1049,48 @@ function ProgrammeDetailsDialog({ item, onClose }: { item: AuditProgramme; onClo
   </Dialog>;
 }
 
+function ProgrammeTeamLeadsDialog({ item, onClose, onSaved }: {
+  item: AuditProgramme; onClose: () => void; onSaved: (updated: AuditProgramme) => void;
+}) {
+  const [selected, setSelected] = useState<string[]>(item.teamLeadIds);
+  const leads = useListAuditTeamLeads();
+  const update = useUpdateAuditProgrammeTeamLeads();
+  const { toast } = useToast();
+  const available = leads.data ?? [];
+  const selectedUsers = selected.map(id => ({
+    id, name: available.find(user => user.id === id)?.fullName ?? item.teamLeadNames[item.teamLeadIds.indexOf(id)] ?? `User unavailable (${id.slice(0, 8)})`,
+  }));
+  const save = () => {
+    if (!selected.length) return;
+    if (selected.some(id => !item.teamLeadIds.includes(id) && !available.some(user => user.id === id))) return;
+    update.mutate({ id: item.id, data: { teamLeadIds: selected } }, {
+      onSuccess: updated => { onSaved(updated); onClose(); },
+      onError: error => toast({ title: "Unable to update Audit Team Leads", description: errorText(error), variant: "destructive" }),
+    });
+  };
+  return <Dialog open onOpenChange={open => !open && !update.isPending && onClose()}>
+    <DialogContent className="max-w-lg">
+      <DialogHeader><DialogTitle>Manage Audit Team Leads</DialogTitle><DialogDescription>Change the selected leads for this approved Audit Schedule. Leads assigned to active Audit Plans cannot be removed.</DialogDescription></DialogHeader>
+      <div className="space-y-4">
+        <div><Label>Selected Audit Team Leads</Label>
+          <ul className="mt-2 space-y-2">{selectedUsers.map(user => <li key={user.id} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"><span>{user.name}</span><Button size="sm" variant="ghost" aria-label={`Remove ${user.name}`} disabled={selected.length <= 1 || update.isPending} onClick={() => setSelected(current => current.filter(id => id !== user.id))}><Trash2 className="size-4"/></Button></li>)}</ul>
+        </div>
+        <div><Label>Add Audit Team Lead</Label>
+          {leads.isLoading ? <p className="mt-2 text-sm text-muted-foreground">Loading eligible leads…</p> : leads.isError ? <p className="mt-2 text-sm text-destructive">Unable to load eligible leads. Close and reopen to retry.</p> : <div className="mt-2 max-h-48 space-y-1 overflow-y-auto">{available.filter(user => !selected.includes(user.id)).map(user => <Button key={user.id} type="button" variant="outline" className="w-full justify-start" disabled={update.isPending} onClick={() => setSelected(current => [...current, user.id])}><Plus className="mr-2 size-4"/>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</Button>)}{available.every(user => selected.includes(user.id)) && <p className="text-sm text-muted-foreground">All eligible leads are selected.</p>}</div>}
+        </div>
+      </div>
+      <DialogFooter><Button variant="outline" disabled={update.isPending} onClick={onClose}>Cancel</Button><Button disabled={update.isPending || leads.isLoading || leads.isError || !selected.length || selected.join(",") === item.teamLeadIds.join(",")} onClick={save}>{update.isPending ? "Saving…" : "Save Team Leads"}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
+
 function Programmes() {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState<{ id: string; title: string }>();
   const [sendingBack, setSendingBack] = useState<{ id: string; title: string }>();
   const [viewingDetails, setViewingDetails] = useState<AuditProgramme>();
+  const [managingLeads, setManagingLeads] = useState<AuditProgramme>();
   const query = useListAuditProgrammes({ page, limit: PAGE_SIZE });
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -1076,10 +1113,12 @@ function Programmes() {
     {submitting && <ProgrammeSubmitDialog key={submitting.id} item={submitting} onClose={() => setSubmitting(undefined)} onSubmitted={updated => done("Audit schedule submitted", updated)}/>}
     {sendingBack && <ProgrammeSendBackDialog key={sendingBack.id} item={sendingBack} onClose={() => setSendingBack(undefined)} onSentBack={updated => done("Audit schedule sent back", updated)}/>}
     {viewingDetails && <ProgrammeDetailsDialog item={query.data?.items.find(item => item.id === viewingDetails.id) ?? viewingDetails} onClose={() => setViewingDetails(undefined)}/>}
+    {managingLeads && <ProgrammeTeamLeadsDialog item={query.data?.items.find(item => item.id === managingLeads.id) ?? managingLeads} onClose={() => setManagingLeads(undefined)} onSaved={updated => done("Audit Team Leads updated", updated)}/>}
     <State loading={query.isLoading} error={query.error} empty={!(query.data?.items?.length)} label="No audit schedules found." />
     {!!query.data?.items?.length && <Card><Table><TableHeader><TableRow><TableHead>Audit schedule</TableHead><TableHead>Dates</TableHead><TableHead>Audits</TableHead><TableHead>Status</TableHead><TableHead>Pending approver</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
       {query.data.items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" asChild><Link href={`/audit/schedules/${item.id}`}>{item.title}</Link></Button><div className="text-xs text-muted-foreground">Annual programme</div></TableCell><TableCell>{date(item.fromDate)} – {date(item.toDate)}</TableCell><TableCell>{item.childCount}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell>{item.workflowState === "Submitted" ? <><div className="font-medium">{item.currentApproverNames.length ? item.currentApproverNames.join(", ") : "No active assignee"}</div><div className="text-xs text-muted-foreground">{item.currentApprovalRole ?? "Approval role unavailable"}</div></> : "—"}</TableCell><TableCell><div className="flex justify-end gap-1">
         {item.id !== "legacy" && <Button size="sm" variant="outline" onClick={() => setViewingDetails(item)}><Info className="mr-1 size-4"/>Details</Button>}
+        {item.canManageTeamLeads && <Button size="sm" variant="outline" onClick={() => setManagingLeads(item)}>Manage Team Leads</Button>}
         {item.id !== "legacy" && item.canSubmit && <Button size="sm" disabled={item.childCount === 0 || !!submitting} onClick={() => setSubmitting(item)}>{item.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}
         {item.id !== "legacy" && item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: updated => done("Audit schedule approved", updated), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button><Button size="sm" variant="outline" onClick={() => setSendingBack(item)}>Send back</Button></>}
         {item.id !== "legacy" && <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved audit schedules cannot be deleted" : item.childCount > 0 ? "Audit schedules with child audits cannot be deleted" : "Delete audit schedule"} disabled={item.workflowState === "Approved" || item.childCount > 0 || remove.isPending} onClick={() => window.confirm("Delete this audit schedule?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Audit schedule deleted"), onError: e => toast({ title: "Unable to delete audit schedule", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>}
@@ -1096,6 +1135,7 @@ function Schedules() {
   const [sendingProgrammeBack, setSendingProgrammeBack] = useState<{ id: string; title: string }>();
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
   const [showProgrammeDetails, setShowProgrammeDetails] = useState(false);
+  const [showLeadManager, setShowLeadManager] = useState(false);
   const [planning, setPlanning] = useState<AuditSchedule | undefined>();
   const query = useListAuditSchedules({ page, limit: PAGE_SIZE, parentId }); const planSchedules = useListAuditPlans({ page: 1, limit: 100 }); const qc = useQueryClient(); const { toast } = useToast();
   const focused = useGetAuditSchedule(focusId, { query: { enabled: !!focusId, queryKey: ["/api/audit/schedules", focusId] } });
@@ -1232,8 +1272,9 @@ function Schedules() {
     finally { setLoadingFile(false); if (fileInput.current) fileInput.current.value = ""; }
   };
   const programmePending = parentId !== "legacy" && (programme.isLoading || !programme.data);
-  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<div className="flex flex-wrap gap-2">{parentId !== "legacy" && <Button variant="outline" onClick={() => setShowProgrammeDetails(true)} disabled={!programme.data}><Info className="mr-2 size-4"/>Schedule details</Button>}<Button variant="outline" onClick={() => void download()} disabled={allChildren.isLoading || downloading || programmePending}><Download className="mr-2 size-4"/>{downloading ? "Downloading…" : "Download"}</Button><Button variant="outline" onClick={() => fileInput.current?.click()} disabled={loadingFile || projects.isLoading || programmePending || parentSubmitted}><Upload className="mr-2 size-4"/>{loadingFile ? "Loading…" : "Load"}</Button><input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void loadFile(file); }}/>{parentId !== "legacy" && programme.data?.canSubmit && <Button variant="outline" disabled={programmePending || !programme.data.childCount || !!submitting} onClick={() => setSubmitting({ id: parentId, title: programme.data.title })}>{programme.data.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}{programme.data?.workflowState === "Submitted" && programme.data.canReview && <><Button disabled={reviewProgramme.isPending} onClick={() => reviewProgramme.mutate({ id: parentId, data: { decision: "approve" } }, { onSuccess: updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule approved"); }, onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve schedule</Button><Button variant="outline" onClick={() => setSendingProgrammeBack({ id: parentId, title: programme.data!.title })}>Send back</Button></>}<Button disabled={programmePending || parentSubmitted} title={parentSubmitted ? "New audits cannot be created while the audit schedule is submitted" : undefined} onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button></div>}/>
+  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<div className="flex flex-wrap gap-2">{parentId !== "legacy" && <Button variant="outline" onClick={() => setShowProgrammeDetails(true)} disabled={!programme.data}><Info className="mr-2 size-4"/>Schedule details</Button>}{programme.data?.canManageTeamLeads && <Button variant="outline" onClick={() => setShowLeadManager(true)}>Manage Team Leads</Button>}<Button variant="outline" onClick={() => void download()} disabled={allChildren.isLoading || downloading || programmePending}><Download className="mr-2 size-4"/>{downloading ? "Downloading…" : "Download"}</Button><Button variant="outline" onClick={() => fileInput.current?.click()} disabled={loadingFile || projects.isLoading || programmePending || parentSubmitted}><Upload className="mr-2 size-4"/>{loadingFile ? "Loading…" : "Load"}</Button><input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void loadFile(file); }}/>{parentId !== "legacy" && programme.data?.canSubmit && <Button variant="outline" disabled={programmePending || !programme.data.childCount || !!submitting} onClick={() => setSubmitting({ id: parentId, title: programme.data.title })}>{programme.data.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}{programme.data?.workflowState === "Submitted" && programme.data.canReview && <><Button disabled={reviewProgramme.isPending} onClick={() => reviewProgramme.mutate({ id: parentId, data: { decision: "approve" } }, { onSuccess: updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule approved"); }, onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve schedule</Button><Button variant="outline" onClick={() => setSendingProgrammeBack({ id: parentId, title: programme.data!.title })}>Send back</Button></>}<Button disabled={programmePending || parentSubmitted} title={parentSubmitted ? "New audits cannot be created while the audit schedule is submitted" : undefined} onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button></div>}/>
     {showProgrammeDetails && programme.data && <ProgrammeDetailsDialog item={programme.data} onClose={() => setShowProgrammeDetails(false)}/>}
+    {showLeadManager && programme.data && <ProgrammeTeamLeadsDialog item={programme.data} onClose={() => setShowLeadManager(false)} onSaved={updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit Team Leads updated"); }}/>}
     {focusId && <Card><CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
       {focused.isLoading ? <p>Loading action item…</p> : focused.error ? <p className="text-destructive">{errorText(focused.error)}</p> : focused.data && focused.data.parentId === (parentId === "legacy" ? null : parentId) ? <>
         <div><p className="text-xs font-semibold uppercase text-muted-foreground">Your action item</p><p className="font-semibold">{focused.data.title}</p><Badge variant={workflowTone(focused.data.workflowState)}>{focused.data.workflowState}</Badge></div>

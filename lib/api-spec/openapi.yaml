@@ -1117,6 +1117,8 @@ paths:
   /audit/programmes/{id}:
     get: {operationId: getAuditProgramme, tags: [audit], summary: Get an annual audit programme, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Programme, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
     delete: {operationId: deleteAuditProgramme, tags: [audit], summary: Soft-delete an empty unapproved annual audit programme, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}, "409": {description: Approved programmes and programmes with child audits cannot be deleted}}}
+  /audit/programmes/{id}/team-leads:
+    patch: {operationId: updateAuditProgrammeTeamLeads, tags: [audit], summary: Update selected Audit Team Leads on an approved schedule as an Audit Program Manager, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditProgrammeTeamLeads"}, responses: {"200": {description: Updated schedule, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}, "403": {description: Audit Program Manager role or programme scope required}, "409": {description: Schedule not approved or lead used by an active plan}, "422": {description: Invalid lead selection}}}
   /audit/programmes/{id}/signatories:
     get: {operationId: getAuditProgrammeSignatories, tags: [audit], summary: Get programme signatories from creator and approval history, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Programme signatories, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeSignatories"}}}}, "403": {description: Programme is outside the caller's organization or scope}, "404": {description: Programme not found}}}
   /audit/programmes/{id}/submit:
@@ -1379,6 +1381,7 @@ components:
     AuditSchedule: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}
     AuditScheduleFeasibility: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleFeasibilityInput"}}}}
     AuditProgramme: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeInput"}}}}
+    AuditProgrammeTeamLeads: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeTeamLeadsInput"}}}}
     AuditProgrammeSubmission: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammeSubmission"}}}}
     AuditPlan: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlan"}}}}
     SendAuditPlanForExecutionInput: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SendAuditPlanForExecutionInput"}}}}
@@ -2604,14 +2607,14 @@ components:
         toDate: {type: string, format: date, description: Required when rescheduling an audit}
     AuditProgramme:
       type: object
-      required: [id, title, fromDate, toDate, teamLeadIds, teamLeadNames, workflowState, childCount, currentApprovalRole, currentApproverNames, approvalRoles, canReview, canSubmit, submissionSubject, submissionMailBody]
+      required: [id, title, fromDate, toDate, teamLeadIds, teamLeadNames, workflowState, childCount, currentApprovalRole, currentApproverNames, approvalRoles, canReview, canSubmit, canManageTeamLeads, submissionSubject, submissionMailBody]
       properties:
         id: {type: string}
         title: {type: string}
         fromDate: {type: string, format: date}
         toDate: {type: string, format: date}
         teamLeadIds: {type: array, items: {type: string}}
-        teamLeadNames: {type: array, items: {type: string}, readOnly: true, description: Names of the users selected as Audit Team Leads when this programme was created}
+        teamLeadNames: {type: array, items: {type: string}, readOnly: true, description: Names of the currently selected Audit Team Leads}
         workflowState: {$ref: "#/components/schemas/WorkflowState"}
         childCount: {type: number}
         currentApprovalRole: {type: [string, "null"]}
@@ -2619,6 +2622,7 @@ components:
         approvalRoles: {type: array, items: {type: string}}
         canReview: {type: boolean, readOnly: true}
         canSubmit: {type: boolean, readOnly: true}
+        canManageTeamLeads: {type: boolean, readOnly: true}
         ownerId: {type: [string, "null"]}
         submissionSubject: {type: [string, "null"], readOnly: true}
         submissionMailBody: {type: [string, "null"], readOnly: true}
@@ -2630,6 +2634,11 @@ components:
         fromDate: {type: string, format: date}
         toDate: {type: string, format: date}
         teamLeadIds: {type: array, minItems: 1, items: {type: string}}
+    AuditProgrammeTeamLeadsInput:
+      type: object
+      required: [teamLeadIds]
+      properties:
+        teamLeadIds: {type: array, minItems: 1, uniqueItems: true, items: {type: string}}
     AuditProgrammeSubmission:
       type: object
       required: [subject, mailBody]

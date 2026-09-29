@@ -53,6 +53,7 @@ import type {
   AuditProgrammePage,
   AuditProgrammeSignatories,
   AuditProgrammeSubmissionBody,
+  AuditProgrammeTeamLeadsBody,
   AuditSchedule,
   AuditScheduleBody,
   AuditScheduleFeasibilityBody,
@@ -15860,6 +15861,78 @@ export const useDeleteAuditProgramme = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteAuditProgrammeMutationOptions(options));
+    }
+
+export const getUpdateAuditProgrammeTeamLeadsUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/programmes/${id}/team-leads`
+}
+
+/**
+ * @summary Update selected Audit Team Leads on an approved schedule as an Audit Program Manager
+ */
+export const updateAuditProgrammeTeamLeads = async (id: string,
+    auditProgrammeTeamLeadsBody: AuditProgrammeTeamLeadsBody, options?: Parameters<typeof customFetch>[1]): Promise<AuditProgramme> => {
+
+  return customFetch<AuditProgramme>(getUpdateAuditProgrammeTeamLeadsUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditProgrammeTeamLeadsBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditProgrammeTeamLeadsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditProgrammeTeamLeads>>, TError,{id: string;data: BodyType<AuditProgrammeTeamLeadsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditProgrammeTeamLeads>>, TError,{id: string;data: BodyType<AuditProgrammeTeamLeadsBody>}, TContext> => {
+
+const mutationKey = ['updateAuditProgrammeTeamLeads'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditProgrammeTeamLeads>>, {id: string;data: BodyType<AuditProgrammeTeamLeadsBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAuditProgrammeTeamLeads(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditProgrammeTeamLeadsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditProgrammeTeamLeads>>>
+    export type UpdateAuditProgrammeTeamLeadsMutationBody = BodyType<AuditProgrammeTeamLeadsBody>
+    export type UpdateAuditProgrammeTeamLeadsMutationError = ErrorType<void>
+
+    /**
+ * @summary Update selected Audit Team Leads on an approved schedule as an Audit Program Manager
+ */
+export const useUpdateAuditProgrammeTeamLeads = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditProgrammeTeamLeads>>, TError,{id: string;data: BodyType<AuditProgrammeTeamLeadsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditProgrammeTeamLeads>>,
+        TError,
+        {id: string;data: BodyType<AuditProgrammeTeamLeadsBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditProgrammeTeamLeadsMutationOptions(options));
     }
 
 export const getGetAuditProgrammeSignatoriesUrl = (id: string,) => {

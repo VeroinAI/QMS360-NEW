@@ -73,6 +73,8 @@ export * from './auditProgrammePageResponse';
 export * from './auditProgrammeSignatories';
 export * from './auditProgrammeSubmission';
 export * from './auditProgrammeSubmissionBody';
+export * from './auditProgrammeTeamLeadsBody';
+export * from './auditProgrammeTeamLeadsInput';
 export * from './auditSchedule';
 export * from './auditScheduleBody';
 export * from './auditScheduleFeasibilityBody';

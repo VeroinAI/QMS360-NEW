@@ -36,4 +36,4 @@
 - [Audit application approval policy](audit-application-approval-policy.md) — Audit role assignment must not itself unlock the application; keep a separate administrator approval step.
 - [Audit type-category links](audit-type-category-links.md) — administrators maintain category-to-type links in master data; do not infer a hardcoded mapping from existing schedules.
 - [Audit Team Lead marker](audit-team-lead-marker.md) — role authorization identifies future Audit Team Lead workflows; it must not grant unrelated actions by itself.
-- [Audit Program Manager marker](audit-program-manager-marker.md) — Audit-only role marker for future functionality; do not infer or grant existing actions from it.
+- [Audit Program Manager marker](audit-program-manager-marker.md) — permits only post-approval Team Lead changes on scoped Audit Schedules, not general edit or approval.
