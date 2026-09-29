@@ -3,7 +3,7 @@ import express, { type Express } from "express";
 import type { Server } from "node:http";
 import { and, eq } from "drizzle-orm";
 import {
-  applicationAccess, auditAuditLogEntries, auditFindings, auditPermissions, auditPlans,
+  applicationAccess, auditAuditLogEntries, auditEvidenceFiles, auditFindings, auditPermissions, auditPlans,
   auditSchedules, audits, auditUserWorkspaceRoles, auditWorkspaceRolePermissions, auditWorkspaceRoles,
   correctiveActionReports, db, lessonLearnedForms, lessonsAuditLogEntries, lessonsDisciplines,
   lessonsPermissions, lessonsUserWorkspaceRoles, lessonsWorkspaceRolePermissions, lessonsWorkspaceRoles,
@@ -242,6 +242,7 @@ afterAll(async () => {
   await db.delete(lessonLearnedForms).where(eq(lessonLearnedForms.organizationId, orgId));
   await db.delete(lessonsDisciplines).where(eq(lessonsDisciplines.organizationId, orgId));
   await db.delete(correctiveActionReports).where(eq(correctiveActionReports.organizationId, orgId));
+  await db.delete(auditEvidenceFiles).where(eq(auditEvidenceFiles.organizationId, orgId));
   await db.delete(auditFindings).where(eq(auditFindings.organizationId, orgId));
   await db.delete(audits).where(eq(audits.organizationId, orgId));
   await db.delete(auditPlans).where(eq(auditPlans.organizationId, orgId));
@@ -354,6 +355,42 @@ describe("Audit checklist items", () => {
     expect(foreignId.status).toBe(422);
     const final = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
     expect(final.json.checklist).toHaveLength(original.length + 2);
+  });
+});
+
+describe("Audit evidence for projectless Process audits", () => {
+  it("creates, confirms and lists attachments only when the audit belongs to a Process plan", async () => {
+    const [schedule] = await db.insert(auditSchedules).values({
+      organizationId: orgId, year: 2026, title: "Department process audit",
+      status: JSON.stringify({ auditTypes: ["Quality Internal Process Audit"], departmentProject: "Quality Department" }),
+    }).returning();
+    const [plan] = await db.insert(auditPlans).values({
+      organizationId: orgId, auditScheduleId: schedule!.id,
+    }).returning();
+    const [processAudit] = await db.insert(audits).values({
+      organizationId: orgId, auditPlanId: plan!.id, referenceNumber: `PROCESS-EVIDENCE-${suffix}`,
+    }).returning();
+    const attachment = {
+      recordType: "audit", recordId: processAudit!.id, category: "document",
+      fileName: "inspection.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      sizeBytes: 123, clientReference: crypto.randomUUID(),
+    };
+    const intent = await api("POST", "/audit/evidence", { token: admin.token, body: attachment });
+    expect(intent.status).toBe(201);
+    expect(intent.json.uploadUrl).toBe(`/api/files/${intent.json.id}`);
+    const confirmed = await api("PUT", `/audit/evidence/${intent.json.id}/confirm`, { token: admin.token });
+    expect(confirmed.status).toBe(200);
+    const listed = await api("GET", `/audit/evidence?recordType=audit&recordId=${processAudit!.id}&page=1&limit=20`, { token: admin.token });
+    expect(listed.status).toBe(200);
+    expect(listed.json.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: intent.json.id, status: "confirmed" })]));
+
+    const [orphan] = await db.insert(audits).values({
+      organizationId: orgId, referenceNumber: `ORPHAN-EVIDENCE-${suffix}`,
+    }).returning();
+    const denied = await api("POST", "/audit/evidence", { token: admin.token, body: {
+      ...attachment, recordId: orphan!.id, clientReference: crypto.randomUUID(),
+    } });
+    expect(denied.status).toBe(404);
   });
 });
 

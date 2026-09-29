@@ -270,9 +270,12 @@ async function assertAuditRecordAccess(req: Request, recordType: string, recordI
     if (!await scheduleInScope(req, row)) throw new HttpError(403, "You do not have access to this project");
     return;
   } else if (recordType === "audit" || recordType === "audit_execution") {
-    const [row] = await db.select({ projectId: audits.projectId }).from(audits)
+    const [row] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(audits)
       .where(and(active(audits, actor(req).organizationId), eq(audits.id, recordId)));
     projectId = row?.projectId;
+    // Internal Process audits are department-scoped, not project-scoped. Match
+    // the parent-chain check already used for /audits/:id detail routes.
+    if (row && !projectId && await isProcessPlanId(actor(req).organizationId, row.planId)) return;
   } else if (recordType === "audit_finding" || recordType === "finding") {
     const [row] = await db.select({ projectId: audits.projectId }).from(auditFindings)
       .innerJoin(audits, eq(auditFindings.auditId, audits.id))
