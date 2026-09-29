@@ -149,6 +149,40 @@ afterAll(async () => {
 });
 
 describe("audit programme parent/child workflow", () => {
+  it("lists the two programmes awaiting an approver who has review access but no edit grant", async () => {
+    const [project] = await db.insert(projects).values({
+      organizationId: orgId, code: `AQ-${orgId.slice(0, 6)}`, name: "Action queue project",
+    }).returning();
+    const programmeIds: string[] = [];
+    for (const title of ["First review", "Second review"]) {
+      const programme = await api("POST", "/programmes", creator.token, {
+        title, fromDate: "2026-01-01", toDate: "2026-12-31",
+      });
+      expect(programme.status).toBe(201);
+      programmeIds.push(programme.json.id);
+      await db.insert(auditSchedules).values({
+        organizationId: orgId, year: 2026, title: `${title} child`,
+        workflowState: "submitted", projectId: project!.id,
+        status: JSON.stringify({ parentId: programme.json.id, projectIds: [project!.id], plannedStartDate: "2026-10-01" }),
+      });
+      const [l2Role] = await db.select({ id: auditWorkspaceRoles.id }).from(auditWorkspaceRoles)
+        .where(and(eq(auditWorkspaceRoles.organizationId, orgId), eq(auditWorkspaceRoles.name, "L2 Programme Approver")));
+      await db.update(auditSchedules).set({
+        workflowState: "submitted",
+        status: JSON.stringify({ programme: true, approvalRoles: [{ id: l2Role!.id, name: "L2 Programme Approver" }], approvalIndex: 0 }),
+      }).where(eq(auditSchedules.id, programme.json.id));
+    }
+    const pending = await api("GET", "/my-actions?limit=200", l2.token);
+    expect(pending.status).toBe(200);
+    for (const id of programmeIds) {
+      expect(pending.json.items).toContainEqual(expect.objectContaining({
+        kind: "programme", id, action: "Review", href: `/audit/schedules/${id}`,
+      }));
+    }
+    const notAssigned = await api("GET", "/my-actions?limit=200", l1.token);
+    expect(notAssigned.json.items.filter((item: { id: string }) => programmeIds.includes(item.id))).toEqual([]);
+  });
+
   it("requires eligible selected Audit Team Leads and limits a plan's Lead / Internal Auditor to them", async () => {
     const options = await api("GET", "/team-leads", creator.token);
     expect(options.status).toBe(200);

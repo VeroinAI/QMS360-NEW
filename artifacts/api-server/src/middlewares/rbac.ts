@@ -35,7 +35,7 @@ const platformAdmins = new Set(["Super Admin", "Org Admin"]);
 const isAdminName = (name: string) => /\b(admin|administrator)\b/i.test(name);
 
 export type EffectiveProjectScope = { unrestricted: boolean; projectIds: string[] };
-type PermissionTarget = { module: string; action: PermissionAction };
+type PermissionTarget = { module: string; action: PermissionAction; operation?: "review" };
 
 function appTables(appKey: AppKey) {
   if (appKey === "lessons") return {
@@ -179,7 +179,8 @@ async function matchingPermissionRows(req: Request, appKey: AppKey, target: Perm
       eq(t.userRoles.userId, user.id), eq(t.userRoles.organizationId, user.organizationId),
       isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt), eq(t.roles.status, "active"),
     ));
-  const capabilities = target.action === "select"
+  const capabilities = target.operation === "review" ? ["approve_reject"]
+    : target.action === "select"
     ? ["view_all", "view_own", ...(appKey === "lessons" ? ["view_own_scope"] : [])]
     : ["create_edit", ...(appKey === "lessons" ? ["data_entry"] : [])];
   const normalized = target.module.toLowerCase();

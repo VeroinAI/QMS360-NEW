@@ -593,8 +593,8 @@ type MyActionItem = {
 
 const moduleSelectScope = (req: Request, module: string) =>
   getAuthorizedProjectScope(req, "audit", { module, action: "select" });
-const moduleFullScope = (req: Request, module: string) =>
-  getAuthorizedProjectScope(req, "audit", { module, action: "full" });
+const moduleFullScope = (req: Request, module: string, operation?: "review") =>
+  getAuthorizedProjectScope(req, "audit", { module, action: "full", operation });
 const scopeHasSelectAccess = (scope: Awaited<ReturnType<typeof moduleSelectScope>>) =>
   scope.unrestricted || scope.projectIds.length > 0;
 const hasActionPermission = (
@@ -1791,7 +1791,7 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
   const [
     scheduleScope, planScope, auditScope, carScope,
     scheduleFullScope, planFullScope, auditFullScope, carFullScope,
-    effectiveScope,
+    scheduleReviewScope, effectiveScope,
   ] = await Promise.all([
     moduleSelectScope(req, "schedules"),
     moduleSelectScope(req, "plans"),
@@ -1801,12 +1801,13 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
     moduleFullScope(req, "plans"),
     moduleFullScope(req, "audits"),
     moduleFullScope(req, "cars"),
+    moduleFullScope(req, "schedules", "review"),
     getAuthorizedProjectScope(req, "audit"),
   ]);
   if (![scheduleScope, planScope, auditScope, carScope].some(scopeHasSelectAccess)) {
     throw new HttpError(403, "Audit select access is required");
   }
-  if (![hasActionPermission(scheduleScope, scheduleFullScope), hasActionPermission(planScope, planFullScope),
+  if (![hasActionPermission(scheduleScope, scheduleFullScope), hasActionPermission(scheduleScope, scheduleReviewScope), hasActionPermission(planScope, planFullScope),
     hasActionPermission(auditScope, auditFullScope), hasActionPermission(carScope, carFullScope)].some(Boolean)) {
     res.json(Api.ListAuditMyActionsResponse.parse(paginated([], 0, page, limit)));
     return;
@@ -1816,38 +1817,41 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
   const add = (item: MyActionItem) => itemsByRecord.set(`${item.kind}:${item.id}`, item);
 
   const scheduleRows = [
-    hasActionPermission(scheduleScope, scheduleFullScope), hasActionPermission(planScope, planFullScope),
+    hasActionPermission(scheduleScope, scheduleFullScope), hasActionPermission(scheduleScope, scheduleReviewScope), hasActionPermission(planScope, planFullScope),
     hasActionPermission(auditScope, auditFullScope), hasActionPermission(carScope, carFullScope),
   ].some(Boolean)
     ? await db.select().from(auditSchedules).where(active(auditSchedules, organizationId))
     : [];
   const schedulesById = new Map(scheduleRows.map(row => [row.id, row]));
   const scheduleProjectIds = (row: AnyRow) => scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
-  const scheduleIsInActionScope = (row: AnyRow) => {
+  const scheduleIsInActionScope = (row: AnyRow, actionScope = scheduleFullScope) => {
     const projectIds = scheduleProjectIds(row);
     if (!projectIds.length) {
-      return isProcessAuditSchedule(row) && hasActionPermission(scheduleScope, scheduleFullScope)
+      return isProcessAuditSchedule(row) && hasActionPermission(scheduleScope, actionScope)
         && scopeHasSelectAccess(effectiveScope);
     }
     return projectIds.every((projectId: string) =>
       (scheduleScope.unrestricted || scheduleScope.projectIds.includes(projectId))
-      && (scheduleFullScope.unrestricted || scheduleFullScope.projectIds.includes(projectId))
+      && (actionScope.unrestricted || actionScope.projectIds.includes(projectId))
       && (effectiveScope.unrestricted || effectiveScope.projectIds.includes(projectId)));
   };
-  const programmesWithScopedChildren = new Set(scheduleRows.flatMap(child => {
+  const programmesWithScopedChildren = (actionScope: typeof scheduleFullScope) => new Set(scheduleRows.flatMap(child => {
     const meta = scheduleMeta(child);
-    return !meta.programme && meta.parentId && scheduleIsInActionScope(child) ? [meta.parentId] : [];
+    return !meta.programme && meta.parentId && scheduleIsInActionScope(child, actionScope) ? [meta.parentId] : [];
   }));
-  const scheduleRecordIsVisible = (row: AnyRow) => {
-    if (!isProgramme(row)) return scheduleIsInActionScope(row);
-    if (row.ownerId === userId) return hasActionPermission(scheduleScope, scheduleFullScope)
+  const editableProgrammeChildren = programmesWithScopedChildren(scheduleFullScope);
+  const reviewableProgrammeChildren = programmesWithScopedChildren(scheduleReviewScope);
+  const scheduleRecordIsVisible = (row: AnyRow, reviewing: boolean) => {
+    const actionScope = reviewing ? scheduleReviewScope : scheduleFullScope;
+    if (!isProgramme(row)) return scheduleIsInActionScope(row, actionScope);
+    if (!reviewing && row.ownerId === userId) return hasActionPermission(scheduleScope, actionScope)
       && scopeHasSelectAccess(effectiveScope);
-    return programmesWithScopedChildren.has(row.id);
+    return (reviewing ? reviewableProgrammeChildren : editableProgrammeChildren).has(row.id);
   };
   const processScheduleIds = new Set(scheduleRows
     .filter(row => !isProgramme(row) && isProcessAuditSchedule(row))
     .map(row => row.id));
-  const currentApprovalRoleIds = hasActionPermission(scheduleScope, scheduleFullScope) ? [...new Set(scheduleRows.flatMap(row => {
+  const currentApprovalRoleIds = hasActionPermission(scheduleScope, scheduleReviewScope) ? [...new Set(scheduleRows.flatMap(row => {
     if (row.workflowState !== "submitted") return [];
     const meta = scheduleMeta(row);
     const role = (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0];
@@ -1876,12 +1880,13 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
   }
   for (const row of scheduleRows) {
     const programme = isProgramme(row);
-    if (!scheduleRecordIsVisible(row)) continue;
-    const ownerAction = row.ownerId === userId && ["draft", "sent_back"].includes(row.workflowState);
+    const ownerAction = row.ownerId === userId && ["draft", "sent_back"].includes(row.workflowState)
+      && scheduleRecordIsVisible(row, false);
     const meta = scheduleMeta(row);
     const currentRole = (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0];
     const reviewAction = row.workflowState === "submitted"
-      && Boolean(currentRole && approvalReviewers.get(currentRole.id)?.has(userId));
+      && Boolean(currentRole && approvalReviewers.get(currentRole.id)?.has(userId))
+      && scheduleRecordIsVisible(row, true);
     if (!ownerAction && !reviewAction) continue;
     const id = row.id;
     let href: string;
