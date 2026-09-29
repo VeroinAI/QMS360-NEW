@@ -5722,6 +5722,7 @@ export const ListAuditSchedulesResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
+  "teamLeadIds": zod.array(zod.string()).nullish().describe('Selected leads on the parent programme; null for legacy schedules'),
   "year": zod.number(),
   "title": zod.string(),
   "hasPlan": zod.boolean().optional().describe('Whether an active Audit Plan already exists for this schedule'),
@@ -5878,6 +5879,7 @@ export const ListAuditProgrammesResponse = zod.object({
   "title": zod.string(),
   "fromDate": zod.coerce.date(),
   "toDate": zod.coerce.date(),
+  "teamLeadIds": zod.array(zod.string()),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
@@ -5898,10 +5900,12 @@ export const ListAuditProgrammesResponse = zod.object({
 
 
 
+
 export const CreateAuditProgrammeBody = zod.object({
   "title": zod.string().min(1),
   "fromDate": zod.coerce.date(),
-  "toDate": zod.coerce.date()
+  "toDate": zod.coerce.date(),
+  "teamLeadIds": zod.array(zod.string()).min(1)
 })
 
 export const CreateAuditProgrammeResponse = zod.object({
@@ -5909,6 +5913,7 @@ export const CreateAuditProgrammeResponse = zod.object({
   "title": zod.string(),
   "fromDate": zod.coerce.date(),
   "toDate": zod.coerce.date(),
+  "teamLeadIds": zod.array(zod.string()),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
@@ -5923,6 +5928,17 @@ export const CreateAuditProgrammeResponse = zod.object({
 
 
 /**
+ * @summary List active Audit users assigned a role marked Audit Team Lead
+ */
+export const ListAuditTeamLeadsResponseItem = zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+})
+export const ListAuditTeamLeadsResponse = zod.array(ListAuditTeamLeadsResponseItem)
+
+
+/**
  * @summary Get an annual audit programme
  */
 export const GetAuditProgrammeParams = zod.object({
@@ -5934,6 +5950,7 @@ export const GetAuditProgrammeResponse = zod.object({
   "title": zod.string(),
   "fromDate": zod.coerce.date(),
   "toDate": zod.coerce.date(),
+  "teamLeadIds": zod.array(zod.string()),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
@@ -6012,6 +6029,7 @@ export const SubmitAuditProgrammeResponse = zod.object({
   "title": zod.string(),
   "fromDate": zod.coerce.date(),
   "toDate": zod.coerce.date(),
+  "teamLeadIds": zod.array(zod.string()),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
@@ -6042,6 +6060,7 @@ export const ReviewAuditProgrammeResponse = zod.object({
   "title": zod.string(),
   "fromDate": zod.coerce.date(),
   "toDate": zod.coerce.date(),
+  "teamLeadIds": zod.array(zod.string()),
   "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
   "childCount": zod.number(),
   "currentApprovalRole": zod.string().nullable(),
@@ -6073,6 +6092,7 @@ export const getAuditScheduleResponseGpsLngMax = 180;
 export const GetAuditScheduleResponse = zod.object({
   "id": zod.string(),
   "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
+  "teamLeadIds": zod.array(zod.string()).nullish().describe('Selected leads on the parent programme; null for legacy schedules'),
   "year": zod.number(),
   "title": zod.string(),
   "hasPlan": zod.boolean().optional().describe('Whether an active Audit Plan already exists for this schedule'),
@@ -6233,6 +6253,7 @@ export const recordAuditScheduleFeasibilityResponseGpsLngMax = 180;
 export const RecordAuditScheduleFeasibilityResponse = zod.object({
   "id": zod.string(),
   "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
+  "teamLeadIds": zod.array(zod.string()).nullish().describe('Selected leads on the parent programme; null for legacy schedules'),
   "year": zod.number(),
   "title": zod.string(),
   "hasPlan": zod.boolean().optional().describe('Whether an active Audit Plan already exists for this schedule'),
@@ -7397,6 +7418,7 @@ export const GetAuditScheduleReportResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
+  "teamLeadIds": zod.array(zod.string()).nullish().describe('Selected leads on the parent programme; null for legacy schedules'),
   "year": zod.number(),
   "title": zod.string(),
   "hasPlan": zod.boolean().optional().describe('Whether an active Audit Plan already exists for this schedule'),

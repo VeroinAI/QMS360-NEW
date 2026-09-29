@@ -12,6 +12,7 @@ export interface AuditProgramme {
   title: string;
   fromDate: Date;
   toDate: Date;
+  teamLeadIds: string[];
   workflowState: WorkflowState;
   childCount: number;
   /** @nullable */

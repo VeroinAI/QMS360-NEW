@@ -2186,6 +2186,11 @@ export interface AuditSchedule {
      * @nullable
      */
   parentId?: string | null;
+  /**
+     * Selected leads on the parent programme; null for legacy schedules
+     * @nullable
+     */
+  readonly teamLeadIds?: readonly string[] | null;
   year: number;
   title: string;
   /** Whether an active Audit Plan already exists for this schedule */
@@ -2274,6 +2279,7 @@ export interface AuditProgramme {
   title: string;
   fromDate: string;
   toDate: string;
+  teamLeadIds: string[];
   workflowState: WorkflowState;
   childCount: number;
   /** @nullable */
@@ -2295,6 +2301,8 @@ export interface AuditProgrammeInput {
   title: string;
   fromDate: string;
   toDate: string;
+  /** @minItems 1 */
+  teamLeadIds: string[];
 }
 
 export interface AuditProgrammeSubmission {

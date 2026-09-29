@@ -183,6 +183,7 @@ const maybeCsv = (req: Request, res: Response, name: string, rows: AnyRow[]) => 
 
 type ScheduleMeta = {
   programme?: boolean; parentId?: string | null; fromDate?: string; toDate?: string;
+  teamLeadIds?: string[];
   approvalRoles?: Array<{ id: string; name: string }>; approvalIndex?: number;
   autoPromotedChildIds?: string[];
   submissionSubject?: string; submissionMailBody?: string;
@@ -349,13 +350,13 @@ router.use(asyncHandler(async (req, _res, next) => {
   }
   next();
 }));
-const scheduleDto = (row: AnyRow, canReview = false, hasPlan = false) => {
+const scheduleDto = (row: AnyRow, canReview = false, hasPlan = false, teamLeadIds: string[] | null = null) => {
   const meta = scheduleMeta(row);
   const currentApprovalRole = row.workflowState === "submitted"
     ? (meta.approvalRoles ?? [])[meta.approvalIndex ?? 0]?.name ?? null
     : null;
   return {
-    id: row.id, parentId: meta.parentId ?? null, year: row.year, title: row.title, projectIds: meta.projectIds ?? (row.projectId ? [row.projectId] : []),
+    id: row.id, parentId: meta.parentId ?? null, teamLeadIds, year: row.year, title: row.title, projectIds: meta.projectIds ?? (row.projectId ? [row.projectId] : []),
     auditTypes: meta.auditTypes ?? [], plannedStartDate: new Date(meta.plannedStartDate ?? `${row.year}-01-01`),
     plannedEndDate: new Date(meta.plannedEndDate ?? `${row.year}-12-31`), ownerId: row.ownerId ?? undefined,
     workflowState: ({ draft: "Draft", submitted: "Submitted", approved: "Approved", sent_back: "Sent Back" } as AnyRow)[row.workflowState] ?? "Draft",
@@ -499,7 +500,7 @@ const programmeDto = (row: AnyRow, childCount = 0) => {
   const meta = scheduleMeta(row);
   const roles = meta.approvalRoles ?? [];
   return {
-    id: row.id, title: row.title, fromDate: meta.fromDate ?? `${row.year}-01-01`,
+    id: row.id, title: row.title, teamLeadIds: meta.teamLeadIds ?? [], fromDate: meta.fromDate ?? `${row.year}-01-01`,
     toDate: meta.toDate ?? `${row.year}-12-31`,
     workflowState: ({ draft: "Draft", submitted: "Submitted", approved: "Approved", sent_back: "Sent Back" } as AnyRow)[row.workflowState] ?? "Draft",
     childCount, ownerId: row.ownerId ?? null,
@@ -630,10 +631,48 @@ async function programmeResponse(req: Request, row: AnyRow, childCount: number) 
   };
 }
 
-async function scheduleResponse(req: Request, row: AnyRow, hasPlan = false) {
-  return scheduleDto(row, await canReviewApproval(req, row), hasPlan);
+async function scheduleResponse(req: Request, row: AnyRow, hasPlan = false, parent?: AnyRow) {
+  const parentId = scheduleMeta(row).parentId;
+  if (parentId && !parent) {
+    [parent] = await db.select({ status: auditSchedules.status }).from(auditSchedules).where(and(
+      active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, parentId),
+    )).limit(1);
+  }
+  return scheduleDto(row, await canReviewApproval(req, row), hasPlan, parent && isProgramme(parent) ? scheduleMeta(parent).teamLeadIds ?? null : null);
 }
 
+async function auditTeamLeadUsers(organizationId: string) {
+  const rows = await db.select({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
+    .innerJoin(applicationAccess, and(
+      eq(applicationAccess.username, users.username), eq(applicationAccess.organizationId, organizationId),
+      eq(applicationAccess.canOpenAudit, true), isNull(applicationAccess.deletedAt),
+    ))
+    .innerJoin(auditUserWorkspaceRoles, and(
+      eq(auditUserWorkspaceRoles.userId, users.id), eq(auditUserWorkspaceRoles.organizationId, organizationId),
+      eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
+    ))
+    .innerJoin(auditWorkspaceRoles, and(
+      eq(auditWorkspaceRoles.id, auditUserWorkspaceRoles.workspaceRoleId), eq(auditWorkspaceRoles.organizationId, organizationId),
+      eq(auditWorkspaceRoles.status, "active"), isNull(auditWorkspaceRoles.deletedAt),
+    ))
+    .innerJoin(auditWorkspaceRolePermissions, and(
+      eq(auditWorkspaceRolePermissions.workspaceRoleId, auditWorkspaceRoles.id),
+      eq(auditWorkspaceRolePermissions.organizationId, organizationId),
+      isNull(auditWorkspaceRolePermissions.deletedAt),
+    ))
+    .innerJoin(auditPermissions, and(
+      eq(auditPermissions.id, auditWorkspaceRolePermissions.permissionId),
+      eq(auditPermissions.organizationId, organizationId),
+      eq(auditPermissions.key, "audit_team_lead"), isNull(auditPermissions.deletedAt),
+    ))
+    .where(and(eq(users.organizationId, organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt)))
+    .orderBy(asc(users.fullName));
+  return [...new Map(rows.map(row => [row.id, row])).values()];
+}
+
+router.get("/team-leads", requirePermission("audit", "schedules", "select"), asyncHandler(async (req, res) => {
+  res.json(await auditTeamLeadUsers(actor(req).organizationId));
+}));
 router.get("/programmes", asyncHandler(async (req, res) => {
   const { page, limit } = pagination(req);
   const rows = await db.select().from(auditSchedules).where(active(auditSchedules, actor(req).organizationId)).orderBy(desc(auditSchedules.year), desc(auditSchedules.updatedAt));
@@ -642,7 +681,7 @@ router.get("/programmes", asyncHandler(async (req, res) => {
   const legacy = (await Promise.all(legacyCandidates.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const visibleProgrammes = (await Promise.all(programmes.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const items = await Promise.all(visibleProgrammes.map(async row => programmeResponse(req, row, (await programmeChildren(req, row.id)).length)));
-  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
+  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
   const offset = (page - 1) * limit;
   res.json(paginated(items.slice(offset, offset + limit), items.length, page, limit));
 }));
@@ -650,11 +689,14 @@ router.get("/programmes", asyncHandler(async (req, res) => {
 router.post("/programmes", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditProgrammeBody, req);
   if (new Date(data.toDate).getTime() < new Date(data.fromDate).getTime()) throw new HttpError(422, "To Date must be on or after From Date");
+  const selectedIds = [...new Set(data.teamLeadIds as string[])];
+  const eligibleIds = new Set((await auditTeamLeadUsers(actor(req).organizationId)).map(user => user.id));
+  if (selectedIds.some(id => !eligibleIds.has(id))) throw new HttpError(422, "Select active users assigned an Audit Team Lead role");
   const id = data.id ?? randomUUID();
   const [row] = await db.insert(auditSchedules).values({
     id, organizationId: actor(req).organizationId, year: new Date(data.fromDate).getUTCFullYear(),
     title: data.title.trim(), ownerId: actor(req).id, workflowState: "draft",
-    status: JSON.stringify({ programme: true, fromDate: data.fromDate, toDate: data.toDate }),
+    status: JSON.stringify({ programme: true, fromDate: data.fromDate, toDate: data.toDate, teamLeadIds: selectedIds }),
   }).returning();
   await auditLog(req, "create", "audit_programme", row.id, undefined, row);
   res.status(201).json(await programmeResponse(req, row, 0));
@@ -664,7 +706,7 @@ router.get("/programmes/:id", asyncHandler(async (req, res) => {
   if (String(req.params.id) === "legacy") {
     const children = await programmeChildren(req, "legacy");
     if (!children.length) throw new HttpError(404, "Audit programme not found");
-    res.json({ id: "legacy", title: "Existing audit schedules", fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
+    res.json({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, submissionSubject: null, submissionMailBody: null });
     return;
   }
   const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
@@ -924,9 +966,10 @@ router.get("/schedules", asyncHandler(async (req, res) => {
   const planRows = await db.select({ scheduleId: auditPlans.auditScheduleId }).from(auditPlans)
     .where(active(auditPlans, actor(req).organizationId));
   const plannedScheduleIds = new Set(planRows.map(plan => plan.scheduleId).filter(Boolean));
+  const parents = new Map(allItems.filter(isProgramme).map(row => [row.id, row]));
   const offset = (page - 1) * limit;
   res.json(paginated(await Promise.all(scoped.slice(offset, offset + limit).map(row =>
-    scheduleResponse(req, row, plannedScheduleIds.has(row.id)))), scoped.length, page, limit));
+    scheduleResponse(req, row, plannedScheduleIds.has(row.id), parents.get(scheduleMeta(row).parentId ?? "")))), scoped.length, page, limit));
 }));
 router.post("/schedules", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditScheduleBody, req);
@@ -992,7 +1035,7 @@ router.post("/schedules", asyncHandler(async (req, res) => {
     throw new HttpError(409, "A schedule with this form identifier already exists. Refresh the schedule list before creating another schedule.");
   });
   if (result.created) await auditLog(req, result.restored ? "restore" : "create", "audit_schedule", result.row.id, undefined, result.row);
-  res.status(201).json(scheduleDto(result.row));
+  res.status(201).json(await scheduleResponse(req, result.row));
 }));
 router.get("/schedules/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
@@ -1001,7 +1044,7 @@ router.get("/schedules/:id", asyncHandler(async (req, res) => {
   const [plan] = await db.select({ id: auditPlans.id }).from(auditPlans).where(and(
     active(auditPlans, actor(req).organizationId), eq(auditPlans.auditScheduleId, row.id),
   )).limit(1);
-  res.json(scheduleDto(row, false, Boolean(plan)));
+  res.json(await scheduleResponse(req, row, Boolean(plan)));
 }));
 router.put("/schedules/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditScheduleBody, req);
@@ -1038,7 +1081,7 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
   const [row] = await db.update(auditSchedules).set({ ...scheduleValues(data), id: undefined, updatedAt: new Date() })
     .where(eq(auditSchedules.id, before.id)).returning();
   await auditLog(req, "update", "audit_schedule", row.id, before, row);
-  res.json(scheduleDto(row));
+  res.json(await scheduleResponse(req, row));
 }));
 router.delete("/schedules/:id", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
@@ -1216,6 +1259,17 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   const usersById = new Map(options.map((option) => [option.id, option]));
   const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, ...activities.map(activity => activity.auditeeId)])];
   if (participantIds.some((id) => !usersById.has(id))) throw new HttpError(422, "Select active QMS Audit users for all Master fields");
+  const parentId = scheduleMeta(schedule).parentId;
+  if (parentId) {
+    const [parent] = await db.select({ status: auditSchedules.status }).from(auditSchedules).where(and(
+      active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, parentId),
+    )).limit(1);
+    if (!parent || !isProgramme(parent)) throw new HttpError(422, "The parent Audit Schedule is unavailable");
+    const selectedLeads = scheduleMeta(parent).teamLeadIds;
+    if (selectedLeads && !selectedLeads.includes(data.leadAuditorId)) {
+      throw new HttpError(422, "Lead / Internal Auditor must be one of the Audit Team Leads selected when the schedule was created");
+    }
+  }
   const selectedRoles = await db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name })
     .from(auditWorkspaceRoles)
     .where(and(active(auditWorkspaceRoles, actor(req).organizationId), inArray(auditWorkspaceRoles.id, auditeeRoleIds)));

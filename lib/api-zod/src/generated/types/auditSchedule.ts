@@ -17,6 +17,11 @@ export interface AuditSchedule {
      * @nullable
      */
   parentId?: string | null;
+  /**
+     * Selected leads on the parent programme; null for legacy schedules
+     * @nullable
+     */
+  readonly teamLeadIds?: readonly string[] | null;
   year: number;
   title: string;
   /** Whether an active Audit Plan already exists for this schedule */

@@ -11,4 +11,6 @@ export interface AuditProgrammeInput {
   title: string;
   fromDate: Date;
   toDate: Date;
+  /** @minItems 1 */
+  teamLeadIds: string[];
 }

@@ -23,7 +23,8 @@ async function api(method: string, path: string, token: string, body?: unknown) 
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(method === "POST" && path === "/programmes"
+      ? { teamLeadIds: [creator.id], ...(body as object) } : body),
   });
   const text = await response.text();
   return { status: response.status, json: text ? JSON.parse(text) : null };
@@ -99,7 +100,8 @@ beforeAll(async () => {
   const view = await permission("view_all");
   const approve = await permission("approve_reject");
   const submit = await permission("submit");
-  const creatorRole = await role("Audit Contributor", [create.id, view.id, submit.id]);
+  const teamLead = await permission("audit_team_lead");
+  const creatorRole = await role("Audit Contributor", [create.id, view.id, submit.id, teamLead.id]);
   const l1Role = await role("L1 Programme Approver", [approve.id, view.id]);
   const l2Role = await role("L2 Programme Approver", [approve.id, view.id]);
   await assign(creator.id, creatorRole.id);
@@ -115,6 +117,7 @@ beforeAll(async () => {
     ["audit_types", "Quality Internal Process Audit"],
     ["audit_types", "Quality Internal Product Audit"],
     ["departments", "Quality Department"],
+    ["activities", "General Requirement"],
   ]) {
     let [group] = await db.select().from(masterDataGroups).where(and(
       eq(masterDataGroups.organizationId, orgId), eq(masterDataGroups.code, code),
@@ -146,6 +149,43 @@ afterAll(async () => {
 });
 
 describe("audit programme parent/child workflow", () => {
+  it("requires eligible selected Audit Team Leads and limits a plan's Lead / Internal Auditor to them", async () => {
+    const options = await api("GET", "/team-leads", creator.token);
+    expect(options.status).toBe(200);
+    expect(options.json.map((user: { id: string }) => user.id)).toContain(creator.id);
+    expect(options.json.map((user: { id: string }) => user.id)).not.toContain(l2.id);
+    const details = { title: "Lead selection programme", fromDate: "2026-01-01", toDate: "2026-12-31" };
+    expect((await api("POST", "/programmes", creator.token, { ...details, teamLeadIds: [] })).status).toBe(422);
+    expect((await api("POST", "/programmes", creator.token, { ...details, teamLeadIds: [l2.id] })).status).toBe(422);
+    const created = await api("POST", "/programmes", creator.token, { ...details, teamLeadIds: [creator.id] });
+    expect(created.status).toBe(201);
+    expect(created.json.teamLeadIds).toEqual([creator.id]);
+    expect((await api("GET", `/programmes/${created.json.id}`, creator.token)).json.teamLeadIds).toEqual([creator.id]);
+    const child = await addChild(created.json.id);
+    const schedules = await api("GET", `/schedules?parentId=${created.json.id}`, creator.token);
+    expect(schedules.json.items.find((item: { id: string }) => item.id === child.id)?.teamLeadIds).toEqual([creator.id]);
+    expect((await api("GET", `/schedules/${child.id}`, creator.token)).json.teamLeadIds).toEqual([creator.id]);
+    const planPayload = {
+      id: crypto.randomUUID(), scheduleId: child.id, auditFeasible: true, auditTitle: child.title,
+      leadAuditorId: l2.id, teamMemberIds: [creator.id], auditeeId: creator.id,
+      auditeeRoleIds: [(await db.select({ id: auditWorkspaceRoles.id }).from(auditWorkspaceRoles)
+        .where(and(eq(auditWorkspaceRoles.organizationId, orgId), eq(auditWorkspaceRoles.name, "Audit Contributor"))))[0]!.id],
+      qaqcScope: "ISO 9001", auditTypes: ["Quality Internal Process Audit"],
+      auditLanguage: "Verbal: English\nWriting: English", qaqcReference: "QAM-IA/26-",
+      startDateTime: "2026-01-01T08:00:00.000Z", endDateTime: "2026-01-01T16:00:00.000Z",
+      openingMeetingDateTime: "2026-01-01T08:00:00.000Z", closingMeetingDateTime: "2026-01-01T15:30:00.000Z",
+      activitySection: "General Requirement", activityRemarks: "Review controls", activityAuditeeId: creator.id,
+      activityDateTime: "2026-01-01T09:00:00.000Z", auditPlanCirculation: "Programme Creator", status: "Draft",
+    };
+    const invalidPlan = await api("POST", "/plans", creator.token, planPayload);
+    expect(invalidPlan.status).toBe(422);
+    expect(invalidPlan.json.error).toMatch(/selected when the schedule was created/);
+    const validPlan = await api("POST", "/plans", creator.token, {
+      ...planPayload, id: crypto.randomUUID(), leadAuditorId: creator.id,
+    });
+    expect(validPlan.status).toBe(201);
+    expect(validPlan.json.leadAuditorId).toBe(creator.id);
+  });
   it("enforces user assignment visibility and all-child programme scope before serving private signatories", async () => {
     const [projectA, projectB] = await db.insert(projects).values([
       { organizationId: orgId, code: `SA-${orgId.slice(0, 6)}`, name: "Scope A" },

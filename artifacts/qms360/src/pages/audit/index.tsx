@@ -20,6 +20,7 @@ import {
   useGetAuditPlan,
   getGetAuditPlanQueryKey,
   useGetAuditPlanOptions,
+  useListAuditTeamLeads,
   useGetAuditProgramme,
   getGetAuditProgrammeQueryKey,
   getListAuditProgrammesQueryKey,
@@ -905,11 +906,14 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan, planCreationDisabl
 
 function ProgrammeForm({ onClose }: { onClose: () => void }) {
   const create = useCreateAuditProgramme();
+  const leads = useListAuditTeamLeads();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [teamLeadIds, setTeamLeadIds] = useState<string[]>([]);
+  const [leadError, setLeadError] = useState("");
   const save = () => {
     if (!title.trim() || !fromDate || !toDate) {
       toast({ title: "Complete the programme details", description: "Audit Title, From Date and To Date are required.", variant: "destructive" });
@@ -919,7 +923,15 @@ function ProgrammeForm({ onClose }: { onClose: () => void }) {
       toast({ title: "Invalid date range", description: "To Date must be on or after From Date.", variant: "destructive" });
       return;
     }
-    create.mutate({ data: { title: title.trim(), fromDate, toDate } }, {
+    if (!teamLeadIds.length) {
+      setLeadError("Select at least one Audit Team Lead.");
+      return;
+    }
+    if (leads.isError || leads.isLoading || teamLeadIds.some(id => !leads.data?.some(user => user.id === id))) {
+      setLeadError("Reload the eligible Audit Team Leads before saving.");
+      return;
+    }
+    create.mutate({ data: { title: title.trim(), fromDate, toDate, teamLeadIds } }, {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] });
         toast({ title: "Audit schedule created" });
@@ -934,7 +946,21 @@ function ProgrammeForm({ onClose }: { onClose: () => void }) {
       <div><Label htmlFor="programme-from">From Date</Label><Input id="programme-from" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} /></div>
       <div><Label htmlFor="programme-to">To Date</Label><Input id="programme-to" type="date" value={toDate} onChange={e => setToDate(e.target.value)} /></div>
     </div>
-    <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save} disabled={create.isPending}>Save audit schedule</Button></DialogFooter>
+    <div>
+      <Label>Audit Team Lead *</Label>
+      <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" aria-invalid={!!leadError} className="mt-2 w-full justify-between font-normal" disabled={leads.isLoading || leads.isError}>
+        <span className="truncate">{teamLeadIds.length ? teamLeadIds.map(id => leads.data?.find(user => user.id === id)?.fullName).filter(Boolean).join(", ") : leads.isLoading ? "Loading team leads…" : "Select Audit Team Lead(s)"}</span><ChevronDown className="ml-2 size-4 shrink-0"/>
+      </Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-64 overflow-y-auto">
+        {(leads.data ?? []).map(user => <DropdownMenuCheckboxItem key={user.id} checked={teamLeadIds.includes(user.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => {
+          setTeamLeadIds(current => checked === true ? [...new Set([...current, user.id])] : current.filter(id => id !== user.id));
+          setLeadError("");
+        }}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</DropdownMenuCheckboxItem>)}
+      </DropdownMenuContent></DropdownMenu>
+      {leadError && <p className="mt-1 text-sm text-destructive" role="alert">{leadError}</p>}
+      {leads.isError && <p className="mt-1 text-sm text-destructive">Unable to load Audit Team Leads. Close and reopen this form to retry.</p>}
+      {!leads.isLoading && !leads.isError && !leads.data?.length && <p className="mt-1 text-sm text-muted-foreground">No eligible users. Assign an active Audit Team Lead role to an active user with Audit application access first.</p>}
+    </div>
+    <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save} disabled={create.isPending || leads.isLoading || leads.isError || !leads.data?.length}>Save audit schedule</Button></DialogFooter>
   </div>;
 }
 
@@ -1267,6 +1293,10 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
     : (schedules.length ? schedules : offlineContext?.schedules ?? []);
   const approvedSchedules = (presetSchedule ? [presetSchedule] : effectiveSchedules)
     .filter(schedule => !schedule.hasPlan && schedule.feasibilityDecision !== "cancelled");
+  const selectedSchedule = effectiveSchedules.find(schedule => schedule.id === form.scheduleId) ?? presetSchedule;
+  const leadUsers = selectedSchedule?.teamLeadIds == null
+    ? users
+    : users.filter(user => selectedSchedule.teamLeadIds?.includes(user.id));
   const clearError = (...keys: string[]) => setErrors(current => {
     const next = { ...current };
     keys.forEach(key => delete next[key]);
@@ -1282,8 +1312,9 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
     setForm(current => ({
       ...current, scheduleId, auditTitle: schedule.title, qaqcScope: schedule.qaqcScope ?? "",
       auditTypes: schedule.auditTypes ?? [], qaqcReference: schedule.qaqcReference ?? "",
+      leadAuditorId: schedule.teamLeadIds == null || schedule.teamLeadIds.includes(current.leadAuditorId) ? current.leadAuditorId : "",
     }));
-    clearError("scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference");
+    clearError("scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId");
   };
   const selectedTeamNames = form.teamMemberIds.map(id => users.find(user => user.id === id)?.fullName).filter(Boolean);
   const selectedAuditeeRoleIds = form.auditeeRoleIds ?? [];
@@ -1321,6 +1352,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
       ["activityDateTime", form.activityDateTime], ["circulation", circulation],
     ];
     const nextErrors = Object.fromEntries(required.filter(([, value]) => Array.isArray(value) ? !value.length : !String(value ?? "").trim()).map(([key]) => [key, "This field is required."]));
+    if (form.leadAuditorId && !leadUsers.some(user => user.id === form.leadAuditorId)) nextErrors.leadAuditorId = "Select a lead from those chosen when this schedule was created.";
     if (!activityRows.length) nextErrors.activities = "Add at least one activity row.";
     activityRows.forEach(row => {
       if (!row.section.trim()) nextErrors[`activity-${row.id}-section`] = "Select an activity.";
@@ -1422,7 +1454,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
     <Dialog open={feasibilityOpen} onOpenChange={open => { setFeasibilityOpen(open); if (!open) setForm(current => ({ ...current, auditFeasible: true })); }}><DialogContent><DialogHeader><DialogTitle>Audit is not feasible</DialogTitle><DialogDescription>Enter the required feedback. New dates are required only to reschedule the audit; canceling does not require dates.</DialogDescription></DialogHeader><div><Label htmlFor="feasibility-feedback">Remarks / Feedback *</Label><Textarea id="feasibility-feedback" className="mt-2" rows={5} value={feasibilityFeedback} aria-invalid={!!feasibilityError} onChange={event => { setFeasibilityFeedback(event.target.value); setFeasibilityError(""); }} placeholder="Enter remarks or feedback"/>{feasibilityError && <p className="mt-1 text-sm text-destructive">{feasibilityError}</p>}</div><div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="feasibility-from-date">From Date</Label><Input id="feasibility-from-date" type="date" className="mt-2" value={feasibilityFromDate} aria-invalid={!!feasibilityDateError} onChange={event => { setFeasibilityFromDate(event.target.value); setFeasibilityDateError(""); }}/></div><div><Label htmlFor="feasibility-to-date">To Date</Label><Input id="feasibility-to-date" type="date" className="mt-2" min={feasibilityFromDate || undefined} value={feasibilityToDate} aria-invalid={!!feasibilityDateError} onChange={event => { setFeasibilityToDate(event.target.value); setFeasibilityDateError(""); }}/></div>{feasibilityDateError && <p className="text-sm text-destructive sm:col-span-2">{feasibilityDateError}</p>}</div><DialogFooter><Button variant="destructive" disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("cancelled")}>Cancel Audit</Button><Button disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("reschedule")}>Reschedule Audit</Button></DialogFooter></DialogContent></Dialog>
     <fieldset disabled={!form.auditFeasible} className={`grid gap-4 ${!form.auditFeasible ? "opacity-50" : ""}`}>
     <div><Label>2. Audit Title *</Label><Input className="mt-2" readOnly disabled={readOnly} value={form.auditTitle} {...invalid("auditTitle")} placeholder="Generated from Audit Schedule"/><ErrorText name="auditTitle"/></div>
-    <div><Label>3. Lead / Internal Auditor *</Label><Select value={form.leadAuditorId} disabled={disabled("leadAuditorId")} onValueChange={value => set("leadAuditorId", value)}><SelectTrigger className="mt-2" {...invalid("leadAuditorId")}><SelectValue placeholder="Select lead auditor"/></SelectTrigger><SelectContent>{users.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><ErrorText name="leadAuditorId"/></div>
+    <div><Label>3. Lead / Internal Auditor *</Label><Select value={form.leadAuditorId} disabled={disabled("leadAuditorId") || !form.scheduleId} onValueChange={value => set("leadAuditorId", value)}><SelectTrigger className="mt-2" {...invalid("leadAuditorId")}><SelectValue placeholder="Select lead auditor"/></SelectTrigger><SelectContent>{leadUsers.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><ErrorText name="leadAuditorId"/>{form.scheduleId && selectedSchedule?.teamLeadIds != null && !leadUsers.length && <p className="mt-1 text-xs text-muted-foreground">No selected Audit Team Leads currently have active Audit access.</p>}</div>
     <div><Label>4. Audit Team *</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal" disabled={disabled("teamMemberIds")} {...invalid("teamMemberIds")}><span className="truncate">{selectedTeamNames.length ? selectedTeamNames.join(", ") : "Select Audit Team"}</span><ChevronDown className="ml-2 size-4 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">{users.map(user => <DropdownMenuCheckboxItem key={user.id} checked={form.teamMemberIds.includes(user.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => toggleTeamMember(user.id, checked === true)}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu><ErrorText name="teamMemberIds"/></div>
     <div><Label>5. Auditee Roles *</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal" disabled={disabled("auditeeId") || auditeeRoles.isLoading} {...invalid("auditeeRoleIds")}><span className="truncate">{selectedAuditeeRoleNames.length ? selectedAuditeeRoleNames.join(", ") : auditeeRoles.isLoading ? "Loading roles…" : "Select auditee roles"}</span><ChevronDown className="ml-2 size-4 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">{(auditeeRoles.data ?? []).map(role => <DropdownMenuCheckboxItem key={role.id} checked={selectedAuditeeRoleIds.includes(role.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => toggleAuditeeRole(role.id, checked === true)}>{role.name}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu><ErrorText name="auditeeRoleIds"/></div>
     <div><Label>6. QA/QC Scope *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={form.qaqcScope} {...invalid("qaqcScope")} placeholder="Prefilled from Audit Schedule"/><ErrorText name="qaqcScope"/></div>

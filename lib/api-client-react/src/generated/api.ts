@@ -47,6 +47,7 @@ import type {
   AuditPlanBody,
   AuditPlanOptions,
   AuditPlanPageResponse,
+  AuditPlanUserOption,
   AuditProgramme,
   AuditProgrammeBody,
   AuditProgrammePage,
@@ -15635,6 +15636,83 @@ export const useCreateAuditProgramme = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCreateAuditProgrammeMutationOptions(options));
     }
+
+export const getListAuditTeamLeadsUrl = () => {
+
+
+
+
+  return `/api/audit/team-leads`
+}
+
+/**
+ * @summary List active Audit users assigned a role marked Audit Team Lead
+ */
+export const listAuditTeamLeads = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanUserOption[]> => {
+
+  return customFetch<AuditPlanUserOption[]>(getListAuditTeamLeadsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAuditTeamLeadsQueryKey = () => {
+    return [
+    `/api/audit/team-leads`
+    ] as const;
+    }
+
+
+export const getListAuditTeamLeadsQueryOptions = <TData = Awaited<ReturnType<typeof listAuditTeamLeads>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditTeamLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAuditTeamLeadsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditTeamLeads>>> = ({ signal }) => listAuditTeamLeads({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditTeamLeads>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAuditTeamLeadsQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditTeamLeads>>>
+export type ListAuditTeamLeadsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List active Audit users assigned a role marked Audit Team Lead
+ */
+
+export function useListAuditTeamLeads<TData = Awaited<ReturnType<typeof listAuditTeamLeads>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditTeamLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAuditTeamLeadsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetAuditProgrammeUrl = (id: string,) => {
 
