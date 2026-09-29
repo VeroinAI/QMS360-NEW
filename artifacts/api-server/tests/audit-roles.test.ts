@@ -87,6 +87,7 @@ describe("Audit role permission persistence", () => {
       { key: "data_entry", name: "Data Entry" },
       { key: "approve_reject", name: "Approve or Reject" },
       { key: "audit_team_lead", name: "Audit Team Lead" },
+      { key: "audit_program_manager", name: "Audit Program Manager" },
     ];
     const created = await api("POST", "/audit/admin/roles", {
       id: roleId,

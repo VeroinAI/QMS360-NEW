@@ -22,4 +22,5 @@ export const PermissionKey = {
   delegate: 'delegate',
   memo_circulation: 'memo_circulation',
   audit_team_lead: 'audit_team_lead',
+  audit_program_manager: 'audit_program_manager',
 } as const;
