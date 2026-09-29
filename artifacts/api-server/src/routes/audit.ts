@@ -735,6 +735,25 @@ async function auditUsersWithMarker(organizationId: string, permissionKey: "audi
   return [...new Map(rows.map(row => [row.id, row])).values()];
 }
 
+async function eligibleMeetingAttendees(organizationId: string) {
+  return db.selectDistinct({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
+    .innerJoin(applicationAccess, and(
+      eq(applicationAccess.username, users.username), eq(applicationAccess.organizationId, organizationId),
+      eq(applicationAccess.canOpenAudit, true), isNull(applicationAccess.deletedAt),
+    ))
+    .innerJoin(auditUserWorkspaceRoles, and(
+      eq(auditUserWorkspaceRoles.userId, users.id), eq(auditUserWorkspaceRoles.organizationId, organizationId),
+      eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
+    ))
+    .innerJoin(auditWorkspaceRoles, and(
+      eq(auditWorkspaceRoles.id, auditUserWorkspaceRoles.workspaceRoleId),
+      eq(auditWorkspaceRoles.organizationId, organizationId),
+      eq(auditWorkspaceRoles.status, "active"), isNull(auditWorkspaceRoles.deletedAt),
+    ))
+    .where(and(eq(users.organizationId, organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt)))
+    .orderBy(asc(users.fullName));
+}
+
 const auditTeamLeadUsers = (organizationId: string) => auditUsersWithMarker(organizationId, "audit_team_lead");
 
 router.get("/team-leads", requirePermission("audit", "schedules", "select"), asyncHandler(async (req, res) => {
@@ -1882,10 +1901,24 @@ router.delete("/audits/:id", asyncHandler(async (req, res) => {
     .where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id)))).returning();
   if (!row) throw new HttpError(404, "Audit not found"); await auditLog(req, "delete", "audit", row.id, row); res.status(204).end();
 }));
+router.get("/audits/:id/attendee-options", asyncHandler(async (req, res) => {
+  const auditId = String(req.params.id);
+  await assertAuditRecordAccess(req, "audit", auditId);
+  res.json(await eligibleMeetingAttendees(actor(req).organizationId));
+}));
+
 async function updateMeeting(req: Request, kind: "opening" | "closing", schema: { safeParse: (value: unknown) => any }) {
   const data = body<AnyRow>(schema, req);
   const [before] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit not found");
+  if (kind === "opening") {
+    const eligibleIds = new Set((await eligibleMeetingAttendees(actor(req).organizationId)).map(user => user.id));
+    // Existing free-text minutes remain editable without forcing a retrospective user match.
+    const previous = new Set((auditMeta(before).openingMeeting?.attendees ?? []) as string[]);
+    if (data.attendees.some((id: string) => !eligibleIds.has(id) && !previous.has(id))) {
+      throw new HttpError(422, "Select attendees from active QMS Audit users");
+    }
+  }
   await assertFieldAccess(req, "audit", "audit-execution", {
     mode: "update",
     body: { [`${kind}Meeting`]: data },

@@ -26,6 +26,8 @@ import {
   getGetAuditPlanQueryKey,
   useGetAuditPlanOptions,
   useListAuditTeamLeads,
+  useListAuditMeetingAttendees,
+  getListAuditMeetingAttendeesQueryKey,
   useListAuditProcessProductOwners,
   listAuditProcessProductOwners,
   useGetAuditProgramme,
@@ -81,17 +83,19 @@ import type {
 import {
   AlertTriangle, ArrowLeft, BarChart3, CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck,
   Download, Eye, FileText, FolderOpen, Pencil, Plus, Printer, Search, Send, ShieldCheck,
-  Info, Trash2, Upload, XCircle,
+  Check, Info, Trash2, Upload, XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useGetAuditEscalations } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1659,12 +1663,43 @@ function Audits() {
   return <div className="space-y-5"><PageHeader title="Audit execution" description="Open an audit to run meetings, checklist, findings and evidence"/><div className="relative max-w-sm"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground"/><Input className="pl-9" placeholder="Search audits…" value={search} onChange={e=>setSearch(e.target.value)}/></div><State loading={query.isLoading} error={query.error} empty={!items.length}/><div className="grid gap-4 md:grid-cols-2">{items.map(a => <Card key={a.id}><CardHeader><div className="flex justify-between"><CardTitle className="text-base">{a.title}</CardTitle><Badge variant={workflowTone(a.status)}>{a.status}</Badge></div><CardDescription>Started {date(a.startedAt)}</CardDescription></CardHeader><CardContent className="flex justify-end gap-2"><Button variant="outline" asChild><Link href={`/audit/audits/${a.id}/report`}>Report</Link></Button><Button asChild><Link href={`/audit/audits/${a.id}`}>Open workspace</Link></Button></CardContent></Card>)}</div>{items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}</div>;
 }
 
+function meetingAttendeeLabel(id: string, users: Array<{ id: string; fullName: string }>) {
+  return users.find(user => user.id === id)?.fullName ?? (/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id) ? "Former Audit user" : id);
+}
+
 function MeetingEditor({ auditId, kind, value }: { auditId: string; kind: "opening" | "closing"; value?: MeetingMinutes }) {
-  const [form, setForm] = useState<MeetingMinutes>(value ?? { heldAt: "", attendees: [], minutes: "" }); const qc = useQueryClient(); const { toast } = useToast();
+  const [form, setForm] = useState<MeetingMinutes>(value ?? { heldAt: "", attendees: [], minutes: "" });
+  const [attendeePickerOpen, setAttendeePickerOpen] = useState(false);
+  const qc = useQueryClient(); const { toast } = useToast();
   const fa = useFieldAccess("audit"); const locked = fa.readOnly("audit-execution", `${kind}Meeting`);
   const opening = useUpdateAuditOpeningMeeting(); const closing = useUpdateAuditClosingMeeting();
-  const save = () => { if (!form.heldAt || !form.minutes) { toast({ title: "Date and minutes are required", variant: "destructive" }); return; } const mutation = kind === "opening" ? opening : closing; mutation.mutate({ id: auditId, data: form }, { onSuccess: () => { qc.invalidateQueries({ queryKey: [`/api/audit/audits/${auditId}`] }); toast({ title: `${kind === "opening" ? "Opening" : "Closing"} minutes saved` }); } }); };
-  return <Card><CardHeader><CardTitle className="capitalize">{kind} meeting minutes</CardTitle></CardHeader><CardContent className="space-y-4"><div><Label>Held at</Label><Input type="datetime-local" value={form.heldAt?.slice(0,16)} disabled={locked} onChange={e=>setForm(v=>({...v,heldAt:e.target.value}))}/></div><div><Label>Attendees (comma separated)</Label><Input value={form.attendees.join(", ")} disabled={locked} onChange={e=>setForm(v=>({...v,attendees:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)}))}/></div><div><Label>Minutes</Label><Textarea rows={8} value={form.minutes} disabled={locked} onChange={e=>setForm(v=>({...v,minutes:e.target.value}))}/></div><Button onClick={save} disabled={locked}>Save minutes</Button></CardContent></Card>;
+  const attendeeOptions = useListAuditMeetingAttendees(auditId, { query: { enabled: kind === "opening", queryKey: getListAuditMeetingAttendeesQueryKey(auditId) } });
+  const users = attendeeOptions.data ?? [];
+  const toggleAttendee = (id: string) => setForm(current => ({
+    ...current, attendees: current.attendees.includes(id)
+      ? current.attendees.filter(value => value !== id) : [...current.attendees, id],
+  }));
+  const save = () => {
+    if (!form.heldAt || !form.minutes) { toast({ title: "Date and minutes are required", variant: "destructive" }); return; }
+    const mutation = kind === "opening" ? opening : closing;
+    mutation.mutate({ id: auditId, data: form }, {
+      onSuccess: () => { void qc.invalidateQueries({ queryKey: [`/api/audit/audits/${auditId}`] }); toast({ title: `${kind === "opening" ? "Opening" : "Closing"} minutes saved` }); },
+      onError: error => toast({ title: "Unable to save meeting minutes", description: errorText(error), variant: "destructive" }),
+    });
+  };
+  return <Card><CardHeader><CardTitle className="capitalize">{kind} meeting minutes</CardTitle></CardHeader><CardContent className="space-y-4">
+    <div><Label>Held at</Label><Input type="datetime-local" value={form.heldAt?.slice(0,16)} disabled={locked} onChange={e=>setForm(v=>({...v,heldAt:e.target.value}))}/></div>
+    {kind === "opening" ? <div className="space-y-2">
+      <Label id="opening-meeting-attendees">Attendees</Label>
+      <Popover open={attendeePickerOpen} onOpenChange={setAttendeePickerOpen}>
+        <PopoverTrigger asChild><Button type="button" variant="outline" role="combobox" aria-labelledby="opening-meeting-attendees" aria-expanded={attendeePickerOpen} disabled={locked || attendeeOptions.isLoading || !!attendeeOptions.error} className="w-full justify-between font-normal">{attendeeOptions.isLoading ? "Loading Audit users…" : `Select Audit users${form.attendees.length ? ` (${form.attendees.length} selected)` : ""}`}<ChevronDown className="ml-2 size-4 opacity-50"/></Button></PopoverTrigger>
+        <PopoverContent align="start" className="w-[min(28rem,calc(100vw-2rem))] p-0"><Command><CommandInput placeholder="Search Audit users…"/><CommandList><CommandEmpty>No matching Audit users.</CommandEmpty><CommandGroup>{users.map(user => <CommandItem key={user.id} value={`${user.fullName} ${user.designation ?? ""} ${user.id}`} onSelect={() => toggleAttendee(user.id)}><Check className={`mr-2 size-4 ${form.attendees.includes(user.id) ? "opacity-100" : "opacity-0"}`}/><span>{user.fullName}{user.designation ? <span className="text-muted-foreground"> — {user.designation}</span> : null}</span></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent>
+      </Popover>
+      {attendeeOptions.error && <p className="text-sm text-destructive">Unable to load Audit users. <button type="button" className="underline" onClick={() => void attendeeOptions.refetch()}>Retry</button></p>}
+      {form.attendees.length > 0 && <div className="flex flex-wrap gap-2">{form.attendees.map(id => <Badge key={id} variant="secondary" className="gap-1.5 py-1">{meetingAttendeeLabel(id, users)}{!locked && <button type="button" aria-label={`Remove ${meetingAttendeeLabel(id, users)}`} onClick={() => toggleAttendee(id)}><XCircle className="size-3.5"/></button>}</Badge>)}</div>}
+    </div> : <div><Label>Attendees (comma separated)</Label><Input value={form.attendees.join(", ")} disabled={locked} onChange={e=>setForm(v=>({...v,attendees:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)}))}/></div>}
+    <div><Label>Minutes</Label><Textarea rows={8} value={form.minutes} disabled={locked} onChange={e=>setForm(v=>({...v,minutes:e.target.value}))}/></div><Button onClick={save} disabled={locked || opening.isPending || closing.isPending || (kind === "opening" && (attendeeOptions.isLoading || !!attendeeOptions.error))}>Save minutes</Button>
+  </CardContent></Card>;
 }
 
 function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistItem[] }) {
@@ -1929,10 +1964,11 @@ function Reports() {
 
 function AuditReport() {
   const {id=""}=useParams<{id:string}>();const query=useGetGeneratedAuditReport(id);
+  const attendeeOptions = useListAuditMeetingAttendees(id);
   if(query.isLoading||query.error||!query.data)return <State loading={query.isLoading} error={query.error} empty={!query.data}/>;
   const r=query.data;
   return <div className="space-y-5 print:p-0"><div className="flex justify-between print:hidden"><Button variant="ghost" asChild><Link href={`/audit/audits/${id}`}><ArrowLeft className="mr-2 size-4"/>Workspace</Link></Button><div className="flex gap-2"><Button variant="outline" asChild><a href={`/api/audit/audits/${id}/report?format=csv`} download><Download className="mr-2 size-4"/>CSV</a></Button><Button onClick={()=>window.print()}><Printer className="mr-2 size-4"/>Print</Button></div></div><Card><CardHeader className="border-b bg-primary text-primary-foreground"><CardTitle className="text-2xl">Audit Report</CardTitle><CardDescription className="text-primary-foreground/80">Generated {new Date(r.generatedAt).toLocaleString()}</CardDescription></CardHeader><CardContent className="space-y-8 pt-6"><section><h2 className="text-xl font-semibold">{r.audit.title}</h2><div className="mt-3 grid gap-2 text-sm sm:grid-cols-3"><p><b>Status:</b> {r.audit.status}</p><p><b>Project:</b> {r.audit.projectId}</p><p><b>Started:</b> {date(r.audit.startedAt)}</p></div></section>
-    <section className="grid gap-4 md:grid-cols-2">{[["Opening meeting",r.audit.openingMeeting],["Closing meeting",r.audit.closingMeeting]].map(([name,m])=>{const meeting=m as MeetingMinutes|undefined;return <div key={name as string} className="rounded-lg border p-4"><h3 className="font-semibold">{name as string}</h3>{meeting?<><p className="mt-1 text-sm">{date(meeting.heldAt)} · {meeting.attendees.join(", ")}</p><p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{meeting.minutes}</p></>:<p className="mt-2 text-sm text-muted-foreground">Not recorded.</p>}</div>})}</section>
+    <section className="grid gap-4 md:grid-cols-2">{[["Opening meeting",r.audit.openingMeeting],["Closing meeting",r.audit.closingMeeting]].map(([name,m])=>{const meeting=m as MeetingMinutes|undefined;return <div key={name as string} className="rounded-lg border p-4"><h3 className="font-semibold">{name as string}</h3>{meeting?<><p className="mt-1 text-sm">{date(meeting.heldAt)} · {name === "Opening meeting" ? meeting.attendees.map(id => meetingAttendeeLabel(id, attendeeOptions.data ?? [])).join(", ") : meeting.attendees.join(", ")}</p><p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{meeting.minutes}</p></>:<p className="mt-2 text-sm text-muted-foreground">Not recorded.</p>}</div>})}</section>
     <section><h3 className="mb-3 font-semibold">Findings</h3>{r.findings.length?<Table><TableHeader><TableRow><TableHead>Finding</TableHead><TableHead>Classification</TableHead><TableHead>Priority / Risk</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{r.findings.map(f=><TableRow key={f.id}><TableCell><b>{f.title}</b><p className="text-xs text-muted-foreground">{f.description}</p></TableCell><TableCell>{f.classification}</TableCell><TableCell>{f.priority} / {f.riskLevel}</TableCell><TableCell>{f.status}</TableCell></TableRow>)}</TableBody></Table>:<p className="text-sm text-muted-foreground">No findings.</p>}</section>
     <section><h3 className="mb-3 font-semibold">Corrective Action Reports</h3>{r.cars.length?<Table><TableHeader><TableRow><TableHead>Department</TableHead><TableHead>Due</TableHead><TableHead>Root cause</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{r.cars.map(c=><TableRow key={c.id}><TableCell>{c.responsibleDepartment}</TableCell><TableCell>{date(c.dueDate)}</TableCell><TableCell>{c.rootCause||"—"}</TableCell><TableCell>{c.status}</TableCell></TableRow>)}</TableBody></Table>:<p className="text-sm text-muted-foreground">No CARs.</p>}</section></CardContent></Card></div>;
 }

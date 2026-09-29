@@ -376,6 +376,49 @@ describe("Audit checklist items", () => {
   });
 });
 
+describe("Audit opening meeting attendee selection", () => {
+  it("offers active Audit users and preserves selected IDs and legacy names", async () => {
+    const [role] = await db.select().from(auditWorkspaceRoles).where(eq(auditWorkspaceRoles.organizationId, orgId)).limit(1);
+    const [attendee] = await db.insert(users).values({
+      organizationId: orgId, username: `meeting.attendee.${suffix}`,
+      email: `meeting.attendee.${suffix}@example.test`, fullName: "Meeting Attendee",
+    }).returning();
+    await db.insert(applicationAccess).values({ organizationId: orgId, username: attendee!.username, canOpenAudit: true });
+    await db.insert(auditUserWorkspaceRoles).values({ organizationId: orgId, userId: attendee!.id, workspaceRoleId: role!.id });
+    const [unapproved] = await db.insert(users).values({
+      organizationId: orgId, username: `meeting.unapproved.${suffix}`,
+      email: `meeting.unapproved.${suffix}@example.test`, fullName: "Unapproved Audit User",
+    }).returning();
+    await db.insert(auditUserWorkspaceRoles).values({ organizationId: orgId, userId: unapproved!.id, workspaceRoleId: role!.id });
+
+    const options = await api("GET", `/audit/audits/${auditId}/attendee-options`, { token: admin.token });
+    expect(options.status).toBe(200);
+    expect(options.json.map((user: { id: string }) => user.id)).toEqual(expect.arrayContaining([member.id, attendee!.id]));
+    expect(options.json.map((user: { id: string }) => user.id)).not.toContain(unapproved!.id);
+    const invalid = await api("PUT", `/audit/audits/${auditId}/opening-meeting`, { token: admin.token, body: {
+      heldAt: "2026-10-10T10:10:00.000Z", attendees: [unapproved!.id], minutes: "Opening remarks",
+    } });
+    expect(invalid.status).toBe(422);
+    const saved = await api("PUT", `/audit/audits/${auditId}/opening-meeting`, { token: admin.token, body: {
+      heldAt: "2026-10-10T10:10:00.000Z", attendees: [member.id, attendee!.id], minutes: "Opening remarks",
+    } });
+    expect(saved.status).toBe(200);
+    const reloaded = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+    expect(reloaded.json.openingMeeting.attendees).toEqual([member.id, attendee!.id]);
+    const [current] = await db.select({ status: audits.status }).from(audits).where(eq(audits.id, auditId));
+    await db.update(audits).set({ status: JSON.stringify({
+      ...JSON.parse(current!.status), openingMeeting: {
+        heldAt: "2026-10-10T10:10:00.000Z", attendees: ["Original typed attendee"], minutes: "Legacy minutes",
+      },
+    }) }).where(eq(audits.id, auditId));
+    const legacy = await api("PUT", `/audit/audits/${auditId}/opening-meeting`, { token: admin.token, body: {
+      heldAt: "2026-10-10T10:10:00.000Z", attendees: [member.id, "Original typed attendee"], minutes: "Legacy minutes",
+    } });
+    expect(legacy.status).toBe(200);
+    expect(legacy.json.openingMeeting.attendees).toEqual([member.id, "Original typed attendee"]);
+  });
+});
+
 describe("Audit evidence for projectless Process audits", () => {
   it("stores and links authenticated attachments for project-backed and Process audits", async () => {
     const [schedule] = await db.insert(auditSchedules).values({

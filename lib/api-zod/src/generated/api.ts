@@ -6909,6 +6909,21 @@ export const DeleteAuditResponse = zod.void()
 
 
 /**
+ * @summary List active QMS Audit users eligible for meeting attendance
+ */
+export const ListAuditMeetingAttendeesParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListAuditMeetingAttendeesResponseItem = zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+})
+export const ListAuditMeetingAttendeesResponse = zod.array(ListAuditMeetingAttendeesResponseItem)
+
+
+/**
  * @summary Record opening meeting minutes
  */
 export const UpdateAuditOpeningMeetingParams = zod.object({

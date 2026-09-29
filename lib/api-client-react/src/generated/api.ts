@@ -17718,6 +17718,83 @@ export const useDeleteAudit = <TError = ErrorType<unknown>,
       return useMutation(getDeleteAuditMutationOptions(options));
     }
 
+export const getListAuditMeetingAttendeesUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/attendee-options`
+}
+
+/**
+ * @summary List active QMS Audit users eligible for meeting attendance
+ */
+export const listAuditMeetingAttendees = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanUserOption[]> => {
+
+  return customFetch<AuditPlanUserOption[]>(getListAuditMeetingAttendeesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAuditMeetingAttendeesQueryKey = (id: string,) => {
+    return [
+    `/api/audit/audits/${id}/attendee-options`
+    ] as const;
+    }
+
+
+export const getListAuditMeetingAttendeesQueryOptions = <TData = Awaited<ReturnType<typeof listAuditMeetingAttendees>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditMeetingAttendees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAuditMeetingAttendeesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditMeetingAttendees>>> = ({ signal }) => listAuditMeetingAttendees(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditMeetingAttendees>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAuditMeetingAttendeesQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditMeetingAttendees>>>
+export type ListAuditMeetingAttendeesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List active QMS Audit users eligible for meeting attendance
+ */
+
+export function useListAuditMeetingAttendees<TData = Awaited<ReturnType<typeof listAuditMeetingAttendees>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditMeetingAttendees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAuditMeetingAttendeesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getUpdateAuditOpeningMeetingUrl = (id: string,) => {
 
 

@@ -1159,6 +1159,8 @@ paths:
     get: {operationId: getAudit, tags: [audit], summary: Get audit, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
     put: {operationId: updateAudit, tags: [audit], summary: Update audit, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Audit"}, responses: {"200": {description: Updated}}}
     delete: {operationId: deleteAudit, tags: [audit], summary: Soft-delete audit, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
+  /audit/audits/{id}/attendee-options:
+    get: {operationId: listAuditMeetingAttendees, tags: [audit], summary: List active QMS Audit users eligible for meeting attendance, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Audit users, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}}}}, "404": {description: Audit not found}}}
   /audit/audits/{id}/opening-meeting:
     put: {operationId: updateAuditOpeningMeeting, tags: [audit], summary: Record opening meeting minutes, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Meeting"}, responses: {"200": {description: Updated}}}
   /audit/audits/{id}/closing-meeting:
