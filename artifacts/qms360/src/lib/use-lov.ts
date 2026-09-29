@@ -6,6 +6,7 @@ export function useLov(code: string) {
     options: query.data?.values.map(({ value, label, metadata }) => ({ value, label, metadata })) ?? [],
     isLoading: query.isLoading,
     error: query.error,
+    refetch: query.refetch,
   };
 }
 

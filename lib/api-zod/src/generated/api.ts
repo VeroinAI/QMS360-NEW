@@ -6701,8 +6701,11 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
   "question": zod.string(),
-  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })).optional(),
@@ -6758,8 +6761,11 @@ export const ListAuditsResponse = zod.object({
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
   "question": zod.string(),
-  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })).optional(),
@@ -6793,8 +6799,11 @@ export const CreateAuditBody = zod.object({
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
   "question": zod.string(),
-  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })).optional(),
@@ -6833,8 +6842,11 @@ export const GetAuditResponse = zod.object({
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
   "question": zod.string(),
-  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })).optional(),
@@ -6871,8 +6883,11 @@ export const UpdateAuditBody = zod.object({
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
   "question": zod.string(),
-  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })).optional(),
@@ -6937,14 +6952,72 @@ export const UpdateAuditChecklistParams = zod.object({
 export const UpdateAuditChecklistBodyItem = zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
   "question": zod.string(),
-  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })
 export const UpdateAuditChecklistBody = zod.array(UpdateAuditChecklistBodyItem)
 
 export const UpdateAuditChecklistResponse = zod.unknown()
+
+
+/**
+ * @summary Append a checklist item
+ */
+export const CreateAuditChecklistItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+
+
+export const CreateAuditChecklistItemBody = zod.object({
+  "clause": zod.string().min(1),
+  "auditArea": zod.string().min(1).describe('Value in the Audit Area master-data group'),
+  "question": zod.string().min(1),
+  "description": zod.string().optional(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "evidenceIds": zod.array(zod.string()).optional()
+})
+
+export const CreateAuditChecklistItemResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional()
+})).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
 
 
 /**
@@ -7545,8 +7618,11 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
   "question": zod.string(),
-  "result": zod.string().describe('Values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
   "notes": zod.string().nullish(),
   "evidenceIds": zod.array(zod.string()).optional()
 })).optional(),

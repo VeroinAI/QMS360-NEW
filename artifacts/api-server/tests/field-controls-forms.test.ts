@@ -194,6 +194,7 @@ beforeAll(async () => {
     ["nc_classifications", ["Observation"]],
     ["finding_priorities", ["P6"]],
     ["risk_levels", ["Low"]],
+    ["Audit Area", ["Construction", "QMS"]],
   ] as Array<[string, string[]]>) {
     const [group] = await db.insert(masterDataGroups).values({ organizationId: orgId, code, name: code }).returning();
     for (const value of values) {
@@ -261,6 +262,38 @@ afterAll(async () => {
   await db.delete(platformRoles).where(eq(platformRoles.organizationId, orgId));
   await db.delete(organizationSettings).where(eq(organizationSettings.organizationId, orgId));
   await db.delete(organizations).where(eq(organizations.id, orgId));
+});
+
+describe("Audit checklist items", () => {
+  it("appends valid rows, preserves legacy rows and rejects missing or non-master Audit Areas", async () => {
+    const historical = { id: crypto.randomUUID(), clause: "Old", question: "Previous question", result: "Observation", notes: "Earlier notes" };
+    await db.update(audits).set({ checklistState: [historical] as any }).where(eq(audits.id, auditId));
+    const path = `/audit/audits/${auditId}/checklist/items`;
+    const input = { clause: "9.2", auditArea: "Construction", question: "Are records complete?", description: "Evidence checked", auditFinding: "Moderate NC" };
+    const invalid = await api("POST", path, { token: admin.token, body: { ...input, auditArea: "Not in master data" } });
+    expect(invalid.status).toBe(422);
+    const blank = await api("POST", path, { token: admin.token, body: { ...input, clause: " " } });
+    expect(blank.status).toBe(422);
+    const badEvidence = await api("POST", path, { token: admin.token, body: { ...input, evidenceIds: [crypto.randomUUID()] } });
+    expect(badEvidence.status).toBe(422);
+    const oldEndpoint = await api("PUT", `/audit/audits/${auditId}/checklist`, { token: admin.token, body: [
+      historical, { id: crypto.randomUUID(), clause: "9.2", question: "Unapproved area", auditArea: "Invalid" },
+    ] });
+    expect(oldEndpoint.status).toBe(422);
+
+    const added = await api("POST", path, { token: admin.token, body: input });
+    expect(added.status).toBe(201);
+    expect(added.json.checklist).toEqual([
+      historical,
+      expect.objectContaining({ clause: "9.2", auditArea: "Construction", question: input.question, description: input.description, auditFinding: "Moderate NC", evidenceIds: [] }),
+    ]);
+    const another = await api("POST", path, { token: admin.token, body: { ...input, question: "Second question?", auditFinding: undefined } });
+    expect(another.status).toBe(201);
+    expect(another.json.checklist).toHaveLength(3);
+    expect(another.json.checklist[2].auditFinding).toBeNull();
+    const detail = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+    expect(detail.json.checklist).toHaveLength(3);
+  });
 });
 
 describe("Lessons application access", () => {

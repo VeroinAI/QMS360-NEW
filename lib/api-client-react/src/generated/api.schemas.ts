@@ -2440,15 +2440,56 @@ export interface MeetingMinutes {
   evidenceIds?: string[];
 }
 
+export type ChecklistItemAuditFinding = typeof ChecklistItemAuditFinding[keyof typeof ChecklistItemAuditFinding];
+
+
+export const ChecklistItemAuditFinding = {
+  Minor_NC: 'Minor NC',
+  Moderate_NC: 'Moderate NC',
+  Major_NC: 'Major NC',
+  OFI: 'OFI',
+  Not_applicable: 'Not applicable',
+} as const;
+
 export interface ChecklistItem {
   id: string;
   /** @nullable */
   clause?: string | null;
+  auditArea?: string;
   question: string;
-  /** Values managed via /platform/master-data/lov/checklist_results */
-  result: string;
+  /** @nullable */
+  description?: string | null;
+  auditFinding?: ChecklistItemAuditFinding;
+  /** Legacy values managed via /platform/master-data/lov/checklist_results */
+  result?: string;
   /** @nullable */
   notes?: string | null;
+  evidenceIds?: string[];
+}
+
+export type AuditChecklistItemInputAuditFinding = typeof AuditChecklistItemInputAuditFinding[keyof typeof AuditChecklistItemInputAuditFinding];
+
+
+export const AuditChecklistItemInputAuditFinding = {
+  Minor_NC: 'Minor NC',
+  Moderate_NC: 'Moderate NC',
+  Major_NC: 'Major NC',
+  OFI: 'OFI',
+  Not_applicable: 'Not applicable',
+} as const;
+
+export interface AuditChecklistItemInput {
+  /** @minLength 1 */
+  clause: string;
+  /**
+     * Value in the Audit Area master-data group
+     * @minLength 1
+     */
+  auditArea: string;
+  /** @minLength 1 */
+  question: string;
+  description?: string;
+  auditFinding?: AuditChecklistItemInputAuditFinding;
   evidenceIds?: string[];
 }
 

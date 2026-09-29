@@ -5,14 +5,19 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { ChecklistItemAuditFinding } from './checklistItemAuditFinding';
 
 export interface ChecklistItem {
   id: string;
   /** @nullable */
   clause?: string | null;
+  auditArea?: string;
   question: string;
-  /** Values managed via /platform/master-data/lov/checklist_results */
-  result: string;
+  /** @nullable */
+  description?: string | null;
+  auditFinding?: ChecklistItemAuditFinding;
+  /** Legacy values managed via /platform/master-data/lov/checklist_results */
+  result?: string;
   /** @nullable */
   notes?: string | null;
   evidenceIds?: string[];

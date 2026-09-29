@@ -5,6 +5,7 @@ import {
   useCloseCorrectiveActionReport,
   useConfirmAuditEvidence,
   useCreateAuditEvidenceIntent,
+  useCreateAuditChecklistItem,
   useCreateAuditFinding,
   useCreateAuditPlan,
   useCreateAuditSchedule,
@@ -13,6 +14,7 @@ import {
   useDeleteAuditProgramme,
   useDeleteAuditSchedule,
   useGetAudit,
+  getGetAuditQueryKey,
   useGetAuditSchedule,
   useGetCorrectiveActionReport,
   getGetCorrectiveActionReportQueryKey,
@@ -1662,11 +1664,104 @@ function MeetingEditor({ auditId, kind, value }: { auditId: string; kind: "openi
 }
 
 function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistItem[] }) {
-  const [items, setItems] = useState(initial); const mutation = useUpdateAuditChecklist(); const qc = useQueryClient(); const { toast } = useToast();
-  const results = useLov("checklist_results");
-  const add = () => setItems(v => [...v, { id: crypto.randomUUID(), question: "", result: "Not Applicable", notes: "" }]);
-  const set = (i: number, key: keyof ChecklistItem, value: string) => setItems(v => v.map((x,n)=>n===i?{...x,[key]:value}:x));
-  return <Card><CardHeader><div className="flex justify-between"><div><CardTitle>Interactive checklist</CardTitle><CardDescription>Record clause-level assessment results</CardDescription></div><Button variant="outline" onClick={add}><Plus className="mr-2 size-4"/>Item</Button></div></CardHeader><CardContent className="space-y-3">{items.length === 0 && <p className="py-8 text-center text-muted-foreground">No checklist items. Add the first one.</p>}{items.map((item,i)=><div key={item.id} className="grid gap-2 rounded-lg border p-3 md:grid-cols-[120px_1fr_180px_1fr_auto]"><Input placeholder="Clause" value={item.clause ?? ""} onChange={e=>set(i,"clause",e.target.value)}/><Input placeholder="Question" value={item.question} onChange={e=>set(i,"question",e.target.value)}/><Select value={item.result} disabled={results.isLoading} onValueChange={v=>set(i,"result",v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{withLegacyOption(results.options,item.result).map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select><Input placeholder="Notes" value={item.notes ?? ""} onChange={e=>set(i,"notes",e.target.value)}/><Button size="icon" variant="ghost" onClick={()=>setItems(v=>v.filter((_,n)=>n!==i))}><Trash2 className="size-4"/></Button></div>)}<Button disabled={mutation.isPending} onClick={()=>mutation.mutate({ id:auditId,data:items },{onSuccess:()=>{qc.invalidateQueries({queryKey:[`/api/audit/audits/${auditId}`]});toast({title:"Checklist saved"});}})}>Save checklist</Button></CardContent></Card>;
+  const empty = () => ({ clause: "", auditArea: "", question: "", description: "", auditFinding: "", file: null as File | null });
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(empty);
+  const [saving, setSaving] = useState(false);
+  const [uploadedId, setUploadedId] = useState<string | null>(null);
+  const uploadReference = useRef(crypto.randomUUID());
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const areas = useLov("Audit Area");
+  const evidence = useListAuditEvidence({ recordType: "audit", recordId: auditId, page: 1, limit: 200 });
+  const addItem = useCreateAuditChecklistItem();
+  const intent = useCreateAuditEvidenceIntent();
+  const confirm = useConfirmAuditEvidence();
+  const update = (key: keyof ReturnType<typeof empty>, value: string | File | null) => setDraft(current => ({ ...current, [key]: value }));
+  const reset = () => { setOpen(false); setDraft(empty()); setUploadedId(null); uploadReference.current = crypto.randomUUID(); };
+  const save = async () => {
+    if (!draft.clause.trim() || !draft.auditArea || !draft.question.trim()) {
+      toast({ title: "Clause, Audit Area and Audit Question are required", variant: "destructive" });
+      return;
+    }
+    if (!areas.options.some(area => area.value === draft.auditArea)) {
+      toast({ title: "Select an active Audit Area from master data", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      let fileId = uploadedId;
+      if (draft.file && !fileId) {
+        const type = draft.file.type || "application/octet-stream";
+        const upload = await intent.mutateAsync({ data: {
+          recordType: "audit", recordId: auditId, category: type.startsWith("image/") ? "image" : "document",
+          fileName: draft.file.name, mimeType: type, sizeBytes: draft.file.size,
+          clientReference: uploadReference.current,
+        } });
+        const response = await fetch(upload.uploadUrl, { method: "PUT", body: draft.file, headers: { "Content-Type": type } });
+        if (!response.ok) throw new Error("Evidence upload failed");
+        await confirm.mutateAsync({ id: upload.id });
+        fileId = upload.id;
+        setUploadedId(fileId);
+      }
+      const saved = await addItem.mutateAsync({ id: auditId, data: {
+        clause: draft.clause.trim(), auditArea: draft.auditArea, question: draft.question.trim(),
+        description: draft.description.trim(), ...(draft.auditFinding ? { auditFinding: draft.auditFinding as "Minor NC" | "Moderate NC" | "Major NC" | "OFI" | "Not applicable" } : {}),
+        evidenceIds: fileId ? [fileId] : [],
+      } });
+      qc.setQueryData(getGetAuditQueryKey(auditId), saved);
+      void qc.invalidateQueries({ queryKey: getGetAuditQueryKey(auditId) });
+      if (fileId) void qc.invalidateQueries({ queryKey: ["/api/audit/evidence"] });
+      toast({ title: "Checklist item saved" });
+      reset();
+    } catch (error) {
+      toast({ title: "Unable to save checklist item", description: errorText(error), variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+  const findings = ["Minor NC", "Moderate NC", "Major NC", "OFI", "Not applicable"];
+  const filesById = new Map((evidence.data?.items ?? []).map(file => [file.id, file]));
+  return <Card>
+    <CardHeader className="flex-row items-center justify-between gap-3">
+      <div><CardTitle>Checklist</CardTitle><CardDescription>Clause-level audit questions and findings</CardDescription></div>
+      <Button onClick={() => setOpen(true)}><Plus className="mr-2 size-4"/>New Item</Button>
+    </CardHeader>
+    <CardContent>
+      <div className="overflow-x-auto rounded-md border">
+        <Table className="min-w-[1050px]">
+          <TableHeader><TableRow><TableHead>Clause</TableHead><TableHead>Audit Area</TableHead><TableHead>Audit Question</TableHead><TableHead>Description</TableHead><TableHead>Audit Findings</TableHead><TableHead>Evidence</TableHead></TableRow></TableHeader>
+          <TableBody>{initial.length ? initial.map(item => <TableRow key={item.id}>
+            <TableCell className="align-top">{item.clause || "—"}</TableCell>
+            <TableCell className="align-top">{areas.options.find(area => area.value === item.auditArea)?.label ?? item.auditArea ?? "—"}</TableCell>
+            <TableCell className="min-w-56 whitespace-normal align-top">{item.question}</TableCell>
+            <TableCell className="min-w-56 whitespace-pre-wrap align-top">{item.description || item.notes || "—"}</TableCell>
+            <TableCell className="align-top">{item.auditFinding || item.result || "—"}</TableCell>
+            <TableCell className="align-top">{item.evidenceIds?.length ? item.evidenceIds.map(id => {
+              const file = filesById.get(id);
+              return file?.storageUrl
+                ? <a key={id} className="block text-primary underline" href={file.storageUrl} target="_blank" rel="noopener noreferrer">{file.fileName}</a>
+                : <span key={id} className="block text-muted-foreground">File unavailable</span>;
+            }) : "—"}</TableCell>
+          </TableRow>) : <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">No checklist items yet. Select New Item to add one.</TableCell></TableRow>}</TableBody>
+        </Table>
+      </div>
+    </CardContent>
+    <Dialog open={open} onOpenChange={value => { if (!value && !saving) reset(); else if (value) setOpen(true); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+        <DialogHeader><DialogTitle>New Checklist Item</DialogTitle><DialogDescription>Add a question and optionally attach evidence. Nothing is saved until you select Save.</DialogDescription></DialogHeader>
+        <div className="space-y-4">
+          <div><Label htmlFor="checklist-clause">Clause *</Label><Input id="checklist-clause" value={draft.clause} onChange={event => update("clause", event.target.value)} placeholder="Enter audit clause"/></div>
+          <div><Label>Audit Area *</Label><Select value={draft.auditArea} onValueChange={value => update("auditArea", value)} disabled={areas.isLoading || !!areas.error}><SelectTrigger><SelectValue placeholder="Select Audit Area"/></SelectTrigger><SelectContent>{areas.options.map(area => <SelectItem key={area.value} value={area.value}>{area.label}</SelectItem>)}</SelectContent></Select>{areas.error && <p className="mt-1 text-sm text-destructive">Unable to load Audit Area master data. <button type="button" className="underline" onClick={() => areas.refetch()}>Retry</button></p>}{!areas.isLoading && !areas.error && !areas.options.length && <p className="mt-1 text-sm text-muted-foreground">No active Audit Area values are configured in master data.</p>}</div>
+          <div><Label htmlFor="checklist-question">Audit Question *</Label><Input id="checklist-question" value={draft.question} onChange={event => update("question", event.target.value)} placeholder="Enter the audit question"/></div>
+          <div><Label htmlFor="checklist-description">Description</Label><Textarea id="checklist-description" rows={4} value={draft.description} onChange={event => update("description", event.target.value)} placeholder="Description or findings"/></div>
+          <div><Label>Audit Findings</Label><Select value={draft.auditFinding} onValueChange={value => update("auditFinding", value)}><SelectTrigger><SelectValue placeholder="Select a finding (optional)"/></SelectTrigger><SelectContent>{findings.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>{draft.auditFinding && <button type="button" className="mt-1 text-xs text-muted-foreground underline" onClick={() => update("auditFinding", "")}>Clear selection</button>}</div>
+          <div><Label htmlFor="checklist-evidence">Evidence (optional)</Label><Input id="checklist-evidence" type="file" accept="image/*,.xlsx,.xls,.doc,.docx,.pdf,.ppt,.pptx" onChange={event => { update("file", event.target.files?.[0] ?? null); setUploadedId(null); uploadReference.current = crypto.randomUUID(); }}/><p className="mt-1 text-xs text-muted-foreground">Photos and office documents; organization evidence size limits apply.</p>{draft.file && <p className="mt-1 text-sm">{draft.file.name}</p>}</div>
+        </div>
+        <DialogFooter><Button variant="outline" disabled={saving} onClick={reset}>Cancel</Button><Button disabled={saving || areas.isLoading || !!areas.error} onClick={save}>{saving ? "Saving…" : "Save"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </Card>;
 }
 
 function FindingDialog({ auditId, initial, onClose }: { auditId: string; initial?: AuditFinding; onClose: () => void }) {
