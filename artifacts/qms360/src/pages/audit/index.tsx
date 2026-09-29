@@ -619,8 +619,8 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
   const [form, setForm] = useState<AuditSchedule>(initial ?? {
     id: crypto.randomUUID(), parentId: parentId ?? null, year: new Date().getFullYear(), title: "", projectIds: [], auditTypes: [],
     auditCategory: "", departmentProject: "", location: "", processProductOwner: "",
-    plannedStartDate: "", plannedEndDate: "", qaqcReference: `QAM-IA/${new Date().getFullYear().toString().slice(-2)}-`,
-    auditNumber: `AUD-${new Date().getFullYear()}-`, qaqcScope: "System and Process audits against ISO 9001:2015",
+    plannedStartDate: "", plannedEndDate: "", qaqcReference: "",
+    auditNumber: "", qaqcScope: "System and Process audits against ISO 9001:2015",
     qaqcClauses: "ISO 9001 — All clauses", remarks: "", l1Name: "", l1ReviewStatus: "Pending",
     l1ReviewComments: "", l1Attachments: [], l2Name: "", l2ReviewStatus: "Pending", l2ReviewComments: "",
     l2Attachments: [], memoDescription: "", memoCirculation: "", ownerId: "", workflowState: "Draft",
@@ -799,8 +799,8 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     <div id="schedule-title"><Label>5. Audit Title *</Label><Input aria-invalid={!!errors.title} className={invalid("title")} value={form.title} disabled={ro("title")} onChange={e => field("title", e.target.value)}/>{error("title")}</div>
     <div id="schedule-processProductOwner"><Label>6. Process / Product Owner *</Label><Select value={form.processProductOwner ?? ""} disabled={processOwners.isLoading || ro("processProductOwner")} onValueChange={v => field("processProductOwner", v)}><SelectTrigger aria-invalid={!!errors.processProductOwner} className={invalid("processProductOwner")}><SelectValue placeholder="Select owner"/></SelectTrigger><SelectContent>{withLegacyOption(processOwners.options, form.processProductOwner).map(x => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>{error("processProductOwner")}</div>
      <div className="grid grid-cols-2 gap-3"><div id="schedule-plannedStartDate"><Label>7. From Date *</Label><Input aria-invalid={!!errors.plannedStartDate} className={invalid("plannedStartDate")} type="date" min={parentRange?.fromDate} max={parentRange?.toDate} value={form.plannedStartDate.slice(0,10)} disabled={ro("plannedStartDate")} onChange={e => field("plannedStartDate", e.target.value)}/>{error("plannedStartDate")}</div><div id="schedule-plannedEndDate"><Label>To Date *</Label><Input aria-invalid={!!errors.plannedEndDate} className={invalid("plannedEndDate")} type="date" min={parentRange?.fromDate} max={parentRange?.toDate} value={form.plannedEndDate.slice(0,10)} disabled={ro("plannedEndDate")} onChange={e => field("plannedEndDate", e.target.value)}/>{error("plannedEndDate")}</div></div>
-    <div><Label>8. QA/QC Reference *</Label><Input readOnly value={form.qaqcReference ?? ""}/></div>
-    <div><Label>9. Audit Number / Site Visit No. *</Label><Input readOnly value={form.auditNumber ?? ""}/></div>
+    <div><Label>8. QA/QC Reference *</Label><Input readOnly value={form.qaqcReference ?? ""} placeholder="Assigned when Audit Schedule is submitted"/></div>
+    <div><Label>9. Audit Number / Site Visit No. *</Label><Input readOnly value={form.auditNumber ?? ""} placeholder="Assigned when this audit is saved"/></div>
     <div><Label>10. QA/QC Scope *</Label><Input readOnly value={form.qaqcScope ?? ""}/></div>
     <div><Label>11. QA/QC Clauses *</Label><Input readOnly value={form.qaqcClauses ?? ""}/></div>
     <div><Label>12. Remarks{req("remarks") ? " *" : ""}</Label><Textarea value={form.remarks ?? ""} disabled={ro("remarks")} onChange={e => field("remarks", e.target.value)}/></div>
@@ -1246,7 +1246,7 @@ function Schedules() {
           title: String(mapped.title), projectIds: project ? [project.id] : [], auditTypes: importedAuditTypes,
           auditCategory: String(mapped.auditCategory), departmentProject: department?.label ?? project?.name ?? "", location: String(mapped.location ?? ""),
           processProductOwner: String(mapped.processProductOwner), plannedStartDate: start, plannedEndDate: end,
-          qaqcReference: `QAM-IA/${start.slice(2, 4)}-`, auditNumber: `AUD-${start.slice(0, 4)}-`,
+          qaqcReference: "", auditNumber: "",
           qaqcScope: "System and Process audits against ISO 9001:2015", qaqcClauses: "ISO 9001 — All clauses",
           remarks: String(mapped.remarks ?? ""), l1Name: "", l1ReviewStatus: "Pending" as const,
           l1ReviewComments: "", l1Attachments: [], l2Name: "", l2ReviewStatus: "Pending" as const, l2ReviewComments: "",

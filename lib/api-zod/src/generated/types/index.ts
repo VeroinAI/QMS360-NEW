@@ -83,6 +83,8 @@ export * from './auditScheduleFeasibilityInput';
 export * from './auditScheduleFeasibilityInputDecision';
 export * from './auditScheduleL1ReviewStatus';
 export * from './auditScheduleL2ReviewStatus';
+export * from './auditScheduleNumbering';
+export * from './auditScheduleNumberRange';
 export * from './auditSchedulePage';
 export * from './auditSchedulePageResponse';
 export * from './auditStatus';

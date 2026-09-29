@@ -2257,6 +2257,29 @@ export interface AuditSchedule {
   readonly canReview: boolean;
 }
 
+export interface AuditScheduleNumberRange {
+  /**
+     * @minLength 1
+     * @maxLength 20
+     */
+  prefix: string;
+  /**
+     * @minimum 1
+     * @maximum 999
+     */
+  start: number;
+  /**
+     * @minimum 1
+     * @maximum 999
+     */
+  end: number;
+}
+
+export interface AuditScheduleNumbering {
+  qaqcReference: AuditScheduleNumberRange;
+  auditNumber: AuditScheduleNumberRange;
+}
+
 export type AuditScheduleFeasibilityInputDecision = typeof AuditScheduleFeasibilityInputDecision[keyof typeof AuditScheduleFeasibilityInputDecision];
 
 

@@ -7847,6 +7847,95 @@ export const ListAuditAccessQueueResponse = zod.object({
 
 
 /**
+ * @summary Get separate Audit Schedule field numbering settings
+ */
+export const getAuditScheduleNumberingResponseQaqcReferencePrefixMax = 20;
+
+export const getAuditScheduleNumberingResponseQaqcReferenceStartMax = 999;
+
+export const getAuditScheduleNumberingResponseQaqcReferenceEndMax = 999;
+
+export const getAuditScheduleNumberingResponseAuditNumberPrefixMax = 20;
+
+export const getAuditScheduleNumberingResponseAuditNumberStartMax = 999;
+
+export const getAuditScheduleNumberingResponseAuditNumberEndMax = 999;
+
+
+
+export const GetAuditScheduleNumberingResponse = zod.object({
+  "qaqcReference": zod.object({
+  "prefix": zod.string().min(1).max(getAuditScheduleNumberingResponseQaqcReferencePrefixMax),
+  "start": zod.number().min(1).max(getAuditScheduleNumberingResponseQaqcReferenceStartMax),
+  "end": zod.number().min(1).max(getAuditScheduleNumberingResponseQaqcReferenceEndMax)
+}),
+  "auditNumber": zod.object({
+  "prefix": zod.string().min(1).max(getAuditScheduleNumberingResponseAuditNumberPrefixMax),
+  "start": zod.number().min(1).max(getAuditScheduleNumberingResponseAuditNumberStartMax),
+  "end": zod.number().min(1).max(getAuditScheduleNumberingResponseAuditNumberEndMax)
+})
+})
+
+
+/**
+ * @summary Set Audit Schedule field prefixes and ranges
+ */
+export const updateAuditScheduleNumberingBodyQaqcReferencePrefixMax = 20;
+
+export const updateAuditScheduleNumberingBodyQaqcReferenceStartMax = 999;
+
+export const updateAuditScheduleNumberingBodyQaqcReferenceEndMax = 999;
+
+export const updateAuditScheduleNumberingBodyAuditNumberPrefixMax = 20;
+
+export const updateAuditScheduleNumberingBodyAuditNumberStartMax = 999;
+
+export const updateAuditScheduleNumberingBodyAuditNumberEndMax = 999;
+
+
+
+export const UpdateAuditScheduleNumberingBody = zod.object({
+  "qaqcReference": zod.object({
+  "prefix": zod.string().min(1).max(updateAuditScheduleNumberingBodyQaqcReferencePrefixMax),
+  "start": zod.number().min(1).max(updateAuditScheduleNumberingBodyQaqcReferenceStartMax),
+  "end": zod.number().min(1).max(updateAuditScheduleNumberingBodyQaqcReferenceEndMax)
+}),
+  "auditNumber": zod.object({
+  "prefix": zod.string().min(1).max(updateAuditScheduleNumberingBodyAuditNumberPrefixMax),
+  "start": zod.number().min(1).max(updateAuditScheduleNumberingBodyAuditNumberStartMax),
+  "end": zod.number().min(1).max(updateAuditScheduleNumberingBodyAuditNumberEndMax)
+})
+})
+
+export const updateAuditScheduleNumberingResponseQaqcReferencePrefixMax = 20;
+
+export const updateAuditScheduleNumberingResponseQaqcReferenceStartMax = 999;
+
+export const updateAuditScheduleNumberingResponseQaqcReferenceEndMax = 999;
+
+export const updateAuditScheduleNumberingResponseAuditNumberPrefixMax = 20;
+
+export const updateAuditScheduleNumberingResponseAuditNumberStartMax = 999;
+
+export const updateAuditScheduleNumberingResponseAuditNumberEndMax = 999;
+
+
+
+export const UpdateAuditScheduleNumberingResponse = zod.object({
+  "qaqcReference": zod.object({
+  "prefix": zod.string().min(1).max(updateAuditScheduleNumberingResponseQaqcReferencePrefixMax),
+  "start": zod.number().min(1).max(updateAuditScheduleNumberingResponseQaqcReferenceStartMax),
+  "end": zod.number().min(1).max(updateAuditScheduleNumberingResponseQaqcReferenceEndMax)
+}),
+  "auditNumber": zod.object({
+  "prefix": zod.string().min(1).max(updateAuditScheduleNumberingResponseAuditNumberPrefixMax),
+  "start": zod.number().min(1).max(updateAuditScheduleNumberingResponseAuditNumberStartMax),
+  "end": zod.number().min(1).max(updateAuditScheduleNumberingResponseAuditNumberEndMax)
+})
+})
+
+
+/**
  * @summary Decide access request
  */
 export const DecideAuditAccessRequestParams = zod.object({

@@ -57,6 +57,7 @@ import type {
   AuditSchedule,
   AuditScheduleBody,
   AuditScheduleFeasibilityBody,
+  AuditScheduleNumbering,
   AuditSchedulePageResponse,
   AuditUserProfileUpdateResult,
   AuditWorkspaceUserPage,
@@ -20514,6 +20515,154 @@ export function useListAuditAccessQueue<TData = Awaited<ReturnType<typeof listAu
 
 
 
+
+export const getGetAuditScheduleNumberingUrl = () => {
+
+
+
+
+  return `/api/audit/admin/schedule-numbering`
+}
+
+/**
+ * @summary Get separate Audit Schedule field numbering settings
+ */
+export const getAuditScheduleNumbering = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditScheduleNumbering> => {
+
+  return customFetch<AuditScheduleNumbering>(getGetAuditScheduleNumberingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditScheduleNumberingQueryKey = () => {
+    return [
+    `/api/audit/admin/schedule-numbering`
+    ] as const;
+    }
+
+
+export const getGetAuditScheduleNumberingQueryOptions = <TData = Awaited<ReturnType<typeof getAuditScheduleNumbering>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditScheduleNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditScheduleNumberingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditScheduleNumbering>>> = ({ signal }) => getAuditScheduleNumbering({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditScheduleNumbering>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditScheduleNumberingQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditScheduleNumbering>>>
+export type GetAuditScheduleNumberingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get separate Audit Schedule field numbering settings
+ */
+
+export function useGetAuditScheduleNumbering<TData = Awaited<ReturnType<typeof getAuditScheduleNumbering>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditScheduleNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditScheduleNumberingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAuditScheduleNumberingUrl = () => {
+
+
+
+
+  return `/api/audit/admin/schedule-numbering`
+}
+
+/**
+ * @summary Set Audit Schedule field prefixes and ranges
+ */
+export const updateAuditScheduleNumbering = async (auditScheduleNumbering: AuditScheduleNumbering, options?: Parameters<typeof customFetch>[1]): Promise<AuditScheduleNumbering> => {
+
+  return customFetch<AuditScheduleNumbering>(getUpdateAuditScheduleNumberingUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditScheduleNumbering)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditScheduleNumberingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditScheduleNumbering>>, TError,{data: BodyType<AuditScheduleNumbering>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditScheduleNumbering>>, TError,{data: BodyType<AuditScheduleNumbering>}, TContext> => {
+
+const mutationKey = ['updateAuditScheduleNumbering'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditScheduleNumbering>>, {data: BodyType<AuditScheduleNumbering>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAuditScheduleNumbering(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditScheduleNumberingMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditScheduleNumbering>>>
+    export type UpdateAuditScheduleNumberingMutationBody = BodyType<AuditScheduleNumbering>
+    export type UpdateAuditScheduleNumberingMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Set Audit Schedule field prefixes and ranges
+ */
+export const useUpdateAuditScheduleNumbering = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditScheduleNumbering>>, TError,{data: BodyType<AuditScheduleNumbering>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditScheduleNumbering>>,
+        TError,
+        {data: BodyType<AuditScheduleNumbering>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditScheduleNumberingMutationOptions(options));
+    }
 
 export const getDecideAuditAccessRequestUrl = (id: string,) => {
 

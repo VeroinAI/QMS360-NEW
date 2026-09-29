@@ -5,7 +5,7 @@ import {
   useAssignAuditUserRole, useAssignLessonsUserRole, useAssignQaqcUserRole,
   useCreateAuditDelegation, useCreateAuditRole, useCreateLessonsDelegation, useCreateLessonsRole, useCreateQaqcDelegation, useCreateQaqcRole,
   useDecideAuditAccessRequest, useDecideLessonsAccessRequest, useDecideQaqcAccessRequest,
-  useGetAuditAdminFieldControls, useGetCurrentUser, useGetLessonsAdminFieldControls, useGetLessonsAiSettings, useGetNumberingConfig, useGetPlatformContext, useGetQaqcAdminFieldControls, useGetQaqcAiSettings,
+  useGetAuditAdminFieldControls, useGetAuditScheduleNumbering, useGetCurrentUser, useGetLessonsAdminFieldControls, useGetLessonsAiSettings, useGetNumberingConfig, useGetPlatformContext, useGetQaqcAdminFieldControls, useGetQaqcAiSettings,
   useCreateApproverScope, useDeleteApproverScope, useGetLessonsReferenceData, useListApproverScopes, useListLessonApprovers,
   getGetLessonsDelegationOptionsQueryKey, getListLessonsDelegationPendingFormsQueryKey,
   useGetLessonsDelegationOptions, useListLessonsDelegationPendingForms,
@@ -17,7 +17,7 @@ import {
   useSetUserTemporaryPassword,
   getListPlatformRolesQueryKey, useListPlatformRoles, useUpdateUserEmail, useUpdateUserPlatformRole,
   useUpdateAuditEscalationRules, useUpdateAuditNotificationTemplate, useUpdateAuditRole, useUpdateNumberingPattern,
-  useUpdateAuditAdminFieldControls, useUpdateLessonsAdminFieldControls, useUpdateLessonsAiSettings, useUpdateLessonsEscalationRules, useUpdateLessonsNotificationTemplate, useUpdateLessonsRole,
+  useUpdateAuditAdminFieldControls, useUpdateAuditScheduleNumbering, useUpdateLessonsAdminFieldControls, useUpdateLessonsAiSettings, useUpdateLessonsEscalationRules, useUpdateLessonsNotificationTemplate, useUpdateLessonsRole,
   useUpdateQaqcAdminFieldControls, useUpdateQaqcAiSettings, useUpdateQaqcEscalationRules, useUpdateQaqcNotificationTemplate, useUpdateQaqcRole,
   useGetLessonsEscalationReportJob, useUpdateLessonsEscalationReportJob, useRunLessonsEscalationReportJob,
   useUpdateLessonsUserProfile,
@@ -37,7 +37,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { CockpitPage } from '../cockpit';
-import type { AISettings, EscalationRule, FieldControlSetting, NotificationTemplate, NumberingModuleConfig, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
+import type { AISettings, AuditScheduleNumbering, EscalationRule, FieldControlSetting, NotificationTemplate, NumberingModuleConfig, PermissionKey, Role, RoleAssignment } from '@workspace/api-client-react';
 import { AlertCircle, ArrowLeft, Bell, Sparkles, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Plus, Save, Search, Settings2, ShieldCheck, SlidersHorizontal, Trash2, Users } from 'lucide-react';
 import { fieldControlRegistry } from '@/lib/field-controls';
 import { userFacingApiError } from '@/lib/api-error';
@@ -533,7 +533,42 @@ function NumberingTab({ app }: { app: AppKey }) {
   if (config.isLoading) return <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Loading numbering settings…</CardContent></Card>;
   const module = config.data?.modules?.[app];
   if (!module) return <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Numbering settings unavailable.</CardContent></Card>;
-  return <NumberingForm key={`${app}-${config.dataUpdatedAt}`} app={app} module={module} onSaved={notify} />;
+  return <div className="space-y-5"><NumberingForm key={`${app}-${config.dataUpdatedAt}`} app={app} module={module} onSaved={notify} />
+    {app === 'audit' && <AuditScheduleNumberingSettings />}
+  </div>;
+}
+
+function AuditScheduleNumberingSettings() {
+  const query = useGetAuditScheduleNumbering();
+  const { toast } = useToast();
+  if (query.isLoading) return <Card><CardContent className="py-6">Loading Audit Schedule numbering…</CardContent></Card>;
+  if (!query.data || query.isError) return <Card><CardContent className="py-6 text-destructive">Unable to load Audit Schedule numbering. <Button variant="outline" onClick={() => query.refetch()}>Retry</Button></CardContent></Card>;
+  return <AuditScheduleNumberingEditor key={query.dataUpdatedAt} initial={query.data} onSaved={() => {
+    toast({ title: 'Audit Schedule numbering saved' }); void query.refetch();
+  }} />;
+}
+
+function AuditScheduleNumberingEditor({ initial, onSaved }: { initial: AuditScheduleNumbering; onSaved: () => void }) {
+  const [form, setForm] = useState(initial);
+  const update = useUpdateAuditScheduleNumbering();
+  const { toast } = useToast();
+  const year = String(new Date().getFullYear()).slice(-2);
+  const change = (field: keyof AuditScheduleNumbering, key: 'prefix' | 'start' | 'end', value: string) =>
+    setForm(current => ({ ...current, [field]: { ...current[field], [key]: key === 'prefix' ? value : Number(value) } }));
+  const valid = [form.qaqcReference, form.auditNumber].every(range =>
+    range.prefix.trim() && Number.isInteger(range.start) && Number.isInteger(range.end) &&
+    range.start >= 1 && range.end <= 999 && range.end >= range.start) && form.qaqcReference.start === 1;
+  return <Card><CardHeader><CardTitle>Audit Schedule fields 8 and 9</CardTitle><CardDescription>Separate prefixes and three-digit ranges. The two-digit year is the calendar year when each number is assigned. Existing numbers are not changed when settings are saved.</CardDescription></CardHeader>
+    <CardContent className="space-y-5">{(['qaqcReference', 'auditNumber'] as const).map(field => <section key={field} className="space-y-3 rounded-lg border p-4">
+      <div><h3 className="font-medium">{field === 'qaqcReference' ? '8. QA/QC Reference' : '9. Audit Number / Site Visit No.'}</h3><p className="text-sm text-muted-foreground">{field === 'qaqcReference' ? 'Assigned by From Date when the parent Audit Schedule is submitted. Always starts at 001 within each schedule.' : 'Assigned when each audit is created; numbering is separate for every department or project and calendar year.'}</p></div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div><Label htmlFor={`${field}-prefix`}>Prefix</Label><Input id={`${field}-prefix`} maxLength={20} value={form[field].prefix} onChange={e => change(field, 'prefix', e.target.value)} /></div>
+        <div><Label htmlFor={`${field}-start`}>First number</Label><Input id={`${field}-start`} type="number" min={1} max={999} disabled={field === 'qaqcReference'} value={form[field].start} onChange={e => change(field, 'start', e.target.value)} /></div>
+        <div><Label htmlFor={`${field}-end`}>Last number</Label><Input id={`${field}-end`} type="number" min={1} max={999} value={form[field].end} onChange={e => change(field, 'end', e.target.value)} /></div>
+      </div><p className="text-sm text-muted-foreground">Example: <span className="font-mono">{form[field].prefix}{year}-{String(form[field].start).padStart(3, '0')}</span></p>
+    </section>)}
+    <Button disabled={!valid || update.isPending} onClick={() => update.mutate({ data: form }, { onSuccess: onSaved, onError: error => toast({ title: 'Unable to save numbering', description: error instanceof Error ? error.message : 'Request failed', variant: 'destructive' }) })}><Save className="mr-2 size-4" />Save schedule numbering</Button>
+  </CardContent></Card>;
 }
 
 function SettingsPage() {

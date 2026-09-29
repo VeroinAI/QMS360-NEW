@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express, { type Express } from "express";
 import type { Server } from "node:http";
 import {
-  applicationAccess, auditAuditLogEntries, auditNotifications, auditPermissions, auditPlans, auditSchedules,
+  applicationAccess, auditAuditLogEntries, auditNotifications, auditPermissions, auditPlans, auditSchedules, organizationSettings,
   auditUserWorkspaceRoles, auditWorkspaceRolePermissions, auditWorkspaceRoles,
   db, masterDataGroups, masterDataValues, organizations, platformRoles, projects, users,
 } from "@workspace/db";
@@ -144,11 +144,71 @@ afterAll(async () => {
   await db.delete(projects).where(eq(projects.organizationId, orgId));
   await db.delete(users).where(eq(users.organizationId, orgId));
   await db.delete(platformRoles).where(eq(platformRoles.organizationId, orgId));
+  await db.delete(organizationSettings).where(eq(organizationSettings.organizationId, orgId));
   await db.delete(organizations).where(eq(organizations.id, orgId));
   await new Promise<void>(resolve => server.close(() => resolve()));
 });
 
 describe("audit programme parent/child workflow", () => {
+  it("keeps field 9 unique by department and assigns field 8 in From Date order on submission", async () => {
+    const settings = {
+      qaqcReference: { prefix: "QAM-IA/", start: 1, end: 3 },
+      auditNumber: { prefix: "AUD-", start: 5, end: 6 },
+    };
+    expect((await api("PUT", "/admin/schedule-numbering", admin.token, settings)).status).toBe(200);
+    expect((await api("GET", "/admin/schedule-numbering", admin.token)).json).toEqual(settings);
+    expect((await api("PUT", "/admin/schedule-numbering", admin.token, {
+      ...settings, qaqcReference: { ...settings.qaqcReference, start: 2 },
+    })).status).toBe(422);
+    const programme = await api("POST", "/programmes", creator.token, {
+      title: "Ordered references", fromDate: "2026-01-01", toDate: "2026-12-31",
+    });
+    const payload = (title: string, date: string, department: string) => ({
+      id: crypto.randomUUID(), parentId: programme.json.id, year: 2026, title,
+      projectIds: [], auditTypes: ["Quality Internal Process Audit"], auditCategory: "Internal",
+      departmentProject: department, plannedStartDate: date, plannedEndDate: date,
+      qaqcReference: "tampered", auditNumber: "tampered", workflowState: "Draft",
+    });
+    const laterPayload = payload("Later", "2026-08-01", "Quality Department");
+    const later = await api("POST", "/schedules", creator.token, laterPayload);
+    const first = await api("POST", "/schedules", creator.token, payload("First", "2026-02-01", "Quality Department"));
+    expect([later.status, first.status]).toEqual([201, 201]);
+    const year = String(new Date().getFullYear()).slice(-2);
+    expect(later.json.auditNumber).toBe(`AUD-${year}-005`);
+    expect(first.json.auditNumber).toBe(`AUD-${year}-006`);
+    expect(first.json.qaqcReference).toBe("");
+    const retry = await api("POST", "/schedules", creator.token, laterPayload);
+    expect(retry.status).toBe(201);
+    expect(retry.json.auditNumber).toBe(later.json.auditNumber);
+    const edited = await api("PUT", `/schedules/${first.json.id}`, creator.token, {
+      ...first.json, title: "Edited first", auditNumber: "tampered", qaqcReference: "tampered",
+    });
+    expect(edited.status).toBe(200);
+    expect(edited.json.auditNumber).toBe(`AUD-${year}-006`);
+    expect(edited.json.qaqcReference).toBe("");
+    const exhausted = await api("POST", "/schedules", creator.token, payload("Overflow", "2026-09-01", "Quality Department"));
+    expect(exhausted.status).toBe(409);
+    const submitted = await api("POST", `/programmes/${programme.json.id}/submit`, creator.token, {
+      subject: "Ordered references", mailBody: "Please review.",
+    });
+    expect(submitted.status).toBe(200);
+    expect((await api("GET", `/schedules/${first.json.id}`, creator.token)).json.qaqcReference).toBe(`QAM-IA/${year}-001`);
+    expect((await api("GET", `/schedules/${later.json.id}`, creator.token)).json.qaqcReference).toBe(`QAM-IA/${year}-002`);
+    expect((await api("GET", `/schedules/${later.json.id}`, creator.token)).json.auditNumber).toBe(`AUD-${year}-005`);
+    // Restore defaults so the range limit does not affect unrelated workflow tests.
+    expect((await api("PUT", "/admin/schedule-numbering", admin.token, {
+      qaqcReference: { prefix: "QAM-IA/", start: 1, end: 999 },
+      auditNumber: { prefix: "AUD-", start: 1, end: 999 },
+    })).status).toBe(200);
+    // A programme that has already been approved cannot be submitted again.
+    // A later addition still needs a reference rather than remaining blank.
+    await db.update(auditSchedules).set({ workflowState: "approved" })
+      .where(eq(auditSchedules.id, programme.json.id));
+    const added = await api("POST", "/schedules", creator.token,
+      payload("After approval", "2026-11-01", "Quality Department"));
+    expect(added.status).toBe(201);
+    expect(added.json.qaqcReference).toBe(`QAM-IA/${year}-003`);
+  });
   it("lists the two programmes awaiting an approver who has review access but no edit grant", async () => {
     const [project] = await db.insert(projects).values({
       organizationId: orgId, code: `AQ-${orgId.slice(0, 6)}`, name: "Action queue project",
@@ -425,7 +485,7 @@ describe("audit programme parent/child workflow", () => {
     const independentlySubmittedChild = await addChild(created.json.id);
     await db.update(auditSchedules).set({
       workflowState: "submitted",
-      status: JSON.stringify({ parentId: created.json.id, independentlySubmitted: true }),
+      status: JSON.stringify({ ...JSON.parse(independentlySubmittedChild.status), independentlySubmitted: true }),
     }).where(eq(auditSchedules.id, independentlySubmittedChild.id));
     const submitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token, { subject: "Approval programme", mailBody: "Please review and approve." });
     expect(submitted.status).toBe(200);

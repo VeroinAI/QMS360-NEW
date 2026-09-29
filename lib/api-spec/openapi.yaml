@@ -1227,6 +1227,9 @@ paths:
     delete: {operationId: removeAuditUserRole, tags: [audit-admin], summary: Remove an assigned role, parameters: [{$ref: "#/components/parameters/UserId"}, {$ref: "#/components/parameters/Id"}], responses: {"204": {description: Removed}}}
   /audit/admin/access-queue:
     get: {operationId: listAuditAccessQueue, tags: [audit-admin], summary: List access queue, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
+  /audit/admin/schedule-numbering:
+    get: {operationId: getAuditScheduleNumbering, tags: [audit-admin], summary: Get separate Audit Schedule field numbering settings, responses: {"200": {description: Schedule numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}}}
+    put: {operationId: updateAuditScheduleNumbering, tags: [audit-admin], summary: Set Audit Schedule field prefixes and ranges, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}, responses: {"200": {description: Saved settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}}}
   /audit/admin/access-queue/{id}/decision:
     post: {operationId: decideAuditAccessRequest, tags: [audit-admin], summary: Decide access request, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"200": {description: Decided}}}
   /audit/admin/delegations:
@@ -2597,6 +2600,19 @@ components:
         currentApprovalRole: {type: [string, "null"], readOnly: true}
         approvalRoles: {type: array, items: {type: string}, readOnly: true}
         canReview: {type: boolean, readOnly: true}
+    AuditScheduleNumbering:
+      type: object
+      required: [qaqcReference, auditNumber]
+      properties:
+        qaqcReference: {$ref: "#/components/schemas/AuditScheduleNumberRange"}
+        auditNumber: {$ref: "#/components/schemas/AuditScheduleNumberRange"}
+    AuditScheduleNumberRange:
+      type: object
+      required: [prefix, start, end]
+      properties:
+        prefix: {type: string, minLength: 1, maxLength: 20}
+        start: {type: number, minimum: 1, maximum: 999}
+        end: {type: number, minimum: 1, maximum: 999}
     AuditScheduleFeasibilityInput:
       type: object
       required: [decision, feedback]
