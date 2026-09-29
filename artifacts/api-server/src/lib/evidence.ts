@@ -1,3 +1,4 @@
+import { getObject, signedUploadUrl } from "./objectStorage";
 import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import {
@@ -37,16 +38,20 @@ export async function evidenceLimits(organizationId: string) {
 export async function createEvidenceIntent(input: EvidenceIntentInput) {
   validateEvidenceFile(input.mimeType, input.sizeBytes, await evidenceLimits(input.organizationId));
   const table = evidenceTable(input.app);
+  const directUpload = input.app === "audit" && input.category === "organization_chart";
   if (input.clientReference) {
     const [existing] = await db.select({ id: table.id }).from(table).where(and(
       eq(table.organizationId, input.organizationId),
       eq(table.clientReference, input.clientReference),
       isNull(table.deletedAt),
     )).limit(1);
-    if (existing) return { id: existing.id, uploadUrl: `/api/files/${existing.id}` };
+    if (existing) return { id: existing.id, uploadUrl: directUpload
+      ? (await signedUploadUrl(`qms360/audit/${existing.id}`)).uploadUrl
+      : `/api/files/${existing.id}` };
   }
 
   const id = randomUUID();
+  const direct = directUpload ? await signedUploadUrl(`qms360/audit/${id}`) : null;
   await db.insert(table).values({
     id,
     organizationId: input.organizationId,
@@ -56,16 +61,37 @@ export async function createEvidenceIntent(input: EvidenceIntentInput) {
     fileName: input.fileName,
     mimeType: input.mimeType,
     sizeBytes: input.sizeBytes,
-    storageKey: "",
+    storageKey: direct?.storageKey ?? "",
     uploadedById: input.userId,
     status: "uploading",
     clientReference: input.clientReference,
   });
-  return { id, uploadUrl: `/api/files/${id}` };
+  return { id, uploadUrl: direct?.uploadUrl ?? `/api/files/${id}` };
 }
 
 export async function confirmEvidence(database: any, app: AppKey, id: string, organizationId: string) {
   const table = evidenceTable(app);
+  if (app === "audit") {
+    const [pending] = await database.select().from(table).where(and(
+      eq(table.id, id), eq(table.organizationId, organizationId), isNull(table.deletedAt),
+    )).limit(1);
+    if (pending?.category === "organization_chart" && pending.status !== "stored") {
+      if (!pending.storageKey.startsWith("gcs:")) throw new Error("Organization Chart upload is not ready");
+      let object: Response;
+      try {
+        object = await getObject(pending.storageKey.slice(4));
+        await object.body?.cancel();
+      } catch {
+        throw new Error("Organization Chart upload has not completed; retry the upload");
+      }
+      if (Number(object.headers.get("content-length")) !== pending.sizeBytes) {
+        throw new Error("Organization Chart upload size does not match the selected file");
+      }
+      if (object.headers.get("content-type")?.split(";")[0] !== pending.mimeType) {
+        throw new Error("Organization Chart upload type does not match the selected file");
+      }
+    }
+  }
   const [row] = await database.update(table)
     .set({ status: "stored", updatedAt: new Date() })
     .where(and(eq(table.id, id), eq(table.organizationId, organizationId), isNull(table.deletedAt)))

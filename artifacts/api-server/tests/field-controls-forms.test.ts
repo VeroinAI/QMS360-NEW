@@ -17,6 +17,10 @@ import { writeFieldControls } from "../src/lib/field-controls";
 
 const testObjects = vi.hoisted(() => new Map<string, { bytes: Uint8Array; mimeType: string }>());
 vi.mock("../src/lib/objectStorage", () => ({
+  signedUploadUrl: async (key: string) => ({
+    storageKey: `gcs:/test-bucket/${key}`,
+    uploadUrl: `https://storage.example.invalid/${key}`,
+  }),
   storeObject: async (key: string, bytes: Buffer, mimeType: string) => {
     testObjects.set(key, { bytes: Uint8Array.from(bytes), mimeType });
     return `/test-bucket/${key}`;
@@ -574,10 +578,10 @@ describe("Audit additional documents", () => {
         fileName, mimeType, sizeBytes: 12, clientReference: crypto.randomUUID(),
       } });
       expect(intent.status, fileName).toBe(201);
-      const upload = await fetch(`${baseUrl.replace(/\/api$/, "")}${intent.json.uploadUrl}`, {
-        method: "PUT", headers: { authorization: `Bearer ${admin.token}`, "content-type": mimeType }, body: "file content",
-      });
-      expect(upload.status, fileName).toBe(200);
+      expect(intent.json.uploadUrl).toBe(`https://storage.example.invalid/qms360/audit/${intent.json.id}`);
+      // Direct browser-to-storage uploads must be verified before confirming.
+      expect((await api("PUT", `/audit/evidence/${intent.json.id}/confirm`, { token: admin.token })).status).toBe(422);
+      testObjects.set(`qms360/audit/${intent.json.id}`, { bytes: new TextEncoder().encode("file content"), mimeType });
       expect((await api("PUT", `/audit/evidence/${intent.json.id}/confirm`, { token: admin.token })).status).toBe(200);
       const current = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
       const attached = await api("PUT", `/audit/audits/${auditId}/additional-documents/organization-chart`, {

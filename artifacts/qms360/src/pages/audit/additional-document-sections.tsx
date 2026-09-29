@@ -74,9 +74,10 @@ function OrganizationChart({ auditId, documents, onUpdated }: {
           recordType: "audit", recordId: auditId, category: "organization_chart",
           fileName: file.name, mimeType, sizeBytes: file.size, clientReference: reference.current,
         } });
-        await customFetch(upload.uploadUrl, {
+        const response = await fetch(upload.uploadUrl, {
           method: "PUT", body: file, headers: { "Content-Type": mimeType },
         });
+        if (!response.ok) throw new Error(`Storage upload failed (${response.status}). Please retry.`);
         await confirm.mutateAsync({ id: upload.id });
         fileId = upload.id;
         setUploadedId(fileId);

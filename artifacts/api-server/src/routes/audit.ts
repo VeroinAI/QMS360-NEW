@@ -2739,7 +2739,12 @@ router.put("/evidence/:id/confirm", asyncHandler(async (req, res) => {
   )).limit(1);
   if (!before) throw new HttpError(404, "Evidence not found");
   await assertAuditRecordAccess(req, before.recordType, before.recordId);
-  const row = await confirmEvidence(db, "audit", String(req.params.id), actor(req).organizationId);
+  let row;
+  try {
+    row = await confirmEvidence(db, "audit", String(req.params.id), actor(req).organizationId);
+  } catch (error) {
+    throw new HttpError(422, error instanceof Error ? error.message : "Upload has not completed");
+  }
   if (!row) throw new HttpError(404, "Evidence not found");
   await auditLog(req, "confirm", "evidence", row.id, undefined, row); res.json(evidenceDto(row));
 }));

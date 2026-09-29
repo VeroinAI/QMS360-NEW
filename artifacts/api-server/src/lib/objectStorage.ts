@@ -30,6 +30,11 @@ async function signedUrl(fullPath: string, method: "GET" | "PUT" | "DELETE") {
   return result.signed_url;
 }
 
+export async function signedUploadUrl(relativePath: string) {
+  const fullPath = privateObjectPath(relativePath);
+  return { storageKey: `gcs:${fullPath}`, uploadUrl: await signedUrl(fullPath, "PUT") };
+}
+
 export async function storeObject(relativePath: string, bytes: Buffer, mimeType: string) {
   const fullPath = privateObjectPath(relativePath);
   const response = await fetch(await signedUrl(fullPath, "PUT"), {
