@@ -2602,6 +2602,34 @@ export interface AuditOrganizationChartInput {
   previousId: string | null;
 }
 
+export interface AuditGoodPracticeInputRow {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  id: string;
+  /** @maxLength 200 */
+  areaProcess: string;
+  /** @maxLength 4000 */
+  verifiedConforming: string;
+  /** @maxLength 500 */
+  evidenceReference: string;
+  /** @maxLength 200 */
+  referenceNumber: string;
+  /** @nullable */
+  evidenceId: string | null;
+}
+
+export interface AuditGoodPracticesInput {
+  /** @maxItems 500 */
+  rows: AuditGoodPracticeInputRow[];
+}
+
+export type AuditGoodPracticeRow = AuditGoodPracticeInputRow & ({
+  /** @nullable */
+  evidenceFileName?: string | null;
+});
+
 export interface AuditAdditionalDocuments {
   /** @nullable */
   organizationChartId?: string | null;
@@ -2611,6 +2639,7 @@ export interface AuditAdditionalDocuments {
   designRemarks?: string;
   procurementStatus?: AuditDocumentStatusRow[];
   procurementRemarks?: string;
+  goodPractices?: AuditGoodPracticeRow[];
 }
 
 export type AuditStatus = typeof AuditStatus[keyof typeof AuditStatus];

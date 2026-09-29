@@ -6698,6 +6698,16 @@ export const sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStat
 
 export const sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
 
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
 
 
 export const SendAuditPlanForExecutionResponse = zod.object({
@@ -6748,7 +6758,17 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "value": zod.number().min(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemValueMin).max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -6791,6 +6811,16 @@ export const listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusI
 export const listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
 
 
@@ -6847,7 +6877,17 @@ export const ListAuditsResponse = zod.object({
   "value": zod.number().min(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMin).max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -6875,6 +6915,16 @@ export const createAuditBodyAdditionalDocumentsProcurementStatusItemValueMin = 0
 export const createAuditBodyAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const createAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const createAuditBodyAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const createAuditBodyAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const createAuditBodyAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const createAuditBodyAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const createAuditBodyAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
 
 
@@ -6926,7 +6976,17 @@ export const CreateAuditBody = zod.object({
   "value": zod.number().min(createAuditBodyAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditBodyAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(createAuditBodyAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(createAuditBodyAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(createAuditBodyAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(createAuditBodyAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(createAuditBodyAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -6959,6 +7019,16 @@ export const getAuditResponseAdditionalDocumentsProcurementStatusItemValueMin = 
 export const getAuditResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const getAuditResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const getAuditResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const getAuditResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const getAuditResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const getAuditResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const getAuditResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
 
 
@@ -7010,7 +7080,17 @@ export const GetAuditResponse = zod.object({
   "value": zod.number().min(getAuditResponseAdditionalDocumentsProcurementStatusItemValueMin).max(getAuditResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(getAuditResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(getAuditResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(getAuditResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(getAuditResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(getAuditResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(getAuditResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7041,6 +7121,16 @@ export const updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMin = 0
 export const updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const updateAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const updateAuditBodyAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const updateAuditBodyAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const updateAuditBodyAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const updateAuditBodyAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const updateAuditBodyAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
 
 
@@ -7092,7 +7182,17 @@ export const UpdateAuditBody = zod.object({
   "value": zod.number().min(updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(updateAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditBodyAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(updateAuditBodyAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(updateAuditBodyAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(updateAuditBodyAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(updateAuditBodyAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7225,6 +7325,16 @@ export const createAuditChecklistItemResponseAdditionalDocumentsProcurementStatu
 
 export const createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
 
+export const createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
 
 
 export const CreateAuditChecklistItemResponse = zod.object({
@@ -7275,7 +7385,17 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "value": zod.number().min(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7321,6 +7441,16 @@ export const editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusI
 export const editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
 
 
@@ -7372,7 +7502,17 @@ export const EditAuditChecklistItemResponse = zod.object({
   "value": zod.number().min(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7419,6 +7559,16 @@ export const importAuditChecklistItemsResponseAdditionalDocumentsProcurementStat
 export const importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
 
 
@@ -7470,7 +7620,17 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "value": zod.number().min(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMin).max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7517,6 +7677,16 @@ export const createAuditFindingItemResponseAdditionalDocumentsProcurementStatusI
 export const createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
 
 
@@ -7568,7 +7738,17 @@ export const CreateAuditFindingItemResponse = zod.object({
   "value": zod.number().min(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7604,6 +7784,16 @@ export const assignAuditFindingActionTakerResponseAdditionalDocumentsProcurement
 export const assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
 
 
@@ -7655,7 +7845,17 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "value": zod.number().min(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMin).max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7694,6 +7894,16 @@ export const replaceAuditOrganizationChartResponseAdditionalDocumentsProcurement
 export const replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
 
 
@@ -7745,7 +7955,144 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "value": zod.number().min(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMin).max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Save Conforming and Good Practices rows and evidence references
+ */
+export const UpdateAuditGoodPracticesParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateAuditGoodPracticesBodyRowsItemIdMax = 100;
+
+export const updateAuditGoodPracticesBodyRowsItemAreaProcessMax = 200;
+
+export const updateAuditGoodPracticesBodyRowsItemVerifiedConformingMax = 4000;
+
+export const updateAuditGoodPracticesBodyRowsItemEvidenceReferenceMax = 500;
+
+export const updateAuditGoodPracticesBodyRowsItemReferenceNumberMax = 200;
+
+export const updateAuditGoodPracticesBodyRowsMax = 500;
+
+
+
+export const UpdateAuditGoodPracticesBody = zod.object({
+  "rows": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditGoodPracticesBodyRowsItemIdMax),
+  "areaProcess": zod.string().max(updateAuditGoodPracticesBodyRowsItemAreaProcessMax),
+  "verifiedConforming": zod.string().max(updateAuditGoodPracticesBodyRowsItemVerifiedConformingMax),
+  "evidenceReference": zod.string().max(updateAuditGoodPracticesBodyRowsItemEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(updateAuditGoodPracticesBodyRowsItemReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+})).max(updateAuditGoodPracticesBodyRowsMax)
+})
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
+
+
+export const UpdateAuditGoodPracticesResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemValueMin).max(updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "designRemarks": zod.string().optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional(),
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -7803,6 +8150,16 @@ export const updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStat
 
 export const updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
 
+export const updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
 
 
 export const UpdateAuditDocumentStatusResponse = zod.object({
@@ -7853,7 +8210,17 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "value": zod.number().min(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -8454,6 +8821,16 @@ export const getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementS
 
 export const getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
 
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
 
 
 export const GetGeneratedAuditReportResponse = zod.object({
@@ -8505,7 +8882,17 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "value": zod.number().min(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemValueMin).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
-  "procurementRemarks": zod.string().optional()
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()

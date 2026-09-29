@@ -38,7 +38,7 @@ export async function evidenceLimits(organizationId: string) {
 export async function createEvidenceIntent(input: EvidenceIntentInput) {
   validateEvidenceFile(input.mimeType, input.sizeBytes, await evidenceLimits(input.organizationId));
   const table = evidenceTable(input.app);
-  const directUpload = input.app === "audit" && input.category === "organization_chart";
+  const directUpload = input.app === "audit" && ["organization_chart", "good_practices"].includes(input.category);
   if (input.clientReference) {
     const [existing] = await db.select({ id: table.id }).from(table).where(and(
       eq(table.organizationId, input.organizationId),
@@ -75,20 +75,20 @@ export async function confirmEvidence(database: any, app: AppKey, id: string, or
     const [pending] = await database.select().from(table).where(and(
       eq(table.id, id), eq(table.organizationId, organizationId), isNull(table.deletedAt),
     )).limit(1);
-    if (pending?.category === "organization_chart" && pending.status !== "stored") {
-      if (!pending.storageKey.startsWith("gcs:")) throw new Error("Organization Chart upload is not ready");
+    if (pending && ["organization_chart", "good_practices"].includes(pending.category) && pending.status !== "stored") {
+      if (!pending.storageKey.startsWith("gcs:")) throw new Error("Evidence upload is not ready");
       let object: Response;
       try {
         object = await getObject(pending.storageKey.slice(4));
         await object.body?.cancel();
       } catch {
-        throw new Error("Organization Chart upload has not completed; retry the upload");
+        throw new Error("Evidence upload has not completed; retry the upload");
       }
       if (Number(object.headers.get("content-length")) !== pending.sizeBytes) {
-        throw new Error("Organization Chart upload size does not match the selected file");
+        throw new Error("Evidence upload size does not match the selected file");
       }
       if (object.headers.get("content-type")?.split(";")[0] !== pending.mimeType) {
-        throw new Error("Organization Chart upload type does not match the selected file");
+        throw new Error("Evidence upload type does not match the selected file");
       }
     }
   }

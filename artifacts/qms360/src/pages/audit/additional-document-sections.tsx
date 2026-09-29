@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { GoodPracticesEditor } from "./good-practices-editor";
 
 const designLabels = [
   ["status-a", "Status A"], ["status-b", "Status B"], ["status-c", "Status C"],
@@ -275,7 +276,7 @@ export function AdditionalDocumentSections({ auditId, documents }: { auditId: st
     </AccordionItem>
     <AccordionItem value="good-practices" className="rounded-lg border bg-card px-5 shadow-sm">
       <AccordionTrigger className="py-5 text-base hover:no-underline">Conforming and Good Practices</AccordionTrigger>
-      <AccordionContent className="border-t pt-4 text-sm text-muted-foreground">Audit files can be uploaded and viewed in the Evidence files area below.</AccordionContent>
+      <AccordionContent className="border-t pt-4"><GoodPracticesEditor auditId={auditId} saved={documents?.goodPractices} onUpdated={onUpdated}/></AccordionContent>
     </AccordionItem>
   </Accordion>;
 }

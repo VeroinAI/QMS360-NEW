@@ -1730,6 +1730,7 @@ const auditDto = (row: AnyRow) => {
       designRemarks: documentRemarks(meta.additionalDocuments, "designStatus"),
       procurementStatus: meta.additionalDocuments?.procurementStatus ?? [],
       procurementRemarks: documentRemarks(meta.additionalDocuments, "procurementStatus"),
+      goodPractices: Array.isArray(meta.additionalDocuments?.goodPractices) ? meta.additionalDocuments.goodPractices : [],
     },
     startedAt: meta.startedAt ? new Date(meta.startedAt) : null, closedAt: meta.closedAt ? new Date(meta.closedAt) : null,
   };
@@ -2207,6 +2208,51 @@ router.put("/audits/:id/additional-documents/organization-chart", asyncHandler(a
     return { before, row, replaced: true };
   });
   if (replaced) await auditLog(req, "replace_organization_chart", "audit", auditId, before, row);
+  res.json(auditDto(row));
+}));
+
+router.put("/audits/:id/additional-documents/good-practices", asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.UpdateAuditGoodPracticesBody, req);
+  const organizationId = actor(req).organizationId;
+  const auditId = String(req.params.id);
+  await assertAuditRecordAccess(req, "audit", auditId);
+  const ids = new Set<string>();
+  const rows = data.rows.map((entry: AnyRow) => {
+    const id = entry.id.trim();
+    if (!id || ids.has(id)) throw new HttpError(422, "Each good practice row needs a unique ID");
+    ids.add(id);
+    return {
+      id, areaProcess: entry.areaProcess.trim(), verifiedConforming: entry.verifiedConforming.trim(),
+      evidenceReference: entry.evidenceReference.trim(), referenceNumber: entry.referenceNumber.trim(),
+      evidenceId: entry.evidenceId ?? null,
+    };
+  });
+  const { before, row } = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    const evidenceIds = [...new Set<string>(rows.flatMap((item: AnyRow) =>
+      typeof item.evidenceId === "string" ? [item.evidenceId] : []))];
+    const files = evidenceIds.length ? await tx.select({
+      id: auditEvidenceFiles.id, fileName: auditEvidenceFiles.fileName,
+    }).from(auditEvidenceFiles).where(and(
+      inArray(auditEvidenceFiles.id, evidenceIds),
+      eq(auditEvidenceFiles.organizationId, organizationId), eq(auditEvidenceFiles.recordType, "audit"),
+      eq(auditEvidenceFiles.recordId, auditId), eq(auditEvidenceFiles.category, "good_practices"),
+      eq(auditEvidenceFiles.status, "stored"), isNull(auditEvidenceFiles.deletedAt),
+    )) : [];
+    if (files.length !== evidenceIds.length) throw new HttpError(422, "Each attached file must be uploaded and confirmed for this audit");
+    const fileNames = new Map(files.map(file => [file.id, file.fileName]));
+    const savedRows = rows.map((item: AnyRow) => ({
+      ...item, evidenceFileName: item.evidenceId ? fileNames.get(item.evidenceId) : null,
+    }));
+    const meta = auditMeta(before);
+    const [row] = await tx.update(audits).set({
+      status: JSON.stringify({ ...meta, additionalDocuments: { ...meta.additionalDocuments, goodPractices: savedRows } }),
+      updatedAt: new Date(),
+    }).where(eq(audits.id, auditId)).returning();
+    return { before, row };
+  });
+  await auditLog(req, "update_good_practices", "audit", auditId, before, row);
   res.json(auditDto(row));
 }));
 

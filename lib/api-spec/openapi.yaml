@@ -1179,6 +1179,8 @@ paths:
     patch: {operationId: assignAuditFindingActionTaker, tags: [audit], summary: Assign an active QMS Audit user to a finding, parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string}}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingActionTakerInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/audits/{id}/additional-documents/organization-chart:
     put: {operationId: replaceAuditOrganizationChart, tags: [audit], summary: Attach or replace the single organization chart, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditOrganizationChartInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}, "409": {description: Organization chart changed since it was viewed}}}
+  /audit/audits/{id}/additional-documents/good-practices:
+    put: {operationId: updateAuditGoodPractices, tags: [audit], summary: Save Conforming and Good Practices rows and evidence references, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditGoodPracticesInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/audits/{id}/additional-documents/{section}:
     put: {operationId: updateAuditDocumentStatus, tags: [audit], summary: Save design or procurement status rows, parameters: [{$ref: "#/components/parameters/Id"}, {name: section, in: path, required: true, schema: {type: string, enum: [design-status, procurement-status]}}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditDocumentStatusInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/findings:
@@ -2800,6 +2802,25 @@ components:
       properties:
         evidenceId: {type: string, minLength: 1}
         previousId: {type: [string, "null"]}
+    AuditGoodPracticeInputRow:
+      type: object
+      required: [id, areaProcess, verifiedConforming, evidenceReference, referenceNumber, evidenceId]
+      properties:
+        id: {type: string, minLength: 1, maxLength: 100}
+        areaProcess: {type: string, maxLength: 200}
+        verifiedConforming: {type: string, maxLength: 4000}
+        evidenceReference: {type: string, maxLength: 500}
+        referenceNumber: {type: string, maxLength: 200}
+        evidenceId: {type: [string, "null"]}
+    AuditGoodPracticesInput:
+      type: object
+      required: [rows]
+      properties:
+        rows: {type: array, maxItems: 500, items: {$ref: "#/components/schemas/AuditGoodPracticeInputRow"}}
+    AuditGoodPracticeRow:
+      allOf:
+        - {$ref: "#/components/schemas/AuditGoodPracticeInputRow"}
+        - {type: object, properties: {evidenceFileName: {type: [string, "null"]}}}
     AuditAdditionalDocuments:
       type: object
       properties:
@@ -2809,6 +2830,7 @@ components:
         designRemarks: {type: string}
         procurementStatus: {type: array, items: {$ref: "#/components/schemas/AuditDocumentStatusRow"}}
         procurementRemarks: {type: string}
+        goodPractices: {type: array, items: {$ref: "#/components/schemas/AuditGoodPracticeRow"}}
     Audit:
       type: object
       required: [id, planId, projectId, title, status]

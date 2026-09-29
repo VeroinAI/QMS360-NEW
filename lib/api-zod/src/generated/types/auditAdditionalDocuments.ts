@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AuditDocumentStatusRow } from './auditDocumentStatusRow';
+import type { AuditGoodPracticeRow } from './auditGoodPracticeRow';
 
 export interface AuditAdditionalDocuments {
   /** @nullable */
@@ -16,4 +17,5 @@ export interface AuditAdditionalDocuments {
   designRemarks?: string;
   procurementStatus?: AuditDocumentStatusRow[];
   procurementRemarks?: string;
+  goodPractices?: AuditGoodPracticeRow[];
 }

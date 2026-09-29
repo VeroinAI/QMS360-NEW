@@ -644,6 +644,73 @@ describe("Audit additional documents", () => {
   });
 });
 
+describe("Conforming and Good Practices", () => {
+  it("saves repeatable rows and verified attachments without changing other document sections", async () => {
+    const path = `/audit/audits/${auditId}/additional-documents/good-practices`;
+    const before = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+    const first = {
+      id: crypto.randomUUID(), areaProcess: "Fabrication",
+      verifiedConforming: "Inspection completed and found conforming",
+      evidenceReference: "Inspection record", referenceNumber: "IR-001", evidenceId: null,
+    };
+    const second = {
+      id: crypto.randomUUID(), areaProcess: "Installation",
+      verifiedConforming: "Installed per approved drawings",
+      evidenceReference: "Site record", referenceNumber: "SR-002", evidenceId: null,
+    };
+    const saved = await api("PUT", path, { token: admin.token, body: { rows: [first, second] } });
+    expect(saved.status).toBe(200);
+    expect(saved.json.additionalDocuments.goodPractices).toEqual([
+      { ...first, evidenceFileName: null }, { ...second, evidenceFileName: null },
+    ]);
+    expect(saved.json.additionalDocuments.designStatus).toEqual(before.json.additionalDocuments.designStatus);
+    expect(saved.json.additionalDocuments.procurementStatus).toEqual(before.json.additionalDocuments.procurementStatus);
+    expect((await api("PUT", path, { token: admin.token, body: { rows: [first, first] } })).status).toBe(422);
+
+    const intent = await api("POST", "/audit/evidence", { token: admin.token, body: {
+      recordType: "audit", recordId: auditId, category: "good_practices",
+      fileName: "inspection.pdf", mimeType: "application/pdf",
+      sizeBytes: 12, clientReference: crypto.randomUUID(),
+    } });
+    expect(intent.status).toBe(201);
+    expect(intent.json.uploadUrl).toBe(`https://storage.example.invalid/qms360/audit/${intent.json.id}`);
+    const linked = { ...first, evidenceId: intent.json.id };
+    expect((await api("PUT", path, { token: admin.token, body: { rows: [linked, second] } })).status).toBe(422);
+    expect((await api("PUT", `/audit/evidence/${intent.json.id}/confirm`, { token: admin.token })).status).toBe(422);
+    testObjects.set(`qms360/audit/${intent.json.id}`, {
+      bytes: new TextEncoder().encode("file content"), mimeType: "application/pdf",
+    });
+    expect((await api("PUT", `/audit/evidence/${intent.json.id}/confirm`, { token: admin.token })).status).toBe(200);
+    const attached = await api("PUT", path, { token: admin.token, body: { rows: [linked, second] } });
+    expect(attached.status).toBe(200);
+    expect(attached.json.additionalDocuments.goodPractices[0]).toEqual({
+      ...linked, evidenceFileName: "inspection.pdf",
+    });
+    const reloaded = await api("GET", `/audit/audits/${auditId}`, { token: admin.token });
+    expect(reloaded.json.additionalDocuments.goodPractices).toEqual(attached.json.additionalDocuments.goodPractices);
+    const download = await fetch(`${baseUrl}/files/${intent.json.id}`, {
+      headers: { authorization: `Bearer ${admin.token}` },
+    });
+    expect(download.status).toBe(200);
+    expect(await download.text()).toBe("file content");
+
+    const [other] = await db.insert(auditEvidenceFiles).values({
+      organizationId: orgId, recordType: "audit", recordId: crypto.randomUUID(),
+      category: "good_practices", fileName: "other.pdf", mimeType: "application/pdf",
+      sizeBytes: 12, storageKey: "", uploadedById: admin.id, status: "stored",
+    }).returning();
+    expect((await api("PUT", path, { token: admin.token, body: {
+      rows: [{ ...first, evidenceId: other!.id }],
+    } })).status).toBe(422);
+    const removed = await api("PUT", path, { token: admin.token, body: { rows: [second] } });
+    expect(removed.status).toBe(200);
+    expect(removed.json.additionalDocuments.goodPractices).toEqual([{ ...second, evidenceFileName: null }]);
+    expect((await fetch(`${baseUrl}/files/${intent.json.id}`, {
+      headers: { authorization: `Bearer ${admin.token}` },
+    })).status).toBe(200);
+  });
+});
+
 describe("Audit evidence for projectless Process audits", () => {
   it("stores and links authenticated attachments for project-backed and Process audits", async () => {
     const [schedule] = await db.insert(auditSchedules).values({

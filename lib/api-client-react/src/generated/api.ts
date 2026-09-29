@@ -45,6 +45,7 @@ import type {
   AuditFindingBody,
   AuditFindingItemInput,
   AuditFindingPageResponse,
+  AuditGoodPracticesInput,
   AuditLogPageResponse,
   AuditMyActionsPage,
   AuditOrganizationChartInput,
@@ -18449,6 +18450,78 @@ export const useReplaceAuditOrganizationChart = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getReplaceAuditOrganizationChartMutationOptions(options));
+    }
+
+export const getUpdateAuditGoodPracticesUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/additional-documents/good-practices`
+}
+
+/**
+ * @summary Save Conforming and Good Practices rows and evidence references
+ */
+export const updateAuditGoodPractices = async (id: string,
+    auditGoodPracticesInput: AuditGoodPracticesInput, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getUpdateAuditGoodPracticesUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditGoodPracticesInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditGoodPracticesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditGoodPractices>>, TError,{id: string;data: BodyType<AuditGoodPracticesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditGoodPractices>>, TError,{id: string;data: BodyType<AuditGoodPracticesInput>}, TContext> => {
+
+const mutationKey = ['updateAuditGoodPractices'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditGoodPractices>>, {id: string;data: BodyType<AuditGoodPracticesInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAuditGoodPractices(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditGoodPracticesMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditGoodPractices>>>
+    export type UpdateAuditGoodPracticesMutationBody = BodyType<AuditGoodPracticesInput>
+    export type UpdateAuditGoodPracticesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save Conforming and Good Practices rows and evidence references
+ */
+export const useUpdateAuditGoodPractices = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditGoodPractices>>, TError,{id: string;data: BodyType<AuditGoodPracticesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditGoodPractices>>,
+        TError,
+        {id: string;data: BodyType<AuditGoodPracticesInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditGoodPracticesMutationOptions(options));
     }
 
 export const getUpdateAuditDocumentStatusUrl = (id: string,
