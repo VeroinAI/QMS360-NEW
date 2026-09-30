@@ -1364,7 +1364,7 @@ router.post("/schedules/:id/submit", asyncHandler(async (req, res) => {
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Schedule is not eligible for submission");
   if (!await scheduleInScope(req, before)) throw new HttpError(403, "You do not have access to this schedule");
   const roles = await approvalRoleChain(actor(req).organizationId);
-  if (!roles.length) throw new HttpError(422, "No active sequential Audit approval roles are configured. Assign a Role Authorization Level to an active role with Approve / reject authorization.");
+  if (!roles.length) throw new HttpError(422, "No active sequential Audit approval roles are configured. Assign an Approval Level to an active role with Approve / reject authorization.");
   const unstaffed = (await Promise.all(roles.map(async role => (await roleUserIds(actor(req).organizationId, role.id)).length ? null : role.name))).filter(Boolean);
   if (unstaffed.length) throw new HttpError(422, `Approval role has no active users: ${unstaffed.join(", ")}`);
   const row = await db.transaction(async tx => {
@@ -2995,7 +2995,7 @@ function auditRoleAuthorizationLevel(data: AnyRow): number | null {
   if (!data.permissions.some((permission: { key: string }) => permission.key === "approve_reject")) return null;
   const level = data.roleAuthorizationLevel;
   if (!Number.isInteger(level) || level < 1 || level > 2147483647) {
-    throw new HttpError(422, "Role Authorization Level must be a positive whole number when Approve / reject is selected");
+    throw new HttpError(422, "Approval Level must be a positive whole number when Approve / reject is selected");
   }
   return level;
 }
