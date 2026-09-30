@@ -995,7 +995,7 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
     <DialogContent className="max-w-2xl">
       <DialogHeader>
         <DialogTitle>Submit audit schedule</DialogTitle>
-        <DialogDescription>Enter the email content to retain with this approval submission. Email delivery will be enabled separately.</DialogDescription>
+        <DialogDescription>Enter the email subject and memo for this approval submission. Submit and Resubmit email the first approval level through the configured SMTP connector unless an email rule disables it.</DialogDescription>
       </DialogHeader>
       <div className="grid gap-4 py-2">
         <div className="grid gap-2"><Label htmlFor="schedule-submission-subject">Subject</Label><Input id="schedule-submission-subject" value={subject} onChange={event => setSubject(event.target.value)} maxLength={200}/></div>

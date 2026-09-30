@@ -147,7 +147,9 @@ router.get("/email-rules/catalog", requireAuth, requireAdmin, asyncHandler(async
   }
   res.json([...values].sort().map((value) => ({
     value,
-    label: value.split(".").map((part) => part.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())).join(" · "),
+    label: value === "audit.audit_programme.submit"
+      ? "Audit · Audit Schedule · Submit / Resubmit"
+      : value.split(".").map((part) => part.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())).join(" · "),
   })));
 }));
 router.post("/email-rules/simulate", requireAuth, requireAdmin, asyncHandler(async (req, res) => {

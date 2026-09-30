@@ -763,6 +763,16 @@ describe("audit programme parent/child workflow", () => {
     expect(creatorList.json.items.find((item: { id: string }) => item.id === created.json.id).canSubmit).toBe(true);
     const resubmitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token, { subject: "Revised approval programme", mailBody: "The requested revisions are complete." });
     expect(resubmitted.status).toBe(200);
+    const submissionEmailsAfterResubmit = await db.select().from(outboundEmails).where(and(
+      eq(outboundEmails.organizationId, orgId), eq(outboundEmails.entityId, created.json.id),
+      eq(outboundEmails.eventType, "audit.audit_programme.submit"),
+    ));
+    expect(submissionEmailsAfterResubmit).toHaveLength(2);
+    expect(submissionEmailsAfterResubmit.filter(row =>
+      row.recipientEmail.includes("l1.approver")
+      && row.subject === "Revised approval programme"
+      && row.bodyText.includes("The requested revisions are complete.")
+    )).toHaveLength(1);
     expect(resubmitted.json.currentApprovalRole).toBe("L1 Programme Approver");
     expect(resubmitted.json.currentApproverNames).toEqual(["L1 Approver"]);
     expect((await api("GET", `/schedules/${existingChild.id}`, creator.token)).json.workflowState).toBe("Submitted");
