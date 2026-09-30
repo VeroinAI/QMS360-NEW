@@ -43,7 +43,6 @@ import {
   useListAuditProgrammes,
   useCreateAuditProgramme,
   useSubmitAuditProgramme,
-  useSubmitAuditSchedule,
   useReviewAuditProgramme,
   useListAudits,
   useListCorrectiveActionReports,
@@ -1007,33 +1006,6 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
   </Dialog>;
 }
 
-function ScheduleSubmitDialog({ item, onClose, onSubmitted }: {
-  item: { id: string; title: string };
-  onClose: () => void;
-  onSubmitted: () => void;
-}) {
-  const [subject, setSubject] = useState(item.title);
-  const [memo, setMemo] = useState("");
-  const submit = useSubmitAuditSchedule();
-  const { toast } = useToast();
-  return <Dialog open onOpenChange={open => !open && onClose()}>
-    <DialogContent className="max-w-2xl">
-      <DialogHeader>
-        <DialogTitle>Submit audit schedule</DialogTitle>
-        <DialogDescription>Enter the memo to retain with this approval submission.</DialogDescription>
-      </DialogHeader>
-      <div className="grid gap-4 py-2">
-        <div className="grid gap-2"><Label htmlFor="focused-schedule-subject">Subject</Label><Input id="focused-schedule-subject" value={subject} onChange={event => setSubject(event.target.value)} maxLength={200} /></div>
-        <div className="grid gap-2"><Label htmlFor="focused-schedule-memo">Memo</Label><Textarea id="focused-schedule-memo" value={memo} onChange={event => setMemo(event.target.value)} rows={8} maxLength={10000} /></div>
-      </div>
-      <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button disabled={submit.isPending || !subject.trim() || !memo.trim()} onClick={() => submit.mutate({ id: item.id, data: { subject: subject.trim(), mailBody: memo.trim() } }, {
-        onSuccess: () => { onSubmitted(); onClose(); },
-        onError: error => toast({ title: "Unable to submit schedule", description: errorText(error), variant: "destructive" }),
-      })}>Submit for approval</Button></DialogFooter>
-    </DialogContent>
-  </Dialog>;
-}
-
 function ProgrammeSendBackDialog({ item, onClose, onSentBack }: {
   item: { id: string; title: string };
   onClose: () => void;
@@ -1170,7 +1142,6 @@ function Schedules() {
   const focusId = new URLSearchParams(window.location.search).get("focusSchedule") ?? "";
   const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false); const [displaying, setDisplaying] = useState<AuditSchedule | undefined>();
   const [submitting, setSubmitting] = useState<{ id: string; title: string }>();
-  const [submittingFocused, setSubmittingFocused] = useState<{ id: string; title: string }>();
   const [sendingProgrammeBack, setSendingProgrammeBack] = useState<{ id: string; title: string }>();
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
   const [showProgrammeDetails, setShowProgrammeDetails] = useState(false);
@@ -1325,7 +1296,6 @@ function Schedules() {
         <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setDisplaying(focused.data)}>Display</Button>
           {["Draft", "Sent Back"].includes(focused.data.workflowState) && focused.data.ownerId && <>
             <Button variant="outline" onClick={() => { setEditing(focused.data); setOpen(true); }}>Edit</Button>
-            <Button onClick={() => setSubmittingFocused({ id: focused.data.id, title: focused.data.title })}>Submit</Button>
           </>}
           {focused.data.workflowState === "Submitted" && focused.data.canReview && <>
             <Button disabled={review.isPending} onClick={() => review.mutate({ id: focused.data.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved"), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button>
@@ -1335,7 +1305,6 @@ function Schedules() {
       </> : <p className="text-muted-foreground">This action item is no longer available in this schedule.</p>}
     </CardContent></Card>}
     {submitting && <ProgrammeSubmitDialog key={submitting.id} item={submitting} onClose={() => setSubmitting(undefined)} onSubmitted={programmeSubmitted}/>}
-    {submittingFocused && <ScheduleSubmitDialog key={submittingFocused.id} item={submittingFocused} onClose={() => setSubmittingFocused(undefined)} onSubmitted={() => done("Schedule submitted")} />}
     {sendingProgrammeBack && <ProgrammeSendBackDialog key={sendingProgrammeBack.id} item={sendingProgrammeBack} onClose={() => setSendingProgrammeBack(undefined)} onSentBack={updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule sent back"); }}/>}
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
@@ -1351,7 +1320,6 @@ function Schedules() {
     {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><div className="flex flex-wrap gap-1"><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge><FeasibilityBadge decision={item.feasibilityDecision}/></div></TableCell><TableCell><div className="flex justify-end gap-1">
       <Button size="sm" variant="outline" onClick={() => setDisplaying(item)}>Display</Button>
       {item.workflowState === "Draft" && <Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button>}
-      {["Draft", "Sent Back"].includes(item.workflowState) && !parentSubmitted && <Button size="sm" onClick={() => setSubmittingFocused({ id: item.id, title: item.title })}>{item.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}
       {item.feasibilityFeedback && <Button size="icon" variant="ghost" aria-label={`View feasibility feedback for ${item.title}`} title="View Remarks / Feedback" onClick={() => setDisplaying(item)}><Info className="size-4"/></Button>}
       {item.workflowState === "Approved" && <Button size="sm" title={parentSubmitted ? "New plans cannot be created while the audit schedule is submitted" : item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={parentSubmitted || item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>}
       {item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved") })}>Approve</Button><Button size="sm" variant="outline" onClick={() => sendBack(item.id)}>Send back</Button></>}
