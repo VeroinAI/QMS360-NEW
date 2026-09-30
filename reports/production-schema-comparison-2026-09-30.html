@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QMS360 — Development / Production Schema Comparison</title>
+  <style>
+    :root{font-family:Arial,Helvetica,sans-serif;color:#253046;background:#f5f6fa}
+    *{box-sizing:border-box}body{margin:0}main{max-width:1040px;margin:auto;padding:42px 28px 80px}
+    h1{font-size:30px;margin:0 0 10px}h2{font-size:22px;margin:36px 0 12px;border-bottom:1px solid #d6dce7;padding-bottom:8px}
+    h3{font-size:17px;margin:26px 0 10px}p,li{line-height:1.55}p{margin:10px 0}
+    .eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:12px;font-weight:700;color:#5d3686}
+    .muted{color:#586377}.notice{border-left:4px solid #8246af;background:#fff;padding:13px 18px;margin:22px 0}
+    .warning{border-left-color:#b96a1a}.card{background:#fff;border:1px solid #dce1eb;border-radius:10px;padding:18px 20px;margin:18px 0;overflow-x:auto}
+    table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:9px 10px;border-bottom:1px solid #e7eaf0;text-align:left;vertical-align:top}
+    th{background:#f4f0f8;color:#46315d}tr:last-child td{border-bottom:0}
+    code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}
+    code{overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f8fb;border:1px solid #e6e9f0;border-radius:7px;padding:12px;margin:8px 0}
+    .small{font-size:13px;color:#586377}
+    @media print{body{background:white}main{padding:10px}.card{break-inside:avoid}}
+  </style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Read-only support inventory · 30 September 2026</p>
+  <h1>QMS360 schema mismatch</h1>
+  <p class="muted">Live development and production PostgreSQL catalog comparison. No schema or data was changed to produce this report. This is an inventory for review, <strong>not a production migration script</strong>.</p>
+
+  <div class="notice">
+    <strong>Production symptom:</strong> Audit administration requests <code>GET /api/audit/admin/roles</code> and <code>GET /api/audit/admin/users</code> return HTTP 500. The deployed code reads <code>app3_audit.workspace_roles.role_authorization_level</code>, which exists in development but is absent in production. The problem is not specific to one user's role.
+  </div>
+  <div class="notice warning">
+    <strong>Support attention:</strong> A development-to-production schema comparison in the Publishing tool reported no pending statements during investigation, despite the live catalogs differing as documented below. Please reconcile schema only, preserve existing production data, and do not use an overwrite-data option. Adding the Audit role column alone is not a promise of zero data changes: the running application has a legacy backfill that may set approval levels for existing L1, L2, and L3 roles.
+  </div>
+
+  <h2>Scope and findings</h2>
+  <p>Compared PostgreSQL objects in <code>public</code>, <code>shared</code>, <code>app1_qaqc</code>, <code>app2_lessons</code>, and <code>app3_audit</code>. The catalog comparison covered tables/views, columns and defaults, table constraints, indexes, enum labels, sequences, non-internal triggers, row-level policies, routines, domains, and extensions in those schemas. It did not compare table rows, privileges, ownership, or objects in the <code>drizzle</code> bookkeeping schema.</p>
+  <div class="card">
+    <table>
+      <thead><tr><th>Object class</th><th>Development</th><th>Production</th><th>Missing from production</th></tr></thead>
+      <tbody>
+        <tr><td>Tables / views / other relations</td><td>85</td><td>83</td><td>2 tables</td></tr>
+        <tr><td>Columns on compared relations</td><td>1,025</td><td>1,002</td><td>23 (19 belong to those 2 tables)</td></tr>
+        <tr><td>Table constraints</td><td>258</td><td>250</td><td>8 (all on missing tables)</td></tr>
+        <tr><td>Indexes</td><td>152</td><td>146</td><td>6 (all on missing tables)</td></tr>
+        <tr><td>Enum labels</td><td>24</td><td>24</td><td>0</td></tr>
+        <tr><td>Sequences, non-internal triggers, row policies, routines, domains, extensions in scoped schemas</td><td>0</td><td>0</td><td>0</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>No production-only objects or type/nullability/default differences were found in the compared classes. The differences below are additive in structure, but this report does not assess locking, live application side effects, or the safety of applying changes while traffic is running.</p>
+
+  <h2>Four columns missing on existing tables</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Development table</th><th>Missing column</th><th>Type</th><th>Nullable</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td><code>app1_qaqc.workspace_roles</code></td><td><code>role_authorization_level</code></td><td>integer</td><td>yes</td><td>none</td></tr>
+        <tr><td><code>app2_lessons.workspace_roles</code></td><td><code>role_authorization_level</code></td><td>integer</td><td>yes</td><td>none</td></tr>
+        <tr><td><code>app3_audit.workspace_roles</code></td><td><code>role_authorization_level</code></td><td>integer</td><td>yes</td><td>none</td></tr>
+        <tr><td><code>shared.feedback_entries</code></td><td><code>resolution_response</code></td><td>text</td><td>yes</td><td>none</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Missing table: shared.feedback_attachments</h2>
+  <div class="card">
+    <h3>Columns in development</h3>
+    <table>
+      <thead><tr><th>Column</th><th>Type</th><th>Nullable</th><th>Default expression</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>uuid</td><td>no</td><td><code>gen_random_uuid()</code></td></tr>
+        <tr><td><code>organization_id</code></td><td>uuid</td><td>no</td><td>—</td></tr>
+        <tr><td><code>feedback_id</code></td><td>uuid</td><td>no</td><td>—</td></tr>
+        <tr><td><code>uploaded_by_id</code></td><td>uuid</td><td>no</td><td>—</td></tr>
+        <tr><td><code>file_name</code></td><td>text</td><td>no</td><td>—</td></tr>
+        <tr><td><code>mime_type</code></td><td>text</td><td>no</td><td>—</td></tr>
+        <tr><td><code>size_bytes</code></td><td>bigint</td><td>no</td><td>—</td></tr>
+        <tr><td><code>storage_key</code></td><td>text</td><td>no</td><td><code>''::text</code></td></tr>
+        <tr><td><code>status</code></td><td>text</td><td>no</td><td><code>'uploading'::text</code></td></tr>
+        <tr><td><code>deleted_at</code></td><td>timestamp with time zone</td><td>yes</td><td>—</td></tr>
+        <tr><td><code>created_at</code></td><td>timestamp with time zone</td><td>no</td><td><code>now()</code></td></tr>
+        <tr><td><code>updated_at</code></td><td>timestamp with time zone</td><td>no</td><td><code>now()</code></td></tr>
+      </tbody>
+    </table>
+    <h3>Constraints in development</h3>
+    <table>
+      <thead><tr><th>Name</th><th>Definition</th></tr></thead>
+      <tbody>
+        <tr><td><code>feedback_attachments_pkey</code></td><td><code>PRIMARY KEY (id)</code></td></tr>
+        <tr><td><code>feedback_attachments_feedback_id_feedback_entries_id_fk</code></td><td><code>FOREIGN KEY (feedback_id) REFERENCES shared.feedback_entries(id) ON DELETE CASCADE</code></td></tr>
+        <tr><td><code>feedback_attachments_organization_id_organizations_id_fk</code></td><td><code>FOREIGN KEY (organization_id) REFERENCES shared.organizations(id)</code></td></tr>
+        <tr><td><code>feedback_attachments_uploaded_by_id_users_id_fk</code></td><td><code>FOREIGN KEY (uploaded_by_id) REFERENCES shared.users(id)</code></td></tr>
+      </tbody>
+    </table>
+    <h3>Indexes in development</h3>
+    <pre>feedback_attachments_pkey: CREATE UNIQUE INDEX feedback_attachments_pkey ON shared.feedback_attachments USING btree (id)
+feedback_attachments_feedback_idx: CREATE INDEX feedback_attachments_feedback_idx ON shared.feedback_attachments USING btree (feedback_id)
+feedback_attachments_org_idx: CREATE INDEX feedback_attachments_org_idx ON shared.feedback_attachments USING btree (organization_id)</pre>
+    <p class="small">The primary-key index is generated by the primary-key constraint; it is listed here for inventory, not as a separate step to apply.</p>
+  </div>
+
+  <h2>Missing table: shared.feedback_status_history</h2>
+  <div class="card">
+    <h3>Columns in development</h3>
+    <table>
+      <thead><tr><th>Column</th><th>Type</th><th>Nullable</th><th>Default expression</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>uuid</td><td>no</td><td><code>gen_random_uuid()</code></td></tr>
+        <tr><td><code>organization_id</code></td><td>uuid</td><td>no</td><td>—</td></tr>
+        <tr><td><code>feedback_id</code></td><td>uuid</td><td>no</td><td>—</td></tr>
+        <tr><td><code>from_status</code></td><td>text</td><td>no</td><td>—</td></tr>
+        <tr><td><code>to_status</code></td><td>text</td><td>no</td><td>—</td></tr>
+        <tr><td><code>changed_by_id</code></td><td>uuid</td><td>no</td><td>—</td></tr>
+        <tr><td><code>changed_at</code></td><td>timestamp with time zone</td><td>no</td><td><code>now()</code></td></tr>
+      </tbody>
+    </table>
+    <h3>Constraints in development</h3>
+    <table>
+      <thead><tr><th>Name</th><th>Definition</th></tr></thead>
+      <tbody>
+        <tr><td><code>feedback_status_history_pkey</code></td><td><code>PRIMARY KEY (id)</code></td></tr>
+        <tr><td><code>feedback_status_history_feedback_id_feedback_entries_id_fk</code></td><td><code>FOREIGN KEY (feedback_id) REFERENCES shared.feedback_entries(id) ON DELETE CASCADE</code></td></tr>
+        <tr><td><code>feedback_status_history_organization_id_organizations_id_fk</code></td><td><code>FOREIGN KEY (organization_id) REFERENCES shared.organizations(id)</code></td></tr>
+        <tr><td><code>feedback_status_history_changed_by_id_users_id_fk</code></td><td><code>FOREIGN KEY (changed_by_id) REFERENCES shared.users(id)</code></td></tr>
+      </tbody>
+    </table>
+    <h3>Indexes in development</h3>
+    <pre>feedback_status_history_pkey: CREATE UNIQUE INDEX feedback_status_history_pkey ON shared.feedback_status_history USING btree (id)
+feedback_status_history_feedback_idx: CREATE INDEX feedback_status_history_feedback_idx ON shared.feedback_status_history USING btree (feedback_id, changed_at)
+feedback_status_history_org_idx: CREATE INDEX feedback_status_history_org_idx ON shared.feedback_status_history USING btree (organization_id)</pre>
+    <p class="small">The primary-key index is generated by the primary-key constraint; it is listed here for inventory, not as a separate step to apply.</p>
+  </div>
+
+  <h2>Recommended support checks</h2>
+  <ol>
+    <li>Confirm that the published API and the read-only production catalog refer to the same managed production database.</li>
+    <li>Investigate why the Publish schema comparison reports no changes when these live objects differ. Reconcile schema without replacing production row data.</li>
+    <li>Account for the application's legacy Audit approval-level backfill: L1 Approver, L2 Approval Role, and L3 Approver currently match its criteria.</li>
+    <li>After reconciliation, verify the missing objects in the production catalog and check that Audit Roles &amp; Permissions and Users &amp; Access return successful responses.</li>
+  </ol>
+  <p class="small">Source: read-only PostgreSQL system-catalog queries against the development and production environments. Object definitions above are transcribed from the development catalog. This document deliberately contains no executable, ordered production migration.</p>
+</main>
+</body>
+</html>
