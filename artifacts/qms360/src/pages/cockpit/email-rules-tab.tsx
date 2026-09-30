@@ -40,6 +40,22 @@ function isAuditApprovalEvent(eventType: string) {
     || isAuditSendBackEvent(eventType);
 }
 
+const FINAL_AUDIT_SCHEDULE_EVENT = 'audit.audit_programme.approved_final';
+const INTERMEDIATE_AUDIT_SCHEDULE_EVENT = 'audit.audit_programme.approve';
+
+function emailRuleEventLabel(event: { value: string; label: string }) {
+  if (event.value === FINAL_AUDIT_SCHEDULE_EVENT) {
+    return 'Audit Programme / Schedule · Final approval (memo + Gantt PDF)';
+  }
+  if (event.value === INTERMEDIATE_AUDIT_SCHEDULE_EVENT) {
+    return 'Audit Programme / Schedule · Intermediate approval (next approver)';
+  }
+  if (event.value === 'audit.audit_schedule.approved_final') {
+    return 'Individual Audit · Final approval (workflow participants)';
+  }
+  return event.label;
+}
+
 export function EmailRulesTab({ connectors, onEditConnector }: { connectors: IntegrationConnector[], onEditConnector: (c: IntegrationConnector) => void }) {
   const { toast } = useToast();
   const client = useQueryClient();
@@ -215,7 +231,7 @@ function EmailRulesList() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {rule.eventType === 'audit.audit_programme.approved_final' && rule.recipientMode === 'workspace_role' ? (
+                     {rule.eventType === FINAL_AUDIT_SCHEDULE_EVENT && rule.recipientMode === 'workspace_role' ? (
                       <span className="text-sm">Final approval email to selected workspace roles: {(rule.recipientConfig?.roleNames ?? (rule.recipientConfig?.roleName ? [rule.recipientConfig.roleName] : [])).join(', ')}</span>
                     ) : isAuditApprovalEvent(rule.eventType) ? (
                       <span className="text-sm">{isAuditSendBackEvent(rule.eventType) ? 'Schedule creator; CC: approvers who acted in this submission (including sender)' : 'Approval workflow participants'} (recipient mode ignored)</span>
@@ -223,8 +239,8 @@ function EmailRulesList() {
                       <span className="text-sm">Send from form creator to linked approver</span>
                     ) : rule.recipientMode === 'linked_creator' ? (
                       <span className="text-sm">Send from approving user to form creator</span>
-                    ) : rule.recipientMode === 'workspace_role' ? (
-                      <span className="text-sm">Send to role: {rule.recipientConfig?.roleName}</span>
+                     ) : rule.recipientMode === 'workspace_role' ? (
+                       <span className="text-sm">Send to roles: {(rule.recipientConfig?.roleNames ?? (rule.recipientConfig?.roleName ? [rule.recipientConfig.roleName] : [])).join(', ')}</span>
                     ) : rule.recipientMode === 'project_members' ? (
                       <span className="text-sm">Send to project members</span>
                     ) : rule.recipientMode === 'project_role' ? (
@@ -396,12 +412,30 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                   onChange={event => {
                     const eventType = event.target.value;
                     const linkedModeSelected = draft.receiverMode === 'linked_approver' || draft.receiverMode === 'linked_creator';
-                    set({ eventType, ...(linkedModeSelected && !eventType.startsWith('lessons.lesson_form.') ? { receiverMode: 'default' as const } : {}) });
+                    set({
+                      eventType,
+                      ...(eventType === FINAL_AUDIT_SCHEDULE_EVENT
+                        ? { receiverMode: 'role' as const }
+                        : (isAuditApprovalEvent(eventType) || (linkedModeSelected && !eventType.startsWith('lessons.lesson_form.')))
+                          ? { receiverMode: 'default' as const } : {}),
+                    });
                   }}
                 >
                   <option value="">Select an event...</option>
-                  {events.map(ev => <option key={ev.value} value={ev.value}>{ev.label} ({ev.value})</option>)}
+                  {events.map(ev => <option key={ev.value} value={ev.value}>{emailRuleEventLabel(ev)} ({ev.value})</option>)}
                 </select>
+                {(!draft.eventType || draft.eventType === INTERMEDIATE_AUDIT_SCHEDULE_EVENT) && (
+                  <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+                    {draft.eventType === INTERMEDIATE_AUDIT_SCHEDULE_EVENT ? (
+                      <p className="mb-2">This event notifies the <strong>next approver</strong>, not recipients of the final approved Schedule. The rule name does not change which event runs.</p>
+                    ) : (
+                      <p className="mb-2">To email selected roles when the Audit Programme / Schedule receives final approval:</p>
+                    )}
+                    <Button type="button" variant="outline" size="sm" onClick={() => set({ eventType: FINAL_AUDIT_SCHEDULE_EVENT, receiverMode: 'role' })}>
+                      Select final Schedule approval and roles
+                    </Button>
+                  </div>
+                )}
               </div>
               <div>
                 <Label>Triggered by user (Optional)</Label>
@@ -422,7 +456,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
           <div className="space-y-4 rounded-lg border p-4 bg-muted/20">
             <h4 className="font-semibold text-sm">{isApprovalEvent ? 'Approval email behavior' : 'Action (Then send to)'}</h4>
             <div className="space-y-3">
-              {isApprovalEvent && draft.eventType !== 'audit.audit_programme.approved_final' ? (
+               {isApprovalEvent && draft.eventType !== FINAL_AUDIT_SCHEDULE_EVENT ? (
                 <p className="text-sm text-muted-foreground">
                    {isAuditSendBackEvent(draft.eventType)
                      ? 'Send-back email goes to the schedule creator with reviewer comments. Only people who already approved this submission and the approver sending it back are CC’d; pending approvers are excluded.'
@@ -430,7 +464,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                 </p>
               ) : (
                 <>
-              {draft.eventType === 'audit.audit_programme.approved_final' && (
+               {draft.eventType === FINAL_AUDIT_SCHEDULE_EVENT && (
                 <p className="text-sm text-muted-foreground">With no matching rule or any recipient mode other than workspace roles, the final approval email keeps its workflow participant audience. Selecting workspace roles replaces that audience for this event only; submit, approve, and send-back recipients are unchanged.</p>
               )}
               <div>
@@ -438,9 +472,9 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                 <Select value={draft.receiverMode} onValueChange={v => set({ receiverMode: v as typeof draft.receiverMode })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">All active users</SelectItem>
+                     <SelectItem value="default">{draft.eventType === FINAL_AUDIT_SCHEDULE_EVENT ? 'Workflow participants (default)' : 'All active users'}</SelectItem>
                     <SelectItem value="user">Specific internal user</SelectItem>
-                    <SelectItem value="role">Application workspace role</SelectItem>
+                     <SelectItem value="role">Application workspace roles (select multiple)</SelectItem>
                     <SelectItem value="project">All members of a project</SelectItem>
                     <SelectItem value="project_role">Role members in a project</SelectItem>
                     <SelectItem value="linked_approver" disabled={!draft.eventType.startsWith('lessons.lesson_form.')}>Linked Lessons approver</SelectItem>
@@ -449,7 +483,9 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                   </SelectContent>
                 </Select>
                 {draft.receiverMode === 'default' && (
-                  <p className="mt-1 text-xs text-muted-foreground">Leaves recipient fields blank. The system will send this email to every active user in your organization.</p>
+                   <p className="mt-1 text-xs text-muted-foreground">{draft.eventType === FINAL_AUDIT_SCHEDULE_EVENT
+                     ? 'Sends the final approval email to the submitter and people who actually approved.'
+                     : 'Leaves recipient fields blank. The system will send this email to every active user in your organization.'}</p>
                 )}
                 {draft.receiverMode === 'linked_approver' && <p className="mt-1 text-xs text-muted-foreground">Uses the approver linked to this Lessons Learned form. The form creator is used as the Reply-To address; From is the configured SMTP address.</p>}
                 {draft.receiverMode === 'linked_creator' && <p className="mt-1 text-xs text-muted-foreground">Uses the creator of this Lessons Learned form as recipient. The approving user is used as the Reply-To address; From is the configured SMTP address.</p>}
