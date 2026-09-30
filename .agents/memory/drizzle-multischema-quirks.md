@@ -41,27 +41,30 @@ schemas correctly. Do not re-add manual enum blocks.
 ## Who owns which database
 
 - **Development** — `drizzle-kit push` (and the post-merge script) normally applies schema changes. If push fails on an already-existing multi-schema enum, verify the live schema and apply only the missing development DDL rather than blindly forcing a broad push.
-- **Replit production** — owned by the Publish flow, which diffs dev against prod
-  and applies the change itself. Never wire schema DDL into a deploy build hook,
-  an artifact's `[services.production]`, or the server entrypoint; the database
-  skill names all three as unsafe patterns.
+- **Replit production** — Replit Support told the user Publish migrates `public`
+  only for this project; custom schemas are not included. A support-reviewed
+  manual schema-only reconciliation is required for missing custom-schema
+  objects. Never wire schema DDL into a deploy build hook, an artifact's
+  `[services.production]`, or the server entrypoint; the database skill names
+  all three as unsafe patterns.
 - **A Postgres Replit does not manage** (the client's own production instance) —
   the versioned migrations are the source of truth, applied by an operator-run
   migrate command that requires an explicit target connection string and refuses
   to run against the development database.
 
-Publishing compares the live development schema, not migration files or snapshots.
-A generated migration merged without a successful development-schema application
-does not produce a production diff, so publishing new code can leave production
-missing the column that code expects.
+Publishing's diff for this project does not cover custom schemas, per the user's
+Replit Support response. Even for covered schemas, a generated migration merged
+without successful development-schema application does not produce a production
+diff, so publishing new code can leave production missing a column it expects.
 
 **Why:** a merged authentication column existed in both the Drizzle schema and
 generated migration, but not in the live development database; repeated publishes
 deployed code that queried the absent production column and all logins returned 500.
 
 **How to apply:** after merges that add schema, verify the column or table in the
-live development database before publishing. For rollout-sensitive reads, prefer a
-backward-compatible query until production migration is confirmed.
+live development database, then plan a separate reviewed production reconciliation
+for custom schemas. For rollout-sensitive reads, prefer a backward-compatible
+query until production migration is confirmed.
 
 Rollout-sensitive writes also need compatibility when a newly added column is not
 yet present. Check column availability before constructing the update rather than
@@ -73,8 +76,8 @@ the password, but forced replacement cannot be enforced until Publish installs
 the column.
 
 **How to apply:** keep the fallback narrow and temporary, preserve full behavior
-when the column exists, and complete the supported production schema rollout as
-the durable fix.
+when the column exists, and complete a reviewed production schema reconciliation
+as the durable fix.
 
 ## Verify reported production diffs against the live catalog
 
@@ -86,7 +89,7 @@ Confirm rollout-sensitive objects with a read-only production catalog query.
 request logs and `information_schema` showed two feedback tables absent from
 production, even though they existed in development.
 
-**How to apply:** use the supported Publish flow for the durable migration, but
-keep narrow application compatibility for critical features until the live
-production catalog confirms the required object exists. Never compensate with
-startup DDL or a production-targeted migration script.
+**How to apply:** use a reviewed schema-only reconciliation for custom-schema
+objects, but keep narrow application compatibility for critical features until
+the live production catalog confirms the required object exists. Never compensate
+with startup DDL or a production-targeted migration hook.
