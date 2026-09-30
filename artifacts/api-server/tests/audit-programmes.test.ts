@@ -4,7 +4,7 @@ import type { Server } from "node:http";
 import {
   applicationAccess, auditAuditLogEntries, auditNotifications, auditPermissions, auditPlans, auditSchedules, organizationSettings,
   auditUserWorkspaceRoles, auditWorkspaceRolePermissions, auditWorkspaceRoles,
-  db, masterDataGroups, masterDataValues, organizations, platformRoles, projects, users,
+  db, masterDataGroups, masterDataValues, organizations, outboundEmails, platformRoles, projects, users,
 } from "@workspace/db";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import auditRouter from "../src/routes/audit";
@@ -130,6 +130,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.delete(outboundEmails).where(eq(outboundEmails.organizationId, orgId));
   await db.delete(auditNotifications).where(eq(auditNotifications.organizationId, orgId));
   await db.delete(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, orgId));
   await db.delete(auditPlans).where(eq(auditPlans.organizationId, orgId));
@@ -526,7 +527,9 @@ describe("audit programme parent/child workflow", () => {
         workflowState: "Draft",
       });
       expect(schedule.status).toBe(201);
-      const submitted = await api("POST", `/schedules/${schedule.json.id}/submit`, creator.token);
+      const submitted = await api("POST", `/schedules/${schedule.json.id}/submit`, creator.token, {
+        subject: title, mailBody: "Please review this audit.",
+      });
       expect(submitted.status).toBe(200);
       return submitted;
     };
@@ -689,6 +692,11 @@ describe("audit programme parent/child workflow", () => {
     }).where(eq(auditSchedules.id, independentlySubmittedChild.id));
     const submitted = await api("POST", `/programmes/${created.json.id}/submit`, creator.token, { subject: "Approval programme", mailBody: "Please review and approve." });
     expect(submitted.status).toBe(200);
+    const submissionEmails = await db.select().from(outboundEmails).where(and(
+      eq(outboundEmails.organizationId, orgId), eq(outboundEmails.entityId, created.json.id),
+      eq(outboundEmails.eventType, "audit.audit_programme.submit"),
+    ));
+    expect(submissionEmails.map(row => row.recipientEmail)).toEqual([expect.stringContaining("l1.approver")]);
     expect(submitted.json.submissionSubject).toBe("Approval programme");
     expect(submitted.json.submissionMailBody).toBe("Please review and approve.");
     expect(submitted.json.currentApprovalRole).toBe("L1 Programme Approver");
@@ -719,6 +727,11 @@ describe("audit programme parent/child workflow", () => {
     expect(blocked.status).toBe(403);
     const first = await api("POST", `/programmes/${created.json.id}/review`, l1.token, { decision: "approve" });
     expect(first.status).toBe(200);
+    const nextLevelEmails = await db.select().from(outboundEmails).where(and(
+      eq(outboundEmails.organizationId, orgId), eq(outboundEmails.entityId, created.json.id),
+      eq(outboundEmails.eventType, "audit.audit_programme.approve"),
+    ));
+    expect(nextLevelEmails.map(row => row.recipientEmail)).toEqual([expect.stringContaining("l2.approver")]);
     expect(first.json.currentApprovalRole).toBe("L2 Programme Approver");
     expect(first.json.currentApproverNames).toEqual(["L2 Approver"]);
     expect(first.json.canReview).toBe(false);
@@ -749,6 +762,16 @@ describe("audit programme parent/child workflow", () => {
     const second = await api("POST", `/programmes/${created.json.id}/review`, l2.token, { decision: "approve" });
     expect(second.status).toBe(200);
     expect(second.json.workflowState).toBe("Approved");
+    const finalEmails = await db.select().from(outboundEmails).where(and(
+      eq(outboundEmails.organizationId, orgId), eq(outboundEmails.entityId, created.json.id),
+      eq(outboundEmails.eventType, "audit.audit_programme.approved_final"),
+    ));
+    expect(finalEmails).toHaveLength(3);
+    expect(finalEmails.map(row => row.recipientEmail).sort()).toEqual([
+      expect.stringContaining("l1.approver"), expect.stringContaining("l2.approver"),
+      expect.stringContaining("programme.creator"),
+    ]);
+    expect(finalEmails.every(row => Array.isArray(row.context.emailAttachments) && row.context.emailAttachments.length === 1)).toBe(true);
     const approvedSignatories = await api("GET", `/programmes/${created.json.id}/signatories`, creator.token);
     expect(approvedSignatories.json.reviewedBy).toEqual([
       { userId: l1.id, name: "L1 Approver", designation: null, role: "L1 Programme Approver", signatureDataUrl: null },
@@ -774,7 +797,9 @@ describe("audit programme parent/child workflow", () => {
   it("routes child schedule approval through L1 then L2 and exposes actions only to the current role", async () => {
     const created = await api("POST", "/programmes", creator.token, { title: "Child Approval Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
     const child = await addChild(created.json.id);
-    const submitted = await api("POST", `/schedules/${child.id}/submit`, creator.token);
+    const submitted = await api("POST", `/schedules/${child.id}/submit`, creator.token, {
+      subject: child.title, mailBody: "Please review this audit.",
+    });
     expect(submitted.status).toBe(200);
     expect(submitted.json.currentApprovalRole).toBe("L1 Programme Approver");
     expect(submitted.json.canReview).toBe(false);

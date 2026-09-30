@@ -6303,6 +6303,17 @@ export const SubmitAuditScheduleParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const submitAuditScheduleBodySubjectMax = 200;
+
+export const submitAuditScheduleBodyMailBodyMax = 10000;
+
+
+
+export const SubmitAuditScheduleBody = zod.object({
+  "subject": zod.string().min(1).max(submitAuditScheduleBodySubjectMax),
+  "mailBody": zod.string().min(1).max(submitAuditScheduleBodyMailBodyMax)
+})
+
 export const SubmitAuditScheduleResponse = zod.unknown()
 
 

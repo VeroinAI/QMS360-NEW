@@ -138,3 +138,63 @@ export async function dispatchEmailRule(event: AuditEvent) {
     return { rule: null, recipients: [] };
   }
 }
+
+export async function queueAuditApprovalEmail(
+  database: typeof db,
+  input: {
+    organizationId: string;
+    actorId: string;
+    entityType: "audit_programme" | "audit_schedule";
+    entityId: string;
+    action: "submit" | "approve" | "approved_final";
+    recipientIds: string[];
+    subject: string;
+    text: string;
+    attachments?: Array<{ filename: string; contentType: "application/pdf"; objectPath: string }>;
+  },
+): Promise<{ queued: number }> {
+  const eventType = `audit.${input.entityType}.${input.action}`;
+  const rules = await database.select().from(emailEventRules).where(and(
+    eq(emailEventRules.organizationId, input.organizationId),
+    isNull(emailEventRules.deletedAt),
+  )).orderBy(asc(emailEventRules.priority), asc(emailEventRules.createdAt));
+  const rule = rules.find((candidate) =>
+    candidate.eventType === eventType &&
+    (!candidate.createdByUserId || candidate.createdByUserId === input.actorId));
+
+  // Approval workflows supply the complete, privacy-scoped participant list.
+  // Rule recipient modes are deliberately ignored for these notifications.
+  if (rule && !rule.enabled) return { queued: 0 };
+
+  return enqueueEmail(database, {
+    organizationId: input.organizationId,
+    recipientIds: [...new Set(input.recipientIds)],
+    subject: input.subject,
+    text: input.text,
+    attachments: input.attachments,
+    context: {
+      kind: rule ? "email_event_rule" : "audit_approval",
+      app: "audit",
+      eventType,
+      ruleId: rule?.id ?? null,
+      entityId: input.entityId,
+    },
+  });
+}
+
+export async function auditApprovalEmailEnabled(
+  database: typeof db,
+  input: {
+    organizationId: string;
+    actorId: string;
+    entityType: "audit_programme" | "audit_schedule";
+  },
+): Promise<boolean> {
+  const rules = await database.select().from(emailEventRules).where(and(
+    eq(emailEventRules.organizationId, input.organizationId),
+    isNull(emailEventRules.deletedAt),
+    eq(emailEventRules.eventType, `audit.${input.entityType}.approved_final`),
+  )).orderBy(asc(emailEventRules.priority), asc(emailEventRules.createdAt));
+  const rule = rules.find(candidate => !candidate.createdByUserId || candidate.createdByUserId === input.actorId);
+  return rule?.enabled ?? true;
+}

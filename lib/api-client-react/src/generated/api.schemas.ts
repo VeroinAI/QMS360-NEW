@@ -2358,6 +2358,19 @@ export interface AuditProgrammeSubmission {
   mailBody: string;
 }
 
+export interface AuditScheduleSubmission {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  subject: string;
+  /**
+     * @minLength 1
+     * @maxLength 10000
+     */
+  mailBody: string;
+}
+
 export interface AuditPlanUserOption {
   id: string;
   fullName: string;
@@ -3177,6 +3190,8 @@ export type AuditProgrammeBody = AuditProgrammeInput;
 export type AuditProgrammeTeamLeadsBody = AuditProgrammeTeamLeadsInput;
 
 export type AuditProgrammeSubmissionBody = AuditProgrammeSubmission;
+
+export type AuditScheduleSubmissionBody = AuditScheduleSubmission;
 
 export type AuditPlanBody = AuditPlan;
 

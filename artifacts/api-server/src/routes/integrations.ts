@@ -9,7 +9,7 @@ import {
   UpdateImportTemplateBody, UpdateIntegrationConnectorBody, UpdateIntegrationConnectorResponse,
 } from "@workspace/api-zod";
 import { connectorFieldMappings, db, importTemplates, integrationConnectors, organizationSettings, outboundEmails, syncJobs } from "@workspace/db";
-import { deliverEmail, sendConnectorTestEmail } from "../lib/email";
+import { deliverEmail, sendConnectorTestEmail, type EmailPdfAttachment } from "../lib/email";
 import { getEmailDeliveryPolicy } from "../lib/email-queue";
 import { encryptConfigSecrets, encryptSecret } from "../lib/secrets";
 import {
@@ -169,6 +169,20 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
   if (job.jobType !== "email_delivery" || !payload) {
     res.status(422).json({ error: "This job has no recorded email payload to retry" }); return;
   }
+  // Older recorded payloads predate attachments and remain retryable. For
+  // newer payloads, validate the metadata shape here; deliverEmail validates
+  // the private object path and PDF contents before attaching the file.
+  const rawAttachments = payload.attachments;
+  const attachments = rawAttachments === undefined ? undefined
+    : Array.isArray(rawAttachments) && rawAttachments.every((attachment) =>
+      Boolean(attachment) && typeof attachment === "object"
+      && (attachment as Record<string, unknown>).contentType === "application/pdf"
+      && typeof (attachment as Record<string, unknown>).filename === "string"
+      && typeof (attachment as Record<string, unknown>).objectPath === "string")
+      ? rawAttachments as EmailPdfAttachment[] : null;
+  if (attachments === null) {
+    res.status(422).json({ error: "This job has invalid recorded email attachments" }); return;
+  }
   const rawSender = payload.sender;
   const sender = rawSender && typeof rawSender === "object"
     && typeof (rawSender as Record<string, unknown>).email === "string"
@@ -197,6 +211,7 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
     subject: payload.subject as string,
     text: typeof payload.text === "string" ? payload.text : "",
     html: typeof payload.html === "string" ? payload.html : undefined,
+    attachments,
     context: { kind: "sync_job_retry", retryOfJobId: job.id },
   });
   const outcome = result.attempted && result.failed === 0 ? "success" : "failed";
@@ -212,6 +227,7 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
       sender,
       ccRecipients,
       subject: payload.subject, text: typeof payload.text === "string" ? payload.text : "", html: typeof payload.html === "string" ? payload.html : undefined,
+      attachments,
     }],
     durationMs: Date.now() - startedAt, lastRunAt: new Date(), updatedAt: new Date(),
   }).where(eq(syncJobs.id, job.id)).returning();

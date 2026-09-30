@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { db, organizationSettings, outboundEmails, users } from "@workspace/db";
-import { deliverEmail, type EmailDeliveryInput } from "./email";
+import { deliverEmail, type EmailDeliveryInput, type EmailPdfAttachment } from "./email";
+import { removeEmailPdfAttachment } from "./email-attachments";
 import { logger } from "./logger";
 
 type Database = typeof db;
@@ -50,7 +51,9 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
   if (!recipients.length) return { queued: 0 };
 
   const policy = await getEmailDeliveryPolicy(database, input.organizationId);
-  const context = input.context ?? {};
+  const context: Record<string, unknown> = { ...(input.context ?? {}) };
+  delete context.emailAttachments;
+  if (input.attachments?.length) context.emailAttachments = input.attachments;
   const eventType = typeof context.eventType === "string" ? context.eventType : null;
   const ruleId = context.kind === "email_event_rule" && typeof context.ruleId === "string" ? context.ruleId : null;
   const entityId = typeof context.entityId === "string" ? context.entityId : null;
@@ -111,6 +114,9 @@ async function processClaimedEmail(database: Database, row: typeof outboundEmail
     subject: row.subject,
     text: row.bodyText,
     html: row.bodyHtml ?? undefined,
+    attachments: row.context.emailAttachments === undefined
+      ? undefined
+      : row.context.emailAttachments as EmailPdfAttachment[],
     context: { ...row.context, queueId: row.id, queueAttempt: row.attemptCount + 1 },
   });
   const attemptCount = row.attemptCount + 1;
@@ -139,17 +145,92 @@ async function processClaimedEmail(database: Database, row: typeof outboundEmail
   }).where(eq(outboundEmails.id, row.id));
 }
 
-async function purgeExpiredEmailLogs(database: Database) {
+export async function purgeExpiredEmailLogs(database: Database) {
   const orgRows = await database.selectDistinct({ organizationId: outboundEmails.organizationId })
     .from(outboundEmails).where(isNull(outboundEmails.deletedAt));
   for (const { organizationId } of orgRows) {
     const policy = await getEmailDeliveryPolicy(database, organizationId);
     const cutoff = new Date(Date.now() - policy.retentionDays * 86_400_000);
-    await database.delete(outboundEmails).where(and(
+    const expiryCondition = and(
       eq(outboundEmails.organizationId, organizationId),
       inArray(outboundEmails.deliveryStatus, ["sent", "failed"]),
       lt(outboundEmails.updatedAt, cutoff),
+      isNull(outboundEmails.deletedAt),
+    );
+    const expiredRows = await database.select({
+      id: outboundEmails.id,
+      context: outboundEmails.context,
+    }).from(outboundEmails).where(expiryCondition);
+    if (!expiredRows.length) continue;
+
+    const referencedRows = await database.select({
+      id: outboundEmails.id,
+      context: outboundEmails.context,
+    }).from(outboundEmails).where(and(
+      eq(outboundEmails.organizationId, organizationId),
+      isNull(outboundEmails.deletedAt),
+      sql`${outboundEmails.context} ? 'emailAttachments'`,
     ));
+    const expiredIds = new Set(expiredRows.map((row) => row.id));
+    const attachmentsByRow = new Map<string, { paths: string[]; malformed: boolean }>();
+    const rowsByPath = new Map<string, Set<string>>();
+    for (const row of referencedRows) {
+      const value = row.context.emailAttachments;
+      if (value === undefined) continue;
+      const paths: string[] = [];
+      let malformed = !Array.isArray(value);
+      if (Array.isArray(value)) {
+        for (const attachment of value) {
+          if (attachment && typeof attachment === "object" && typeof attachment.objectPath === "string") {
+            paths.push(attachment.objectPath);
+          } else {
+            malformed = true;
+          }
+        }
+      }
+      attachmentsByRow.set(row.id, { paths: [...new Set(paths)], malformed });
+      for (const path of paths) {
+        const references = rowsByPath.get(path) ?? new Set<string>();
+        references.add(row.id);
+        rowsByPath.set(path, references);
+      }
+    }
+
+    const removalFailedPaths = new Set<string>();
+    const unknownReferencesExist = [...attachmentsByRow.values()].some((attachments) => attachments.malformed);
+    if (unknownReferencesExist) {
+      logger.warn("Email PDF attachment metadata is invalid; retaining queue metadata and skipping attachment cleanup");
+    }
+    const candidatePaths = new Set(expiredRows.flatMap((row) => attachmentsByRow.get(row.id)?.paths ?? []));
+    for (const path of candidatePaths) {
+      if (unknownReferencesExist) continue;
+      const references = rowsByPath.get(path) ?? new Set<string>();
+      // Keep objects while any non-expired, non-deleted queue row still has
+      // live metadata pointing at them.
+      if ([...references].some((id) => !expiredIds.has(id) || attachmentsByRow.get(id)?.malformed)) continue;
+      try {
+        await removeEmailPdfAttachment(organizationId, path);
+      } catch {
+        // Do not log object paths or provider errors; retaining queue metadata
+        // lets the next sweep retry the deletion safely.
+        logger.warn("Email PDF attachment cleanup failed; retaining queue metadata for retry");
+        removalFailedPaths.add(path);
+      }
+    }
+
+    const deletableIds = expiredRows.filter((row) => {
+      const attachments = attachmentsByRow.get(row.id);
+      return !attachments?.malformed
+        && !(unknownReferencesExist && attachments?.paths.length)
+        && !attachments?.paths.some((path) => removalFailedPaths.has(path));
+    }).map((row) => row.id);
+    if (deletableIds.length) {
+      await database.delete(outboundEmails).where(and(
+        eq(outboundEmails.organizationId, organizationId),
+        inArray(outboundEmails.id, deletableIds),
+        isNull(outboundEmails.deletedAt),
+      ));
+    }
   }
 }
 

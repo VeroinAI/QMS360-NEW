@@ -101,6 +101,8 @@ export * from './auditScheduleNumbering';
 export * from './auditScheduleNumberRange';
 export * from './auditSchedulePage';
 export * from './auditSchedulePageResponse';
+export * from './auditScheduleSubmission';
+export * from './auditScheduleSubmissionBody';
 export * from './auditStatus';
 export * from './auditUserProfileUpdateResult';
 export * from './auditWorkspaceUser';

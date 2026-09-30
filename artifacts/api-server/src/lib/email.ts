@@ -4,6 +4,8 @@ import { promises as dns } from "node:dns";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db, integrationConnectors, syncJobs, users } from "@workspace/db";
 import { decryptSecret } from "./secrets";
+import { loadEmailPdfAttachments, type EmailPdfAttachment } from "./email-attachments";
+export type { EmailPdfAttachment } from "./email-attachments";
 
 /**
  * Outbound email delivery through the SMTP connector configured in the
@@ -69,6 +71,8 @@ export type EmailDeliveryInput = {
   subject: string;
   text: string;
   html?: string;
+  /** Private PDF files are loaded from object storage when the queue processes the delivery. */
+  attachments?: EmailPdfAttachment[];
   context?: Record<string, unknown>;
 };
 
@@ -240,7 +244,7 @@ export async function deliverEmail(
     // Embedded in every recorded failure so the Cockpit sync-job retry action
     // can resend the exact original email without the caller reconstructing it.
     const explicitCcRecipients = (input.ccRecipients ?? []).filter((r) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email));
-    const retryPayload = { recipientIds, recipients: explicitRecipients, ccRecipients: explicitCcRecipients, sender: input.sender, subject: input.subject, text: input.text, html: input.html };
+    const retryPayload = { recipientIds, recipients: explicitRecipients, ccRecipients: explicitCcRecipients, sender: input.sender, subject: input.subject, text: input.text, html: input.html, attachments: input.attachments };
 
     const connector = await findEmailConnector(database, input.organizationId);
     if (!connector) return { attempted: false, reason: "no_connector" };
@@ -269,8 +273,9 @@ export async function deliverEmail(
     ];
     if (!allRecipients.length) return { attempted: false, reason: "no_recipients" };
     const allRecipientRetryPayload = {
-      recipientIds: [] as string[], recipients: allRecipients, ccRecipients: explicitCcRecipients, sender: input.sender, subject: input.subject, text: input.text, html: input.html,
+      recipientIds: [] as string[], recipients: allRecipients, ccRecipients: explicitCcRecipients, sender: input.sender, subject: input.subject, text: input.text, html: input.html, attachments: input.attachments,
     };
+    const attachments = await loadEmailPdfAttachments(input.organizationId, input.attachments ?? []);
 
     const startedAt = Date.now();
     const errors: Array<Record<string, unknown>> = [];
@@ -304,6 +309,7 @@ export async function deliverEmail(
           subject: input.subject,
           text: input.text,
           html: input.html,
+          attachments,
         })));
       transporter.close();
       for (const [index, result] of results.entries()) {
@@ -321,7 +327,7 @@ export async function deliverEmail(
             recipientIds: [], recipients: [allRecipients[index]!],
             ccRecipients: explicitCcRecipients,
             sender: input.sender,
-            subject: input.subject, text: input.text, html: input.html,
+            subject: input.subject, text: input.text, html: input.html, attachments: input.attachments,
           });
         } else {
           failedRecipients.push(allRecipients[index]!);
@@ -332,7 +338,7 @@ export async function deliverEmail(
             recipientIds: [], recipients: [allRecipients[index]!],
             ccRecipients: explicitCcRecipients,
             sender: input.sender,
-            subject: input.subject, text: input.text, html: input.html,
+            subject: input.subject, text: input.text, html: input.html, attachments: input.attachments,
           });
         }
       }
@@ -352,7 +358,8 @@ export async function deliverEmail(
     };
   } catch (error) {
     // Delivery must never break the caller; in-app notification already stands.
-    console.error("Email delivery failed unexpectedly", error);
+    // SMTP/object-storage errors may include configuration details or private paths.
+    console.error("Email delivery failed unexpectedly");
     return { attempted: false, reason: "unexpected_error" };
   }
 }

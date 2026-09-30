@@ -31,6 +31,10 @@ function StatusBadge({ value }: { value: string }) {
   return <Badge variant={variant}>{value}</Badge>;
 }
 
+function isAuditApprovalEvent(eventType: string) {
+  return /^audit\.audit_(programme|schedule)\.(submit|approve|approved_final)$/.test(eventType);
+}
+
 export function EmailRulesTab({ connectors, onEditConnector }: { connectors: IntegrationConnector[], onEditConnector: (c: IntegrationConnector) => void }) {
   const { toast } = useToast();
   const client = useQueryClient();
@@ -168,7 +172,7 @@ function EmailRulesList() {
       <CardHeader className="flex-row items-center justify-between">
         <div>
           <CardTitle>Email Event Rules</CardTitle>
-          <CardDescription>Rules are evaluated top-to-bottom. The first matching enabled rule determines who receives the event email.</CardDescription>
+          <CardDescription>For most events, the first matching enabled rule determines recipients. Audit approval emails are sent by default; for these events, the highest-priority matching rule controls whether email is sent, even if disabled. Recipients are always the current approvers or, on final approval, the submitter and approving participants.</CardDescription>
         </div>
         <Button variant="outline" onClick={() => setEditingRule('new')}>
           <Plus className="mr-2 h-4 w-4" />
@@ -206,7 +210,9 @@ function EmailRulesList() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {rule.recipientMode === 'linked_approver' ? (
+                    {isAuditApprovalEvent(rule.eventType) ? (
+                      <span className="text-sm">Approval workflow participants (recipient mode ignored)</span>
+                    ) : rule.recipientMode === 'linked_approver' ? (
                       <span className="text-sm">Send from form creator to linked approver</span>
                     ) : rule.recipientMode === 'linked_creator' ? (
                       <span className="text-sm">Send from approving user to form creator</span>
@@ -337,6 +343,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
   
   const busy = create.isPending || update.isPending;
   const isNew = !rule;
+  const isApprovalEvent = isAuditApprovalEvent(draft.eventType);
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -394,8 +401,14 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
           </div>
 
           <div className="space-y-4 rounded-lg border p-4 bg-muted/20">
-            <h4 className="font-semibold text-sm">Action (Then send to)</h4>
+            <h4 className="font-semibold text-sm">{isApprovalEvent ? 'Approval email behavior' : 'Action (Then send to)'}</h4>
             <div className="space-y-3">
+              {isApprovalEvent ? (
+                <p className="text-sm text-muted-foreground">
+                  Recipients are fixed by the approval workflow: current approvers receive submit/next-step notices, and actual participants plus the submitter receive final-approval notices. Rule enablement controls whether the email is sent; this rule’s recipient mode and recipient settings do not override the workflow participants. With no matching rule, approval emails are sent by default.
+                </p>
+              ) : (
+                <>
               <div>
                 <Label>Recipient mode</Label>
                 <Select value={draft.receiverMode} onValueChange={v => set({ receiverMode: v as typeof draft.receiverMode })}>
@@ -449,6 +462,8 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
               )}
               {(draft.receiverMode === 'project' || draft.receiverMode === 'project_role') && (
                 <div><Label>Project</Label><Select value={draft.projectId} onValueChange={projectId => set({ projectId })}><SelectTrigger className="mt-2"><SelectValue placeholder="Select project..." /></SelectTrigger><SelectContent>{projects.map(project => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}</SelectContent></Select></div>
+              )}
+                </>
               )}
             </div>
           </div>

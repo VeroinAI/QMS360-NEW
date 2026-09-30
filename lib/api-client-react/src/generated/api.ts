@@ -66,6 +66,7 @@ import type {
   AuditScheduleFeasibilityBody,
   AuditScheduleNumbering,
   AuditSchedulePageResponse,
+  AuditScheduleSubmissionBody,
   AuditUserProfileUpdateResult,
   AuditWorkspaceUserPage,
   AuthResponse,
@@ -16472,14 +16473,15 @@ export const getSubmitAuditScheduleUrl = (id: string,) => {
 /**
  * @summary Submit schedule for approval
  */
-export const submitAuditSchedule = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+export const submitAuditSchedule = async (id: string,
+    auditScheduleSubmissionBody: AuditScheduleSubmissionBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
 
   return customFetch<void>(getSubmitAuditScheduleUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditScheduleSubmissionBody)
   }
 );}
 
@@ -16488,8 +16490,8 @@ export const submitAuditSchedule = async (id: string, options?: Parameters<typeo
 
 
 export const getSubmitAuditScheduleMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAuditSchedule>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof submitAuditSchedule>>, TError,{id: string}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAuditSchedule>>, TError,{id: string;data: BodyType<AuditScheduleSubmissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitAuditSchedule>>, TError,{id: string;data: BodyType<AuditScheduleSubmissionBody>}, TContext> => {
 
 const mutationKey = ['submitAuditSchedule'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -16501,10 +16503,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitAuditSchedule>>, {id: string}> = (props) => {
-          const {id} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitAuditSchedule>>, {id: string;data: BodyType<AuditScheduleSubmissionBody>}> = (props) => {
+          const {id,data} = props ?? {};
 
-          return  submitAuditSchedule(id,requestOptions)
+          return  submitAuditSchedule(id,data,requestOptions)
         }
 
 
@@ -16515,18 +16517,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type SubmitAuditScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof submitAuditSchedule>>>
-
+    export type SubmitAuditScheduleMutationBody = BodyType<AuditScheduleSubmissionBody>
     export type SubmitAuditScheduleMutationError = ErrorType<unknown>
 
     /**
  * @summary Submit schedule for approval
  */
 export const useSubmitAuditSchedule = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAuditSchedule>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitAuditSchedule>>, TError,{id: string;data: BodyType<AuditScheduleSubmissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof submitAuditSchedule>>,
         TError,
-        {id: string},
+        {id: string;data: BodyType<AuditScheduleSubmissionBody>},
         TContext
       > => {
       return useMutation(getSubmitAuditScheduleMutationOptions(options));

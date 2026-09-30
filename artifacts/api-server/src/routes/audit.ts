@@ -40,6 +40,9 @@ import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evid
 import { asyncHandler, HttpError, listNotifications, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
+import { auditApprovalEmailEnabled, queueAuditApprovalEmail } from "../lib/email-rules";
+import { renderAuditScheduleApprovalPdf } from "../lib/audit-schedule-approval-pdf";
+import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-attachments";
 
 const router = Router();
 const requireAuditAdmin = requireAppAdmin("audit");
@@ -97,7 +100,7 @@ const auditLog = (req: Request, action: string, entityType: string, entityId: st
   writeAuditLog(db, "audit", {
     organizationId: actor(req).organizationId, actorId: actor(req).id, action, entityType, entityId,
     before, after, ipAddress: req.ip,
-  });
+  }, { dispatch: !(["audit_programme", "audit_schedule"].includes(entityType) && ["submit", "approve"].includes(action)) });
 async function assertAuditUserManagementScope(req: Request, userId: string) {
   if (req.permissionAdminBypass || userId === actor(req).id) return;
   const assignments = await db.select({
@@ -191,6 +194,7 @@ type ScheduleMeta = {
   approvalRoles?: Array<{ id: string; name: string }>; approvalIndex?: number;
   autoPromotedChildIds?: string[];
   submissionSubject?: string; submissionMailBody?: string;
+  submissionUserId?: string; approvalParticipantIds?: string[];
   projectIds?: string[]; auditTypes?: string[]; plannedStartDate?: string;
   plannedEndDate?: string; reviewComments?: string | null;
   auditCategory?: string; departmentProject?: string; location?: string;
@@ -980,6 +984,7 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
   if (!roles.length) throw new HttpError(422, "No active Audit approval roles are configured");
   const unstaffed = (await Promise.all(roles.map(async role => (await roleUserIds(actor(req).organizationId, role.id)).length ? null : role.name))).filter(Boolean);
   if (unstaffed.length) throw new HttpError(422, `Approval role has no active users: ${unstaffed.join(", ")}`);
+  const firstApprovers = await roleUserIds(actor(req).organizationId, roles[0].id);
   const { row, childCount } = await db.transaction(async tx => {
     // Lock numbering before the parent, matching the order in child creation.
     const { config } = await lockScheduleNumbering(tx, actor(req).organizationId);
@@ -1029,6 +1034,8 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
         reviewComments: null,
         submissionSubject: data.subject.trim(),
         submissionMailBody: data.mailBody.trim(),
+        submissionUserId: actor(req).id,
+        approvalParticipantIds: [],
       }),
       updatedAt: new Date(),
     }).where(and(
@@ -1037,6 +1044,12 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
       eq(auditSchedules.status, current.status),
     )).returning();
     if (!updated) throw new HttpError(409, "Programme changed while it was being submitted");
+    await queueAuditApprovalEmail(tx as unknown as typeof db, {
+      organizationId: actor(req).organizationId, actorId: actor(req).id,
+      entityType: "audit_programme", entityId: updated.id, action: "submit",
+      recipientIds: firstApprovers, subject: data.subject.trim(),
+      text: `${data.mailBody.trim()}\n\nAudit Schedule "${updated.title}" is awaiting your approval at level ${roles[0].level}. Open QMS360 QMS Audit to review it.`,
+    });
     return { row: updated, childCount: children.length };
   });
   const recipients = await roleUserIds(actor(req).organizationId, roles[0].id);
@@ -1061,6 +1074,28 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
   }
   if (!allowed) throw new HttpError(403, "Only the current approval role may review this programme");
   const nextIndex = (meta.approvalIndex ?? 0) + 1; const complete = data.decision === "approve" && nextIndex >= (meta.approvalRoles ?? []).length;
+  const participants = [...new Set([meta.submissionUserId ?? before.ownerId, ...(meta.approvalParticipantIds ?? []), actor(req).id].filter((id): id is string => Boolean(id)))];
+  const finalEmailEnabled = complete && await auditApprovalEmailEnabled(db, {
+    organizationId: actor(req).organizationId, actorId: actor(req).id, entityType: "audit_programme",
+  });
+  const childrenForPdf = finalEmailEnabled ? await programmeChildren(req, before.id) : [];
+  const pdfAttachment = finalEmailEnabled ? await storeEmailPdfAttachment(
+    actor(req).organizationId, before.id,
+    await renderAuditScheduleApprovalPdf({
+      title: before.title, subject: meta.submissionSubject ?? before.title, memo: meta.submissionMailBody ?? "",
+      rows: childrenForPdf.map(child => {
+        const detail = scheduleMeta(child);
+        return {
+          title: child.title, fromDate: detail.plannedStartDate ?? "", toDate: detail.plannedEndDate ?? "",
+          auditType: detail.auditTypes?.join(", ") ?? "", departmentProject: detail.departmentProject ?? "",
+          ownerName: detail.processProductOwner ?? "", auditNumber: detail.auditNumber ?? "",
+          qaqcReference: detail.qaqcReference ?? "", scope: detail.qaqcScope ?? "",
+          clauses: detail.qaqcClauses ?? "", remarks: detail.remarks ?? "",
+        };
+      }),
+    }),
+  ) : undefined;
+  let finalPdfQueued = false;
   const row = await db.transaction(async tx => {
     const [current] = await tx.select().from(auditSchedules).where(and(
       active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, before.id),
@@ -1075,6 +1110,7 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
         approvalIndex: data.decision === "send_back" ? 0 : nextIndex,
         autoPromotedChildIds: data.decision === "send_back" ? [] : meta.autoPromotedChildIds ?? [],
         reviewComments: data.comments ?? null,
+        approvalParticipantIds: data.decision === "approve" ? participants.filter(id => id !== (meta.submissionUserId ?? before.ownerId)) : meta.approvalParticipantIds ?? [],
       }),
       updatedAt: new Date(),
     }).where(eq(auditSchedules.id, before.id)).returning();
@@ -1101,8 +1137,33 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
           .where(and(eq(auditSchedules.organizationId, actor(req).organizationId), inArray(auditSchedules.id, childIds)));
       }
     }
+    if (data.decision === "approve") {
+      const nextRole = (meta.approvalRoles ?? [])[nextIndex];
+      const queuedEmail = await queueAuditApprovalEmail(tx as unknown as typeof db, {
+        organizationId: actor(req).organizationId, actorId: actor(req).id,
+        entityType: "audit_programme", entityId: updated.id,
+        action: complete ? "approved_final" : "approve",
+        recipientIds: complete ? participants : await roleUserIds(actor(req).organizationId, nextRole.id),
+        subject: complete ? `Approved: ${meta.submissionSubject ?? updated.title}` : meta.submissionSubject ?? `Approval requested: ${updated.title}`,
+        text: complete
+          ? `Audit Schedule "${updated.title}" has received final approval. The attached PDF begins with the submitted memo and includes the Audit Schedule Gantt chart.`
+          : `${meta.submissionMailBody ?? ""}\n\nAudit Schedule "${updated.title}" is awaiting your approval at the next level. Open QMS360 QMS Audit to review it.`,
+        attachments: pdfAttachment ? [pdfAttachment] : undefined,
+      });
+      if (complete && queuedEmail.queued > 0) finalPdfQueued = true;
+    }
     return updated;
+  }).catch(async error => {
+    if (pdfAttachment) {
+      try { await removeEmailPdfAttachment(actor(req).organizationId, pdfAttachment.objectPath); }
+      catch (cleanupError) { req.log.error({ cleanupError }, "Failed to clean up unqueued approval PDF"); }
+    }
+    throw error;
   });
+  if (pdfAttachment && !finalPdfQueued) {
+    try { await removeEmailPdfAttachment(actor(req).organizationId, pdfAttachment.objectPath); }
+    catch (cleanupError) { req.log.error({ cleanupError }, "Failed to clean up unsent approval PDF"); }
+  }
   if (data.decision === "send_back" && row.ownerId) await notify(db, "audit", { organizationId: actor(req).organizationId, userId: row.ownerId, type: "programme_decision", title: "Audit programme sent back", body: data.comments, entityType: "audit_programme", entityId: row.id });
   if (data.decision === "approve" && complete && row.ownerId) await notify(db, "audit", { organizationId: actor(req).organizationId, userId: row.ownerId, type: "programme_decision", title: "Audit programme approved", body: row.title, entityType: "audit_programme", entityId: row.id });
   if (data.decision === "approve" && !complete) {
@@ -1359,6 +1420,7 @@ router.delete("/schedules/:id", asyncHandler(async (req, res) => {
   res.status(204).end();
 }));
 router.post("/schedules/:id/submit", asyncHandler(async (req, res) => {
+  const submission = body<AnyRow>(Api.SubmitAuditScheduleBody, req);
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   await assertChildSchedule(before);
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Schedule is not eligible for submission");
@@ -1367,6 +1429,7 @@ router.post("/schedules/:id/submit", asyncHandler(async (req, res) => {
   if (!roles.length) throw new HttpError(422, "No active sequential Audit approval roles are configured. Assign an Approval Level to an active role with Approve / reject authorization.");
   const unstaffed = (await Promise.all(roles.map(async role => (await roleUserIds(actor(req).organizationId, role.id)).length ? null : role.name))).filter(Boolean);
   if (unstaffed.length) throw new HttpError(422, `Approval role has no active users: ${unstaffed.join(", ")}`);
+  const firstApprovers = await roleUserIds(actor(req).organizationId, roles[0].id);
   const row = await db.transaction(async tx => {
     const { config } = await lockScheduleNumbering(tx, actor(req).organizationId);
     const [current] = await tx.select().from(auditSchedules).where(and(
@@ -1386,9 +1449,17 @@ router.post("/schedules/:id/submit", asyncHandler(async (req, res) => {
         qaqcReferenceYear: meta.parentId ? meta.qaqcReferenceYear : Number(fromDate!.slice(0, 4)),
         qaqcReferenceSequence: meta.parentId ? meta.qaqcReferenceSequence : (meta.qaqcReferenceSequence ?? 1),
         approvalRoles: roles, approvalIndex: 0, reviewComments: null,
+        submissionUserId: actor(req).id, approvalParticipantIds: [],
+        submissionSubject: submission.subject.trim(), submissionMailBody: submission.mailBody.trim(),
       }),
       updatedAt: new Date(),
     }).where(eq(auditSchedules.id, current.id)).returning();
+    if (updated) await queueAuditApprovalEmail(tx as unknown as typeof db, {
+      organizationId: actor(req).organizationId, actorId: actor(req).id,
+      entityType: "audit_schedule", entityId: updated.id, action: "submit",
+      recipientIds: firstApprovers, subject: submission.subject.trim(),
+      text: `${submission.mailBody.trim()}\n\nAudit "${updated.title}" is awaiting your approval at level ${roles[0].level}. Open QMS360 QMS Audit to review it.`,
+    });
     return updated;
   });
   if (!row) throw new HttpError(409, "Schedule changed while it was being submitted");
@@ -1418,11 +1489,61 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
   if (!allowed) throw new HttpError(403, "Only the current approval role may review this schedule");
   const nextIndex = (meta.approvalIndex ?? 0) + 1;
   const complete = data.decision === "approve" && nextIndex >= (meta.approvalRoles ?? []).length;
-  const [row] = await db.update(auditSchedules).set({
-    workflowState: data.decision === "send_back" ? "sent_back" : complete ? "approved" : "submitted",
-    status: JSON.stringify({ ...meta, approvalIndex: data.decision === "send_back" ? 0 : nextIndex, reviewComments: data.comments ?? null }),
-    updatedAt: new Date(),
-  }).where(and(eq(auditSchedules.id, before.id), eq(auditSchedules.workflowState, before.workflowState), eq(auditSchedules.status, before.status))).returning();
+  const participants = [...new Set([meta.submissionUserId ?? before.ownerId, ...(meta.approvalParticipantIds ?? []), actor(req).id].filter((id): id is string => Boolean(id)))];
+  const detail = scheduleMeta(before);
+  const finalEmailEnabled = complete && await auditApprovalEmailEnabled(db, {
+    organizationId: actor(req).organizationId, actorId: actor(req).id, entityType: "audit_schedule",
+  });
+  const pdfAttachment = finalEmailEnabled ? await storeEmailPdfAttachment(
+    actor(req).organizationId, before.id,
+    await renderAuditScheduleApprovalPdf({
+      title: before.title, subject: detail.submissionSubject ?? before.title, memo: detail.submissionMailBody ?? "",
+      rows: [{
+        title: before.title, fromDate: detail.plannedStartDate ?? "", toDate: detail.plannedEndDate ?? "",
+        auditType: detail.auditTypes?.join(", ") ?? "", departmentProject: detail.departmentProject ?? "",
+        ownerName: detail.processProductOwner ?? "", auditNumber: detail.auditNumber ?? "",
+        qaqcReference: detail.qaqcReference ?? "", scope: detail.qaqcScope ?? "",
+        clauses: detail.qaqcClauses ?? "", remarks: detail.remarks ?? "",
+      }],
+    }),
+  ) : undefined;
+  let finalPdfQueued = false;
+  const row = await db.transaction(async tx => {
+    const [updated] = await tx.update(auditSchedules).set({
+      workflowState: data.decision === "send_back" ? "sent_back" : complete ? "approved" : "submitted",
+      status: JSON.stringify({
+        ...meta, approvalIndex: data.decision === "send_back" ? 0 : nextIndex,
+        reviewComments: data.comments ?? null,
+        approvalParticipantIds: data.decision === "approve" ? participants.filter(id => id !== (meta.submissionUserId ?? before.ownerId)) : meta.approvalParticipantIds ?? [],
+      }),
+      updatedAt: new Date(),
+    }).where(and(eq(auditSchedules.id, before.id), eq(auditSchedules.workflowState, before.workflowState), eq(auditSchedules.status, before.status))).returning();
+    if (updated && data.decision === "approve") {
+      const nextRole = (meta.approvalRoles ?? [])[nextIndex];
+      const queuedEmail = await queueAuditApprovalEmail(tx as unknown as typeof db, {
+        organizationId: actor(req).organizationId, actorId: actor(req).id,
+        entityType: "audit_schedule", entityId: updated.id, action: complete ? "approved_final" : "approve",
+        recipientIds: complete ? participants : await roleUserIds(actor(req).organizationId, nextRole.id),
+        subject: complete ? `Approved: ${meta.submissionSubject ?? updated.title}` : meta.submissionSubject ?? `Approval requested: ${updated.title}`,
+        text: complete
+          ? `Audit "${updated.title}" has received final approval. The attached PDF begins with the submitted memo and includes the Gantt chart.`
+          : `${meta.submissionMailBody ?? ""}\n\nAudit "${updated.title}" is awaiting your approval at the next level. Open QMS360 QMS Audit to review it.`,
+        attachments: pdfAttachment ? [pdfAttachment] : undefined,
+      });
+      if (complete && queuedEmail.queued > 0) finalPdfQueued = true;
+    }
+    return updated;
+  }).catch(async error => {
+    if (pdfAttachment) {
+      try { await removeEmailPdfAttachment(actor(req).organizationId, pdfAttachment.objectPath); }
+      catch (cleanupError) { req.log.error({ cleanupError }, "Failed to clean up unqueued approval PDF"); }
+    }
+    throw error;
+  });
+  if (pdfAttachment && !finalPdfQueued) {
+    try { await removeEmailPdfAttachment(actor(req).organizationId, pdfAttachment.objectPath); }
+    catch (cleanupError) { req.log.error({ cleanupError }, "Failed to clean up unsent approval PDF"); }
+  }
   if (!row) throw new HttpError(409, "Schedule changed while it was being reviewed");
   if ((data.decision === "send_back" || complete) && before.ownerId) await notify(db, "audit", {
     organizationId: actor(req).organizationId, userId: before.ownerId, type: "schedule_decision",
