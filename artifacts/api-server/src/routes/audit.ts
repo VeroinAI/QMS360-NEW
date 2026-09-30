@@ -56,7 +56,16 @@ for (const [path, module] of auditModules) {
   router.use(path, (req, res, next) => {
     // This single mutation uses the Audit Program Manager marker, not create/edit.
     if (path === "/programmes" && req.method === "PATCH" && /\/programmes\/[^/]+\/team-leads\/?(?:\?|$)/.test(req.originalUrl)) return next();
-    return requirePermission("audit", module, req.method === "GET" ? "select" : "full")(req, res, next);
+    // The Audit role editor stores "Create / edit schedules" as data_entry.
+    // Honor it only on the schedule create/update endpoints, not programme,
+    // approval, feasibility or delete mutations that also live under schedules.
+    const scheduleWrite = path === "/schedules" && (
+      (req.method === "POST" && req.path === "/")
+      || (req.method === "PUT" && /^\/[^/]+\/?$/.test(req.path))
+    );
+    return requirePermission("audit", module, req.method === "GET" ? "select" : "full", {
+      allowAuditScheduleDataEntry: scheduleWrite,
+    })(req, res, next);
   });
 }
 const auditEvidenceModules: Record<string, string> = {
@@ -77,7 +86,12 @@ router.use("/evidence", asyncHandler(async (req, res, next) => {
   }
   const module = recordType ? auditEvidenceModules[recordType] : null;
   if (!module) throw new HttpError(422, "Unsupported audit evidence record type");
-  await requirePermission("audit", module, req.method === "GET" ? "select" : "full")(req, res, next);
+  await requirePermission("audit", module, req.method === "GET" ? "select" : "full", {
+    allowAuditScheduleDataEntry: recordType === "audit_schedule" && (
+      (req.method === "POST" && req.path === "/")
+      || (req.method === "PUT" && /^\/[^/]+\/confirm\/?$/.test(req.path))
+    ),
+  })(req, res, next);
 }));
 router.use(asyncHandler(async (req, _res, next) => {
   if (req.method !== "GET" && typeof req.body?.projectId === "string") {

@@ -239,7 +239,12 @@ export function requireAppAccess(appKey: AppKey) {
   };
 }
 
-export function requirePermission(appKey: AppKey, module: string, action: PermissionAction) {
+export function requirePermission(
+  appKey: AppKey,
+  module: string,
+  action: PermissionAction,
+  options: { allowAuditScheduleDataEntry?: boolean } = {},
+) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const user = req.currentUser;
     if (!user) return void res.status(401).json({ error: "Authentication required" });
@@ -263,7 +268,9 @@ export function requirePermission(appKey: AppKey, module: string, action: Permis
       ? ["view_all", "view_own", ...(appKey === "lessons" ? ["view_own_scope"] : [])]
       : /\/(review|decision)(?:\/|$)/.test(req.path) ? ["approve_reject"]
       : /\/submit(?:\/|$)/.test(req.path) ? ["submit"]
-      : ["create_edit", ...(appKey === "lessons" ? ["data_entry"] : [])];
+      : ["create_edit", ...(appKey === "lessons" || (
+        appKey === "audit" && module === "schedules" && options.allowAuditScheduleDataEntry
+      ) ? ["data_entry"] : [])];
     const matching = rows.filter((r: any) => {
       const key = String(r.key ?? "").toLowerCase();
       const normalized = module.toLowerCase();

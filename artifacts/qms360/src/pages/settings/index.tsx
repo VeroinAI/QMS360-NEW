@@ -309,11 +309,14 @@ function UsersAccess({ app }: { app: AppKey }) {
   </PageState>;
 }
 
-const permissionLabels: Record<PermissionKey, string> = { data_entry: 'Create / edit', submit: 'Submit', approve_reject: 'Approve / reject', view_own_scope: 'View own', view_all: 'View all', configure_masters: 'Configure', manage_integrations: 'Integrations', manage_ai_settings: 'VerionAI settings', export: 'Export', delegate: 'Delegate', memo_circulation: 'Memo Circulation', audit_team_lead: 'Audit Team Lead', audit_program_manager: 'Audit Program Manager', product_process_owner: 'Product / Process Owner' };
+const basePermissionLabels: Record<PermissionKey, string> = { data_entry: 'Create / edit', submit: 'Submit', approve_reject: 'Approve / reject', view_own_scope: 'View own', view_all: 'View all', configure_masters: 'Configure', manage_integrations: 'Integrations', manage_ai_settings: 'VerionAI settings', export: 'Export', delegate: 'Delegate', memo_circulation: 'Memo Circulation', audit_team_lead: 'Audit Team Lead', audit_program_manager: 'Audit Program Manager', product_process_owner: 'Product / Process Owner' };
 type RoleWithAuthorizationLevel = Role & { roleAuthorizationLevel?: number | null };
 function Roles({ app }: { app: AppKey }) {
   const api = useAdmin(app); const act = useActions(app); const [editing, setEditing] = useState<RoleWithAuthorizationLevel>();
   const [authorizationLevelInput, setAuthorizationLevelInput] = useState('');
+  const permissionLabels = app === 'audit'
+    ? { ...basePermissionLabels, data_entry: 'Create / edit schedules' }
+    : basePermissionLabels;
   const permissionKeys = (Object.keys(permissionLabels) as PermissionKey[]).filter(key => app === 'audit' || (key !== 'audit_team_lead' && key !== 'audit_program_manager' && key !== 'product_process_owner'));
   const hasApproveReject = !!editing?.permissions.some(p => p.key === 'approve_reject');
   const parsedAuthorizationLevel = /^\d+$/.test(authorizationLevelInput) ? Number(authorizationLevelInput) : NaN;

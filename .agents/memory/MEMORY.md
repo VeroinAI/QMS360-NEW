@@ -39,6 +39,7 @@
 - [Task rebase verification](task-rebase-verification.md) — after resolving overlapping task edits, rerun focused tests against the final rebased tree; semantic merging can scramble test bodies.
 - [Audit Team Lead marker](audit-team-lead-marker.md) — role authorization identifies future Audit Team Lead workflows; it must not grant unrelated actions by itself.
 - [Audit Program Manager marker](audit-program-manager-marker.md) — permits only post-approval Team Lead changes on scoped Audit Schedules, not general edit or approval.
+- [Audit Schedule data-entry scope](audit-schedule-data-entry-scope.md) — legacy Audit “Create / edit” grants are schedule-only; do not turn them into global Audit write rights.
 - [Product / Process Owner marker](product-process-owner-marker.md) — assigned Audit users can be selected as Schedule owners; the marker alone grants no Audit actions.
 - [Audit Area master data reuse](audit-area-master-data.md) — Audit Checklist uses the existing shared “Audit Area” group; do not create a parallel audit_areas list.
 - [Audit Schedule numbering policy](audit-schedule-numbering-policy.md) — QA/QC Reference uses each audit's From Date year; yearless Audit Numbers remain unique per project/department across years.

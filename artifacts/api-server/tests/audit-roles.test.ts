@@ -95,6 +95,7 @@ describe("Audit role permission persistence", () => {
       name: `Audit Reviewer ${suffix}`,
       description: "Reviews scheduled audits",
       permissions: selectedPermissions,
+      roleAuthorizationLevel: 1,
       active: true,
       systemDefault: false,
     });
@@ -175,6 +176,53 @@ describe("Audit role permission persistence", () => {
       active: false,
       systemDefault: false,
     }));
+  });
+});
+
+describe("Audit schedule create/edit permission", () => {
+  it("uses the existing data_entry grant for schedule writes only", async () => {
+    const [user] = await db.insert(users).values({
+      organizationId,
+      email: `audit-schedule-editor.${suffix}@example.test`,
+      username: `audit-schedule-editor.${suffix}`,
+      fullName: "Audit Schedule Editor",
+    }).returning();
+    const [role] = await db.insert(auditWorkspaceRoles).values({
+      organizationId,
+      name: `Schedule Editor ${suffix}`,
+    }).returning();
+    const [existingPermission] = await db.select().from(auditPermissions).where(and(
+      eq(auditPermissions.organizationId, organizationId),
+      eq(auditPermissions.key, "data_entry"),
+      isNull(auditPermissions.deletedAt),
+    )).limit(1);
+    const permission = existingPermission ?? (await db.insert(auditPermissions).values({
+      organizationId, key: "data_entry", label: "Create / edit schedules", category: "audit",
+    }).returning())[0]!;
+    await db.insert(auditWorkspaceRolePermissions).values({
+      organizationId, workspaceRoleId: role!.id, permissionId: permission!.id, grant: "full",
+    });
+    await db.insert(auditUserWorkspaceRoles).values({
+      organizationId, userId: user!.id, workspaceRoleId: role!.id,
+    });
+    await db.insert(applicationAccess).values({
+      organizationId, username: user!.username, canOpenAudit: true,
+    });
+    const token = issueToken(user!);
+
+    // Invalid bodies reach the endpoint's validation rather than being rejected by RBAC.
+    expect((await api("POST", "/audit/schedules", {}, token)).status).toBe(422);
+    expect((await api("PUT", `/audit/schedules/${crypto.randomUUID()}`, {}, token)).status).toBe(422);
+    for (const [method, path] of [
+      ["POST", "/audit/programmes"],
+      ["DELETE", `/audit/schedules/${crypto.randomUUID()}`],
+      ["POST", `/audit/schedules/${crypto.randomUUID()}/feasibility`],
+      ["POST", "/audit/plans"],
+    ]) {
+      const response = await api(method, path, {}, token);
+      expect(response.status, `${method} ${path}`).toBe(403);
+      expect(response.json.error).toBe("This action is not permitted for your role");
+    }
   });
 });
 
