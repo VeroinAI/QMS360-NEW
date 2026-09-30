@@ -1311,6 +1311,12 @@ paths:
       operationId: emailRuleUserOptions
       tags: [integrations]
       responses: {"200": {description: Active users, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/EmailRuleUserOption"}}}}}}
+  /email-rules/options/roles:
+    get:
+      operationId: emailRuleRoleOptions
+      tags: [integrations]
+      parameters: [{name: app, in: query, required: true, schema: {type: string, enum: [audit, lessons, qaqc]}}]
+      responses: {"200": {description: Active workspace roles for the selected application, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/EmailRuleRoleOption"}}}}}}
   /email-rules/simulate:
     post:
       operationId: simulateEmailRule
@@ -1458,8 +1464,15 @@ components:
       type: object
       properties:
         roleName: {type: string}
+        roleNames: {type: array, items: {type: string}, uniqueItems: true}
         projectIds: {type: array, items: {type: string}}
         senderMode: {type: string, enum: [form_creator, approving_user]}
+    EmailRuleRoleOption:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: string}
+        name: {type: string}
     EmailRuleOrderInput:
       type: object
       required: [ids]

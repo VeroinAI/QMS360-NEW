@@ -13,6 +13,46 @@ export type AuditEvent = {
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+export function configuredWorkspaceRoleNames(config: { roleName?: string; roleNames?: string[] } | null | undefined) {
+  return [...new Set([
+    ...(config?.roleNames ?? []),
+    ...(config?.roleName ? [config.roleName] : []),
+  ].map((name) => name.trim()).filter(Boolean))];
+}
+
+export function auditProgrammeFinalRoleOverride(
+  eventType: string,
+  rule: { enabled: boolean; recipientMode: string } | null | undefined,
+) {
+  return eventType === "audit.audit_programme.approved_final"
+    && Boolean(rule?.enabled && rule.recipientMode === "workspace_role");
+}
+
+async function resolveWorkspaceRoleUserIds(
+  database: typeof db,
+  organizationId: string,
+  app: string,
+  roleNames: string[],
+) {
+  if (!roleNames.length) return [];
+  const appTables = app === "lessons"
+    ? { assignments: lessonsUserWorkspaceRoles, roles: lessonsWorkspaceRoles }
+    : app === "audit"
+      ? { assignments: auditUserWorkspaceRoles, roles: auditWorkspaceRoles }
+      : { assignments: userWorkspaceRoles, roles: workspaceRoles };
+  const rows = await database.select({ userId: appTables.assignments.userId }).from(appTables.assignments)
+    .innerJoin(appTables.roles, eq(appTables.assignments.workspaceRoleId, appTables.roles.id))
+    .innerJoin(users, eq(appTables.assignments.userId, users.id))
+    .where(and(
+      eq(appTables.assignments.organizationId, organizationId),
+      eq(appTables.assignments.status, "active"), isNull(appTables.assignments.deletedAt),
+      eq(appTables.roles.organizationId, organizationId), inArray(appTables.roles.name, roleNames),
+      eq(appTables.roles.status, "active"), isNull(appTables.roles.deletedAt),
+      eq(users.organizationId, organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt),
+    ));
+  return [...new Set(rows.map((row) => row.userId))];
+}
+
 export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
   const rules = await database.select().from(emailEventRules).where(and(
     eq(emailEventRules.organizationId, event.organizationId),
@@ -95,15 +135,20 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
         ));
         recipients = rows.map((row) => ({ email: row.email, name: row.name }));
       }
-    } else if (config.roleName) {
+    } else {
+      const roleNames = rule.recipientMode === "workspace_role"
+        ? configuredWorkspaceRoleNames(config)
+        : configuredWorkspaceRoleNames({ roleName: config.roleName });
+      if (!roleNames.length) return { rule, recipients: [], sender };
       const appTables = event.app === "lessons"
         ? { assignments: lessonsUserWorkspaceRoles, roles: lessonsWorkspaceRoles }
         : event.app === "audit"
           ? { assignments: auditUserWorkspaceRoles, roles: auditWorkspaceRoles }
           : { assignments: userWorkspaceRoles, roles: workspaceRoles };
       const conditions = [
+        eq(appTables.assignments.organizationId, event.organizationId),
         eq(users.organizationId, event.organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt),
-        eq(appTables.roles.organizationId, event.organizationId), eq(appTables.roles.name, config.roleName),
+        eq(appTables.roles.organizationId, event.organizationId), inArray(appTables.roles.name, roleNames),
         eq(appTables.roles.status, "active"), isNull(appTables.roles.deletedAt),
         eq(appTables.assignments.status, "active"), isNull(appTables.assignments.deletedAt),
       ];
@@ -169,17 +214,26 @@ export async function queueAuditApprovalEmail(
     (!candidate.createdByUserId || candidate.createdByUserId === input.actorId));
 
   // Approval workflows supply the complete, privacy-scoped participant list.
-  // Rule recipient modes are deliberately ignored for these notifications.
   if (rule && !rule.enabled) return { queued: 0 };
 
-  const ccIds = [...new Set(input.ccRecipientIds ?? [])].filter(id => !input.recipientIds.includes(id));
+  let recipientIds = [...new Set(input.recipientIds)];
+  if (auditProgrammeFinalRoleOverride(eventType, rule)) {
+    recipientIds = await resolveWorkspaceRoleUserIds(
+      database,
+      input.organizationId,
+      "audit",
+      configuredWorkspaceRoleNames(rule?.recipientConfig),
+    );
+  }
+
+  const ccIds = [...new Set(input.ccRecipientIds ?? [])].filter(id => !recipientIds.includes(id));
   const ccRecipients = ccIds.length ? await database.select({ email: users.email, name: users.fullName }).from(users).where(and(
     eq(users.organizationId, input.organizationId), eq(users.accessStatus, "active"),
     isNull(users.deletedAt), inArray(users.id, ccIds),
   )) : [];
   return enqueueEmail(database, {
     organizationId: input.organizationId,
-    recipientIds: [...new Set(input.recipientIds)],
+    recipientIds,
     ccRecipients,
     subject: input.subject,
     text: input.text,

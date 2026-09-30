@@ -4,11 +4,16 @@ export type AuditScheduleApprovalPdfInput = {
   title: string;
   subject: string;
   memo: string;
+  signatories?: {
+    preparedBy?: ApprovalSignatory | null;
+    reviewedBy?: ApprovalSignatory[];
+    approvedBy?: ApprovalSignatory | null;
+  };
   rows: Array<{
     title: string;
     fromDate: string;
     toDate: string;
-    auditType?: string;
+    auditCategory?: string;
     departmentProject?: string;
     ownerName?: string;
     auditNumber?: string;
@@ -19,10 +24,19 @@ export type AuditScheduleApprovalPdfInput = {
   }>;
 };
 
+type ApprovalSignatory = {
+  name: string;
+  designation?: string | null;
+  role?: string | null;
+  signatureDataUrl?: string | null;
+};
+
 const PAGE_WIDTH = 1684;
 const PAGE_HEIGHT = 1191;
-const MARGIN = 24;
-const BOTTOM = 24;
+const MARGIN = 18;
+const BOTTOM = 18;
+// The same logo embedded in the approved Audit Schedule download template.
+const PROGRAMME_LOGO_JPEG = "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";
 const PURPLE = rgb(0.91, 0.89, 0.95);
 const PALE_PURPLE = rgb(0.96, 0.95, 0.98);
 const ALT_ROW = rgb(0.98, 0.98, 0.99);
@@ -176,14 +190,15 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
   document.setSubject(printable(input.subject));
   const regular = await document.embedFont(StandardFonts.Helvetica);
   const bold = await document.embedFont(StandardFonts.HelveticaBold);
+  const logo = await document.embedJpg(Buffer.from(PROGRAMME_LOGO_JPEG, "base64"));
   const timeline = programmeTimeline(yearForRows(input.rows));
-  const fixedWidths = [150, 120, 100, 125, 110, 200, 140];
-  const remarksWidth = 150;
+  const fixedWidths = [105, 135, 100, 120, 105, 180, 130];
+  const remarksWidth = 130;
   const fixedWidth = fixedWidths.reduce((sum, width) => sum + width, 0);
   const timelineWidth = PAGE_WIDTH - MARGIN * 2 - fixedWidth - remarksWidth;
   const weekWidth = timelineWidth / timeline.totalSlots;
   const columnHeaders = [
-    "Business Category / Audit",
+    "Business Category",
     "Department / Project",
     "Process Owner",
     "Audit Number / Site Visit No",
@@ -192,7 +207,7 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
     "QA/QC Clauses",
   ];
   const rowValues = (row: ProgrammeRow) => [
-    [row.title, row.auditType].filter(Boolean).join(" / "),
+    row.auditCategory ?? row.title,
     row.departmentProject ?? "",
     row.ownerName ?? "",
     row.auditNumber ?? "",
@@ -225,7 +240,10 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
   page.drawText("Submitted Memo", { x: MARGIN, y: memoTop - 12, size: 11, font: bold });
   memoTop -= 21;
 
-  const memoLines = wrapText(printable(input.memo), regular, 10, PAGE_WIDTH - MARGIN * 2 - 16);
+  // Normalize characters per paragraph so line breaks in the submitted memo
+  // survive PDF font encoding instead of turning into question marks.
+  const memoText = String(input.memo ?? "").replace(/\r\n?/g, "\n").split("\n").map(printable).join("\n");
+  const memoLines = wrapText(memoText, regular, 10, PAGE_WIDTH - MARGIN * 2 - 16);
   const memoLineHeight = 13;
   let memoIndex = 0;
   while (memoIndex < memoLines.length) {
@@ -243,20 +261,36 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
     }
     memoIndex += count;
   }
-  memoTop -= 16;
-
-  const chartHeaderHeight = 62;
+  // A chart is always a fresh page: the submitted memo must stand alone, even
+  // when it is short enough to leave space beneath it.
+  const footerHeight = input.signatories
+    ? Math.max(112, 30 + (input.signatories.reviewedBy?.length ?? 0) * 62)
+    : 0;
+  const chartBottom = BOTTOM + footerHeight + (footerHeight ? 10 : 0);
   const minRowHeight = 34;
   const chartStart = (chartPage: PDFPage, top: number) => {
-    chartPage.drawText(`Audit Schedule Programme - ${yearForRows(input.rows)}`, {
-      x: MARGIN, y: top - 23, size: 15, font: bold, maxWidth: PAGE_WIDTH - MARGIN * 2,
+    const titleHeight = 44;
+    const headingLeftWidth = 128;
+    const headingRightWidth = 84;
+    const headingCenterWidth = PAGE_WIDTH - MARGIN * 2 - headingLeftWidth - headingRightWidth;
+    drawBorder(chartPage, MARGIN, top, headingLeftWidth, titleHeight);
+    drawBorder(chartPage, MARGIN + headingLeftWidth, top, headingCenterWidth, titleHeight);
+    drawBorder(chartPage, PAGE_WIDTH - MARGIN - headingRightWidth, top, headingRightWidth, titleHeight);
+    const logoHeight = 36;
+    const logoWidth = logoHeight * 180 / 59;
+    chartPage.drawImage(logo, {
+      x: MARGIN + (headingLeftWidth - logoWidth) / 2,
+      y: top - titleHeight + (titleHeight - logoHeight) / 2,
+      width: logoWidth,
+      height: logoHeight,
     });
-    const tableTop = top - 31;
+    drawCentered(chartPage, input.title, MARGIN + headingLeftWidth, top, headingCenterWidth, titleHeight, bold, 10);
+    const tableTop = top - titleHeight;
     let x = MARGIN;
     fixedWidths.forEach((width, index) => {
       drawBorder(chartPage, x, tableTop, width, 40, PURPLE);
-      const headerLines = wrapText(columnHeaders[index]!, bold, 7, width - 10);
-      drawLines(chartPage, headerLines.slice(0, 4), x, tableTop - 2, width, 36, bold, 7);
+      const headerLines = wrapText(columnHeaders[index]!, bold, 5.2, width - 10);
+      drawLines(chartPage, headerLines.slice(0, 4), x, tableTop, width, 40, bold, 5.2);
       x += width;
     });
     const timelineX = x;
@@ -278,15 +312,8 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
     return { y: headerBottom - 1, timelineX };
   };
 
-  // Keep the approval request and its programme together when practical. Longer memos
-  // flow to additional pages before the chart begins.
-  if (memoTop - BOTTOM >= chartHeaderHeight + minRowHeight) {
-    var chartPage = page;
-    var chartState = chartStart(chartPage, memoTop);
-  } else {
-    chartPage = addPage();
-    chartState = chartStart(chartPage, PAGE_HEIGHT - MARGIN);
-  }
+  let chartPage = addPage();
+  let chartState = chartStart(chartPage, PAGE_HEIGHT - MARGIN);
   const rowsToRender: Array<ProgrammeRow | null> = input.rows.length ? input.rows : [null];
   for (let rowIndex = 0; rowIndex < rowsToRender.length; rowIndex += 1) {
     const row = rowsToRender[rowIndex];
@@ -297,11 +324,11 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
     let lineOffset = 0;
     let fragmentIndex = 0;
     while (lineOffset < maxLineCount) {
-      if (chartState.y - BOTTOM < minRowHeight) {
+      if (chartState.y - chartBottom < minRowHeight) {
         chartPage = addPage();
         chartState = chartStart(chartPage, PAGE_HEIGHT - MARGIN);
       }
-      const availableHeight = chartState.y - BOTTOM;
+      const availableHeight = chartState.y - chartBottom;
       const maxFragmentLines = Math.floor((availableHeight - 8) / 9);
       if (maxFragmentLines < 1) {
         chartPage = addPage();
@@ -354,6 +381,44 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
       chartState.y = rowBottom;
       lineOffset += fragmentLines;
       fragmentIndex += 1;
+    }
+  }
+
+  if (input.signatories) {
+    const footerWidth = (PAGE_WIDTH - MARGIN * 2) / 3;
+    const groups = [
+      { label: "Prepared By", people: input.signatories.preparedBy ? [input.signatories.preparedBy] : [] },
+      { label: "Reviewed By", people: input.signatories.reviewedBy ?? [] },
+      { label: "Approved By", people: input.signatories.approvedBy ? [input.signatories.approvedBy] : [] },
+    ];
+    for (const [column, group] of groups.entries()) {
+      const x = MARGIN + column * footerWidth;
+      drawBorder(chartPage, x, BOTTOM + footerHeight, footerWidth, footerHeight);
+      chartPage.drawText(group.label, { x: x + 5, y: BOTTOM + footerHeight - 14, font: bold, size: 7 });
+      const personHeight = (footerHeight - 26) / Math.max(1, group.people.length);
+      for (const [index, person] of group.people.entries()) {
+        const top = BOTTOM + footerHeight - 23 - index * personHeight;
+        const match = /^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/]+=*)$/i.exec(person.signatureDataUrl ?? "");
+        if (match) {
+          const bytes = Buffer.from(match[2]!, "base64");
+          const image = match[1]!.toLowerCase() === "png"
+            ? await document.embedPng(bytes) : await document.embedJpg(bytes);
+          const scale = Math.min(100 / image.width, 18 / image.height);
+          chartPage.drawImage(image, {
+            x: x + (footerWidth - image.width * scale) / 2,
+            y: top - 28,
+            width: image.width * scale,
+            height: image.height * scale,
+          });
+        }
+        let y = top - 40;
+        for (const [lineIndex, value] of [person.name, person.designation, person.role].filter(Boolean).entries()) {
+          for (const line of wrapText(printable(value), lineIndex ? regular : bold, lineIndex ? 6 : 6.5, footerWidth - 14).slice(0, 2)) {
+            drawCentered(chartPage, line, x, y + 8, footerWidth, 9, lineIndex ? regular : bold, lineIndex ? 6 : 6.5);
+            y -= 9;
+          }
+        }
+      }
     }
   }
 

@@ -9,6 +9,7 @@ import type { EmailRecipientConfigSenderMode } from './emailRecipientConfigSende
 
 export interface EmailRecipientConfig {
   roleName?: string;
+  roleNames?: string[];
   projectIds?: string[];
   senderMode?: EmailRecipientConfigSenderMode;
 }

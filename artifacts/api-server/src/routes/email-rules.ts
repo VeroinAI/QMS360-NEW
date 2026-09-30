@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { auditAuditLogEntries, auditLogEntries, db, emailEventRules, lessonsAuditLogEntries, users } from "@workspace/db";
+import {
+  auditAuditLogEntries, auditLogEntries, auditWorkspaceRoles, db, emailEventRules,
+  lessonsAuditLogEntries, lessonsWorkspaceRoles, users, workspaceRoles,
+} from "@workspace/db";
 import { CreateEmailRuleBody, ReorderEmailRulesBody, SimulateEmailRuleBody, UpdateEmailRuleBody } from "@workspace/api-zod";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { asyncHandler, HttpError, writeAuditLog } from "../lib/workspace";
@@ -49,7 +52,12 @@ function validate(input: any) {
   if (input.recipientMode === "linked_creator" && !isLessonsFormEvent) throw new HttpError(422, "Linked Lessons creator is only available for Lessons Learned form events");
   if (input.recipientMode === "internal_user" && !input.receiverUserId) throw new HttpError(422, "Select an internal recipient");
   if (input.recipientMode === "external_email" && (!input.receiverName?.trim() || !emailPattern.test(input.receiverEmail ?? ""))) throw new HttpError(422, "Enter a valid external recipient name and email");
-  if (["workspace_role", "project_role"].includes(input.recipientMode) && !input.recipientConfig?.roleName?.trim()) throw new HttpError(422, "Enter a workspace role name");
+  const roleNames = [...new Set([
+    ...(input.recipientConfig?.roleNames ?? []),
+    ...(input.recipientConfig?.roleName ? [input.recipientConfig.roleName] : []),
+  ].map((name: string) => name.trim()).filter(Boolean))];
+  if (input.recipientMode === "workspace_role" && !roleNames.length) throw new HttpError(422, "Select at least one workspace role");
+  if (input.recipientMode === "project_role" && !input.recipientConfig?.roleName?.trim()) throw new HttpError(422, "Enter a workspace role name");
   if (["project_members", "project_role"].includes(input.recipientMode) && !input.recipientConfig?.projectIds?.length) throw new HttpError(422, "Select at least one project");
 }
 async function ensureUsers(org: string, ids: Array<string | null | undefined>) {
@@ -62,6 +70,16 @@ async function ensureUsers(org: string, ids: Array<string | null | undefined>) {
   if (rows.length !== wanted.length) throw new HttpError(422, "Receiver user must belong to this organization");
 }
 
+async function ensureWorkspaceRoles(org: string, app: string, names: string[]) {
+  const wanted = [...new Set(names.map((name) => name.trim()).filter(Boolean))];
+  if (!wanted.length) return;
+  const roles = app === "audit" ? auditWorkspaceRoles : app === "lessons" ? lessonsWorkspaceRoles : workspaceRoles;
+  const rows = await db.select({ name: roles.name }).from(roles).where(and(
+    eq(roles.organizationId, org), eq(roles.status, "active"), isNull(roles.deletedAt), inArray(roles.name, wanted),
+  ));
+  if (rows.length !== wanted.length) throw new HttpError(422, "Selected workspace roles must belong to this organization and application");
+}
+
 router.get("/email-rules", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const rows = await db.select().from(emailEventRules).where(and(eq(emailEventRules.organizationId, req.currentUser!.organizationId), isNull(emailEventRules.deletedAt))).orderBy(asc(emailEventRules.priority), asc(emailEventRules.createdAt));
   res.json(rows);
@@ -71,6 +89,12 @@ router.post("/email-rules", requireAuth, requireAdmin, asyncHandler(async (req, 
   if (!parsed.success) throw new HttpError(422, "Invalid email rule");
   validate(parsed.data);
   await ensureUsers(req.currentUser!.organizationId, [parsed.data.createdByUserId, parsed.data.receiverUserId]);
+  if (parsed.data.recipientMode === "workspace_role") {
+    await ensureWorkspaceRoles(req.currentUser!.organizationId, parsed.data.eventType.split(".")[0]!, [
+      ...(parsed.data.recipientConfig?.roleNames ?? []),
+      ...(parsed.data.recipientConfig?.roleName ? [parsed.data.recipientConfig.roleName] : []),
+    ]);
+  }
   const row = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`email-rules:${req.currentUser!.organizationId}`}))`);
     const [maximum] = await tx.select({ value: sql<number>`coalesce(max(${emailEventRules.priority}), -1)` })
@@ -97,6 +121,12 @@ router.patch("/email-rules/:id", requireAuth, requireAdmin, asyncHandler(async (
   if (!parsed.success) throw new HttpError(422, "Invalid email rule");
   validate(parsed.data);
   await ensureUsers(req.currentUser!.organizationId, [parsed.data.createdByUserId, parsed.data.receiverUserId]);
+  if (parsed.data.recipientMode === "workspace_role") {
+    await ensureWorkspaceRoles(req.currentUser!.organizationId, parsed.data.eventType.split(".")[0]!, [
+      ...(parsed.data.recipientConfig?.roleNames ?? []),
+      ...(parsed.data.recipientConfig?.roleName ? [parsed.data.recipientConfig.roleName] : []),
+    ]);
+  }
   const [row] = await db.update(emailEventRules).set({
     name: parsed.data.name.trim(), enabled: parsed.data.enabled, priority: parsed.data.priority,
     eventType: parsed.data.eventType, createdByUserId: bodyValue(parsed.data.createdByUserId),
@@ -137,6 +167,15 @@ router.post("/email-rules/reorder", requireAuth, requireAdmin, asyncHandler(asyn
 }));
 router.get("/email-rules/options/users", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const rows = await db.select({ id: users.id, fullName: users.fullName, email: users.email }).from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt))).orderBy(users.fullName);
+  res.json(rows);
+}));
+router.get("/email-rules/options/roles", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const app = String(req.query.app ?? "");
+  if (!["audit", "lessons", "qaqc"].includes(app)) throw new HttpError(422, "Select a valid application");
+  const roles = app === "audit" ? auditWorkspaceRoles : app === "lessons" ? lessonsWorkspaceRoles : workspaceRoles;
+  const rows = await db.select({ id: roles.id, name: roles.name }).from(roles).where(and(
+    eq(roles.organizationId, req.currentUser!.organizationId), eq(roles.status, "active"), isNull(roles.deletedAt),
+  )).orderBy(asc(roles.name));
   res.json(rows);
 }));
 router.get("/email-rules/catalog", requireAuth, requireAdmin, asyncHandler(async (req, res) => {

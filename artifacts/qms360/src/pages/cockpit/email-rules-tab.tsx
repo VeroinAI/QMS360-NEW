@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getListEmailRulesQueryKey,
-  useListEmailRules, useCreateEmailRule, useUpdateEmailRule, useDeleteEmailRule,
+  useListEmailRules, useCreateEmailRule, useUpdateEmailRule, useDeleteEmailRule, useEmailRuleRoleOptions,
   useReorderEmailRules, useEmailRuleEventCatalog, useEmailRuleUserOptions,
   useListPlatformProjects,
   useSimulateEmailRule,
@@ -215,7 +215,9 @@ function EmailRulesList() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {isAuditApprovalEvent(rule.eventType) ? (
+                    {rule.eventType === 'audit.audit_programme.approved_final' && rule.recipientMode === 'workspace_role' ? (
+                      <span className="text-sm">Final approval email to selected workspace roles: {(rule.recipientConfig?.roleNames ?? (rule.recipientConfig?.roleName ? [rule.recipientConfig.roleName] : [])).join(', ')}</span>
+                    ) : isAuditApprovalEvent(rule.eventType) ? (
                       <span className="text-sm">{isAuditSendBackEvent(rule.eventType) ? 'Schedule creator; CC: approvers who acted in this submission (including sender)' : 'Approval workflow participants'} (recipient mode ignored)</span>
                     ) : rule.recipientMode === 'linked_approver' ? (
                       <span className="text-sm">Send from form creator to linked approver</span>
@@ -286,10 +288,17 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
     receiverName: rule?.receiverName ?? '',
     receiverEmail: rule?.receiverEmail ?? '',
     roleName: rule?.recipientConfig?.roleName ?? '',
+    roleNames: rule?.recipientConfig?.roleNames ?? (rule?.recipientConfig?.roleName ? [rule.recipientConfig.roleName] : []),
     projectId: rule?.recipientConfig?.projectIds?.[0] ?? '',
   });
 
   const set = (patch: Partial<typeof draft>) => setDraft(d => ({ ...d, ...patch }));
+  const eventApp = draft.eventType.split('.')[0] ?? '';
+  const hasRoleApplication = ['audit', 'lessons', 'qaqc'].includes(eventApp);
+  const roleOptionsQuery = useEmailRuleRoleOptions(
+    { app: (hasRoleApplication ? eventApp : 'qaqc') as 'audit' | 'lessons' | 'qaqc' },
+    { query: { enabled: draft.receiverMode === 'role' && hasRoleApplication, queryKey: ['email-rules-role-options', eventApp] } },
+  );
 
   const save = () => {
     const payload = {
@@ -311,7 +320,8 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
       recipientConfig: {
         ...(draft.receiverMode === 'linked_approver' ? { senderMode: 'form_creator' as const } : {}),
         ...(draft.receiverMode === 'linked_creator' ? { senderMode: 'approving_user' as const } : {}),
-        ...(draft.receiverMode === 'role' || draft.receiverMode === 'project_role' ? { roleName: draft.roleName.trim() } : {}),
+        ...(draft.receiverMode === 'role' ? { roleNames: [...new Set(draft.roleNames)] } : {}),
+        ...(draft.receiverMode === 'project_role' ? { roleName: draft.roleName.trim() } : {}),
         ...(draft.receiverMode === 'project' || draft.receiverMode === 'project_role' ? { projectIds: draft.projectId ? [draft.projectId] : [] } : {}),
       },
     };
@@ -320,7 +330,11 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
       toast({ title: 'Validation error', description: 'External recipient requires both name and email.', variant: 'destructive' });
       return;
     }
-    if ((draft.receiverMode === 'role' || draft.receiverMode === 'project_role') && !draft.roleName.trim()) {
+    if (draft.receiverMode === 'role' && !draft.roleNames.length) {
+      toast({ title: 'Validation error', description: 'Select at least one application workspace role.', variant: 'destructive' });
+      return;
+    }
+    if (draft.receiverMode === 'project_role' && !draft.roleName.trim()) {
       toast({ title: 'Validation error', description: 'Enter a workspace role name.', variant: 'destructive' });
       return;
     }
@@ -408,7 +422,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
           <div className="space-y-4 rounded-lg border p-4 bg-muted/20">
             <h4 className="font-semibold text-sm">{isApprovalEvent ? 'Approval email behavior' : 'Action (Then send to)'}</h4>
             <div className="space-y-3">
-              {isApprovalEvent ? (
+              {isApprovalEvent && draft.eventType !== 'audit.audit_programme.approved_final' ? (
                 <p className="text-sm text-muted-foreground">
                    {isAuditSendBackEvent(draft.eventType)
                      ? 'Send-back email goes to the schedule creator with reviewer comments. Only people who already approved this submission and the approver sending it back are CC’d; pending approvers are excluded.'
@@ -416,6 +430,9 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                 </p>
               ) : (
                 <>
+              {draft.eventType === 'audit.audit_programme.approved_final' && (
+                <p className="text-sm text-muted-foreground">With no matching rule or any recipient mode other than workspace roles, the final approval email keeps its workflow participant audience. Selecting workspace roles replaces that audience for this event only; submit, approve, and send-back recipients are unchanged.</p>
+              )}
               <div>
                 <Label>Recipient mode</Label>
                 <Select value={draft.receiverMode} onValueChange={v => set({ receiverMode: v as typeof draft.receiverMode })}>
@@ -464,7 +481,31 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                   </div>
                 </div>
               )}
-              {(draft.receiverMode === 'role' || draft.receiverMode === 'project_role') && (
+              {draft.receiverMode === 'role' && (
+                <div className="space-y-2">
+                  <Label>Application workspace roles</Label>
+                  {!hasRoleApplication && <p className="text-sm text-destructive">Select an event with a supported application before choosing roles.</p>}
+                  {roleOptionsQuery.isLoading && <p className="text-sm text-muted-foreground">Loading {eventApp.toUpperCase()} roles...</p>}
+                  {roleOptionsQuery.error && <p className="text-sm text-destructive">{message(roleOptionsQuery.error)}</p>}
+                  {!roleOptionsQuery.isLoading && !roleOptionsQuery.error && roleOptionsQuery.data?.length === 0 && hasRoleApplication && <p className="text-sm text-muted-foreground">No active workspace roles are available for this application.</p>}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {roleOptionsQuery.data?.map(role => (
+                      <label key={role.id} className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={draft.roleNames.includes(role.name)}
+                          onChange={event => set({ roleNames: event.target.checked
+                            ? [...new Set([...draft.roleNames, role.name])]
+                            : draft.roleNames.filter(name => name !== role.name) })}
+                        />
+                        {role.name}
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Users assigned any selected active role in the event’s application will receive the email.</p>
+                </div>
+              )}
+              {draft.receiverMode === 'project_role' && (
                 <div><Label>Workspace role name</Label><Input className="mt-2" value={draft.roleName} onChange={e => set({ roleName: e.target.value })} placeholder="e.g. Auditor, QA/QC Manager" /><p className="mt-1 text-xs text-muted-foreground">The role is resolved in the application selected by the event type.</p></div>
               )}
               {(draft.receiverMode === 'project' || draft.receiverMode === 'project_role') && (

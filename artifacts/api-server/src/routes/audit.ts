@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { PDFDocument } from "pdf-lib";
+import sharp from "sharp";
 import * as Api from "@workspace/api-zod";
 import { allocateReferenceNumber, hasNumberingPattern } from "../lib/numbering";
 import {
@@ -41,7 +42,7 @@ import { asyncHandler, HttpError, listNotifications, notify, paginated, paginati
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
-import { renderAuditScheduleApprovalPdf } from "../lib/audit-schedule-approval-pdf";
+import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
 import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-attachments";
 
 const router = Router();
@@ -974,6 +975,79 @@ router.get("/programmes/:id/signatories", asyncHandler(async (req, res) => {
   res.json({ preparedBy, reviewedBy, approvedBy });
 }));
 
+/** Build the signatory strip for the approval that is about to become final.
+ * The final review is not yet in the audit log, so include the current reviewer. */
+async function finalProgrammePdfSignatories(
+  organizationId: string, programme: AnyRow, finalReviewerId: string,
+): Promise<NonNullable<AuditScheduleApprovalPdfInput["signatories"]>> {
+  const meta = scheduleMeta(programme);
+  const roles = meta.approvalRoles ?? [];
+  const history = await db.select({
+    action: auditAuditLogEntries.action,
+    actorId: auditAuditLogEntries.actorId,
+    before: auditAuditLogEntries.before,
+  }).from(auditAuditLogEntries).where(and(
+    eq(auditAuditLogEntries.organizationId, organizationId),
+    eq(auditAuditLogEntries.entityType, "audit_programme"),
+    eq(auditAuditLogEntries.entityId, programme.id),
+  )).orderBy(asc(auditAuditLogEntries.createdAt), asc(auditAuditLogEntries.id));
+  let latestSubmit = -1;
+  for (const [index, entry] of history.entries()) {
+    if (entry.action === "submit") latestSubmit = index;
+  }
+  const reviews = history.slice(latestSubmit + 1).filter(entry => entry.action === "approve" && entry.actorId)
+    .map(entry => ({
+      id: entry.actorId!,
+      index: parseJson<ScheduleMeta>((entry.before as AnyRow | null)?.status, {}).approvalIndex ?? -1,
+    })).filter(entry => entry.index >= 0 && entry.index < roles.length - 1);
+  const ids = [...new Set([
+    programme.ownerId, ...reviews.map(review => review.id), finalReviewerId,
+  ].filter((id): id is string => Boolean(id)))];
+  const people = ids.length ? await db.select({
+    id: users.id, name: users.fullName, designation: users.designation, signaturePath: users.signaturePath,
+  }).from(users).where(and(eq(users.organizationId, organizationId), inArray(users.id, ids))) : [];
+  const byId = new Map(people.map(person => [person.id, person]));
+  const [ownerRole] = programme.ownerId ? await db.select({ name: auditWorkspaceRoles.name })
+    .from(auditUserWorkspaceRoles).innerJoin(auditWorkspaceRoles, and(
+      eq(auditWorkspaceRoles.id, auditUserWorkspaceRoles.workspaceRoleId),
+      eq(auditWorkspaceRoles.organizationId, organizationId),
+      eq(auditWorkspaceRoles.status, "active"), isNull(auditWorkspaceRoles.deletedAt),
+    )).where(and(
+      eq(auditUserWorkspaceRoles.organizationId, organizationId),
+      eq(auditUserWorkspaceRoles.userId, programme.ownerId),
+      eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
+    )).orderBy(asc(auditWorkspaceRoles.name)).limit(1) : [];
+  const make = async (id: string, role: string) => {
+    const person = byId.get(id);
+    if (!person) return null;
+    let signatureDataUrl: string | null = null;
+    if (person.signaturePath) {
+      const object = await getObject(person.signaturePath.startsWith("gcs:")
+        ? person.signaturePath.slice(4) : person.signaturePath);
+      const mime = object.headers.get("content-type");
+      if (mime === "image/png" || mime === "image/jpeg") {
+        signatureDataUrl = `data:${mime};base64,${Buffer.from(await object.arrayBuffer()).toString("base64")}`;
+      } else if (mime === "image/webp") {
+        const jpeg = await sharp(Buffer.from(await object.arrayBuffer()))
+          .flatten({ background: "#fff" })
+          .resize(180, 59, { fit: "contain", background: "#fff" })
+          .jpeg({ quality: 92 }).toBuffer();
+        signatureDataUrl = `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+      } else {
+        throw new HttpError(500, "Stored signature has an invalid content type");
+      }
+    }
+    return { name: person.name, designation: person.designation, role, signatureDataUrl };
+  };
+  return {
+    preparedBy: programme.ownerId ? await make(programme.ownerId, ownerRole?.name ?? "Prepared by") : null,
+    reviewedBy: (await Promise.all(reviews.map(review =>
+      make(review.id, roles[review.index]?.name ?? "Reviewed by"))))
+      .filter((person): person is NonNullable<typeof person> => person !== null),
+    approvedBy: await make(finalReviewerId, roles.at(-1)?.name ?? "Approved by"),
+  };
+}
+
 router.delete("/programmes/:id", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditSchedules).where(and(
     active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id)),
@@ -1099,11 +1173,12 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
     actor(req).organizationId, before.id,
     await renderAuditScheduleApprovalPdf({
       title: before.title, subject: meta.submissionSubject ?? before.title, memo: meta.submissionMailBody ?? "",
+      signatories: await finalProgrammePdfSignatories(actor(req).organizationId, before, actor(req).id),
       rows: childrenForPdf.map(child => {
         const detail = scheduleMeta(child);
         return {
           title: child.title, fromDate: detail.plannedStartDate ?? "", toDate: detail.plannedEndDate ?? "",
-          auditType: detail.auditTypes?.join(", ") ?? "", departmentProject: detail.departmentProject ?? "",
+          auditCategory: detail.auditCategory ?? "", departmentProject: detail.departmentProject ?? "",
           ownerName: detail.processProductOwner ?? "", auditNumber: detail.auditNumber ?? "",
           qaqcReference: detail.qaqcReference ?? "", scope: detail.qaqcScope ?? "",
           clauses: detail.qaqcClauses ?? "", remarks: detail.remarks ?? "",
@@ -1526,7 +1601,7 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
       title: before.title, subject: detail.submissionSubject ?? before.title, memo: detail.submissionMailBody ?? "",
       rows: [{
         title: before.title, fromDate: detail.plannedStartDate ?? "", toDate: detail.plannedEndDate ?? "",
-        auditType: detail.auditTypes?.join(", ") ?? "", departmentProject: detail.departmentProject ?? "",
+        auditCategory: detail.auditCategory ?? "", departmentProject: detail.departmentProject ?? "",
         ownerName: detail.processProductOwner ?? "", auditNumber: detail.auditNumber ?? "",
         qaqcReference: detail.qaqcReference ?? "", scope: detail.qaqcScope ?? "",
         clauses: detail.qaqcClauses ?? "", remarks: detail.remarks ?? "",

@@ -3,25 +3,30 @@ import { inflateSync } from "node:zlib";
 import { PDFDocument } from "pdf-lib";
 import { renderAuditScheduleApprovalPdf } from "./audit-schedule-approval-pdf";
 
-function decodedPageText(pdf: Buffer) {
+function decodedStreams(pdf: Buffer) {
   const source = pdf.toString("latin1");
-  const streams = [...source.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)]
+  return [...source.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)]
     .map(match => {
       try { return inflateSync(Buffer.from(match[1]!, "latin1")).toString("latin1"); } catch { return ""; }
-    })
-    .join("\n");
-  return streams.replace(/<([0-9A-Fa-f]+)>/g, (_match, hex: string) => Buffer.from(hex, "hex").toString("latin1"));
+    }).map(stream => stream.replace(/<([0-9A-Fa-f]+)>/g, (_match, hex: string) =>
+      Buffer.from(hex, "hex").toString("latin1")));
 }
+const decodedPageText = (pdf: Buffer) => decodedStreams(pdf).join("\n");
 
 describe("renderAuditScheduleApprovalPdf", () => {
-  it("renders memo, subject, and the ISO-week programme on one page for a short approval", async () => {
+  it("places the memo on page one and the approved chart with signatories on page two", async () => {
     const pdf = await renderAuditScheduleApprovalPdf({
       title: "Annual Audit Programme",
       subject: "Approval requested",
-      memo: "Please review the proposed schedule.",
+      memo: "Please review the proposed schedule.\n\nRegards,\nThe Audit Team",
+      signatories: {
+        preparedBy: { name: "P. Creator", role: "Audit Program Manager" },
+        reviewedBy: [{ name: "A. Reviewer", role: "QA Manager" }],
+        approvedBy: { name: "F. Approver", role: "CEO" },
+      },
       rows: [{
         title: "Supplier audit",
-        auditType: "Quality Internal Process Audit",
+        auditCategory: "Supplier audit",
         fromDate: "2026-02-02",
         toDate: "2026-02-13",
         departmentProject: "Operations",
@@ -35,11 +40,23 @@ describe("renderAuditScheduleApprovalPdf", () => {
     });
     const parsed = await PDFDocument.load(pdf);
     expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
-    expect(parsed.getPageCount()).toBe(1);
+    expect(parsed.getPageCount()).toBe(2);
     expect(parsed.getTitle()).toBe("Annual Audit Programme");
     expect(parsed.getSubject()).toBe("Approval requested");
     expect(parsed.getPages()[0]!.getSize()).toEqual({ width: 1684, height: 1191 });
     expect(decodedPageText(pdf)).toContain("Supplier audit");
+    expect(decodedPageText(pdf)).toContain("Prepared By");
+    expect(decodedPageText(pdf)).toContain("Reviewed By");
+    expect(decodedPageText(pdf)).toContain("Approved By");
+    expect(decodedPageText(pdf)).toContain("F. Approver");
+    const memoStream = decodedStreams(pdf).find(stream => stream.includes("Submitted Memo"));
+    const chartStream = decodedStreams(pdf).find(stream => stream.includes("Business Category"));
+    expect(memoStream).toContain("Please review the proposed schedule.");
+    expect(memoStream).toContain("Regards,");
+    expect(memoStream).toContain("The Audit Team");
+    expect(memoStream).not.toContain("Business Category");
+    expect(chartStream).toContain("F. Approver");
+    expect(chartStream).not.toContain("Submitted Memo");
   });
 
   it("flows the entire submitted memo across pages before rendering the schedule", async () => {
@@ -62,7 +79,7 @@ describe("renderAuditScheduleApprovalPdf", () => {
     const text = decodedPageText(pdf);
     expect(text).toContain("Memo paragraph 1:");
     expect(text).toContain("Memo paragraph 1800:");
-    expect(text).toContain("Audit Schedule Programme - 2025");
+    expect(text).toContain("Long-running audit");
   });
 
   it("supports empty schedules and malformed dates without failing", async () => {
@@ -73,7 +90,7 @@ describe("renderAuditScheduleApprovalPdf", () => {
       rows: [],
     });
     const emptyParsed = await PDFDocument.load(emptyPdf);
-    expect(emptyParsed.getPageCount()).toBe(1);
+    expect(emptyParsed.getPageCount()).toBe(2);
     expect(decodedPageText(emptyPdf)).toContain("No audit schedule rows");
 
     const malformedPdf = await renderAuditScheduleApprovalPdf({
@@ -87,7 +104,7 @@ describe("renderAuditScheduleApprovalPdf", () => {
       }],
     });
     const parsed = await PDFDocument.load(malformedPdf);
-    expect(parsed.getPageCount()).toBe(1);
+    expect(parsed.getPageCount()).toBe(2);
     expect(decodedPageText(malformedPdf)).toContain("Unscheduled");
   });
 });

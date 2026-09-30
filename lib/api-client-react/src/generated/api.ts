@@ -95,6 +95,8 @@ import type {
   EmailEventRuleInput,
   EmailRuleEventOption,
   EmailRuleOrderInput,
+  EmailRuleRoleOption,
+  EmailRuleRoleOptionsParams,
   EmailRuleSimulationInput,
   EmailRuleSimulationResult,
   EmailRuleUserOption,
@@ -22860,6 +22862,84 @@ export function useEmailRuleUserOptions<TData = Awaited<ReturnType<typeof emailR
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getEmailRuleUserOptionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getEmailRuleRoleOptionsUrl = (params: EmailRuleRoleOptionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/email-rules/options/roles?${stringifiedParams}` : `/api/email-rules/options/roles`
+}
+
+export const emailRuleRoleOptions = async (params: EmailRuleRoleOptionsParams, options?: Parameters<typeof customFetch>[1]): Promise<EmailRuleRoleOption[]> => {
+
+  return customFetch<EmailRuleRoleOption[]>(getEmailRuleRoleOptionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getEmailRuleRoleOptionsQueryKey = (params?: EmailRuleRoleOptionsParams,) => {
+    return [
+    `/api/email-rules/options/roles`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getEmailRuleRoleOptionsQueryOptions = <TData = Awaited<ReturnType<typeof emailRuleRoleOptions>>, TError = ErrorType<unknown>>(params: EmailRuleRoleOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof emailRuleRoleOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getEmailRuleRoleOptionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof emailRuleRoleOptions>>> = ({ signal }) => emailRuleRoleOptions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof emailRuleRoleOptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type EmailRuleRoleOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof emailRuleRoleOptions>>>
+export type EmailRuleRoleOptionsQueryError = ErrorType<unknown>
+
+
+
+export function useEmailRuleRoleOptions<TData = Awaited<ReturnType<typeof emailRuleRoleOptions>>, TError = ErrorType<unknown>>(
+ params: EmailRuleRoleOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof emailRuleRoleOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getEmailRuleRoleOptionsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

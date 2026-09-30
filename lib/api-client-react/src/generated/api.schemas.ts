@@ -29,6 +29,7 @@ export const EmailRecipientConfigSenderMode = {
 
 export interface EmailRecipientConfig {
   roleName?: string;
+  roleNames?: string[];
   projectIds?: string[];
   senderMode?: EmailRecipientConfigSenderMode;
 }
@@ -85,6 +86,11 @@ export interface EmailEventRuleInput {
   receiverName?: string | null;
   /** @nullable */
   receiverEmail?: string | null;
+}
+
+export interface EmailRuleRoleOption {
+  id: string;
+  name: string;
 }
 
 export interface EmailRuleOrderInput {
@@ -4214,4 +4220,17 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 };
+
+export type EmailRuleRoleOptionsParams = {
+app: EmailRuleRoleOptionsApp;
+};
+
+export type EmailRuleRoleOptionsApp = typeof EmailRuleRoleOptionsApp[keyof typeof EmailRuleRoleOptionsApp];
+
+
+export const EmailRuleRoleOptionsApp = {
+  audit: 'audit',
+  lessons: 'lessons',
+  qaqc: 'qaqc',
+} as const;
 

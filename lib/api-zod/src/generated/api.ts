@@ -9718,6 +9718,7 @@ export const ListEmailRulesResponseItem = zod.object({
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
+  "roleNames": zod.array(zod.string()).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional()
 }).optional(),
@@ -9743,6 +9744,7 @@ export const CreateEmailRuleBody = zod.object({
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
+  "roleNames": zod.array(zod.string()).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional()
 }).optional(),
@@ -9765,6 +9767,7 @@ export const CreateEmailRuleResponse = zod.object({
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
+  "roleNames": zod.array(zod.string()).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional()
 }).optional(),
@@ -9793,6 +9796,7 @@ export const UpdateEmailRuleBody = zod.object({
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
+  "roleNames": zod.array(zod.string()).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional()
 }).optional(),
@@ -9815,6 +9819,7 @@ export const UpdateEmailRuleResponse = zod.object({
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
+  "roleNames": zod.array(zod.string()).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional()
 }).optional(),
@@ -9849,6 +9854,7 @@ export const ReorderEmailRulesResponseItem = zod.object({
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
+  "roleNames": zod.array(zod.string()).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional()
 }).optional(),
@@ -9874,6 +9880,17 @@ export const EmailRuleUserOptionsResponseItem = zod.object({
 export const EmailRuleUserOptionsResponse = zod.array(EmailRuleUserOptionsResponseItem)
 
 
+export const EmailRuleRoleOptionsQueryParams = zod.object({
+  "app": zod.enum(['audit', 'lessons', 'qaqc'])
+})
+
+export const EmailRuleRoleOptionsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})
+export const EmailRuleRoleOptionsResponse = zod.array(EmailRuleRoleOptionsResponseItem)
+
+
 export const SimulateEmailRuleBody = zod.object({
   "eventType": zod.string(),
   "createdByUserId": zod.string().optional()
@@ -9895,6 +9912,7 @@ export const SimulateEmailRuleResponse = zod.object({
   "recipientMode": zod.enum(['all_users', 'internal_user', 'external_email', 'workspace_role', 'project_members', 'project_role', 'linked_approver', 'linked_creator']),
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
+  "roleNames": zod.array(zod.string()).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional()
 }).optional(),
