@@ -243,7 +243,7 @@ export function requirePermission(
   appKey: AppKey,
   module: string,
   action: PermissionAction,
-  options: { allowAuditScheduleDataEntry?: boolean } = {},
+  options: { allowAuditScheduleDataEntry?: boolean; allowAuditProgrammeCreate?: boolean } = {},
 ) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const user = req.currentUser;
@@ -274,7 +274,12 @@ export function requirePermission(
     const matching = rows.filter((r: any) => {
       const key = String(r.key ?? "").toLowerCase();
       const normalized = module.toLowerCase();
+      // Programmes have no project of their own, so the dedicated create grant
+      // must come from an organization-wide assignment.
+      const programmeCreate = appKey === "audit" && options.allowAuditProgrammeCreate
+        && key === "create_audit_programme" && !r.projectIds?.length && !r.businessUnitIds?.length;
       return isAdminName(String(r.roleName ?? "")) || capability.includes(key) || key === normalized
+        || programmeCreate
         || capability.some((primitive) => key === `${normalized}.${primitive}` || key === `${normalized}_${primitive}`);
     });
     const granted = matching.reduce<PermissionAction | undefined>((best, row: any) => {

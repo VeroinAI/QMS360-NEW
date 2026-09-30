@@ -56,6 +56,7 @@ for (const [path, module] of auditModules) {
   router.use(path, (req, res, next) => {
     // This single mutation uses the Audit Program Manager marker, not create/edit.
     if (path === "/programmes" && req.method === "PATCH" && /\/programmes\/[^/]+\/team-leads\/?(?:\?|$)/.test(req.originalUrl)) return next();
+    const programmeCreate = path === "/programmes" && req.method === "POST" && req.path === "/";
     // The Audit role editor stores "Create / edit schedules" as data_entry.
     // Honor it only on the schedule create/update endpoints, not programme,
     // approval, feasibility or delete mutations that also live under schedules.
@@ -65,6 +66,7 @@ for (const [path, module] of auditModules) {
     );
     return requirePermission("audit", module, req.method === "GET" ? "select" : "full", {
       allowAuditScheduleDataEntry: scheduleWrite,
+      allowAuditProgrammeCreate: programmeCreate,
     })(req, res, next);
   });
 }

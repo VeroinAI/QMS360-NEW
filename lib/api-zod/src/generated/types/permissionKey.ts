@@ -11,6 +11,7 @@ export type PermissionKey = typeof PermissionKey[keyof typeof PermissionKey];
 
 export const PermissionKey = {
   data_entry: 'data_entry',
+  create_audit_programme: 'create_audit_programme',
   submit: 'submit',
   approve_reject: 'approve_reject',
   view_own_scope: 'view_own_scope',

@@ -224,6 +224,52 @@ describe("Audit schedule create/edit permission", () => {
       expect(response.json.error).toBe("This action is not permitted for your role");
     }
   });
+
+  it("allows an organization-wide Programme creator without granting other Audit writes", async () => {
+    const roleId = crypto.randomUUID();
+    const programmePermission = { key: "create_audit_programme", name: "Create Audit Programme" };
+    const created = await api("POST", "/audit/admin/roles", {
+      id: roleId, name: `Programme Creator ${suffix}`, description: "Can start programmes",
+      permissions: [programmePermission], active: true, systemDefault: false,
+    });
+    expect(created.status).toBe(201);
+    expect(created.json.permissions).toContainEqual(programmePermission);
+    const listed = await api("GET", "/audit/admin/roles?limit=200");
+    expect(listed.json.items.find((role: { id: string }) => role.id === roleId)?.permissions)
+      .toContainEqual(programmePermission);
+
+    const [orgUser, scopedUser] = await db.insert(users).values([
+      { organizationId, email: `programme-creator.${suffix}@example.test`, username: `programme-creator.${suffix}`, fullName: "Programme Creator" },
+      { organizationId, email: `scoped-programme-creator.${suffix}@example.test`, username: `scoped-programme-creator.${suffix}`, fullName: "Scoped Programme Creator" },
+    ]).returning();
+    const [project] = await db.insert(projects).values({
+      organizationId, code: `PC${suffix}`, name: "Scoped creator project",
+    }).returning();
+    await db.insert(auditUserWorkspaceRoles).values([
+      { organizationId, userId: orgUser!.id, workspaceRoleId: roleId },
+      { organizationId, userId: scopedUser!.id, workspaceRoleId: roleId, projectIds: [project!.id] },
+    ]);
+    await db.insert(applicationAccess).values([
+      { organizationId, username: orgUser!.username, canOpenAudit: true },
+      { organizationId, username: scopedUser!.username, canOpenAudit: true },
+    ]);
+
+    const token = issueToken(orgUser!);
+    // A 422 proves that the request passed permission checks and reached body validation.
+    expect((await api("POST", "/audit/programmes", {}, token)).status).toBe(422);
+    for (const [method, path] of [
+      ["POST", "/audit/schedules"],
+      ["POST", `/audit/programmes/${crypto.randomUUID()}/submit`],
+      ["DELETE", `/audit/programmes/${crypto.randomUUID()}`],
+      ["POST", "/audit/plans"],
+    ]) {
+      const response = await api(method, path, {}, token);
+      expect(response.status, `${method} ${path}`).toBe(403);
+    }
+    // A project-limited assignment cannot create a projectless parent programme.
+    const scoped = await api("POST", "/audit/programmes", {}, issueToken(scopedUser!));
+    expect(scoped.status).toBe(403);
+  });
 });
 
 describe("Audit access queue for role holders without access rows", () => {
