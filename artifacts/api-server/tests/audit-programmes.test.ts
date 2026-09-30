@@ -41,9 +41,9 @@ async function permission(key: string) {
   return row!;
 }
 
-async function role(name: string, permissionIds: string[]) {
+async function role(name: string, permissionIds: string[], roleAuthorizationLevel?: number) {
   const [row] = await db.insert(auditWorkspaceRoles).values({
-    organizationId: orgId, name,
+    organizationId: orgId, name, roleAuthorizationLevel,
   }).returning();
   await db.insert(auditWorkspaceRolePermissions).values(permissionIds.map(permissionId => ({
     organizationId: orgId, workspaceRoleId: row!.id, permissionId, grant: "full",
@@ -102,8 +102,8 @@ beforeAll(async () => {
   const submit = await permission("submit");
   const teamLead = await permission("audit_team_lead");
   const creatorRole = await role("Audit Contributor", [create.id, view.id, submit.id, teamLead.id]);
-  const l1Role = await role("L1 Programme Approver", [approve.id, view.id]);
-  const l2Role = await role("L2 Programme Approver", [approve.id, view.id]);
+  const l1Role = await role("L1 Programme Approver", [approve.id, view.id], 1);
+  const l2Role = await role("L2 Programme Approver", [approve.id, view.id], 2);
   await assign(creator.id, creatorRole.id);
   await assign(l1.id, l1Role.id);
   await assign(l2.id, l2Role.id);
@@ -413,6 +413,169 @@ describe("audit programme parent/child workflow", () => {
     expect(submitted.status).toBe(422);
   });
 
+  it("validates approval role levels on create and update without changing roles or permissions", async () => {
+    const approvalPermissions = [
+      { key: "approve_reject", name: "Approve / reject" },
+      { key: "view_all", name: "View all" },
+    ];
+    const initialRoles = await api("GET", "/admin/roles", admin.token);
+    const contributor = initialRoles.json.items.find((item: { name: string }) => item.name === "Audit Contributor");
+    expect(contributor).toBeTruthy();
+    const initialContributor = {
+      roleAuthorizationLevel: contributor.roleAuthorizationLevel,
+      permissions: contributor.permissions,
+    };
+    const invalidLevels: Array<number | undefined> = [undefined, 1.5, 0, 2147483648];
+
+    for (const level of invalidLevels) {
+      const name = `Invalid Approval Role ${String(level ?? "missing")}`;
+      const body = {
+        id: crypto.randomUUID(), name, roleAuthorizationLevel: level, active: true,
+        permissions: approvalPermissions,
+      };
+      const created = await api("POST", "/admin/roles", admin.token, body);
+      expect(created.status).toBe(422);
+      const rolesAfterCreate = await api("GET", "/admin/roles", admin.token);
+      expect(rolesAfterCreate.json.items.some((item: { name: string }) => item.name === name)).toBe(false);
+
+      const updated = await api("PUT", `/admin/roles/${contributor.id}`, admin.token, {
+        ...body, id: contributor.id, name: contributor.name,
+      });
+      expect(updated.status).toBe(422);
+      const rolesAfterUpdate = await api("GET", "/admin/roles", admin.token);
+      const unchanged = rolesAfterUpdate.json.items.find((item: { id: string }) => item.id === contributor.id);
+      expect(unchanged).toMatchObject(initialContributor);
+    }
+  });
+
+  it("roundtrips approval levels and clears the level when approval permission is removed", async () => {
+    const created = await api("POST", "/admin/roles", admin.token, {
+      id: crypto.randomUUID(),
+      name: "Level Seven Approval Role",
+      description: "Explicit approval level",
+      roleAuthorizationLevel: 7,
+      permissions: [{ key: "approve_reject", name: "Approve / reject" }],
+      active: true,
+    });
+    expect(created.status).toBe(201);
+    expect(created.json.roleAuthorizationLevel).toBe(7);
+
+    const listed = await api("GET", "/admin/roles", admin.token);
+    expect(listed.json.items.find((item: { id: string }) => item.id === created.json.id).roleAuthorizationLevel).toBe(7);
+
+    const nonApproval = await api("POST", "/admin/roles", admin.token, {
+      id: crypto.randomUUID(),
+      name: "No Approval Level Required",
+      permissions: [{ key: "view_all", name: "View all" }],
+      active: true,
+    });
+    expect(nonApproval.status).toBe(201);
+    expect(nonApproval.json.roleAuthorizationLevel).toBeNull();
+
+    const cleared = await api("PUT", `/admin/roles/${created.json.id}`, admin.token, {
+      id: created.json.id,
+      name: created.json.name,
+      description: created.json.description,
+      permissions: [{ key: "view_all", name: "View all" }],
+      active: true,
+    });
+    expect(cleared.status).toBe(200);
+    expect(cleared.json.roleAuthorizationLevel).toBeNull();
+  });
+
+  it("preserves the order of existing L-number approver roles when their levels have not been migrated", async () => {
+    const approve = await permission("approve_reject");
+    const legacy = await role("Legacy L8 Approver", [approve.id]);
+    try {
+      expect(legacy.roleAuthorizationLevel).toBeNull();
+      const listed = await api("GET", "/admin/roles", admin.token);
+      expect(listed.status).toBe(200);
+      expect(listed.json.items.find((item: { id: string }) => item.id === legacy.id).roleAuthorizationLevel).toBe(8);
+      const [stored] = await db.select({ level: auditWorkspaceRoles.roleAuthorizationLevel })
+        .from(auditWorkspaceRoles).where(eq(auditWorkspaceRoles.id, legacy.id));
+      expect(stored?.level).toBe(8);
+    } finally {
+      await db.update(auditWorkspaceRoles).set({ status: "inactive" }).where(eq(auditWorkspaceRoles.id, legacy.id));
+    }
+  });
+
+  it("uses explicit role levels for programme and schedule snapshots despite role names", async () => {
+    const listed = await api("GET", "/admin/roles", admin.token);
+    const originalL1 = listed.json.items.find((item: { name: string }) => item.name === "L1 Programme Approver");
+    const originalL2 = listed.json.items.find((item: { name: string }) => item.name === "L2 Programme Approver");
+    expect(originalL1).toBeTruthy();
+    expect(originalL2).toBeTruthy();
+
+    const initialL1 = originalL1!;
+    const initialL2 = originalL2!;
+    const updateRole = async (role: typeof initialL1, name: string, level: number) => api(
+      "PUT", `/admin/roles/${role.id}`, admin.token, {
+        id: role.id,
+        name,
+        description: role.description,
+        roleAuthorizationLevel: level,
+        permissions: role.permissions,
+        active: role.active,
+      },
+    );
+    const submitStandaloneSchedule = async (title: string) => {
+      const schedule = await api("POST", "/schedules", creator.token, {
+        id: crypto.randomUUID(), year: 2026, title,
+        projectIds: [], auditTypes: ["Quality Internal Process Audit"], auditCategory: "Internal",
+        departmentProject: "Quality Department", plannedStartDate: "2026-07-01", plannedEndDate: "2026-07-02",
+        workflowState: "Draft",
+      });
+      expect(schedule.status).toBe(201);
+      const submitted = await api("POST", `/schedules/${schedule.json.id}/submit`, creator.token);
+      expect(submitted.status).toBe(200);
+      return submitted;
+    };
+
+    try {
+      expect((await updateRole(initialL1, "Zebra Level Two Council", 2)).status).toBe(200);
+      expect((await updateRole(initialL2, "Alpha Level One Council", 1)).status).toBe(200);
+
+      const programme = await api("POST", "/programmes", creator.token, {
+        title: "Explicit level programme", fromDate: "2026-01-01", toDate: "2026-12-31",
+      });
+      expect(programme.status).toBe(201);
+      await addChild(programme.json.id);
+      const submittedProgramme = await api("POST", `/programmes/${programme.json.id}/submit`, creator.token, {
+        subject: "Explicit level programme", mailBody: "Please review.",
+      });
+      expect(submittedProgramme.status).toBe(200);
+      expect(submittedProgramme.json.currentApprovalRole).toBe("Alpha Level One Council");
+      expect(submittedProgramme.json.currentApproverNames).toEqual(["L2 Approver"]);
+
+      const submittedSchedule = await submitStandaloneSchedule("Explicit level schedule");
+      expect(submittedSchedule.json.currentApprovalRole).toBe("Alpha Level One Council");
+
+      // Change the configured order after submission; in-flight items retain their role snapshots.
+      expect((await updateRole(initialL1, "Zebra Level Two Council", 1)).status).toBe(200);
+      expect((await updateRole(initialL2, "Alpha Level One Council", 2)).status).toBe(200);
+      const inFlightProgramme = await api("GET", `/programmes/${programme.json.id}`, creator.token);
+      expect(inFlightProgramme.json.currentApprovalRole).toBe("Alpha Level One Council");
+      const inFlightSchedule = await api("GET", `/schedules/${submittedSchedule.json.id}`, creator.token);
+      expect(inFlightSchedule.json.currentApprovalRole).toBe("Alpha Level One Council");
+
+      const laterProgramme = await api("POST", "/programmes", creator.token, {
+        title: "Updated level programme", fromDate: "2026-01-01", toDate: "2026-12-31",
+      });
+      expect(laterProgramme.status).toBe(201);
+      await addChild(laterProgramme.json.id);
+      const submittedLaterProgramme = await api("POST", `/programmes/${laterProgramme.json.id}/submit`, creator.token, {
+        subject: "Updated level programme", mailBody: "Please review.",
+      });
+      expect(submittedLaterProgramme.status).toBe(200);
+      expect(submittedLaterProgramme.json.currentApprovalRole).toBe("Zebra Level Two Council");
+      expect((await submitStandaloneSchedule("Updated level schedule")).json.currentApprovalRole)
+        .toBe("Zebra Level Two Council");
+    } finally {
+      expect((await updateRole(initialL1, initialL1.name, initialL1.roleAuthorizationLevel)).status).toBe(200);
+      expect((await updateRole(initialL2, initialL2.name, initialL2.roleAuthorizationLevel)).status).toBe(200);
+    }
+  });
+
   it("associates and filters child schedules while retaining legacy visibility", async () => {
     const created = await api("POST", "/programmes", creator.token, { title: "Association Programme", fromDate: "2026-01-01", toDate: "2026-06-30" });
     const child = await addChild(created.json.id);
@@ -662,7 +825,7 @@ describe("audit programme parent/child workflow", () => {
       api("POST", `/programmes/${created.json.id}/review`, l1.token, { decision: "approve" }),
     ]);
     expect(results.map(result => result.status).sort()).toEqual([200, 409]);
-    const emptyRole = await role("L3 Unstaffed", [(await permission("approve_reject")).id]);
+    const emptyRole = await role("L3 Unstaffed", [(await permission("approve_reject")).id], 3);
     expect(emptyRole.id).toBeTruthy();
     const unstaffed = await api("POST", "/programmes", creator.token, { title: "Unstaffed Programme", fromDate: "2026-01-01", toDate: "2026-12-31" });
     await addChild(unstaffed.json.id);

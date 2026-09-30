@@ -1260,6 +1260,13 @@ export interface Role {
   name: string;
   /** @nullable */
   description?: string | null;
+  /**
+     * Audit approval sequence level; required when Approve / reject is granted to an Audit role.
+     * @minimum 1
+     * @maximum 2147483647
+     * @nullable
+     */
+  roleAuthorizationLevel?: number | null;
   permissions: Permission[];
   active: boolean;
   systemDefault?: boolean;

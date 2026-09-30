@@ -47,4 +47,5 @@
 - [Audit finding record coexistence](audit-finding-coexistence.md) — preserve older standalone findings and CAR links while the Findings workspace uses checklist-backed rows.
 - [Audit document replacement safety](audit-document-replacement-safety.md) — unlink charts without deleting evidence cited elsewhere; merge audit metadata under a row lock.
 - [Audit attachment scopes](audit-attachment-scopes.md) — legacy uploads share MIME-based categories; exclude Checklist references, tag new Checklist and Attachment uploads separately.
+- [Audit approval level migration](audit-approval-level-migration.md) — preserve in-flight role snapshots and materialize legacy L-number levels once; new sequencing reads stored levels only.
 - [Audit status remarks migration](audit-status-remarks-migration.md) — section-wide remarks replace row text; show legacy notes together rather than dropping them.

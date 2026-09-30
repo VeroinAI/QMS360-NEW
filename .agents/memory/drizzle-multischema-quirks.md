@@ -40,7 +40,7 @@ schemas correctly. Do not re-add manual enum blocks.
 
 ## Who owns which database
 
-- **Development** — `drizzle-kit push` (and the post-merge script). Fine to mutate.
+- **Development** — `drizzle-kit push` (and the post-merge script) normally applies schema changes. If push fails on an already-existing multi-schema enum, verify the live schema and apply only the missing development DDL rather than blindly forcing a broad push.
 - **Replit production** — owned by the Publish flow, which diffs dev against prod
   and applies the change itself. Never wire schema DDL into a deploy build hook,
   an artifact's `[services.production]`, or the server entrypoint; the database

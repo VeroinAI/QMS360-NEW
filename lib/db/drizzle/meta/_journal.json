@@ -134,6 +134,13 @@
       "when": 1789741618401,
       "tag": "0018_pink_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790751524587,
+      "tag": "0019_audit-role-authorization-level",
+      "breakpoints": true
     }
   ]
 }

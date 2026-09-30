@@ -65,6 +65,7 @@ export function createAppAdministration(schema: AppSchema) {
     organizationId: uuid("organization_id").notNull().references(() => organizations.id),
     name: text("name").notNull(),
     description: text("description"),
+    roleAuthorizationLevel: integer("role_authorization_level"),
     isSystem: boolean("is_system").notNull().default(false),
     ...auditColumns,
   }, (table) => [

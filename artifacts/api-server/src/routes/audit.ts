@@ -589,9 +589,30 @@ async function canManageProgrammeLeads(req: Request, row: AnyRow, children: AnyR
   return (await Promise.all(children.map(child => scheduleInScope(req, child)))).every(Boolean);
 }
 
+// Publish applies schema differences but not data migrations. Convert pre-existing
+// L1/L2 approval roles once so their next submission uses a stored level.
+async function backfillLegacyApprovalLevels(organizationId: string) {
+  await db.execute(sql`
+    UPDATE app3_audit.workspace_roles AS role
+    SET role_authorization_level = substring(role.name from '\\m[Ll]([0-9]{1,9})\\M')::integer
+    WHERE role.organization_id = ${organizationId}
+      AND role.role_authorization_level IS NULL
+      AND role.name ~ '\\m[Ll][0-9]{1,9}\\M'
+      AND substring(role.name from '\\m[Ll]([0-9]{1,9})\\M')::bigint BETWEEN 1 AND 2147483647
+      AND EXISTS (
+        SELECT 1 FROM app3_audit.workspace_role_permissions AS rp
+        JOIN app3_audit.permissions AS permission ON permission.id = rp.permission_id
+        WHERE rp.workspace_role_id = role.id AND rp.deleted_at IS NULL
+          AND permission.deleted_at IS NULL AND rp.grant = 'full'
+          AND permission.key IN ('approve_reject', 'schedules.approve_reject', 'schedules')
+      )
+  `);
+}
+
 async function approvalRoleChain(organizationId: string) {
+  await backfillLegacyApprovalLevels(organizationId);
   const rows = await db.select({
-    id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name,
+    id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name, level: auditWorkspaceRoles.roleAuthorizationLevel,
   }).from(auditWorkspaceRoles)
     .innerJoin(auditWorkspaceRolePermissions, and(
       eq(auditWorkspaceRolePermissions.workspaceRoleId, auditWorkspaceRoles.id),
@@ -608,11 +629,8 @@ async function approvalRoleChain(organizationId: string) {
       eq(auditWorkspaceRolePermissions.grant, "full"),
     ));
   const unique = [...new Map(rows.map(row => [row.id, row])).values()]
-    .filter(role => /\bL\d+\b/i.test(role.name));
-  return unique.sort((a, b) => {
-    const level = (name: string) => Number(name.match(/\bL(\d+)\b/i)?.[1] ?? 999);
-    return level(a.name) - level(b.name) || a.name.localeCompare(b.name);
-  });
+    .filter(role => role.level !== null && role.level > 0);
+  return unique.sort((a, b) => a.level! - b.level! || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 
 async function roleUserIds(organizationId: string, roleId: string) {
@@ -1346,7 +1364,7 @@ router.post("/schedules/:id/submit", asyncHandler(async (req, res) => {
   if (!["draft", "sent_back"].includes(before.workflowState)) throw new HttpError(409, "Schedule is not eligible for submission");
   if (!await scheduleInScope(req, before)) throw new HttpError(403, "You do not have access to this schedule");
   const roles = await approvalRoleChain(actor(req).organizationId);
-  if (!roles.length) throw new HttpError(422, "No active sequential Audit approval roles are configured. Create roles named L1, L2, etc. with Approve / reject authorization.");
+  if (!roles.length) throw new HttpError(422, "No active sequential Audit approval roles are configured. Assign a Role Authorization Level to an active role with Approve / reject authorization.");
   const unstaffed = (await Promise.all(roles.map(async role => (await roleUserIds(actor(req).organizationId, role.id)).length ? null : role.name))).filter(Boolean);
   if (unstaffed.length) throw new HttpError(422, `Approval role has no active users: ${unstaffed.join(", ")}`);
   const row = await db.transaction(async tx => {
@@ -2971,7 +2989,15 @@ async function auditRoleResponse(role: AnyRow) {
       isNull(auditWorkspaceRolePermissions.deletedAt),
       isNull(auditPermissions.deletedAt),
     ));
-  return { id: role.id, name: role.name, description: role.description, permissions, active: role.status === "active", systemDefault: role.isSystem };
+  return { id: role.id, name: role.name, description: role.description, roleAuthorizationLevel: role.roleAuthorizationLevel, permissions, active: role.status === "active", systemDefault: role.isSystem };
+}
+function auditRoleAuthorizationLevel(data: AnyRow): number | null {
+  if (!data.permissions.some((permission: { key: string }) => permission.key === "approve_reject")) return null;
+  const level = data.roleAuthorizationLevel;
+  if (!Number.isInteger(level) || level < 1 || level > 2147483647) {
+    throw new HttpError(422, "Role Authorization Level must be a positive whole number when Approve / reject is selected");
+  }
+  return level;
 }
 async function syncAuditRolePermissions(req: Request, roleId: string, requested: Array<{ key: string; name: string }>) {
   const organizationId = actor(req).organizationId;
@@ -3001,6 +3027,7 @@ async function syncAuditRolePermissions(req: Request, roleId: string, requested:
   }
 }
 router.get("/admin/roles", asyncHandler(async (req, res) => {
+  await backfillLegacyApprovalLevels(actor(req).organizationId);
   const { page, limit, offset } = pagination(req); const where = active(auditWorkspaceRoles, actor(req).organizationId);
   const [rows, [{ count }]] = await Promise.all([
     db.select().from(auditWorkspaceRoles).where(where).orderBy(asc(auditWorkspaceRoles.name)).limit(limit).offset(offset),
@@ -3010,17 +3037,19 @@ router.get("/admin/roles", asyncHandler(async (req, res) => {
 }));
 router.post("/admin/roles", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditRoleBody, req);
+  const roleAuthorizationLevel = auditRoleAuthorizationLevel(data);
   try {
-    const [row] = await db.insert(auditWorkspaceRoles).values({ id: data.id, organizationId: actor(req).organizationId, name: data.name, description: data.description, isSystem: data.systemDefault ?? false, status: data.active ? "active" : "inactive" }).returning();
+    const [row] = await db.insert(auditWorkspaceRoles).values({ id: data.id, organizationId: actor(req).organizationId, name: data.name, description: data.description, roleAuthorizationLevel, isSystem: data.systemDefault ?? false, status: data.active ? "active" : "inactive" }).returning();
     await syncAuditRolePermissions(req, row.id, data.permissions);
     await auditLog(req, "create", "workspace_role", row.id, undefined, row); res.status(201).json(await auditRoleResponse(row));
   } catch (error: any) { if (error?.code === "23505") throw new HttpError(409, "Role name already exists"); throw error; }
 }));
 router.put("/admin/roles/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditRoleBody, req);
+  const roleAuthorizationLevel = auditRoleAuthorizationLevel(data);
   const [before] = await db.select().from(auditWorkspaceRoles).where(and(active(auditWorkspaceRoles, actor(req).organizationId), eq(auditWorkspaceRoles.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Role not found");
-  const [row] = await db.update(auditWorkspaceRoles).set({ name: data.name, description: data.description, status: data.active ? "active" : "inactive", updatedAt: new Date() }).where(eq(auditWorkspaceRoles.id, before.id)).returning();
+  const [row] = await db.update(auditWorkspaceRoles).set({ name: data.name, description: data.description, roleAuthorizationLevel, status: data.active ? "active" : "inactive", updatedAt: new Date() }).where(eq(auditWorkspaceRoles.id, before.id)).returning();
   await syncAuditRolePermissions(req, row.id, data.permissions);
   await auditLog(req, "update", "workspace_role", row.id, before, row); res.json(await auditRoleResponse(row));
 }));

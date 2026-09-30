@@ -3323,6 +3323,9 @@ export const listQaqcRolesResponseOneTotalMin = 0;
 
 
 
+export const listQaqcRolesResponseTwoItemsItemRoleAuthorizationLevelMax = 2147483647;
+export const listQaqcRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf = 1;
+
 
 
 export const ListQaqcRolesResponse = zod.object({
@@ -3334,6 +3337,7 @@ export const ListQaqcRolesResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(listQaqcRolesResponseTwoItemsItemRoleAuthorizationLevelMax).multipleOf(listQaqcRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -3349,10 +3353,16 @@ export const ListQaqcRolesResponse = zod.object({
 /**
  * @summary Create workspace role
  */
+export const createQaqcRoleBodyRoleAuthorizationLevelMax = 2147483647;
+export const createQaqcRoleBodyRoleAuthorizationLevelMultipleOf = 1;
+
+
+
 export const CreateQaqcRoleBody = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(createQaqcRoleBodyRoleAuthorizationLevelMax).multipleOf(createQaqcRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -3373,10 +3383,16 @@ export const UpdateQaqcRoleParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const updateQaqcRoleBodyRoleAuthorizationLevelMax = 2147483647;
+export const updateQaqcRoleBodyRoleAuthorizationLevelMultipleOf = 1;
+
+
+
 export const UpdateQaqcRoleBody = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(updateQaqcRoleBodyRoleAuthorizationLevelMax).multipleOf(updateQaqcRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -3409,6 +3425,9 @@ export const listQaqcUsersResponseOneTotalMin = 0;
 
 
 
+export const listQaqcUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMax = 2147483647;
+export const listQaqcUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMultipleOf = 1;
+
 
 
 export const ListQaqcUsersResponse = zod.object({
@@ -3428,6 +3447,7 @@ export const ListQaqcUsersResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(listQaqcUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMax).multipleOf(listQaqcUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -4882,6 +4902,9 @@ export const listLessonsRolesResponseOneTotalMin = 0;
 
 
 
+export const listLessonsRolesResponseTwoItemsItemRoleAuthorizationLevelMax = 2147483647;
+export const listLessonsRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf = 1;
+
 
 
 export const ListLessonsRolesResponse = zod.object({
@@ -4893,6 +4916,7 @@ export const ListLessonsRolesResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(listLessonsRolesResponseTwoItemsItemRoleAuthorizationLevelMax).multipleOf(listLessonsRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -4908,10 +4932,16 @@ export const ListLessonsRolesResponse = zod.object({
 /**
  * @summary Create role
  */
+export const createLessonsRoleBodyRoleAuthorizationLevelMax = 2147483647;
+export const createLessonsRoleBodyRoleAuthorizationLevelMultipleOf = 1;
+
+
+
 export const CreateLessonsRoleBody = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(createLessonsRoleBodyRoleAuthorizationLevelMax).multipleOf(createLessonsRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -4932,10 +4962,16 @@ export const UpdateLessonsRoleParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const updateLessonsRoleBodyRoleAuthorizationLevelMax = 2147483647;
+export const updateLessonsRoleBodyRoleAuthorizationLevelMultipleOf = 1;
+
+
+
 export const UpdateLessonsRoleBody = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(updateLessonsRoleBodyRoleAuthorizationLevelMax).multipleOf(updateLessonsRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -4968,6 +5004,9 @@ export const listLessonsUsersResponseOneTotalMin = 0;
 
 
 
+export const listLessonsUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMax = 2147483647;
+export const listLessonsUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMultipleOf = 1;
+
 
 
 export const ListLessonsUsersResponse = zod.object({
@@ -4987,6 +5026,7 @@ export const ListLessonsUsersResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(listLessonsUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMax).multipleOf(listLessonsUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -6485,10 +6525,16 @@ export const GetAuditPlanOptionsResponse = zod.object({
 /**
  * @summary List active roles available for Audit Plan execution notifications
  */
+export const listAuditPlanNotificationRolesResponseRoleAuthorizationLevelMax = 2147483647;
+export const listAuditPlanNotificationRolesResponseRoleAuthorizationLevelMultipleOf = 1;
+
+
+
 export const ListAuditPlanNotificationRolesResponseItem = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(listAuditPlanNotificationRolesResponseRoleAuthorizationLevelMax).multipleOf(listAuditPlanNotificationRolesResponseRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -8979,6 +9025,9 @@ export const listAuditRolesResponseOneTotalMin = 0;
 
 
 
+export const listAuditRolesResponseTwoItemsItemRoleAuthorizationLevelMax = 2147483647;
+export const listAuditRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf = 1;
+
 
 
 export const ListAuditRolesResponse = zod.object({
@@ -8990,6 +9039,7 @@ export const ListAuditRolesResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(listAuditRolesResponseTwoItemsItemRoleAuthorizationLevelMax).multipleOf(listAuditRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -9005,10 +9055,16 @@ export const ListAuditRolesResponse = zod.object({
 /**
  * @summary Create role
  */
+export const createAuditRoleBodyRoleAuthorizationLevelMax = 2147483647;
+export const createAuditRoleBodyRoleAuthorizationLevelMultipleOf = 1;
+
+
+
 export const CreateAuditRoleBody = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(createAuditRoleBodyRoleAuthorizationLevelMax).multipleOf(createAuditRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -9029,10 +9085,16 @@ export const UpdateAuditRoleParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const updateAuditRoleBodyRoleAuthorizationLevelMax = 2147483647;
+export const updateAuditRoleBodyRoleAuthorizationLevelMultipleOf = 1;
+
+
+
 export const UpdateAuditRoleBody = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(updateAuditRoleBodyRoleAuthorizationLevelMax).multipleOf(updateAuditRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()
@@ -9065,6 +9127,9 @@ export const listAuditUsersResponseOneTotalMin = 0;
 
 
 
+export const listAuditUsersResponseTwoItemsItemOneWorkspaceRolesItemRoleAuthorizationLevelMax = 2147483647;
+export const listAuditUsersResponseTwoItemsItemOneWorkspaceRolesItemRoleAuthorizationLevelMultipleOf = 1;
+
 
 
 export const ListAuditUsersResponse = zod.object({
@@ -9084,6 +9149,7 @@ export const ListAuditUsersResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
+  "roleAuthorizationLevel": zod.number().min(1).max(listAuditUsersResponseTwoItemsItemOneWorkspaceRolesItemRoleAuthorizationLevelMax).multipleOf(listAuditUsersResponseTwoItemsItemOneWorkspaceRolesItemRoleAuthorizationLevelMultipleOf).nullish().describe('Audit approval sequence level; required when Approve \/ reject is granted to an Audit role.'),
   "permissions": zod.array(zod.object({
   "key": zod.enum(['data_entry', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner']),
   "name": zod.string()

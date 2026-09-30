@@ -2219,7 +2219,7 @@ components:
     Role:
       type: object
       required: [id, name, permissions, active]
-      properties: {id: {type: string}, name: {type: string}, description: {type: [string, "null"]}, permissions: {type: array, items: {$ref: "#/components/schemas/Permission"}}, active: {type: boolean}, systemDefault: {type: boolean}, scopeType: {type: string, enum: [organization, project]}, scopeIds: {type: array, items: {type: string}}}
+      properties: {id: {type: string}, name: {type: string}, description: {type: [string, "null"]}, roleAuthorizationLevel: {type: [number, "null"], minimum: 1, maximum: 2147483647, multipleOf: 1, description: "Audit approval sequence level; required when Approve / reject is granted to an Audit role."}, permissions: {type: array, items: {$ref: "#/components/schemas/Permission"}}, active: {type: boolean}, systemDefault: {type: boolean}, scopeType: {type: string, enum: [organization, project]}, scopeIds: {type: array, items: {type: string}}}
     RoleAssignment:
       type: object
       required: [roleId, scopeType, scopeIds]
