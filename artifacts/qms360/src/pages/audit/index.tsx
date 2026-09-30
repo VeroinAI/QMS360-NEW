@@ -1000,7 +1000,7 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
       </DialogHeader>
       <div className="grid gap-4 py-2">
         <div className="grid gap-2"><Label htmlFor="schedule-submission-subject">Subject</Label><Input id="schedule-submission-subject" value={subject} onChange={event => setSubject(event.target.value)} maxLength={200}/></div>
-        <div className="grid gap-2"><Label htmlFor="schedule-submission-body">Mail Body</Label><Textarea id="schedule-submission-body" value={mailBody} onChange={event => setMailBody(event.target.value)} rows={8} maxLength={10000}/></div>
+        <div className="grid gap-2"><Label htmlFor="schedule-submission-body">Memo</Label><Textarea id="schedule-submission-body" value={mailBody} onChange={event => setMailBody(event.target.value)} rows={8} maxLength={10000}/></div>
       </div>
       <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={submitProgramme} disabled={submit.isPending || !subject.trim() || !mailBody.trim()}>Submit for approval</Button></DialogFooter>
     </DialogContent>
