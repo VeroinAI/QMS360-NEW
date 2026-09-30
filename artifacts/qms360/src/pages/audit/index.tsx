@@ -976,30 +976,39 @@ function ProgrammeForm({ onClose }: { onClose: () => void }) {
 }
 
 function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
-  item: { id: string; title: string };
+  item: { id: string; title: string; submissionReference?: string | null; submissionFrom?: string | null; submissionTo?: string | null };
   onClose: () => void;
   onSubmitted: (updated: AuditProgramme) => void;
 }) {
+  const [reference, setReference] = useState(item.submissionReference ?? "");
+  const [from, setFrom] = useState(item.submissionFrom ?? "");
+  const [to, setTo] = useState(item.submissionTo ?? "");
   const [subject, setSubject] = useState(item.title);
   const [mailBody, setMailBody] = useState("");
   const submit = useSubmitAuditProgramme();
   const { toast } = useToast();
   const submitProgramme = () => {
     if (!subject.trim() || !mailBody.trim()) return;
-    submit.mutate({ id: item.id, data: { subject: subject.trim(), mailBody: mailBody.trim() } }, {
+    submit.mutate({ id: item.id, data: {
+      reference: reference.trim(), from: from.trim(), to: to.trim(),
+      subject: subject.trim(), mailBody: mailBody.trim(),
+    } }, {
       onSuccess: updated => { onSubmitted(updated); onClose(); },
       onError: e => toast({ title: "Unable to submit schedule", description: errorText(e), variant: "destructive" }),
     });
   };
   return <Dialog open onOpenChange={isOpen => !isOpen && onClose()}>
-    <DialogContent className="max-w-2xl">
+    <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col">
       <DialogHeader>
         <DialogTitle>Submit audit schedule</DialogTitle>
-        <DialogDescription>Enter the email subject and memo for this approval submission. Submit and Resubmit email the first approval level through the configured SMTP connector unless an email rule disables it.</DialogDescription>
+        <DialogDescription>Enter the reference, memo From and To lines, email subject, and memo for this approval submission. From and To are free-text memo headings, not email sender or recipient addresses. Submit and Resubmit email the first approval level through the configured SMTP connector unless an email rule disables it.</DialogDescription>
       </DialogHeader>
-      <div className="grid gap-4 py-2">
+      <div className="grid min-h-0 gap-4 overflow-y-auto py-2 pr-1">
+        <div className="grid gap-2"><Label htmlFor="schedule-submission-reference">Reference</Label><Input id="schedule-submission-reference" value={reference} onChange={event => setReference(event.target.value)} maxLength={500}/></div>
+        <div className="grid gap-2"><Label htmlFor="schedule-submission-from">From</Label><Input id="schedule-submission-from" value={from} onChange={event => setFrom(event.target.value)} maxLength={500}/></div>
+        <div className="grid gap-2"><Label htmlFor="schedule-submission-to">To</Label><Input id="schedule-submission-to" value={to} onChange={event => setTo(event.target.value)} maxLength={500}/></div>
         <div className="grid gap-2"><Label htmlFor="schedule-submission-subject">Subject</Label><Input id="schedule-submission-subject" value={subject} onChange={event => setSubject(event.target.value)} maxLength={200}/></div>
-        <div className="grid gap-2"><Label htmlFor="schedule-submission-body">Memo</Label><Textarea id="schedule-submission-body" value={mailBody} onChange={event => setMailBody(event.target.value)} rows={8} maxLength={10000}/></div>
+        <div className="grid gap-2"><Label htmlFor="schedule-submission-body">Memo</Label><Textarea id="schedule-submission-body" value={mailBody} onChange={event => setMailBody(event.target.value)} rows={6} maxLength={10000}/></div>
       </div>
       <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={submitProgramme} disabled={submit.isPending || !subject.trim() || !mailBody.trim()}>Submit for approval</Button></DialogFooter>
     </DialogContent>

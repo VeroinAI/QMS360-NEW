@@ -2,6 +2,9 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
 
 export type AuditScheduleApprovalPdfInput = {
   title: string;
+  reference?: string | null;
+  from?: string | null;
+  to?: string | null;
   subject: string;
   memo: string;
   signatories?: {
@@ -231,12 +234,19 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
     }
   };
   drawMemoHeader(false);
-  const subjectLines = wrapText(printable(input.subject) || "(No subject)", bold, 11, PAGE_WIDTH - MARGIN * 2 - 82);
-  const subjectHeight = Math.max(30, subjectLines.length * 15 + 12);
-  drawBorder(page, MARGIN, memoTop, PAGE_WIDTH - MARGIN * 2, subjectHeight, PURPLE);
-  page.drawText("Subject", { x: MARGIN + 10, y: memoTop - 20, size: 10, font: bold });
-  drawLines(page, subjectLines, MARGIN + 75, memoTop - 2, PAGE_WIDTH - MARGIN * 2 - 85, subjectHeight - 4, regular, 10);
-  memoTop -= subjectHeight + 12;
+  const drawMemoField = (label: string, value: string, highlight = false) => {
+    const lines = wrapText(printable(value), regular, 10, PAGE_WIDTH - MARGIN * 2 - 105);
+    const height = Math.max(30, lines.length * 15 + 12);
+    drawBorder(page, MARGIN, memoTop, PAGE_WIDTH - MARGIN * 2, height, highlight ? PURPLE : PALE_PURPLE);
+    page.drawText(label, { x: MARGIN + 10, y: memoTop - 20, size: 10, font: bold });
+    drawLines(page, lines, MARGIN + 95, memoTop - 2, PAGE_WIDTH - MARGIN * 2 - 105, height - 4, regular, 10);
+    memoTop -= height + 8;
+  };
+  if (input.reference?.trim()) drawMemoField("Reference", input.reference);
+  if (input.from?.trim()) drawMemoField("From", input.from);
+  if (input.to?.trim()) drawMemoField("To", input.to);
+  drawMemoField("Subject", printable(input.subject) || "(No subject)", true);
+  memoTop -= 4;
   page.drawText("Submitted Memo", { x: MARGIN, y: memoTop - 12, size: 11, font: bold });
   memoTop -= 21;
 

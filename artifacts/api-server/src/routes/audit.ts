@@ -210,6 +210,7 @@ type ScheduleMeta = {
   teamLeadIds?: string[];
   approvalRoles?: Array<{ id: string; name: string }>; approvalIndex?: number;
   autoPromotedChildIds?: string[];
+  submissionReference?: string; submissionFrom?: string; submissionTo?: string;
   submissionSubject?: string; submissionMailBody?: string;
   submissionUserId?: string; approvalParticipantIds?: string[];
   projectIds?: string[]; auditTypes?: string[]; plannedStartDate?: string;
@@ -541,10 +542,23 @@ const programmeDto = (row: AnyRow, childCount = 0) => {
     childCount, ownerId: row.ownerId ?? null,
     currentApprovalRole: row.workflowState === "submitted" ? roles[meta.approvalIndex ?? 0]?.name ?? null : null,
     approvalRoles: roles.map(role => role.name),
+    submissionReference: meta.submissionReference ?? null,
+    submissionFrom: meta.submissionFrom ?? null,
+    submissionTo: meta.submissionTo ?? null,
     submissionSubject: meta.submissionSubject ?? null,
     submissionMailBody: meta.submissionMailBody ?? null,
   };
 };
+
+function programmeSubmissionMemo(meta: ScheduleMeta) {
+  const headings = [
+    meta.submissionReference && `Reference: ${meta.submissionReference}`,
+    meta.submissionFrom && `From: ${meta.submissionFrom}`,
+    meta.submissionTo && `To: ${meta.submissionTo}`,
+    meta.submissionSubject && `Subject: ${meta.submissionSubject}`,
+  ].filter((line): line is string => Boolean(line));
+  return [...headings, "", meta.submissionMailBody ?? ""].join("\n");
+}
 
 async function programmeChildren(req: Request, parentId: string): Promise<AnyRow[]> {
   const rows = await db.select().from(auditSchedules).where(active(auditSchedules, actor(req).organizationId));
@@ -809,7 +823,7 @@ router.get("/programmes", asyncHandler(async (req, res) => {
   const legacy = (await Promise.all(legacyCandidates.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const visibleProgrammes = (await Promise.all(programmes.map(async row => (await scheduleInScope(req, row)) ? row : null))).filter(Boolean) as AnyRow[];
   const items = await Promise.all(visibleProgrammes.map(async row => programmeResponse(req, row, (await programmeChildren(req, row.id)).length)));
-  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], teamLeadNames: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, canManageTeamLeads: false, submissionSubject: null, submissionMailBody: null });
+  if (legacy.length) items.push({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], teamLeadNames: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: legacy.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, canManageTeamLeads: false, submissionReference: null, submissionFrom: null, submissionTo: null, submissionSubject: null, submissionMailBody: null });
   const offset = (page - 1) * limit;
   res.json(paginated(items.slice(offset, offset + limit), items.length, page, limit));
 }));
@@ -834,7 +848,7 @@ router.get("/programmes/:id", asyncHandler(async (req, res) => {
   if (String(req.params.id) === "legacy") {
     const children = await programmeChildren(req, "legacy");
     if (!children.length) throw new HttpError(404, "Audit programme not found");
-    res.json({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], teamLeadNames: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, canManageTeamLeads: false, submissionSubject: null, submissionMailBody: null });
+    res.json({ id: "legacy", title: "Existing audit schedules", teamLeadIds: [], teamLeadNames: [], fromDate: `${new Date().getFullYear()}-01-01`, toDate: `${new Date().getFullYear()}-12-31`, workflowState: "Draft", childCount: children.length, ownerId: null, currentApprovalRole: null, currentApproverNames: [], approvalRoles: [], canReview: false, canSubmit: false, canManageTeamLeads: false, submissionReference: null, submissionFrom: null, submissionTo: null, submissionSubject: null, submissionMailBody: null });
     return;
   }
   const [row] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
@@ -1122,6 +1136,9 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
         approvalIndex: 0,
         autoPromotedChildIds: promotedIds,
         reviewComments: null,
+        submissionReference: data.reference?.trim() ?? "",
+        submissionFrom: data.from?.trim() ?? "",
+        submissionTo: data.to?.trim() ?? "",
         submissionSubject: data.subject.trim(),
         submissionMailBody: data.mailBody.trim(),
         submissionUserId: actor(req).id,
@@ -1138,7 +1155,7 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
       organizationId: actor(req).organizationId, actorId: actor(req).id,
       entityType: "audit_programme", entityId: updated.id, action: "submit",
       recipientIds: firstApprovers, subject: data.subject.trim(),
-      text: `${data.mailBody.trim()}\n\nAudit Schedule "${updated.title}" is awaiting your approval at level ${roles[0].level}. Open QMS360 QMS Audit to review it.`,
+      text: `${programmeSubmissionMemo(scheduleMeta(updated))}\n\nAudit Schedule "${updated.title}" is awaiting your approval at level ${roles[0].level}. Open QMS360 QMS Audit to review it.`,
     });
     return { row: updated, childCount: children.length };
   });
@@ -1172,7 +1189,8 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
   const pdfAttachment = finalEmailEnabled ? await storeEmailPdfAttachment(
     actor(req).organizationId, before.id,
     await renderAuditScheduleApprovalPdf({
-      title: before.title, subject: meta.submissionSubject ?? before.title, memo: meta.submissionMailBody ?? "",
+      title: before.title, reference: meta.submissionReference, from: meta.submissionFrom, to: meta.submissionTo,
+      subject: meta.submissionSubject ?? before.title, memo: meta.submissionMailBody ?? "",
       signatories: await finalProgrammePdfSignatories(actor(req).organizationId, before, actor(req).id),
       rows: childrenForPdf.map(child => {
         const detail = scheduleMeta(child);
@@ -1238,7 +1256,7 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
         subject: complete ? `Approved: ${meta.submissionSubject ?? updated.title}` : meta.submissionSubject ?? `Approval requested: ${updated.title}`,
         text: complete
           ? `Audit Schedule "${updated.title}" has received final approval. The attached PDF begins with the submitted memo and includes the Audit Schedule Gantt chart.`
-          : `${meta.submissionMailBody ?? ""}\n\nAudit Schedule "${updated.title}" is awaiting your approval at the next level. Open QMS360 QMS Audit to review it.`,
+          : `${programmeSubmissionMemo(meta)}\n\nAudit Schedule "${updated.title}" is awaiting your approval at the next level. Open QMS360 QMS Audit to review it.`,
         attachments: pdfAttachment ? [pdfAttachment] : undefined,
       });
       if (complete && queuedEmail.queued > 0) finalPdfQueued = true;

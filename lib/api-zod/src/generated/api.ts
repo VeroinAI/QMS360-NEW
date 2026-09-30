@@ -5930,6 +5930,9 @@ export const ListAuditProgrammesResponse = zod.object({
   "canSubmit": zod.boolean(),
   "canManageTeamLeads": zod.boolean(),
   "ownerId": zod.string().nullish(),
+  "submissionReference": zod.string().nullable(),
+  "submissionFrom": zod.string().nullable(),
+  "submissionTo": zod.string().nullable(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
 }))
@@ -5966,6 +5969,9 @@ export const CreateAuditProgrammeResponse = zod.object({
   "canSubmit": zod.boolean(),
   "canManageTeamLeads": zod.boolean(),
   "ownerId": zod.string().nullish(),
+  "submissionReference": zod.string().nullable(),
+  "submissionFrom": zod.string().nullable(),
+  "submissionTo": zod.string().nullable(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
 })
@@ -6016,6 +6022,9 @@ export const GetAuditProgrammeResponse = zod.object({
   "canSubmit": zod.boolean(),
   "canManageTeamLeads": zod.boolean(),
   "ownerId": zod.string().nullish(),
+  "submissionReference": zod.string().nullable(),
+  "submissionFrom": zod.string().nullable(),
+  "submissionTo": zod.string().nullable(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
 })
@@ -6061,6 +6070,9 @@ export const UpdateAuditProgrammeTeamLeadsResponse = zod.object({
   "canSubmit": zod.boolean(),
   "canManageTeamLeads": zod.boolean(),
   "ownerId": zod.string().nullish(),
+  "submissionReference": zod.string().nullable(),
+  "submissionFrom": zod.string().nullable(),
+  "submissionTo": zod.string().nullable(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
 })
@@ -6105,6 +6117,12 @@ export const SubmitAuditProgrammeParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const submitAuditProgrammeBodyReferenceMax = 500;
+
+export const submitAuditProgrammeBodyFromMax = 500;
+
+export const submitAuditProgrammeBodyToMax = 500;
+
 export const submitAuditProgrammeBodySubjectMax = 200;
 
 export const submitAuditProgrammeBodyMailBodyMax = 10000;
@@ -6112,6 +6130,9 @@ export const submitAuditProgrammeBodyMailBodyMax = 10000;
 
 
 export const SubmitAuditProgrammeBody = zod.object({
+  "reference": zod.string().max(submitAuditProgrammeBodyReferenceMax).optional().describe('Free-text reference shown on the submission memo'),
+  "from": zod.string().max(submitAuditProgrammeBodyFromMax).optional().describe('Free-text sender label on the submission memo; not an SMTP address'),
+  "to": zod.string().max(submitAuditProgrammeBodyToMax).optional().describe('Free-text addressee on the submission memo; not an email recipient override'),
   "subject": zod.string().min(1).max(submitAuditProgrammeBodySubjectMax),
   "mailBody": zod.string().min(1).max(submitAuditProgrammeBodyMailBodyMax)
 })
@@ -6132,6 +6153,9 @@ export const SubmitAuditProgrammeResponse = zod.object({
   "canSubmit": zod.boolean(),
   "canManageTeamLeads": zod.boolean(),
   "ownerId": zod.string().nullish(),
+  "submissionReference": zod.string().nullable(),
+  "submissionFrom": zod.string().nullable(),
+  "submissionTo": zod.string().nullable(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
 })
@@ -6165,6 +6189,9 @@ export const ReviewAuditProgrammeResponse = zod.object({
   "canSubmit": zod.boolean(),
   "canManageTeamLeads": zod.boolean(),
   "ownerId": zod.string().nullish(),
+  "submissionReference": zod.string().nullable(),
+  "submissionFrom": zod.string().nullable(),
+  "submissionTo": zod.string().nullable(),
   "submissionSubject": zod.string().nullable(),
   "submissionMailBody": zod.string().nullable()
 })

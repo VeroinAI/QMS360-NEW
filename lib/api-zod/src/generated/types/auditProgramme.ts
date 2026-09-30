@@ -27,6 +27,12 @@ export interface AuditProgramme {
   /** @nullable */
   ownerId?: string | null;
   /** @nullable */
+  readonly submissionReference: string | null;
+  /** @nullable */
+  readonly submissionFrom: string | null;
+  /** @nullable */
+  readonly submissionTo: string | null;
+  /** @nullable */
   readonly submissionSubject: string | null;
   /** @nullable */
   readonly submissionMailBody: string | null;

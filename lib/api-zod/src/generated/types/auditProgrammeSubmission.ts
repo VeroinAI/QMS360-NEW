@@ -8,6 +8,21 @@
 
 export interface AuditProgrammeSubmission {
   /**
+     * Free-text reference shown on the submission memo
+     * @maxLength 500
+     */
+  reference?: string;
+  /**
+     * Free-text sender label on the submission memo; not an SMTP address
+     * @maxLength 500
+     */
+  from?: string;
+  /**
+     * Free-text addressee on the submission memo; not an email recipient override
+     * @maxLength 500
+     */
+  to?: string;
+  /**
      * @minLength 1
      * @maxLength 200
      */

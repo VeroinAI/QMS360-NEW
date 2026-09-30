@@ -2333,6 +2333,12 @@ export interface AuditProgramme {
   /** @nullable */
   ownerId?: string | null;
   /** @nullable */
+  readonly submissionReference: string | null;
+  /** @nullable */
+  readonly submissionFrom: string | null;
+  /** @nullable */
+  readonly submissionTo: string | null;
+  /** @nullable */
   readonly submissionSubject: string | null;
   /** @nullable */
   readonly submissionMailBody: string | null;
@@ -2353,6 +2359,21 @@ export interface AuditProgrammeTeamLeadsInput {
 }
 
 export interface AuditProgrammeSubmission {
+  /**
+     * Free-text reference shown on the submission memo
+     * @maxLength 500
+     */
+  reference?: string;
+  /**
+     * Free-text sender label on the submission memo; not an SMTP address
+     * @maxLength 500
+     */
+  from?: string;
+  /**
+     * Free-text addressee on the submission memo; not an email recipient override
+     * @maxLength 500
+     */
+  to?: string;
   /**
      * @minLength 1
      * @maxLength 200

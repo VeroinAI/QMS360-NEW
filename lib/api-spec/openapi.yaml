@@ -2657,7 +2657,7 @@ components:
         toDate: {type: string, format: date, description: Required when rescheduling an audit}
     AuditProgramme:
       type: object
-      required: [id, title, fromDate, toDate, teamLeadIds, teamLeadNames, workflowState, childCount, currentApprovalRole, currentApproverNames, approvalRoles, canReview, canSubmit, canManageTeamLeads, submissionSubject, submissionMailBody]
+      required: [id, title, fromDate, toDate, teamLeadIds, teamLeadNames, workflowState, childCount, currentApprovalRole, currentApproverNames, approvalRoles, canReview, canSubmit, canManageTeamLeads, submissionReference, submissionFrom, submissionTo, submissionSubject, submissionMailBody]
       properties:
         id: {type: string}
         title: {type: string}
@@ -2674,6 +2674,9 @@ components:
         canSubmit: {type: boolean, readOnly: true}
         canManageTeamLeads: {type: boolean, readOnly: true}
         ownerId: {type: [string, "null"]}
+        submissionReference: {type: [string, "null"], readOnly: true}
+        submissionFrom: {type: [string, "null"], readOnly: true}
+        submissionTo: {type: [string, "null"], readOnly: true}
         submissionSubject: {type: [string, "null"], readOnly: true}
         submissionMailBody: {type: [string, "null"], readOnly: true}
     AuditProgrammeInput:
@@ -2693,6 +2696,9 @@ components:
       type: object
       required: [subject, mailBody]
       properties:
+        reference: {type: string, maxLength: 500, description: Free-text reference shown on the submission memo}
+        from: {type: string, maxLength: 500, description: Free-text sender label on the submission memo; not an SMTP address}
+        to: {type: string, maxLength: 500, description: Free-text addressee on the submission memo; not an email recipient override}
         subject: {type: string, minLength: 1, maxLength: 200}
         mailBody: {type: string, minLength: 1, maxLength: 10000}
     AuditScheduleSubmission:

@@ -17,6 +17,9 @@ describe("renderAuditScheduleApprovalPdf", () => {
   it("places the memo on page one and the approved chart with signatories on page two", async () => {
     const pdf = await renderAuditScheduleApprovalPdf({
       title: "Annual Audit Programme",
+      reference: "QMS/2026/042",
+      from: "Audit Programme Manager",
+      to: "Approvals Committee",
       subject: "Approval requested",
       memo: "Please review the proposed schedule.\n\nRegards,\nThe Audit Team",
       signatories: {
@@ -51,6 +54,17 @@ describe("renderAuditScheduleApprovalPdf", () => {
     expect(decodedPageText(pdf)).toContain("F. Approver");
     const memoStream = decodedStreams(pdf).find(stream => stream.includes("Submitted Memo"));
     const chartStream = decodedStreams(pdf).find(stream => stream.includes("Business Category"));
+    expect(memoStream).toContain("Reference");
+    expect(memoStream).toContain("QMS/2026/042");
+    expect(memoStream).toContain("From");
+    expect(memoStream).toContain("Audit Programme Manager");
+    expect(memoStream).toContain("To");
+    expect(memoStream).toContain("Approvals Committee");
+    expect(memoStream).toContain("Subject");
+    expect(memoStream!.indexOf("Reference")).toBeLessThan(memoStream!.indexOf("From"));
+    expect(memoStream!.indexOf("From")).toBeLessThan(memoStream!.indexOf("To"));
+    expect(memoStream!.indexOf("To")).toBeLessThan(memoStream!.indexOf("Subject"));
+    expect(memoStream!.indexOf("Subject")).toBeLessThan(memoStream!.indexOf("Submitted Memo"));
     expect(memoStream).toContain("Please review the proposed schedule.");
     expect(memoStream).toContain("Regards,");
     expect(memoStream).toContain("The Audit Team");
