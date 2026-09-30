@@ -1,7 +1,10 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 export type AuditScheduleApprovalPdfInput = {
   title: string;
+  submissionDate?: string | null;
   reference?: string | null;
   from?: string | null;
   to?: string | null;
@@ -36,6 +39,11 @@ type ApprovalSignatory = {
 
 const PAGE_WIDTH = 1684;
 const PAGE_HEIGHT = 1191;
+const MEMO_WIDTH = 595.28;
+const MEMO_HEIGHT = 841.89;
+const MEMO_LEFT = 52;
+const MEMO_RIGHT = 47;
+const MEMO_BOTTOM = 88;
 const MARGIN = 18;
 const BOTTOM = 18;
 // The same logo embedded in the approved Audit Schedule download template.
@@ -46,6 +54,7 @@ const ALT_ROW = rgb(0.98, 0.98, 0.99);
 const DARK_BLUE = rgb(0.1, 0.32, 0.58);
 const BLACK = rgb(0, 0, 0);
 const WHITE = rgb(1, 1, 1);
+const MEMO_PURPLE = rgb(0.32, 0.17, 0.51);
 
 type Timeline = ReturnType<typeof programmeTimeline>;
 type ProgrammeRow = AuditScheduleApprovalPdfInput["rows"][number];
@@ -187,6 +196,14 @@ function yearForRows(rows: ProgrammeRow[]) {
   return new Date().getFullYear();
 }
 
+function memoDate(value?: string | null) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.valueOf())
+    ? ""
+    : new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", day: "numeric", year: "numeric" }).format(parsed);
+}
+
 export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprovalPdfInput): Promise<Buffer> {
   const document = await PDFDocument.create();
   document.setTitle(printable(input.title) || "Audit Schedule Approval");
@@ -194,6 +211,7 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
   const regular = await document.embedFont(StandardFonts.Helvetica);
   const bold = await document.embedFont(StandardFonts.HelveticaBold);
   const logo = await document.embedJpg(Buffer.from(PROGRAMME_LOGO_JPEG, "base64"));
+  const memoLogo = await document.embedPng(await readFile(resolve(process.cwd(), "src/assets/memo-letterhead-logo.png")));
   const timeline = programmeTimeline(yearForRows(input.rows));
   const fixedWidths = [105, 135, 100, 120, 105, 180, 130];
   const remarksWidth = 130;
@@ -220,53 +238,74 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
   ];
   const addPage = () => document.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
 
-  let page = addPage();
-  let memoTop = PAGE_HEIGHT - MARGIN;
-  const drawMemoHeader = (continued: boolean) => {
-    page.drawText(printable(input.title) || "Audit Schedule Approval", {
-      x: MARGIN, y: memoTop - 31, size: 20, font: bold, maxWidth: PAGE_WIDTH - MARGIN * 2,
+  const addMemoPage = (continued: boolean) => {
+    const memoPage = document.addPage([MEMO_WIDTH, MEMO_HEIGHT]);
+    // Keep the supplied letterhead's structure without copying the sample's
+    // personal signature or fixed memo text into another person's submission.
+    const watermark = rgb(0.65, 0.65, 0.65);
+    memoPage.drawEllipse({
+      x: MEMO_WIDTH + 38, y: MEMO_HEIGHT - 285, xScale: 110, yScale: 145,
+      borderColor: watermark, borderWidth: 38, borderOpacity: 0.42,
     });
-    if (continued) {
-      page.drawText("(Memo continued)", { x: MARGIN, y: memoTop - 49, size: 9, font: regular });
-      memoTop -= 64;
-    } else {
-      memoTop -= 48;
-    }
+    memoPage.drawEllipse({
+      x: MEMO_WIDTH + 27, y: MEMO_HEIGHT - 625, xScale: 104, yScale: 132,
+      borderColor: watermark, borderWidth: 38, borderOpacity: 0.42,
+    });
+    memoPage.drawRectangle({ x: 48, y: MEMO_HEIGHT - 66, width: MEMO_WIDTH - 96, height: 43, color: MEMO_PURPLE });
+    memoPage.drawImage(memoLogo, { x: 52, y: MEMO_HEIGHT - 62, width: 111, height: 35 });
+    memoPage.drawText(continued ? "INTERNAL MEMO / CONTINUED" : "INTERNAL MEMO", {
+      x: continued ? MEMO_WIDTH - 235 : MEMO_WIDTH - 174, y: MEMO_HEIGHT - 49,
+      size: 14, font: bold, color: WHITE,
+    });
+    memoPage.drawText("Email: info@algihaz.com", { x: 48, y: 45, size: 7.4, font: regular });
+    memoPage.drawText("Telephone: +966 11 4609000", { x: 48, y: 33, size: 7.4, font: regular });
+    memoPage.drawText("Address: Al Gihaz Building [#435], Al Sulaimaniah Area, Al Urubah Street,", {
+      x: 272, y: 45, size: 7.1, font: regular,
+    });
+    memoPage.drawText("PO Box 7451 Riyadh -11462, Saudi Arabia", { x: 324, y: 33, size: 7.1, font: regular });
+    return memoPage;
   };
-  drawMemoHeader(false);
-  const drawMemoField = (label: string, value: string, highlight = false) => {
-    const lines = wrapText(printable(value), regular, 10, PAGE_WIDTH - MARGIN * 2 - 105);
-    const height = Math.max(30, lines.length * 15 + 12);
-    drawBorder(page, MARGIN, memoTop, PAGE_WIDTH - MARGIN * 2, height, highlight ? PURPLE : PALE_PURPLE);
-    page.drawText(label, { x: MARGIN + 10, y: memoTop - 20, size: 10, font: bold });
-    drawLines(page, lines, MARGIN + 95, memoTop - 2, PAGE_WIDTH - MARGIN * 2 - 105, height - 4, regular, 10);
-    memoTop -= height + 8;
+
+  let page = addMemoPage(false);
+  let memoTop = MEMO_HEIGHT - 93;
+  const drawHeaderValue = (label: string, value: string) => {
+    const lines = wrapText(printable(value), regular, 9.6, MEMO_WIDTH - MEMO_LEFT - MEMO_RIGHT - 74);
+    page.drawText(label, { x: MEMO_LEFT + 4, y: memoTop, size: 9.5, font: bold });
+    page.drawText(":", { x: MEMO_LEFT + 60, y: memoTop, size: 9.5, font: bold });
+    lines.forEach((line, index) => page.drawText(line, {
+      x: MEMO_LEFT + 75, y: memoTop - index * 13, size: 9.6, font: regular,
+    }));
+    memoTop -= Math.max(20, lines.length * 13 + 7);
   };
-  if (input.reference?.trim()) drawMemoField("Reference", input.reference);
-  if (input.from?.trim()) drawMemoField("From", input.from);
-  if (input.to?.trim()) drawMemoField("To", input.to);
-  drawMemoField("Subject", printable(input.subject) || "(No subject)", true);
-  memoTop -= 4;
-  page.drawText("Submitted Memo", { x: MARGIN, y: memoTop - 12, size: 11, font: bold });
-  memoTop -= 21;
+  page.drawText("Date", { x: MEMO_LEFT + 4, y: memoTop, size: 9.5, font: bold });
+  page.drawText(":", { x: MEMO_LEFT + 60, y: memoTop, size: 9.5, font: bold });
+  page.drawText(memoDate(input.submissionDate), { x: MEMO_LEFT + 75, y: memoTop, size: 9.6, font: regular });
+  page.drawText("Ref#", { x: 383, y: memoTop, size: 9.5, font: bold });
+  const referenceLines = wrapText(printable(input.reference ?? ""), regular, 9.2, 115);
+  referenceLines.forEach((line, index) => page.drawText(line, { x: 420, y: memoTop - index * 12, size: 9.2, font: regular }));
+  memoTop -= Math.max(20, referenceLines.length * 12 + 8);
+  drawHeaderValue("From", input.from ?? "");
+  drawHeaderValue("To", input.to ?? "");
+  drawHeaderValue("Subject", input.subject);
+  page.drawLine({ start: { x: MEMO_LEFT, y: memoTop + 6 }, end: { x: MEMO_WIDTH - MEMO_RIGHT, y: memoTop + 6 }, thickness: 0.7, color: rgb(0.4, 0.4, 0.4) });
+  memoTop -= 18;
 
   // Normalize characters per paragraph so line breaks in the submitted memo
   // survive PDF font encoding instead of turning into question marks.
   const memoText = String(input.memo ?? "").replace(/\r\n?/g, "\n").split("\n").map(printable).join("\n");
-  const memoLines = wrapText(memoText, regular, 10, PAGE_WIDTH - MARGIN * 2 - 16);
-  const memoLineHeight = 13;
+  const memoLines = wrapText(memoText, regular, 10.5, MEMO_WIDTH - MEMO_LEFT - MEMO_RIGHT);
+  const memoLineHeight = 17;
   let memoIndex = 0;
   while (memoIndex < memoLines.length) {
-    const availableLines = Math.floor((memoTop - BOTTOM - 8) / memoLineHeight);
+    const availableLines = Math.floor((memoTop - MEMO_BOTTOM) / memoLineHeight) + 1;
     if (availableLines < 1) {
-      page = addPage();
-      memoTop = PAGE_HEIGHT - MARGIN;
-      drawMemoHeader(true);
+      page = addMemoPage(true);
+      memoTop = MEMO_HEIGHT - 104;
       continue;
     }
     const count = Math.min(availableLines, memoLines.length - memoIndex);
     for (const line of memoLines.slice(memoIndex, memoIndex + count)) {
-      page.drawText(printable(line), { x: MARGIN + 8, y: memoTop - 10, size: 10, font: regular, maxWidth: PAGE_WIDTH - MARGIN * 2 - 16 });
+      page.drawText(printable(line), { x: MEMO_LEFT + 4, y: memoTop, size: 10.5, font: regular, maxWidth: MEMO_WIDTH - MEMO_LEFT - MEMO_RIGHT });
       memoTop -= memoLineHeight;
     }
     memoIndex += count;

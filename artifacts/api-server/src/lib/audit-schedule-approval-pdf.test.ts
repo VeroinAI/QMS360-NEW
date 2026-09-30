@@ -17,6 +17,7 @@ describe("renderAuditScheduleApprovalPdf", () => {
   it("places the memo on page one and the approved chart with signatories on page two", async () => {
     const pdf = await renderAuditScheduleApprovalPdf({
       title: "Annual Audit Programme",
+      submissionDate: "2026-01-22T14:00:00.000Z",
       reference: "QMS/2026/042",
       from: "Audit Programme Manager",
       to: "Approvals Committee",
@@ -46,31 +47,36 @@ describe("renderAuditScheduleApprovalPdf", () => {
     expect(parsed.getPageCount()).toBe(2);
     expect(parsed.getTitle()).toBe("Annual Audit Programme");
     expect(parsed.getSubject()).toBe("Approval requested");
-    expect(parsed.getPages()[0]!.getSize()).toEqual({ width: 1684, height: 1191 });
+    expect(parsed.getPages()[0]!.getSize()).toEqual({ width: 595.28, height: 841.89 });
+    expect(parsed.getPages()[1]!.getSize()).toEqual({ width: 1684, height: 1191 });
     expect(decodedPageText(pdf)).toContain("Supplier audit");
     expect(decodedPageText(pdf)).toContain("Prepared By");
     expect(decodedPageText(pdf)).toContain("Reviewed By");
     expect(decodedPageText(pdf)).toContain("Approved By");
     expect(decodedPageText(pdf)).toContain("F. Approver");
-    const memoStream = decodedStreams(pdf).find(stream => stream.includes("Submitted Memo"));
+    const memoStream = decodedStreams(pdf).find(stream => stream.includes("INTERNAL MEMO"));
     const chartStream = decodedStreams(pdf).find(stream => stream.includes("Business Category"));
-    expect(memoStream).toContain("Reference");
+    expect(memoStream).toContain("Date");
+    expect(memoStream).toContain("January 22, 2026");
+    expect(memoStream).toContain("Ref#");
+    expect(memoStream).toContain("Email: info@algihaz.com");
+    expect(memoStream).not.toContain("Owies Alrababah");
     expect(memoStream).toContain("QMS/2026/042");
     expect(memoStream).toContain("From");
     expect(memoStream).toContain("Audit Programme Manager");
     expect(memoStream).toContain("To");
     expect(memoStream).toContain("Approvals Committee");
     expect(memoStream).toContain("Subject");
-    expect(memoStream!.indexOf("Reference")).toBeLessThan(memoStream!.indexOf("From"));
+    expect(memoStream!.indexOf("Ref#")).toBeLessThan(memoStream!.indexOf("From"));
     expect(memoStream!.indexOf("From")).toBeLessThan(memoStream!.indexOf("To"));
     expect(memoStream!.indexOf("To")).toBeLessThan(memoStream!.indexOf("Subject"));
-    expect(memoStream!.indexOf("Subject")).toBeLessThan(memoStream!.indexOf("Submitted Memo"));
+    expect(memoStream!.indexOf("Subject")).toBeLessThan(memoStream!.indexOf("Please review"));
     expect(memoStream).toContain("Please review the proposed schedule.");
     expect(memoStream).toContain("Regards,");
     expect(memoStream).toContain("The Audit Team");
     expect(memoStream).not.toContain("Business Category");
     expect(chartStream).toContain("F. Approver");
-    expect(chartStream).not.toContain("Submitted Memo");
+    expect(chartStream).not.toContain("INTERNAL MEMO");
   });
 
   it("flows the entire submitted memo across pages before rendering the schedule", async () => {
@@ -90,6 +96,10 @@ describe("renderAuditScheduleApprovalPdf", () => {
     });
     const parsed = await PDFDocument.load(pdf);
     expect(parsed.getPageCount()).toBeGreaterThan(2);
+    for (const page of parsed.getPages().slice(0, -1)) {
+      expect(page.getSize()).toEqual({ width: 595.28, height: 841.89 });
+    }
+    expect(parsed.getPages().at(-1)!.getSize()).toEqual({ width: 1684, height: 1191 });
     const text = decodedPageText(pdf);
     expect(text).toContain("Memo paragraph 1:");
     expect(text).toContain("Memo paragraph 1800:");

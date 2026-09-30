@@ -211,6 +211,7 @@ type ScheduleMeta = {
   approvalRoles?: Array<{ id: string; name: string }>; approvalIndex?: number;
   autoPromotedChildIds?: string[];
   submissionReference?: string; submissionFrom?: string; submissionTo?: string;
+  submissionDate?: string;
   submissionSubject?: string; submissionMailBody?: string;
   submissionUserId?: string; approvalParticipantIds?: string[];
   projectIds?: string[]; auditTypes?: string[]; plannedStartDate?: string;
@@ -1139,6 +1140,7 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
         submissionReference: data.reference?.trim() ?? "",
         submissionFrom: data.from?.trim() ?? "",
         submissionTo: data.to?.trim() ?? "",
+        submissionDate: new Date().toISOString(),
         submissionSubject: data.subject.trim(),
         submissionMailBody: data.mailBody.trim(),
         submissionUserId: actor(req).id,
@@ -1190,6 +1192,7 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
     actor(req).organizationId, before.id,
     await renderAuditScheduleApprovalPdf({
       title: before.title, reference: meta.submissionReference, from: meta.submissionFrom, to: meta.submissionTo,
+      submissionDate: meta.submissionDate,
       subject: meta.submissionSubject ?? before.title, memo: meta.submissionMailBody ?? "",
       signatories: await finalProgrammePdfSignatories(actor(req).organizationId, before, actor(req).id),
       rows: childrenForPdf.map(child => {
