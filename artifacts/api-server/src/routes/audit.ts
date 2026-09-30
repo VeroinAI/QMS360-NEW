@@ -40,7 +40,7 @@ import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evid
 import { asyncHandler, HttpError, listNotifications, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
-import { auditApprovalEmailEnabled, queueAuditApprovalEmail } from "../lib/email-rules";
+import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
 import { renderAuditScheduleApprovalPdf } from "../lib/audit-schedule-approval-pdf";
 import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-attachments";
 
@@ -1531,6 +1531,16 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
         attachments: pdfAttachment ? [pdfAttachment] : undefined,
       });
       if (complete && queuedEmail.queued > 0) finalPdfQueued = true;
+    }
+    if (updated && data.decision === "send_back" && before.ownerId) {
+      await queueAuditApprovalEmail(tx as unknown as typeof db, {
+        organizationId: actor(req).organizationId, actorId: actor(req).id,
+        entityType: "audit_schedule", entityId: updated.id, action: "send_back",
+        recipientIds: [before.ownerId],
+        ccRecipientIds: auditScheduleSendBackCcIds(before.ownerId, meta.approvalParticipantIds ?? [], actor(req).id),
+        subject: `Sent back: ${meta.submissionSubject ?? updated.title}`,
+        text: `Audit "${updated.title}" was sent back for revision.\n\nReviewer comments: ${data.comments.trim()}\n\nOpen QMS360 QMS Audit to revise and resubmit it.`,
+      });
     }
     return updated;
   }).catch(async error => {

@@ -139,6 +139,11 @@ export async function dispatchEmailRule(event: AuditEvent) {
   }
 }
 
+/** Only reviewers who acted on this submission cycle belong on the send-back CC. */
+export function auditScheduleSendBackCcIds(creatorId: string | null, approvedIds: string[], reviewerId: string): string[] {
+  return [...new Set([...approvedIds, reviewerId])].filter(id => id !== creatorId);
+}
+
 export async function queueAuditApprovalEmail(
   database: typeof db,
   input: {
@@ -146,8 +151,9 @@ export async function queueAuditApprovalEmail(
     actorId: string;
     entityType: "audit_programme" | "audit_schedule";
     entityId: string;
-    action: "submit" | "approve" | "approved_final";
+    action: "submit" | "approve" | "approved_final" | "send_back";
     recipientIds: string[];
+    ccRecipientIds?: string[];
     subject: string;
     text: string;
     attachments?: Array<{ filename: string; contentType: "application/pdf"; objectPath: string }>;
@@ -166,9 +172,15 @@ export async function queueAuditApprovalEmail(
   // Rule recipient modes are deliberately ignored for these notifications.
   if (rule && !rule.enabled) return { queued: 0 };
 
+  const ccIds = [...new Set(input.ccRecipientIds ?? [])].filter(id => !input.recipientIds.includes(id));
+  const ccRecipients = ccIds.length ? await database.select({ email: users.email, name: users.fullName }).from(users).where(and(
+    eq(users.organizationId, input.organizationId), eq(users.accessStatus, "active"),
+    isNull(users.deletedAt), inArray(users.id, ccIds),
+  )) : [];
   return enqueueEmail(database, {
     organizationId: input.organizationId,
     recipientIds: [...new Set(input.recipientIds)],
+    ccRecipients,
     subject: input.subject,
     text: input.text,
     attachments: input.attachments,

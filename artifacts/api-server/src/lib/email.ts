@@ -57,6 +57,14 @@ type SmtpConfig = {
   fromName: string;
 };
 
+export function smtpMessageHeaders(config: Pick<SmtpConfig, "fromAddress" | "fromName">, replyContact?: { email: string } | null) {
+  return {
+    from: `"${config.fromName.replaceAll('"', "")}" <${config.fromAddress}>`,
+    replyTo: replyContact && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyContact.email)
+      ? replyContact.email : config.fromAddress,
+  };
+}
+
 export type EmailDeliveryInput = {
   organizationId: string;
   recipientIds: string[];
@@ -66,7 +74,7 @@ export type EmailDeliveryInput = {
   ccRecipients?: Array<{ email: string; name?: string | null }>;
   /** Optional retry-only SMTP envelope targets; MIME To/CC headers remain unchanged. */
   envelopeRecipients?: string[];
-  /** Optional visible sender. SMTP authentication and envelope delivery still use the connector sender. */
+  /** Optional Reply-To contact. SMTP authentication, envelope and visible From always use the connector address. */
   sender?: { email: string; name?: string | null };
   subject: string;
   text: string;
@@ -291,9 +299,7 @@ export async function deliverEmail(
     }
     if (target) {
       const transporter = createTransporter(config, target);
-      const visibleSender = input.sender && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.sender.email)
-        ? input.sender : { email: config.fromAddress, name: config.fromName };
-      const from = `"${(visibleSender.name ?? visibleSender.email).replaceAll('"', "")}" <${visibleSender.email}>`;
+      const { from, replyTo } = smtpMessageHeaders(config, input.sender);
       const results = await Promise.allSettled(allRecipients.map((recipient) =>
         transporter.sendMail({
           from,
@@ -303,7 +309,7 @@ export async function deliverEmail(
               ? input.envelopeRecipients
               : [recipient.email, ...explicitCcRecipients.map((cc) => cc.email)],
           },
-          replyTo: visibleSender.email,
+          replyTo,
           to: recipient.name ? `"${recipient.name.replaceAll('"', "")}" <${recipient.email}>` : recipient.email,
           cc: explicitCcRecipients.map((cc) => cc.name ? `"${cc.name.replaceAll('"', "")}" <${cc.email}>` : cc.email),
           subject: input.subject,

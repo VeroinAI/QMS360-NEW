@@ -73,7 +73,8 @@ export async function writeAuditLog(database: any, app: AppKey, input: AuditInpu
   await database.insert(table).values({ ...values, after });
   // Rule dispatch is deliberately fire-and-forget: SMTP configuration or
   // recipient failures must never roll back the domain write.
-  if (options.dispatch !== false && input.entityType !== "email_event_rule" && input.entityType !== "email_rule") {
+  if (options.dispatch !== false && input.entityType !== "email_event_rule" && input.entityType !== "email_rule"
+    && !(app === "audit" && input.entityType === "audit_schedule" && input.action === "send_back")) {
     void dispatchEmailRule({
       organizationId: input.organizationId, app, entityType: input.entityType,
       action: input.action, actorId: input.actorId, entityId: input.entityId,

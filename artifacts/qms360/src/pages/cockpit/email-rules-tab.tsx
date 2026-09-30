@@ -32,7 +32,8 @@ function StatusBadge({ value }: { value: string }) {
 }
 
 function isAuditApprovalEvent(eventType: string) {
-  return /^audit\.audit_(programme|schedule)\.(submit|approve|approved_final)$/.test(eventType);
+  return /^audit\.audit_(programme|schedule)\.(submit|approve|approved_final)$/.test(eventType)
+    || eventType === 'audit.audit_schedule.send_back';
 }
 
 export function EmailRulesTab({ connectors, onEditConnector }: { connectors: IntegrationConnector[], onEditConnector: (c: IntegrationConnector) => void }) {
@@ -77,7 +78,7 @@ export function EmailRulesTab({ connectors, onEditConnector }: { connectors: Int
         <CardHeader className="flex-row items-center justify-between">
           <div>
             <CardTitle>SMTP Configuration</CardTitle>
-            <CardDescription>Configure the outbound email server for all system notifications and escalations.</CardDescription>
+            <CardDescription>Configure the outbound email server for all system notifications and escalations. Every QMS360 email uses its From Address as the sender.</CardDescription>
           </div>
           {emailConnector ? (
             <div className="flex gap-2">
@@ -172,7 +173,7 @@ function EmailRulesList() {
       <CardHeader className="flex-row items-center justify-between">
         <div>
           <CardTitle>Email Event Rules</CardTitle>
-          <CardDescription>For most events, the first matching enabled rule determines recipients. Audit approval emails are sent by default; for these events, the highest-priority matching rule controls whether email is sent, even if disabled. Recipients are always the current approvers or, on final approval, the submitter and approving participants.</CardDescription>
+          <CardDescription>For most events, the first matching enabled rule determines recipients. Audit approval and schedule send-back emails are sent by default; for these events, the highest-priority matching rule controls whether email is sent, even if disabled. Recipients follow the approval workflow.</CardDescription>
         </div>
         <Button variant="outline" onClick={() => setEditingRule('new')}>
           <Plus className="mr-2 h-4 w-4" />
@@ -211,7 +212,7 @@ function EmailRulesList() {
                   </TableCell>
                   <TableCell>
                     {isAuditApprovalEvent(rule.eventType) ? (
-                      <span className="text-sm">Approval workflow participants (recipient mode ignored)</span>
+                      <span className="text-sm">{rule.eventType === 'audit.audit_schedule.send_back' ? 'Schedule creator; CC: approvers who acted (including sender)' : 'Approval workflow participants'} (recipient mode ignored)</span>
                     ) : rule.recipientMode === 'linked_approver' ? (
                       <span className="text-sm">Send from form creator to linked approver</span>
                     ) : rule.recipientMode === 'linked_creator' ? (
@@ -405,7 +406,9 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
             <div className="space-y-3">
               {isApprovalEvent ? (
                 <p className="text-sm text-muted-foreground">
-                  Recipients are fixed by the approval workflow: current approvers receive submit/next-step notices, and actual participants plus the submitter receive final-approval notices. Rule enablement controls whether the email is sent; this rule’s recipient mode and recipient settings do not override the workflow participants. With no matching rule, approval emails are sent by default.
+                   {draft.eventType === 'audit.audit_schedule.send_back'
+                     ? 'Send-back email goes to the schedule creator with reviewer comments. Only people who already approved this submission and the approver sending it back are CC’d; pending approvers are excluded.'
+                     : 'Current approvers receive submit/next-step notices, and actual participants plus the submitter receive final-approval notices.'} Rule enablement controls whether the email is sent; recipient settings cannot override these workflow participants. With no matching rule, the email is sent by default.
                 </p>
               ) : (
                 <>
@@ -427,8 +430,8 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                 {draft.receiverMode === 'default' && (
                   <p className="mt-1 text-xs text-muted-foreground">Leaves recipient fields blank. The system will send this email to every active user in your organization.</p>
                 )}
-                {draft.receiverMode === 'linked_approver' && <p className="mt-1 text-xs text-muted-foreground">Uses the approver linked to this Lessons Learned form. The form creator is used as the visible sender and Reply-To address.</p>}
-                {draft.receiverMode === 'linked_creator' && <p className="mt-1 text-xs text-muted-foreground">Uses the creator of this Lessons Learned form as recipient. The approving user is used as the visible sender and Reply-To address.</p>}
+                {draft.receiverMode === 'linked_approver' && <p className="mt-1 text-xs text-muted-foreground">Uses the approver linked to this Lessons Learned form. The form creator is used as the Reply-To address; From is the configured SMTP address.</p>}
+                {draft.receiverMode === 'linked_creator' && <p className="mt-1 text-xs text-muted-foreground">Uses the creator of this Lessons Learned form as recipient. The approving user is used as the Reply-To address; From is the configured SMTP address.</p>}
               </div>
               
               {draft.receiverMode === 'user' && (
@@ -492,6 +495,7 @@ function EmailSimulator() {
   const users = usersQuery.data ?? [];
   
   const result = simulate.data;
+  const isScheduleSendBack = eventType === 'audit.audit_schedule.send_back';
 
   const runSimulation = () => {
     simulate.mutate({
@@ -531,11 +535,13 @@ function EmailSimulator() {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={runSimulation} disabled={!eventType || simulate.isPending}>
+           <Button onClick={runSimulation} disabled={!eventType || isScheduleSendBack || simulate.isPending}>
             <Search className="mr-2 h-4 w-4" />
             Simulate
           </Button>
         </div>
+
+         {isScheduleSendBack && <p className="text-sm text-muted-foreground">Schedule send-back recipients depend on the actual schedule and its approval history. The email goes to its creator and CCs only approvers who acted on the current submission, including the reviewer who sent it back. This event cannot be previewed without a schedule.</p>}
 
         {simulate.isError && (
           <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
@@ -544,7 +550,7 @@ function EmailSimulator() {
           </div>
         )}
 
-        {simulate.isSuccess && result && (
+         {!isScheduleSendBack && simulate.isSuccess && result && (
           <div className={`mt-4 rounded-lg border p-5 ${result.matched ? 'bg-primary/5 border-primary/20' : 'bg-muted/30 border-muted'}`}>
             <div className="grid md:grid-cols-2 gap-6">
               <div>
