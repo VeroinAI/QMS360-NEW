@@ -742,6 +742,16 @@ describe("audit programme parent/child workflow", () => {
     expect(partiallyReviewedSignatories.json.approvedBy).toBeNull();
     const sentBack = await api("POST", `/programmes/${created.json.id}/review`, l2.token, { decision: "send_back", comments: "Please revise and resubmit." });
     expect(sentBack.status).toBe(200);
+    const sendBackEmails = await db.select().from(outboundEmails).where(and(
+      eq(outboundEmails.organizationId, orgId), eq(outboundEmails.entityId, created.json.id),
+      eq(outboundEmails.eventType, "audit.audit_programme.send_back"),
+    ));
+    expect(sendBackEmails).toHaveLength(1);
+    expect(sendBackEmails[0]!.recipientEmail).toContain("programme.creator");
+    expect(sendBackEmails[0]!.ccRecipients.map(recipient => recipient.email).sort()).toEqual([
+      expect.stringContaining("l1.approver"), expect.stringContaining("l2.approver"),
+    ]);
+    expect(sendBackEmails[0]!.bodyText).toContain("Please revise and resubmit.");
     expect(sentBack.json.workflowState).toBe("Sent Back");
     expect(sentBack.json.currentApprovalRole).toBeNull();
     expect(sentBack.json.currentApproverNames).toEqual([]);

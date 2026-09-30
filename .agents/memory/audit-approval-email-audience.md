@@ -5,7 +5,7 @@ description: Privacy and recipient rules for Audit Schedule approval messages an
 
 Approval-request emails go to active members of the current approval role. Each successful intermediate approval sends the memo to the next active approval role. The final approval PDF goes to the submitting user and the people who actually approved, not every member of each approval role.
 
-When a child Audit Schedule is sent back, send to its creator and CC only people who approved during the current submission plus the reviewer sending it back. Never include other eligible role members or approvers from earlier submissions. A matching email rule controls enablement but cannot widen the participant audience.
+When a parent Audit Schedule (programme) or child Audit is sent back, send to its creator and CC only people who approved during the current submission plus the reviewer sending it back. Never include other eligible role members or approvers from earlier submissions. A matching email rule controls enablement but cannot widen the participant audience. Do not also dispatch a generic email rule for the same send-back event, which could duplicate the message or reach unrelated people.
 
 **Why:** Approval messages and review comments should reach only participants in that specific submission, not people merely eligible to review.
 

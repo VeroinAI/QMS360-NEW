@@ -19,7 +19,7 @@ export type { EmailPdfAttachment } from "./email-attachments";
  *   username   string  SMTP auth user (also accepted: user)
  *   password   string  SMTP auth password (also accepted: pass) — stored
  *               encrypted (enc:v1 envelope, see lib/secrets.ts), masked in the UI
- *   fromAddress string envelope/header From address (also accepted: from; default: username)
+ *   fromAddress string envelope/header From address (also accepted: legacy from; required)
  *   fromName   string  display name for the From header (default: "QMS360")
  *
  * Egress policy (tenant admins supply the SMTP host, so destinations are
@@ -65,6 +65,14 @@ export function smtpMessageHeaders(config: Pick<SmtpConfig, "fromAddress" | "fro
   };
 }
 
+export function configuredSmtpFromAddress(configuration: Record<string, unknown>): string | null {
+  const address = typeof configuration.fromAddress === "string" && configuration.fromAddress.trim()
+    ? configuration.fromAddress.trim()
+    : typeof configuration.from === "string" && configuration.from.trim()
+      ? configuration.from.trim() : "";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) ? address : null;
+}
+
 export type EmailDeliveryInput = {
   organizationId: string;
   recipientIds: string[];
@@ -105,11 +113,7 @@ function readSmtpConfig(configuration: Record<string, unknown>): SmtpConfig | nu
   const rawPassword = typeof configuration.password === "string" ? configuration.password
     : typeof configuration.pass === "string" ? configuration.pass : undefined;
   const password = rawPassword ? decryptSecret(rawPassword) : undefined;
-  const fromAddress = typeof configuration.fromAddress === "string" && configuration.fromAddress.trim()
-    ? configuration.fromAddress.trim()
-    : typeof configuration.from === "string" && configuration.from.trim()
-      ? configuration.from.trim()
-      : username;
+  const fromAddress = configuredSmtpFromAddress(configuration);
   if (!fromAddress) return null;
   const fromName = typeof configuration.fromName === "string" && configuration.fromName.trim()
     ? configuration.fromName.trim()
@@ -396,9 +400,10 @@ export async function sendConnectorTestEmail(
   try {
     const target = await resolveSmtpTarget(config.host);
     const transporter = createTransporter(config, target);
-    const from = `"${config.fromName.replaceAll('"', "")}" <${config.fromAddress}>`;
+    const { from } = smtpMessageHeaders(config);
     await transporter.sendMail({
       from,
+      envelope: { from: config.fromAddress, to: [recipientEmail] },
       to: recipientEmail,
       subject: "QMS360 connector test",
       text: "This is a test email from the QMS360 Integration Cockpit. If you received it, this connector's SMTP settings are working.",

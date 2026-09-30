@@ -1168,6 +1168,16 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
       });
       if (complete && queuedEmail.queued > 0) finalPdfQueued = true;
     }
+    if (data.decision === "send_back" && before.ownerId) {
+      await queueAuditApprovalEmail(tx as unknown as typeof db, {
+        organizationId: actor(req).organizationId, actorId: actor(req).id,
+        entityType: "audit_programme", entityId: updated.id, action: "send_back",
+        recipientIds: [before.ownerId],
+        ccRecipientIds: auditScheduleSendBackCcIds(before.ownerId, meta.approvalParticipantIds ?? [], actor(req).id),
+        subject: `Sent back: ${meta.submissionSubject ?? updated.title}`,
+        text: `Audit Schedule "${updated.title}" was sent back for revision.\n\nReviewer comments: ${data.comments.trim()}\n\nOpen QMS360 QMS Audit to revise and resubmit the Schedule.`,
+      });
+    }
     return updated;
   }).catch(async error => {
     if (pdfAttachment) {

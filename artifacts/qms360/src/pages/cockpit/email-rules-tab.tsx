@@ -31,9 +31,13 @@ function StatusBadge({ value }: { value: string }) {
   return <Badge variant={variant}>{value}</Badge>;
 }
 
+function isAuditSendBackEvent(eventType: string) {
+  return /^audit\.audit_(programme|schedule)\.send_back$/.test(eventType);
+}
+
 function isAuditApprovalEvent(eventType: string) {
   return /^audit\.audit_(programme|schedule)\.(submit|approve|approved_final)$/.test(eventType)
-    || eventType === 'audit.audit_schedule.send_back';
+    || isAuditSendBackEvent(eventType);
 }
 
 export function EmailRulesTab({ connectors, onEditConnector }: { connectors: IntegrationConnector[], onEditConnector: (c: IntegrationConnector) => void }) {
@@ -212,7 +216,7 @@ function EmailRulesList() {
                   </TableCell>
                   <TableCell>
                     {isAuditApprovalEvent(rule.eventType) ? (
-                      <span className="text-sm">{rule.eventType === 'audit.audit_schedule.send_back' ? 'Schedule creator; CC: approvers who acted (including sender)' : 'Approval workflow participants'} (recipient mode ignored)</span>
+                      <span className="text-sm">{isAuditSendBackEvent(rule.eventType) ? 'Schedule creator; CC: approvers who acted in this submission (including sender)' : 'Approval workflow participants'} (recipient mode ignored)</span>
                     ) : rule.recipientMode === 'linked_approver' ? (
                       <span className="text-sm">Send from form creator to linked approver</span>
                     ) : rule.recipientMode === 'linked_creator' ? (
@@ -406,7 +410,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
             <div className="space-y-3">
               {isApprovalEvent ? (
                 <p className="text-sm text-muted-foreground">
-                   {draft.eventType === 'audit.audit_schedule.send_back'
+                   {isAuditSendBackEvent(draft.eventType)
                      ? 'Send-back email goes to the schedule creator with reviewer comments. Only people who already approved this submission and the approver sending it back are CC’d; pending approvers are excluded.'
                      : 'Current approvers receive submit/next-step notices, and actual participants plus the submitter receive final-approval notices.'} Rule enablement controls whether the email is sent; recipient settings cannot override these workflow participants. With no matching rule, the email is sent by default.
                 </p>
@@ -495,7 +499,7 @@ function EmailSimulator() {
   const users = usersQuery.data ?? [];
   
   const result = simulate.data;
-  const isScheduleSendBack = eventType === 'audit.audit_schedule.send_back';
+  const isScheduleSendBack = isAuditSendBackEvent(eventType);
 
   const runSimulation = () => {
     simulate.mutate({
