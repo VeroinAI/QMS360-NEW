@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { inflateSync } from "node:zlib";
 import { spawnSync } from "node:child_process";
 import { copyFile, mkdtemp, rm } from "node:fs/promises";
@@ -62,7 +62,7 @@ describe("renderAuditScheduleApprovalPdf", () => {
   it("places the memo on page one and the approved chart with signatories on page two", async () => {
     const pdf = await renderAuditScheduleApprovalPdf({
       title: "Annual Audit Programme",
-      submissionDate: "2026-01-22T14:00:00.000Z",
+      approvalDate: "2026-01-22T14:00:00.000Z",
       reference: "QMS/2026/042",
       from: "Audit Programme Manager",
       to: "Approvals Committee",
@@ -122,6 +122,24 @@ describe("renderAuditScheduleApprovalPdf", () => {
     expect(memoStream).not.toContain("Business Category");
     expect(chartStream).toContain("F. Approver");
     expect(chartStream).not.toContain("INTERNAL MEMO");
+  });
+
+  it("uses the system date even when an older submission has no stored date", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-01T14:00:00.000Z"));
+    try {
+      const pdf = await renderAuditScheduleApprovalPdf({
+        title: "Older submitted schedule",
+        subject: "Final approval",
+        memo: "This memo was submitted before submission dates were recorded.",
+        rows: [],
+      });
+      const memoStream = decodedStreams(pdf).find(stream => stream.includes("INTERNAL MEMO"));
+      expect(memoStream).toContain("October 1, 2026");
+      expect((await PDFDocument.load(pdf)).getPageCount()).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("flows the entire submitted memo across pages before rendering the schedule", async () => {

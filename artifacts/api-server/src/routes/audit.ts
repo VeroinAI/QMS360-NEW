@@ -1192,7 +1192,7 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
     actor(req).organizationId, before.id,
     await renderAuditScheduleApprovalPdf({
       title: before.title, reference: meta.submissionReference, from: meta.submissionFrom, to: meta.submissionTo,
-      submissionDate: meta.submissionDate,
+      approvalDate: new Date().toISOString(),
       subject: meta.submissionSubject ?? before.title, memo: meta.submissionMailBody ?? "",
       signatories: await finalProgrammePdfSignatories(actor(req).organizationId, before, actor(req).id),
       rows: childrenForPdf.map(child => {
@@ -1620,6 +1620,7 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
     actor(req).organizationId, before.id,
     await renderAuditScheduleApprovalPdf({
       title: before.title, subject: detail.submissionSubject ?? before.title, memo: detail.submissionMailBody ?? "",
+      approvalDate: new Date().toISOString(),
       rows: [{
         title: before.title, fromDate: detail.plannedStartDate ?? "", toDate: detail.plannedEndDate ?? "",
         auditCategory: detail.auditCategory ?? "", departmentProject: detail.departmentProject ?? "",

@@ -3,7 +3,7 @@ import { readMemoLetterheadLogo } from "../assets/memo-letterhead-logo";
 
 export type AuditScheduleApprovalPdfInput = {
   title: string;
-  submissionDate?: string | null;
+  approvalDate?: string | null;
   reference?: string | null;
   from?: string | null;
   to?: string | null;
@@ -196,8 +196,7 @@ function yearForRows(rows: ProgrammeRow[]) {
 }
 
 function memoDate(value?: string | null) {
-  if (!value) return "";
-  const parsed = new Date(value);
+  const parsed = value ? new Date(value) : new Date();
   return Number.isNaN(parsed.valueOf())
     ? ""
     : new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", day: "numeric", year: "numeric" }).format(parsed);
@@ -278,7 +277,7 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
   };
   page.drawText("Date", { x: MEMO_LEFT + 4, y: memoTop, size: 9.5, font: bold });
   page.drawText(":", { x: MEMO_LEFT + 60, y: memoTop, size: 9.5, font: bold });
-  page.drawText(memoDate(input.submissionDate), { x: MEMO_LEFT + 75, y: memoTop, size: 9.6, font: regular });
+  page.drawText(memoDate(input.approvalDate), { x: MEMO_LEFT + 75, y: memoTop, size: 9.6, font: regular });
   page.drawText("Ref#", { x: 383, y: memoTop, size: 9.5, font: bold });
   const referenceLines = wrapText(printable(input.reference ?? ""), regular, 9.2, 115);
   referenceLines.forEach((line, index) => page.drawText(line, { x: 420, y: memoTop - index * 12, size: 9.2, font: regular }));
