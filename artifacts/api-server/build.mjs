@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { copyFile, rm } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -118,6 +118,13 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // Runtime assets must travel with dist, not depend on the launch directory
+  // or on production retaining the source tree.
+  await copyFile(
+    path.join(artifactDir, "src/assets/memo-letterhead-logo.png"),
+    path.join(distDir, "memo-letterhead-logo.png"),
+  );
 }
 
 buildAll().catch((err) => {

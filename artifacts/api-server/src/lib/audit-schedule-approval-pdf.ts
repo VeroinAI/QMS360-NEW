@@ -1,6 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { readMemoLetterheadLogo } from "../assets/memo-letterhead-logo";
 
 export type AuditScheduleApprovalPdfInput = {
   title: string;
@@ -211,7 +210,7 @@ export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprova
   const regular = await document.embedFont(StandardFonts.Helvetica);
   const bold = await document.embedFont(StandardFonts.HelveticaBold);
   const logo = await document.embedJpg(Buffer.from(PROGRAMME_LOGO_JPEG, "base64"));
-  const memoLogo = await document.embedPng(await readFile(resolve(process.cwd(), "src/assets/memo-letterhead-logo.png")));
+  const memoLogo = await document.embedPng(await readMemoLetterheadLogo());
   const timeline = programmeTimeline(yearForRows(input.rows));
   const fixedWidths = [105, 135, 100, 120, 105, 180, 130];
   const remarksWidth = 130;

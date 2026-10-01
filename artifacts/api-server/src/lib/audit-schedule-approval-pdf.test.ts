@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { inflateSync } from "node:zlib";
+import { spawnSync } from "node:child_process";
+import { copyFile, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { build } from "esbuild";
 import { PDFDocument } from "pdf-lib";
 import { renderAuditScheduleApprovalPdf } from "./audit-schedule-approval-pdf";
 
@@ -14,6 +20,45 @@ function decodedStreams(pdf: Buffer) {
 const decodedPageText = (pdf: Buffer) => decodedStreams(pdf).join("\n");
 
 describe("renderAuditScheduleApprovalPdf", () => {
+  it("renders the built PDF module from either launch directory without source assets", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "qms360-pdf-assets-"));
+    try {
+      const output = join(directory, "renderer.mjs");
+      await build({
+        entryPoints: [fileURLToPath(new URL("./audit-schedule-approval-pdf.ts", import.meta.url))],
+        outfile: output,
+        bundle: true,
+        platform: "node",
+        format: "esm",
+      });
+      await copyFile(
+        new URL("../assets/memo-letterhead-logo.png", import.meta.url),
+        join(directory, "memo-letterhead-logo.png"),
+      );
+      const script = `
+        import { renderAuditScheduleApprovalPdf } from ${JSON.stringify(pathToFileURL(output).href)};
+        const pdf = await renderAuditScheduleApprovalPdf({
+          title: "Production launch check", subject: "Final approval",
+          memo: "The letterhead must load without a source tree.", rows: [],
+        });
+        if (pdf.subarray(0, 5).toString() !== "%PDF-") throw new Error("Invalid PDF");
+      `;
+      for (const cwd of [
+        fileURLToPath(new URL("../../../../", import.meta.url)),
+        fileURLToPath(new URL("../../", import.meta.url)),
+      ]) {
+        const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+          cwd, encoding: "utf8", timeout: 30_000,
+        });
+        expect(result.error).toBeUndefined();
+        expect(result.stderr).toBe("");
+        expect(result.status).toBe(0);
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("places the memo on page one and the approved chart with signatories on page two", async () => {
     const pdf = await renderAuditScheduleApprovalPdf({
       title: "Annual Audit Programme",
