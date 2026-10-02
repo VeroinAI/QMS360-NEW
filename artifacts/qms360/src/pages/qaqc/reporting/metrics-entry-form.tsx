@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getIn, useForm } from './form-kit';
+import { MetricDetailsForm } from './metric-details-form';
 import { MEETING_TYPES, PQP_STATUSES, num, type Obj } from './reporting-types';
 
 type Path = (string | number)[];
@@ -62,7 +63,7 @@ function Rows({ path, blank, addLabel, noun, children }: { path: Path; blank: ()
   </div>;
 }
 
-export function MetricsEntryForm() {
+export function MetricsEntryForm({ calc }: { calc?: Record<string, Obj> }) {
   const { data } = useForm();
   const pqp = data.pqpStatus as string | undefined;
   const approved = !!pqp?.startsWith('Approved');
@@ -104,5 +105,6 @@ export function MetricsEntryForm() {
       </Rows>
       <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-sm"><span className="font-medium">Total Manpower</span><span data-testid="text-total-manpower" className="font-semibold">{total}</span></div>
     </Tile>
+    <MetricDetailsForm calc={calc} Tile={Tile} />
   </div>;
 }

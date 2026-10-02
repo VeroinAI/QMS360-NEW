@@ -89,7 +89,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     ...['quality', 'timeline', 'communication', 'professionalism', 'valueForMoney', 'issueHandling'].filter(k => !(Number(clean.ratings?.[k]) >= 1 && Number(clean.ratings?.[k]) <= 5)).map(k => `Rating "${k}" must be 1 to 5.`),
     ...(['expectations', 'recommend'] as const).filter(k => !['Yes', 'No', 'Partially'].includes(clean[k])).map(k => `Answer "${k}" is required.`),
   ] : [];
-  const metricsIssues = metricsEntry ? validateMetricsEntry(clean) : [];
+  const metricsIssues = metricsEntry ? validateMetricsEntry(clean, baseline) : [];
   const issues = metricsEntry ? metricsIssues : reportType === 'monthly' ? monthly.issues : reportType === 'daily' ? daily.issues : csatIssues;
   const projects: Obj[] = ctx.projects ?? [];
   const approvers: Obj[] = ctx.approvers ?? [];
@@ -171,7 +171,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
         </div>}
         {imports.length > 0 && <Alert variant="destructive"><AlertTitle>Import validation messages</AlertTitle><AlertDescription><ul className="list-disc pl-5">{imports.map((m, i) => <li key={i}>{m}</li>)}</ul></AlertDescription></Alert>}
         <div className={metricsEntry ? 'grid gap-6' : 'grid gap-6 lg:grid-cols-[1fr_20rem]'}>
-          <div>{metricsEntry ? <MetricsEntryForm /> : reportType === 'monthly' ? <MonthlyForm calc={monthly} target={targets} onDraftAi={draftAi} aiBusy={ai.isPending || busy} aiDraft={aiDraft} onUseDraft={() => setData(d => ({ ...d, narrative: aiDraft }))} />
+          <div>{metricsEntry ? <MetricsEntryForm calc={monthly.metrics} /> : reportType === 'monthly' ? <MonthlyForm calc={monthly} target={targets} onDraftAi={draftAi} aiBusy={ai.isPending || busy} aiDraft={aiDraft} onUseDraft={() => setData(d => ({ ...d, narrative: aiDraft }))} />
             : reportType === 'daily' ? <DailyForm calc={daily} baseline={baseline} /> : <CsatForm />}</div>
           <aside className={metricsEntry ? 'grid items-start gap-4 md:grid-cols-2' : 'space-y-4 lg:sticky lg:top-4 lg:self-start'}>
             <Card><CardHeader className="pb-2"><CardTitle className="text-base">Validation</CardTitle></CardHeader><CardContent className="text-sm">{issues.length ? <ul className="list-disc space-y-1 pl-4 text-destructive">{issues.map((m, i) => <li key={i}>{m}</li>)}</ul> : <p className="text-muted-foreground">No issues found in the live preview. The server validates again on submit.</p>}</CardContent></Card>

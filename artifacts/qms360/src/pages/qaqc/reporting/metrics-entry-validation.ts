@@ -1,4 +1,4 @@
-import { MEETING_TYPES, PQP_STATUSES, type Obj } from './reporting-types';
+import { AGEING_BUCKETS, MEETING_TYPES, METRICS, PQP_STATUSES, monthlyBaseline, type Obj } from './reporting-types';
 
 const hasValue = (v: unknown) => v !== undefined && v !== null && v !== '';
 const integer = (v: unknown, min = 0) => typeof v === 'number' && Number.isInteger(v) && v >= min;
@@ -8,9 +8,9 @@ const date = (v: unknown) => {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === v;
 };
 
-// Scoped to the six-section Metrics entry page; full monthly submission keeps
+// Scoped to the Metrics entry page; full monthly submission keeps
 // its existing, additional validations.
-export function validateMetricsEntry(data: Obj): string[] {
+export function validateMetricsEntry(data: Obj, baseline: Obj = {}): string[] {
   const issues: string[] = [];
   const checkDate = (value: unknown, label: string, required = false) => {
     if (!hasValue(value)) { if (required) issues.push(`${label} is required.`); }
@@ -46,6 +46,36 @@ export function validateMetricsEntry(data: Obj): string[] {
       if (!integer(row.rejected)) issues.push(`${label}: rejected count must be an integer greater than or equal to zero.`);
       // Preserve the existing server guard rather than allow a save that fails.
       if (integer(row.approved) && integer(row.rejected) && integer(row.count, 1) && row.approved + row.rejected > row.count) issues.push(`${label}: approved and rejected counts cannot exceed Nos.`);
+    }
+  }
+  for (const [key, label] of METRICS) {
+    const metric = data.metrics?.[key] ?? {};
+    if (!integer(metric.issued)) issues.push(`${label}: Issued this Month must be an integer greater than or equal to zero.`);
+    if (!integer(metric.closed)) issues.push(`${label}: Closed this Month must be an integer greater than or equal to zero.`);
+    const previous = monthlyBaseline(baseline, key);
+    const validCounts = integer(metric.issued) && integer(metric.closed);
+    if (validCounts && metric.closed > previous.issued - previous.closed + metric.issued)
+      issues.push(`${label}: Closed this Month cannot exceed the available open items from last month plus items issued this month.`);
+    if (key !== 'external_ncr' && key !== 'internal_ncr') continue;
+    if (metric.ageing !== undefined && !Array.isArray(metric.ageing)) {
+      issues.push(`${label}: ageing must contain a list of rows.`);
+      continue;
+    }
+    const ageing: Obj[] = metric.ageing ?? [];
+    let total = 0;
+    let validAgeing = true;
+    for (const [i, row] of ageing.entries()) {
+      const rowLabel = `${label} ageing ${i + 1}`;
+      if (!String(row?.department ?? '').trim()) issues.push(`${rowLabel}: select a BU / Department.`);
+      if (!AGEING_BUCKETS.some(([value]) => value === row?.bucket)) issues.push(`${rowLabel}: select an Ageing Bucket.`);
+      if (!integer(row?.count, 1)) {
+        issues.push(`${rowLabel}: Count must be an integer greater than zero.`);
+        validAgeing = false;
+      } else total += row.count;
+    }
+    if (validCounts && validAgeing) {
+      const open = previous.issued + metric.issued - previous.closed - metric.closed;
+      if (total !== open) issues.push(`${label}: ageing counts (${total}) must equal Open NCRs (${open}).`);
     }
   }
   return issues;

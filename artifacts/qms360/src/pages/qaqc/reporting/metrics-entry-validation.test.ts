@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { normaliseMetricsEntry, validateMetricsEntry } from './metrics-entry-validation';
-import { calcMonthly, type Obj } from './reporting-types';
+import { METRICS, calcMonthly, type Obj } from './reporting-types';
 
 const valid = (): Obj => ({
   pqpStatus: 'Under Preparation',
   internalAudit: { conducted: false, lastDate: '2026-08-10', nextDate: '2026-11-10' },
   manpower: [{ department: 'Quality', count: 5, approvalRequired: false }],
   meetings: [],
+  metrics: Object.fromEntries(METRICS.map(([key]) => [key, { issued: 0, closed: 0, ageing: [] }])),
 });
 
 describe('six-section QA/QC Metrics entry', () => {
-  it('accepts exactly the six-section payload without requiring unrelated report fields', () => {
+  it('accepts the Metrics entry payload without requiring unrelated report fields', () => {
     expect(validateMetricsEntry(valid())).toEqual([]);
   });
   it('requires the other PQP status and approval date only when applicable', () => {
@@ -53,5 +54,75 @@ describe('six-section QA/QC Metrics entry', () => {
   });
   it('retains the shared calculated manpower sum for multiple departments', () => {
     expect(calcMonthly({ ...valid(), manpower: [{ count: 4 }, { count: 7 }] }, {}).manpower.total).toBe(11);
+  });
+});
+
+describe('QA/QC Metric Details', () => {
+  it.each(METRICS)('requires both nonnegative integer counts for %s', (key, label) => {
+    const data = valid();
+    for (const bad of [undefined, '', -1, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      data.metrics[key] = { issued: bad, closed: 0 };
+      expect(validateMetricsEntry(data).join(' ')).toContain(`${label}: Issued this Month`);
+      data.metrics[key] = { issued: 0, closed: bad };
+      expect(validateMetricsEntry(data).join(' ')).toContain(`${label}: Closed this Month`);
+    }
+  });
+  it('accepts zero counts and calculates all three zero/zero rates as 100 percent', () => {
+    const data = valid();
+    expect(validateMetricsEntry(data)).toEqual([]);
+    for (const [key] of METRICS) {
+      expect(calcMonthly(data, {}).metrics[key]).toMatchObject({
+        prevIssued: 0, prevClosed: 0, accIssued: 0, accClosed: 0, open: 0,
+        monthlyRate: 100, prevRate: 100, accRate: 100, variance: 0,
+      });
+    }
+  });
+  it('carries forward submitted totals and calculates closure, open count and signed variance', () => {
+    const baseline = { metrics: { external_ncr: { accumulatedIssued: 10, accumulatedClosed: 5 } } };
+    const data = valid();
+    data.metrics.external_ncr = {
+      issued: 5, closed: 4,
+      ageing: [{ department: 'Quality', bucket: '0-15', count: 2 }, { department: 'Quality', bucket: 'over45', count: 4 }],
+    };
+    expect(validateMetricsEntry(data, baseline)).toEqual([]);
+    expect(calcMonthly(data, baseline).metrics.external_ncr).toMatchObject({
+      prevIssued: 10, prevClosed: 5, accIssued: 15, accClosed: 9, open: 6,
+      monthlyRate: 80, prevRate: 50, accRate: 60, variance: 10, ageSum: 6,
+    });
+    expect(data.metrics.external_ncr).not.toHaveProperty('accIssued');
+  });
+  it('retains the existing guard against closing already-closed backlog', () => {
+    const data = valid();
+    const baseline = { metrics: { rfi: { accumulatedIssued: 10, accumulatedClosed: 8 } } };
+    data.metrics.rfi = { issued: 2, closed: 5 };
+    expect(validateMetricsEntry(data, baseline).join(' ')).toContain('RFI: Closed this Month cannot exceed');
+    data.metrics.rfi.closed = 4;
+    expect(validateMetricsEntry(data, baseline)).toEqual([]);
+  });
+  it.each(['external_ncr', 'internal_ncr'])('validates %s ageing fields and matching totals', key => {
+    const data = valid();
+    data.metrics[key] = { issued: 3, closed: 1, ageing: [] };
+    expect(validateMetricsEntry(data).join(' ')).toContain('must equal Open NCRs (2)');
+    data.metrics[key].ageing = [{ department: '', bucket: 'invalid', count: 0 }];
+    expect(validateMetricsEntry(data)).toHaveLength(3);
+    data.metrics[key].ageing = [{ department: 'Quality', bucket: '15-45', count: 2 }];
+    expect(validateMetricsEntry(data)).toEqual([]);
+    data.metrics[key].ageing[0].count = 1.5;
+    expect(validateMetricsEntry(data).join(' ')).toContain('integer greater than zero');
+  });
+  it('requires ageing only for NCR categories, not RFI or RMI', () => {
+    const data = valid();
+    data.metrics.rfi = { issued: 10, closed: 3 };
+    data.metrics.rmi = { issued: 2, closed: 1 };
+    expect(validateMetricsEntry(data)).toEqual([]);
+    expect(calcMonthly(data, {}).metrics.rfi.variance).toBe(-70);
+  });
+  it('preserves metric inputs, ageing rows and unrelated report fields when preparing a save', () => {
+    const data = { ...valid(), material: { issued: 9 }, narrative: 'Keep this report content' };
+    data.metrics.external_ncr.ageing = [{ department: 'Quality', bucket: 'over45', count: 3 }];
+    const cleaned = normaliseMetricsEntry(data);
+    expect(cleaned.metrics).toEqual(data.metrics);
+    expect(cleaned.material).toEqual(data.material);
+    expect(cleaned.narrative).toBe(data.narrative);
   });
 });
