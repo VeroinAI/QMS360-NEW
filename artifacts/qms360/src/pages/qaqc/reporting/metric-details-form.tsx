@@ -80,5 +80,10 @@ function Details({ k, calc }: { k: string; calc?: Obj }) {
 }
 
 export function MetricDetailsForm({ calc, Tile }: { calc?: Record<string, Obj>; Tile: TileC }) {
-  return <>{METRICS.map(([k, label], i) => <Tile key={k} index={7 + i} title={label}><Details k={k} calc={calc?.[k]} /></Tile>)}</>;
+  return <Tile index={7} title="QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI)">
+    {METRICS.map(([k, label]) => <section key={k} aria-labelledby={`metric-heading-${k}`} className="space-y-4 border-t pt-5 first:border-t-0 first:pt-0">
+      <h3 id={`metric-heading-${k}`} className="text-sm font-semibold">{label}</h3>
+      <Details k={k} calc={calc?.[k]} />
+    </section>)}
+  </Tile>;
 }

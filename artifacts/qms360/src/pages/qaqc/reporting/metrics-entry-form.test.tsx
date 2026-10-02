@@ -22,10 +22,18 @@ function render(readOnly = false, d: Obj = data, b: Obj = baseline) {
 }
 const text = (html: string, id: string) => new RegExp(`data-testid="${id}"[^>]*>([^<]*)<`).exec(html)?.[1] ?? '';
 
-describe('MetricsEntryForm metric tiles', () => {
+describe('MetricsEntryForm metric details tile', () => {
   const { html, calc } = render();
-  it('renders all ten tile titles', () => {
-    ['2. PQP Status', '3. Report Reference', '4. Meetings Conducted', '5. QMS Internal Audit', '6. Quality Manpower', '7. External NCR', '8. Internal NCR', '9. RFI', '10. RMI'].forEach(t => expect(html).toContain(t));
+  it('groups all four categories under one numbered metric-details tile', () => {
+    ['2. PQP Status', '3. Report Reference', '4. Meetings Conducted', '5. QMS Internal Audit', '6. Quality Manpower', '7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI &amp; RMI)'].forEach(t => expect(html).toContain(t));
+    expect((html.match(/aria-expanded="true"/g) ?? []).length).toBe(6);
+    expect(html).not.toContain('8. Internal NCR');
+    expect(html).not.toContain('9. RFI');
+    expect(html).not.toContain('10. RMI');
+    for (const [key, label] of [['external_ncr', 'External NCR'], ['internal_ncr', 'Internal NCR'], ['rfi', 'RFI'], ['rmi', 'RMI']]) {
+      expect(html).toMatch(new RegExp(`<section[^>]*aria-labelledby="metric-heading-${key}"`));
+      expect(html).toMatch(new RegExp(`<h3[^>]*id="metric-heading-${key}"[^>]*>${label}</h3>`));
+    }
   });
   it('shows baseline-derived read-only labels', () => {
     ['Acc. till Last Month', 'Closed till Last Month', 'Acc. till this Month', 'Closed till this Month', 'Closure Rate this Month', '% Acc. till Last Month', '% Acc. till this Month', 'Variance']

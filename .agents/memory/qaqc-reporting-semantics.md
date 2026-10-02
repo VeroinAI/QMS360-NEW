@@ -23,6 +23,12 @@ The SOW QA/QC Metrics New Entry describes a monthly project report, including me
 
 **How to apply:** Save these sections as a monthly draft; remaining monthly report sections and approval continue through the existing full-report workflow.
 
+The four metric categories belong to one numbered section: point 7, “QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI)”. External NCR, Internal NCR, RFI and RMI are subheadings, not separate numbered tiles.
+
+**Why:** The user explicitly corrected the interpretation of the supplied section numbering.
+
+**How to apply:** Keep all four categories inside one shared tile when changing the Metrics entry layout.
+
 Manpower departments in Metrics entry are free text, as specified in the supplied field table. NCR ageing uses a department dropdown instead. Keep the existing master-data department checks for legacy monthly entries and NCR ageing.
 
 **Why:** A text input that accepts a department in its preview but rejects it on save unless it is registered in master data does not implement the supplied field definition.
