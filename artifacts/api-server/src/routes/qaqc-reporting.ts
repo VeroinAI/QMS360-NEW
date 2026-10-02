@@ -14,6 +14,7 @@ import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
 import { assertLovValue, getLovValues } from "../lib/lov";
 import { logger } from "../lib/logger";
 import { reportDepartmentReferences } from "../lib/qaqc-reporting-department-policy";
+import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import {
   calculateReport, subtractReportSnapshot, validateReportData, type CsatReportComputed, type DailyReportComputed,
   type MonthlyReportComputed, type ReportType,
@@ -381,6 +382,63 @@ async function activeProjects(req: Request, type?: ReportType) {
   )).where(and(...clauses));
 }
 
+async function portfolioPqiForContext(req: Request, type: ReportType, projectsInScope: Array<{ id: string }>, period: string) {
+  if (type !== "monthly") return undefined;
+  const monthlyPeriod = normalizePeriod("monthly", period);
+
+  const access = await reportAccess(req, "monthly");
+  (req as any).qaqcReportAccess = new Map([["monthly", access]]);
+  const projectIds = projectsInScope.map((project) => project.id);
+  if (!access.allowed || projectIds.length === 0) {
+    return calculatePortfolioPqi({
+      organizationId: org(req), period: monthlyPeriod, projects: projectsInScope, reports: [],
+    });
+  }
+
+  const fullProjectIds = projectsInScope
+    .filter((project) => access.fullScope.unrestricted || access.fullScope.projectIds.includes(project.id))
+    .map((project) => project.id);
+  const ownershipFilter = fullProjectIds.length
+    ? or(
+      inArray(qaqcReportSubmissions.projectId, fullProjectIds),
+      eq(qaqcReportSubmissions.createdById, actor(req)),
+      eq(qaqcReportSubmissions.approverId, actor(req)),
+    )
+    : or(
+      eq(qaqcReportSubmissions.createdById, actor(req)),
+      eq(qaqcReportSubmissions.approverId, actor(req)),
+    );
+  const rows = await db.select({
+    id: qaqcReportSubmissions.id,
+    organizationId: qaqcReportSubmissions.organizationId,
+    projectId: qaqcReportSubmissions.projectId,
+    reportType: qaqcReportSubmissions.reportType,
+    period: qaqcReportSubmissions.period,
+    state: qaqcReportSubmissions.state,
+    deletedAt: qaqcReportSubmissions.deletedAt,
+    computed: qaqcReportSubmissions.computed,
+    createdAt: qaqcReportSubmissions.createdAt,
+    createdById: qaqcReportSubmissions.createdById,
+    approverId: qaqcReportSubmissions.approverId,
+  }).from(qaqcReportSubmissions).where(and(
+    eq(qaqcReportSubmissions.organizationId, org(req)),
+    inArray(qaqcReportSubmissions.projectId, projectIds),
+    eq(qaqcReportSubmissions.reportType, "monthly"),
+    eq(qaqcReportSubmissions.period, monthlyPeriod),
+    inArray(qaqcReportSubmissions.state, ["submitted", "approved"]),
+    isNull(qaqcReportSubmissions.deletedAt),
+    ownershipFilter,
+  ));
+  const readableRows = rows.filter((row) => canReadByCapability(req, row));
+  return calculatePortfolioPqi({
+    organizationId: org(req),
+    period: monthlyPeriod,
+    projects: projectsInScope,
+    reports: readableRows,
+    canReadReport: (row) => canReadByCapability(req, row),
+  });
+}
+
 async function activeUsers(req: Request) {
   return db.select({ id: users.id, fullName: users.fullName, designation: users.designation })
     .from(users).where(and(eq(users.organizationId, org(req)), eq(users.accessStatus, "active"), isNull(users.deletedAt)))
@@ -456,9 +514,11 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
   if (!projectId) {
     const initialProject = projectsInScope[0];
     const initialSettings = initialProject && isObject(initialProject.customFields.qaqcReporting) ? initialProject.customFields.qaqcReporting : {};
+    const portfolioPqi = await portfolioPqiForContext(req, type, projectsInScope, period);
     res.json({
       ...resultBase, projectDetails: null, baseline: {}, canStart: false,
       blockedReason: null, targets: await targetsFor(req, {}, {}), settings: {},
+      portfolioPqi,
       initialPeriod: type !== "csat" && typeof initialSettings.reportingStartDate === "string" ? initialSettings.reportingStartDate : period,
     });
     return;
@@ -503,6 +563,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
   const baseline = Object.keys(history.baseline).length ? history.baseline : legacy;
   const targets = await targetsFor(req, project.customFields, settings);
   const blockedReason = await sequenceBlock(projectId, type, period);
+  const portfolioPqi = await portfolioPqiForContext(req, type, projectsInScope, period);
   const projectUserIds = new Set<string>();
   const selectedApproverIds = new Set<string>();
   const settingsUserKeys = [...userKeys, "distributionMemberIds"];
@@ -532,6 +593,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
     blockedReason,
     targets,
     settings: { ...effectiveSettings, targets },
+    portfolioPqi,
     initialPeriod: last ? shiftPeriod(last.period, type, 1) : period,
   };
   res.json(result);

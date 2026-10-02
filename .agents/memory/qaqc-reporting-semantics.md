@@ -29,6 +29,12 @@ The four metric categories belong to one numbered section: point 7, “QA/QC Met
 
 **How to apply:** Keep all four categories inside one shared tile when changing the Metrics entry layout.
 
+PQI “Average of All Projects” uses only same-period submitted/approved reports for active projects within the viewer's permitted scope. Show “Pending reports” until every eligible active project has a valid report.
+
+**Why:** The user explicitly chose submitted/approved reports, excluding drafts, and waiting for complete coverage instead of averaging only available reports.
+
+**How to apply:** Do not invent zero or 100% for missing project reports, mix periods, or let this average expose projects outside the viewer's permissions.
+
 Manpower departments in Metrics entry are free text, as specified in the supplied field table. NCR ageing uses a department dropdown instead. Keep the existing master-data department checks for legacy monthly entries and NCR ageing.
 
 **Why:** A text input that accepts a department in its preview but rejects it on save unless it is registered in master data does not implement the supplied field definition.

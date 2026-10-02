@@ -64,6 +64,14 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const ctxParams = { projectId: pid || undefined, reportType, period: per || undefined };
   const ctxQ = useGetQaqcSowContext(ctxParams, { query: { queryKey: getGetQaqcSowContextQueryKey(ctxParams), enabled: !id || !!report } });
   const ctx = (ctxQ.data ?? {}) as Obj;
+  // Refresh the portfolio independently so background updates do not lock the entry form.
+  const portfolioParams = { reportType: 'monthly' as const, period: per || undefined };
+  const portfolioQ = useGetQaqcSowContext(portfolioParams, { query: {
+    queryKey: getGetQaqcSowContextQueryKey(portfolioParams),
+    enabled: metricsEntry && !!per && (!id || !!report),
+    staleTime: 30_000,
+    refetchInterval: metricsEntry ? 60_000 : false,
+  } });
   const [data, setData] = useState<Obj>(() => (metricsEntry ? { ...defaultData(reportType), meetings: [], internalAudit: {}, manpower: [{ department: '' }] } : defaultData(reportType)));
   const initFor = useRef<string | null>(null);
   useEffect(() => { if (report && initFor.current !== report.id) { initFor.current = report.id; setData({ ...defaultData(reportType), ...(report.data as Obj) }); } }, [report, reportType]);
@@ -171,7 +179,9 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
         </div>}
         {imports.length > 0 && <Alert variant="destructive"><AlertTitle>Import validation messages</AlertTitle><AlertDescription><ul className="list-disc pl-5">{imports.map((m, i) => <li key={i}>{m}</li>)}</ul></AlertDescription></Alert>}
         <div className={metricsEntry ? 'grid gap-6' : 'grid gap-6 lg:grid-cols-[1fr_20rem]'}>
-          <div>{metricsEntry ? <MetricsEntryForm calc={monthly.metrics} /> : reportType === 'monthly' ? <MonthlyForm calc={monthly} target={targets} onDraftAi={draftAi} aiBusy={ai.isPending || busy} aiDraft={aiDraft} onUseDraft={() => setData(d => ({ ...d, narrative: aiDraft }))} />
+          <div>{metricsEntry ? <MetricsEntryForm calc={monthly.metrics} pqi={pid && (frozen || (!ctxQ.isLoading && !ctxQ.isError)) ? monthly.pqi : undefined}
+            portfolio={(portfolioQ.data as Obj | undefined)?.portfolioPqi}
+            portfolioLoading={portfolioQ.isLoading} portfolioError={portfolioQ.isError} /> : reportType === 'monthly' ? <MonthlyForm calc={monthly} target={targets} onDraftAi={draftAi} aiBusy={ai.isPending || busy} aiDraft={aiDraft} onUseDraft={() => setData(d => ({ ...d, narrative: aiDraft }))} />
             : reportType === 'daily' ? <DailyForm calc={daily} baseline={baseline} /> : <CsatForm />}</div>
           <aside className={metricsEntry ? 'grid items-start gap-4 md:grid-cols-2' : 'space-y-4 lg:sticky lg:top-4 lg:self-start'}>
             <Card><CardHeader className="pb-2"><CardTitle className="text-base">Validation</CardTitle></CardHeader><CardContent className="text-sm">{issues.length ? <ul className="list-disc space-y-1 pl-4 text-destructive">{issues.map((m, i) => <li key={i}>{m}</li>)}</ul> : <p className="text-muted-foreground">No issues found in the live preview. The server validates again on submit.</p>}</CardContent></Card>
