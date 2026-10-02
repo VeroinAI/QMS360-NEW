@@ -43,6 +43,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useLov, withLegacyOption } from '@/lib/use-lov';
 import { useFieldControls } from '@/lib/field-controls';
+import { MetricsReportList } from './reporting/metrics-report-list';
 
 const limit = 10;
 const dimensions = ['Quality', 'Timeliness', 'Communication', 'Safety', 'Documentation', 'Responsiveness'];
@@ -268,9 +269,10 @@ function MetricsPage() {
       });
     } catch { toast({ title: 'Could not read the file', description: 'Use the downloaded CSV or Excel template and try again.', variant: 'destructive' }); }
   };
-  return <Page title="NCR / RFI / RMI metrics" description="Monthly quality transactions, closure performance and ageing analysis." actions={<><Button variant="secondary" onClick={() => delivery('template')}><Download className="mr-2 size-4" />Template</Button><Button variant="secondary" onClick={() => delivery('report')}><FileBarChart className="mr-2 size-4" />Export CSV</Button><Button variant="secondary" onClick={() => { setEditing(undefined); setSeed({}); setOpen(true); }}><Plus className="mr-2 size-4" />New entry</Button></>}>
+  return <Page title="NCR / RFI / RMI metrics" description="Monthly quality transactions, closure performance and ageing analysis." actions={<><Button variant="secondary" onClick={() => delivery('template')}><Download className="mr-2 size-4" />Template</Button><Button variant="secondary" onClick={() => delivery('report')}><FileBarChart className="mr-2 size-4" />Export CSV</Button><Link href="/qaqc/metrics/new"><Button variant="secondary"><Plus className="mr-2 size-4" />New entry</Button></Link></>}>
     <AiQuickEntry onExtract={data => { setEditing(undefined); setSeed(data); setOpen(true); }} />
     <Card><CardContent className="flex flex-col gap-3 p-4 sm:flex-row"><SearchBox value={projectId} onChange={v => { setProjectId(v); setPage(1); }} placeholder="Filter by project ID" /><Input className="w-full sm:w-44" type="month" value={period} onChange={e => { setPeriod(e.target.value); setPage(1); }} /><Label className="flex cursor-pointer items-center gap-2 rounded-md border px-3 text-sm"><Upload className="size-4" />{importer.isPending ? 'Importing…' : 'Import Excel / CSV'}<input className="hidden" type="file" accept=".csv,.xlsx" onChange={importFile} /></Label></CardContent></Card>
+    <MetricsReportList />
     <Tabs value={category} onValueChange={setCategory}><TabsList className="h-auto flex-wrap">{withLegacyOption(categories.options, category).map(c => <TabsTrigger key={c.value} value={c.value}>{c.label}</TabsTrigger>)}</TabsList></Tabs>
     <QueryState loading={query.isLoading} error={query.error} empty={!rows.length}><Card className="overflow-hidden"><Table><TableHeader><TableRow><TableHead>Ref</TableHead><TableHead>Project / period</TableHead><TableHead>Issued</TableHead><TableHead>Closed</TableHead><TableHead>Ageing 0–15 / 15–45 / &gt;45</TableHead><TableHead>Closure</TableHead><TableHead>Variance</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{rows.map(row => {
       const rate = row.issuedCount === 0 && row.closedCount === 0 ? 100 : row.issuedCount ? row.closedCount / row.issuedCount * 100 : 0;

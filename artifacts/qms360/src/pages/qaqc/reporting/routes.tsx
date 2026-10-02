@@ -6,10 +6,12 @@ import { SettingsPage } from './settings-page';
 import type { ReportType } from './reporting-types';
 
 const T: ReportType[] = ['monthly', 'daily', 'csat'];
-export const reportingPaths = ['/qaqc/monthly', '/qaqc/monthly/new', '/qaqc/monthly/:id', '/qaqc/daily', '/qaqc/daily/new', '/qaqc/daily/:id', '/qaqc/csat', '/qaqc/csat/new', '/qaqc/csat/:id', '/qaqc/report-dashboard', '/qaqc/settings'];
+export const reportingPaths = ['/qaqc/metrics/new', '/qaqc/metrics/reports/:id', '/qaqc/monthly', '/qaqc/monthly/new', '/qaqc/monthly/:id', '/qaqc/daily', '/qaqc/daily/new', '/qaqc/daily/:id', '/qaqc/csat', '/qaqc/csat/new', '/qaqc/csat/:id', '/qaqc/report-dashboard', '/qaqc/settings'];
 
 // Rendered inside the QAQC switch. /new is declared before /:id.
 export const reportingRoutes = [
+  <Route key="mx-n" path="/qaqc/metrics/new">{() => <ReportEditor key="mx-new" reportType="monthly" metricsEntry />}</Route>,
+  <Route key="mx-d" path="/qaqc/metrics/reports/:id">{p => <ReportEditor key={`mx-${p.id}`} reportType="monthly" id={p.id} metricsEntry />}</Route>,
   ...T.flatMap(t => [
     <Route key={`${t}-l`} path={`/qaqc/${t}`}>{() => <ReportList reportType={t} />}</Route>,
     <Route key={`${t}-n`} path={`/qaqc/${t}/new`}>{() => <ReportEditor key={`${t}-new`} reportType={t} />}</Route>,

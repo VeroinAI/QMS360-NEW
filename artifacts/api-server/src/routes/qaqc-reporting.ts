@@ -13,6 +13,7 @@ import { getAppAdminScope, getAuthorizedFullProjectScope, getAuthorizedProjectSc
 import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
 import { assertLovValue, getLovValues } from "../lib/lov";
 import { logger } from "../lib/logger";
+import { reportDepartmentReferences } from "../lib/qaqc-reporting-department-policy";
 import {
   calculateReport, subtractReportSnapshot, validateReportData, type CsatReportComputed, type DailyReportComputed,
   type MonthlyReportComputed, type ReportType,
@@ -398,14 +399,8 @@ async function targetsFor(req: Request, projectCustomFields: Record<string, any>
 }
 
 async function assertReportLovValues(req: Request, type: ReportType, data: Record<string, any>) {
-  if (type !== "monthly") return;
-  for (const row of Array.isArray(data.manpower) ? data.manpower : [])
-    if (isObject(row) && typeof row.department === "string" && row.department.trim())
-      await assertLovValue(db, org(req), "departments", row.department);
-  for (const key of ["external_ncr", "internal_ncr"])
-    for (const row of Array.isArray(data.metrics?.[key]?.ageing) ? data.metrics[key].ageing : [])
-      if (isObject(row) && typeof row.department === "string" && row.department.trim())
-        await assertLovValue(db, org(req), "departments", row.department);
+  for (const department of reportDepartmentReferences(type, data))
+    await assertLovValue(db, org(req), "departments", department);
 }
 
 function userId(customFields: Record<string, unknown>, key: string): string | undefined {
