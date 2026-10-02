@@ -18,6 +18,21 @@ export const ENTITIES = ['Client', 'Algihaz', 'Supplier'];
 export const PEND_STATUSES: [string, string][] = [['underReview', 'Under review'], ['A', 'A'], ['B', 'B'], ['C', 'C'], ['D', 'D'], ['E', 'E']];
 export const PEND_BUCKETS: [string, string][] = [['upTo7', 'Up to 7 days'], ['days8To30', '8-30 days'], ['over30', 'Over 30 days']];
 export const CSAT_RATINGS: [string, string][] = [['quality', 'Quality'], ['timeline', 'Timeline'], ['communication', 'Communication'], ['professionalism', 'Professionalism'], ['valueForMoney', 'Value for money'], ['issueHandling', 'Issue handling']];
+export const CSAT_QUESTIONS: [string, string][] = [
+  ['quality', 'Overall quality of executed work'],
+  ['timeline', 'Project completed within the scheduled timeline'],
+  ['communication', 'Communication throughout the project'],
+  ['professionalism', 'Professionalism and courtesy of our team'],
+  ['valueForMoney', 'Value for money of the project'],
+  ['issueHandling', 'How well did we handle any issues or concerns that arose?'],
+];
+export const CSAT_SCALE = [
+  { value: '1', label: '1 – Very Dissatisfied' },
+  { value: '2', label: '2 – Fair' },
+  { value: '3', label: '3 – Good' },
+  { value: '4', label: '4 – Very Good' },
+  { value: '5', label: '5 – Excellent' },
+];
 export const OUTCOMES = ['Yes', 'No', 'Partially'];
 
 export const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };

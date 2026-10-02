@@ -20,7 +20,7 @@ import { errMsg, saveFile } from './shell';
 type RT = 'monthly' | 'daily' | 'csat';
 type Kind = 'report' | 'dashboard';
 const LIST_KEY = '/api/qaqc/reporting/pdf-templates';
-const RT_LABEL: Record<RT, string> = { monthly: 'Monthly report', daily: 'Daily report', csat: 'CSAT report' };
+const RT_LABEL: Record<RT, string> = { monthly: 'Monthly report', daily: 'Daily report', csat: 'Customer Satisfaction (CSAT) report' };
 const KIND_LABEL: Record<Kind, string> = { report: 'Report', dashboard: 'Dashboard' };
 const PDF = { headers: { Accept: 'application/pdf' } };
 

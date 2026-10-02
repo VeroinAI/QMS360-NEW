@@ -288,7 +288,7 @@ function SimpleRecordsPage({ kind }: { kind: SimpleKind }) {
   const config = {
     mir: ['Material inspections', 'Track MIR status and enforce exact reconciliation.'],
     qtbt: ['Quality toolbox talks', 'Capture quality talk frequency, attendance and duration.'],
-    csat: ['Customer satisfaction', 'Measure six service dimensions and customer outcomes.'],
+    csat: ['Customer Satisfaction (CSAT)', 'Measure six service dimensions and customer outcomes.'],
     documents: ['Daily document governance log', 'Monitor review status, pending ownership and elapsed days.'],
   }[kind];
   const [page, setPage] = useState(1); const [search, setSearch] = useState(''); const [open, setOpen] = useState(false);

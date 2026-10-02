@@ -11,7 +11,7 @@ import type { Obj, ReportType } from './reporting-types';
 import { Empty, ErrorBox, Loading, PageFrame, StateBadge } from './shell';
 
 const LIMIT = 10;
-const NAMES: Record<ReportType, [string, string]> = { monthly: ['Monthly reports', 'Project quality reports submitted for management review.'], daily: ['Daily reports', 'Daily document governance snapshots by project.'], csat: ['Customer satisfaction', 'Customer survey ratings and outcomes by project.'] };
+const NAMES: Record<ReportType, [string, string]> = { monthly: ['Monthly reports', 'Project quality reports submitted for management review.'], daily: ['Daily reports', 'Daily document governance snapshots by project.'], csat: ['Customer Satisfaction (CSAT)', 'Customer survey ratings and outcomes by project.'] };
 const ALL = 'all';
 
 export function ReportList({ reportType }: { reportType: ReportType }) {
