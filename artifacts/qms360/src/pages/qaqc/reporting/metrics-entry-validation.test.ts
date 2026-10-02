@@ -8,10 +8,14 @@ const valid = (): Obj => ({
   manpower: [{ department: 'Quality', count: 5, approvalRequired: false }],
   meetings: [],
   metrics: Object.fromEntries(METRICS.map(([key]) => [key, { issued: 0, closed: 0, ageing: [] }])),
+  material: { issued: 0, closed: 0, osdAvailable: false },
+  qtbt: { talkCount: 0 },
+  documents: Object.fromEntries(['drawings', 'submittals'].map(key => [key, { approved: 0, resubmitted: 0, rejected: 0, underReview: 0, clientReviewDays: 0, internalReviewDays: 0 }])),
+  narrative: 'Monthly quality assessment reviewed.',
 });
 
-describe('six-section QA/QC Metrics entry', () => {
-  it('accepts the Metrics entry payload without requiring unrelated report fields', () => {
+describe('thirteen-section QA/QC Metrics entry', () => {
+  it('accepts all entry fields without requiring submission confirmation on a draft', () => {
     expect(validateMetricsEntry(valid())).toEqual([]);
   });
   it('requires the other PQP status and approval date only when applicable', () => {
@@ -122,7 +126,7 @@ describe('QA/QC Metric Details', () => {
     data.metrics.external_ncr.ageing = [{ department: 'Quality', bucket: 'over45', count: 3 }];
     const cleaned = normaliseMetricsEntry(data);
     expect(cleaned.metrics).toEqual(data.metrics);
-    expect(cleaned.material).toEqual(data.material);
+    expect(cleaned.material).toMatchObject(data.material);
     expect(cleaned.narrative).toBe(data.narrative);
   });
 });

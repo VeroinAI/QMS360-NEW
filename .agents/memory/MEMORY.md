@@ -55,3 +55,4 @@
 - [QA/QC reporting semantics](qaqc-reporting-semantics.md) — carry forward submitted periods; daily data is snapshots; CSAT uses independent survey dates; QTBT uses participant-hours.
 - [QA/QC PDF template policy](qaqc-pdf-template-policy.md) — user chose exact uploaded PDFs with confirmed mappings and named versions, not AI-recreated layouts or altered business fields.
 - [PDF library normalization](pdf-library-normalization.md) — form access and fixture saves can remove XFA before validation; check source structures before normalization.
+- [Monthly quality assessment](quality-assessment-policy.md) — >45-day open NCRs are critical; AI suggestions require human review and confirmation before submission.

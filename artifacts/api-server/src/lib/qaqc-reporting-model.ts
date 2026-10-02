@@ -54,6 +54,7 @@ export type CsatReportComputed = { averageRating: number; ratings: Record<string
 export type ReportComputed = MonthlyReportComputed | DailyReportComputed | CsatReportComputed;
 
 const METRICS = ["external_ncr", "internal_ncr", "rfi", "rmi"] as const;
+export const QMS_DEPARTMENTS = ["HSSE", "Quality", "Finance", "Fleet & Facilities Management", "Human Resources", "Group Digital & Technology", "Operations"] as const;
 const DISCIPLINES = ["Civil", "Mechanical", "Structural", "Electrical", "Instrumentation"] as const;
 const DAILY_STATUSES = ["approved", "resubmit", "rejected", "underReview"] as const;
 const ENTITIES = ["Client", "Algihaz", "Supplier"] as const;
@@ -135,6 +136,8 @@ function validateMonthly(data: Record<string, any>, baseline: Record<string, any
     else if (v !== undefined && !numeric(v)) errors.push(`${path} must be an integer greater than or equal to zero`);
   };
   if (submit && (typeof data.narrative !== "string" || !data.narrative.trim())) errors.push("narrative is required");
+  if (submit && data.assessmentConfirmationRequired === true && data.assessmentConfirmed !== true)
+    errors.push("assessmentConfirmed must be true before submitting this Metrics report");
   if (data.pqpStatus && !["Approved A", "Approved B", "Approved C", "Under Preparation", "Under Review with Client", "Rejected", "Others"].includes(data.pqpStatus)) errors.push("pqpStatus is invalid");
   if (submit && !data.pqpStatus) errors.push("pqpStatus is required");
   if (data.pqpStatus === "Others" && submit && !String(data.pqpOther ?? "").trim()) errors.push("pqpOther is required when pqpStatus is Others");
@@ -215,11 +218,10 @@ function validateMonthly(data: Record<string, any>, baseline: Record<string, any
     if (!isObject(value)) { errors.push(`documents.${section} must be an object`); continue; }
     for (const field of ["approved", "resubmitted", "rejected", "underReview", "clientReviewDays", "internalReviewDays"]) requiredNumber(value[field], `documents.${section}.${field}`);
   }
-  const departments = ["HSSE", "Quality", "Finance", "Fleet & Facilities Management", "Human Resources", "Group Digital & Technology", "Operations"];
   if (data.qmsReports !== undefined && !Array.isArray(data.qmsReports)) errors.push("qmsReports must be an array");
   for (const [i, row] of (Array.isArray(data.qmsReports) ? data.qmsReports : []).entries()) {
     if (!isObject(row)) { errors.push(`qmsReports.${i} must be an object`); continue; }
-    if (!departments.includes(row.department)) errors.push(`qmsReports.${i}.department is invalid`);
+    if (!QMS_DEPARTMENTS.includes(row.department)) errors.push(`qmsReports.${i}.department is invalid`);
     if (!["Manual", "Policy", "SOP", "Form"].includes(row.type)) errors.push(`qmsReports.${i}.type is invalid`);
     if (!["Under Review and Signature", "Approved & Published"].includes(row.status)) errors.push(`qmsReports.${i}.status is invalid`);
   }
@@ -283,6 +285,156 @@ export function calculateReport(reportType: ReportType, data: Record<string, any
     pending: data.pending ?? {},
     correspondence: data.correspondence ?? {},
     revisions: data.revisions ?? {},
+  };
+}
+
+export type MonthlyAssessment = {
+  period: string;
+  computed: MonthlyReportComputed;
+  monthOnMonthVariances: Record<string, number | null>;
+  negativeCategories: string[];
+  criticalNcrOver45: { external: number; internal: number; total: number };
+  categoryRanking: { best: string | null; worst: string | null };
+  dataCoverage: {
+    missingCurrentMetrics: string[];
+    missingPreviousMetrics: string[];
+    currentMaterialComplete: boolean;
+    previousMaterialComplete: boolean;
+    pqiAssessmentAvailable: boolean;
+  };
+  pqiTarget: number | null;
+  targetPerformance: Record<string, { value: number | null; target: number | null; meetsTarget: boolean | null }>;
+  pqiEscalationRequired: boolean;
+  pqiThreeMonthEvidence: Array<{ period: string; accumulated: number | null; belowTarget: boolean | null }>;
+  recommendations: string[];
+};
+
+const MONTHLY_HISTORY_METRICS = ["external_ncr", "internal_ncr", "rfi", "rmi"] as const;
+const isCalendarMonth = (period: unknown): period is string => typeof period === "string"
+  && /^\d{4}-\d{2}-01$/.test(period)
+  && !Number.isNaN(Date.parse(`${period}T00:00:00Z`))
+  && new Date(`${period}T00:00:00Z`).toISOString().slice(0, 10) === period;
+const previousMonth = (period: string, count: number) => {
+  const date = new Date(`${period}T00:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() - count);
+  return date.toISOString().slice(0, 10);
+};
+const finiteNumber = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
+/** Derives AI claims only from the current entry and exact, reviewed monthly history. */
+export function buildMonthlyAssessment(input: {
+  period: string;
+  data: Record<string, any>;
+  baseline: Record<string, any>;
+  targets: Record<string, unknown>;
+  history: Array<{ id?: string; period: string; createdAt?: string | Date | null; computed: unknown; data?: unknown }>;
+}): MonthlyAssessment {
+  const { period, data, baseline, targets, history } = input;
+  const computed = calculateReport("monthly", data, baseline, targets) as MonthlyReportComputed;
+  const currentPeriod = isCalendarMonth(period) ? period : "";
+  const deduped = new Map<string, { id?: string; period: string; createdAt?: string | Date | null; computed: any; data?: unknown }>();
+  const timestamp = (value: string | Date | null | undefined) => {
+    if (value instanceof Date) return value.getTime();
+    if (typeof value === "string") {
+      const parsed = Date.parse(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
+  for (const row of [...history].filter((item) => isCalendarMonth(item.period) && item.period < currentPeriod)
+    .sort((left, right) => left.period.localeCompare(right.period)
+      || timestamp(right.createdAt) - timestamp(left.createdAt)
+      || String(right.id ?? "").localeCompare(String(left.id ?? "")))) {
+    if (!deduped.has(row.period)) deduped.set(row.period, { ...row, computed: isObject(row.computed) ? row.computed : null });
+  }
+  const prior = deduped.get(previousMonth(currentPeriod, 1));
+  const priorTwo = deduped.get(previousMonth(currentPeriod, 2));
+  const priorComputed = isObject(prior?.computed) ? prior.computed : null;
+  const completeMetric = (value: unknown) => isObject(value) && numeric(value.issued) && numeric(value.closed);
+  const currentMissingMetrics = MONTHLY_HISTORY_METRICS.filter((key) => !completeMetric(data.metrics?.[key]));
+  const previousMissingMetrics = MONTHLY_HISTORY_METRICS.filter((key) => !completeMetric((prior?.data as any)?.metrics?.[key]));
+  const currentMaterialComplete = isObject(data.material) && numeric(data.material.issued) && numeric(data.material.closed);
+  const previousMaterialComplete = isObject((prior?.data as any)?.material)
+    && numeric((prior?.data as any).material.issued) && numeric((prior?.data as any).material.closed);
+  const pqiAssessmentAvailable = currentMissingMetrics.length === 0;
+  const variances: Record<string, number | null> = {};
+  for (const key of MONTHLY_HISTORY_METRICS) {
+    variances[key] = currentMissingMetrics.includes(key) ? null : finiteNumber(computed.metrics[key]?.variance);
+  }
+  variances.pqi = pqiAssessmentAvailable ? finiteNumber(computed.pqi.variance) : null;
+  variances.material = currentMaterialComplete ? finiteNumber(computed.material.variance) : null;
+  const negativeCategories = [...MONTHLY_HISTORY_METRICS, "pqi", "material"].filter((key) => variances[key] !== null && (variances[key] ?? 0) < 0);
+  const ranked: Array<{ key: string; rate: number | null }> = [
+    ...MONTHLY_HISTORY_METRICS.map((key) => ({
+      key, rate: currentMissingMetrics.includes(key) ? null : finiteNumber(computed.metrics[key]?.accumulatedRate),
+    })),
+    { key: "material", rate: currentMaterialComplete ? finiteNumber(computed.material.accumulatedRate) : null },
+  ].filter((item): item is { key: string; rate: number } => item.rate !== null)
+    .sort((left, right) => right.rate - left.rate || left.key.localeCompare(right.key));
+  const ageingCount = (key: "external_ncr" | "internal_ncr") => {
+    const ageing = data.metrics?.[key]?.ageing;
+    return Array.isArray(ageing) ? ageing.reduce((sum: number, item: unknown) => {
+      if (!isObject(item) || item.bucket !== "over45") return sum;
+      const count = finiteNumber(item.count);
+      return count !== null && count >= 0 ? sum + count : sum;
+    }, 0) : 0;
+  };
+  const externalCritical = ageingCount("external_ncr");
+  const internalCritical = ageingCount("internal_ncr");
+  const pqiTargetValue = targets.pqi;
+  const pqiTarget = pqiTargetValue === undefined || pqiTargetValue === null || pqiTargetValue === ""
+    ? null : Number.isFinite(Number(pqiTargetValue)) ? Number(pqiTargetValue) : null;
+  const targetPerformance: MonthlyAssessment["targetPerformance"] = Object.fromEntries([
+    ...MONTHLY_HISTORY_METRICS.map((key) => {
+      const value = currentMissingMetrics.includes(key) ? null : finiteNumber(computed.metrics[key]?.accumulatedRate);
+      const target = finiteNumber(computed.metrics[key]?.target);
+      return [key, { value, target, meetsTarget: value !== null && target !== null ? value >= target : null }];
+    }),
+    ["pqi", {
+      value: pqiAssessmentAvailable ? finiteNumber(computed.pqi.accumulated) : null,
+      target: pqiTarget,
+      meetsTarget: pqiAssessmentAvailable && pqiTarget !== null ? computed.pqi.accumulated >= pqiTarget : null,
+    }],
+  ]);
+  const pqiPeriods = [
+    {
+      period: previousMonth(currentPeriod, 2),
+      computed: isObject(priorTwo?.computed) && MONTHLY_HISTORY_METRICS.every((key) => completeMetric((priorTwo.data as any)?.metrics?.[key])) ? priorTwo.computed : null,
+    },
+    {
+      period: previousMonth(currentPeriod, 1),
+      computed: priorComputed && MONTHLY_HISTORY_METRICS.every((key) => completeMetric((prior?.data as any)?.metrics?.[key])) ? priorComputed : null,
+    },
+    { period, computed: pqiAssessmentAvailable ? computed : null },
+  ];
+  const pqiThreeMonthEvidence = pqiPeriods.map((month) => {
+    const accumulated = finiteNumber(month.computed?.pqi?.accumulated);
+    return {
+      period: month.period,
+      accumulated,
+      belowTarget: accumulated !== null && pqiTarget !== null ? accumulated < pqiTarget : null,
+    };
+  });
+  const pqiEscalationRequired = pqiTarget !== null
+    && pqiThreeMonthEvidence.every((month) => month.belowTarget === true);
+  const recommendations: string[] = [];
+  if (negativeCategories.length) recommendations.push(`Review the documented month-on-month declines in ${negativeCategories.join(", ")}; verify the underlying closure actions and owners.`);
+  if (currentMissingMetrics.length || previousMissingMetrics.length || !currentMaterialComplete || !previousMaterialComplete)
+    recommendations.push("Complete or verify the missing issued/closed counts before interpreting category or PQI trends; unavailable values are not scored as zero.");
+  if (externalCritical + internalCritical > 0)
+    recommendations.push(`Prioritize owner review and corrective-action follow-up for ${externalCritical + internalCritical} open NCR(s) aged over 45 days; each is classified as CRITICAL by the reporting rule.`);
+  if (pqiEscalationRequired) recommendations.push("Escalate the sustained PQI result for management review; the current month and both immediately preceding reviewed months are below the configured target.");
+  if (!recommendations.length) recommendations.push("Continue monitoring the reported monthly indicators and verify actions against the project quality plan.");
+  return {
+    period, computed, monthOnMonthVariances: variances, negativeCategories,
+    criticalNcrOver45: { external: externalCritical, internal: internalCritical, total: externalCritical + internalCritical },
+    categoryRanking: { best: ranked[0]?.key ?? null, worst: ranked.at(-1)?.key ?? null },
+    dataCoverage: {
+      missingCurrentMetrics: currentMissingMetrics, missingPreviousMetrics: previousMissingMetrics,
+      currentMaterialComplete, previousMaterialComplete, pqiAssessmentAvailable,
+    },
+    pqiTarget, targetPerformance, pqiEscalationRequired, pqiThreeMonthEvidence, recommendations,
   };
 }
 

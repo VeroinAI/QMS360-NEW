@@ -1,4 +1,5 @@
 import { AGEING_BUCKETS, MEETING_TYPES, METRICS, PQP_STATUSES, monthlyBaseline, type Obj } from './reporting-types';
+import { normaliseAdditionalMetrics, validateAdditionalMetrics } from './additional-metrics-validation';
 
 const hasValue = (v: unknown) => v !== undefined && v !== null && v !== '';
 const integer = (v: unknown, min = 0) => typeof v === 'number' && Number.isInteger(v) && v >= min;
@@ -10,7 +11,7 @@ const date = (v: unknown) => {
 
 // Scoped to the Metrics entry page; full monthly submission keeps
 // its existing, additional validations.
-export function validateMetricsEntry(data: Obj, baseline: Obj = {}): string[] {
+export function validateMetricsEntry(data: Obj, baseline: Obj = {}, options: { requireBrief?: boolean } = {}): string[] {
   const issues: string[] = [];
   const checkDate = (value: unknown, label: string, required = false) => {
     if (!hasValue(value)) { if (required) issues.push(`${label} is required.`); }
@@ -78,12 +79,12 @@ export function validateMetricsEntry(data: Obj, baseline: Obj = {}): string[] {
       if (total !== open) issues.push(`${label}: ageing counts (${total}) must equal Open NCRs (${open}).`);
     }
   }
-  return issues;
+  return [...issues, ...validateAdditionalMetrics(data, baseline, options.requireBrief !== false)];
 }
 
 export function normaliseMetricsEntry(data: Obj): Obj {
   return {
-    ...data,
+    ...normaliseAdditionalMetrics(data),
     manpowerDepartmentInput: 'text',
     ...(data.pqpStatus === 'Under Preparation' ? { pqpSubmittedDate: '' } : {}),
     ...(!['Approved A', 'Approved B', 'Approved C'].includes(data.pqpStatus) ? { pqpApprovedDate: '' } : {}),

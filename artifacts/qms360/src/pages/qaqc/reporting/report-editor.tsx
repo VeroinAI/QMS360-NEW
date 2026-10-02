@@ -19,7 +19,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useFieldControls } from '@/lib/field-controls';
 import { CsatForm } from './csat-form';
 import { DailyForm } from './daily-form';
-import { FormCtx, ReadOnlyValue, setIn } from './form-kit';
+import { FormCtx, ReadOnlyValue } from './form-kit';
+import { AdditionalMetricsTiles } from './additional-metrics-tiles';
+import { editAssessmentData, resetAssessmentReview } from './assessment-editing';
 import { MonthlyForm } from './monthly-form';
 import { MetricsEntryForm, Tile } from './metrics-entry-form';
 import { normaliseMetricsEntry, validateMetricsEntry } from './metrics-entry-validation';
@@ -72,13 +74,15 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     staleTime: 30_000,
     refetchInterval: metricsEntry ? 60_000 : false,
   } });
-  const [data, setData] = useState<Obj>(() => (metricsEntry ? { ...defaultData(reportType), meetings: [], internalAudit: {}, manpower: [{ department: '' }] } : defaultData(reportType)));
+  const [data, setData] = useState<Obj>(() => (metricsEntry ? { ...defaultData(reportType), meetings: [], internalAudit: {}, manpower: [{ department: '' }], assessmentConfirmationRequired: true, assessmentConfirmed: false } : defaultData(reportType)));
   const initFor = useRef<string | null>(null);
   useEffect(() => { if (report && initFor.current !== report.id) { initFor.current = report.id; setData({ ...defaultData(reportType), ...(report.data as Obj) }); } }, [report, reportType]);
 
   const create = useCreateQaqcSowReport(); const update = useUpdateQaqcSowReport(); const del = useDeleteQaqcSowReport();
   const submit = useSubmitQaqcSowReport(); const review = useReviewQaqcSowReport(); const importer = useImportQaqcSowWorkbook(); const ai = useDraftQaqcSowBrief();
   const [aiDraft, setAiDraft] = useState(() => (id ? sessionStorage.getItem(`qaqc-ai-${id}`) ?? '' : ''));
+  const [aiError, setAiError] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
   const [imports, setImports] = useState<string[]>([]);
   const [approverId, setApproverId] = useState(''); const [submitOpen, setSubmitOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
@@ -86,7 +90,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
 
   const editable = !report || report.state === 'draft' || report.state === 'sent_back';
   const blocked = !report && ctx.canStart === false;
-  const readOnly = !editable || blocked || !pid || locked || (metricsEntry && (ctxQ.isLoading || ctxQ.isFetching || !!ctxQ.error));
+  const readOnly = !editable || blocked || !pid || locked || busy || create.isPending || update.isPending || aiGenerating || (metricsEntry && (ctxQ.isLoading || ctxQ.isFetching || !!ctxQ.error));
   const frozen = !!report && !editable;
   const baseline: Obj = (frozen ? report?.baseline : ctx.baseline) ?? {};
   const targets = ctx.targets as Obj | undefined;
@@ -106,11 +110,16 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const isApprover = report?.state === 'submitted' && !!me.data && report.approverId === me.data.id && report.submittedById !== me.data.id;
   const projectName = report?.projectName ?? projects.find(p => p.id === pid)?.name;
 
-  const form = { data, readOnly, set: (p: (string | number)[], v: unknown) => setData(d => {
-    const updated = setIn(d, p, v);
-    // Zero-fill is a starting point: later numeric edits must not be erased on save.
-    return typeof v === 'number' && v !== 0 ? { ...updated, noUpdates: false } : updated;
-  }), fc: () => ({ disabled: locked, required: false }), departments: (ctx.masterData?.departments ?? ctx.masterData?.qmsDepartments) as (string | { value: string; label?: string })[] | undefined };
+  const clearAiSuggestion = () => {
+    setAiDraft('');
+    setAiError('');
+    if (id) sessionStorage.removeItem(`qaqc-ai-${id}`);
+  };
+  const form = { data, readOnly, set: (p: (string | number)[], v: unknown) => {
+    if (p[0] !== 'narrative' && p[0] !== 'assessmentConfirmed') clearAiSuggestion();
+    setData(d => editAssessmentData(d, p, v, metricsEntry));
+  },
+    fc: () => ({ disabled: locked, required: false }), departments: (ctx.masterData?.departments ?? ctx.masterData?.qmsDepartments) as (string | { value: string; label?: string })[] | undefined };
   const fail = (title: string) => (e: unknown) => toast({ title, description: errMsg(e), variant: 'destructive' });
 
   const save = () => {
@@ -132,18 +141,36 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     return r.id;
   };
   const draftAi = () => run(async () => {
+    if (readOnly || ai.isPending) return;
+    const preflight = metricsEntry ? validateMetricsEntry(clean, baseline, { requireBrief: false }) : [];
+    if (preflight.length) {
+      setAiError('Complete the required report fields before generating the assessment. The final assessment text can be left blank for this step.');
+      toast({ title: 'Report details are incomplete', description: preflight.join(' '), variant: 'destructive' });
+      return;
+    }
+    setAiError('');
+    setAiGenerating(true);
+    let rid: string | undefined;
     try {
-      const rid = await saveDraftFirst();
+      rid = await saveDraftFirst();
       const r = await ai.mutateAsync({ id: rid, data: { data: clean } });
       setAiDraft(r.draft);
       sessionStorage.setItem(`qaqc-ai-${rid}`, r.draft);
-      if (!report) nav(`${base}/${rid}`, { replace: true });
-    } catch (e) { fail('AI draft unavailable')(e); }
+    } catch (e) {
+      setAiError(errMsg(e));
+      fail('VerionAI suggestion unavailable')(e);
+    } finally {
+      setAiGenerating(false);
+      // The draft exists even if generation fails. Reopen it instead of creating
+      // a duplicate project/period draft on the next attempt.
+      if (!report && rid) nav(`${base}/${rid}`, { replace: true });
+    }
   });
+  const useAiDraft = () => setData(d => editAssessmentData(d, ['narrative'], aiDraft, metricsEntry));
   const importFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; e.target.value = ''; if (!file || !pid) return;
     importer.mutate({ data: { reportType, projectId: pid, period: per, workbook: toBase64(await file.arrayBuffer()) } }, {
-      onSuccess: r => { setImports(r.errors ?? []); setData({ ...defaultData(reportType), ...(r.data as Obj) }); toast({ title: 'Workbook loaded for review', description: 'Nothing is saved until you save the draft.' }); }, onError: fail('Import failed'),
+      onSuccess: r => { setImports(r.errors ?? []); setData(d => resetAssessmentReview({ ...defaultData(reportType), ...(r.data as Obj), ...(d.assessmentConfirmationRequired === true ? { assessmentConfirmationRequired: true, qmsDepartmentInput: d.qmsDepartmentInput } : {}) }, metricsEntry)); toast({ title: 'Workbook loaded for review', description: 'Nothing is saved until you save the draft.' }); }, onError: fail('Import failed'),
     });
   };
 
@@ -160,8 +187,8 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
       {report?.state === 'sent_back' && <Alert variant="destructive"><AlertTitle>Sent back for correction</AlertTitle><AlertDescription>{report.reviewComments}</AlertDescription></Alert>}
       <Wrap>
         <div className={metricsEntry ? 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3' : 'grid gap-3 sm:grid-cols-2 lg:grid-cols-4'}>
-          <div className="space-y-1"><Label htmlFor="metrics-project" className="text-xs text-muted-foreground">{metricsEntry ? 'Project Name' : 'Project'}{metricsEntry && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{report ? <ReadOnlyValue label="" value={projectName} /> : <Select disabled={fc.fieldProps('projectId').disabled} value={projectId} onValueChange={setProjectId}><SelectTrigger id="metrics-project" aria-required={metricsEntry}><SelectValue placeholder={ctxQ.isLoading ? 'Loading projects' : 'Select project'} /></SelectTrigger><SelectContent>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</SelectItem>)}</SelectContent></Select>}</div>
-          <div className="space-y-1"><Label htmlFor={metricsEntry ? 'metrics-period' : undefined} className="text-xs text-muted-foreground">{metricsEntry ? 'Month / Year' : reportType === 'monthly' ? 'Period (month)' : 'Date'}{metricsEntry && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{report ? <ReadOnlyValue label="" value={metricsEntry ? `${per.slice(5, 7)}-${per.slice(0, 4)}` : per} /> : reportType !== 'monthly' ? <Input disabled={fc.fieldProps('period').disabled} type="date" max={todayIso()} value={period} onChange={e => setPeriod(e.target.value)} /> : <Input id={metricsEntry ? 'metrics-period' : undefined} aria-required={metricsEntry} disabled={fc.fieldProps('period').disabled} type="month" max={todayIso().slice(0, 7)} value={period.slice(0, 7)} onChange={e => e.target.value && setPeriod(`${e.target.value}-01`)} />}</div>
+          <div className="space-y-1"><Label htmlFor="metrics-project" className="text-xs text-muted-foreground">{metricsEntry ? 'Project Name' : 'Project'}{metricsEntry && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{report ? <ReadOnlyValue label="" value={projectName} /> : <Select disabled={fc.fieldProps('projectId').disabled || busy || create.isPending} value={projectId} onValueChange={v => { clearAiSuggestion(); setData(d => resetAssessmentReview(d, metricsEntry)); setProjectId(v); }}><SelectTrigger id="metrics-project" aria-required={metricsEntry}><SelectValue placeholder={ctxQ.isLoading ? 'Loading projects' : 'Select project'} /></SelectTrigger><SelectContent>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</SelectItem>)}</SelectContent></Select>}</div>
+          <div className="space-y-1"><Label htmlFor={metricsEntry ? 'metrics-period' : undefined} className="text-xs text-muted-foreground">{metricsEntry ? 'Month / Year' : reportType === 'monthly' ? 'Period (month)' : 'Date'}{metricsEntry && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{report ? <ReadOnlyValue label="" value={metricsEntry ? `${per.slice(5, 7)}-${per.slice(0, 4)}` : per} /> : reportType !== 'monthly' ? <Input disabled={fc.fieldProps('period').disabled || busy || create.isPending} type="date" max={todayIso()} value={period} onChange={e => setPeriod(e.target.value)} /> : <Input id={metricsEntry ? 'metrics-period' : undefined} aria-required={metricsEntry} disabled={fc.fieldProps('period').disabled || busy || create.isPending} type="month" max={todayIso().slice(0, 7)} value={period.slice(0, 7)} onChange={e => { if (e.target.value) { clearAiSuggestion(); setData(d => resetAssessmentReview(d, metricsEntry)); setPeriod(`${e.target.value}-01`); } }} />}</div>
           <ReadOnlyValue label="Cost centre" value={details.costCentre} />
           {!metricsEntry && <><ReadOnlyValue label="Project manager" value={details.pmName} /><ReadOnlyValue label="Project engineer" value={details.peName} /><ReadOnlyValue label="Document controller" value={details.dcName} /></>}
         </div>
@@ -175,13 +202,14 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
         {!metricsEntry && editable && pid && !blocked && !locked && <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => run(async () => { try { saveFile(await downloadQaqcSowTemplate({ reportType }), `${reportType}-template.xlsx`); } catch (e) { fail('Template download failed')(e); } })}><Download className="mr-2 size-4" />Template</Button>
           <Label className="inline-flex cursor-pointer items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm"><Upload className="size-4" />{importer.isPending ? 'Validating...' : 'Import workbook'}<input type="file" accept=".xlsx" className="hidden" onChange={importFile} /></Label>
-          {reportType !== 'csat' && <Button variant="outline" size="sm" onClick={() => setData(d => zeroFill(reportType, d))}><Eraser className="mr-2 size-4" />Zero-fill</Button>}
+          {reportType !== 'csat' && <Button variant="outline" size="sm" onClick={() => setData(d => resetAssessmentReview(zeroFill(reportType, d)))}><Eraser className="mr-2 size-4" />Zero-fill</Button>}
         </div>}
         {imports.length > 0 && <Alert variant="destructive"><AlertTitle>Import validation messages</AlertTitle><AlertDescription><ul className="list-disc pl-5">{imports.map((m, i) => <li key={i}>{m}</li>)}</ul></AlertDescription></Alert>}
         <div className={metricsEntry ? 'grid gap-6' : 'grid gap-6 lg:grid-cols-[1fr_20rem]'}>
-          <div>{metricsEntry ? <MetricsEntryForm calc={monthly.metrics} pqi={pid && (frozen || (!ctxQ.isLoading && !ctxQ.isError)) ? monthly.pqi : undefined}
+          <div>{metricsEntry ? <div className="space-y-6"><MetricsEntryForm calc={monthly.metrics} pqi={pid && (frozen || (!ctxQ.isLoading && !ctxQ.isError)) ? monthly.pqi : undefined}
             portfolio={(portfolioQ.data as Obj | undefined)?.portfolioPqi}
-            portfolioLoading={portfolioQ.isLoading} portfolioError={portfolioQ.isError} /> : reportType === 'monthly' ? <MonthlyForm calc={monthly} target={targets} onDraftAi={draftAi} aiBusy={ai.isPending || busy} aiDraft={aiDraft} onUseDraft={() => setData(d => ({ ...d, narrative: aiDraft }))} />
+            portfolioLoading={portfolioQ.isLoading} portfolioError={portfolioQ.isError} />
+            <AdditionalMetricsTiles Tile={Tile} calc={monthly} baseline={baseline} onDraftAi={draftAi} aiBusy={ai.isPending || aiGenerating} aiDraft={aiDraft} aiError={aiError} onUseDraft={useAiDraft} /></div> : reportType === 'monthly' ? <MonthlyForm calc={monthly} target={targets} onDraftAi={draftAi} aiBusy={ai.isPending || aiGenerating} aiDraft={aiDraft} aiError={aiError} onUseDraft={useAiDraft} />
             : reportType === 'daily' ? <DailyForm calc={daily} baseline={baseline} /> : <CsatForm />}</div>
           <aside className={metricsEntry ? 'grid items-start gap-4 md:grid-cols-2' : 'space-y-4 lg:sticky lg:top-4 lg:self-start'}>
             <Card><CardHeader className="pb-2"><CardTitle className="text-base">Validation</CardTitle></CardHeader><CardContent className="text-sm">{issues.length ? <ul className="list-disc space-y-1 pl-4 text-destructive">{issues.map((m, i) => <li key={i}>{m}</li>)}</ul> : <p className="text-muted-foreground">No issues found in the live preview. The server validates again on submit.</p>}</CardContent></Card>
@@ -189,7 +217,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
             <Card><CardContent className="space-y-2 p-4">
               {editable && <Button className="w-full" disabled={readOnly || create.isPending || update.isPending || (metricsEntry && (issues.length > 0 || !pid))} onClick={save}><Save className="mr-2 size-4" />{report ? 'Save draft' : 'Create draft'}</Button>}
               {metricsEntry && issues.length > 0 && <p className="text-xs text-destructive">Resolve {issues.length} open issue(s) to enable saving.</p>}
-              {metricsEntry && report && <Link href={`/qaqc/monthly/${report.id}`}><Button className="w-full" variant="outline">Continue full monthly report (remaining fields and submission)</Button></Link>}
+              {metricsEntry && report && <Link href={`/qaqc/monthly/${report.id}`}><Button className="w-full" variant="outline">Open monthly report for submission</Button></Link>}
               {!metricsEntry && editable && report && <Button className="w-full" variant="outline" disabled={issues.length > 0 || locked} onClick={() => setSubmitOpen(true)}><Send className="mr-2 size-4" />Submit for approval</Button>}
               {!metricsEntry && editable && report && issues.length > 0 && <p className="text-xs text-destructive">Resolve {issues.length} open validation issue(s) to enable submission.</p>}
               {editable && report && <Button className="w-full" variant="outline" onClick={() => setDelOpen(true)}><Trash2 className="mr-2 size-4 text-destructive" />Delete draft</Button>}

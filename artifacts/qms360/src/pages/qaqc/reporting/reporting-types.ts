@@ -79,6 +79,7 @@ export function calcMonthly(d: Obj, baseline: Obj | undefined, target?: Obj) {
   for (const [i, r] of (d.manpower ?? []).entries()) { if (!String(r.department ?? '').trim()) issues.push(`Manpower row ${i + 1}: department is required.`); if (num(r.count) < 1) issues.push(`Manpower row ${i + 1}: headcount must be positive.`); }
   for (const [k] of METRICS.slice(0, 2)) for (const [i, r] of (d.metrics?.[k]?.ageing ?? []).entries()) { if (!String(r.department ?? '').trim()) issues.push(`${k} ageing row ${i + 1}: department is required.`); if (num(r.count) < 1) issues.push(`${k} ageing row ${i + 1}: count must be positive.`); }
   if (!String(d.narrative ?? '').trim()) issues.push('Final assessment narrative is required.');
+  if (d.assessmentConfirmationRequired === true && d.assessmentConfirmed !== true) issues.push('Review and confirm the final quality assessment before submission.');
   return { metrics, pqi, material, tagSum, qtbt, manpower, issues };
 }
 

@@ -16,7 +16,7 @@ import { logger } from "../lib/logger";
 import { reportDepartmentReferences } from "../lib/qaqc-reporting-department-policy";
 import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import {
-  calculateReport, subtractReportSnapshot, validateReportData, type CsatReportComputed, type DailyReportComputed,
+  buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, type CsatReportComputed, type DailyReportComputed,
   type MonthlyReportComputed, type ReportType,
 } from "../lib/qaqc-reporting-model";
 
@@ -221,18 +221,21 @@ async function reportRow(req: Request, id: string) {
   return rows[0];
 }
 
-async function latestPrior(projectId: string, type: ReportType, period: string) {
+async function latestPrior(organizationId: string, projectId: string, type: ReportType, period: string) {
   const rows = await db.select().from(qaqcReportSubmissions).where(and(
-    eq(qaqcReportSubmissions.projectId, projectId), eq(qaqcReportSubmissions.reportType, type),
+    eq(qaqcReportSubmissions.organizationId, organizationId), eq(qaqcReportSubmissions.projectId, projectId),
+    eq(qaqcReportSubmissions.reportType, type),
     lte(qaqcReportSubmissions.period, shiftPeriod(period, type, -1)),
     inArray(qaqcReportSubmissions.state, ["submitted", "approved"]), isNull(qaqcReportSubmissions.deletedAt),
-  )).orderBy(desc(qaqcReportSubmissions.period)).limit(1);
+  )).orderBy(
+    desc(qaqcReportSubmissions.period), desc(qaqcReportSubmissions.createdAt), desc(qaqcReportSubmissions.id),
+  ).limit(1);
   return rows[0] ?? null;
 }
 
-async function historyBaseline(projectId: string, type: ReportType, period: string) {
+async function historyBaseline(organizationId: string, projectId: string, type: ReportType, period: string) {
   if (type === "csat") return { baseline: {}, previous: null };
-  const previous = await latestPrior(projectId, type, period);
+  const previous = await latestPrior(organizationId, projectId, type, period);
   if (!previous) return { baseline: {}, previous: null };
   if (type === "daily") return { baseline: previous.data as Record<string, any>, previous };
   if (type === "monthly") {
@@ -552,7 +555,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
       period = normalizePeriod(type, defaultPeriod, today);
     }
   }
-  const history = await historyBaseline(projectId, type, period);
+  const history = await historyBaseline(org(req), projectId, type, period);
   const legacy = Object.keys(history.baseline).length ? {} : await legacyBaseline(projectId, type, period);
   const auditPrefill = type === "monthly" ? await db.select({ auditDate: auditPlans.auditDate, workflowState: auditPlans.workflowState })
     .from(auditPlans).where(and(
@@ -631,7 +634,7 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
   await assertFieldAccess(req, "qaqc", "report-envelope", { mode: "create", body: fieldBody });
   await assertFieldControls(req, "qaqc", "report-envelope", { mode: "create", body: fieldBody });
   await assertSequence(projectId, type, period);
-  const { baseline: historicalBaseline } = await historyBaseline(projectId, type, period);
+  const { baseline: historicalBaseline } = await historyBaseline(org(req), projectId, type, period);
   const baseline = Object.keys(historicalBaseline).length ? historicalBaseline : await legacyBaseline(projectId, type, period);
   await assertReportLovValues(req, type, data);
   const validation = validateReportData(type, data, baseline, false);
@@ -664,6 +667,8 @@ router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (re
   await assertFieldAccess(req, "qaqc", "report-envelope", { mode: "update", current: before as any, body: fieldBody });
   await assertFieldControls(req, "qaqc", "report-envelope", { mode: "update", current: before as any, body: fieldBody });
   const data = zeroFill(before.reportType as ReportType, req.body.data);
+  if (before.data?.assessmentConfirmationRequired === true) data.assessmentConfirmationRequired = true;
+  if (before.data?.qmsDepartmentInput === "sow") data.qmsDepartmentInput = "sow";
   await assertReportLovValues(req, before.reportType as ReportType, data);
   const validation = validateReportData(before.reportType as ReportType, data, before.baseline as any, false);
   if (!validation.valid) throw new HttpError(422, validation.errors.join("; "));
@@ -716,7 +721,7 @@ router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(asy
   const period = normalizePeriod(before.reportType as ReportType, before.period, today);
   await assertSequence(before.projectId, before.reportType as ReportType, period, before);
   const downstreamSubmission = await hasDownstreamSubmission(before.projectId, before.reportType as ReportType, period);
-  const { baseline: historicalBaseline } = await historyBaseline(before.projectId, before.reportType as ReportType, period);
+  const { baseline: historicalBaseline } = await historyBaseline(org(req), before.projectId, before.reportType as ReportType, period);
   const baseline = before.state === "sent_back" && before.submittedAt && downstreamSubmission
     ? before.baseline as Record<string, any>
     : Object.keys(historicalBaseline).length ? historicalBaseline : await legacyBaseline(before.projectId, before.reportType as ReportType, period);
@@ -773,26 +778,48 @@ router.post("/reports/:id/review", reportPermissionById("own"), asyncHandler(asy
 router.post("/reports/:id/ai-brief", reportPermissionById("own"), asyncHandler(async (req, res) => {
   const row = await reportRow(req, String(req.params.id));
   if (row.reportType !== "monthly") throw new HttpError(422, "AI brief is available for monthly reports only");
-  const data = isObject(req.body?.data) ? req.body.data : row.data;
-  const history = await db.select({
-    period: qaqcReportSubmissions.period, computed: qaqcReportSubmissions.computed, data: qaqcReportSubmissions.data,
+  if (row.createdById !== actor(req)) throw new HttpError(403, "Only the report creator may request an AI brief");
+  if (!["draft", "sent_back"].includes(row.state)) throw new HttpError(409, "AI briefs are available only for editable draft or sent-back reports");
+  await projectAllowed(req, row.projectId);
+  if (await hasDownstreamSubmission(row.projectId, "monthly", row.period))
+    throw new HttpError(409, `Cannot edit ${row.period}; a later report has already been submitted`);
+  if (Object.prototype.hasOwnProperty.call(req.body ?? {}, "data") && !isObject(req.body.data))
+    throw new HttpError(422, "data must be an object");
+  const data = zeroFill("monthly", isObject(req.body?.data) ? req.body.data : row.data);
+  if (row.data?.assessmentConfirmationRequired === true) data.assessmentConfirmationRequired = true;
+  if (row.data?.qmsDepartmentInput === "sow") data.qmsDepartmentInput = "sow";
+  const history = await db.selectDistinctOn([qaqcReportSubmissions.period], {
+    id: qaqcReportSubmissions.id, period: qaqcReportSubmissions.period, createdAt: qaqcReportSubmissions.createdAt,
+    computed: qaqcReportSubmissions.computed, data: qaqcReportSubmissions.data,
   }).from(qaqcReportSubmissions).where(and(
-    eq(qaqcReportSubmissions.projectId, row.projectId), eq(qaqcReportSubmissions.reportType, "monthly"),
+    eq(qaqcReportSubmissions.organizationId, org(req)), eq(qaqcReportSubmissions.projectId, row.projectId),
+    eq(qaqcReportSubmissions.reportType, "monthly"),
+    gte(qaqcReportSubmissions.period, shiftPeriod(row.period, "monthly", -2)),
     lte(qaqcReportSubmissions.period, row.period), inArray(qaqcReportSubmissions.state, ["submitted", "approved"]),
     isNull(qaqcReportSubmissions.deletedAt),
-  )).orderBy(desc(qaqcReportSubmissions.period)).limit(12);
-  const [project] = await db.select({ customFields: projects.customFields }).from(projects).where(eq(projects.id, row.projectId)).limit(1);
+  )).orderBy(
+    desc(qaqcReportSubmissions.period), desc(qaqcReportSubmissions.createdAt), desc(qaqcReportSubmissions.id),
+  ).limit(3);
+  const [project] = await db.select({ customFields: projects.customFields }).from(projects).where(and(
+    eq(projects.id, row.projectId), eq(projects.organizationId, org(req)), isNull(projects.deletedAt),
+  )).limit(1);
   const settings = isObject(project?.customFields.qaqcReporting) ? project.customFields.qaqcReporting : {};
-  const validation = validateReportData("monthly", data, row.baseline as any, false);
+  const { baseline: historicalBaseline } = await historyBaseline(org(req), row.projectId, "monthly", row.period);
+  const baseline = Object.keys(historicalBaseline).length ? historicalBaseline : await legacyBaseline(row.projectId, "monthly", row.period);
+  await assertReportLovValues(req, "monthly", data);
+  const validation = validateReportData("monthly", data, baseline, false);
   if (!validation.valid) throw new HttpError(422, validation.errors.join("; "));
   const targets = await targetsFor(req, project?.customFields as any ?? {}, settings);
+  const assessment = buildMonthlyAssessment({
+    period: row.period, data, baseline, targets, history,
+  });
   try {
     const result = await draftQualityBrief({
       app: "qaqc", organizationId: org(req), actorId: actor(req), projectId: row.projectId,
-      period: row.period, data, computed: calculateReport("monthly", data, row.baseline as any, targets),
-      targets, history,
-      instruction: "Include month-over-month variance, negative changes, NCR ageing over 45 days, target performance and actionable recommendations. Explicitly flag PQI below target for three consecutive months.",
-    });
+      period: row.period, data, computed: assessment.computed, targets, history, assessment,
+    }, "Draft an evidence-grounded monthly quality brief. Cover signed month-on-month accumulated-rate variances for external NCR, internal NCR, RFI, RMI, PQI and material; call out every negative category; report best/worst category ranking by accumulated rate (including material, but not ranking aggregate PQI as a category) and supported target performance; and provide actionable recommendations grounded in the supplied assessment. Every open NCR in the over-45-day ageing bucket is CRITICAL under the stated reporting rule. State a three-consecutive-month PQI escalation as REQUIRED only when the supplied assessment says current and both immediately preceding calendar months are all below the configured target. Missing, malformed or nonconsecutive history is insufficient evidence. Do not include unsupported severity claims. The brief must remain a draft requiring human review; do not imply approval, send communications or initiate actual workflow/escalation actions; evidence-based management escalation recommendations are allowed.");
+    if (typeof result?.draft !== "string" || !result.draft.trim())
+      throw new AiUnavailableError("AI returned an empty or invalid draft");
     await audit(req, "ai_brief", row.id, undefined, { draft: result.draft });
     res.json({ draft: result.draft });
   } catch (error) {

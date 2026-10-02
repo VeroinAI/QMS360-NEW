@@ -16,13 +16,13 @@ export type AdditionalMetricsTilesProps = {
   onUseDraft: () => void; aiError?: string; onConfirm?: (v: boolean) => void;
 };
 
-const cols = 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3';
+const cols = 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3';
 export const DOCUMENT_GROUPS = [['drawings', 'Drawings'], ['submittals', 'Submittals']] as const;
 const selectCls = 'flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50';
 const rateOf = (c: number, i: number) => (i === 0 && c === 0 ? 100 : i ? (c / i) * 100 : 0);
 
 function Field({ label, required, id, children }: { label: string; required?: boolean; id: string; children: ReactNode }) {
-  return <div className="space-y-1"><Label htmlFor={id} className="text-xs text-muted-foreground">{label}{required && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{children}</div>;
+  return <div className="min-w-0 space-y-1"><Label htmlFor={id} className="text-xs text-muted-foreground">{label}{required && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{children}</div>;
 }
 function Int({ path, label, required, disabled, tid }: { path: Path; label: string; required?: boolean; disabled?: boolean; tid: string }) {
   const f = useForm(); const id = useId(); const v = getIn(f.data, path);
@@ -54,27 +54,27 @@ export function MaterialTile({ calc, baseline }: { calc: Obj; baseline?: Obj }) 
     <div className={cols}>
       <RO label="Acc. MIRN till Last Month" value={m.prevIssued} tid="text-material-prev-issued" />
       <RO label="Closed till Last Month" value={m.prevClosed} tid="text-material-prev-closed" />
-      <Int path={['material', 'issued']} label="MIRN Issued (this month)" required tid="material-issued" />
-      <Int path={['material', 'closed']} label="MIRN Closed (this month)" required tid="material-closed" />
-      <RO label="Accumulated MIRN Issued" value={m.accIssued} tid="text-material-acc-issued" />
-      <RO label="Accumulated MIRN Closed" value={m.accClosed} tid="text-material-acc-closed" />
-      <RO label="Monthly Closure Rate" value={`${fmt(m.monthlyRate ?? 0)}%`} tid="text-material-monthly-rate" />
+      <Int path={['material', 'issued']} label="Issued this Month" required tid="material-issued" />
+      <Int path={['material', 'closed']} label="Closed this Month" required tid="material-closed" />
+      <RO label="Acc. till this Month" value={m.accIssued} tid="text-material-acc-issued" />
+      <RO label="Closed till this Month" value={m.accClosed} tid="text-material-acc-closed" />
+      <RO label="Closure Rate this Month" value={`${fmt(m.monthlyRate ?? 0)}%`} tid="text-material-monthly-rate" />
       <RO label="Variance vs prior accumulated rate" value={`${variance >= 0 ? '+' : ''}${fmt(variance)} pts`} tid="text-material-variance" className={`font-medium ${tone}`} />
     </div>
     <div className="space-y-2">
-      <p id={rid} className="text-xs text-muted-foreground">Is OSD available?<span className="ml-1 text-destructive" aria-hidden="true">*</span></p>
-      <RadioGroup aria-labelledby={rid} data-testid="radio-material-osd" className="flex gap-4" disabled={f.readOnly} value={typeof osd === 'boolean' ? (osd ? 'Yes' : 'No') : ''} onValueChange={v => f.set(['material', 'osdAvailable'], v === 'Yes')}>
+      <p id={rid} className="text-xs text-muted-foreground">OSD Available<span className="ml-1 text-destructive" aria-hidden="true">*</span></p>
+      <RadioGroup aria-labelledby={rid} aria-required="true" data-testid="radio-material-osd" className="flex gap-4" disabled={f.readOnly} value={typeof osd === 'boolean' ? (osd ? 'Yes' : 'No') : ''} onValueChange={v => f.set(['material', 'osdAvailable'], v === 'Yes')}>
         {['Yes', 'No'].map(o => <label key={o} className="flex items-center gap-2 text-sm"><RadioGroupItem value={o} id={`${rid}-${o}`} data-testid={`radio-material-osd-${o.toLowerCase()}`} />{o}</label>)}
       </RadioGroup>
     </div>
     <div className={cols}>
-      <Int path={['material', 'osdMirns']} label="OSD MIRNs" required={osd === true} disabled={osd !== true} tid="material-osd-mirns" />
-      <Int path={['material', 'overage']} label="Overage" tid="material-overage" />
-      <Int path={['material', 'shortage']} label="Shortage" tid="material-shortage" />
-      <Int path={['material', 'damage']} label="Damage" tid="material-damage" />
-      <Int path={['material', 'defective']} label="Defective" tid="material-defective" />
-      <Int path={['material', 'totalItems']} label="Total Items (MIRN)" tid="material-total-items" />
-      {([['approved', 'Approved'], ['onHold', 'On Hold'], ['rejectedDoNotUse', 'Rejected - Do Not Use'], ['rejectedReturn', 'Rejected - Return'], ['hazardous', 'Hazardous'], ['handleWithCare', 'Handle With Care']] as const).map(([k, l]) =>
+      <Int path={['material', 'osdMirns']} label="No. of MIRNs with OSD" required={osd === true} disabled={osd !== true} tid="material-osd-mirns" />
+      <Int path={['material', 'overage']} label="Total Overage Quantity" tid="material-overage" />
+      <Int path={['material', 'shortage']} label="Total Shortage Qty" tid="material-shortage" />
+      <Int path={['material', 'damage']} label="Total Damage Qty" tid="material-damage" />
+      <Int path={['material', 'defective']} label="Total Defective Qty" tid="material-defective" />
+      <Int path={['material', 'totalItems']} label="Total No. of Material/Items in MIRN" tid="material-total-items" />
+      {([['approved', 'Approved'], ['onHold', 'On Hold Quarantine'], ['rejectedDoNotUse', 'Rejected - Do Not Use'], ['rejectedReturn', 'Rejected - Return to Supplier'], ['hazardous', 'Hazardous Material'], ['handleWithCare', 'Handle & Store with care']] as const).map(([k, l]) =>
         <Int key={k} path={['material', k]} label={l} disabled={!tagsOn} tid={`material-${k}`} />)}
     </div>
     <div className={`rounded-md border px-3 py-2 text-sm ${mismatch ? 'border-destructive text-destructive' : 'bg-muted/40'}`} data-testid="text-material-tag-guard" role={mismatch ? 'alert' : undefined}>
@@ -87,14 +87,14 @@ export function QtbtTile({ calc, baseline }: { calc: Obj; baseline?: Obj }) {
   const f = useForm(); const q: Obj = f.data.qtbt ?? {}; const c = calc.qtbt ?? {}; const b: Obj = baseline?.qtbt ?? {};
   const need = Number(q.talkCount) > 0;
   return <div className={cols}>
-    <RO label="Accumulated Talks till Last Month" value={Number(b.accumulatedTalkCount) || 0} tid="text-qtbt-base-talks" />
-    <RO label="Accumulated Manhours till Last Month" value={fmt(Number(b.accumulatedManhours) || 0, 2)} tid="text-qtbt-base-manhours" />
-    <Int path={['qtbt', 'talkCount']} label="QTBT Talks (this month)" required tid="qtbt-talk-count" />
-    <Int path={['qtbt', 'attendance']} label="Attendees" required={need} tid="qtbt-attendance" />
+    <RO label="Acc. till Last Month" value={Number(b.accumulatedTalkCount) || 0} tid="text-qtbt-base-talks" />
+    <RO label="Manhours till Last Month" value={fmt(Number(b.accumulatedManhours) || 0, 2)} tid="text-qtbt-base-manhours" />
+    <Int path={['qtbt', 'talkCount']} label="Total Nos of QTBT this Month" required tid="qtbt-talk-count" />
+    <Int path={['qtbt', 'attendance']} label="No. of attendees" required={need} tid="qtbt-attendance" />
     <Int path={['qtbt', 'durationMinutes']} label="Duration (minutes)" required={need} tid="qtbt-duration" />
-    <RO label="Monthly Manhours" value={fmt(c.manhours ?? 0, 2)} tid="text-qtbt-manhours" />
-    <RO label="Accumulated Talks" value={c.accTalks ?? 0} tid="text-qtbt-acc-talks" />
-    <RO label="Accumulated Manhours" value={fmt(c.accManhours ?? 0, 2)} tid="text-qtbt-acc-manhours" />
+    <RO label="Total Manhours this Month" value={fmt(c.manhours ?? 0, 2)} tid="text-qtbt-manhours" />
+    <RO label="Acc QTBT till this Month" value={c.accTalks ?? 0} tid="text-qtbt-acc-talks" />
+    <RO label="Acc Manhours till this Month" value={fmt(c.accManhours ?? 0, 2)} tid="text-qtbt-acc-manhours" />
   </div>;
 }
 
@@ -103,11 +103,11 @@ export function DocumentsTile() {
     <h4 className="text-sm font-semibold">{label}</h4>
     <div className={cols}>
       <Int path={['documents', g, 'approved']} label="Approved" required tid={`documents-${g}-approved`} />
-      <Int path={['documents', g, 'resubmitted']} label="Resubmitted" required tid={`documents-${g}-resubmitted`} />
+      <Int path={['documents', g, 'resubmitted']} label="Re-submitted" required tid={`documents-${g}-resubmitted`} />
       <Int path={['documents', g, 'rejected']} label="Rejected" required tid={`documents-${g}-rejected`} />
       <Int path={['documents', g, 'underReview']} label="Under Review" required tid={`documents-${g}-under-review`} />
-      <Int path={['documents', g, 'clientReviewDays']} label="Client Review Time (days)" required tid={`documents-${g}-client-days`} />
-      <Int path={['documents', g, 'internalReviewDays']} label="Internal Review Time (days)" required tid={`documents-${g}-internal-days`} />
+      <Int path={['documents', g, 'clientReviewDays']} label="Average Client Review Time (days)" required tid={`documents-${g}-client-days`} />
+      <Int path={['documents', g, 'internalReviewDays']} label="Average Review Time (Algihaz) (days)" required tid={`documents-${g}-internal-days`} />
     </div>
     <Txt path={['documents', g, 'remarks']} label="Remarks" multiline tid={`documents-${g}-remarks`} />
   </section>)}</div>;
@@ -118,10 +118,10 @@ export function QmsReportsTile() {
   return <div className="space-y-3">
     {rows.length === 0 && <p className="text-sm text-muted-foreground">No QMS report rows added.</p>}
     {rows.map((_, i) => { const p = [...path, i]; return <div key={i} data-testid={`row-qms-${i}`} className="flex items-end gap-2 rounded-lg border bg-muted/20 p-3">
-      <div className={`${cols} flex-1`}>
+      <div className={`${cols} min-w-0 flex-1`}>
         <Pick path={[...p, 'department']} label="Department" options={QMS_DEPARTMENTS} required tid={`qms-${i}-department`} />
         <Pick path={[...p, 'type']} label="Type" options={QMS_TYPES} required tid={`qms-${i}-type`} />
-        <Txt path={[...p, 'documentName']} label="Name" tid={`qms-${i}-name`} />
+        <Txt path={[...p, 'documentName']} label="Document Name" tid={`qms-${i}-name`} />
         <Pick path={[...p, 'status']} label="Status" options={QMS_STATUSES} required tid={`qms-${i}-status`} />
         <Txt path={[...p, 'remarks']} label="Remarks" multiline tid={`qms-${i}-remarks`} />
       </div>
@@ -135,6 +135,7 @@ export function AssessmentTile({ onDraftAi, aiBusy, aiDraft, onUseDraft, aiError
   const f = useForm(); const cid = useId(); const ro = f.readOnly;
   const confirmed = f.data.assessmentConfirmed === true;
   return <div className="space-y-4">
+    {aiBusy && <p role="status" aria-live="polite" className="text-sm text-muted-foreground">VerionAI is generating the assessment suggestion…</p>}
     <Txt path={['narrative']} label="Quality Assessment Brief" required multiline tid="narrative" />
     {!ro && <div className="space-y-3">
       <Button type="button" variant="outline" size="sm" data-testid="button-draft-ai" disabled={aiBusy} onClick={onDraftAi}><Sparkles className="mr-2 size-4" />{aiBusy ? 'VerionAI is updating suggestion...' : aiDraft ? 'Update suggestion with VerionAI' : 'Generate suggestion with VerionAI'}</Button>
