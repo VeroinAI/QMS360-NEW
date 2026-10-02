@@ -409,10 +409,10 @@ function userId(customFields: Record<string, unknown>, key: string): string | un
 }
 
 router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncHandler(async (req, res) => {
-  const type = typeFor(req);
+  const type = parseType(req.body?.reportType);
   const today = await orgLocalToday(req);
   const selectedPeriod = req.query.period ?? (type === "daily" ? today : `${today.slice(0, 7)}-01`);
-  let period = normalizePeriod(type, selectedPeriod, today);
+  const period = normalizePeriod(before.reportType as ReportType, before.period, today);
   const projectsInScope = await activeProjects(req, type);
   const allUsers = await activeUsers(req);
   const adminScope = await getAppAdminScope(req, "qaqc");
@@ -421,7 +421,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
   const assignedIds = new Set<string>();
   const approverIds = new Set<string>();
   for (const item of projectsInScope) {
-    const settings = isObject(item.customFields.qaqcReporting) ? item.customFields.qaqcReporting : {};
+  const settings = isObject(project.customFields.qaqcReporting) ? { ...project.customFields.qaqcReporting } : {};
     for (const key of userKeys) {
       const id = userId(settings, key);
       if (id) assignedIds.add(id);
@@ -452,7 +452,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
       csatRatings: ["quality", "timeline", "communication", "professionalism", "valueForMoney", "issueHandling"],
     },
   };
-  const projectId = String(req.query.projectId ?? "");
+  const projectId = String(req.params.projectId);
   if (!projectId) {
     const initialProject = projectsInScope[0];
     const initialSettings = initialProject && isObject(initialProject.customFields.qaqcReporting) ? initialProject.customFields.qaqcReporting : {};
@@ -475,7 +475,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
   )).limit(1)]);
   const project = projectRows[0];
   if (!project || project.status !== "active") throw new HttpError(404, "Active project not found");
-  const settings = isObject(project.customFields.qaqcReporting) ? project.customFields.qaqcReporting : {};
+  const settings = isObject(project.customFields.qaqcReporting) ? { ...project.customFields.qaqcReporting } : {};
   const effectiveSettings = { ...settings, dailyDistributionDays: settings.dailyDistributionDays ?? [1, 15] };
   if (req.query.period === undefined) {
     if (type !== "csat") {
@@ -492,7 +492,13 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
       period = normalizePeriod(type, defaultPeriod, today);
     }
   }
-  const history = await historyBaseline(projectId, type, period);
+  const history = await db.select({
+    period: qaqcReportSubmissions.period, computed: qaqcReportSubmissions.computed, data: qaqcReportSubmissions.data,
+  }).from(qaqcReportSubmissions).where(and(
+    eq(qaqcReportSubmissions.projectId, row.projectId), eq(qaqcReportSubmissions.reportType, "monthly"),
+    lte(qaqcReportSubmissions.period, row.period), inArray(qaqcReportSubmissions.state, ["submitted", "approved"]),
+    isNull(qaqcReportSubmissions.deletedAt),
+  )).orderBy(desc(qaqcReportSubmissions.period)).limit(12);
   const legacy = Object.keys(history.baseline).length ? {} : await legacyBaseline(projectId, type, period);
   const auditPrefill = type === "monthly" ? await db.select({ auditDate: auditPlans.auditDate, workflowState: auditPlans.workflowState })
     .from(auditPlans).where(and(
@@ -500,8 +506,10 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
       isNull(auditPlans.deletedAt), lte(auditPlans.auditDate, periodEnd),
     )).orderBy(desc(auditPlans.auditDate)).limit(20) : [];
   const last = history.previous;
-  const baseline = Object.keys(history.baseline).length ? history.baseline : legacy;
-  const targets = await targetsFor(req, project.customFields, settings);
+  const baseline = before.state === "sent_back" && before.submittedAt && downstreamSubmission
+    ? before.baseline as Record<string, any>
+    : Object.keys(historicalBaseline).length ? historicalBaseline : await legacyBaseline(before.projectId, before.reportType as ReportType, period);
+  const targets = await targetsFor(req, project?.customFields as any ?? {}, settings);
   const blockedReason = await sequenceBlock(projectId, type, period);
   const projectUserIds = new Set<string>();
   const selectedApproverIds = new Set<string>();
@@ -516,41 +524,29 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
         selectedApproverIds.add(id);
     }
   }
-  const result = {
-    ...resultBase,
-    users: isQaqcAdmin ? allUsers : allUsers.filter((user) => projectUserIds.has(user.id) || user.id === actor(req)),
-    approvers: allUsers.filter((user) => selectedApproverIds.has(user.id) && user.id !== actor(req)),
-    masterData: { ...resultBase.masterData, auditPrefill: auditPrefill.filter((item) => !!item.auditDate) },
-    projectDetails: {
-      costCentre: project.customFields.costCentre ?? project.customFields.cost_centre ?? null,
-      pmName: allUsers.find((u) => u.id === userId(settings, "pmId"))?.fullName ?? null,
-      peName: allUsers.find((u) => u.id === userId(settings, "peId"))?.fullName ?? null,
-      dcName: allUsers.find((u) => u.id === userId(settings, "dcId"))?.fullName ?? null,
-    },
-    baseline: { ...baseline, previousPeriod: last?.period ?? null, hasBaseline: !!last || Object.keys(legacy).length > 0, legacyFallback: Object.keys(legacy).length > 0 },
-    canStart: !blockedReason,
-    blockedReason,
-    targets,
-    settings: { ...effectiveSettings, targets },
-    initialPeriod: last ? shiftPeriod(last.period, type, 1) : period,
-  };
+    const result = await draftQualityBrief({
+      app: "qaqc", organizationId: org(req), actorId: actor(req), projectId: row.projectId,
+      period: row.period, data, computed: calculateReport("monthly", data, row.baseline as any, targets),
+      targets, history,
+      instruction: "Include month-over-month variance, negative changes, NCR ageing over 45 days, target performance and actionable recommendations. Explicitly flag PQI below target for three consecutive months.",
+    });
   res.json(result);
 }));
 
 router.get("/reports", multipleReportAccess(), asyncHandler(async (req, res) => {
-  const filters: any[] = [];
+  const filters: any[] = [eq(qaqcReportDeliveryRuns.organizationId, org(req)), isNull(qaqcReportDeliveryRuns.deletedAt)];
   const access = (req as any).qaqcReportAccess as Map<ReportType, Awaited<ReturnType<typeof reportAccess>>>;
   const reportTypes = [...access.keys()];
   filters.push(inArray(qaqcReportSubmissions.reportType, reportTypes));
   if (req.query.projectId) {
-    const projectId = String(req.query.projectId);
+  const projectId = String(req.params.projectId);
     await projectAllowed(req, projectId);
     filters.push(eq(qaqcReportSubmissions.projectId, projectId));
   }
   if (req.query.period) filters.push(eq(qaqcReportSubmissions.period, String(req.query.period)));
   if (req.query.state) filters.push(eq(qaqcReportSubmissions.state, String(req.query.state)));
   const { page, limit, offset } = pagination(req);
-  const where = active(qaqcReportSubmissions, org(req), filters);
+  const where = and(...filters);
   const rows = await db.select().from(qaqcReportSubmissions).where(where).orderBy(desc(qaqcReportSubmissions.period), desc(qaqcReportSubmissions.createdAt));
   const visible = rows.filter((row) => canReadByCapability(req, row));
   const items = await Promise.all(visible.slice(offset, offset + limit).map(withProject));
@@ -560,38 +556,38 @@ router.get("/reports", multipleReportAccess(), asyncHandler(async (req, res) => 
 router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHandler(async (req, res) => {
   const type = parseType(req.body?.reportType);
   const today = await orgLocalToday(req);
-  const period = normalizePeriod(type, req.body?.period, today);
-  const projectId = String(req.body?.projectId ?? "");
+  const period = normalizePeriod(before.reportType as ReportType, before.period, today);
+  const projectId = String(req.params.projectId);
   if (!projectId || !isObject(req.body?.data)) throw new HttpError(422, "projectId and object data are required");
-  const data = zeroFill(type, req.body.data);
+  const data = isObject(req.body?.data) ? req.body.data : row.data;
   await projectAllowed(req, projectId);
-  const fieldBody = { projectId, reportType: type, period, data };
+  const fieldBody = { projectId: before.projectId, reportType: before.reportType, period: before.period, data: req.body.data };
   await assertFieldAccess(req, "qaqc", "report-envelope", { mode: "create", body: fieldBody });
   await assertFieldControls(req, "qaqc", "report-envelope", { mode: "create", body: fieldBody });
   await assertSequence(projectId, type, period);
-  const { baseline: historicalBaseline } = await historyBaseline(projectId, type, period);
-  const baseline = Object.keys(historicalBaseline).length ? historicalBaseline : await legacyBaseline(projectId, type, period);
-  await assertReportLovValues(req, type, data);
-  const validation = validateReportData(type, data, baseline, false);
+  const { baseline: historicalBaseline } = await historyBaseline(before.projectId, before.reportType as ReportType, period);
+  const baseline = before.state === "sent_back" && before.submittedAt && downstreamSubmission
+    ? before.baseline as Record<string, any>
+    : Object.keys(historicalBaseline).length ? historicalBaseline : await legacyBaseline(before.projectId, before.reportType as ReportType, period);
+  await assertReportLovValues(req, before.reportType as ReportType, before.data as any);
+  const validation = validateReportData("monthly", data, row.baseline as any, false);
   if (!validation.valid) throw new HttpError(422, validation.errors.join("; "));
-  const [project] = await db.select({ customFields: projects.customFields }).from(projects).where(eq(projects.id, projectId)).limit(1);
-  const settings = isObject(project?.customFields.qaqcReporting) ? project.customFields.qaqcReporting : {};
+  const [project] = await db.select().from(projects).where(and(
+    eq(projects.id, projectId), eq(projects.organizationId, org(req)), isNull(projects.deletedAt),
+  )).limit(1);
+  const settings = isObject(project.customFields.qaqcReporting) ? { ...project.customFields.qaqcReporting } : {};
   try {
-    const [row] = await db.insert(qaqcReportSubmissions).values({
-      organizationId: org(req), projectId, reportType: type, period, data, createdById: actor(req),
-      baseline, computed: calculateReport(type, data, baseline, await targetsFor(req, project.customFields as any, settings)),
-    }).returning();
-    await audit(req, "create", row.id, undefined, row);
-    res.status(201).json(await withProject(row));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("qaqc_report_project_type_period_active_idx")) throw new HttpError(409, "A report already exists for this project, type, and period");
-    throw error;
-  }
+  const [row] = await db.update(qaqcReportSubmissions).set({
+    state: "submitted", approverId, submittedById: actor(req), submittedAt,
+    baseline, computed: calculateReport(before.reportType as ReportType, before.data as any, baseline, targets),
+    updatedAt: submittedAt,
+  }).where(and(eq(qaqcReportSubmissions.id, before.id), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
+  if (!row) throw new HttpError(409, "Report state changed; reload before deleting");
+  await audit(req, "delete", row.id, before, row);
+  res.status(204).send();
 }));
 
-router.get("/reports/:id", reportPermissionById("select"), asyncHandler(async (req, res) => res.json(await withProject(await reportRow(req, String(req.params.id))))));
-
-router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (req, res) => {
+router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(async (req, res) => {
   const before = await reportRow(req, String(req.params.id));
   if (before.createdById !== actor(req)) throw new HttpError(403, "Only the report creator may edit this report");
   if (!["draft", "sent_back"].includes(before.state)) throw new HttpError(409, "Only draft or sent-back reports can be edited");
@@ -601,30 +597,36 @@ router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (re
   const fieldBody = { projectId: before.projectId, reportType: before.reportType, period: before.period, data: req.body.data };
   await assertFieldAccess(req, "qaqc", "report-envelope", { mode: "update", current: before as any, body: fieldBody });
   await assertFieldControls(req, "qaqc", "report-envelope", { mode: "update", current: before as any, body: fieldBody });
-  const data = zeroFill(before.reportType as ReportType, req.body.data);
+  const data = isObject(req.body?.data) ? req.body.data : row.data;
   await assertReportLovValues(req, before.reportType as ReportType, data);
-  const validation = validateReportData(before.reportType as ReportType, data, before.baseline as any, false);
+  const validation = validateReportData("monthly", data, row.baseline as any, false);
   if (!validation.valid) throw new HttpError(422, validation.errors.join("; "));
-  const [project] = await db.select({ customFields: projects.customFields }).from(projects).where(eq(projects.id, before.projectId)).limit(1);
-  const settings = isObject(project?.customFields.qaqcReporting) ? project.customFields.qaqcReporting : {};
+  const [project] = await db.select().from(projects).where(and(
+    eq(projects.id, projectId), eq(projects.organizationId, org(req)), isNull(projects.deletedAt),
+  )).limit(1);
+  const settings = isObject(project.customFields.qaqcReporting) ? { ...project.customFields.qaqcReporting } : {};
   const targets = await targetsFor(req, project?.customFields as any ?? {}, settings);
   const [row] = await db.update(qaqcReportSubmissions).set({
-    data, computed: calculateReport(before.reportType as ReportType, data, before.baseline as any, targets),
-    updatedAt: new Date(),
+    state: "submitted", approverId, submittedById: actor(req), submittedAt,
+    baseline, computed: calculateReport(before.reportType as ReportType, before.data as any, baseline, targets),
+    updatedAt: submittedAt,
   }).where(and(eq(qaqcReportSubmissions.id, before.id), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
-  if (!row) throw new HttpError(409, "Report state changed; reload before editing");
-  await audit(req, "update", row.id, before, row);
-  res.json(await withProject(row));
+  if (!row) throw new HttpError(409, "Report state changed; reload before deleting");
+  await audit(req, "delete", row.id, before, row);
+  res.status(204).send();
 }));
 
-router.delete("/reports/:id", reportPermissionById("own"), asyncHandler(async (req, res) => {
+router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(async (req, res) => {
   const before = await reportRow(req, String(req.params.id));
   if (before.createdById !== actor(req)) throw new HttpError(403, "Only the report creator may delete this report");
   if (!["draft", "sent_back"].includes(before.state)) throw new HttpError(409, "Only draft or sent-back reports can be deleted");
   if (await hasDownstreamSubmission(before.projectId, before.reportType as ReportType, before.period))
     throw new HttpError(409, `Cannot delete ${before.period}; a later report has already been submitted`);
-  const [row] = await db.update(qaqcReportSubmissions).set({ deletedAt: new Date(), updatedAt: new Date() })
-    .where(and(eq(qaqcReportSubmissions.id, before.id), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
+  const [row] = await db.update(qaqcReportSubmissions).set({
+    state: "submitted", approverId, submittedById: actor(req), submittedAt,
+    baseline, computed: calculateReport(before.reportType as ReportType, before.data as any, baseline, targets),
+    updatedAt: submittedAt,
+  }).where(and(eq(qaqcReportSubmissions.id, before.id), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
   if (!row) throw new HttpError(409, "Report state changed; reload before deleting");
   await audit(req, "delete", row.id, before, row);
   res.status(204).send();
@@ -659,10 +661,12 @@ router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(asy
     ? before.baseline as Record<string, any>
     : Object.keys(historicalBaseline).length ? historicalBaseline : await legacyBaseline(before.projectId, before.reportType as ReportType, period);
   await assertReportLovValues(req, before.reportType as ReportType, before.data as any);
-  const validation = validateReportData(before.reportType as ReportType, before.data as any, baseline, true);
+  const validation = validateReportData("monthly", data, row.baseline as any, false);
   if (!validation.valid) throw new HttpError(422, validation.errors.join("; "));
-  const [project] = await db.select({ customFields: projects.customFields }).from(projects).where(eq(projects.id, before.projectId)).limit(1);
-  const settings = isObject(project?.customFields.qaqcReporting) ? project.customFields.qaqcReporting : {};
+  const [project] = await db.select().from(projects).where(and(
+    eq(projects.id, projectId), eq(projects.organizationId, org(req)), isNull(projects.deletedAt),
+  )).limit(1);
+  const settings = isObject(project.customFields.qaqcReporting) ? { ...project.customFields.qaqcReporting } : {};
   const targets = await targetsFor(req, project?.customFields as any ?? {}, settings);
   const submittedAt = new Date();
   const [row] = await db.update(qaqcReportSubmissions).set({
@@ -693,14 +697,7 @@ router.post("/reports/:id/review", reportPermissionById("own"), asyncHandler(asy
     throw new HttpError(409, `Cannot send back ${before.period}; a later report has already been submitted`);
   const state = decision === "approve" ? "approved" : "sent_back";
   const reviewedAt = new Date();
-  const row = await db.transaction(async (tx) => {
-    const [updated] = await tx.update(qaqcReportSubmissions).set({
-      state, reviewComments: comments || null, approvedAt: decision === "approve" ? reviewedAt : null, updatedAt: reviewedAt,
-    }).where(and(eq(qaqcReportSubmissions.id, before.id), eq(qaqcReportSubmissions.state, "submitted"), eq(qaqcReportSubmissions.approverId, actor(req)))).returning();
-    if (!updated) throw new HttpError(409, "Report state changed; reload before reviewing");
-    await audit(req, decision, updated.id, before, updated, tx);
-    return updated;
-  });
+  const row = await reportRow(req, String(req.params.id));
   if (before.submittedById) await notifyWithEmail(db, "qaqc", {
     organizationId: org(req), userId: before.submittedById, type: "decision", title: `QA/QC report ${state}`,
     body: comments || `Your report was ${state}.`, entityType: "qaqc_report", entityId: row.id,
@@ -719,8 +716,10 @@ router.post("/reports/:id/ai-brief", reportPermissionById("own"), asyncHandler(a
     lte(qaqcReportSubmissions.period, row.period), inArray(qaqcReportSubmissions.state, ["submitted", "approved"]),
     isNull(qaqcReportSubmissions.deletedAt),
   )).orderBy(desc(qaqcReportSubmissions.period)).limit(12);
-  const [project] = await db.select({ customFields: projects.customFields }).from(projects).where(eq(projects.id, row.projectId)).limit(1);
-  const settings = isObject(project?.customFields.qaqcReporting) ? project.customFields.qaqcReporting : {};
+  const [project] = await db.select().from(projects).where(and(
+    eq(projects.id, projectId), eq(projects.organizationId, org(req)), isNull(projects.deletedAt),
+  )).limit(1);
+  const settings = isObject(project.customFields.qaqcReporting) ? { ...project.customFields.qaqcReporting } : {};
   const validation = validateReportData("monthly", data, row.baseline as any, false);
   if (!validation.valid) throw new HttpError(422, validation.errors.join("; "));
   const targets = await targetsFor(req, project?.customFields as any ?? {}, settings);
@@ -873,9 +872,9 @@ router.patch("/projects/:projectId/settings", requireAppAdmin("qaqc"), asyncHand
     if (body[key] !== null && typeof body[key] !== "string") throw new HttpError(422, `${key} must be a user ID or null`);
     if (body[key]) {
       await assertUserInOrg(db, org(req), body[key]);
-      const [user] = await db.select({ id: users.id }).from(users).where(and(
-        eq(users.id, body[key]), eq(users.organizationId, org(req)), eq(users.accessStatus, "active"), isNull(users.deletedAt),
-      )).limit(1);
+        const [user] = await db.select({ id: users.id }).from(users).where(and(
+          eq(users.id, id), eq(users.organizationId, org(req)), eq(users.accessStatus, "active"), isNull(users.deletedAt),
+        )).limit(1);
       if (!user) throw new HttpError(422, `${key} must reference an active organization user`);
     }
     next[key] = body[key];

@@ -27,6 +27,8 @@ export type QaqcReportExport = {
 };
 
 export type QaqcDashboardExport = {
+  organizationId?: string;
+  reportType?: string;
   title?: string;
   filters?: Record<string, unknown>;
   summary?: Record<string, unknown>;
@@ -178,7 +180,7 @@ async function makePdf(title: string, sections: Array<[string, unknown]>) {
   return Buffer.from(await document.save());
 }
 
-export function exportQaqcReportPdf(report: QaqcReportExport): Promise<Buffer> {
+export async function exportQaqcReportPdf(report: QaqcReportExport, options: { templateId?: string } = {}): Promise<Buffer> {
   const title = `${report.reportType.toUpperCase()} QA/QC Report`;
   const metadata = {
     project: report.projectName ?? report.projectId,
@@ -194,13 +196,19 @@ export function exportQaqcReportPdf(report: QaqcReportExport): Promise<Buffer> {
     reviewComments: report.reviewComments,
     configuredQaqcTemplateCount: report.reportTemplates?.length ?? 0,
   };
-  return makePdf(title, [["Report identity and workflow", metadata],
+  const completePdf = await makePdf(title, [["Report identity and workflow", metadata],
     ...(report.reportTemplates?.length ? [["Configured QA/QC template metadata", report.reportTemplates] as [string, unknown]] : []),
     ["Workflow history", report.history ?? []],
     ["Submitted report data", report.data], ["Calculated values", report.computed], ["Frozen baseline", report.baseline]]);
+  if (options.templateId === "builtin" || (!options.templateId && !hasDefaultTemplate(report.reportTemplates, "report", report.reportType))) return completePdf;
+  const { applyPdfTemplate } = await import("./qaqc-pdf-templates");
+  return applyPdfTemplate({
+    organizationId: report.organizationId, kind: "report", reportType: report.reportType,
+    templateId: options.templateId, values: { ...report }, completePdf,
+  });
 }
 
-export function exportQaqcDashboardPdf(dashboard: QaqcDashboardExport): Promise<Buffer> {
+export async function exportQaqcDashboardPdf(dashboard: QaqcDashboardExport, options: { templateId?: string } = {}): Promise<Buffer> {
   const rows = dashboard.rows.map((row, index) => ({ index: index + 1, ...row }));
   const detailSections: Array<[string, unknown]> = (dashboard.reports ?? []).flatMap((report) => [
     [`${report.reportType.toUpperCase()} - ${report.projectName ?? report.projectId} - ${report.period} - Workflow`, {
@@ -212,9 +220,30 @@ export function exportQaqcDashboardPdf(dashboard: QaqcDashboardExport): Promise<
     [`Calculated Values - ${report.projectName ?? report.projectId} - ${report.period}`, report.computed],
     [`Frozen Baseline - ${report.projectName ?? report.projectId} - ${report.period}`, report.baseline],
   ]);
-  return makePdf(dashboard.title ?? "QA/QC Reporting Dashboard", [
+  const completePdf = await makePdf(dashboard.title ?? "QA/QC Reporting Dashboard", [
     ["Filters", dashboard.filters ?? {}], ["Summary", dashboard.summary ?? {}],
     ["Report and KPI data", rows], ["Dashboard Data", dashboard.dashboardData ?? dashboard.summary ?? {}],
     ["Trends", dashboard.trends ?? []], ...detailSections,
   ]);
+  const organizationId = dashboard.organizationId ?? dashboard.reports?.[0]?.organizationId;
+  if (!organizationId) {
+    if (options.templateId && options.templateId !== "builtin") throw new Error("PDF template export requires an organization");
+    return completePdf;
+  }
+  const types = [...new Set(dashboard.reports?.map(report => report.reportType) ?? [])];
+  const reportType = dashboard.reportType ?? (types.length === 1 ? types[0] : undefined);
+  if (options.templateId === "builtin" || (!options.templateId && !hasDefaultTemplate(
+    dashboard.reports?.flatMap(report => report.reportTemplates ?? []), "dashboard", reportType,
+  ))) return completePdf;
+  const { applyPdfTemplate } = await import("./qaqc-pdf-templates");
+  return applyPdfTemplate({
+    organizationId, kind: "dashboard", reportType,
+    templateId: options.templateId, values: { ...dashboard }, completePdf,
+  });
+}
+
+function hasDefaultTemplate(templates: QaqcReportExport["reportTemplates"], kind: string, reportType?: string) {
+  return !!reportType && !!templates?.some(({ template }) =>
+    template.format === "qaqc-exact-pdf-v1" && template.state === "published"
+    && template.isDefault === true && template.kind === kind && template.reportType === reportType);
 }

@@ -20,4 +20,5 @@ to?: string;
 projectGroup?: string;
 category?: string;
 format?: ExportQaqcSowDashboardFormat;
+templateId?: string;
 };

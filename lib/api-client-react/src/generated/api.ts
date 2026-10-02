@@ -90,6 +90,7 @@ import type {
   DocumentGovernanceLogEntry,
   DocumentGovernancePageResponse,
   DownloadQaqcMetricsTemplateParams,
+  DownloadQaqcPdfTemplateParams,
   DownloadQaqcSowTemplateParams,
   DraftQaqcSowBrief200,
   EmailDeliverySettings,
@@ -116,6 +117,7 @@ import type {
   ExportLessonsLogParams,
   ExportQaqcMonthlyReportParams,
   ExportQaqcSowDashboardParams,
+  ExportQaqcSowReportParams,
   ExtensionBody,
   FeedbackAttachmentUploadBody,
   FeedbackAttachmentUploadIntent,
@@ -140,6 +142,7 @@ import type {
   GetPlatformReferenceDataParams,
   GetQaqcDashboardParams,
   GetQaqcEscalationsParams,
+  GetQaqcPdfTemplateCatalogParams,
   GetQaqcPqiParams,
   GetQaqcSowContextParams,
   GetQaqcSowDashboardParams,
@@ -214,6 +217,7 @@ import type {
   ListQaqcMetricsParams,
   ListQaqcNotificationTemplatesParams,
   ListQaqcNotificationsParams,
+  ListQaqcPdfTemplatesParams,
   ListQaqcRolesParams,
   ListQaqcSowReportsParams,
   ListQaqcTargetsParams,
@@ -254,6 +258,13 @@ import type {
   QAQCMetricEntry,
   QAQCMetricPageResponse,
   QTBTEntry,
+  QaqcPdfSourceField,
+  QaqcPdfTemplate,
+  QaqcPdfTemplateFileInput,
+  QaqcPdfTemplateMappingInput,
+  QaqcPdfTemplatePublication,
+  QaqcPdfTemplateUpload,
+  QaqcPdfTemplateUploadResult,
   QaqcSowBriefInput,
   QaqcSowObject,
   QaqcSowReport,
@@ -6294,20 +6305,29 @@ export const useImportQaqcSowWorkbook = <TError = ErrorType<unknown>,
       return useMutation(getImportQaqcSowWorkbookMutationOptions(options));
     }
 
-export const getExportQaqcSowReportUrl = (id: string,) => {
+export const getExportQaqcSowReportUrl = (id: string,
+    params?: ExportQaqcSowReportParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/qaqc/reporting/reports/${id}/export`
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/reports/${id}/export?${stringifiedParams}` : `/api/qaqc/reporting/reports/${id}/export`
 }
 
 /**
  * @summary Export the complete report as PDF or Excel using the Accept header
  */
-export const exportQaqcSowReport = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ReportFileResponse> => {
+export const exportQaqcSowReport = async (id: string,
+    params?: ExportQaqcSowReportParams, options?: Parameters<typeof customFetch>[1]): Promise<ReportFileResponse> => {
 
-  return customFetch<ReportFileResponse>(getExportQaqcSowReportUrl(id),
+  return customFetch<ReportFileResponse>(getExportQaqcSowReportUrl(id,params),
   {
     ...options,
     method: 'GET'
@@ -6320,23 +6340,25 @@ export const exportQaqcSowReport = async (id: string, options?: Parameters<typeo
 
 
 
-export const getExportQaqcSowReportQueryKey = (id: string,) => {
+export const getExportQaqcSowReportQueryKey = (id: string,
+    params?: ExportQaqcSowReportParams,) => {
     return [
-    `/api/qaqc/reporting/reports/${id}/export`
+    `/api/qaqc/reporting/reports/${id}/export`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getExportQaqcSowReportQueryOptions = <TData = Awaited<ReturnType<typeof exportQaqcSowReport>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportQaqcSowReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getExportQaqcSowReportQueryOptions = <TData = Awaited<ReturnType<typeof exportQaqcSowReport>>, TError = ErrorType<unknown>>(id: string,
+    params?: ExportQaqcSowReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportQaqcSowReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getExportQaqcSowReportQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getExportQaqcSowReportQueryKey(id,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportQaqcSowReport>>> = ({ signal }) => exportQaqcSowReport(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportQaqcSowReport>>> = ({ signal }) => exportQaqcSowReport(id,params, { signal, ...requestOptions });
 
 
 
@@ -6354,11 +6376,12 @@ export type ExportQaqcSowReportQueryError = ErrorType<unknown>
  */
 
 export function useExportQaqcSowReport<TData = Awaited<ReturnType<typeof exportQaqcSowReport>>, TError = ErrorType<unknown>>(
- id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportQaqcSowReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ id: string,
+    params?: ExportQaqcSowReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportQaqcSowReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getExportQaqcSowReportQueryOptions(id,options)
+  const queryOptions = getExportQaqcSowReportQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -6527,6 +6550,573 @@ export function useGetQaqcSowDistributionStatus<TData = Awaited<ReturnType<typeo
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetQaqcSowDistributionStatusQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListQaqcPdfTemplatesUrl = (params?: ListQaqcPdfTemplatesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/pdf-templates?${stringifiedParams}` : `/api/qaqc/reporting/pdf-templates`
+}
+
+export const listQaqcPdfTemplates = async (params?: ListQaqcPdfTemplatesParams, options?: Parameters<typeof customFetch>[1]): Promise<QaqcPdfTemplate[]> => {
+
+  return customFetch<QaqcPdfTemplate[]>(getListQaqcPdfTemplatesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListQaqcPdfTemplatesQueryKey = (params?: ListQaqcPdfTemplatesParams,) => {
+    return [
+    `/api/qaqc/reporting/pdf-templates`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListQaqcPdfTemplatesQueryOptions = <TData = Awaited<ReturnType<typeof listQaqcPdfTemplates>>, TError = ErrorType<unknown>>(params?: ListQaqcPdfTemplatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQaqcPdfTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListQaqcPdfTemplatesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listQaqcPdfTemplates>>> = ({ signal }) => listQaqcPdfTemplates(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listQaqcPdfTemplates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListQaqcPdfTemplatesQueryResult = NonNullable<Awaited<ReturnType<typeof listQaqcPdfTemplates>>>
+export type ListQaqcPdfTemplatesQueryError = ErrorType<unknown>
+
+
+
+export function useListQaqcPdfTemplates<TData = Awaited<ReturnType<typeof listQaqcPdfTemplates>>, TError = ErrorType<unknown>>(
+ params?: ListQaqcPdfTemplatesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQaqcPdfTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListQaqcPdfTemplatesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateQaqcPdfTemplateUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/pdf-templates`
+}
+
+export const createQaqcPdfTemplate = async (qaqcPdfTemplateUpload: QaqcPdfTemplateUpload, options?: Parameters<typeof customFetch>[1]): Promise<QaqcPdfTemplateUploadResult> => {
+
+  return customFetch<QaqcPdfTemplateUploadResult>(getCreateQaqcPdfTemplateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcPdfTemplateUpload)
+  }
+);}
+
+
+
+
+
+export const getCreateQaqcPdfTemplateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createQaqcPdfTemplate>>, TError,{data: BodyType<QaqcPdfTemplateUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createQaqcPdfTemplate>>, TError,{data: BodyType<QaqcPdfTemplateUpload>}, TContext> => {
+
+const mutationKey = ['createQaqcPdfTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createQaqcPdfTemplate>>, {data: BodyType<QaqcPdfTemplateUpload>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createQaqcPdfTemplate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateQaqcPdfTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof createQaqcPdfTemplate>>>
+    export type CreateQaqcPdfTemplateMutationBody = BodyType<QaqcPdfTemplateUpload>
+    export type CreateQaqcPdfTemplateMutationError = ErrorType<unknown>
+
+    export const useCreateQaqcPdfTemplate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createQaqcPdfTemplate>>, TError,{data: BodyType<QaqcPdfTemplateUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createQaqcPdfTemplate>>,
+        TError,
+        {data: BodyType<QaqcPdfTemplateUpload>},
+        TContext
+      > => {
+      return useMutation(getCreateQaqcPdfTemplateMutationOptions(options));
+    }
+
+export const getGetQaqcPdfTemplateCatalogUrl = (params: GetQaqcPdfTemplateCatalogParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/pdf-templates/catalog?${stringifiedParams}` : `/api/qaqc/reporting/pdf-templates/catalog`
+}
+
+export const getQaqcPdfTemplateCatalog = async (params: GetQaqcPdfTemplateCatalogParams, options?: Parameters<typeof customFetch>[1]): Promise<QaqcPdfSourceField[]> => {
+
+  return customFetch<QaqcPdfSourceField[]>(getGetQaqcPdfTemplateCatalogUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcPdfTemplateCatalogQueryKey = (params?: GetQaqcPdfTemplateCatalogParams,) => {
+    return [
+    `/api/qaqc/reporting/pdf-templates/catalog`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetQaqcPdfTemplateCatalogQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcPdfTemplateCatalog>>, TError = ErrorType<unknown>>(params: GetQaqcPdfTemplateCatalogParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcPdfTemplateCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcPdfTemplateCatalogQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcPdfTemplateCatalog>>> = ({ signal }) => getQaqcPdfTemplateCatalog(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcPdfTemplateCatalog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcPdfTemplateCatalogQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcPdfTemplateCatalog>>>
+export type GetQaqcPdfTemplateCatalogQueryError = ErrorType<unknown>
+
+
+
+export function useGetQaqcPdfTemplateCatalog<TData = Awaited<ReturnType<typeof getQaqcPdfTemplateCatalog>>, TError = ErrorType<unknown>>(
+ params: GetQaqcPdfTemplateCatalogParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcPdfTemplateCatalog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcPdfTemplateCatalogQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateQaqcPdfTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/pdf-templates/${id}`
+}
+
+export const updateQaqcPdfTemplate = async (id: string,
+    qaqcPdfTemplateMappingInput: QaqcPdfTemplateMappingInput, options?: Parameters<typeof customFetch>[1]): Promise<QaqcPdfTemplate> => {
+
+  return customFetch<QaqcPdfTemplate>(getUpdateQaqcPdfTemplateUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcPdfTemplateMappingInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateQaqcPdfTemplateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQaqcPdfTemplate>>, TError,{id: string;data: BodyType<QaqcPdfTemplateMappingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateQaqcPdfTemplate>>, TError,{id: string;data: BodyType<QaqcPdfTemplateMappingInput>}, TContext> => {
+
+const mutationKey = ['updateQaqcPdfTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateQaqcPdfTemplate>>, {id: string;data: BodyType<QaqcPdfTemplateMappingInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateQaqcPdfTemplate(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateQaqcPdfTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof updateQaqcPdfTemplate>>>
+    export type UpdateQaqcPdfTemplateMutationBody = BodyType<QaqcPdfTemplateMappingInput>
+    export type UpdateQaqcPdfTemplateMutationError = ErrorType<unknown>
+
+    export const useUpdateQaqcPdfTemplate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQaqcPdfTemplate>>, TError,{id: string;data: BodyType<QaqcPdfTemplateMappingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateQaqcPdfTemplate>>,
+        TError,
+        {id: string;data: BodyType<QaqcPdfTemplateMappingInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateQaqcPdfTemplateMutationOptions(options));
+    }
+
+export const getInspectQaqcPdfTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/pdf-templates/${id}/inspect`
+}
+
+export const inspectQaqcPdfTemplate = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<QaqcPdfTemplate> => {
+
+  return customFetch<QaqcPdfTemplate>(getInspectQaqcPdfTemplateUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getInspectQaqcPdfTemplateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inspectQaqcPdfTemplate>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof inspectQaqcPdfTemplate>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['inspectQaqcPdfTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof inspectQaqcPdfTemplate>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  inspectQaqcPdfTemplate(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type InspectQaqcPdfTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof inspectQaqcPdfTemplate>>>
+
+    export type InspectQaqcPdfTemplateMutationError = ErrorType<unknown>
+
+    export const useInspectQaqcPdfTemplate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inspectQaqcPdfTemplate>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof inspectQaqcPdfTemplate>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getInspectQaqcPdfTemplateMutationOptions(options));
+    }
+
+export const getResumeQaqcPdfTemplateUploadUrl = (id: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/pdf-templates/${id}/upload`
+}
+
+export const resumeQaqcPdfTemplateUpload = async (id: string,
+    qaqcPdfTemplateFileInput: QaqcPdfTemplateFileInput, options?: Parameters<typeof customFetch>[1]): Promise<QaqcPdfTemplateUploadResult> => {
+
+  return customFetch<QaqcPdfTemplateUploadResult>(getResumeQaqcPdfTemplateUploadUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcPdfTemplateFileInput)
+  }
+);}
+
+
+
+
+
+export const getResumeQaqcPdfTemplateUploadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeQaqcPdfTemplateUpload>>, TError,{id: string;data: BodyType<QaqcPdfTemplateFileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resumeQaqcPdfTemplateUpload>>, TError,{id: string;data: BodyType<QaqcPdfTemplateFileInput>}, TContext> => {
+
+const mutationKey = ['resumeQaqcPdfTemplateUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resumeQaqcPdfTemplateUpload>>, {id: string;data: BodyType<QaqcPdfTemplateFileInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resumeQaqcPdfTemplateUpload(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResumeQaqcPdfTemplateUploadMutationResult = NonNullable<Awaited<ReturnType<typeof resumeQaqcPdfTemplateUpload>>>
+    export type ResumeQaqcPdfTemplateUploadMutationBody = BodyType<QaqcPdfTemplateFileInput>
+    export type ResumeQaqcPdfTemplateUploadMutationError = ErrorType<unknown>
+
+    export const useResumeQaqcPdfTemplateUpload = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeQaqcPdfTemplateUpload>>, TError,{id: string;data: BodyType<QaqcPdfTemplateFileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resumeQaqcPdfTemplateUpload>>,
+        TError,
+        {id: string;data: BodyType<QaqcPdfTemplateFileInput>},
+        TContext
+      > => {
+      return useMutation(getResumeQaqcPdfTemplateUploadMutationOptions(options));
+    }
+
+export const getPublishQaqcPdfTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/pdf-templates/${id}/publish`
+}
+
+export const publishQaqcPdfTemplate = async (id: string,
+    qaqcPdfTemplatePublication: QaqcPdfTemplatePublication, options?: Parameters<typeof customFetch>[1]): Promise<QaqcPdfTemplate> => {
+
+  return customFetch<QaqcPdfTemplate>(getPublishQaqcPdfTemplateUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcPdfTemplatePublication)
+  }
+);}
+
+
+
+
+
+export const getPublishQaqcPdfTemplateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishQaqcPdfTemplate>>, TError,{id: string;data: BodyType<QaqcPdfTemplatePublication>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof publishQaqcPdfTemplate>>, TError,{id: string;data: BodyType<QaqcPdfTemplatePublication>}, TContext> => {
+
+const mutationKey = ['publishQaqcPdfTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publishQaqcPdfTemplate>>, {id: string;data: BodyType<QaqcPdfTemplatePublication>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  publishQaqcPdfTemplate(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PublishQaqcPdfTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof publishQaqcPdfTemplate>>>
+    export type PublishQaqcPdfTemplateMutationBody = BodyType<QaqcPdfTemplatePublication>
+    export type PublishQaqcPdfTemplateMutationError = ErrorType<unknown>
+
+    export const usePublishQaqcPdfTemplate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishQaqcPdfTemplate>>, TError,{id: string;data: BodyType<QaqcPdfTemplatePublication>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof publishQaqcPdfTemplate>>,
+        TError,
+        {id: string;data: BodyType<QaqcPdfTemplatePublication>},
+        TContext
+      > => {
+      return useMutation(getPublishQaqcPdfTemplateMutationOptions(options));
+    }
+
+export const getDownloadQaqcPdfTemplateUrl = (id: string,
+    params?: DownloadQaqcPdfTemplateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/pdf-templates/${id}/pdf?${stringifiedParams}` : `/api/qaqc/reporting/pdf-templates/${id}/pdf`
+}
+
+export const downloadQaqcPdfTemplate = async (id: string,
+    params?: DownloadQaqcPdfTemplateParams, options?: Parameters<typeof customFetch>[1]): Promise<ReportFileResponse> => {
+
+  return customFetch<ReportFileResponse>(getDownloadQaqcPdfTemplateUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadQaqcPdfTemplateQueryKey = (id: string,
+    params?: DownloadQaqcPdfTemplateParams,) => {
+    return [
+    `/api/qaqc/reporting/pdf-templates/${id}/pdf`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getDownloadQaqcPdfTemplateQueryOptions = <TData = Awaited<ReturnType<typeof downloadQaqcPdfTemplate>>, TError = ErrorType<unknown>>(id: string,
+    params?: DownloadQaqcPdfTemplateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadQaqcPdfTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadQaqcPdfTemplateQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadQaqcPdfTemplate>>> = ({ signal }) => downloadQaqcPdfTemplate(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadQaqcPdfTemplate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadQaqcPdfTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof downloadQaqcPdfTemplate>>>
+export type DownloadQaqcPdfTemplateQueryError = ErrorType<unknown>
+
+
+
+export function useDownloadQaqcPdfTemplate<TData = Awaited<ReturnType<typeof downloadQaqcPdfTemplate>>, TError = ErrorType<unknown>>(
+ id: string,
+    params?: DownloadQaqcPdfTemplateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadQaqcPdfTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadQaqcPdfTemplateQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

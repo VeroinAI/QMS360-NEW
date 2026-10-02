@@ -23,6 +23,7 @@ import {
   useUpdateLessonsUserProfile,
   useUpdateAuditUserProfile,
 } from '@workspace/api-client-react';
+import { PdfTemplatesAdmin } from '@/pages/qaqc/reporting/pdf-templates-admin';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,13 +45,14 @@ import { userFacingApiError } from '@/lib/api-error';
 import { useEffect, useState } from 'react';
 
 type AppKey = 'qaqc' | 'lessons' | 'audit';
-type TabKey = 'overview' | 'numbering' | 'access' | 'roles' | 'escalation' | 'ai' | 'form-fields' | 'notifications' | 'audit-log';
+type TabKey = 'overview' | 'numbering' | 'access' | 'roles' | 'escalation' | 'ai' | 'form-fields' | 'notifications' | 'audit-log' | 'pdf-templates';
 const names: Record<AppKey, string> = { qaqc: 'QA/QC & Document Governance', lessons: 'Lesson Learned Management', audit: 'QMS Audit Management' };
 const tabs: { key: TabKey; label: string; icon: typeof Settings2 }[] = [
   { key: 'overview', label: 'Overview', icon: Settings2 }, { key: 'numbering', label: 'Numbering', icon: Hash }, { key: 'access', label: 'Users & Access', icon: Users },
   { key: 'roles', label: 'Roles & Permissions', icon: ShieldCheck }, { key: 'escalation', label: 'Escalation', icon: Clock },
   { key: 'ai', label: 'VerionAI Settings', icon: Sparkles }, { key: 'form-fields', label: 'Form Fields', icon: SlidersHorizontal },
   { key: 'notifications', label: 'Notifications', icon: Bell },
+  { key: 'pdf-templates', label: 'PDF Templates', icon: FileClock },
   { key: 'audit-log', label: 'Audit Log', icon: FileClock },
 ];
 
@@ -597,8 +599,8 @@ function SettingsPage() {
   const params = useParams<{ app: string; tab?: string }>(); const [, navigate] = useLocation();
   const app = (['qaqc','lessons','audit'].includes(params.app) ? params.app : 'qaqc') as AppKey;
   const tab = (params.tab || 'overview') as TabKey;
-  const visibleTabs = tabs.filter(t => !(app === 'audit' && t.key === 'ai'));
-  const content = tab === 'overview' ? <Overview app={app} /> : tab === 'numbering' ? <NumberingTab app={app} /> : tab === 'access' ? <UsersAccess app={app} /> : tab === 'roles' ? <Roles app={app} /> : tab === 'escalation' ? <Escalations app={app} /> : tab === 'ai' && app !== 'audit' ? <AiSettings app={app} /> : tab === 'form-fields' ? <FormFields app={app} /> : tab === 'notifications' ? <Notifications app={app} /> : <AuditLog app={app} />;
+  const visibleTabs = tabs.filter(t => !(app === 'audit' && t.key === 'ai') && !(t.key === 'pdf-templates' && app !== 'qaqc'));
+  const content = tab === 'overview' ? <Overview app={app} /> : tab === 'numbering' ? <NumberingTab app={app} /> : tab === 'access' ? <UsersAccess app={app} /> : tab === 'roles' ? <Roles app={app} /> : tab === 'escalation' ? <Escalations app={app} /> : tab === 'ai' && app !== 'audit' ? <AiSettings app={app} /> : tab === 'form-fields' ? <FormFields app={app} /> : tab === 'notifications' ? <Notifications app={app} /> : tab === 'pdf-templates' && app === 'qaqc' ? <PdfTemplatesAdmin /> : <AuditLog app={app} />;
   return <main className="min-h-screen bg-background"><header className="bg-primary px-5 py-8 text-primary-foreground md:px-10"><div className="mx-auto max-w-7xl"><Link href={`/${app}`} className="mb-5 inline-flex items-center gap-2 text-sm opacity-80 hover:opacity-100"><ArrowLeft className="h-4 w-4" />Back to application</Link><p className="text-sm font-semibold uppercase tracking-widest opacity-70">Independent workspace administration</p><h1 className="mt-2 font-display text-3xl font-bold">{names[app]} Settings</h1><p className="mt-2 max-w-2xl opacity-80">Configure access, governance and operational controls for this application only.</p></div></header><div className="mx-auto max-w-7xl px-5 py-6 md:px-10"><nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl border bg-card p-1.5">{visibleTabs.map(({ key, label, icon: Icon }) => <button key={key} onClick={() => navigate(`/settings/${app}/${key}`)} className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${tab === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}><Icon className="h-4 w-4" />{label}</button>)}</nav>{content}</div></main>;
 }
 

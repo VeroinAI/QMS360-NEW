@@ -5,6 +5,169 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export interface QaqcPdfMapping {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  source: string;
+  /** @maxLength 200 */
+  pdfField?: string;
+  /**
+     * @minimum 1
+     * @maximum 40
+     */
+  page?: number;
+  /** @minimum 0 */
+  x?: number;
+  /** @minimum 0 */
+  y?: number;
+  /** @exclusiveMinimum 0 */
+  width?: number;
+  /** @exclusiveMinimum 0 */
+  height?: number;
+  /**
+     * @minimum 6
+     * @maximum 36
+     */
+  fontSize?: number;
+}
+
+export type QaqcPdfTemplateReportType = typeof QaqcPdfTemplateReportType[keyof typeof QaqcPdfTemplateReportType];
+
+
+export const QaqcPdfTemplateReportType = {
+  monthly: 'monthly',
+  daily: 'daily',
+  csat: 'csat',
+} as const;
+
+export type QaqcPdfTemplateKind = typeof QaqcPdfTemplateKind[keyof typeof QaqcPdfTemplateKind];
+
+
+export const QaqcPdfTemplateKind = {
+  report: 'report',
+  dashboard: 'dashboard',
+} as const;
+
+export type QaqcPdfTemplateState = typeof QaqcPdfTemplateState[keyof typeof QaqcPdfTemplateState];
+
+
+export const QaqcPdfTemplateState = {
+  draft: 'draft',
+  published: 'published',
+  archived: 'archived',
+} as const;
+
+export interface QaqcPdfPage {
+  width: number;
+  height: number;
+}
+
+export interface QaqcPdfFormField {
+  name: string;
+  type: string;
+}
+
+export interface QaqcPdfTemplate {
+  id: string;
+  name: string;
+  version: string;
+  reportType: QaqcPdfTemplateReportType;
+  kind: QaqcPdfTemplateKind;
+  state: QaqcPdfTemplateState;
+  isDefault: boolean;
+  fileName: string;
+  uploaded: boolean;
+  pages: QaqcPdfPage[];
+  fields: QaqcPdfFormField[];
+  mappings: QaqcPdfMapping[];
+}
+
+export interface QaqcPdfSourceField {
+  path: string;
+  label: string;
+  example: string;
+}
+
+export type QaqcPdfTemplateUploadReportType = typeof QaqcPdfTemplateUploadReportType[keyof typeof QaqcPdfTemplateUploadReportType];
+
+
+export const QaqcPdfTemplateUploadReportType = {
+  monthly: 'monthly',
+  daily: 'daily',
+  csat: 'csat',
+} as const;
+
+export type QaqcPdfTemplateUploadKind = typeof QaqcPdfTemplateUploadKind[keyof typeof QaqcPdfTemplateUploadKind];
+
+
+export const QaqcPdfTemplateUploadKind = {
+  report: 'report',
+  dashboard: 'dashboard',
+} as const;
+
+export interface QaqcPdfTemplateUpload {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  version: string;
+  reportType: QaqcPdfTemplateUploadReportType;
+  kind: QaqcPdfTemplateUploadKind;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  fileName: string;
+  /**
+     * @minimum 1
+     * @maximum 10485760
+     */
+  fileSize: number;
+}
+
+export interface QaqcPdfTemplateUploadResult {
+  template: QaqcPdfTemplate;
+  uploadUrl: string;
+}
+
+export interface QaqcPdfTemplateFileInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  fileName: string;
+  /**
+     * @minimum 1
+     * @maximum 10485760
+     */
+  fileSize: number;
+}
+
+export interface QaqcPdfTemplateMappingInput {
+  /** @maxItems 500 */
+  mappings: QaqcPdfMapping[];
+}
+
+export type QaqcPdfTemplatePublicationState = typeof QaqcPdfTemplatePublicationState[keyof typeof QaqcPdfTemplatePublicationState];
+
+
+export const QaqcPdfTemplatePublicationState = {
+  published: 'published',
+  archived: 'archived',
+} as const;
+
+export interface QaqcPdfTemplatePublication {
+  state: QaqcPdfTemplatePublicationState;
+  isDefault: boolean;
+}
+
 export interface QaqcSowObject {[key: string]: unknown}
 
 export interface QaqcSowReportUpdateInput {
@@ -3646,6 +3809,10 @@ export type ImportQaqcSowWorkbook200 = {
   errors: string[];
 };
 
+export type ExportQaqcSowReportParams = {
+templateId?: string;
+};
+
 export type ExportQaqcSowDashboardParams = {
 projectId?: ProjectIdParameter;
 /**
@@ -3657,6 +3824,7 @@ to?: string;
 projectGroup?: string;
 category?: string;
 format?: ExportQaqcSowDashboardFormat;
+templateId?: string;
 };
 
 export type ExportQaqcSowDashboardFormat = typeof ExportQaqcSowDashboardFormat[keyof typeof ExportQaqcSowDashboardFormat];
@@ -3669,6 +3837,55 @@ export const ExportQaqcSowDashboardFormat = {
 
 export type GetQaqcSowDistributionStatusParams = {
 projectId?: ProjectIdParameter;
+};
+
+export type ListQaqcPdfTemplatesParams = {
+reportType?: ListQaqcPdfTemplatesReportType;
+kind?: ListQaqcPdfTemplatesKind;
+includeDrafts?: boolean;
+};
+
+export type ListQaqcPdfTemplatesReportType = typeof ListQaqcPdfTemplatesReportType[keyof typeof ListQaqcPdfTemplatesReportType];
+
+
+export const ListQaqcPdfTemplatesReportType = {
+  monthly: 'monthly',
+  daily: 'daily',
+  csat: 'csat',
+} as const;
+
+export type ListQaqcPdfTemplatesKind = typeof ListQaqcPdfTemplatesKind[keyof typeof ListQaqcPdfTemplatesKind];
+
+
+export const ListQaqcPdfTemplatesKind = {
+  report: 'report',
+  dashboard: 'dashboard',
+} as const;
+
+export type GetQaqcPdfTemplateCatalogParams = {
+reportType: GetQaqcPdfTemplateCatalogReportType;
+kind: GetQaqcPdfTemplateCatalogKind;
+};
+
+export type GetQaqcPdfTemplateCatalogReportType = typeof GetQaqcPdfTemplateCatalogReportType[keyof typeof GetQaqcPdfTemplateCatalogReportType];
+
+
+export const GetQaqcPdfTemplateCatalogReportType = {
+  monthly: 'monthly',
+  daily: 'daily',
+  csat: 'csat',
+} as const;
+
+export type GetQaqcPdfTemplateCatalogKind = typeof GetQaqcPdfTemplateCatalogKind[keyof typeof GetQaqcPdfTemplateCatalogKind];
+
+
+export const GetQaqcPdfTemplateCatalogKind = {
+  report: 'report',
+  dashboard: 'dashboard',
+} as const;
+
+export type DownloadQaqcPdfTemplateParams = {
+preview?: boolean;
 };
 
 export type ListQaqcDisciplinesParams = {

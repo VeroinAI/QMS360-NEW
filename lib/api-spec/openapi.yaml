@@ -829,14 +829,14 @@ paths:
       operationId: exportQaqcSowReport
       tags: [qaqc]
       summary: Export the complete report as PDF or Excel using the Accept header
-      parameters: [{$ref: "#/components/parameters/Id"}]
+      parameters: [{$ref: "#/components/parameters/Id"}, {name: templateId, in: query, schema: {type: string}}]
       responses: {"200": {$ref: "#/components/responses/ReportFile"}}
   /qaqc/reporting/dashboard/export:
     get:
       operationId: exportQaqcSowDashboard
       tags: [qaqc]
       summary: Export the scoped report dashboard as PDF or Excel
-      parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/SowPeriod"}, {name: from, in: query, schema: {type: string}}, {name: to, in: query, schema: {type: string}}, {name: projectGroup, in: query, schema: {type: string}}, {name: category, in: query, schema: {type: string}}, {name: format, in: query, schema: {type: string, enum: [pdf, xlsx], default: pdf}}]
+      parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/SowPeriod"}, {name: from, in: query, schema: {type: string}}, {name: to, in: query, schema: {type: string}}, {name: projectGroup, in: query, schema: {type: string}}, {name: category, in: query, schema: {type: string}}, {name: format, in: query, schema: {type: string, enum: [pdf, xlsx], default: pdf}}, {name: templateId, in: query, schema: {type: string}}]
       responses: {"200": {$ref: "#/components/responses/ReportFile"}}
   /qaqc/reporting/distribution-status:
     get:
@@ -845,6 +845,114 @@ paths:
       summary: Show report distribution configuration and persisted delivery runs
       parameters: [{$ref: "#/components/parameters/ProjectId"}]
       responses: {"200": {description: Distribution status, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowObject"}}}}}
+  /qaqc/reporting/pdf-templates:
+    get:
+      operationId: listQaqcPdfTemplates
+      tags: [qaqc]
+      parameters:
+        - {name: reportType, in: query, schema: {type: string, enum: [monthly, daily, csat]}}
+        - {name: kind, in: query, schema: {type: string, enum: [report, dashboard]}}
+        - {name: includeDrafts, in: query, schema: {type: boolean}}
+      responses:
+        "200":
+          description: Tenant-scoped named PDF versions
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: "#/components/schemas/QaqcPdfTemplate"}}
+    post:
+      operationId: createQaqcPdfTemplate
+      tags: [qaqc]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/QaqcPdfTemplateUpload"}
+      responses:
+        "201":
+          description: Draft and direct private upload URL
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/QaqcPdfTemplateUploadResult"}
+  /qaqc/reporting/pdf-templates/catalog:
+    get:
+      operationId: getQaqcPdfTemplateCatalog
+      tags: [qaqc]
+      parameters:
+        - {name: reportType, in: query, required: true, schema: {type: string, enum: [monthly, daily, csat]}}
+        - {name: kind, in: query, required: true, schema: {type: string, enum: [report, dashboard]}}
+      responses:
+        "200":
+          description: Existing QA/QC source fields and examples
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: "#/components/schemas/QaqcPdfSourceField"}}
+  /qaqc/reporting/pdf-templates/{id}:
+    put:
+      operationId: updateQaqcPdfTemplate
+      tags: [qaqc]
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/QaqcPdfTemplateMappingInput"}
+      responses:
+        "200":
+          description: Updated draft mapping
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/QaqcPdfTemplate"}
+  /qaqc/reporting/pdf-templates/{id}/inspect:
+    post:
+      operationId: inspectQaqcPdfTemplate
+      tags: [qaqc]
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses:
+        "200":
+          description: Validated uploaded PDF dimensions and fillable fields
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/QaqcPdfTemplate"}
+  /qaqc/reporting/pdf-templates/{id}/upload:
+    post:
+      operationId: resumeQaqcPdfTemplateUpload
+      tags: [qaqc]
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/QaqcPdfTemplateFileInput"}
+      responses:
+        "200":
+          description: Refreshed direct upload URL for an unfinished draft
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/QaqcPdfTemplateUploadResult"}
+  /qaqc/reporting/pdf-templates/{id}/publish:
+    post:
+      operationId: publishQaqcPdfTemplate
+      tags: [qaqc]
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/QaqcPdfTemplatePublication"}
+      responses:
+        "200":
+          description: Immutable published version or archived version
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/QaqcPdfTemplate"}
+  /qaqc/reporting/pdf-templates/{id}/pdf:
+    get:
+      operationId: downloadQaqcPdfTemplate
+      tags: [qaqc]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+        - {name: preview, in: query, schema: {type: boolean}}
+      responses: {"200": {$ref: "#/components/responses/ReportFile"}}
   /qaqc/disciplines:
     get:
       operationId: listQaqcDisciplines
@@ -1546,6 +1654,95 @@ components:
     FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    QaqcPdfMapping:
+      type: object
+      required: [source]
+      properties:
+        source: {type: string, minLength: 1, maxLength: 200}
+        pdfField: {type: string, maxLength: 200}
+        page: {type: number, minimum: 1, maximum: 40}
+        x: {type: number, minimum: 0}
+        y: {type: number, minimum: 0}
+        width: {type: number, exclusiveMinimum: 0}
+        height: {type: number, exclusiveMinimum: 0}
+        fontSize: {type: number, minimum: 6, maximum: 36}
+    QaqcPdfTemplate:
+      type: object
+      required: [id, name, version, reportType, kind, state, isDefault, fileName, uploaded, pages, fields, mappings]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        version: {type: string}
+        reportType: {type: string, enum: [monthly, daily, csat]}
+        kind: {type: string, enum: [report, dashboard]}
+        state: {type: string, enum: [draft, published, archived]}
+        isDefault: {type: boolean}
+        fileName: {type: string}
+        uploaded: {type: boolean}
+        pages:
+          type: array
+          items: {$ref: "#/components/schemas/QaqcPdfPage"}
+        fields:
+          type: array
+          items: {$ref: "#/components/schemas/QaqcPdfFormField"}
+        mappings:
+          type: array
+          items: {$ref: "#/components/schemas/QaqcPdfMapping"}
+    QaqcPdfPage:
+      type: object
+      required: [width, height]
+      properties:
+        width: {type: number}
+        height: {type: number}
+    QaqcPdfFormField:
+      type: object
+      required: [name, type]
+      properties:
+        name: {type: string}
+        type: {type: string}
+    QaqcPdfSourceField:
+      type: object
+      required: [path, label, example]
+      properties:
+        path: {type: string}
+        label: {type: string}
+        example: {type: string}
+    QaqcPdfTemplateUpload:
+      type: object
+      required: [name, version, reportType, kind, fileName, fileSize]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 120}
+        version: {type: string, minLength: 1, maxLength: 60}
+        reportType: {type: string, enum: [monthly, daily, csat]}
+        kind: {type: string, enum: [report, dashboard]}
+        fileName: {type: string, minLength: 1, maxLength: 200}
+        fileSize: {type: number, minimum: 1, maximum: 10485760}
+    QaqcPdfTemplateUploadResult:
+      type: object
+      required: [template, uploadUrl]
+      properties:
+        template: {$ref: "#/components/schemas/QaqcPdfTemplate"}
+        uploadUrl: {type: string}
+    QaqcPdfTemplateFileInput:
+      type: object
+      required: [fileName, fileSize]
+      properties:
+        fileName: {type: string, minLength: 1, maxLength: 200}
+        fileSize: {type: number, minimum: 1, maximum: 10485760}
+    QaqcPdfTemplateMappingInput:
+      type: object
+      required: [mappings]
+      properties:
+        mappings:
+          type: array
+          maxItems: 500
+          items: {$ref: "#/components/schemas/QaqcPdfMapping"}
+    QaqcPdfTemplatePublication:
+      type: object
+      required: [state, isDefault]
+      properties:
+        state: {type: string, enum: [published, archived]}
+        isDefault: {type: boolean}
     QaqcSowReportUpdateInput:
       type: object
       required: [data]

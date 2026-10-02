@@ -20,6 +20,7 @@ import {
   type ReportingProjectOption, type ReportingType,
 } from "../lib/qaqc-reporting-excel";
 import { buildQaqcReportingDashboard } from "./qaqc-reporting";
+import { safeTemplateMetadata } from "../lib/qaqc-pdf-templates";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -122,7 +123,7 @@ async function getReport(req: any, id: string) {
     )).orderBy(asc(reportTemplates.name));
   return {
     ...report, projectName: project?.name ?? null, projectCode: project?.code ?? null,
-    reportTemplates: templates.map((template) => ({ name: template.name, template: jsonObject(template.template) })),
+    reportTemplates: templates.map((template) => ({ name: template.name, template: safeTemplateMetadata(jsonObject(template.template)) })),
     history: audit.map(({ after, ...entry }) => ({
       ...entry, actorName: entry.actorId ? actorNames.get(entry.actorId) ?? "Former or unavailable user" : "System",
       before: entry.before, after: (() => {
@@ -236,7 +237,7 @@ router.get("/reports/:id/export", asyncHandler(async (req, res) => {
   const format = requestedFormat(req);
   const report = await getReport(req, String(req.params.id));
   const name = `qaqc-${report.reportType}-${report.period}-${report.referenceNumber ?? report.id}`;
-  const bytes = format === "pdf" ? await exportQaqcReportPdf(report) : exportQaqcReportExcel(report);
+  const bytes = format === "pdf" ? await exportQaqcReportPdf(report, { templateId: selectedTemplateId(req) }) : exportQaqcReportExcel(report);
   download(res, `${name}.${format}`, format === "pdf" ? "application/pdf" : qaqcReportingWorkbookMimeType, bytes);
 }));
 
@@ -251,6 +252,11 @@ function requestedFormat(req: any) {
   return "pdf";
 }
 
+function selectedTemplateId(req: Request) {
+  if (req.query.templateId === undefined) return undefined;
+  if (typeof req.query.templateId !== "string" || !req.query.templateId) throw new HttpError(422, "Invalid templateId");
+  return req.query.templateId;
+}
 function subtractTree(end: any, start: any): any {
   if (typeof end === "number") return end - (typeof start === "number" ? start : 0);
   if (end && typeof end === "object" && !Array.isArray(end)) {
@@ -385,7 +391,7 @@ router.get("/dashboard/export", asyncHandler(async (req, res) => {
     return {
       ...row,
       projectName: project?.name ?? row.projectId, projectCode: project?.code ?? "",
-      reportTemplates: templates.map((template) => ({ name: template.name, template: jsonObject(template.template) })),
+      reportTemplates: templates.map((template) => ({ name: template.name, template: safeTemplateMetadata(jsonObject(template.template)) })),
       data: jsonObject(row.data), computed: jsonObject(row.computed), baseline: jsonObject(row.baseline),
       history: historyById.get(row.id) ?? [],
     };
@@ -412,6 +418,7 @@ router.get("/dashboard/export", asyncHandler(async (req, res) => {
     daily: source.daily,
   };
   const dashboard: QaqcDashboardExport = {
+    organizationId: organizationId(req),
     title: "QA/QC Reporting Dashboard",
     filters: { ...source.filters, reportType: req.query.reportType ?? "all", category },
     summary: dashboardData,
@@ -420,7 +427,7 @@ router.get("/dashboard/export", asyncHandler(async (req, res) => {
     trends: [...source.aggregates, ...source.daily],
     reports: authorizedReports,
   };
-  const bytes = format === "pdf" ? await exportQaqcDashboardPdf(dashboard) : exportQaqcDashboardExcel(dashboard);
+  const bytes = format === "pdf" ? await exportQaqcDashboardPdf(dashboard, { templateId: selectedTemplateId(req) }) : exportQaqcDashboardExcel(dashboard);
   download(res, `qaqc-dashboard.${format}`, format === "pdf" ? "application/pdf" : qaqcReportingWorkbookMimeType, bytes);
 }));
 

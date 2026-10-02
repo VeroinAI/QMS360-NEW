@@ -11,4 +11,6 @@ In `lib/api-zod`, the generated zod *values* are named from the **operationId** 
 
 Inline request-body objects also infer the colliding `<OperationId>Body` TypeScript name. Use named `*Input` component references even for small request bodies. The path/query `Params` collision is not limited to pagination: a single format query parameter can trigger it too; use the existing Accept-header download convention when appropriate.
 
+When a path-plus-query contract is necessary, explicitly prefer the generated runtime validator from the server Zod barrel instead of changing generated files. The frontend client barrel can still expose its generated query-parameter type.
+
 **Why:** Orval exports operation-derived Zod values alongside inferred TypeScript names through the same barrel, and TypeScript reports TS2308 even though each generated module is individually valid.

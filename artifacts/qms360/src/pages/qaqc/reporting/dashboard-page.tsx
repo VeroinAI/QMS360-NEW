@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { CSAT_RATINGS, DISCIPLINES, DISC_STATUSES, DOC_TYPES, ENTITIES, METRICS, PEND_BUCKETS, PEND_STATUSES, fmt, num, type Obj } from './reporting-types';
 import { ErrorBox, Loading, PageFrame, errMsg, saveFile, useBusy } from './shell';
+import { BUILTIN_TEMPLATE, PdfTemplatePicker } from './pdf-template-picker';
 
 const ALL = 'all';
 type Mode = 'latest' | 'date' | 'range';
@@ -28,10 +29,12 @@ export function DashboardPage() {
     ...(group !== ALL ? { projectGroup: group } : {}), ...(projectId !== ALL ? { projectId } : {}), ...(category !== ALL ? { category } : {}),
     ...(month ? { period: `${month}-01` } : {}), ...(mode === 'date' && date ? { period: date } : {}), ...(mode === 'range' && from && to ? { from, to } : {}),
   };
+  const [tplType, setTplType] = useState<'monthly' | 'daily' | 'csat'>('monthly');
+  const [templateId, setTemplateId] = useState(BUILTIN_TEMPLATE);
   const q = useGetQaqcSowDashboard(params);
   const label = mode === 'range' && from && to ? `Net movement from ${from} to ${to}: end snapshot minus start snapshot, not a sum of daily entries.`
     : mode === 'date' && date ? `Net movement on ${date}: that day's snapshot minus the preceding snapshot.` : 'Latest cumulative snapshot of daily reports.';
-  const download = (format: 'pdf' | 'xlsx') => run(async () => { try { saveFile(await exportQaqcSowDashboard({ ...params, format }), `qaqc-dashboard.${format}`); } catch (e) { toast({ title: 'Export failed', description: errMsg(e), variant: 'destructive' }); } });
+  const download = (format: 'pdf' | 'xlsx') => run(async () => { try { saveFile(await exportQaqcSowDashboard({ ...params, format, ...(format === 'pdf' ? { templateId } : {}) }), `qaqc-dashboard.${format}`); } catch (e) { toast({ title: 'Export failed', description: errMsg(e), variant: 'destructive' }); } });
   const field = (l: string, el: React.ReactNode) => <div className="space-y-1"><Label className="text-xs text-muted-foreground">{l}</Label>{el}</div>;
   return <PageFrame title="Reporting dashboard" description="Monthly KPIs, closure trends, CSAT and daily document snapshots from submitted reports."
     actions={<><Button variant="secondary" disabled={busy} onClick={() => download('xlsx')}><FileSpreadsheet className="mr-2 size-4" />XLSX</Button><Button variant="secondary" disabled={busy} onClick={() => download('pdf')}><FileText className="mr-2 size-4" />PDF</Button></>}>
@@ -43,6 +46,11 @@ export function DashboardPage() {
       {field('Daily view', <Select value={mode} onValueChange={v => setMode(v as Mode)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="latest">Latest snapshot</SelectItem><SelectItem value="date">Past date (net movement)</SelectItem><SelectItem value="range">Custom range (net movement)</SelectItem></SelectContent></Select>)}
       {mode === 'date' && field('Date', <Input type="date" value={date} onChange={e => setDate(e.target.value)} />)}
       {mode === 'range' && <>{field('From', <Input type="date" value={from} onChange={e => setFrom(e.target.value)} />)}{field('To', <Input type="date" value={to} onChange={e => setTo(e.target.value)} />)}</>}
+      <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-4" data-testid="dashboard-pdf-form">
+        {field('PDF form type', <Select value={tplType} onValueChange={v => { setTplType(v as typeof tplType); setTemplateId(BUILTIN_TEMPLATE); }}><SelectTrigger className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="daily">Daily</SelectItem><SelectItem value="csat">CSAT</SelectItem></SelectContent></Select>)}
+        <PdfTemplatePicker reportType={tplType} kind="dashboard" value={templateId} onChange={setTemplateId} />
+        <p className="text-xs text-muted-foreground">Applies to PDF export only. XLSX is unchanged.</p>
+      </div>
     </CardContent></Card>
     <Alert><AlertTitle>{mode === 'latest' ? 'Snapshot view' : 'Net movement view'}</AlertTitle><AlertDescription>{label}</AlertDescription></Alert>
     {q.isLoading ? <Loading /> : q.error ? <ErrorBox error={q.error} retry={() => q.refetch()} /> : <Results d={(q.data ?? {}) as Obj} mode={mode} />}

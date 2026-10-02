@@ -23,6 +23,7 @@ import { FormCtx, ReadOnlyValue, setIn } from './form-kit';
 import { MonthlyForm } from './monthly-form';
 import { MetricsEntryForm, Tile } from './metrics-entry-form';
 import { normaliseMetricsEntry, validateMetricsEntry } from './metrics-entry-validation';
+import { BUILTIN_TEMPLATE, PdfTemplatePicker } from './pdf-template-picker';
 import { calcDaily, calcMonthly, defaultData, defaultPeriod, todayIso, zeroFill, type Obj, type ReportType } from './reporting-types';
 import { DataTree, ErrorBox, Loading, PageFrame, StateBadge, errMsg, saveFile, useBusy, useInvalidate } from './shell';
 
@@ -50,6 +51,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const qc = useQueryClient();
   const invalidate = useInvalidate();
   const { busy, run } = useBusy();
+  const [pdfTemplate, setPdfTemplate] = useState(BUILTIN_TEMPLATE);
   const me = useGetCurrentUser();
   const fc = useFieldControls('qaqc', 'report-envelope');
   const locked = fc.fieldProps('data').disabled;
@@ -143,9 +145,10 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   return <FormCtx.Provider value={form}>
     <PageFrame title={metricsEntry ? `${report ? '' : 'New '}QA/QC Metrics Entry${report?.referenceNumber ? ` - ${report.referenceNumber}` : ''}` : report ? `${TITLES[reportType]} ${report.referenceNumber ? `- ${report.referenceNumber}` : ''}` : `New ${TITLES[reportType].toLowerCase()}`} description={projectName ? `${projectName} - ${per}` : 'Select a project and period to begin.'}
       actions={<><Link href={metricsEntry ? '/qaqc/metrics' : `/qaqc/${reportType}`}><Button variant="secondary"><ArrowLeft className="mr-2 size-4" />{metricsEntry ? 'Back to QA/QC Metrics' : 'All reports'}</Button></Link>
-        {report && <><Button variant="secondary" disabled={busy} onClick={() => run(async () => { try { saveFile(await exportQaqcSowReport(report.id, { headers: { Accept: XLSX_MIME } }), `${reportType}-${per}.xlsx`); } catch (e) { fail('Export failed')(e); } })}><FileSpreadsheet className="mr-2 size-4" />XLSX</Button>
-          <Button variant="secondary" disabled={busy} onClick={() => run(async () => { try { saveFile(await exportQaqcSowReport(report.id, { headers: { Accept: 'application/pdf' } }), `${reportType}-${per}.pdf`); } catch (e) { fail('Export failed')(e); } })}><FileText className="mr-2 size-4" />PDF</Button></>}</>}>
+        {report && <><Button variant="secondary" disabled={busy} onClick={() => run(async () => { try { saveFile(await exportQaqcSowReport(report.id, undefined, { headers: { Accept: XLSX_MIME } }), `${reportType}-${per}.xlsx`); } catch (e) { fail('Export failed')(e); } })}><FileSpreadsheet className="mr-2 size-4" />XLSX</Button>
+          <Button variant="secondary" disabled={busy} onClick={() => run(async () => { try { saveFile(await exportQaqcSowReport(report.id, { templateId: pdfTemplate }, { headers: { Accept: 'application/pdf' } }), `${reportType}-${per}.pdf`); } catch (e) { fail('Export failed')(e); } })}><FileText className="mr-2 size-4" />PDF</Button></>}</>}>
       {report && <div className="flex flex-wrap items-center gap-3"><StateBadge state={report.state} />{report.submittedAt && <span className="text-sm text-muted-foreground">Submitted {new Date(report.submittedAt).toLocaleString()}</span>}{frozen && <span className="text-sm text-muted-foreground">Read-only after submission</span>}</div>}
+      {report && <PdfTemplatePicker reportType={reportType} kind="report" value={pdfTemplate} onChange={setPdfTemplate} />}
       {report?.state === 'sent_back' && <Alert variant="destructive"><AlertTitle>Sent back for correction</AlertTitle><AlertDescription>{report.reviewComments}</AlertDescription></Alert>}
       <Wrap>
         <div className={metricsEntry ? 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3' : 'grid gap-3 sm:grid-cols-2 lg:grid-cols-4'}>

@@ -2189,6 +2189,10 @@ export const ExportQaqcSowReportParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const ExportQaqcSowReportQueryParams = zod.object({
+  "templateId": zod.coerce.string().optional()
+})
+
 export const ExportQaqcSowReportResponse = zod.object({
   "delivery": zod.enum(['download', 'email']),
   "fileName": zod.string(),
@@ -2209,7 +2213,8 @@ export const ExportQaqcSowDashboardQueryParams = zod.object({
   "to": zod.coerce.string().optional(),
   "projectGroup": zod.coerce.string().optional(),
   "category": zod.coerce.string().optional(),
-  "format": zod.enum(['pdf', 'xlsx']).default(exportQaqcSowDashboardQueryFormatDefault)
+  "format": zod.enum(['pdf', 'xlsx']).default(exportQaqcSowDashboardQueryFormatDefault),
+  "templateId": zod.coerce.string().optional()
 })
 
 export const ExportQaqcSowDashboardResponse = zod.object({
@@ -2228,6 +2233,433 @@ export const GetQaqcSowDistributionStatusQueryParams = zod.object({
 })
 
 export const GetQaqcSowDistributionStatusResponse = zod.record(zod.string(), zod.unknown())
+
+
+export const ListQaqcPdfTemplatesQueryParams = zod.object({
+  "reportType": zod.enum(['monthly', 'daily', 'csat']).optional(),
+  "kind": zod.enum(['report', 'dashboard']).optional(),
+  "includeDrafts": zod.coerce.boolean().optional()
+})
+
+export const listQaqcPdfTemplatesResponseMappingsItemSourceMax = 200;
+
+export const listQaqcPdfTemplatesResponseMappingsItemPdfFieldMax = 200;
+
+export const listQaqcPdfTemplatesResponseMappingsItemPageMax = 40;
+
+export const listQaqcPdfTemplatesResponseMappingsItemXMin = 0;
+
+export const listQaqcPdfTemplatesResponseMappingsItemYMin = 0;
+
+export const listQaqcPdfTemplatesResponseMappingsItemWidthExclusiveMin = 0;
+
+export const listQaqcPdfTemplatesResponseMappingsItemHeightExclusiveMin = 0;
+
+export const listQaqcPdfTemplatesResponseMappingsItemFontSizeMin = 6;
+export const listQaqcPdfTemplatesResponseMappingsItemFontSizeMax = 36;
+
+
+
+export const ListQaqcPdfTemplatesResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "version": zod.string(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "kind": zod.enum(['report', 'dashboard']),
+  "state": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "fileName": zod.string(),
+  "uploaded": zod.boolean(),
+  "pages": zod.array(zod.object({
+  "width": zod.number(),
+  "height": zod.number()
+})),
+  "fields": zod.array(zod.object({
+  "name": zod.string(),
+  "type": zod.string()
+})),
+  "mappings": zod.array(zod.object({
+  "source": zod.string().min(1).max(listQaqcPdfTemplatesResponseMappingsItemSourceMax),
+  "pdfField": zod.string().max(listQaqcPdfTemplatesResponseMappingsItemPdfFieldMax).optional(),
+  "page": zod.number().min(1).max(listQaqcPdfTemplatesResponseMappingsItemPageMax).optional(),
+  "x": zod.number().min(listQaqcPdfTemplatesResponseMappingsItemXMin).optional(),
+  "y": zod.number().min(listQaqcPdfTemplatesResponseMappingsItemYMin).optional(),
+  "width": zod.number().gt(listQaqcPdfTemplatesResponseMappingsItemWidthExclusiveMin).optional(),
+  "height": zod.number().gt(listQaqcPdfTemplatesResponseMappingsItemHeightExclusiveMin).optional(),
+  "fontSize": zod.number().min(listQaqcPdfTemplatesResponseMappingsItemFontSizeMin).max(listQaqcPdfTemplatesResponseMappingsItemFontSizeMax).optional()
+}))
+})
+export const ListQaqcPdfTemplatesResponse = zod.array(ListQaqcPdfTemplatesResponseItem)
+
+
+export const createQaqcPdfTemplateBodyNameMax = 120;
+
+export const createQaqcPdfTemplateBodyVersionMax = 60;
+
+export const createQaqcPdfTemplateBodyFileNameMax = 200;
+
+export const createQaqcPdfTemplateBodyFileSizeMax = 10485760;
+
+
+
+export const CreateQaqcPdfTemplateBody = zod.object({
+  "name": zod.string().min(1).max(createQaqcPdfTemplateBodyNameMax),
+  "version": zod.string().min(1).max(createQaqcPdfTemplateBodyVersionMax),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "kind": zod.enum(['report', 'dashboard']),
+  "fileName": zod.string().min(1).max(createQaqcPdfTemplateBodyFileNameMax),
+  "fileSize": zod.number().min(1).max(createQaqcPdfTemplateBodyFileSizeMax)
+})
+
+export const createQaqcPdfTemplateResponseTemplateMappingsItemSourceMax = 200;
+
+export const createQaqcPdfTemplateResponseTemplateMappingsItemPdfFieldMax = 200;
+
+export const createQaqcPdfTemplateResponseTemplateMappingsItemPageMax = 40;
+
+export const createQaqcPdfTemplateResponseTemplateMappingsItemXMin = 0;
+
+export const createQaqcPdfTemplateResponseTemplateMappingsItemYMin = 0;
+
+export const createQaqcPdfTemplateResponseTemplateMappingsItemWidthExclusiveMin = 0;
+
+export const createQaqcPdfTemplateResponseTemplateMappingsItemHeightExclusiveMin = 0;
+
+export const createQaqcPdfTemplateResponseTemplateMappingsItemFontSizeMin = 6;
+export const createQaqcPdfTemplateResponseTemplateMappingsItemFontSizeMax = 36;
+
+
+
+export const CreateQaqcPdfTemplateResponse = zod.object({
+  "template": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "version": zod.string(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "kind": zod.enum(['report', 'dashboard']),
+  "state": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "fileName": zod.string(),
+  "uploaded": zod.boolean(),
+  "pages": zod.array(zod.object({
+  "width": zod.number(),
+  "height": zod.number()
+})),
+  "fields": zod.array(zod.object({
+  "name": zod.string(),
+  "type": zod.string()
+})),
+  "mappings": zod.array(zod.object({
+  "source": zod.string().min(1).max(createQaqcPdfTemplateResponseTemplateMappingsItemSourceMax),
+  "pdfField": zod.string().max(createQaqcPdfTemplateResponseTemplateMappingsItemPdfFieldMax).optional(),
+  "page": zod.number().min(1).max(createQaqcPdfTemplateResponseTemplateMappingsItemPageMax).optional(),
+  "x": zod.number().min(createQaqcPdfTemplateResponseTemplateMappingsItemXMin).optional(),
+  "y": zod.number().min(createQaqcPdfTemplateResponseTemplateMappingsItemYMin).optional(),
+  "width": zod.number().gt(createQaqcPdfTemplateResponseTemplateMappingsItemWidthExclusiveMin).optional(),
+  "height": zod.number().gt(createQaqcPdfTemplateResponseTemplateMappingsItemHeightExclusiveMin).optional(),
+  "fontSize": zod.number().min(createQaqcPdfTemplateResponseTemplateMappingsItemFontSizeMin).max(createQaqcPdfTemplateResponseTemplateMappingsItemFontSizeMax).optional()
+}))
+}),
+  "uploadUrl": zod.string()
+})
+
+
+export const GetQaqcPdfTemplateCatalogQueryParams = zod.object({
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "kind": zod.enum(['report', 'dashboard'])
+})
+
+export const GetQaqcPdfTemplateCatalogResponseItem = zod.object({
+  "path": zod.string(),
+  "label": zod.string(),
+  "example": zod.string()
+})
+export const GetQaqcPdfTemplateCatalogResponse = zod.array(GetQaqcPdfTemplateCatalogResponseItem)
+
+
+export const UpdateQaqcPdfTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateQaqcPdfTemplateBodyMappingsItemSourceMax = 200;
+
+export const updateQaqcPdfTemplateBodyMappingsItemPdfFieldMax = 200;
+
+export const updateQaqcPdfTemplateBodyMappingsItemPageMax = 40;
+
+export const updateQaqcPdfTemplateBodyMappingsItemXMin = 0;
+
+export const updateQaqcPdfTemplateBodyMappingsItemYMin = 0;
+
+export const updateQaqcPdfTemplateBodyMappingsItemWidthExclusiveMin = 0;
+
+export const updateQaqcPdfTemplateBodyMappingsItemHeightExclusiveMin = 0;
+
+export const updateQaqcPdfTemplateBodyMappingsItemFontSizeMin = 6;
+export const updateQaqcPdfTemplateBodyMappingsItemFontSizeMax = 36;
+
+export const updateQaqcPdfTemplateBodyMappingsMax = 500;
+
+
+
+export const UpdateQaqcPdfTemplateBody = zod.object({
+  "mappings": zod.array(zod.object({
+  "source": zod.string().min(1).max(updateQaqcPdfTemplateBodyMappingsItemSourceMax),
+  "pdfField": zod.string().max(updateQaqcPdfTemplateBodyMappingsItemPdfFieldMax).optional(),
+  "page": zod.number().min(1).max(updateQaqcPdfTemplateBodyMappingsItemPageMax).optional(),
+  "x": zod.number().min(updateQaqcPdfTemplateBodyMappingsItemXMin).optional(),
+  "y": zod.number().min(updateQaqcPdfTemplateBodyMappingsItemYMin).optional(),
+  "width": zod.number().gt(updateQaqcPdfTemplateBodyMappingsItemWidthExclusiveMin).optional(),
+  "height": zod.number().gt(updateQaqcPdfTemplateBodyMappingsItemHeightExclusiveMin).optional(),
+  "fontSize": zod.number().min(updateQaqcPdfTemplateBodyMappingsItemFontSizeMin).max(updateQaqcPdfTemplateBodyMappingsItemFontSizeMax).optional()
+})).max(updateQaqcPdfTemplateBodyMappingsMax)
+})
+
+export const updateQaqcPdfTemplateResponseMappingsItemSourceMax = 200;
+
+export const updateQaqcPdfTemplateResponseMappingsItemPdfFieldMax = 200;
+
+export const updateQaqcPdfTemplateResponseMappingsItemPageMax = 40;
+
+export const updateQaqcPdfTemplateResponseMappingsItemXMin = 0;
+
+export const updateQaqcPdfTemplateResponseMappingsItemYMin = 0;
+
+export const updateQaqcPdfTemplateResponseMappingsItemWidthExclusiveMin = 0;
+
+export const updateQaqcPdfTemplateResponseMappingsItemHeightExclusiveMin = 0;
+
+export const updateQaqcPdfTemplateResponseMappingsItemFontSizeMin = 6;
+export const updateQaqcPdfTemplateResponseMappingsItemFontSizeMax = 36;
+
+
+
+export const UpdateQaqcPdfTemplateResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "version": zod.string(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "kind": zod.enum(['report', 'dashboard']),
+  "state": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "fileName": zod.string(),
+  "uploaded": zod.boolean(),
+  "pages": zod.array(zod.object({
+  "width": zod.number(),
+  "height": zod.number()
+})),
+  "fields": zod.array(zod.object({
+  "name": zod.string(),
+  "type": zod.string()
+})),
+  "mappings": zod.array(zod.object({
+  "source": zod.string().min(1).max(updateQaqcPdfTemplateResponseMappingsItemSourceMax),
+  "pdfField": zod.string().max(updateQaqcPdfTemplateResponseMappingsItemPdfFieldMax).optional(),
+  "page": zod.number().min(1).max(updateQaqcPdfTemplateResponseMappingsItemPageMax).optional(),
+  "x": zod.number().min(updateQaqcPdfTemplateResponseMappingsItemXMin).optional(),
+  "y": zod.number().min(updateQaqcPdfTemplateResponseMappingsItemYMin).optional(),
+  "width": zod.number().gt(updateQaqcPdfTemplateResponseMappingsItemWidthExclusiveMin).optional(),
+  "height": zod.number().gt(updateQaqcPdfTemplateResponseMappingsItemHeightExclusiveMin).optional(),
+  "fontSize": zod.number().min(updateQaqcPdfTemplateResponseMappingsItemFontSizeMin).max(updateQaqcPdfTemplateResponseMappingsItemFontSizeMax).optional()
+}))
+})
+
+
+export const InspectQaqcPdfTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const inspectQaqcPdfTemplateResponseMappingsItemSourceMax = 200;
+
+export const inspectQaqcPdfTemplateResponseMappingsItemPdfFieldMax = 200;
+
+export const inspectQaqcPdfTemplateResponseMappingsItemPageMax = 40;
+
+export const inspectQaqcPdfTemplateResponseMappingsItemXMin = 0;
+
+export const inspectQaqcPdfTemplateResponseMappingsItemYMin = 0;
+
+export const inspectQaqcPdfTemplateResponseMappingsItemWidthExclusiveMin = 0;
+
+export const inspectQaqcPdfTemplateResponseMappingsItemHeightExclusiveMin = 0;
+
+export const inspectQaqcPdfTemplateResponseMappingsItemFontSizeMin = 6;
+export const inspectQaqcPdfTemplateResponseMappingsItemFontSizeMax = 36;
+
+
+
+export const InspectQaqcPdfTemplateResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "version": zod.string(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "kind": zod.enum(['report', 'dashboard']),
+  "state": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "fileName": zod.string(),
+  "uploaded": zod.boolean(),
+  "pages": zod.array(zod.object({
+  "width": zod.number(),
+  "height": zod.number()
+})),
+  "fields": zod.array(zod.object({
+  "name": zod.string(),
+  "type": zod.string()
+})),
+  "mappings": zod.array(zod.object({
+  "source": zod.string().min(1).max(inspectQaqcPdfTemplateResponseMappingsItemSourceMax),
+  "pdfField": zod.string().max(inspectQaqcPdfTemplateResponseMappingsItemPdfFieldMax).optional(),
+  "page": zod.number().min(1).max(inspectQaqcPdfTemplateResponseMappingsItemPageMax).optional(),
+  "x": zod.number().min(inspectQaqcPdfTemplateResponseMappingsItemXMin).optional(),
+  "y": zod.number().min(inspectQaqcPdfTemplateResponseMappingsItemYMin).optional(),
+  "width": zod.number().gt(inspectQaqcPdfTemplateResponseMappingsItemWidthExclusiveMin).optional(),
+  "height": zod.number().gt(inspectQaqcPdfTemplateResponseMappingsItemHeightExclusiveMin).optional(),
+  "fontSize": zod.number().min(inspectQaqcPdfTemplateResponseMappingsItemFontSizeMin).max(inspectQaqcPdfTemplateResponseMappingsItemFontSizeMax).optional()
+}))
+})
+
+
+export const ResumeQaqcPdfTemplateUploadParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const resumeQaqcPdfTemplateUploadBodyFileNameMax = 200;
+
+export const resumeQaqcPdfTemplateUploadBodyFileSizeMax = 10485760;
+
+
+
+export const ResumeQaqcPdfTemplateUploadBody = zod.object({
+  "fileName": zod.string().min(1).max(resumeQaqcPdfTemplateUploadBodyFileNameMax),
+  "fileSize": zod.number().min(1).max(resumeQaqcPdfTemplateUploadBodyFileSizeMax)
+})
+
+export const resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemSourceMax = 200;
+
+export const resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemPdfFieldMax = 200;
+
+export const resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemPageMax = 40;
+
+export const resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemXMin = 0;
+
+export const resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemYMin = 0;
+
+export const resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemWidthExclusiveMin = 0;
+
+export const resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemHeightExclusiveMin = 0;
+
+export const resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemFontSizeMin = 6;
+export const resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemFontSizeMax = 36;
+
+
+
+export const ResumeQaqcPdfTemplateUploadResponse = zod.object({
+  "template": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "version": zod.string(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "kind": zod.enum(['report', 'dashboard']),
+  "state": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "fileName": zod.string(),
+  "uploaded": zod.boolean(),
+  "pages": zod.array(zod.object({
+  "width": zod.number(),
+  "height": zod.number()
+})),
+  "fields": zod.array(zod.object({
+  "name": zod.string(),
+  "type": zod.string()
+})),
+  "mappings": zod.array(zod.object({
+  "source": zod.string().min(1).max(resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemSourceMax),
+  "pdfField": zod.string().max(resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemPdfFieldMax).optional(),
+  "page": zod.number().min(1).max(resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemPageMax).optional(),
+  "x": zod.number().min(resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemXMin).optional(),
+  "y": zod.number().min(resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemYMin).optional(),
+  "width": zod.number().gt(resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemWidthExclusiveMin).optional(),
+  "height": zod.number().gt(resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemHeightExclusiveMin).optional(),
+  "fontSize": zod.number().min(resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemFontSizeMin).max(resumeQaqcPdfTemplateUploadResponseTemplateMappingsItemFontSizeMax).optional()
+}))
+}),
+  "uploadUrl": zod.string()
+})
+
+
+export const PublishQaqcPdfTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const PublishQaqcPdfTemplateBody = zod.object({
+  "state": zod.enum(['published', 'archived']),
+  "isDefault": zod.boolean()
+})
+
+export const publishQaqcPdfTemplateResponseMappingsItemSourceMax = 200;
+
+export const publishQaqcPdfTemplateResponseMappingsItemPdfFieldMax = 200;
+
+export const publishQaqcPdfTemplateResponseMappingsItemPageMax = 40;
+
+export const publishQaqcPdfTemplateResponseMappingsItemXMin = 0;
+
+export const publishQaqcPdfTemplateResponseMappingsItemYMin = 0;
+
+export const publishQaqcPdfTemplateResponseMappingsItemWidthExclusiveMin = 0;
+
+export const publishQaqcPdfTemplateResponseMappingsItemHeightExclusiveMin = 0;
+
+export const publishQaqcPdfTemplateResponseMappingsItemFontSizeMin = 6;
+export const publishQaqcPdfTemplateResponseMappingsItemFontSizeMax = 36;
+
+
+
+export const PublishQaqcPdfTemplateResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "version": zod.string(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "kind": zod.enum(['report', 'dashboard']),
+  "state": zod.enum(['draft', 'published', 'archived']),
+  "isDefault": zod.boolean(),
+  "fileName": zod.string(),
+  "uploaded": zod.boolean(),
+  "pages": zod.array(zod.object({
+  "width": zod.number(),
+  "height": zod.number()
+})),
+  "fields": zod.array(zod.object({
+  "name": zod.string(),
+  "type": zod.string()
+})),
+  "mappings": zod.array(zod.object({
+  "source": zod.string().min(1).max(publishQaqcPdfTemplateResponseMappingsItemSourceMax),
+  "pdfField": zod.string().max(publishQaqcPdfTemplateResponseMappingsItemPdfFieldMax).optional(),
+  "page": zod.number().min(1).max(publishQaqcPdfTemplateResponseMappingsItemPageMax).optional(),
+  "x": zod.number().min(publishQaqcPdfTemplateResponseMappingsItemXMin).optional(),
+  "y": zod.number().min(publishQaqcPdfTemplateResponseMappingsItemYMin).optional(),
+  "width": zod.number().gt(publishQaqcPdfTemplateResponseMappingsItemWidthExclusiveMin).optional(),
+  "height": zod.number().gt(publishQaqcPdfTemplateResponseMappingsItemHeightExclusiveMin).optional(),
+  "fontSize": zod.number().min(publishQaqcPdfTemplateResponseMappingsItemFontSizeMin).max(publishQaqcPdfTemplateResponseMappingsItemFontSizeMax).optional()
+}))
+})
+
+
+export const DownloadQaqcPdfTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DownloadQaqcPdfTemplateQueryParams = zod.object({
+  "preview": zod.coerce.boolean().optional()
+})
+
+export const DownloadQaqcPdfTemplateResponse = zod.object({
+  "delivery": zod.enum(['download', 'email']),
+  "fileName": zod.string(),
+  "downloadUrl": zod.string().nullish(),
+  "message": zod.string().nullish()
+})
 
 
 /**

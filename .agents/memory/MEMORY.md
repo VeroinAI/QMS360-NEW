@@ -53,3 +53,5 @@
 - [Audit status remarks migration](audit-status-remarks-migration.md) — section-wide remarks replace row text; show legacy notes together rather than dropping them.
 - [API runtime asset paths](api-runtime-asset-paths.md) — production may run from workspace root; package and resolve assets independently of the process working directory.
 - [QA/QC reporting semantics](qaqc-reporting-semantics.md) — carry forward submitted periods; daily data is snapshots; CSAT uses independent survey dates; QTBT uses participant-hours.
+- [QA/QC PDF template policy](qaqc-pdf-template-policy.md) — user chose exact uploaded PDFs with confirmed mappings and named versions, not AI-recreated layouts or altered business fields.
+- [PDF library normalization](pdf-library-normalization.md) — form access and fixture saves can remove XFA before validation; check source structures before normalization.

@@ -11,6 +11,7 @@ import {
 } from "./qaqc-reporting-export";
 import { logger } from "./logger";
 import { notify, writeAuditLog } from "./workspace";
+import { safeTemplateMetadata } from "./qaqc-pdf-templates";
 
 type ReportType = "monthly" | "daily" | "csat";
 type Settings = Record<string, unknown>;
@@ -118,13 +119,14 @@ function reportDashboard(report: QaqcReportExport, projectName: string): QaqcDas
   const computed = asObject(report.computed);
   const row = {
     projectId: report.projectId, projectName, projectCode: report.projectCode, reportType: report.reportType,
-    period: report.period, state: report.state, referenceNumber: report.referenceNumber ?? "", ...computed,
+    period: report.period, state: report.state, referenceNumber: report.referenceNumber ?? "",
+    computed, data: report.data, ...computed,
   };
   let summary: Record<string, unknown>;
   if (report.reportType === "daily") {
     summary = { daily: [{
       projectId: report.projectId, projectName, period: report.period, snapshot: computed,
-      movement: null, absoluteSnapshot: true,
+      movement: null, absoluteSnapshot: true, globalPeriod: report.period, baselinePeriod: null,
     }] };
   } else if (report.reportType === "csat") {
     summary = { csat: [row], csatAverage: Number(computed.averageRating ?? 0) };
@@ -139,10 +141,20 @@ function reportDashboard(report: QaqcReportExport, projectName: string): QaqcDas
       }],
     };
   }
+  const filters = { projectId: report.projectId, projectGroup: null, from: null, to: null,
+    period: report.period, reportType: report.reportType, category: "all" };
+  const dashboardData = {
+    filters,
+    monthly: [], aggregates: [], csat: [], csatAverage: 0, daily: [],
+    ...summary,
+  };
+  const rows = report.reportType === "daily" ? dashboardData.daily : [row];
   return {
+    organizationId: report.organizationId,
+    reportType: report.reportType,
     title: "QA/QC Reporting Dashboard",
-    filters: { projectId: report.projectId, period: report.period, reportType: report.reportType },
-    summary, rows: [row], trends: report.reportType === "daily" ? summary.daily as Array<Record<string, unknown>>
+    filters,
+    summary: dashboardData, dashboardData, rows: rows as Array<Record<string, unknown>>, trends: report.reportType === "daily" ? summary.daily as Array<Record<string, unknown>>
       : report.reportType === "monthly" ? summary.aggregates as Array<Record<string, unknown>> : [row],
     reports: [report],
   };
@@ -289,7 +301,7 @@ async function dispatchApprovedPdf(input: {
     )).orderBy(reportTemplates.name);
   const report = {
     ...input.report,
-    reportTemplates: templates.map((template) => ({ name: template.name, template: asObject(template.template) })),
+    reportTemplates: templates.map((template) => ({ name: template.name, template: safeTemplateMetadata(asObject(template.template)) })),
   };
   const statuses = await Promise.all(activeUsers.map(async (user) => {
     const runKey = `${input.runKey}:${user.id}`;
