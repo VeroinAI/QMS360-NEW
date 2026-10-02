@@ -1880,6 +1880,357 @@ export const DownloadFeedbackAttachmentResponse = zod.unknown()
 
 
 /**
+ * @summary Get authorized central project identities, report settings and historical baseline
+ */
+export const GetQaqcSowContextQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']).optional(),
+  "period": zod.coerce.string().optional()
+})
+
+export const GetQaqcSowContextResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary List scoped monthly, daily governance and CSAT report submissions
+ */
+export const listQaqcSowReportsQueryPageDefault = 1;
+
+export const listQaqcSowReportsQueryLimitDefault = 20;
+export const listQaqcSowReportsQueryLimitMax = 200;
+
+
+
+export const ListQaqcSowReportsQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']).optional(),
+  "period": zod.coerce.string().optional(),
+  "page": zod.coerce.number().min(1).default(listQaqcSowReportsQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listQaqcSowReportsQueryLimitMax).default(listQaqcSowReportsQueryLimitDefault),
+  "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']).optional()
+})
+
+export const ListQaqcSowReportsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "organizationId": zod.string(),
+  "projectId": zod.string(),
+  "projectName": zod.string().optional(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "period": zod.string(),
+  "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "computed": zod.record(zod.string(), zod.unknown()),
+  "baseline": zod.record(zod.string(), zod.unknown()),
+  "approverId": zod.string().nullish(),
+  "submittedById": zod.string().nullish(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "referenceNumber": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number()
+})
+
+
+/**
+ * @summary Save a report draft using central project identity
+ */
+export const CreateQaqcSowReportBody = zod.object({
+  "projectId": zod.string(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "period": zod.string(),
+  "data": zod.record(zod.string(), zod.unknown())
+})
+
+export const CreateQaqcSowReportResponse = zod.object({
+  "id": zod.string(),
+  "organizationId": zod.string(),
+  "projectId": zod.string(),
+  "projectName": zod.string().optional(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "period": zod.string(),
+  "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "computed": zod.record(zod.string(), zod.unknown()),
+  "baseline": zod.record(zod.string(), zod.unknown()),
+  "approverId": zod.string().nullish(),
+  "submittedById": zod.string().nullish(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "referenceNumber": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Get a scoped report with server-calculated totals and frozen historical baseline
+ */
+export const GetQaqcSowReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetQaqcSowReportResponse = zod.object({
+  "id": zod.string(),
+  "organizationId": zod.string(),
+  "projectId": zod.string(),
+  "projectName": zod.string().optional(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "period": zod.string(),
+  "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "computed": zod.record(zod.string(), zod.unknown()),
+  "baseline": zod.record(zod.string(), zod.unknown()),
+  "approverId": zod.string().nullish(),
+  "submittedById": zod.string().nullish(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "referenceNumber": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Edit a draft or sent-back report without changing its project or reporting period
+ */
+export const UpdateQaqcSowReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateQaqcSowReportBody = zod.object({
+  "data": zod.record(zod.string(), zod.unknown())
+})
+
+export const UpdateQaqcSowReportResponse = zod.object({
+  "id": zod.string(),
+  "organizationId": zod.string(),
+  "projectId": zod.string(),
+  "projectName": zod.string().optional(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "period": zod.string(),
+  "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "computed": zod.record(zod.string(), zod.unknown()),
+  "baseline": zod.record(zod.string(), zod.unknown()),
+  "approverId": zod.string().nullish(),
+  "submittedById": zod.string().nullish(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "referenceNumber": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Soft-delete a draft or sent-back report
+ */
+export const DeleteQaqcSowReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteQaqcSowReportResponse = zod.void()
+
+
+/**
+ * @summary Validate the full report and submit to a named eligible approver
+ */
+export const SubmitQaqcSowReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SubmitQaqcSowReportBody = zod.object({
+  "approverId": zod.string()
+})
+
+export const SubmitQaqcSowReportResponse = zod.object({
+  "id": zod.string(),
+  "organizationId": zod.string(),
+  "projectId": zod.string(),
+  "projectName": zod.string().optional(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "period": zod.string(),
+  "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "computed": zod.record(zod.string(), zod.unknown()),
+  "baseline": zod.record(zod.string(), zod.unknown()),
+  "approverId": zod.string().nullish(),
+  "submittedById": zod.string().nullish(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "referenceNumber": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Assigned approver approves or sends back with comments
+ */
+export const ReviewQaqcSowReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReviewQaqcSowReportBody = zod.object({
+  "decision": zod.enum(['approve', 'send_back']),
+  "comments": zod.string().optional()
+})
+
+export const ReviewQaqcSowReportResponse = zod.object({
+  "id": zod.string(),
+  "organizationId": zod.string(),
+  "projectId": zod.string(),
+  "projectName": zod.string().optional(),
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "period": zod.string(),
+  "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),
+  "data": zod.record(zod.string(), zod.unknown()),
+  "computed": zod.record(zod.string(), zod.unknown()),
+  "baseline": zod.record(zod.string(), zod.unknown()),
+  "approverId": zod.string().nullish(),
+  "submittedById": zod.string().nullish(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "referenceNumber": zod.string().nullish(),
+  "createdAt": zod.string().optional(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Suggest an editable VerionAI quality brief from monthly report data
+ */
+export const DraftQaqcSowBriefParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DraftQaqcSowBriefBody = zod.object({
+  "data": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const DraftQaqcSowBriefResponse = zod.object({
+  "draft": zod.string()
+})
+
+
+/**
+ * @summary Consolidated PQI, CSAT trends and daily cumulative or selected-date delta views
+ */
+export const GetQaqcSowDashboardQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "period": zod.coerce.string().optional(),
+  "projectGroup": zod.coerce.string().optional(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "category": zod.coerce.string().optional()
+})
+
+export const GetQaqcSowDashboardResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Configure KPI targets and central-user assignments on the existing project
+ */
+export const UpdateQaqcSowProjectSettingsParams = zod.object({
+  "projectId": zod.coerce.string()
+})
+
+export const UpdateQaqcSowProjectSettingsBody = zod.record(zod.string(), zod.unknown())
+
+export const UpdateQaqcSowProjectSettingsResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Download a standardized Excel workbook for monthly, daily or CSAT input
+ */
+export const DownloadQaqcSowTemplateQueryParams = zod.object({
+  "reportType": zod.enum(['monthly', 'daily', 'csat']).optional()
+})
+
+export const DownloadQaqcSowTemplateResponse = zod.object({
+  "delivery": zod.enum(['download', 'email']),
+  "fileName": zod.string(),
+  "downloadUrl": zod.string().nullish(),
+  "message": zod.string().nullish()
+})
+
+
+/**
+ * @summary Validate an Excel workbook and return form data for review without saving
+ */
+export const ImportQaqcSowWorkbookBody = zod.object({
+  "reportType": zod.enum(['monthly', 'daily', 'csat']),
+  "projectId": zod.string(),
+  "period": zod.string(),
+  "workbook": zod.string()
+})
+
+export const ImportQaqcSowWorkbookResponse = zod.object({
+  "data": zod.record(zod.string(), zod.unknown()),
+  "errors": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Export the complete report as PDF or Excel using the Accept header
+ */
+export const ExportQaqcSowReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ExportQaqcSowReportResponse = zod.object({
+  "delivery": zod.enum(['download', 'email']),
+  "fileName": zod.string(),
+  "downloadUrl": zod.string().nullish(),
+  "message": zod.string().nullish()
+})
+
+
+/**
+ * @summary Export the scoped report dashboard as PDF or Excel
+ */
+export const exportQaqcSowDashboardQueryFormatDefault = `pdf`;
+
+export const ExportQaqcSowDashboardQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "period": zod.coerce.string().optional(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "projectGroup": zod.coerce.string().optional(),
+  "category": zod.coerce.string().optional(),
+  "format": zod.enum(['pdf', 'xlsx']).default(exportQaqcSowDashboardQueryFormatDefault)
+})
+
+export const ExportQaqcSowDashboardResponse = zod.object({
+  "delivery": zod.enum(['download', 'email']),
+  "fileName": zod.string(),
+  "downloadUrl": zod.string().nullish(),
+  "message": zod.string().nullish()
+})
+
+
+/**
+ * @summary Show report distribution configuration and persisted delivery runs
+ */
+export const GetQaqcSowDistributionStatusQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional()
+})
+
+export const GetQaqcSowDistributionStatusResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
  * @summary List QA/QC disciplines
  */
 export const listQaqcDisciplinesQueryPageDefault = 1;

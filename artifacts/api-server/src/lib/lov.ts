@@ -15,6 +15,25 @@ export function masterDataGroupCodeAliases(groupCode: string): string[] {
     : [normalized];
 }
 
+export async function getLovValues(db: Db, organizationId: string, groupCode: string) {
+  const aliases = masterDataGroupCodeAliases(groupCode);
+  const groups = await db.select({ id: masterDataGroups.id, code: masterDataGroups.code }).from(masterDataGroups).where(and(
+    eq(masterDataGroups.organizationId, organizationId),
+    inArray(sql<string>`lower(${masterDataGroups.code})`, aliases),
+    eq(masterDataGroups.status, "active"),
+    isNull(masterDataGroups.deletedAt),
+  ));
+  const group = aliases.map((alias) => groups.find((candidate) => candidate.code.toLowerCase() === alias)).find(Boolean);
+  if (!group) return [];
+  return db.select({
+    value: masterDataValues.value, label: masterDataValues.label,
+    sortOrder: masterDataValues.sortOrder, metadata: masterDataValues.metadata,
+  }).from(masterDataValues).where(and(
+    eq(masterDataValues.organizationId, organizationId), eq(masterDataValues.groupId, group.id),
+    eq(masterDataValues.active, true), eq(masterDataValues.status, "active"), isNull(masterDataValues.deletedAt),
+  )).orderBy(asc(masterDataValues.sortOrder), asc(masterDataValues.label));
+}
+
 export async function assertLovValue(
   db: Db,
   organizationId: string,

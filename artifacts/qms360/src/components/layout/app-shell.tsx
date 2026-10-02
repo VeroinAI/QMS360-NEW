@@ -20,6 +20,8 @@ const appNav = {
   qaqc: [
     ['Overview', '/qaqc', LayoutDashboard], ['Metrics', '/qaqc/metrics', BarChart3],
     ['Inspections', '/qaqc/material-inspections', ClipboardCheck], ['Documents', '/qaqc/documents', FileText],
+    ['Monthly reports', '/qaqc/monthly', FileText], ['Daily reports', '/qaqc/daily', ClipboardCheck], ['CSAT', '/qaqc/csat', ClipboardCheck],
+    ['Report dashboard', '/qaqc/report-dashboard', BarChart3], ['Reporting settings', '/qaqc/settings', LayoutDashboard],
   ],
   lessons: [
     ['Overview', '/lessons', LayoutDashboard], ['For my Action', '/lessons/approvals', ClipboardCheck],
@@ -76,7 +78,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
   const isAdmin = ['Super Admin', 'Org Admin'].includes(user.platformRole ?? '')
     || (user.workspaceRoles?.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
   const nav = section
-    ? [...appNav[section], ...(isAdmin ? [
+    ? [...appNav[section].filter(([, href]) => isAdmin || href !== '/qaqc/settings'), ...(isAdmin ? [
       ['User Feedback', '/feedback', MessageSquarePlus] as const,
     ] : [])]
     : [...systemNav, ...(isAdmin ? [

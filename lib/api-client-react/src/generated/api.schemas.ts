@@ -5,6 +5,112 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export interface QaqcSowObject {[key: string]: unknown}
+
+export interface QaqcSowReportUpdateInput {
+  data: QaqcSowObject;
+}
+
+export interface QaqcSowReportSubmitInput {
+  approverId: string;
+}
+
+export type QaqcSowReportReviewInputDecision = typeof QaqcSowReportReviewInputDecision[keyof typeof QaqcSowReportReviewInputDecision];
+
+
+export const QaqcSowReportReviewInputDecision = {
+  approve: 'approve',
+  send_back: 'send_back',
+} as const;
+
+export interface QaqcSowReportReviewInput {
+  decision: QaqcSowReportReviewInputDecision;
+  comments?: string;
+}
+
+export interface QaqcSowBriefInput {
+  data?: QaqcSowObject;
+}
+
+export type QaqcSowWorkbookInputReportType = typeof QaqcSowWorkbookInputReportType[keyof typeof QaqcSowWorkbookInputReportType];
+
+
+export const QaqcSowWorkbookInputReportType = {
+  monthly: 'monthly',
+  daily: 'daily',
+  csat: 'csat',
+} as const;
+
+export interface QaqcSowWorkbookInput {
+  reportType: QaqcSowWorkbookInputReportType;
+  projectId: string;
+  period: string;
+  workbook: string;
+}
+
+export type QaqcSowReportInputReportType = typeof QaqcSowReportInputReportType[keyof typeof QaqcSowReportInputReportType];
+
+
+export const QaqcSowReportInputReportType = {
+  monthly: 'monthly',
+  daily: 'daily',
+  csat: 'csat',
+} as const;
+
+export interface QaqcSowReportInput {
+  projectId: string;
+  reportType: QaqcSowReportInputReportType;
+  period: string;
+  data: QaqcSowObject;
+}
+
+export type QaqcSowReportReportType = typeof QaqcSowReportReportType[keyof typeof QaqcSowReportReportType];
+
+
+export const QaqcSowReportReportType = {
+  monthly: 'monthly',
+  daily: 'daily',
+  csat: 'csat',
+} as const;
+
+export type QaqcSowReportState = typeof QaqcSowReportState[keyof typeof QaqcSowReportState];
+
+
+export const QaqcSowReportState = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+  sent_back: 'sent_back',
+} as const;
+
+export interface QaqcSowReport {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  projectName?: string;
+  reportType: QaqcSowReportReportType;
+  period: string;
+  state: QaqcSowReportState;
+  data: QaqcSowObject;
+  computed: QaqcSowObject;
+  baseline: QaqcSowObject;
+  approverId?: string | null;
+  submittedById?: string | null;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  reviewComments?: string | null;
+  referenceNumber?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface QaqcSowReportPage {
+  items: QaqcSowReport[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export type EmailEventRuleRecipientMode = typeof EmailEventRuleRecipientMode[keyof typeof EmailEventRuleRecipientMode];
 
 
@@ -3256,6 +3362,17 @@ export type FeedbackAttachmentUploadBody = FeedbackAttachmentInput;
 
 export type SaveFieldMappingsBody = SaveFieldMappingsInput;
 
+export type SowReportTypeParameter = typeof SowReportTypeParameter[keyof typeof SowReportTypeParameter];
+
+
+export const SowReportTypeParameter = {
+  monthly: 'monthly',
+  daily: 'daily',
+  csat: 'csat',
+} as const;
+
+export type SowPeriodParameter = string;
+
 export type EntityIdParameter = string;
 
 export type PageParameter = number;
@@ -3464,6 +3581,94 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+};
+
+export type GetQaqcSowContextParams = {
+projectId?: ProjectIdParameter;
+reportType?: SowReportTypeParameter;
+/**
+ * Reporting date YYYY-MM-DD; monthly reports use the first day of the month
+ */
+period?: SowPeriodParameter;
+};
+
+export type ListQaqcSowReportsParams = {
+projectId?: ProjectIdParameter;
+reportType?: SowReportTypeParameter;
+/**
+ * Reporting date YYYY-MM-DD; monthly reports use the first day of the month
+ */
+period?: SowPeriodParameter;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+state?: ListQaqcSowReportsState;
+};
+
+export type ListQaqcSowReportsState = typeof ListQaqcSowReportsState[keyof typeof ListQaqcSowReportsState];
+
+
+export const ListQaqcSowReportsState = {
+  draft: 'draft',
+  submitted: 'submitted',
+  approved: 'approved',
+  sent_back: 'sent_back',
+} as const;
+
+export type DraftQaqcSowBrief200 = {
+  draft: string;
+};
+
+export type GetQaqcSowDashboardParams = {
+projectId?: ProjectIdParameter;
+/**
+ * Reporting date YYYY-MM-DD; monthly reports use the first day of the month
+ */
+period?: SowPeriodParameter;
+projectGroup?: string;
+from?: string;
+to?: string;
+category?: string;
+};
+
+export type DownloadQaqcSowTemplateParams = {
+reportType?: SowReportTypeParameter;
+};
+
+export type ImportQaqcSowWorkbook200 = {
+  data: QaqcSowObject;
+  errors: string[];
+};
+
+export type ExportQaqcSowDashboardParams = {
+projectId?: ProjectIdParameter;
+/**
+ * Reporting date YYYY-MM-DD; monthly reports use the first day of the month
+ */
+period?: SowPeriodParameter;
+from?: string;
+to?: string;
+projectGroup?: string;
+category?: string;
+format?: ExportQaqcSowDashboardFormat;
+};
+
+export type ExportQaqcSowDashboardFormat = typeof ExportQaqcSowDashboardFormat[keyof typeof ExportQaqcSowDashboardFormat];
+
+
+export const ExportQaqcSowDashboardFormat = {
+  pdf: 'pdf',
+  xlsx: 'xlsx',
+} as const;
+
+export type GetQaqcSowDistributionStatusParams = {
+projectId?: ProjectIdParameter;
 };
 
 export type ListQaqcDisciplinesParams = {

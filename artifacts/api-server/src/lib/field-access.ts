@@ -151,6 +151,16 @@ export const FIELD_CATALOG: Record<AppKey, CatalogForm[]> = {
   ],
   qaqc: [
     {
+      formKey: "report-envelope",
+      label: "QA/QC SOW report",
+      fields: [
+        f("projectId", "Project", ""),
+        f("reportType", "Report type", ""),
+        f("period", "Reporting period", ""),
+        f("data", "Report data", {}),
+      ],
+    },
+    {
       formKey: "metric-entry",
       label: "NCR / RFI / RMI metric entry",
       fields: [

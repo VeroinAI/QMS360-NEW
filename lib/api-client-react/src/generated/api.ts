@@ -90,6 +90,8 @@ import type {
   DocumentGovernanceLogEntry,
   DocumentGovernancePageResponse,
   DownloadQaqcMetricsTemplateParams,
+  DownloadQaqcSowTemplateParams,
+  DraftQaqcSowBrief200,
   EmailDeliverySettings,
   EmailEventRule,
   EmailEventRuleInput,
@@ -113,6 +115,7 @@ import type {
   ExportFeedbackEntriesParams,
   ExportLessonsLogParams,
   ExportQaqcMonthlyReportParams,
+  ExportQaqcSowDashboardParams,
   ExtensionBody,
   FeedbackAttachmentUploadBody,
   FeedbackAttachmentUploadIntent,
@@ -138,7 +141,11 @@ import type {
   GetQaqcDashboardParams,
   GetQaqcEscalationsParams,
   GetQaqcPqiParams,
+  GetQaqcSowContextParams,
+  GetQaqcSowDashboardParams,
+  GetQaqcSowDistributionStatusParams,
   HealthStatus,
+  ImportQaqcSowWorkbook200,
   ImportTemplate,
   ImportTemplateDownload,
   ImportTemplateInput,
@@ -208,6 +215,7 @@ import type {
   ListQaqcNotificationTemplatesParams,
   ListQaqcNotificationsParams,
   ListQaqcRolesParams,
+  ListQaqcSowReportsParams,
   ListQaqcTargetsParams,
   ListQaqcUsersParams,
   ListQtbtEntriesParams,
@@ -246,6 +254,15 @@ import type {
   QAQCMetricEntry,
   QAQCMetricPageResponse,
   QTBTEntry,
+  QaqcSowBriefInput,
+  QaqcSowObject,
+  QaqcSowReport,
+  QaqcSowReportInput,
+  QaqcSowReportPage,
+  QaqcSowReportReviewInput,
+  QaqcSowReportSubmitInput,
+  QaqcSowReportUpdateInput,
+  QaqcSowWorkbookInput,
   QtbtPageResponse,
   QualityAssessmentBrief,
   QualityBriefPageResponse,
@@ -5279,6 +5296,1237 @@ export function useDownloadFeedbackAttachment<TData = Awaited<ReturnType<typeof 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getDownloadFeedbackAttachmentQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetQaqcSowContextUrl = (params?: GetQaqcSowContextParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/context?${stringifiedParams}` : `/api/qaqc/reporting/context`
+}
+
+/**
+ * @summary Get authorized central project identities, report settings and historical baseline
+ */
+export const getQaqcSowContext = async (params?: GetQaqcSowContextParams, options?: Parameters<typeof customFetch>[1]): Promise<QaqcSowObject> => {
+
+  return customFetch<QaqcSowObject>(getGetQaqcSowContextUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcSowContextQueryKey = (params?: GetQaqcSowContextParams,) => {
+    return [
+    `/api/qaqc/reporting/context`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetQaqcSowContextQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcSowContext>>, TError = ErrorType<unknown>>(params?: GetQaqcSowContextParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowContext>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcSowContextQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcSowContext>>> = ({ signal }) => getQaqcSowContext(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowContext>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcSowContextQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcSowContext>>>
+export type GetQaqcSowContextQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get authorized central project identities, report settings and historical baseline
+ */
+
+export function useGetQaqcSowContext<TData = Awaited<ReturnType<typeof getQaqcSowContext>>, TError = ErrorType<unknown>>(
+ params?: GetQaqcSowContextParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowContext>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcSowContextQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListQaqcSowReportsUrl = (params?: ListQaqcSowReportsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/reports?${stringifiedParams}` : `/api/qaqc/reporting/reports`
+}
+
+/**
+ * @summary List scoped monthly, daily governance and CSAT report submissions
+ */
+export const listQaqcSowReports = async (params?: ListQaqcSowReportsParams, options?: Parameters<typeof customFetch>[1]): Promise<QaqcSowReportPage> => {
+
+  return customFetch<QaqcSowReportPage>(getListQaqcSowReportsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListQaqcSowReportsQueryKey = (params?: ListQaqcSowReportsParams,) => {
+    return [
+    `/api/qaqc/reporting/reports`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListQaqcSowReportsQueryOptions = <TData = Awaited<ReturnType<typeof listQaqcSowReports>>, TError = ErrorType<unknown>>(params?: ListQaqcSowReportsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQaqcSowReports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListQaqcSowReportsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listQaqcSowReports>>> = ({ signal }) => listQaqcSowReports(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listQaqcSowReports>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListQaqcSowReportsQueryResult = NonNullable<Awaited<ReturnType<typeof listQaqcSowReports>>>
+export type ListQaqcSowReportsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List scoped monthly, daily governance and CSAT report submissions
+ */
+
+export function useListQaqcSowReports<TData = Awaited<ReturnType<typeof listQaqcSowReports>>, TError = ErrorType<unknown>>(
+ params?: ListQaqcSowReportsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQaqcSowReports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListQaqcSowReportsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateQaqcSowReportUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/reports`
+}
+
+/**
+ * @summary Save a report draft using central project identity
+ */
+export const createQaqcSowReport = async (qaqcSowReportInput: QaqcSowReportInput, options?: Parameters<typeof customFetch>[1]): Promise<QaqcSowReport> => {
+
+  return customFetch<QaqcSowReport>(getCreateQaqcSowReportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcSowReportInput)
+  }
+);}
+
+
+
+
+
+export const getCreateQaqcSowReportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createQaqcSowReport>>, TError,{data: BodyType<QaqcSowReportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createQaqcSowReport>>, TError,{data: BodyType<QaqcSowReportInput>}, TContext> => {
+
+const mutationKey = ['createQaqcSowReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createQaqcSowReport>>, {data: BodyType<QaqcSowReportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createQaqcSowReport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateQaqcSowReportMutationResult = NonNullable<Awaited<ReturnType<typeof createQaqcSowReport>>>
+    export type CreateQaqcSowReportMutationBody = BodyType<QaqcSowReportInput>
+    export type CreateQaqcSowReportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save a report draft using central project identity
+ */
+export const useCreateQaqcSowReport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createQaqcSowReport>>, TError,{data: BodyType<QaqcSowReportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createQaqcSowReport>>,
+        TError,
+        {data: BodyType<QaqcSowReportInput>},
+        TContext
+      > => {
+      return useMutation(getCreateQaqcSowReportMutationOptions(options));
+    }
+
+export const getGetQaqcSowReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/reports/${id}`
+}
+
+/**
+ * @summary Get a scoped report with server-calculated totals and frozen historical baseline
+ */
+export const getQaqcSowReport = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<QaqcSowReport> => {
+
+  return customFetch<QaqcSowReport>(getGetQaqcSowReportUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcSowReportQueryKey = (id: string,) => {
+    return [
+    `/api/qaqc/reporting/reports/${id}`
+    ] as const;
+    }
+
+
+export const getGetQaqcSowReportQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcSowReport>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcSowReportQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcSowReport>>> = ({ signal }) => getQaqcSowReport(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcSowReportQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcSowReport>>>
+export type GetQaqcSowReportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a scoped report with server-calculated totals and frozen historical baseline
+ */
+
+export function useGetQaqcSowReport<TData = Awaited<ReturnType<typeof getQaqcSowReport>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcSowReportQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateQaqcSowReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/reports/${id}`
+}
+
+/**
+ * @summary Edit a draft or sent-back report without changing its project or reporting period
+ */
+export const updateQaqcSowReport = async (id: string,
+    qaqcSowReportUpdateInput: QaqcSowReportUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<QaqcSowReport> => {
+
+  return customFetch<QaqcSowReport>(getUpdateQaqcSowReportUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcSowReportUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateQaqcSowReportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQaqcSowReport>>, TError,{id: string;data: BodyType<QaqcSowReportUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateQaqcSowReport>>, TError,{id: string;data: BodyType<QaqcSowReportUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateQaqcSowReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateQaqcSowReport>>, {id: string;data: BodyType<QaqcSowReportUpdateInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateQaqcSowReport(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateQaqcSowReportMutationResult = NonNullable<Awaited<ReturnType<typeof updateQaqcSowReport>>>
+    export type UpdateQaqcSowReportMutationBody = BodyType<QaqcSowReportUpdateInput>
+    export type UpdateQaqcSowReportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Edit a draft or sent-back report without changing its project or reporting period
+ */
+export const useUpdateQaqcSowReport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQaqcSowReport>>, TError,{id: string;data: BodyType<QaqcSowReportUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateQaqcSowReport>>,
+        TError,
+        {id: string;data: BodyType<QaqcSowReportUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateQaqcSowReportMutationOptions(options));
+    }
+
+export const getDeleteQaqcSowReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/reports/${id}`
+}
+
+/**
+ * @summary Soft-delete a draft or sent-back report
+ */
+export const deleteQaqcSowReport = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteQaqcSowReportUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteQaqcSowReportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteQaqcSowReport>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteQaqcSowReport>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteQaqcSowReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteQaqcSowReport>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteQaqcSowReport(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteQaqcSowReportMutationResult = NonNullable<Awaited<ReturnType<typeof deleteQaqcSowReport>>>
+
+    export type DeleteQaqcSowReportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Soft-delete a draft or sent-back report
+ */
+export const useDeleteQaqcSowReport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteQaqcSowReport>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteQaqcSowReport>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteQaqcSowReportMutationOptions(options));
+    }
+
+export const getSubmitQaqcSowReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/reports/${id}/submit`
+}
+
+/**
+ * @summary Validate the full report and submit to a named eligible approver
+ */
+export const submitQaqcSowReport = async (id: string,
+    qaqcSowReportSubmitInput: QaqcSowReportSubmitInput, options?: Parameters<typeof customFetch>[1]): Promise<QaqcSowReport> => {
+
+  return customFetch<QaqcSowReport>(getSubmitQaqcSowReportUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcSowReportSubmitInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitQaqcSowReportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitQaqcSowReport>>, TError,{id: string;data: BodyType<QaqcSowReportSubmitInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitQaqcSowReport>>, TError,{id: string;data: BodyType<QaqcSowReportSubmitInput>}, TContext> => {
+
+const mutationKey = ['submitQaqcSowReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitQaqcSowReport>>, {id: string;data: BodyType<QaqcSowReportSubmitInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  submitQaqcSowReport(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitQaqcSowReportMutationResult = NonNullable<Awaited<ReturnType<typeof submitQaqcSowReport>>>
+    export type SubmitQaqcSowReportMutationBody = BodyType<QaqcSowReportSubmitInput>
+    export type SubmitQaqcSowReportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Validate the full report and submit to a named eligible approver
+ */
+export const useSubmitQaqcSowReport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitQaqcSowReport>>, TError,{id: string;data: BodyType<QaqcSowReportSubmitInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitQaqcSowReport>>,
+        TError,
+        {id: string;data: BodyType<QaqcSowReportSubmitInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitQaqcSowReportMutationOptions(options));
+    }
+
+export const getReviewQaqcSowReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/reports/${id}/review`
+}
+
+/**
+ * @summary Assigned approver approves or sends back with comments
+ */
+export const reviewQaqcSowReport = async (id: string,
+    qaqcSowReportReviewInput: QaqcSowReportReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<QaqcSowReport> => {
+
+  return customFetch<QaqcSowReport>(getReviewQaqcSowReportUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcSowReportReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewQaqcSowReportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewQaqcSowReport>>, TError,{id: string;data: BodyType<QaqcSowReportReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewQaqcSowReport>>, TError,{id: string;data: BodyType<QaqcSowReportReviewInput>}, TContext> => {
+
+const mutationKey = ['reviewQaqcSowReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewQaqcSowReport>>, {id: string;data: BodyType<QaqcSowReportReviewInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reviewQaqcSowReport(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewQaqcSowReportMutationResult = NonNullable<Awaited<ReturnType<typeof reviewQaqcSowReport>>>
+    export type ReviewQaqcSowReportMutationBody = BodyType<QaqcSowReportReviewInput>
+    export type ReviewQaqcSowReportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Assigned approver approves or sends back with comments
+ */
+export const useReviewQaqcSowReport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewQaqcSowReport>>, TError,{id: string;data: BodyType<QaqcSowReportReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewQaqcSowReport>>,
+        TError,
+        {id: string;data: BodyType<QaqcSowReportReviewInput>},
+        TContext
+      > => {
+      return useMutation(getReviewQaqcSowReportMutationOptions(options));
+    }
+
+export const getDraftQaqcSowBriefUrl = (id: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/reports/${id}/ai-brief`
+}
+
+/**
+ * @summary Suggest an editable VerionAI quality brief from monthly report data
+ */
+export const draftQaqcSowBrief = async (id: string,
+    qaqcSowBriefInput?: QaqcSowBriefInput, options?: Parameters<typeof customFetch>[1]): Promise<DraftQaqcSowBrief200> => {
+
+  return customFetch<DraftQaqcSowBrief200>(getDraftQaqcSowBriefUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcSowBriefInput)
+  }
+);}
+
+
+
+
+
+export const getDraftQaqcSowBriefMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftQaqcSowBrief>>, TError,{id: string;data?: BodyType<QaqcSowBriefInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof draftQaqcSowBrief>>, TError,{id: string;data?: BodyType<QaqcSowBriefInput>}, TContext> => {
+
+const mutationKey = ['draftQaqcSowBrief'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof draftQaqcSowBrief>>, {id: string;data?: BodyType<QaqcSowBriefInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  draftQaqcSowBrief(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DraftQaqcSowBriefMutationResult = NonNullable<Awaited<ReturnType<typeof draftQaqcSowBrief>>>
+    export type DraftQaqcSowBriefMutationBody = BodyType<QaqcSowBriefInput> | undefined
+    export type DraftQaqcSowBriefMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Suggest an editable VerionAI quality brief from monthly report data
+ */
+export const useDraftQaqcSowBrief = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftQaqcSowBrief>>, TError,{id: string;data?: BodyType<QaqcSowBriefInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof draftQaqcSowBrief>>,
+        TError,
+        {id: string;data?: BodyType<QaqcSowBriefInput>},
+        TContext
+      > => {
+      return useMutation(getDraftQaqcSowBriefMutationOptions(options));
+    }
+
+export const getGetQaqcSowDashboardUrl = (params?: GetQaqcSowDashboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/dashboard?${stringifiedParams}` : `/api/qaqc/reporting/dashboard`
+}
+
+/**
+ * @summary Consolidated PQI, CSAT trends and daily cumulative or selected-date delta views
+ */
+export const getQaqcSowDashboard = async (params?: GetQaqcSowDashboardParams, options?: Parameters<typeof customFetch>[1]): Promise<QaqcSowObject> => {
+
+  return customFetch<QaqcSowObject>(getGetQaqcSowDashboardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcSowDashboardQueryKey = (params?: GetQaqcSowDashboardParams,) => {
+    return [
+    `/api/qaqc/reporting/dashboard`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetQaqcSowDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcSowDashboard>>, TError = ErrorType<unknown>>(params?: GetQaqcSowDashboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcSowDashboardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcSowDashboard>>> = ({ signal }) => getQaqcSowDashboard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcSowDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcSowDashboard>>>
+export type GetQaqcSowDashboardQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Consolidated PQI, CSAT trends and daily cumulative or selected-date delta views
+ */
+
+export function useGetQaqcSowDashboard<TData = Awaited<ReturnType<typeof getQaqcSowDashboard>>, TError = ErrorType<unknown>>(
+ params?: GetQaqcSowDashboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcSowDashboardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateQaqcSowProjectSettingsUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/projects/${projectId}/settings`
+}
+
+/**
+ * @summary Configure KPI targets and central-user assignments on the existing project
+ */
+export const updateQaqcSowProjectSettings = async (projectId: string,
+    qaqcSowObject: QaqcSowObject, options?: Parameters<typeof customFetch>[1]): Promise<QaqcSowObject> => {
+
+  return customFetch<QaqcSowObject>(getUpdateQaqcSowProjectSettingsUrl(projectId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcSowObject)
+  }
+);}
+
+
+
+
+
+export const getUpdateQaqcSowProjectSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQaqcSowProjectSettings>>, TError,{projectId: string;data: BodyType<QaqcSowObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateQaqcSowProjectSettings>>, TError,{projectId: string;data: BodyType<QaqcSowObject>}, TContext> => {
+
+const mutationKey = ['updateQaqcSowProjectSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateQaqcSowProjectSettings>>, {projectId: string;data: BodyType<QaqcSowObject>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  updateQaqcSowProjectSettings(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateQaqcSowProjectSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateQaqcSowProjectSettings>>>
+    export type UpdateQaqcSowProjectSettingsMutationBody = BodyType<QaqcSowObject>
+    export type UpdateQaqcSowProjectSettingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Configure KPI targets and central-user assignments on the existing project
+ */
+export const useUpdateQaqcSowProjectSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQaqcSowProjectSettings>>, TError,{projectId: string;data: BodyType<QaqcSowObject>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateQaqcSowProjectSettings>>,
+        TError,
+        {projectId: string;data: BodyType<QaqcSowObject>},
+        TContext
+      > => {
+      return useMutation(getUpdateQaqcSowProjectSettingsMutationOptions(options));
+    }
+
+export const getDownloadQaqcSowTemplateUrl = (params?: DownloadQaqcSowTemplateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/template?${stringifiedParams}` : `/api/qaqc/reporting/template`
+}
+
+/**
+ * @summary Download a standardized Excel workbook for monthly, daily or CSAT input
+ */
+export const downloadQaqcSowTemplate = async (params?: DownloadQaqcSowTemplateParams, options?: Parameters<typeof customFetch>[1]): Promise<ReportFileResponse> => {
+
+  return customFetch<ReportFileResponse>(getDownloadQaqcSowTemplateUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadQaqcSowTemplateQueryKey = (params?: DownloadQaqcSowTemplateParams,) => {
+    return [
+    `/api/qaqc/reporting/template`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getDownloadQaqcSowTemplateQueryOptions = <TData = Awaited<ReturnType<typeof downloadQaqcSowTemplate>>, TError = ErrorType<unknown>>(params?: DownloadQaqcSowTemplateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadQaqcSowTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadQaqcSowTemplateQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadQaqcSowTemplate>>> = ({ signal }) => downloadQaqcSowTemplate(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadQaqcSowTemplate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadQaqcSowTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof downloadQaqcSowTemplate>>>
+export type DownloadQaqcSowTemplateQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download a standardized Excel workbook for monthly, daily or CSAT input
+ */
+
+export function useDownloadQaqcSowTemplate<TData = Awaited<ReturnType<typeof downloadQaqcSowTemplate>>, TError = ErrorType<unknown>>(
+ params?: DownloadQaqcSowTemplateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadQaqcSowTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadQaqcSowTemplateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportQaqcSowWorkbookUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/import`
+}
+
+/**
+ * @summary Validate an Excel workbook and return form data for review without saving
+ */
+export const importQaqcSowWorkbook = async (qaqcSowWorkbookInput: QaqcSowWorkbookInput, options?: Parameters<typeof customFetch>[1]): Promise<ImportQaqcSowWorkbook200> => {
+
+  return customFetch<ImportQaqcSowWorkbook200>(getImportQaqcSowWorkbookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcSowWorkbookInput)
+  }
+);}
+
+
+
+
+
+export const getImportQaqcSowWorkbookMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importQaqcSowWorkbook>>, TError,{data: BodyType<QaqcSowWorkbookInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importQaqcSowWorkbook>>, TError,{data: BodyType<QaqcSowWorkbookInput>}, TContext> => {
+
+const mutationKey = ['importQaqcSowWorkbook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importQaqcSowWorkbook>>, {data: BodyType<QaqcSowWorkbookInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importQaqcSowWorkbook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportQaqcSowWorkbookMutationResult = NonNullable<Awaited<ReturnType<typeof importQaqcSowWorkbook>>>
+    export type ImportQaqcSowWorkbookMutationBody = BodyType<QaqcSowWorkbookInput>
+    export type ImportQaqcSowWorkbookMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Validate an Excel workbook and return form data for review without saving
+ */
+export const useImportQaqcSowWorkbook = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importQaqcSowWorkbook>>, TError,{data: BodyType<QaqcSowWorkbookInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importQaqcSowWorkbook>>,
+        TError,
+        {data: BodyType<QaqcSowWorkbookInput>},
+        TContext
+      > => {
+      return useMutation(getImportQaqcSowWorkbookMutationOptions(options));
+    }
+
+export const getExportQaqcSowReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/qaqc/reporting/reports/${id}/export`
+}
+
+/**
+ * @summary Export the complete report as PDF or Excel using the Accept header
+ */
+export const exportQaqcSowReport = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<ReportFileResponse> => {
+
+  return customFetch<ReportFileResponse>(getExportQaqcSowReportUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportQaqcSowReportQueryKey = (id: string,) => {
+    return [
+    `/api/qaqc/reporting/reports/${id}/export`
+    ] as const;
+    }
+
+
+export const getExportQaqcSowReportQueryOptions = <TData = Awaited<ReturnType<typeof exportQaqcSowReport>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportQaqcSowReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportQaqcSowReportQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportQaqcSowReport>>> = ({ signal }) => exportQaqcSowReport(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportQaqcSowReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportQaqcSowReportQueryResult = NonNullable<Awaited<ReturnType<typeof exportQaqcSowReport>>>
+export type ExportQaqcSowReportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Export the complete report as PDF or Excel using the Accept header
+ */
+
+export function useExportQaqcSowReport<TData = Awaited<ReturnType<typeof exportQaqcSowReport>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportQaqcSowReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportQaqcSowReportQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExportQaqcSowDashboardUrl = (params?: ExportQaqcSowDashboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/dashboard/export?${stringifiedParams}` : `/api/qaqc/reporting/dashboard/export`
+}
+
+/**
+ * @summary Export the scoped report dashboard as PDF or Excel
+ */
+export const exportQaqcSowDashboard = async (params?: ExportQaqcSowDashboardParams, options?: Parameters<typeof customFetch>[1]): Promise<ReportFileResponse> => {
+
+  return customFetch<ReportFileResponse>(getExportQaqcSowDashboardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportQaqcSowDashboardQueryKey = (params?: ExportQaqcSowDashboardParams,) => {
+    return [
+    `/api/qaqc/reporting/dashboard/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportQaqcSowDashboardQueryOptions = <TData = Awaited<ReturnType<typeof exportQaqcSowDashboard>>, TError = ErrorType<unknown>>(params?: ExportQaqcSowDashboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportQaqcSowDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportQaqcSowDashboardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportQaqcSowDashboard>>> = ({ signal }) => exportQaqcSowDashboard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportQaqcSowDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportQaqcSowDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof exportQaqcSowDashboard>>>
+export type ExportQaqcSowDashboardQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Export the scoped report dashboard as PDF or Excel
+ */
+
+export function useExportQaqcSowDashboard<TData = Awaited<ReturnType<typeof exportQaqcSowDashboard>>, TError = ErrorType<unknown>>(
+ params?: ExportQaqcSowDashboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportQaqcSowDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportQaqcSowDashboardQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetQaqcSowDistributionStatusUrl = (params?: GetQaqcSowDistributionStatusParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/distribution-status?${stringifiedParams}` : `/api/qaqc/reporting/distribution-status`
+}
+
+/**
+ * @summary Show report distribution configuration and persisted delivery runs
+ */
+export const getQaqcSowDistributionStatus = async (params?: GetQaqcSowDistributionStatusParams, options?: Parameters<typeof customFetch>[1]): Promise<QaqcSowObject> => {
+
+  return customFetch<QaqcSowObject>(getGetQaqcSowDistributionStatusUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcSowDistributionStatusQueryKey = (params?: GetQaqcSowDistributionStatusParams,) => {
+    return [
+    `/api/qaqc/reporting/distribution-status`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetQaqcSowDistributionStatusQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcSowDistributionStatus>>, TError = ErrorType<unknown>>(params?: GetQaqcSowDistributionStatusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowDistributionStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcSowDistributionStatusQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcSowDistributionStatus>>> = ({ signal }) => getQaqcSowDistributionStatus(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowDistributionStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcSowDistributionStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcSowDistributionStatus>>>
+export type GetQaqcSowDistributionStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Show report distribution configuration and persisted delivery runs
+ */
+
+export function useGetQaqcSowDistributionStatus<TData = Awaited<ReturnType<typeof getQaqcSowDistributionStatus>>, TError = ErrorType<unknown>>(
+ params?: GetQaqcSowDistributionStatusParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcSowDistributionStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcSowDistributionStatusQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

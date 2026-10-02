@@ -422,6 +422,8 @@ function NotFound() {
   return <Page title="Page not found" description="This QA/QC workspace route does not exist."><Card><CardContent className="py-12 text-center"><Link href="/qaqc"><Button>Return to dashboard</Button></Link></CardContent></Card></Page>;
 }
 
+import { reportingRoutes } from './reporting/routes';
+
 export function QaqcRoutes() {
   return <Switch>
     <Route path="/qaqc" component={DashboardPage} />
@@ -433,6 +435,7 @@ export function QaqcRoutes() {
     <Route path="/qaqc/briefs/:id" component={BriefEditor} />
     <Route path="/qaqc/briefs" component={BriefsPage} />
     <Route path="/qaqc/approvals" component={ApprovalsPage} />
+    {reportingRoutes}
     <Route><NotFound /></Route>
   </Switch>;
 }

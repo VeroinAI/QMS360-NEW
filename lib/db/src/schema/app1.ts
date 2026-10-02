@@ -156,3 +156,47 @@ export const qualityAssessmentBriefs = app1QaqcSchema.table("quality_assessment_
   approverId: uuid("approver_id").references(() => users.id),
   ...auditColumns,
 });
+
+/**
+ * One immutable-on-submit envelope for the new SOW reporting workflows.
+ * Project and user identities deliberately reference shared masters.
+ */
+export const qaqcReportSubmissions = app1QaqcSchema.table("qaqc_report_submissions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  projectId: uuid("project_id").notNull().references(() => projects.id),
+  reportType: text("report_type").notNull(),
+  period: date("period", { mode: "string" }).notNull(),
+  state: text("state").notNull().default("draft"),
+  data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
+  computed: jsonb("computed").$type<Record<string, unknown>>().notNull().default({}),
+  baseline: jsonb("baseline").$type<Record<string, unknown>>().notNull().default({}),
+  createdById: uuid("created_by_id").notNull().references(() => users.id),
+  approverId: uuid("approver_id").references(() => users.id),
+  submittedById: uuid("submitted_by_id").references(() => users.id),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  reviewComments: text("review_comments"),
+  referenceNumber: text("reference_number"),
+  ...auditColumns,
+}, (table) => [
+  uniqueIndex("qaqc_report_project_type_period_active_idx")
+    .on(table.organizationId, table.projectId, table.reportType, table.period)
+    .where(sql`${table.deletedAt} IS NULL`),
+]);
+
+/** Idempotency ledger for QA/QC automations owned by the automation worker. */
+export const qaqcReportDeliveryRuns = app1QaqcSchema.table("qaqc_report_delivery_runs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  projectId: uuid("project_id").references(() => projects.id),
+  runKey: text("run_key").notNull(),
+  kind: text("kind").notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+  ...auditColumns,
+  status: text("status").notNull().default("pending"),
+}, (table) => [
+  uniqueIndex("qaqc_report_delivery_org_run_key_active_idx")
+    .on(table.organizationId, table.runKey)
+    .where(sql`${table.deletedAt} IS NULL`),
+]);

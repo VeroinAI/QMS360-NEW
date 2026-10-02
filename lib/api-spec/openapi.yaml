@@ -731,6 +731,120 @@ paths:
         "200": {description: Reference file, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
         "401": {description: Authentication required}
         "404": {description: Attachment not found}
+  /qaqc/reporting/context:
+    get:
+      operationId: getQaqcSowContext
+      tags: [qaqc]
+      summary: Get authorized central project identities, report settings and historical baseline
+      parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/SowReportType"}, {$ref: "#/components/parameters/SowPeriod"}]
+      responses: {"200": {description: Reporting context, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowObject"}}}}}
+  /qaqc/reporting/reports:
+    get:
+      operationId: listQaqcSowReports
+      tags: [qaqc]
+      summary: List scoped monthly, daily governance and CSAT report submissions
+      parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/SowReportType"}, {$ref: "#/components/parameters/SowPeriod"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: state, in: query, schema: {type: string, enum: [draft, submitted, approved, sent_back]}}]
+      responses: {"200": {description: Reports, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowReportPage"}}}}}
+    post:
+      operationId: createQaqcSowReport
+      tags: [qaqc]
+      summary: Save a report draft using central project identity
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowReportInput"}}}}
+      responses: {"201": {description: Saved report, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowReport"}}}}}
+  /qaqc/reporting/reports/{id}:
+    get:
+      operationId: getQaqcSowReport
+      tags: [qaqc]
+      summary: Get a scoped report with server-calculated totals and frozen historical baseline
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses: {"200": {description: Report, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowReport"}}}}}
+    patch:
+      operationId: updateQaqcSowReport
+      tags: [qaqc]
+      summary: Edit a draft or sent-back report without changing its project or reporting period
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowReportUpdateInput"}}}}
+      responses: {"200": {description: Updated report, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowReport"}}}}}
+    delete:
+      operationId: deleteQaqcSowReport
+      tags: [qaqc]
+      summary: Soft-delete a draft or sent-back report
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses: {"204": {description: Deleted}}
+  /qaqc/reporting/reports/{id}/submit:
+    post:
+      operationId: submitQaqcSowReport
+      tags: [qaqc]
+      summary: Validate the full report and submit to a named eligible approver
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowReportSubmitInput"}}}}
+      responses: {"200": {description: Submitted report, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowReport"}}}}}
+  /qaqc/reporting/reports/{id}/review:
+    post:
+      operationId: reviewQaqcSowReport
+      tags: [qaqc]
+      summary: Assigned approver approves or sends back with comments
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowReportReviewInput"}}}}
+      responses: {"200": {description: Reviewed report, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowReport"}}}}}
+  /qaqc/reporting/reports/{id}/ai-brief:
+    post:
+      operationId: draftQaqcSowBrief
+      tags: [qaqc]
+      summary: Suggest an editable VerionAI quality brief from monthly report data
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowBriefInput"}}}}
+      responses: {"200": {description: Draft suggestion, content: {application/json: {schema: {type: object, required: [draft], properties: {draft: {type: string}}}}}}}
+  /qaqc/reporting/dashboard:
+    get:
+      operationId: getQaqcSowDashboard
+      tags: [qaqc]
+      summary: Consolidated PQI, CSAT trends and daily cumulative or selected-date delta views
+      parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/SowPeriod"}, {name: projectGroup, in: query, schema: {type: string}}, {name: from, in: query, schema: {type: string}}, {name: to, in: query, schema: {type: string}}, {name: category, in: query, schema: {type: string}}]
+      responses: {"200": {description: Dashboard, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowObject"}}}}}
+  /qaqc/reporting/projects/{projectId}/settings:
+    patch:
+      operationId: updateQaqcSowProjectSettings
+      tags: [qaqc]
+      summary: Configure KPI targets and central-user assignments on the existing project
+      parameters: [{name: projectId, in: path, required: true, schema: {type: string}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowObject"}}}}
+      responses: {"200": {description: Project settings, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowObject"}}}}}
+  /qaqc/reporting/template:
+    get:
+      operationId: downloadQaqcSowTemplate
+      tags: [qaqc]
+      summary: Download a standardized Excel workbook for monthly, daily or CSAT input
+      parameters: [{$ref: "#/components/parameters/SowReportType"}]
+      responses: {"200": {$ref: "#/components/responses/ReportFile"}}
+  /qaqc/reporting/import:
+    post:
+      operationId: importQaqcSowWorkbook
+      tags: [qaqc]
+      summary: Validate an Excel workbook and return form data for review without saving
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowWorkbookInput"}}}}
+      responses: {"200": {description: Validated preview, content: {application/json: {schema: {type: object, required: [data, errors], properties: {data: {$ref: "#/components/schemas/QaqcSowObject"}, errors: {type: array, items: {type: string}}}}}}}}
+  /qaqc/reporting/reports/{id}/export:
+    get:
+      operationId: exportQaqcSowReport
+      tags: [qaqc]
+      summary: Export the complete report as PDF or Excel using the Accept header
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses: {"200": {$ref: "#/components/responses/ReportFile"}}
+  /qaqc/reporting/dashboard/export:
+    get:
+      operationId: exportQaqcSowDashboard
+      tags: [qaqc]
+      summary: Export the scoped report dashboard as PDF or Excel
+      parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/SowPeriod"}, {name: from, in: query, schema: {type: string}}, {name: to, in: query, schema: {type: string}}, {name: projectGroup, in: query, schema: {type: string}}, {name: category, in: query, schema: {type: string}}, {name: format, in: query, schema: {type: string, enum: [pdf, xlsx], default: pdf}}]
+      responses: {"200": {$ref: "#/components/responses/ReportFile"}}
+  /qaqc/reporting/distribution-status:
+    get:
+      operationId: getQaqcSowDistributionStatus
+      tags: [qaqc]
+      summary: Show report distribution configuration and persisted delivery runs
+      parameters: [{$ref: "#/components/parameters/ProjectId"}]
+      responses: {"200": {description: Distribution status, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowObject"}}}}}
   /qaqc/disciplines:
     get:
       operationId: listQaqcDisciplines
@@ -1331,6 +1445,8 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    SowReportType: {name: reportType, in: query, schema: {type: string, enum: [monthly, daily, csat]}}
+    SowPeriod: {name: period, in: query, schema: {type: string, description: "Reporting date YYYY-MM-DD; monthly reports use the first day of the month"}}
     AppKey:
       name: appKey
       in: path
@@ -1430,6 +1546,75 @@ components:
     FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    QaqcSowReportUpdateInput:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/QaqcSowObject"}
+    QaqcSowReportSubmitInput:
+      type: object
+      required: [approverId]
+      properties:
+        approverId: {type: string}
+    QaqcSowReportReviewInput:
+      type: object
+      required: [decision]
+      properties:
+        decision: {type: string, enum: [approve, send_back]}
+        comments: {type: string}
+    QaqcSowBriefInput:
+      type: object
+      properties:
+        data: {$ref: "#/components/schemas/QaqcSowObject"}
+    QaqcSowWorkbookInput:
+      type: object
+      required: [reportType, projectId, period, workbook]
+      properties:
+        reportType: {type: string, enum: [monthly, daily, csat]}
+        projectId: {type: string}
+        period: {type: string}
+        workbook: {type: string}
+    QaqcSowObject:
+      type: object
+      additionalProperties: {}
+    QaqcSowReportInput:
+      type: object
+      required: [projectId, reportType, period, data]
+      properties:
+        projectId: {type: string}
+        reportType: {type: string, enum: [monthly, daily, csat]}
+        period: {type: string}
+        data: {$ref: "#/components/schemas/QaqcSowObject"}
+    QaqcSowReport:
+      type: object
+      required: [id, organizationId, projectId, reportType, period, state, data, computed, baseline]
+      properties:
+        id: {type: string}
+        organizationId: {type: string}
+        projectId: {type: string}
+        projectName: {type: string}
+        reportType: {type: string, enum: [monthly, daily, csat]}
+        period: {type: string}
+        state: {type: string, enum: [draft, submitted, approved, sent_back]}
+        data: {$ref: "#/components/schemas/QaqcSowObject"}
+        computed: {$ref: "#/components/schemas/QaqcSowObject"}
+        baseline: {$ref: "#/components/schemas/QaqcSowObject"}
+        approverId: {type: string, nullable: true}
+        submittedById: {type: string, nullable: true}
+        submittedAt: {type: string, nullable: true}
+        approvedAt: {type: string, nullable: true}
+        reviewComments: {type: string, nullable: true}
+        referenceNumber: {type: string, nullable: true}
+        createdAt: {type: string}
+        updatedAt: {type: string}
+    QaqcSowReportPage:
+      type: object
+      required: [items, total, page, limit]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/QaqcSowReport"}}
+        total: {type: number}
+        page: {type: number}
+        limit: {type: number}
     EmailEventRule:
       type: object
       required: [id, organizationId, name, enabled, priority, eventType, recipientMode]

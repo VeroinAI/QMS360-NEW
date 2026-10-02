@@ -52,3 +52,4 @@
 - [Audit approval level migration](audit-approval-level-migration.md) — preserve in-flight role snapshots and materialize legacy L-number levels once; new sequencing reads stored levels only.
 - [Audit status remarks migration](audit-status-remarks-migration.md) — section-wide remarks replace row text; show legacy notes together rather than dropping them.
 - [API runtime asset paths](api-runtime-asset-paths.md) — production may run from workspace root; package and resolve assets independently of the process working directory.
+- [QA/QC reporting semantics](qaqc-reporting-semantics.md) — carry forward submitted periods; daily data is snapshots; CSAT uses independent survey dates; QTBT uses participant-hours.

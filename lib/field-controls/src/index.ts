@@ -13,6 +13,16 @@ export type FormDefinition = { key: string; label: string; fields: FieldDefiniti
 export const fieldControlRegistry: Record<FieldControlAppKey, FormDefinition[]> = {
   qaqc: [
     {
+      key: "report-envelope",
+      label: "QA/QC SOW report",
+      fields: [
+        { key: "projectId", label: "Project" },
+        { key: "reportType", label: "Report type" },
+        { key: "period", label: "Reporting period" },
+        { key: "data", label: "Report data" },
+      ],
+    },
+    {
       key: "metric",
       label: "Quality Metric Entry",
       fields: [
