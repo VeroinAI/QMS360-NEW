@@ -56,3 +56,4 @@
 - [QA/QC PDF template policy](qaqc-pdf-template-policy.md) — user chose exact uploaded PDFs with confirmed mappings and named versions, not AI-recreated layouts or altered business fields.
 - [PDF library normalization](pdf-library-normalization.md) — form access and fixture saves can remove XFA before validation; check source structures before normalization.
 - [Monthly quality assessment](quality-assessment-policy.md) — >45-day open NCRs are critical; AI suggestions require human review and confirmation before submission.
+- [Audit Plan PDF policy](audit-plan-pdf-policy.md) — retain the supplied PDF's branding; use each audit's records, mark unavailable values exactly “To Be Mapped”, and never copy sample signatures.

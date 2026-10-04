@@ -28,6 +28,7 @@ import {
   masterDataValues,
   organizationSettings,
   platformRoles,
+  projects,
   users,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
@@ -44,6 +45,8 @@ import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockSched
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
 import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-attachments";
+import { auditPlanReportData } from "../lib/audit-plan-report-data";
+import { renderAuditPlanPdf } from "../lib/audit-plan-pdf";
 
 const router = Router();
 const requireAuditAdmin = requireAppAdmin("audit");
@@ -1939,6 +1942,36 @@ router.post("/plans", asyncHandler(async (req, res) => {
 router.get("/plans/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, String(req.params.id))));
   if (!row) throw new HttpError(404, "Audit plan not found"); res.json(planDto(row));
+}));
+router.get("/plans/:id/report", asyncHandler(async (req, res) => {
+  const { id } = Api.ExportAuditPlanReportParams.parse(req.params);
+  const timeZone = req.get("X-Report-Time-Zone") || "UTC";
+  try { new Intl.DateTimeFormat("en-GB", { timeZone }); }
+  catch { throw new HttpError(400, "Invalid report timezone"); }
+  const orgId = actor(req).organizationId;
+  const [plan] = await db.select().from(auditPlans).where(and(active(auditPlans, orgId), eq(auditPlans.id, id)));
+  if (!plan) throw new HttpError(404, "Audit plan not found");
+  const meta = planMeta(plan);
+  const [schedule] = plan.auditScheduleId ? await db.select().from(auditSchedules)
+    .where(and(active(auditSchedules, orgId), eq(auditSchedules.id, plan.auditScheduleId))) : [];
+  const [project] = plan.projectId ? await db.select().from(projects)
+    .where(and(active(projects, orgId), eq(projects.id, plan.projectId))) : [];
+  const uuid = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value);
+  const userIds = [...new Set([meta.leadAuditorId, ...plan.teamMemberIds, meta.auditeeId,
+    ...(meta.processOwnerIds ?? []), meta.activityAuditeeId, ...(meta.activities ?? []).map(row => row.auditeeId)].filter(uuid))];
+  const roleIds = (meta.auditeeRoleIds ?? []).filter(uuid);
+  const [people, roles] = await Promise.all([
+    userIds.length ? db.select({ id: users.id, name: users.fullName }).from(users).where(and(active(users, orgId), inArray(users.id, userIds))) : [],
+    roleIds.length ? db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles)
+      .where(and(active(auditWorkspaceRoles, orgId), inArray(auditWorkspaceRoles.id, roleIds))) : [],
+  ]);
+  const data = auditPlanReportData(plan, meta, schedule ? scheduleMeta(schedule) : {}, project,
+    new Map(people.map(p => [p.id, p.name])), new Map(roles.map(r => [r.id, r.name])), timeZone);
+  const bytes = await renderAuditPlanPdf(data);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="audit-plan-${plan.id}.pdf"`);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.send(Buffer.from(bytes));
 }));
 router.put("/plans/:id", asyncHandler(async (req, res) => {
   let data = body<AnyRow>(Api.UpdateAuditPlanBody, req);

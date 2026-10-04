@@ -19118,6 +19118,83 @@ export const useShareAuditPlan = <TError = ErrorType<unknown>,
       return useMutation(getShareAuditPlanMutationOptions(options));
     }
 
+export const getExportAuditPlanReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/plans/${id}/report`
+}
+
+/**
+ * @summary Download the branded Audit Plan PDF
+ */
+export const exportAuditPlanReport = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportAuditPlanReportUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportAuditPlanReportQueryKey = (id: string,) => {
+    return [
+    `/api/audit/plans/${id}/report`
+    ] as const;
+    }
+
+
+export const getExportAuditPlanReportQueryOptions = <TData = Awaited<ReturnType<typeof exportAuditPlanReport>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportAuditPlanReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportAuditPlanReportQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportAuditPlanReport>>> = ({ signal }) => exportAuditPlanReport(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportAuditPlanReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportAuditPlanReportQueryResult = NonNullable<Awaited<ReturnType<typeof exportAuditPlanReport>>>
+export type ExportAuditPlanReportQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download the branded Audit Plan PDF
+ */
+
+export function useExportAuditPlanReport<TData = Awaited<ReturnType<typeof exportAuditPlanReport>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportAuditPlanReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportAuditPlanReportQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getSendAuditPlanForExecutionUrl = (id: string,) => {
 
 

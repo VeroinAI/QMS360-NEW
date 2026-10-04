@@ -7537,6 +7537,20 @@ export const ShareAuditPlanResponse = zod.void()
 
 
 /**
+ * @summary Download the branded Audit Plan PDF
+ */
+export const ExportAuditPlanReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ExportAuditPlanReportHeader = zod.object({
+  "X-Report-Time-Zone": zod.string().optional().describe('IANA timezone used for saved meeting times')
+})
+
+export const ExportAuditPlanReportResponse = zod.unknown()
+
+
+/**
  * @summary Send an Audit Plan to Audit Execution and inform selected roles
  */
 export const SendAuditPlanForExecutionParams = zod.object({

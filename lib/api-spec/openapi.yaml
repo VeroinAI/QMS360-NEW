@@ -1372,6 +1372,19 @@ paths:
     delete: {operationId: deleteAuditPlan, tags: [audit], summary: Soft-delete audit plan, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
   /audit/plans/{id}/share:
     post: {operationId: shareAuditPlan, tags: [audit], summary: Share plan with process and product owners, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"202": {description: Shared}}}
+  /audit/plans/{id}/report:
+    get:
+      operationId: exportAuditPlanReport
+      tags: [audit]
+      summary: Download the branded Audit Plan PDF
+      parameters:
+        - {$ref: "#/components/parameters/Id"}
+        - {name: X-Report-Time-Zone, in: header, schema: {type: string}, description: IANA timezone used for saved meeting times}
+      responses:
+        "200": {description: Audit Plan PDF, content: {application/pdf: {schema: {type: string, format: binary}}}}
+        "400": {description: Invalid timezone}
+        "403": {description: Access denied}
+        "404": {description: Audit plan not found}
   /audit/plans/{id}/send-for-audit:
     post: {operationId: sendAuditPlanForExecution, tags: [audit], summary: Send an Audit Plan to Audit Execution and inform selected roles, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/SendAuditPlanForExecutionInput"}, responses: {"200": {description: Existing or newly created Audit Execution, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}, "409": {description: Only draft or shared plans can be sent for audit}}}
   /audit/audits:

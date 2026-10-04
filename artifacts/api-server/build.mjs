@@ -125,6 +125,9 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     path.join(artifactDir, "src/assets/memo-letterhead-logo.png"),
     path.join(distDir, "memo-letterhead-logo.png"),
   );
+  for (const name of ["audit-plan-template.pdf", "DejaVuSans.ttf", "DejaVuSans-Bold.ttf", "audit-plan-font-license.txt"]) {
+    await copyFile(path.join(artifactDir, "src/assets", name), path.join(distDir, name));
+  }
 }
 
 buildAll().catch((err) => {
