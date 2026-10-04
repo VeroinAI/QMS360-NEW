@@ -29,6 +29,7 @@ import {
   ReassignLessonsPendingActionsBody,
 } from "@workspace/api-zod";
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
+import { decideApplicationAccess, loadPendingApplicationRequests } from "../lib/application-access-requests";
 import { createLessonPdf } from "../lib/lesson-pdf";
 import {
   applicationAccess,
@@ -1360,26 +1361,8 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   if ((body as any).scopeType === "business_unit") throw new HttpError(422, "Business-unit scope is not supported; choose organization or project");
   const scope = { businessUnitIds: [], projectIds: body.scopeType === "project" ? await assertProjectScopeInOrg(db, req.currentUser!.organizationId, body.scopeIds) : [] };
   assertCanManageAssignmentScope(req, scope.projectIds, scope.businessUnitIds);
-  const [row] = existing ? await db.update(lessonsUserWorkspaceRoles).set({ ...scope, updatedAt: new Date() }).where(eq(lessonsUserWorkspaceRoles.id, existing.id)).returning() : await db.insert(lessonsUserWorkspaceRoles).values({ organizationId: req.currentUser!.organizationId, userId: target[0]!.id, workspaceRoleId: role[0]!.id, ...scope }).returning();
-  const accessRows = await db.select({ id: applicationAccess.id }).from(applicationAccess).where(and(
-    eq(applicationAccess.organizationId, req.currentUser!.organizationId),
-    eq(applicationAccess.username, target[0]!.username),
-    isNull(applicationAccess.deletedAt),
-  ));
-  if (accessRows.length) {
-    await db.update(applicationAccess).set({
-      canOpenLessons: true,
-      status: "active",
-      updatedAt: new Date(),
-    }).where(inArray(applicationAccess.id, accessRows.map((access) => access.id)));
-  } else {
-    await db.insert(applicationAccess).values({
-      organizationId: req.currentUser!.organizationId,
-      username: target[0]!.username,
-      canOpenLessons: true,
-      status: "active",
-    });
-  }
+  // Assignment renews the request; only an explicit access decision opens the app.
+  const [row] = existing ? await db.update(lessonsUserWorkspaceRoles).set({ ...scope, status: "active", updatedAt: new Date() }).where(eq(lessonsUserWorkspaceRoles.id, existing.id)).returning() : await db.insert(lessonsUserWorkspaceRoles).values({ organizationId: req.currentUser!.organizationId, userId: target[0]!.id, workspaceRoleId: role[0]!.id, ...scope }).returning();
   await audit(req, "assign_role", "user_role", row!.id, undefined, { userId: target[0]!.id, ...body });
   res.json(row);
 }));
@@ -1405,24 +1388,18 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
 
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const where = and(eq(applicationAccess.organizationId, req.currentUser!.organizationId), eq(applicationAccess.canOpenLessons, false), isNull(applicationAccess.deletedAt));
-  const [rows, count, role] = await Promise.all([
-    db.select().from(applicationAccess).where(where).orderBy(desc(applicationAccess.createdAt)).limit(limit).offset(offset),
-    db.select({ count: sql<number>`count(*)` }).from(applicationAccess).where(where),
-    db.select().from(lessonsWorkspaceRoles).where(and(eq(lessonsWorkspaceRoles.organizationId, req.currentUser!.organizationId), isNull(lessonsWorkspaceRoles.deletedAt))).limit(1),
-  ]);
-  const userRows = rows.length ? await db.select().from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId), inArray(users.username, rows.map((r) => r.username)), isNull(users.deletedAt))) : [];
+  const pending = await loadPendingApplicationRequests(req, "lessons");
+  const userRows = await db.select().from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt)));
   const byUsername = activeUserIdentityByUsername(userRows, req.currentUser!.organizationId);
-  res.json(paginated(rows.map((r) => ({ id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: role[0]?.id ?? r.id, status: "pending", requestedAt: r.createdAt })), Number(count[0]?.count ?? 0), page, limit));
+  res.json(paginated(pending.slice(offset, offset + limit).map(r => ({
+    id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: r.requestedRoleId,
+    status: "pending", requestedAt: r.requestedAt,
+  })), pending.length, page, limit));
 }));
 
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
   const body = parseBody(DecideLessonsAccessRequestBody, req, res); if (!body) return;
-  const [before] = await db.select().from(applicationAccess).where(and(eq(applicationAccess.id, String(req.params.id)), eq(applicationAccess.organizationId, req.currentUser!.organizationId), isNull(applicationAccess.deletedAt))).limit(1);
-  if (!before) notFound("Access request not found");
-  const [row] = await db.update(applicationAccess).set({ canOpenLessons: body.decision === "approve", status: body.decision === "reject" ? "rejected" : "active", updatedAt: new Date() }).where(eq(applicationAccess.id, before!.id)).returning();
-  await audit(req, `access_${body.decision}`, "access_request", row!.id, before as any, { ...row, comments: body.comments } as any);
-  res.json(row);
+  res.json(await decideApplicationAccess(req, "lessons", body.decision, body.comments));
 }));
 
 router.get("/admin/delegations", asyncHandler(async (req, res) => {

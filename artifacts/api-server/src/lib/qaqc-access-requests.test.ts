@@ -7,6 +7,7 @@ const access = (values = {}) => ({
   id: "access", username: member.username, organizationId: "org", projectId: null,
   canOpenQaqc: false, canOpenLessons: true, canOpenAudit: true,
   isInitialAdminQaqc: false, isInitialAdminLessons: false, isInitialAdminAudit: false,
+  applicationReviews: {},
   status: "active", createdAt: new Date("2026-10-01"), updatedAt: new Date("2026-10-01"), deletedAt: null, ...values,
 });
 describe("QA/QC access request recovery", () => {
@@ -23,7 +24,7 @@ describe("QA/QC access request recovery", () => {
     expect(pendingQaqcRequests([access({ canOpenQaqc: true })], [member], () => true)).toEqual([]);
   });
   it("keeps rejection until a role is explicitly assigned again", () => {
-    const rejected = access({ status: "rejected", updatedAt: new Date("2026-10-05") });
+    const rejected = access({ status: "rejected", applicationReviews: { qaqc: { status: "rejected" as const, reviewedAt: "2026-10-05T00:00:00Z" } }, updatedAt: new Date("2026-10-05") });
     expect(pendingQaqcRequests([rejected], [member], () => true)).toEqual([]);
     expect(pendingQaqcRequests([rejected], [{ ...member, updatedAt: new Date("2026-10-06") }], () => true)).toHaveLength(1);
   });

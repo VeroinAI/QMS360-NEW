@@ -111,8 +111,7 @@ afterAll(async () => {
 
 describe("platform role management", () => {
   it("allows default QA/QC permission edits, protects metadata and retains grants on rejected changes", async () => {
-    const [role] = await db.insert(workspaceRoles).values({ organizationId: orgId, name: "QAQC Representative",
-      description: "Capture and submit QA/QC records", isSystem: true }).returning();
+    const [role] = await db.insert(workspaceRoles).values({ organizationId: orgId, name: `QA/QC Reviewer ${suffix}` }).returning();
     const data = { id: role!.id, name: role!.name, description: role!.description, active: true,
       permissions: [{ key: "data_entry", name: "Create / edit" }, { key: "view_own_scope", name: "View own" }] };
     const saved = await api("PUT", `/qaqc/admin/roles/${role!.id}`, admin.token, data);
@@ -171,7 +170,7 @@ describe("platform role management", () => {
     expect((await api("GET", "/qaqc/metrics", member.token)).status).toBe(403);
   });
   it("lists only the administrator's organization roles", async () => {
-    const result = await api("GET", "/platform/roles", admin.token);
+    const result = await api("PUT", `/platform/users/${targetId}/role`, admin.token, { roleId: qualityRoleId });
     expect(result.status).toBe(200);
     expect(result.json.map((role: { name: string }) => role.name)).toEqual(
       expect.arrayContaining(["Employee", "Org Admin", "Quality Manager", "Super Admin"]),

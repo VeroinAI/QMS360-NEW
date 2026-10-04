@@ -129,6 +129,12 @@ export const applicationAccess = sharedSchema.table("application_access", {
   canOpenQaqc: boolean("can_open_qaqc").notNull().default(false),
   canOpenLessons: boolean("can_open_lessons").notNull().default(false),
   canOpenAudit: boolean("can_open_audit").notNull().default(false),
+  // Empty legacy reviews are resolved from each application's own decision log.
+  // Never copy the ambiguous shared status into all three review outcomes.
+  applicationReviews: jsonb("application_reviews").$type<Partial<Record<"qaqc" | "lessons" | "audit", {
+    status: "pending" | "approved" | "rejected";
+    reviewedAt: string;
+  }>>>().notNull().default({}),
   isInitialAdminQaqc: boolean("is_initial_admin_qaqc").notNull().default(false),
   isInitialAdminLessons: boolean("is_initial_admin_lessons").notNull().default(false),
   isInitialAdminAudit: boolean("is_initial_admin_audit").notNull().default(false),

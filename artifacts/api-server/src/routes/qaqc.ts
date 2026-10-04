@@ -22,6 +22,7 @@ import { loadPendingQaqcRequests } from "../lib/qaqc-access-requests";
 import { saveQaqcRole } from "../lib/qaqc-role-permissions";
 import { activeQaqcCapabilities, qaqcAdminTask } from "../lib/qaqc-capabilities";
 import { qaqcOwnedRecordClause, qaqcRecordReadClauses } from "../lib/qaqc-record-scope";
+import { decideApplicationAccess } from "../lib/application-access-requests";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
@@ -863,22 +864,7 @@ router.get("/admin/access-queue", asyncHandler(async (req, res) => {
 }));
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
   const v: any = body(api.DecideQaqcAccessRequestBody, req);
-  let before: any;
-  const row = await db.transaction(async tx => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${org(req)}), hashtext(${"qaqc-access:" + String(req.params.id)}))`);
-    const request = (await loadPendingQaqcRequests(req, tx)).find(r => r.id === String(req.params.id));
-    if (!request) throw new HttpError(409, "Access request is no longer pending or is outside your scope");
-    const values = { status: v.decision === "approve" ? "active" : "rejected", canOpenQaqc: v.decision === "approve", updatedAt: new Date() };
-    if (request.persistedId) {
-      [before] = await tx.select().from(applicationAccess).where(eq(applicationAccess.id, request.persistedId));
-      const [updated] = await tx.update(applicationAccess).set(values).where(eq(applicationAccess.id, request.persistedId)).returning();
-      return updated;
-    }
-    const [created] = await tx.insert(applicationAccess).values({ organizationId: org(req), username: request.username,
-      projectId: request.projectId, ...values }).returning();
-    return created;
-  });
-  await audit(req, `access_${v.decision}`, "application_access", row.id, before, { ...row, comments: v.comments }); res.json(row);
+  res.json(await decideApplicationAccess(req, "qaqc", v.decision, v.comments));
 }));
 router.get("/admin/delegations", asyncHandler(async (req, res) => {
   const result = await pageTable(req, delegations);
