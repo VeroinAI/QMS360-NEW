@@ -76,6 +76,48 @@ export const RegisterResponse = zod.object({
 
 
 /**
+ * @summary Public authentication mode and activation status
+ */
+export const GetAuthConfigurationResponse = zod.object({
+  "mode": zod.enum(['local', 'container', 'drona', 'disabled']),
+  "localLoginAllowed": zod.boolean(),
+  "dronaReady": zod.boolean(),
+  "blockers": zod.array(zod.string())
+})
+
+
+/**
+ * Disabled until Drona backend verification and access-policy acceptance are implemented. A profile or client-side nonce check alone never issues a session.
+ * @summary Exchange a DronaHQ session proof
+ */
+export const dronaSignInBodyUidMax = 19;
+
+
+export const dronaSignInBodyUidRegExp = new RegExp('^[1-9][0-9]*$');
+export const dronaSignInBodyNonceMax = 4096;
+
+
+
+export const DronaSignInBody = zod.object({
+  "uid": zod.string().max(dronaSignInBodyUidMax).regex(dronaSignInBodyUidRegExp),
+  "nonce": zod.string().min(1).max(dronaSignInBodyNonceMax)
+})
+
+export const DronaSignInResponse = zod.object({
+  "token": zod.string(),
+  "user": zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "username": zod.string(),
+  "fullName": zod.string(),
+  "platformRole": zod.string(),
+  "organizationName": zod.string(),
+  "workspaceRoles": zod.array(zod.string())
+})
+})
+
+
+/**
  * Accepts the future Algihaz DronaHQ profile shape and issues the standard QMS360 JWT.
  * @summary Stub container profile handoff
  */

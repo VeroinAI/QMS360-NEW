@@ -10,14 +10,52 @@ import {
   LoginResponse,
   RegisterBody,
   RegisterResponse,
+  DronaSignInBody,
+  GetAuthConfigurationResponse,
 } from "@workspace/api-zod";
 import { db, users, platformRoles } from "@workspace/db";
 import { ensureOrganization, getUserContext, hashPassword, issueToken, verifyPassword } from "../lib/auth";
 import { requireAuth } from "../middlewares/auth";
+import { authenticationConfiguration, authenticationUnavailableMessage } from "../lib/drona/activation";
+import { dronaId } from "../lib/drona/ids";
 
 const router: IRouter = Router();
 
+router.get("/auth/config", (_req, res): void => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json(GetAuthConfigurationResponse.parse(authenticationConfiguration(process.env.AUTH_STRATEGY)));
+});
+
+router.post("/auth/drona", (req, res): void => {
+  res.setHeader("Cache-Control", "no-store");
+  if (authenticationConfiguration(process.env.AUTH_STRATEGY).mode !== "drona") {
+    res.status(409).json({ error: "Drona authentication mode is not selected" });
+    return;
+  }
+  const parsed = DronaSignInBody.safeParse(req.body);
+  if (!parsed.success) {
+    // Do not return validation payloads that could expose the nonce.
+    res.status(400).json({ error: "A valid Drona user ID and session proof are required" });
+    return;
+  }
+  try {
+    dronaId(parsed.data.uid);
+    if (!parsed.data.nonce.trim()) throw new Error("Empty proof");
+  } catch {
+    res.status(400).json({ error: "A valid Drona user ID and session proof are required" });
+    return;
+  }
+  // Deliberately no database lookup, identity creation, nonce echo or JWT.
+  // The SDK's profile and client verifyNonce callback are not backend proof.
+  res.status(503).json({ error: authenticationUnavailableMessage("drona") });
+});
+
 router.post("/auth/login", async (req, res): Promise<void> => {
+  const unavailable = authenticationUnavailableMessage(process.env.AUTH_STRATEGY);
+  if (unavailable) {
+    res.status(503).json({ error: unavailable });
+    return;
+  }
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -45,6 +83,11 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 });
 
 router.post("/auth/register", async (req, res): Promise<void> => {
+  const unavailable = authenticationUnavailableMessage(process.env.AUTH_STRATEGY);
+  if (unavailable) {
+    res.status(503).json({ error: unavailable });
+    return;
+  }
   const parsed = RegisterBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

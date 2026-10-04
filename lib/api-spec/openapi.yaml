@@ -88,6 +88,43 @@ paths:
                 $ref: "#/components/schemas/AuthResponse"
         "409":
           description: Email already registered
+  /auth/config:
+    get:
+      operationId: getAuthConfiguration
+      tags: [auth]
+      summary: Public authentication mode and activation status
+      responses:
+        "200":
+          description: Authentication configuration without secrets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationConfiguration"
+  /auth/drona:
+    post:
+      operationId: dronaSignIn
+      tags: [auth]
+      summary: Exchange a DronaHQ session proof
+      description: Disabled until Drona backend verification and access-policy acceptance are implemented. A profile or client-side nonce check alone never issues a session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DronaSessionInput"
+      responses:
+        "200":
+          description: Verified and authorized session after activation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Invalid identity or proof shape
+        "409":
+          description: Drona authentication mode is not selected
+        "503":
+          description: Backend verification or access policy is not ready
   /auth/sso:
     post:
       operationId: containerSso
@@ -1710,6 +1747,34 @@ components:
     FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    AuthenticationConfiguration:
+      type: object
+      required: [mode, localLoginAllowed, dronaReady, blockers]
+      properties:
+        mode:
+          type: string
+          enum: [local, container, drona, disabled]
+        localLoginAllowed:
+          type: boolean
+        dronaReady:
+          type: boolean
+        blockers:
+          type: array
+          items:
+            type: string
+    DronaSessionInput:
+      type: object
+      additionalProperties: false
+      required: [uid, nonce]
+      properties:
+        uid:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+          maxLength: 19
+        nonce:
+          type: string
+          minLength: 1
+          maxLength: 4096
     QaqcPdfMapping:
       type: object
       required: [source]

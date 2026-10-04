@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { getUserContext, verifyToken, type AuthToken } from "../lib/auth";
+import { authenticationUnavailableMessage } from "../lib/drona/activation";
 
 declare global {
   namespace Express {
@@ -11,6 +12,12 @@ declare global {
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const unavailable = authenticationUnavailableMessage(process.env.AUTH_STRATEGY);
+  if (unavailable) {
+    // Old local/admin tokens cannot bypass an incomplete Drona activation.
+    res.status(503).json({ error: unavailable });
+    return;
+  }
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Authentication required" });

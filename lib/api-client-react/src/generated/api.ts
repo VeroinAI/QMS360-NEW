@@ -71,6 +71,7 @@ import type {
   AuditUserProfileUpdateResult,
   AuditWorkspaceUserPage,
   AuthResponse,
+  AuthenticationConfiguration,
   BulkImportResult,
   BusinessUnitPageResponse,
   CarBody,
@@ -94,6 +95,7 @@ import type {
   DownloadQaqcPdfTemplateParams,
   DownloadQaqcSowTemplateParams,
   DraftQaqcSowBrief200,
+  DronaSessionInput,
   EmailDeliverySettings,
   EmailEventRule,
   EmailEventRuleInput,
@@ -581,6 +583,155 @@ export const useRegister = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRegisterMutationOptions(options));
+    }
+
+export const getGetAuthConfigurationUrl = () => {
+
+
+
+
+  return `/api/auth/config`
+}
+
+/**
+ * @summary Public authentication mode and activation status
+ */
+export const getAuthConfiguration = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuthenticationConfiguration> => {
+
+  return customFetch<AuthenticationConfiguration>(getGetAuthConfigurationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuthConfigurationQueryKey = () => {
+    return [
+    `/api/auth/config`
+    ] as const;
+    }
+
+
+export const getGetAuthConfigurationQueryOptions = <TData = Awaited<ReturnType<typeof getAuthConfiguration>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuthConfiguration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuthConfigurationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuthConfiguration>>> = ({ signal }) => getAuthConfiguration({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuthConfiguration>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuthConfigurationQueryResult = NonNullable<Awaited<ReturnType<typeof getAuthConfiguration>>>
+export type GetAuthConfigurationQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Public authentication mode and activation status
+ */
+
+export function useGetAuthConfiguration<TData = Awaited<ReturnType<typeof getAuthConfiguration>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuthConfiguration>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuthConfigurationQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDronaSignInUrl = () => {
+
+
+
+
+  return `/api/auth/drona`
+}
+
+/**
+ * Disabled until Drona backend verification and access-policy acceptance are implemented. A profile or client-side nonce check alone never issues a session.
+ * @summary Exchange a DronaHQ session proof
+ */
+export const dronaSignIn = async (dronaSessionInput: DronaSessionInput, options?: Parameters<typeof customFetch>[1]): Promise<AuthResponse> => {
+
+  return customFetch<AuthResponse>(getDronaSignInUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dronaSessionInput)
+  }
+);}
+
+
+
+
+
+export const getDronaSignInMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dronaSignIn>>, TError,{data: BodyType<DronaSessionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dronaSignIn>>, TError,{data: BodyType<DronaSessionInput>}, TContext> => {
+
+const mutationKey = ['dronaSignIn'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dronaSignIn>>, {data: BodyType<DronaSessionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  dronaSignIn(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DronaSignInMutationResult = NonNullable<Awaited<ReturnType<typeof dronaSignIn>>>
+    export type DronaSignInMutationBody = BodyType<DronaSessionInput>
+    export type DronaSignInMutationError = ErrorType<void>
+
+    /**
+ * @summary Exchange a DronaHQ session proof
+ */
+export const useDronaSignIn = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dronaSignIn>>, TError,{data: BodyType<DronaSessionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof dronaSignIn>>,
+        TError,
+        {data: BodyType<DronaSessionInput>},
+        TContext
+      > => {
+      return useMutation(getDronaSignInMutationOptions(options));
     }
 
 export const getContainerSsoUrl = () => {

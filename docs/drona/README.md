@@ -4,10 +4,13 @@
 
 This package prepares the source-reader and identity-linking portions of the
 Drona integration. It is **not working Drona SSO or live access enforcement**.
-The new reader and link validator are not imported by any running route,
-authentication middleware, authorization middleware, seed, or migration runner.
-Current DEV/QA login, user/project data, application approvals and permissions
-remain unchanged. No SQL in this directory has been applied.
+The source reader and link/intersection validators are not connected to live
+authorization, seeds or migration runners. Authentication configuration, the
+Drona-specific browser SDK entry, and explicit blocked-activation endpoints are
+now integrated; selecting Drona mode disables local/old-token access until the
+real verification/policy implementation is ready. No environment switch has
+been made here. Current DEV/QA login, user/project data, application approvals
+and permissions remain unchanged. No SQL in this directory has been applied.
 
 Replit development and the published Replit app are DEV/QA. Drona/AWS is the
 real production environment; deployment there is through GitHub. The supplied
@@ -94,10 +97,11 @@ workflow markers, approval levels and the separate Audit application approval.
    Review `inspect-schema.sql` and have an authorized owner run it with read-only
    credentials in DEV, QA and AWS. Compare definitions rather than numeric ID
    equality. Do not give schema inspection results SSO/permission significance.
-3. Prepare DEV/QA-only source DDL from those complete definitions. There is
-   deliberately **no executable recreation of the incomplete uploaded schema**
-   here. The corresponding AWS public tables already exist and must not be
-   recreated, pushed, altered, or populated by QMS migrations.
+3. Review the DEV/QA-only source candidate in
+   `dev-qa-source-schema.review-only.sql` against complete definitions. Its
+   text-array, identity-sequence and minimal role-catalog choices are unconfirmed,
+   not certified AWS definitions. The corresponding AWS public tables already
+   exist and must not be recreated, pushed, altered, or populated by QMS migrations.
 4. Prepare reviewed mappings of existing DEV/QA users and projects to DEV/QA
    source IDs; preserve original UUIDs and their histories. Where no source
    record exists, an authorized migration owner must create a corresponding
@@ -179,3 +183,7 @@ pnpm --filter @workspace/api-server run typecheck
 
 These checks do not establish live schema compatibility, migrated DEV/QA records,
 session validity or authorization parity.
+
+See `aws-handoff.md` for current authentication behavior, read-only preflight,
+build instructions, repository privacy risks and outstanding activation gates.
+The ready-to-send request is `email-to-drona-team.txt`.

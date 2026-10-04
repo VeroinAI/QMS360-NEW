@@ -5,6 +5,36 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export type AuthenticationConfigurationMode = typeof AuthenticationConfigurationMode[keyof typeof AuthenticationConfigurationMode];
+
+
+export const AuthenticationConfigurationMode = {
+  local: 'local',
+  container: 'container',
+  drona: 'drona',
+  disabled: 'disabled',
+} as const;
+
+export interface AuthenticationConfiguration {
+  mode: AuthenticationConfigurationMode;
+  localLoginAllowed: boolean;
+  dronaReady: boolean;
+  blockers: string[];
+}
+
+export interface DronaSessionInput {
+  /**
+     * @maxLength 19
+     * @pattern ^[1-9][0-9]*$
+     */
+  uid: string;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  nonce: string;
+}
+
 export interface QaqcPdfMapping {
   /**
      * @minLength 1

@@ -3,7 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LockKeyhole } from 'lucide-react';
 import { Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
 import {
-  getGetCurrentUserQueryKey, setAuthTokenGetter, useGetCurrentUser, useLogin,
+  getGetCurrentUserQueryKey, setAuthTokenGetter, useGetCurrentUser, useLogin, useGetAuthConfiguration,
+  type AuthResponse,
+  getGetAuthConfigurationQueryKey,
 } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppShell } from '@/components/layout/app-shell';
@@ -24,6 +26,7 @@ import { AuditRoutes } from './pages/audit';
 import { AdminRoutes } from './pages/settings';
 import { MasterDataRoutes } from './pages/master-data';
 import { FeedbackPage } from './pages/feedback';
+import { DronaSignIn } from '@/components/drona-sign-in';
 
 const queryClient = new QueryClient();
 setAuthTokenGetter(() => typeof window === 'undefined' ? null : localStorage.getItem('qms360_token'));
@@ -31,19 +34,23 @@ setAuthTokenGetter(() => typeof window === 'undefined' ? null : localStorage.get
 function LoginPage() {
   const [, setLocation] = useLocation();
   const login = useLogin();
+  const authConfig = useGetAuthConfiguration({ query: {
+    queryKey: getGetAuthConfigurationQueryKey(), staleTime: 0, retry: false,
+  } });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const acceptSession = (session: AuthResponse) => {
+    localStorage.setItem('qms360_token', session.token);
+    queryClient.clear();
+    queryClient.setQueryData(getGetCurrentUserQueryKey(), session.user);
+    setLocation('/');
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setError('');
     login.mutate({ data: { email, password } }, {
-      onSuccess: session => {
-        localStorage.setItem('qms360_token', session.token);
-        queryClient.clear();
-        queryClient.setQueryData(getGetCurrentUserQueryKey(), session.user);
-        setLocation('/');
-      },
+      onSuccess: acceptSession,
       onError: loginError => {
         const details = userFacingApiError(loginError, 'Sign-in could not be completed.');
         setError(details.technicalCode === 'HTTP 401'
@@ -61,14 +68,18 @@ function LoginPage() {
     <section className="flex items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-7 shadow-lg">
         <p className="text-xs font-bold uppercase tracking-widest text-accent">Welcome to QMS360</p>
-        <h2 className="mt-3 text-3xl font-bold">Sign in</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Sign in with your QMS360 account.</p>
+        <h2 className="mt-3 text-3xl font-bold">{authConfig.data?.mode === 'drona' ? 'Continue from Drona' : 'Sign in'}</h2>
+        {authConfig.data?.localLoginAllowed && <p className="mt-2 text-sm text-muted-foreground">Sign in with your QMS360 account.</p>}
         {error && <div className="mt-5 rounded-lg bg-destructive p-3 text-sm text-destructive-foreground">{error}</div>}
-        <form onSubmit={submit} className="mt-6 space-y-4">
+        {authConfig.isLoading && <p className="mt-6 text-sm text-muted-foreground" role="status">Loading sign-in configuration…</p>}
+        {authConfig.isError && <div className="mt-6 space-y-3" role="alert"><p className="text-sm text-destructive">Unable to load sign-in configuration. No sign-in method has been selected.</p><Button variant="outline" onClick={() => void authConfig.refetch()}>Retry</Button></div>}
+        {authConfig.data?.mode === 'drona' && <DronaSignIn config={authConfig.data} onSession={acceptSession} />}
+        {authConfig.data?.mode === 'disabled' && <p className="mt-6 text-sm text-destructive" role="alert">Sign-in is unavailable because the authentication configuration is invalid. Contact your administrator.</p>}
+        {authConfig.data?.localLoginAllowed && <form onSubmit={submit} className="mt-6 space-y-4">
           <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" required value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" /></div>
           <div className="space-y-2"><Label htmlFor="password">Password</Label><Input id="password" type="password" minLength={8} required value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" /></div>
           <Button className="w-full" type="submit" disabled={login.isPending}>{login.isPending ? 'Signing in…' : 'Sign in'}</Button>
-        </form>
+        </form>}
       </div>
     </section>
   </div>;
@@ -84,7 +95,8 @@ function AuthenticatedRouter() {
       if (session.isError) localStorage.removeItem('qms360_token');
       setLocation('/login');
     }
-    if (isLogin && token) setLocation('/');
+    // A stored token alone is not a valid session. Do not bounce /login back
+    // into an invalid/stale token loop; successful sign-in navigates explicitly.
   }, [isLogin, token, session.isError, setLocation]);
   if (isLogin) return <LoginPage />;
   if (!token || session.isLoading || !session.data) return <div className="flex min-h-dvh items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>;
