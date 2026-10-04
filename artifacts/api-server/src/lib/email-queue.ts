@@ -3,6 +3,7 @@ import { db, organizationSettings, outboundEmails, users } from "@workspace/db";
 import { deliverEmail, type EmailDeliveryInput, type EmailPdfAttachment } from "./email";
 import { removeEmailPdfAttachment } from "./email-attachments";
 import { logger } from "./logger";
+import { renderEmailRuleTemplate, type EmailRuleTemplate } from "@workspace/field-controls";
 
 type Database = typeof db;
 export type EmailDeliveryPolicy = {
@@ -31,7 +32,9 @@ function applicationFromContext(context?: Record<string, unknown>): "qaqc" | "le
   return app === "qaqc" || app === "lessons" || app === "audit" ? app : "platform";
 }
 
-export async function enqueueEmail(database: Database, input: EmailDeliveryInput): Promise<{ queued: number }> {
+export async function enqueueEmail(database: Database, input: EmailDeliveryInput & {
+  ruleTemplate?: EmailRuleTemplate; templateValues?: Record<string, unknown>;
+}): Promise<{ queued: number }> {
   const recipientIds = [...new Set(input.recipientIds)].filter(Boolean);
   const internal = recipientIds.length ? await database.select({ email: users.email, name: users.fullName })
     .from(users).where(and(
@@ -57,7 +60,12 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
   const eventType = typeof context.eventType === "string" ? context.eventType : null;
   const ruleId = context.kind === "email_event_rule" && typeof context.ruleId === "string" ? context.ruleId : null;
   const entityId = typeof context.entityId === "string" ? context.entityId : null;
-  await database.insert(outboundEmails).values(recipients.map((recipient, index) => ({
+  await database.insert(outboundEmails).values(recipients.map((recipient, index) => {
+    const message = renderEmailRuleTemplate(input.ruleTemplate, input, {
+      system_name: "QMS360", ...input.templateValues,
+      recipient_name: recipient.name ?? recipient.email, recipient_email: recipient.email,
+    });
+    return ({
     organizationId: input.organizationId,
     app: applicationFromContext(context),
     eventType,
@@ -68,15 +76,15 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
     ccRecipients: index === 0 ? ccRecipients : [],
     senderEmail: input.sender?.email ?? null,
     senderName: input.sender?.name ?? null,
-    subject: input.subject,
-    bodyText: input.text,
-    bodyHtml: input.html ?? null,
+    subject: message.subject,
+    bodyText: message.text,
+    bodyHtml: input.ruleTemplate?.bodyTemplate?.trim() ? null : input.html ?? null,
     context,
     deliveryStatus: "queued",
     attemptCount: 0,
     maxAttempts: policy.maxRetries + 1,
     nextAttemptAt: new Date(),
-  })));
+  }); }));
   return { queued: recipients.length };
 }
 

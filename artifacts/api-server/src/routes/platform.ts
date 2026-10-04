@@ -358,6 +358,12 @@ router.get("/platform/business-units", requireAuth, async (req, res): Promise<vo
 
 router.get("/platform/application-access", requireAuth, async (req, res): Promise<void> => {
   const user = req.currentUser!;
+  // Match requireAppAccess: platform administrators may enter all applications
+  // to administer them, without changing ordinary users' approval gates.
+  if (["Super Admin", "Org Admin"].includes(user.platformRole)) {
+    res.json(GetApplicationAccessResponse.parse({ qaqc: true, lessons: true, audit: true }));
+    return;
+  }
   const rows = await db.select().from(applicationAccess).where(and(
     eq(applicationAccess.organizationId, user.organizationId),
     eq(applicationAccess.username, user.username), isNull(applicationAccess.deletedAt),

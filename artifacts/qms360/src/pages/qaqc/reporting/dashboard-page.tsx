@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
+import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { FileSpreadsheet, FileText } from 'lucide-react';
 import { exportQaqcSowDashboard, useGetQaqcSowContext, useGetQaqcSowDashboard } from '@workspace/api-client-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -19,6 +20,7 @@ type Mode = 'latest' | 'date' | 'range';
 
 export function DashboardPage() {
   const { toast } = useToast(); const { busy, run } = useBusy();
+  const cap = useQaqcCapabilities(); const canExport = cap.can('monthly_reports', 'export') || cap.can('daily_reports', 'export') || cap.can('csat_reports', 'export');
   const [group, setGroup] = useState(ALL); const [projectId, setProjectId] = useState(ALL); const [category, setCategory] = useState(ALL);
   const [month, setMonth] = useState(''); const [mode, setMode] = useState<Mode>('latest'); const [date, setDate] = useState(''); const [from, setFrom] = useState(''); const [to, setTo] = useState('');
   const ctx = useGetQaqcSowContext({});
@@ -37,7 +39,7 @@ export function DashboardPage() {
   const download = (format: 'pdf' | 'xlsx') => run(async () => { try { saveFile(await exportQaqcSowDashboard({ ...params, format, ...(format === 'pdf' ? { templateId } : {}) }), `qaqc-dashboard.${format}`); } catch (e) { toast({ title: 'Export failed', description: errMsg(e), variant: 'destructive' }); } });
   const field = (l: string, el: React.ReactNode) => <div className="space-y-1"><Label className="text-xs text-muted-foreground">{l}</Label>{el}</div>;
   return <PageFrame title="Reporting dashboard" description="Monthly KPIs, closure trends, Customer Satisfaction (CSAT) and daily document snapshots from submitted reports."
-    actions={<><Button variant="secondary" disabled={busy} onClick={() => download('xlsx')}><FileSpreadsheet className="mr-2 size-4" />XLSX</Button><Button variant="secondary" disabled={busy} onClick={() => download('pdf')}><FileText className="mr-2 size-4" />PDF</Button></>}>
+    actions={canExport ? <><Button variant="secondary" disabled={busy} onClick={() => download('xlsx')}><FileSpreadsheet className="mr-2 size-4" />XLSX</Button><Button variant="secondary" disabled={busy} onClick={() => download('pdf')}><FileText className="mr-2 size-4" />PDF</Button></> : undefined}>
     <Card><CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
       {field('Project group', <Select value={group} onValueChange={v => { setGroup(v); setProjectId(ALL); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value={ALL}>All groups</SelectItem>{groups.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent></Select>)}
       {field('Project', <Select value={projectId} onValueChange={setProjectId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value={ALL}>All projects</SelectItem>{shown.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>)}

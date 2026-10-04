@@ -10,6 +10,7 @@ import { assertFieldControls } from "../lib/field-controls";
 import { asyncHandler, HttpError, notifyWithEmail, pagination, writeAuditLog } from "../lib/workspace";
 import { requireAuth } from "../middlewares/auth";
 import { getAppAdminScope, getAuthorizedFullProjectScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
+import { canQaqcUserReview, requireQaqcTask } from "../lib/qaqc-capabilities";
 import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
 import { assertLovValue, getLovValues } from "../lib/lov";
 import { logger } from "../lib/logger";
@@ -37,7 +38,7 @@ async function orgLocalToday(req: Request) {
 const allowedTypes = new Set<ReportType>(["monthly", "daily", "csat"]);
 const isObject = (value: unknown): value is Record<string, any> => !!value && typeof value === "object" && !Array.isArray(value);
 const REPORT_MODULE: Record<ReportType, string> = {
-  monthly: "metrics", daily: "document_governance", csat: "customer_satisfaction",
+  monthly: "monthly_reports", daily: "daily_reports", csat: "csat_reports",
 };
 export type QaqcReportingDashboard = {
   filters: { projectId: string | null; projectGroup: string | null; from: string | null; to: string | null; category: string };
@@ -705,6 +706,9 @@ router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(asy
   if (!approverId) throw new HttpError(422, "approverId is required");
   if (approverId === actor(req)) throw new HttpError(422, "The approver must be different from the submitter");
   await assertUserInOrg(db, org(req), approverId);
+  if (!(await canQaqcUserReview(org(req), approverId, REPORT_MODULE[before.reportType as ReportType], before.projectId))) {
+    throw new HttpError(422, "Selected approver needs active QA/QC review permission for this report and project");
+  }
   const [approver] = await db.select({ id: users.id }).from(users).where(and(
     eq(users.id, approverId), eq(users.organizationId, org(req)), eq(users.accessStatus, "active"), isNull(users.deletedAt),
   )).limit(1);
@@ -941,7 +945,7 @@ router.get("/dashboard", multipleReportAccess(), asyncHandler(async (req, res) =
   res.json(await buildQaqcReportingDashboard(req));
 }));
 
-router.patch("/projects/:projectId/settings", requireAppAdmin("qaqc"), asyncHandler(async (req, res) => {
+router.patch("/projects/:projectId/settings", requireQaqcTask("configure_masters"), asyncHandler(async (req, res) => {
   const projectId = String(req.params.projectId);
   await projectAllowed(req, projectId);
   const [project] = await db.select().from(projects).where(and(

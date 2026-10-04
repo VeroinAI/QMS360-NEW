@@ -11,6 +11,7 @@ import {
   useListPlatformProjects, useListQaqcNotifications, useSearchLessonsLog
 } from '@workspace/api-client-react';
 import type { CurrentUser } from '@workspace/api-client-react';
+import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { Button } from '@/components/ui/button';
 import { FeedbackWidget } from '@/components/feedback-widget';
 
@@ -44,7 +45,7 @@ const systemNav = [
 export function AppShell({ children, user }: { children: ReactNode; user: CurrentUser }) {
   const queryClient = useQueryClient();
   const [location, setLocation] = useLocation();
-  const section = location.startsWith('/qaqc') ? 'qaqc' : (location.startsWith('/lessons') || location.startsWith('/settings/lessons')) ? 'lessons' : location.startsWith('/audit') ? 'audit' : null;
+  const section = (location.startsWith('/qaqc') || location.startsWith('/settings/qaqc')) ? 'qaqc' : (location.startsWith('/lessons') || location.startsWith('/settings/lessons')) ? 'lessons' : location.startsWith('/audit') ? 'audit' : null;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
@@ -76,10 +77,26 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
     return () => window.removeEventListener('beforeinstallprompt', listener);
   }, []);
 
-  const isAdmin = ['Super Admin', 'Org Admin'].includes(user.platformRole ?? '')
+  const cap = useQaqcCapabilities(section === 'qaqc');
+  const reportsRead = ['monthly_reports', 'daily_reports', 'csat_reports'].some(m => cap.canAnyRead(m));
+  const qaqcVisible = (href: string) => {
+    switch (href) {
+      case '/qaqc/metrics': return cap.canAnyRead('metrics') || cap.canAnyRead('monthly_reports');
+      case '/qaqc/csat': return cap.canAnyRead('csat_reports');
+      case '/qaqc/daily': return cap.canAnyRead('daily_reports');
+      case '/qaqc/material-inspections': return cap.canAnyRead('material_inspections');
+      case '/qaqc/documents': return cap.canAnyRead('document_governance');
+      case '/qaqc/monthly': return cap.canAnyRead('monthly_reports');
+      case '/qaqc/report-dashboard': return reportsRead;
+      case '/qaqc/settings': return cap.canTask('configure_masters');
+      default: return true;
+    }
+  };
+  const platformAdmin = ['Super Admin', 'Org Admin'].includes(user.platformRole ?? '')
     || (user.workspaceRoles?.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
+  const isAdmin = platformAdmin;
   const nav = section
-    ? [...appNav[section].filter(([, href]) => isAdmin || href !== '/qaqc/settings'), ...(isAdmin ? [
+    ? [...appNav[section].filter(([, href]) => section === 'qaqc' ? (cap.administrator || qaqcVisible(href)) : (isAdmin || href !== '/qaqc/settings')), ...(isAdmin ? [
       ['User Feedback', '/feedback', MessageSquarePlus] as const,
     ] : [])]
     : [...systemNav, ...(isAdmin ? [
@@ -126,7 +143,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
               {!collapsed && isApprovals && isError && <span className="text-[10px] font-bold text-destructive" title="For my Action count unavailable" aria-label="For my Action count unavailable">!</span>}
             </Link>
           )})}
-          {section && isAdmin && <Link href={`/settings/${section}`} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent"><Settings className="h-4 w-4" />{!collapsed && 'Settings'}</Link>}
+          {section && (section === 'qaqc' ? cap.hasAdminTasks : isAdmin) && <Link href={`/settings/${section}`} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground/75 hover:bg-sidebar-accent"><Settings className="h-4 w-4" />{!collapsed && 'Settings'}</Link>}
         </nav>
         <button className="m-3 hidden items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground/70 hover:bg-sidebar-accent md:flex" onClick={() => setCollapsed(value => !value)}>
           {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <><PanelLeftClose className="h-4 w-4" />Collapse</>}

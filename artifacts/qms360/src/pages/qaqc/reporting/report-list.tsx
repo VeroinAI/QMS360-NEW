@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
+import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useGetQaqcSowContext, useListQaqcSowReports } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
@@ -8,13 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Obj, ReportType } from './reporting-types';
-import { Empty, ErrorBox, Loading, PageFrame, StateBadge } from './shell';
+import { Empty, ErrorBox, Loading, PageFrame, REPORT_MODULE, StateBadge } from './shell';
 
 const LIMIT = 10;
 const NAMES: Record<ReportType, [string, string]> = { monthly: ['Monthly reports', 'Project quality reports submitted for management review.'], daily: ['Daily reports', 'Daily document governance snapshots by project.'], csat: ['Customer Satisfaction (CSAT)', 'Customer survey ratings and outcomes by project.'] };
 const ALL = 'all';
 
 export function ReportList({ reportType }: { reportType: ReportType }) {
+  const cap = useQaqcCapabilities();
   const [page, setPage] = useState(1); const [projectId, setProjectId] = useState(ALL); const [state, setState] = useState(ALL); const [period, setPeriod] = useState('');
   const ctx = useGetQaqcSowContext({ reportType });
   const projects: Obj[] = ((ctx.data ?? {}) as Obj).projects ?? [];
@@ -22,7 +24,7 @@ export function ReportList({ reportType }: { reportType: ReportType }) {
   const items = q.data?.items ?? [];
   const pages = Math.max(1, Math.ceil((q.data?.total ?? 0) / LIMIT));
   const names = Object.fromEntries(projects.map(p => [p.id, p.name]));
-  return <PageFrame title={NAMES[reportType][0]} description={NAMES[reportType][1]} actions={<Link href={`/qaqc/${reportType}/new`}><Button variant="secondary"><Plus className="mr-2 size-4" />New report</Button></Link>}>
+  return <PageFrame title={NAMES[reportType][0]} description={NAMES[reportType][1]} actions={cap.can(REPORT_MODULE[reportType], 'create_edit') ? <Link href={`/qaqc/${reportType}/new`}><Button variant="secondary"><Plus className="mr-2 size-4" />New report</Button></Link> : undefined}>
     <Card className="flex flex-col gap-3 p-4 sm:flex-row">
       <Select value={projectId} onValueChange={v => { setProjectId(v); setPage(1); }}><SelectTrigger className="sm:w-64"><SelectValue placeholder="Project" /></SelectTrigger><SelectContent><SelectItem value={ALL}>All projects</SelectItem>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
       <Select value={state} onValueChange={v => { setState(v); setPage(1); }}><SelectTrigger className="sm:w-44"><SelectValue /></SelectTrigger><SelectContent>{[ALL, 'draft', 'submitted', 'approved', 'sent_back'].map(s => <SelectItem key={s} value={s}>{s === ALL ? 'All states' : s.replace('_', ' ')}</SelectItem>)}</SelectContent></Select>

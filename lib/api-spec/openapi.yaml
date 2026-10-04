@@ -1090,6 +1090,21 @@ paths:
     delete: {operationId: deleteQaqcEvidence, tags: [qaqc], summary: Soft-delete evidence, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
   /qaqc/field-controls:
     get: {operationId: getQaqcFieldControls, tags: [qaqc], summary: Get field control configuration for forms, responses: {"200": {description: Field controls, content: {application/json: {schema: {$ref: "#/components/schemas/FieldControls"}}}}}}
+  /qaqc/capabilities:
+    get:
+      operationId: getQaqcCapabilities
+      tags: [QAQC]
+      responses:
+        "200":
+          description: Effective active QA/QC role capabilities
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [keys, administrator]
+                properties:
+                  keys: {type: array, items: {type: string}}
+                  administrator: {type: boolean}
   /qaqc/admin/roles:
     get: {operationId: listQaqcRoles, tags: [qaqc-admin], summary: List workspace roles, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/RolePage"}}}
     post: {operationId: createQaqcRole, tags: [qaqc-admin], summary: Create workspace role, requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"201": {description: Created}}}
@@ -1862,6 +1877,8 @@ components:
         roleNames: {type: array, items: {type: string}, uniqueItems: true}
         projectIds: {type: array, items: {type: string}}
         senderMode: {type: string, enum: [form_creator, approving_user]}
+        subjectTemplate: {type: string, maxLength: 250}
+        bodyTemplate: {type: string, maxLength: 20000}
     EmailRuleRoleOption:
       type: object
       required: [id, name]
@@ -2624,7 +2641,7 @@ components:
     Permission:
       type: object
       required: [key, name]
-      properties: {key: {type: string, enum: [data_entry, create_audit_programme, submit, approve_reject, view_own_scope, view_all, configure_masters, manage_integrations, manage_ai_settings, export, delegate, memo_circulation, audit_team_lead, audit_program_manager, product_process_owner]}, name: {type: string}}
+      properties: {key: {type: string, enum: [data_entry, create_edit, view_own, create_audit_programme, submit, approve_reject, view_own_scope, view_all, configure_masters, manage_integrations, manage_ai_settings, export, delegate, memo_circulation, audit_team_lead, audit_program_manager, product_process_owner, qaqc.configure_masters, qaqc.manage_ai_settings, qaqc.delegate, qaqc.manage_roles, qaqc.manage_access, qaqc.view_audit_log, qaqc.metrics.view_own_scope, qaqc.metrics.view_all, qaqc.metrics.create_edit, qaqc.metrics.delete, qaqc.metrics.submit, qaqc.metrics.approve_reject, qaqc.metrics.import, qaqc.metrics.export, qaqc.metrics.ai, qaqc.material_inspections.view_own_scope, qaqc.material_inspections.view_all, qaqc.material_inspections.create_edit, qaqc.material_inspections.delete, qaqc.qtbt.view_own_scope, qaqc.qtbt.view_all, qaqc.qtbt.create_edit, qaqc.qtbt.delete, qaqc.customer_satisfaction.view_own_scope, qaqc.customer_satisfaction.view_all, qaqc.customer_satisfaction.create_edit, qaqc.customer_satisfaction.delete, qaqc.document_governance.view_own_scope, qaqc.document_governance.view_all, qaqc.document_governance.create_edit, qaqc.document_governance.delete, qaqc.document_governance.export, qaqc.quality_briefs.view_own_scope, qaqc.quality_briefs.view_all, qaqc.quality_briefs.create_edit, qaqc.quality_briefs.submit, qaqc.quality_briefs.approve_reject, qaqc.quality_briefs.ai, qaqc.monthly_reports.view_own_scope, qaqc.monthly_reports.view_all, qaqc.monthly_reports.create_edit, qaqc.monthly_reports.delete, qaqc.monthly_reports.submit, qaqc.monthly_reports.approve_reject, qaqc.monthly_reports.import, qaqc.monthly_reports.export, qaqc.monthly_reports.ai, qaqc.daily_reports.view_own_scope, qaqc.daily_reports.view_all, qaqc.daily_reports.create_edit, qaqc.daily_reports.delete, qaqc.daily_reports.submit, qaqc.daily_reports.approve_reject, qaqc.daily_reports.import, qaqc.daily_reports.export, qaqc.csat_reports.view_own_scope, qaqc.csat_reports.view_all, qaqc.csat_reports.create_edit, qaqc.csat_reports.delete, qaqc.csat_reports.submit, qaqc.csat_reports.approve_reject, qaqc.csat_reports.import, qaqc.csat_reports.export]}, name: {type: string}}
     Role:
       type: object
       required: [id, name, permissions, active]

@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { qaqcPermissionMatches, type QaqcOperation } from "@workspace/field-controls";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import {
   applicationAccess,
@@ -35,7 +36,7 @@ const platformAdmins = new Set(["Super Admin", "Org Admin"]);
 const isAdminName = (name: string) => /\b(admin|administrator)\b/i.test(name);
 
 export type EffectiveProjectScope = { unrestricted: boolean; projectIds: string[] };
-type PermissionTarget = { module: string; action: PermissionAction; operation?: "review" };
+type PermissionTarget = { module: string; action: PermissionAction; operation?: "review" | QaqcOperation };
 
 function appTables(appKey: AppKey) {
   if (appKey === "lessons") return {
@@ -89,10 +90,10 @@ export async function assertProjectAccess(req: Request, projectId: string): Prom
 
 const rank: Record<string, number> = { select: 1, own: 2, full: 3 };
 function grantFor(appKey: AppKey, action: PermissionAction, row: any): PermissionAction {
-  if (isAdminName(String(row.roleName ?? ""))) return "full";
+  if (appKey !== "qaqc" && isAdminName(String(row.roleName ?? ""))) return "full";
   const key = String(row.key ?? "").toLowerCase();
   const isOwnView = /(?:^|[._])view_own(?:_scope)?$/.test(key)
-    && (appKey === "lessons" || !key.endsWith("view_own_scope"));
+    && (appKey === "lessons" || appKey === "qaqc" || !key.endsWith("view_own_scope"));
   const inferred = isOwnView ? "own" : key.endsWith("view_all") ? "full" : action;
   return (isOwnView ? "own" : ["full", "own", "select"].includes(row.grant) ? row.grant : inferred) as PermissionAction;
 }
@@ -156,6 +157,10 @@ export async function getAppAdminScope(req: Request, appKey: AppKey): Promise<Ef
   const user = req.currentUser;
   if (!user) return null;
   if (platformAdmins.has(user.platformRole)) return { unrestricted: true, projectIds: [] };
+  if (appKey === "qaqc") {
+    const rows = await matchingPermissionRows(req, appKey, { module: "administration", action: "full", operation: "configure_masters" });
+    return rows.length ? projectScopeFromRows(rows) : null;
+  }
   const t = appTables(appKey) as any;
   const rows = await db.select({ projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds })
     .from(t.userRoles).innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
@@ -173,8 +178,8 @@ async function matchingPermissionRows(req: Request, appKey: AppKey, target: Perm
     projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
   }).from(t.userRoles)
     .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
-    .leftJoin(t.rolePermissions, and(eq(t.rolePermissions.workspaceRoleId, t.roles.id), isNull(t.rolePermissions.deletedAt)))
-    .leftJoin(t.permissions, and(eq(t.rolePermissions.permissionId, t.permissions.id), isNull(t.permissions.deletedAt)))
+    .leftJoin(t.rolePermissions, and(eq(t.rolePermissions.workspaceRoleId, t.roles.id), isNull(t.rolePermissions.deletedAt), appKey === "qaqc" ? eq(t.rolePermissions.status, "active") : undefined))
+    .leftJoin(t.permissions, and(eq(t.rolePermissions.permissionId, t.permissions.id), isNull(t.permissions.deletedAt), appKey === "qaqc" ? eq(t.permissions.status, "active") : undefined))
     .where(and(
       eq(t.userRoles.userId, user.id), eq(t.userRoles.organizationId, user.organizationId),
       isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt), eq(t.roles.status, "active"),
@@ -186,6 +191,13 @@ async function matchingPermissionRows(req: Request, appKey: AppKey, target: Perm
   const normalized = target.module.toLowerCase();
   return rows.filter((row: any) => {
     const key = String(row.key ?? "").toLowerCase();
+    if (appKey === "qaqc") {
+      const op = target.operation === "review" ? "approve_reject" : target.operation;
+      return op ? qaqcPermissionMatches(key, target.module, op)
+        : target.action === "select"
+          ? qaqcPermissionMatches(key, target.module, "view_all") || qaqcPermissionMatches(key, target.module, "view_own_scope")
+          : qaqcPermissionMatches(key, target.module, "create_edit");
+    }
     return isAdminName(String(row.roleName ?? "")) || capabilities.includes(key) || key === normalized
       || capabilities.some((primitive) => key === `${normalized}.${primitive}` || key === `${normalized}_${primitive}`);
   });
@@ -243,7 +255,7 @@ export function requirePermission(
   appKey: AppKey,
   module: string,
   action: PermissionAction,
-  options: { allowAuditScheduleDataEntry?: boolean; allowAuditProgrammeCreate?: boolean } = {},
+  options: { allowAuditScheduleDataEntry?: boolean; allowAuditProgrammeCreate?: boolean; qaqcOperation?: QaqcOperation } = {},
 ) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const user = req.currentUser;
@@ -258,8 +270,8 @@ export function requirePermission(
     })
       .from(t.userRoles)
       .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
-      .leftJoin(t.rolePermissions, and(eq(t.rolePermissions.workspaceRoleId, t.roles.id), isNull(t.rolePermissions.deletedAt)))
-      .leftJoin(t.permissions, and(eq(t.rolePermissions.permissionId, t.permissions.id), isNull(t.permissions.deletedAt)))
+      .leftJoin(t.rolePermissions, and(eq(t.rolePermissions.workspaceRoleId, t.roles.id), isNull(t.rolePermissions.deletedAt), appKey === "qaqc" ? eq(t.rolePermissions.status, "active") : undefined))
+      .leftJoin(t.permissions, and(eq(t.rolePermissions.permissionId, t.permissions.id), isNull(t.permissions.deletedAt), appKey === "qaqc" ? eq(t.permissions.status, "active") : undefined))
       .where(and(
         eq(t.userRoles.userId, user.id), eq(t.userRoles.organizationId, user.organizationId),
         isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt), eq(t.roles.status, "active"),
@@ -274,6 +286,18 @@ export function requirePermission(
     const matching = rows.filter((r: any) => {
       const key = String(r.key ?? "").toLowerCase();
       const normalized = module.toLowerCase();
+      if (appKey === "qaqc") {
+        const path = req.originalUrl.split("?")[0];
+        const operation = options.qaqcOperation
+          ?? (/\/(review|decision)(?:\/|$)/.test(path) ? "approve_reject"
+            : /\/submit(?:\/|$)/.test(path) ? "submit"
+            : /\/(ai-draft|ai-brief|rephrase|prompt-to-transaction)(?:\/|$)/.test(path) ? "ai"
+            : /\/import(?:\/|$)/.test(path) ? "import"
+            : req.method === "DELETE" ? "delete"
+            : req.method === "GET" || req.method === "HEAD" ? null : "create_edit");
+        return operation ? qaqcPermissionMatches(key, normalized, operation)
+          : qaqcPermissionMatches(key, normalized, "view_all") || qaqcPermissionMatches(key, normalized, "view_own_scope");
+      }
       // Programmes have no project of their own, so the dedicated create grant
       // must come from an organization-wide assignment.
       const programmeCreate = appKey === "audit" && options.allowAuditProgrammeCreate

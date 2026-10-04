@@ -18,6 +18,10 @@ import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess, filterReadOnlyValues, readOnlyFields } from "../lib/field-access";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
+import { loadPendingQaqcRequests } from "../lib/qaqc-access-requests";
+import { saveQaqcRole } from "../lib/qaqc-role-permissions";
+import { activeQaqcCapabilities, qaqcAdminTask } from "../lib/qaqc-capabilities";
+import { qaqcOwnedRecordClause, qaqcRecordReadClauses } from "../lib/qaqc-record-scope";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
@@ -28,10 +32,14 @@ import {
   userWorkspaceRoles, workspaceRolePermissions, workspaceRoles,
 } from "@workspace/db";
 import * as api from "@workspace/api-zod";
+import { qaqcActivityGroups, qaqcPermissionMatches } from "@workspace/field-controls";
 
 const router: IRouter = Router();
 router.use(requireAuth);
 router.use(requireAppAccess("qaqc"));
+router.get("/capabilities", asyncHandler(async (req, res) => {
+  res.json(await activeQaqcCapabilities(req));
+}));
 
 const qaqcModules: Array<[string, string]> = [
   ["/metrics", "metrics"],
@@ -43,8 +51,12 @@ const qaqcModules: Array<[string, string]> = [
 ];
 for (const [path, module] of qaqcModules) {
   router.use(path, (req, res, next) =>
-    requirePermission("qaqc", module, req.method === "GET" ? "select" : "full")(req, res, next));
+    requirePermission("qaqc", module, req.method === "GET" ? "select" : "own")(req, res, next));
 }
+router.use("/pqi", requirePermission("qaqc", "metrics", "select"));
+router.use("/dashboard", requirePermission("qaqc", "metrics", "select"));
+router.use("/reports/monthly", requirePermission("qaqc", "metrics", "select", { qaqcOperation: "export" }));
+router.use("/reports/document-governance", requirePermission("qaqc", "document_governance", "select", { qaqcOperation: "export" }));
 const qaqcEvidenceModules: Record<string, string> = {
   metric: "metrics", qaqc_metric: "metrics", material_inspection: "material_inspections",
   qtbt: "qtbt", customer_satisfaction: "customer_satisfaction",
@@ -62,10 +74,12 @@ router.use("/evidence", asyncHandler(async (req, res, next) => {
   }
   const module = recordType ? qaqcEvidenceModules[recordType] : null;
   if (!module) throw new HttpError(422, "Unsupported evidence record type");
-  await requirePermission("qaqc", module, req.method === "GET" ? "select" : "full")(req, res, next);
+  await requirePermission("qaqc", module, req.method === "GET" ? "select" : "own",
+    req.method === "GET" ? {} : { qaqcOperation: "create_edit" })(req, res, next);
 }));
 router.use("/ai", (req, res, next) =>
-  requirePermission("qaqc", "metrics", "full")(req, res, next));
+  requirePermission("qaqc", "metrics", "own", { qaqcOperation: "ai" })(req, res, next));
+router.use("/metrics/template", requirePermission("qaqc", "metrics", "select", { qaqcOperation: "import" }));
 router.use(asyncHandler(async (req, _res, next) => {
   if (req.method !== "GET" && typeof req.body?.projectId === "string") {
     await assertProjectInOrg(db, org(req), req.body.projectId);
@@ -78,33 +92,36 @@ type Table = any;
 const org = (req: Request) => req.currentUser!.organizationId;
 const actor = (req: Request) => req.currentUser!.id;
 
-/** Users eligible to approve QA/QC work: org/super admins or holders of an approver-like workspace role. */
-async function eligibleQaqcApprovers(organizationId: string) {
+/** Approval eligibility follows active permission grants, not workspace role names. */
+async function eligibleQaqcApprovers(organizationId: string, module?: string) {
   const rows = await db.select({
     id: users.id, fullName: users.fullName, email: users.email,
-    platformRole: platformRoles.name, workspaceRole: workspaceRoles.name,
+    platformRole: platformRoles.name, workspaceRole: workspaceRoles.name, permissionKey: permissions.key,
   })
     .from(users)
     .leftJoin(platformRoles, eq(users.platformRoleId, platformRoles.id))
-    .leftJoin(userWorkspaceRoles, and(eq(userWorkspaceRoles.userId, users.id), isNull(userWorkspaceRoles.deletedAt)))
+    .leftJoin(userWorkspaceRoles, and(eq(userWorkspaceRoles.userId, users.id), eq(userWorkspaceRoles.status, "active"), isNull(userWorkspaceRoles.deletedAt)))
     .leftJoin(workspaceRoles, and(eq(workspaceRoles.id, userWorkspaceRoles.workspaceRoleId), isNull(workspaceRoles.deletedAt), eq(workspaceRoles.status, "active")))
+    .leftJoin(workspaceRolePermissions, and(eq(workspaceRolePermissions.workspaceRoleId, workspaceRoles.id), eq(workspaceRolePermissions.status, "active"), isNull(workspaceRolePermissions.deletedAt)))
+    .leftJoin(permissions, and(eq(permissions.id, workspaceRolePermissions.permissionId), eq(permissions.status, "active"), isNull(permissions.deletedAt)))
     .where(and(eq(users.organizationId, organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt)));
-  const byUser = new Map<string, { fullName: string; email: string; platformRole: string | null; roles: Set<string> }>();
+  const byUser = new Map<string, { fullName: string; email: string; platformRole: string | null; roles: Set<string>; canApprove: boolean }>();
   for (const row of rows) {
-    const entry = byUser.get(row.id) ?? { fullName: row.fullName, email: row.email, platformRole: row.platformRole, roles: new Set<string>() };
+    const entry = byUser.get(row.id) ?? { fullName: row.fullName, email: row.email, platformRole: row.platformRole, roles: new Set<string>(), canApprove: false };
     if (row.workspaceRole) entry.roles.add(row.workspaceRole);
+    if (row.permissionKey) entry.canApprove ||= (module ? [module] : qaqcActivityGroups.map(g => g.module))
+      .some(m => qaqcPermissionMatches(row.permissionKey!, m, "approve_reject"));
     byUser.set(row.id, entry);
   }
-  const isApproverRole = (name: string) => /approv/i.test(name) || /\b(admin|administrator)\b/i.test(name);
   return [...byUser.entries()]
-    .filter(([, entry]) => ["Super Admin", "Org Admin"].includes(entry.platformRole ?? "") || [...entry.roles].some(isApproverRole))
+    .filter(([, entry]) => ["Super Admin", "Org Admin"].includes(entry.platformRole ?? "") || entry.canApprove)
     .map(([id, entry]) => ({ id, fullName: entry.fullName, email: entry.email, roles: [...entry.roles].sort() }))
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
 
 async function assertQaqcApprover(req: Request, approverId: string) {
   if (approverId === actor(req)) throw new HttpError(422, "The approver must be different from the submitter");
-  const approvers = await eligibleQaqcApprovers(org(req));
+  const approvers = await eligibleQaqcApprovers(org(req), req.originalUrl.includes("/quality-briefs") ? "quality_briefs" : "metrics");
   if (!approvers.some((a) => a.id === approverId)) throw new HttpError(422, "Selected approver is not an active QA/QC approver");
 }
 
@@ -138,6 +155,8 @@ async function pageTable(req: Request, table: Table, clauses: any[] = []) {
   const { page, limit, offset } = pagination(req);
   const scope = await getAuthorizedProjectScope(req, "qaqc");
   if (!scope.unrestricted && table.projectId) clauses.push(inArray(table.projectId, scope.projectIds));
+  const ownership = qaqcOwnershipClause(req, table);
+  if (ownership) clauses.push(ownership);
   const where = activeClauses(table, org(req), clauses);
   const [items, totals] = await Promise.all([
     db.select().from(table).where(where).orderBy(desc(table.createdAt)).limit(limit).offset(offset),
@@ -151,9 +170,19 @@ async function activeRow(req: Request, table: Table, id: string) {
   const [row] = await db.select().from(table).where(and(
     eq(table.id, id), activeClauses(table, org(req)),
     !req.permissionAdminBypass && !scope.unrestricted && table.projectId ? inArray(table.projectId, scope.projectIds) : undefined,
+    qaqcOwnershipClause(req, table),
   )).limit(1);
   if (!row) throw new HttpError(404, "Resource not found");
   return row;
+}
+function qaqcOwnershipClause(req: Request, table: Table) {
+  if (req.permissionAdminBypass) return undefined;
+  const full = req.permissionFullProjectScope;
+  if (full?.unrestricted) return undefined;
+  const own = qaqcOwnedRecordClause(req, table);
+  if (!own) return undefined;
+  if (full?.projectIds.length && table.projectId) return or(inArray(table.projectId, full.projectIds), own);
+  return req.permissionScope === "own" ? own : undefined;
 }
 
 async function softDelete(req: Request, res: Response, table: Table, type: string) {
@@ -432,7 +461,7 @@ router.put("/quality-briefs/:id", asyncHandler(async (req, res) => {
 router.post("/quality-briefs/:id/ai-draft", asyncHandler(async (req, res) => {
   const brief: any = await activeRow(req, qualityAssessmentBriefs, String(req.params.id));
   try {
-    const metrics = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), eq(qaqcMetricEntries.projectId, brief.projectId), eq(qaqcMetricEntries.reportingPeriod, brief.reportingPeriod), isNull(qaqcMetricEntries.deletedAt)));
+    const metrics = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), eq(qaqcMetricEntries.projectId, brief.projectId), eq(qaqcMetricEntries.reportingPeriod, brief.reportingPeriod), isNull(qaqcMetricEntries.deletedAt), ...await qaqcRecordReadClauses(req, qaqcMetricEntries, "metrics")));
     const generated = await draftQualityBrief({ app: "qaqc", organizationId: org(req), actorId: actor(req), brief, metrics: metrics.map(mapMetric) });
     await db.update(qualityAssessmentBriefs).set({ aiDraft: generated.draft, aiReviewState: "pending", updatedAt: new Date() }).where(eq(qualityAssessmentBriefs.id, brief.id));
     await audit(req, "ai_draft", "quality_brief", brief.id, brief, { aiDraft: generated.draft });
@@ -473,6 +502,7 @@ async function pqiData(req: Request) {
   const projectId = String(req.query.projectId ?? "");
   const period = String(req.query.period ?? "");
   const clauses: any[] = [eq(qaqcMetricEntries.organizationId, org(req)), isNull(qaqcMetricEntries.deletedAt)];
+  clauses.push(...await qaqcRecordReadClauses(req, qaqcMetricEntries, "metrics"));
   const scope = await getAuthorizedProjectScope(req, "qaqc", { module: "metrics", action: "select" });
   if (projectId) {
     if (!scope.unrestricted && !scope.projectIds.includes(projectId)) throw new HttpError(403, "You do not have access to this project");
@@ -506,8 +536,8 @@ const toCsv = (headers: string[], rows: unknown[][]) => [headers, ...rows].map((
 function sendDownload(res: Response, fileName: string, csv: string) {
   res.json({ delivery: "download", fileName, downloadUrl: `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`, message: null });
 }
-router.get("/reports/monthly", requirePermission("qaqc", "metrics", "select"), asyncHandler(async (req, res) => {
-  const filters: any[] = [];
+router.get("/reports/monthly", asyncHandler(async (req, res) => {
+  const filters: any[] = await qaqcRecordReadClauses(req, qaqcMetricEntries, "metrics", "export");
   const scope = await getAuthorizedProjectScope(req, "qaqc");
   if (req.query.projectId) {
     await assertProjectAccess(req, String(req.query.projectId));
@@ -518,7 +548,7 @@ router.get("/reports/monthly", requirePermission("qaqc", "metrics", "select"), a
   sendDownload(res, "qaqc-monthly.csv", toCsv(["Project ID", "Period", "Category", "Issued", "Closed", "0-15", "15-45", ">45", "Closure Rate"], rows.map((r) => { const m = mapMetric(r); return [r.projectId, r.reportingPeriod, r.category, r.issuedCount, r.closedCount, r.ageing0To15, r.ageing15To45, r.ageingOver45, m.closureRate]; })));
 }));
 router.get("/reports/document-governance", asyncHandler(async (req, res) => {
-  const filters: any[] = [];
+  const filters: any[] = await qaqcRecordReadClauses(req, documentGovernanceLogEntries, "document_governance", "export");
   const scope = await getAuthorizedProjectScope(req, "qaqc", { module: "document_governance", action: "select" });
   if (req.query.projectId) {
     const projectId = String(req.query.projectId);
@@ -561,6 +591,7 @@ router.post("/metrics/import", asyncHandler(async (req, res) => {
       const [existing] = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), eq(qaqcMetricEntries.projectId, v.projectId), eq(qaqcMetricEntries.reportingPeriod, monthStart(v.period)), eq(qaqcMetricEntries.category, v.category), isNull(qaqcMetricEntries.deletedAt))).limit(1);
       const values = { projectId: v.projectId, reportingPeriod: monthStart(v.period), category: v.category, issuedCount: v.issuedCount, closedCount: v.closedCount, ageing0To15: v.ageing0To15, ageing15To45: v.ageing15To45, ageingOver45: v.ageingOver45, status: v.workflowState.toLowerCase().replace(" ", "_"), updatedAt: new Date() };
       if (existing) {
+        await activeRow(req, qaqcMetricEntries, existing.id);
         // Bulk imports must not overwrite admin-locked fields — same rule as the form APIs.
         await assertFieldAccess(req, "qaqc", "metric-entry", { mode: "update", current: mapMetric(existing), body: v as Record<string, unknown> });
         const [row] = await db.update(qaqcMetricEntries).set(values).where(eq(qaqcMetricEntries.id, existing.id)).returning(); await audit(req, "import_update", "metric", row.id, existing, row); updated++;
@@ -576,8 +607,8 @@ router.post("/metrics/import", asyncHandler(async (req, res) => {
 router.get("/approvals", asyncHandler(async (req, res) => {
   const { page, limit } = pagination(req);
   const [metricScope, briefScope] = await Promise.all([
-    getAuthorizedProjectScope(req, "qaqc", { module: "metrics", action: "select" }),
-    getAuthorizedProjectScope(req, "qaqc", { module: "quality_briefs", action: "select" }),
+    getAuthorizedProjectScope(req, "qaqc", { module: "metrics", action: "select", operation: "review" }),
+    getAuthorizedProjectScope(req, "qaqc", { module: "quality_briefs", action: "select", operation: "review" }),
   ]);
   const [metrics, briefs] = await Promise.all([
     db.select().from(qaqcMetricEntries).where(and(
@@ -746,7 +777,7 @@ router.get("/field-controls", asyncHandler(async (req, res) => {
 }));
 
 // Per-application administration
-router.use("/admin", requireAppAdmin("qaqc"));
+router.use("/admin", asyncHandler(qaqcAdminTask));
 router.get("/admin/field-controls", asyncHandler(async (req, res) => {
   res.json(await readFieldControls(org(req), "qaqc"));
 }));
@@ -767,24 +798,15 @@ router.get("/admin/roles", asyncHandler(async (req, res) => {
   const result = await pageTable(req, workspaceRoles);
   res.json({ ...result, items: await Promise.all(result.items.map(roleResponse)) });
 }));
-async function syncRolePermissions(req: Request, roleId: string, requested: Array<{ key: string; name: string }>) {
-  await db.update(workspaceRolePermissions).set({ deletedAt: new Date(), updatedAt: new Date() }).where(and(eq(workspaceRolePermissions.workspaceRoleId, roleId), isNull(workspaceRolePermissions.deletedAt)));
-  for (const p of requested) {
-    let [permission] = await db.select().from(permissions).where(and(eq(permissions.organizationId, org(req)), eq(permissions.key, p.key), isNull(permissions.deletedAt))).limit(1);
-    if (!permission) [permission] = await db.insert(permissions).values({ organizationId: org(req), key: p.key, label: p.name, category: "qaqc" }).returning();
-    await db.insert(workspaceRolePermissions).values({ organizationId: org(req), workspaceRoleId: roleId, permissionId: permission.id });
-  }
-}
 router.post("/admin/roles", asyncHandler(async (req, res) => {
   const v: any = body(api.CreateQaqcRoleBody, req);
-  const [row] = await db.insert(workspaceRoles).values({ organizationId: org(req), name: v.name, description: v.description, isSystem: false, status: v.active ? "active" : "inactive" }).returning();
-  await syncRolePermissions(req, row.id, v.permissions); await audit(req, "create", "workspace_role", row.id, undefined, row); res.status(201).json(await roleResponse(row));
+  const { role: row } = await saveQaqcRole(org(req), v);
+  await audit(req, "create", "workspace_role", row.id, undefined, row); res.status(201).json(await roleResponse(row));
 }));
 router.put("/admin/roles/:id", asyncHandler(async (req, res) => {
-  const v: any = body(api.UpdateQaqcRoleBody, req); const before: any = await activeRow(req, workspaceRoles, String(req.params.id));
-  if (before.isSystem) throw new HttpError(409, "System roles cannot be modified");
-  const [row] = await db.update(workspaceRoles).set({ name: v.name, description: v.description, status: v.active ? "active" : "inactive", updatedAt: new Date() }).where(eq(workspaceRoles.id, before.id)).returning();
-  await syncRolePermissions(req, row.id, v.permissions); await audit(req, "update", "workspace_role", row.id, before, row); res.json(await roleResponse(row));
+  const v: any = body(api.UpdateQaqcRoleBody, req);
+  const { before, role: row } = await saveQaqcRole(org(req), v, String(req.params.id));
+  await audit(req, "update", "workspace_role", row.id, before, row); res.json(await roleResponse(row));
 }));
 router.get("/admin/users", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
@@ -814,7 +836,7 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   if (v.scopeType === "business_unit") throw new HttpError(422, "Business-unit scope is not supported; choose organization or project");
   const scopes = { businessUnitIds: [], projectIds: v.scopeType === "project" ? await assertProjectScopeInOrg(db, org(req), v.scopeIds) : [] };
   assertCanManageAssignmentScope(req, scopes.projectIds, scopes.businessUnitIds);
-  const [row] = existing ? await db.update(userWorkspaceRoles).set({ ...scopes, updatedAt: new Date() }).where(eq(userWorkspaceRoles.id, existing.id)).returning() : await db.insert(userWorkspaceRoles).values({ organizationId: org(req), userId: String(req.params.userId), workspaceRoleId: v.roleId, ...scopes }).returning();
+  const [row] = existing ? await db.update(userWorkspaceRoles).set({ ...scopes, status: "active", updatedAt: new Date() }).where(eq(userWorkspaceRoles.id, existing.id)).returning() : await db.insert(userWorkspaceRoles).values({ organizationId: org(req), userId: String(req.params.userId), workspaceRoleId: v.roleId, ...scopes }).returning();
   await audit(req, "assign_role", "user_workspace_role", row.id, existing, row); res.json(row);
 }));
 router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) => {
@@ -830,15 +852,32 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
   res.status(204).end();
 }));
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
-  const result = await pageTable(req, applicationAccess, [eq(applicationAccess.status, "pending")]);
+  const { page, limit, offset } = pagination(req);
+  const pending = await loadPendingQaqcRequests(req);
   const userRows = await db.select().from(users).where(and(eq(users.organizationId, org(req)), isNull(users.deletedAt)));
   const byUsername = activeUserIdentityByUsername(userRows, org(req));
-  res.json({ ...result, items: result.items.map((r: any) => ({ id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: "", status: "pending", requestedAt: r.createdAt })) });
+  res.json(paginated(pending.slice(offset, offset + limit).map(r => ({
+    id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: r.requestedRoleId,
+    status: "pending", requestedAt: r.requestedAt,
+  })), pending.length, page, limit));
 }));
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
-  const v: any = body(api.DecideQaqcAccessRequestBody, req); const before: any = await activeRow(req, applicationAccess, String(req.params.id));
-  if (before.status !== "pending") throw new HttpError(409, "Access request has already been decided");
-  const [row] = await db.update(applicationAccess).set({ status: v.decision === "approve" ? "active" : "rejected", canOpenQaqc: v.decision === "approve", updatedAt: new Date() }).where(eq(applicationAccess.id, before.id)).returning();
+  const v: any = body(api.DecideQaqcAccessRequestBody, req);
+  let before: any;
+  const row = await db.transaction(async tx => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${org(req)}), hashtext(${"qaqc-access:" + String(req.params.id)}))`);
+    const request = (await loadPendingQaqcRequests(req, tx)).find(r => r.id === String(req.params.id));
+    if (!request) throw new HttpError(409, "Access request is no longer pending or is outside your scope");
+    const values = { status: v.decision === "approve" ? "active" : "rejected", canOpenQaqc: v.decision === "approve", updatedAt: new Date() };
+    if (request.persistedId) {
+      [before] = await tx.select().from(applicationAccess).where(eq(applicationAccess.id, request.persistedId));
+      const [updated] = await tx.update(applicationAccess).set(values).where(eq(applicationAccess.id, request.persistedId)).returning();
+      return updated;
+    }
+    const [created] = await tx.insert(applicationAccess).values({ organizationId: org(req), username: request.username,
+      projectId: request.projectId, ...values }).returning();
+    return created;
+  });
   await audit(req, `access_${v.decision}`, "application_access", row.id, before, { ...row, comments: v.comments }); res.json(row);
 }));
 router.get("/admin/delegations", asyncHandler(async (req, res) => {

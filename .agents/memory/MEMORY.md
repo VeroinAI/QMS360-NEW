@@ -29,12 +29,14 @@
 - [Audit Plan execution handoff](audit-plan-execution-handoff.md) — sending a plan creates or reuses one linked Audit Execution; repeated handoff/open actions must remain idempotent.
 - [Audit Plan auditee roles](audit-plan-auditee-roles.md) — plan-level Auditee is multi-role; activity-level auditees remain independent users.
 - [Outbound email delivery semantics](outbound-email-delivery-semantics.md) — event emails queue per recipient; policy is tenant-wide; test messages remain direct.
+- [Email Rule templates](email-rule-template-policy.md) — per-rule content is configurable; preserve approval audiences and prevent duplicate generic approval dispatch.
 - [Audit approval email audience](audit-approval-email-audience.md) — restrict review-stage recipients; only explicit parent final Email Rule role selections replace participant defaults.
 - [Lessons approval escalation digest](lessons-approval-escalation-digest.md) — submittedAt-based working-day thresholds feed grouped scheduled reports, not per-form Lessons escalation emails.
 - [Production schema synchronization](production-schema-synchronization.md) — a successful publish can still leave QMS360 production behind development; verify live schema when APIs return missing-relation errors.
 - [AWS client handoff](aws-client-handoff.md) — temporary public clone is the user's chosen handoff; it remains an irreversible disclosure, and manually run SQL needs migration tracking.
 - [Workspace package installation](workspace-package-installation.md) — package installer targets root; pnpm rejects unscoped root installs, so use artifact-filtered pnpm for leaf-only dependencies.
 - [Audit application approval policy](audit-application-approval-policy.md) — Audit role assignment must not itself unlock the application; keep a separate administrator approval step.
+- [Shared application approval recovery](shared-application-approval-recovery.md) — shared active status can hide an unapproved app; recover requests without changing unrelated access.
 - [Audit type-category links](audit-type-category-links.md) — administrators maintain category-to-type links in master data; do not infer a hardcoded mapping from existing schedules.
 - [Task rebase verification](task-rebase-verification.md) — after resolving overlapping task edits, rerun focused tests against the final rebased tree; semantic merging can scramble test bodies.
 - [Audit Team Lead marker](audit-team-lead-marker.md) — role authorization identifies future Audit Team Lead workflows; it must not grant unrelated actions by itself.
@@ -57,3 +59,4 @@
 - [PDF library normalization](pdf-library-normalization.md) — form access and fixture saves can remove XFA before validation; check source structures before normalization.
 - [Monthly quality assessment](quality-assessment-policy.md) — >45-day open NCRs are critical; AI suggestions require human review and confirmation before submission.
 - [Audit Plan PDF policy](audit-plan-pdf-policy.md) — retain the supplied PDF's branding; use each audit's records, mark unavailable values exactly “To Be Mapped”, and never copy sample signatures.
+- [QA/QC role authorization policy](qaqc-role-authorization-policy.md) — edit default-role permissions in place; preserve other apps and legacy ownership semantics.

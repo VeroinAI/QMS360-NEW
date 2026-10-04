@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Inbox } from 'lucide-react';
 import type { Obj } from './reporting-types';
 
+export const REPORT_MODULE = { monthly: 'monthly_reports', daily: 'daily_reports', csat: 'csat_reports' } as const;
 export const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'The request could not be completed.');
 export const useInvalidate = () => { const qc = useQueryClient(); return () => qc.invalidateQueries({ predicate: q => String(q.queryKey[0]).includes('/api/qaqc') }); };
 

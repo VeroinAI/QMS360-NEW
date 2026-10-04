@@ -140,6 +140,7 @@ import type {
   GetLessonsEscalationsParams,
   GetLessonsReferenceDataParams,
   GetPlatformReferenceDataParams,
+  GetQaqcCapabilities200,
   GetQaqcDashboardParams,
   GetQaqcEscalationsParams,
   GetQaqcPdfTemplateCatalogParams,
@@ -10769,6 +10770,77 @@ export function useGetQaqcFieldControls<TData = Awaited<ReturnType<typeof getQaq
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetQaqcFieldControlsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetQaqcCapabilitiesUrl = () => {
+
+
+
+
+  return `/api/qaqc/capabilities`
+}
+
+export const getQaqcCapabilities = async ( options?: Parameters<typeof customFetch>[1]): Promise<GetQaqcCapabilities200> => {
+
+  return customFetch<GetQaqcCapabilities200>(getGetQaqcCapabilitiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcCapabilitiesQueryKey = () => {
+    return [
+    `/api/qaqc/capabilities`
+    ] as const;
+    }
+
+
+export const getGetQaqcCapabilitiesQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcCapabilities>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcCapabilities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcCapabilitiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcCapabilities>>> = ({ signal }) => getQaqcCapabilities({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcCapabilities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcCapabilitiesQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcCapabilities>>>
+export type GetQaqcCapabilitiesQueryError = ErrorType<unknown>
+
+
+
+export function useGetQaqcCapabilities<TData = Awaited<ReturnType<typeof getQaqcCapabilities>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcCapabilities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcCapabilitiesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

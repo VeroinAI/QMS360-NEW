@@ -21,13 +21,14 @@ import {
 } from "../lib/qaqc-reporting-excel";
 import { buildQaqcReportingDashboard } from "./qaqc-reporting";
 import { safeTemplateMetadata } from "../lib/qaqc-pdf-templates";
+import type { QaqcOperation } from "@workspace/field-controls";
 
 const router: IRouter = Router();
 router.use(requireAuth);
 router.use(requireAppAccess("qaqc"));
 const organizationId = (req: any) => req.currentUser!.organizationId as string;
 const safeType = (value: unknown): value is ReportingType => value === "monthly" || value === "daily" || value === "csat";
-const reportModule = (type: ReportingType) => type === "daily" ? "document_governance" : type === "csat" ? "customer_satisfaction" : "metrics";
+const reportModule = (type: ReportingType) => type === "daily" ? "daily_reports" : type === "csat" ? "csat_reports" : "monthly_reports";
 const REPORT_TYPES: ReportingType[] = ["monthly", "daily", "csat"];
 
 async function organizationLocalDate(req: any) {
@@ -44,7 +45,7 @@ function reportPermission(source: "query" | "body") {
   return (req: any, res: any, next: any) => {
     const type = source === "query" ? req.query.reportType : req.body?.reportType;
     if (!safeType(type)) return next();
-    return requirePermission("qaqc", reportModule(type), "select")(req, res, next);
+    return requirePermission("qaqc", reportModule(type), source === "body" ? "own" : "select", { qaqcOperation: "import" })(req, res, next);
   };
 }
 
@@ -60,12 +61,23 @@ function download(res: Parameters<Parameters<typeof asyncHandler>[0]>[1], filena
 }
 
 type ReportAccess = { scope: EffectiveProjectScope; fullScope: EffectiveProjectScope };
-async function reportAccess(req: any, type: ReportingType): Promise<ReportAccess> {
+async function reportAccess(req: any, type: ReportingType, operation?: QaqcOperation): Promise<ReportAccess> {
   const target = { module: reportModule(type), action: "select" as const };
-  const [scope, fullScope] = await Promise.all([
+  let [scope, fullScope] = await Promise.all([
     getAuthorizedProjectScope(req, "qaqc", target),
     getAuthorizedFullProjectScope(req, "qaqc", target),
   ]);
+  if (operation) {
+    const targetOperation = { ...target, operation };
+    const [operationScope, operationFull] = await Promise.all([
+      getAuthorizedProjectScope(req, "qaqc", targetOperation),
+      getAuthorizedFullProjectScope(req, "qaqc", targetOperation),
+    ]);
+    const intersection = (a: EffectiveProjectScope, b: EffectiveProjectScope): EffectiveProjectScope =>
+      a.unrestricted ? b : b.unrestricted ? a : { unrestricted: false, projectIds: a.projectIds.filter(id => b.projectIds.includes(id)) };
+    scope = intersection(scope, operationScope);
+    fullScope = intersection(fullScope, operationFull);
+  }
   if (!scope.unrestricted && !scope.projectIds.length) throw new HttpError(403, `Reporting ${type} permission is required`);
   return { scope, fullScope };
 }
@@ -177,7 +189,7 @@ router.post("/import", reportPermission("body"), asyncHandler(async (req, res) =
     throw new HttpError(422, "CSAT survey date cannot be in the future");
   }
   await assertProjectInOrg(db, organizationId(req), projectId);
-  const access = await reportAccess(req, reportType);
+  const access = await reportAccess(req, reportType, "import");
   if (!canSeeProject(access, projectId)) throw new HttpError(403, "You do not have reporting permission for this project");
   const [activeProject] = await db.select({ id: projects.id }).from(projects).where(and(
     eq(projects.id, projectId), eq(projects.organizationId, organizationId(req)),
@@ -236,6 +248,8 @@ router.post("/import", reportPermission("body"), asyncHandler(async (req, res) =
 router.get("/reports/:id/export", asyncHandler(async (req, res) => {
   const format = requestedFormat(req);
   const report = await getReport(req, String(req.params.id));
+  const exportAccess = await reportAccess(req, report.reportType as ReportingType, "export");
+  if (!canReadReport(req, exportAccess, report)) throw new HttpError(403, "Export is not permitted for this report");
   const name = `qaqc-${report.reportType}-${report.period}-${report.referenceNumber ?? report.id}`;
   const bytes = format === "pdf" ? await exportQaqcReportPdf(report, { templateId: selectedTemplateId(req) }) : exportQaqcReportExcel(report);
   download(res, `${name}.${format}`, format === "pdf" ? "application/pdf" : qaqcReportingWorkbookMimeType, bytes);
@@ -280,7 +294,7 @@ router.get("/dashboard/export", asyncHandler(async (req, res) => {
   const types = requestedType ? [requestedType as ReportingType] : REPORT_TYPES;
   const accessByType = new Map<ReportingType, ReportAccess>();
   for (const type of types) {
-    try { accessByType.set(type, await reportAccess(req, type)); } catch (error) {
+    try { accessByType.set(type, await reportAccess(req, type, "export")); } catch (error) {
       if (!(error instanceof HttpError && error.status === 403)) throw error;
     }
   }

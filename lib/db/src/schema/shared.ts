@@ -229,6 +229,8 @@ export const emailEventRules = sharedSchema.table("email_event_rules", {
     roleNames?: string[];
     projectIds?: string[];
     senderMode?: "form_creator" | "approving_user";
+    subjectTemplate?: string;
+    bodyTemplate?: string;
   }>().notNull().default({}),
   receiverUserId: uuid("receiver_user_id").references(() => users.id),
   receiverName: text("receiver_name"),

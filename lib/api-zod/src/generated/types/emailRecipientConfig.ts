@@ -12,4 +12,8 @@ export interface EmailRecipientConfig {
   roleNames?: string[];
   projectIds?: string[];
   senderMode?: EmailRecipientConfigSenderMode;
+  /** @maxLength 250 */
+  subjectTemplate?: string;
+  /** @maxLength 20000 */
+  bodyTemplate?: string;
 }

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useIsAdmin } from '@/lib/field-controls';
+import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { useToast } from '@/hooks/use-toast';
 import { METRICS, type Obj } from './reporting-types';
 import { ErrorBox, Loading, PageFrame, errMsg, useInvalidate } from './shell';
@@ -17,7 +18,8 @@ const DAYS: [number, string][] = Array.from({ length: 31 }, (_, i) => [i + 1, St
 const NONE = 'none';
 
 export function SettingsPage() {
-  const isAdmin = useIsAdmin();
+  const cap = useQaqcCapabilities();
+  const isAdmin = useIsAdmin() || cap.canTask('configure_masters');
   const { toast } = useToast(); const invalidate = useInvalidate();
   const [projectId, setProjectId] = useState('');
   const params = { projectId: projectId || undefined };

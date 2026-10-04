@@ -316,6 +316,9 @@ describe("Task 13 project-scoped assignments", () => {
       { organizationId: orgId, projectId: projectA, reportingPeriod: "2026-09-01", category: "Evidence A" },
       { organizationId: orgId, projectId: projectB, reportingPeriod: "2026-09-01", category: "Evidence B" },
     ]).returning();
+    await db.insert(auditLogEntries).values([metricA!, metricB!].map(metric => ({
+      organizationId: orgId, actorId: evidenceUser.id, action: "create", entityType: "metric", entityId: metric.id,
+    })));
     const evidenceValues = (recordId: string, label: string) => ({
       organizationId: orgId, recordType: "metric", recordId, category: "photo",
       fileName: `${label}.jpg`, mimeType: "image/jpeg", sizeBytes: 100,
@@ -412,6 +415,7 @@ describe("Task 13 project-scoped assignments", () => {
     const importUser = await insertUser("task13.import", orgId);
     await db.insert(applicationAccess).values({ organizationId: orgId, username: importUser.username, canOpenQaqc: true });
     await insertAppRole("qaqc", "Task 13 importer A", importUser.id, [projectA], "metrics.create_edit");
+    await insertAppRole("qaqc", "Explicit QA/QC import", importUser.id, [projectA], "qaqc.metrics.import");
     const row = (projectId: string, category: "External NCR" | "Internal NCR") => ({
       id: crypto.randomUUID(), projectId, period: "2026-10", category,
       issuedCount: 1, closedCount: 0, ageing0To15: 1, ageing15To45: 0, ageingOver45: 0,
@@ -439,6 +443,7 @@ describe("Task 13 project-scoped assignments", () => {
     await db.insert(applicationAccess).values({ organizationId: orgId, username: approvalUser.username, canOpenQaqc: true });
     await insertAppRole("qaqc", "Task 13 approvals A", approvalUser.id, [projectA], "metrics.view_all");
     await insertAppRole("qaqc", "Task 13 brief approvals A", approvalUser.id, [projectA], "quality_briefs.view_all");
+    await insertAppRole("qaqc", "Explicit QA/QC review", approvalUser.id, [projectA], "approve_reject");
     const [metricA, metricB] = await db.insert(qaqcMetricEntries).values([
       { organizationId: orgId, projectId: projectA, reportingPeriod: "2026-11-01", category: "Approval A", status: "submitted" },
       { organizationId: orgId, projectId: projectB, reportingPeriod: "2026-11-01", category: "Approval B", status: "submitted" },

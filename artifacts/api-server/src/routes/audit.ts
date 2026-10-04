@@ -1159,6 +1159,7 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
     await queueAuditApprovalEmail(tx as unknown as typeof db, {
       organizationId: actor(req).organizationId, actorId: actor(req).id,
       entityType: "audit_programme", entityId: updated.id, action: "submit",
+      record: updated, templateValues: { next_approval_level: roles[0].level },
       recipientIds: firstApprovers, subject: data.subject.trim(),
       text: `${programmeSubmissionMemo(scheduleMeta(updated))}\n\nAudit Schedule "${updated.title}" is awaiting your approval at level ${roles[0].level}. Open QMS360 QMS Audit to review it.`,
     });
@@ -1258,6 +1259,7 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
         organizationId: actor(req).organizationId, actorId: actor(req).id,
         entityType: "audit_programme", entityId: updated.id,
         action: complete ? "approved_final" : "approve",
+        record: updated, templateValues: { approval_level: role?.name, next_approval_level: nextRole?.name },
         recipientIds: complete ? participants : await roleUserIds(actor(req).organizationId, nextRole.id),
         subject: complete ? `Approved: ${meta.submissionSubject ?? updated.title}` : meta.submissionSubject ?? `Approval requested: ${updated.title}`,
         text: complete
@@ -1271,6 +1273,7 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
       await queueAuditApprovalEmail(tx as unknown as typeof db, {
         organizationId: actor(req).organizationId, actorId: actor(req).id,
         entityType: "audit_programme", entityId: updated.id, action: "send_back",
+        record: updated, templateValues: { approval_level: role?.name, review_comments: data.comments.trim() },
         recipientIds: [before.ownerId],
         ccRecipientIds: auditScheduleSendBackCcIds(before.ownerId, meta.approvalParticipantIds ?? [], actor(req).id),
         subject: `Sent back: ${meta.submissionSubject ?? updated.title}`,
@@ -1582,6 +1585,7 @@ router.post("/schedules/:id/submit", asyncHandler(async (req, res) => {
     if (updated) await queueAuditApprovalEmail(tx as unknown as typeof db, {
       organizationId: actor(req).organizationId, actorId: actor(req).id,
       entityType: "audit_schedule", entityId: updated.id, action: "submit",
+      record: updated, templateValues: { next_approval_level: roles[0].level },
       recipientIds: firstApprovers, subject: submission.subject.trim(),
       text: `${submission.mailBody.trim()}\n\nAudit "${updated.title}" is awaiting your approval at level ${roles[0].level}. Open QMS360 QMS Audit to review it.`,
     });
@@ -1649,6 +1653,7 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
       const queuedEmail = await queueAuditApprovalEmail(tx as unknown as typeof db, {
         organizationId: actor(req).organizationId, actorId: actor(req).id,
         entityType: "audit_schedule", entityId: updated.id, action: complete ? "approved_final" : "approve",
+        record: updated, templateValues: { approval_level: role?.name, next_approval_level: nextRole?.name },
         recipientIds: complete ? participants : await roleUserIds(actor(req).organizationId, nextRole.id),
         subject: complete ? `Approved: ${meta.submissionSubject ?? updated.title}` : meta.submissionSubject ?? `Approval requested: ${updated.title}`,
         text: complete
@@ -1662,6 +1667,7 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
       await queueAuditApprovalEmail(tx as unknown as typeof db, {
         organizationId: actor(req).organizationId, actorId: actor(req).id,
         entityType: "audit_schedule", entityId: updated.id, action: "send_back",
+        record: updated, templateValues: { approval_level: role?.name, review_comments: data.comments.trim() },
         recipientIds: [before.ownerId],
         ccRecipientIds: auditScheduleSendBackCcIds(before.ownerId, meta.approvalParticipantIds ?? [], actor(req).id),
         subject: `Sent back: ${meta.submissionSubject ?? updated.title}`,

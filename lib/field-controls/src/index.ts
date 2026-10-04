@@ -5,6 +5,8 @@
 // /api/{app}/admin/field-controls payloads against it (unknown keys are
 // rejected with 422 instead of being stored silently).
 
+export * from "./qaqc-permissions";
+export * from "./email-templates";
 export type FieldControlAppKey = "qaqc" | "lessons" | "audit";
 
 export type FieldDefinition = { key: string; label: string };

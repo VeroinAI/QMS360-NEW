@@ -5,10 +5,12 @@ import {
 } from "@workspace/db";
 import { enqueueEmail } from "./email-queue";
 import { logger } from "./logger";
+import { emailTemplateContext } from "./email-template-context";
 
 export type AuditEvent = {
   organizationId: string; app: string; entityType: string; action: string;
   actorId?: string | null; entityId?: string | null;
+  record?: Record<string, any>;
 };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -173,6 +175,9 @@ export async function dispatchEmailRule(event: AuditEvent) {
     await enqueueEmail(db, {
       organizationId: event.organizationId, recipientIds: [], recipients: result.recipients,
       sender: result.sender ?? undefined,
+      ruleTemplate: result.rule.recipientConfig,
+      templateValues: result.rule.recipientConfig?.subjectTemplate || result.rule.recipientConfig?.bodyTemplate
+        ? await emailTemplateContext(db, event) : undefined,
       subject: `QMS360: ${event.entityType.replaceAll("_", " ")} ${event.action.replaceAll("_", " ")}`,
       text: `A ${event.entityType.replaceAll("_", " ")} record was ${event.action.replaceAll("_", " ")} in QMS360.${event.entityId ? `\n\nRecord reference: ${event.entityId}` : ""}`,
       context: { kind: "email_event_rule", app: event.app, ruleId: result.rule.id, eventType: result.rule.eventType, entityId: event.entityId },
@@ -201,6 +206,8 @@ export async function queueAuditApprovalEmail(
     ccRecipientIds?: string[];
     subject: string;
     text: string;
+    record?: Record<string, any>;
+    templateValues?: Record<string, unknown>;
     attachments?: Array<{ filename: string; contentType: "application/pdf"; objectPath: string }>;
   },
 ): Promise<{ queued: number }> {
@@ -237,6 +244,9 @@ export async function queueAuditApprovalEmail(
     ccRecipients,
     subject: input.subject,
     text: input.text,
+    ruleTemplate: rule?.recipientConfig,
+    templateValues: rule?.recipientConfig?.subjectTemplate || rule?.recipientConfig?.bodyTemplate
+      ? await emailTemplateContext(database, { ...input, values: input.templateValues }) : undefined,
     attachments: input.attachments,
     context: {
       kind: rule ? "email_event_rule" : "audit_approval",

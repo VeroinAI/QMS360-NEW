@@ -8,6 +8,7 @@ import { CreateEmailRuleBody, ReorderEmailRulesBody, SimulateEmailRuleBody, Upda
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { asyncHandler, HttpError, writeAuditLog } from "../lib/workspace";
 import { resolveEmailRule } from "../lib/email-rules";
+import { unknownEmailTemplateFields } from "@workspace/field-controls";
 
 const router = Router();
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,6 +45,10 @@ const knownEvents = [
 ];
 function bodyValue(value: unknown): string | null { return typeof value === "string" ? value.trim() || null : null; }
 function validate(input: any) {
+  const template = input.recipientConfig ?? {};
+  if (/[\r\n]/.test(template.subjectTemplate ?? "")) throw new HttpError(422, "Email subject must be a single line");
+  const unknown = unknownEmailTemplateFields(`${template.subjectTemplate ?? ""}\n${template.bodyTemplate ?? ""}`);
+  if (unknown.length) throw new HttpError(422, `Unsupported email template placeholders: ${unknown.join(", ")}`);
   if (!input || typeof input.name !== "string" || !input.name.trim() || typeof input.eventType !== "string" || !/^[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+$/.test(input.eventType)) throw new HttpError(422, "Invalid rule name or canonical eventType");
   if (!Number.isInteger(input.priority) || input.priority < 0) throw new HttpError(422, "Rule priority must be a non-negative whole number");
   if (!["all_users", "internal_user", "external_email", "workspace_role", "project_members", "project_role", "linked_approver", "linked_creator"].includes(input.recipientMode)) throw new HttpError(422, "Select a recipient mode");

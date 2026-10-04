@@ -24,12 +24,12 @@ const router: IRouter = Router();
 router.use(requireAuth, requireAppAccess("qaqc"));
 const org = (req: Request) => req.currentUser!.organizationId;
 async function admin(req: Request) {
-  if (!(await getAppAdminScope(req, "qaqc"))?.unrestricted) {
+  if (!(await getAuthorizedProjectScope(req, "qaqc", { module: "administration", action: "full", operation: "configure_masters" })).unrestricted) {
     throw new HttpError(403, "Organization-wide QA/QC administrator access is required to manage shared PDF templates");
   }
 }
 async function canRead(req: Request, type: string) {
-  const module = type === "daily" ? "document_governance" : type === "csat" ? "customer_satisfaction" : "metrics";
+  const module = type === "daily" ? "daily_reports" : type === "csat" ? "csat_reports" : "monthly_reports";
   const scope = await getAuthorizedProjectScope(req, "qaqc", { module, action: "select" });
   return scope.unrestricted || scope.projectIds.length > 0;
 }

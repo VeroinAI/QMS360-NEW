@@ -21,6 +21,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { unknownEmailTemplateFields } from '@workspace/field-controls';
+import { EmailRuleTemplateEditor } from './email-rule-template-editor';
 
 function message(error: unknown) {
   return error instanceof Error ? error.message : 'An error occurred';
@@ -304,8 +306,10 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
     receiverName: rule?.receiverName ?? '',
     receiverEmail: rule?.receiverEmail ?? '',
     roleName: rule?.recipientConfig?.roleName ?? '',
-    roleNames: rule?.recipientConfig?.roleNames ?? (rule?.recipientConfig?.roleName ? [rule.recipientConfig.roleName] : []),
+    roleNames: [...new Set([...(rule?.recipientConfig?.roleNames ?? []), ...(rule?.recipientConfig?.roleName ? [rule.recipientConfig.roleName] : [])])],
     projectId: rule?.recipientConfig?.projectIds?.[0] ?? '',
+    subjectTemplate: rule?.recipientConfig?.subjectTemplate ?? '',
+    bodyTemplate: rule?.recipientConfig?.bodyTemplate ?? '',
   });
 
   const set = (patch: Partial<typeof draft>) => setDraft(d => ({ ...d, ...patch }));
@@ -334,11 +338,14 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
       receiverName: draft.receiverMode === 'external' ? draft.receiverName.trim() : null,
       receiverEmail: draft.receiverMode === 'external' ? draft.receiverEmail.trim() : null,
       recipientConfig: {
+        subjectTemplate: draft.subjectTemplate,
+        bodyTemplate: draft.bodyTemplate,
         ...(draft.receiverMode === 'linked_approver' ? { senderMode: 'form_creator' as const } : {}),
         ...(draft.receiverMode === 'linked_creator' ? { senderMode: 'approving_user' as const } : {}),
         ...(draft.receiverMode === 'role' ? { roleNames: [...new Set(draft.roleNames)] } : {}),
         ...(draft.receiverMode === 'project_role' ? { roleName: draft.roleName.trim() } : {}),
-        ...(draft.receiverMode === 'project' || draft.receiverMode === 'project_role' ? { projectIds: draft.projectId ? [draft.projectId] : [] } : {}),
+        ...(draft.receiverMode === 'project' || draft.receiverMode === 'project_role' ? { projectIds: draft.projectId
+          ? draft.projectId === rule?.recipientConfig?.projectIds?.[0] ? rule.recipientConfig.projectIds : [draft.projectId] : [] } : {}),
       },
     };
     
@@ -359,6 +366,11 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
       return;
     }
 
+    const unknown = unknownEmailTemplateFields(`${draft.subjectTemplate}\n${draft.bodyTemplate}`);
+    if (unknown.length) {
+      toast({ title: 'Unsupported placeholders', description: unknown.join(', '), variant: 'destructive' });
+      return;
+    }
     const action = rule 
       ? update.mutateAsync({ id: rule.id, data: payload })
       : create.mutateAsync({ data: payload });
@@ -385,7 +397,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{isNew ? 'New Email Rule' : 'Edit Rule'}</DialogTitle>
-          <DialogDescription>Define when to override default email recipients.</DialogDescription>
+          <DialogDescription>Configure email recipients and save the subject and body template for this rule.</DialogDescription>
         </DialogHeader>
         <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -551,12 +563,13 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
               )}
             </div>
           </div>
+          <EmailRuleTemplateEditor template={draft} onChange={set} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button disabled={!draft.name.trim() || !draft.eventType || busy} onClick={save}>
             <Save className="mr-2 h-4 w-4" />
-            {isNew ? 'Create rule' : 'Save changes'}
+            {draft.subjectTemplate.trim() || draft.bodyTemplate.trim() ? 'Save rule & template' : isNew ? 'Create rule' : 'Save changes'}
           </Button>
         </DialogFooter>
       </DialogContent>

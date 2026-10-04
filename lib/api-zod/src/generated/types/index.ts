@@ -247,6 +247,7 @@ export * from './getAuditOpenVsClosedReportParams';
 export * from './getLessonsEscalationsParams';
 export * from './getLessonsReferenceDataParams';
 export * from './getPlatformReferenceDataParams';
+export * from './getQaqcCapabilities200';
 export * from './getQaqcDashboardParams';
 export * from './getQaqcEscalationsParams';
 export * from './getQaqcPdfTemplateCatalogKind';
