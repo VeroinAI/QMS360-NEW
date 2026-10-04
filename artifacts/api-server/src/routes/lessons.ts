@@ -29,7 +29,7 @@ import {
   ReassignLessonsPendingActionsBody,
 } from "@workspace/api-zod";
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
-import { decideApplicationAccess, loadPendingApplicationRequests } from "../lib/application-access-requests";
+import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../lib/application-access-requests";
 import { createLessonPdf } from "../lib/lesson-pdf";
 import {
   applicationAccess,
@@ -1388,13 +1388,15 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
 
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const pending = await loadPendingApplicationRequests(req, "lessons");
-  const userRows = await db.select().from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId), isNull(users.deletedAt)));
+  const pending = await loadPendingApplicationRequestPage(req, "lessons", offset, limit);
+  const usernames = pending.items.map(row => row.username);
+  const userRows = usernames.length ? await db.select().from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId),
+    isNull(users.deletedAt), inArray(users.username, usernames))) : [];
   const byUsername = activeUserIdentityByUsername(userRows, req.currentUser!.organizationId);
-  res.json(paginated(pending.slice(offset, offset + limit).map(r => ({
+  res.json(paginated(pending.items.map(r => ({
     id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: r.requestedRoleId,
     status: "pending", requestedAt: r.requestedAt,
-  })), pending.length, page, limit));
+  })), pending.total, page, limit));
 }));
 
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {

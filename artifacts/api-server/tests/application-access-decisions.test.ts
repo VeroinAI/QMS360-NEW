@@ -3,7 +3,7 @@ import type { Server } from "node:http";
 import { and, eq } from "drizzle-orm";
 import {
   applicationAccess, db, organizations, platformRoles, users, projects,
-  userWorkspaceRoles, workspaceRoles, auditLogEntries,
+  userWorkspaceRoles, workspaceRoles, auditLogEntries, permissions, workspaceRolePermissions,
   lessonsUserWorkspaceRoles, lessonsWorkspaceRoles, lessonsAuditLogEntries,
   auditUserWorkspaceRoles, auditWorkspaceRoles, auditAuditLogEntries,
 } from "@workspace/db";
@@ -20,6 +20,11 @@ const suffix = crypto.randomUUID().slice(0, 8);
 let server: Server, baseUrl: string, organizationId: string, adminToken: string, adminId: string;
 const roleIds = {} as Record<Application, string>;
 let sequence = 0;
+let qaqcAdminPermission: string;
+
+async function grantQaqcAdmin(roleId: string) {
+  await db.insert(workspaceRolePermissions).values({ organizationId, workspaceRoleId: roleId, permissionId: qaqcAdminPermission });
+}
 
 async function api(application: Application, method: string, path: string, body?: unknown, token = adminToken) {
   const response = await fetch(`${baseUrl}/${application}${path}`, {
@@ -67,6 +72,10 @@ beforeAll(async () => {
     email: `admin-${suffix}@example.invalid`, fullName: "Access Administrator",
   }).returning();
   adminId = admin!.id; adminToken = issueToken(admin!);
+  const [permission] = await db.insert(permissions).values({
+    organizationId, key: "qaqc.manage_access", label: "Review QA/QC access", category: "administration",
+  }).returning();
+  qaqcAdminPermission = permission!.id;
   for (const application of applications) {
     const [role] = await db.insert(roleTables[application]).values({ organizationId, name: `Reviewer ${suffix}` }).returning();
     roleIds[application] = role!.id;
@@ -76,7 +85,7 @@ afterAll(async () => {
   await new Promise<void>(resolve => server?.close(() => resolve()));
   if (!organizationId) return;
   for (const table of [applicationAccess, ...Object.values(logTables), ...Object.values(assignmentTables),
-    ...Object.values(roleTables), users, projects, platformRoles]) {
+    workspaceRolePermissions, permissions, ...Object.values(roleTables), users, projects, platformRoles]) {
     await db.delete(table).where(eq(table.organizationId, organizationId));
   }
   await db.delete(organizations).where(eq(organizations.id, organizationId));
@@ -190,6 +199,23 @@ describe("Independent application access decisions", () => {
     for (const application of applications) expect(await requestId(application, user.username)).toBeDefined();
   });
 
+  it("keeps explicit per-application reviews authoritative over conflicting historical decisions", async () => {
+    const { user, access } = await fixture({
+      applicationReviews: {
+        qaqc: { status: "pending", reviewedAt: "2026-01-02T00:00:00Z" },
+        lessons: { status: "pending", reviewedAt: "2026-01-02T00:00:00Z" },
+        audit: { status: "pending", reviewedAt: "2026-01-02T00:00:00Z" },
+      },
+    });
+    for (const application of applications) {
+      await db.insert(logTables[application]).values({
+        organizationId, entityType: "application_access", entityId: access.id,
+        action: application === "audit" ? "reject_access" : "access_reject", createdAt: new Date(),
+      });
+      expect(await requestId(application, user.username)).toBe(access.id);
+    }
+  });
+
   it("preserves imported pending requests awaiting QA/QC or Lessons roles", async () => {
     const [access] = await db.insert(applicationAccess).values({ organizationId, username: `imported-${suffix}`, status: "pending" }).returning();
     for (const application of ["qaqc", "lessons"] as const) {
@@ -218,6 +244,19 @@ describe("Independent application access decisions", () => {
     expect(responses.map(response => response.status).sort()).toEqual([200, 409]);
   });
 
+  it("shares the user lock across concurrent synthetic application requests without duplicate null-project rows", async () => {
+    const { user, access } = await fixture();
+    await db.delete(applicationAccess).where(eq(applicationAccess.id, access.id));
+    const responses = await Promise.all(applications.map(application =>
+      api(application, "POST", `/admin/access-queue/missing:${user.id}/decision`, { decision: "approve" })));
+    expect(responses.map(response => response.status)).toEqual([200, 200, 200]);
+    const rows = await db.select().from(applicationAccess).where(and(
+      eq(applicationAccess.organizationId, organizationId), eq(applicationAccess.username, user.username)));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ projectId: null, canOpenQaqc: true, canOpenLessons: true, canOpenAudit: true });
+    expect(Object.keys(rows[0]!.applicationReviews).sort()).toEqual(["audit", "lessons", "qaqc"]);
+  });
+
   it("keeps all three queues and decisions within the administrator's projects", async () => {
     const [managed, outside] = await db.insert(projects).values([
       { organizationId, name: "Managed", code: `M${suffix}` },
@@ -226,6 +265,7 @@ describe("Independent application access decisions", () => {
     const { user: scopedAdmin } = await fixture({ canOpenQaqc: true, canOpenLessons: true, canOpenAudit: true }, [managed!.id]);
     for (const application of applications) {
       const [role] = await db.insert(roleTables[application]).values({ organizationId, name: `${application === "audit" ? "Audit" : application === "lessons" ? "Lessons" : "QA/QC"} Administrator` }).returning();
+      if (application === "qaqc") await grantQaqcAdmin(role!.id);
       await db.insert(assignmentTables[application]).values({ organizationId, userId: scopedAdmin.id, workspaceRoleId: role!.id, projectIds: [managed!.id] });
     }
     const token = issueToken(scopedAdmin);
@@ -294,6 +334,7 @@ describe("Independent application access decisions", () => {
         const [role] = await db.insert(roleTables[application]).values({
           organizationId, name: `${application} Administrator ${n}`,
         }).returning();
+        if (application === "qaqc") await grantQaqcAdmin(role!.id);
         const [admin] = await db.insert(users).values({
           organizationId, username: `${application}-scoped-${suffix}-${n}`, fullName: "Scoped App Administrator",
           email: `${application}-scoped-${suffix}-${n}@example.invalid`,

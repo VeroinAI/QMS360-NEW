@@ -1,0 +1,6 @@
+CREATE INDEX "audit_log_access_decision_entity_idx" ON "app1_qaqc"."audit_log_entries" USING btree ("organization_id","entity_id","created_at","id") WHERE "app1_qaqc"."audit_log_entries"."entity_type" IN ('application_access', 'access_request')
+        AND "app1_qaqc"."audit_log_entries"."action" IN ('access_reject', 'access_approve', 'reject_access', 'approve_access', 'request_access');--> statement-breakpoint
+CREATE INDEX "audit_log_access_decision_entity_idx" ON "app2_lessons"."audit_log_entries" USING btree ("organization_id","entity_id","created_at","id") WHERE "app2_lessons"."audit_log_entries"."entity_type" IN ('application_access', 'access_request')
+        AND "app2_lessons"."audit_log_entries"."action" IN ('access_reject', 'access_approve', 'reject_access', 'approve_access', 'request_access');--> statement-breakpoint
+CREATE INDEX "audit_log_access_decision_entity_idx" ON "app3_audit"."audit_log_entries" USING btree ("organization_id","entity_id","created_at","id") WHERE "app3_audit"."audit_log_entries"."entity_type" IN ('application_access', 'access_request')
+        AND "app3_audit"."audit_log_entries"."action" IN ('access_reject', 'access_approve', 'reject_access', 'approve_access', 'request_access');

@@ -18,11 +18,10 @@ import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess, filterReadOnlyValues, readOnlyFields } from "../lib/field-access";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
-import { loadPendingQaqcRequests } from "../lib/qaqc-access-requests";
 import { saveQaqcRole } from "../lib/qaqc-role-permissions";
 import { activeQaqcCapabilities, qaqcAdminTask } from "../lib/qaqc-capabilities";
 import { qaqcOwnedRecordClause, qaqcRecordReadClauses } from "../lib/qaqc-record-scope";
-import { decideApplicationAccess } from "../lib/application-access-requests";
+import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../lib/application-access-requests";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
@@ -854,13 +853,15 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
 }));
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const pending = await loadPendingQaqcRequests(req);
-  const userRows = await db.select().from(users).where(and(eq(users.organizationId, org(req)), isNull(users.deletedAt)));
+  const pending = await loadPendingApplicationRequestPage(req, "qaqc", offset, limit);
+  const usernames = pending.items.map(row => row.username);
+  const userRows = usernames.length ? await db.select().from(users).where(and(eq(users.organizationId, org(req)),
+    isNull(users.deletedAt), inArray(users.username, usernames))) : [];
   const byUsername = activeUserIdentityByUsername(userRows, org(req));
-  res.json(paginated(pending.slice(offset, offset + limit).map(r => ({
+  res.json(paginated(pending.items.map(r => ({
     id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: r.requestedRoleId,
     status: "pending", requestedAt: r.requestedAt,
-  })), pending.length, page, limit));
+  })), pending.total, page, limit));
 }));
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
   const v: any = body(api.DecideQaqcAccessRequestBody, req);

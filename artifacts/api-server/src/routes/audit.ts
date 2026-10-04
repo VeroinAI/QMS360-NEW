@@ -43,7 +43,7 @@ import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, wr
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
 import { asyncHandler, HttpError, listNotifications, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
-import { decideApplicationAccess, loadPendingApplicationRequests } from "../lib/application-access-requests";
+import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../lib/application-access-requests";
 import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
@@ -3633,13 +3633,15 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const organizationId = actor(req).organizationId;
-  const pending = await loadPendingApplicationRequests(req, "audit");
-  const orgUsers = await db.select().from(users).where(and(eq(users.organizationId, organizationId), isNull(users.deletedAt)));
+  const pending = await loadPendingApplicationRequestPage(req, "audit", offset, limit);
+  const usernames = pending.items.map(row => row.username);
+  const orgUsers = usernames.length ? await db.select().from(users).where(and(eq(users.organizationId, organizationId),
+    isNull(users.deletedAt), inArray(users.username, usernames))) : [];
   const byUsername = activeUserIdentityByUsername(orgUsers, organizationId);
-  res.json(paginated(pending.slice(offset, offset + limit).map(r => ({
+  res.json(paginated(pending.items.map(r => ({
     id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: r.requestedRoleId,
     status: "pending", requestedAt: r.requestedAt,
-  })), pending.length, page, limit));
+  })), pending.total, page, limit));
 }));
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.DecideAuditAccessRequestBody, req);

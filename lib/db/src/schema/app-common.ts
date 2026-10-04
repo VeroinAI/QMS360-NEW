@@ -162,7 +162,12 @@ export function createAppAdministration(schema: AppSchema) {
     after: jsonb("after").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  }, (table) => [index("audit_log_org_created_idx").on(table.organizationId, table.createdAt)]);
+  }, (table) => [
+    index("audit_log_org_created_idx").on(table.organizationId, table.createdAt),
+    index("audit_log_access_decision_entity_idx").on(table.organizationId, table.entityId, table.createdAt, table.id)
+      .where(sql`${table.entityType} IN ('application_access', 'access_request')
+        AND ${table.action} IN ('access_reject', 'access_approve', 'reject_access', 'approve_access', 'request_access')`),
+  ]);
 
   const notificationTemplates = schema.table("notification_templates", {
     id: uuid("id").defaultRandom().primaryKey(),
