@@ -770,7 +770,10 @@ async function scheduleResponse(req: Request, row: AnyRow, hasPlan = false, pare
 }
 
 async function auditUsersWithMarker(organizationId: string, permissionKey: "audit_team_lead" | "product_process_owner") {
-  const rows = await db.select({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
+  const rows = await db.select({
+    id: users.id, fullName: users.fullName, designation: users.designation,
+    ...(permissionKey === "audit_team_lead" ? { email: users.email } : {}),
+  }).from(users)
     .innerJoin(applicationAccess, and(
       eq(applicationAccess.username, users.username), eq(applicationAccess.organizationId, organizationId),
       eq(applicationAccess.canOpenAudit, true), isNull(applicationAccess.deletedAt),

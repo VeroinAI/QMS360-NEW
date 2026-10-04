@@ -2774,6 +2774,11 @@ export interface AuditPlanUserOption {
   designation?: string | null;
 }
 
+export type AuditTeamLeadOption = AuditPlanUserOption & ({
+  /** @nullable */
+  email: string | null;
+});
+
 export interface AuditPlanOptions {
   users: AuditPlanUserOption[];
 }

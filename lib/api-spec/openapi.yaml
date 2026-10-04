@@ -1387,7 +1387,7 @@ paths:
     get: {operationId: listAuditProgrammes, tags: [audit], summary: List annual audit programmes, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {description: Programmes, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammePage"}}}}}}
     post: {operationId: createAuditProgramme, tags: [audit], summary: Create an annual audit programme, requestBody: {$ref: "#/components/requestBodies/AuditProgramme"}, responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
   /audit/team-leads:
-    get: {operationId: listAuditTeamLeads, tags: [audit], summary: List active Audit users assigned a role marked Audit Team Lead, responses: {"200": {description: Eligible team leads, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}}}}}}
+    get: {operationId: listAuditTeamLeads, tags: [audit], summary: List active Audit users assigned a role marked Audit Team Lead, responses: {"200": {description: Eligible team leads, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/AuditTeamLeadOption"}}}}}}}
   /audit/process-product-owners:
     get: {operationId: listAuditProcessProductOwners, tags: [audit], summary: List active Audit users assigned a role marked Product / Process Owner, responses: {"200": {description: Eligible owners, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}}}}, "403": {description: Audit Schedule select access required}}}
   /audit/programmes/{id}:
@@ -3219,6 +3219,13 @@ components:
         id: {type: string}
         fullName: {type: string}
         designation: {type: [string, "null"]}
+    AuditTeamLeadOption:
+      allOf:
+        - $ref: "#/components/schemas/AuditPlanUserOption"
+        - type: object
+          required: [email]
+          properties:
+            email: {type: [string, "null"]}
     AuditPlanOptions:
       type: object
       required: [users]

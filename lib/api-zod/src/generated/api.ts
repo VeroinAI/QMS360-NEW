@@ -6817,7 +6817,9 @@ export const ListAuditTeamLeadsResponseItem = zod.object({
   "id": zod.string(),
   "fullName": zod.string(),
   "designation": zod.string().nullish()
-})
+}).and(zod.object({
+  "email": zod.string().nullable()
+}))
 export const ListAuditTeamLeadsResponse = zod.array(ListAuditTeamLeadsResponseItem)
 
 

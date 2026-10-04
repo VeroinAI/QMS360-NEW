@@ -112,6 +112,7 @@ export * from './auditSchedulePageResponse';
 export * from './auditScheduleSubmission';
 export * from './auditScheduleSubmissionBody';
 export * from './auditStatus';
+export * from './auditTeamLeadOption';
 export * from './auditUserProfileUpdateResult';
 export * from './auditWorkspaceUser';
 export * from './auditWorkspaceUserPage';

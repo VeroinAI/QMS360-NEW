@@ -68,6 +68,7 @@ import type {
   AuditScheduleNumbering,
   AuditSchedulePageResponse,
   AuditScheduleSubmissionBody,
+  AuditTeamLeadOption,
   AuditUserProfileUpdateResult,
   AuditWorkspaceUserPage,
   AuthResponse,
@@ -17722,9 +17723,9 @@ export const getListAuditTeamLeadsUrl = () => {
 /**
  * @summary List active Audit users assigned a role marked Audit Team Lead
  */
-export const listAuditTeamLeads = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanUserOption[]> => {
+export const listAuditTeamLeads = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditTeamLeadOption[]> => {
 
-  return customFetch<AuditPlanUserOption[]>(getListAuditTeamLeadsUrl(),
+  return customFetch<AuditTeamLeadOption[]>(getListAuditTeamLeadsUrl(),
   {
     ...options,
     method: 'GET'
