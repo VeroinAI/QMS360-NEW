@@ -7,6 +7,7 @@
  */
 import type { LimitParameter } from './limitParameter';
 import type { ListFeedbackEntriesModule } from './listFeedbackEntriesModule';
+import type { ListFeedbackEntriesResolution } from './listFeedbackEntriesResolution';
 import type { PageParameter } from './pageParameter';
 
 export type ListFeedbackEntriesParams = {
@@ -20,4 +21,8 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 module?: ListFeedbackEntriesModule;
+/**
+ * Filter by status. Reviewing includes legacy additional-info-required entries.
+ */
+resolution?: ListFeedbackEntriesResolution;
 };

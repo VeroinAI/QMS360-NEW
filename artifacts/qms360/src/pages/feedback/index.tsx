@@ -63,6 +63,7 @@ function formatDateTime(value: string) {
 
 export function FeedbackPage() {
   const [moduleFilter, setModuleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<SelectableResolution | 'all'>('all');
   const [triagingId, setTriagingId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [resolutionEntry, setResolutionEntry] = useState<FeedbackEntry | null>(null);
@@ -76,6 +77,7 @@ export function FeedbackPage() {
     page: 1,
     limit: 200,
     module: moduleFilter === 'all' ? undefined : moduleFilter as 'qaqc' | 'lessons' | 'audit' | 'system',
+    resolution: statusFilter === 'all' ? undefined : statusFilter,
   };
   const feedback = useListFeedbackEntries(feedbackParams, { query: { enabled: isAdmin, queryKey: getListFeedbackEntriesQueryKey(feedbackParams) } });
   const queryClient = useQueryClient();
@@ -132,8 +134,9 @@ export function FeedbackPage() {
   const downloadExcel = async () => {
     setIsExporting(true);
     try {
-      const blob = await exportFeedbackEntries(moduleFilter === 'all' ? undefined : {
-        module: moduleFilter as 'qaqc' | 'lessons' | 'audit' | 'system',
+      const blob = await exportFeedbackEntries({
+        module: feedbackParams.module,
+        resolution: feedbackParams.resolution,
       });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
@@ -162,20 +165,32 @@ export function FeedbackPage() {
       <div className="mx-auto max-w-7xl">
         <Link href="/" className="mb-5 inline-flex items-center gap-2 text-sm opacity-80 hover:opacity-100"><ArrowLeft className="h-4 w-4" />Back to application</Link>
         <h1 className="font-display text-3xl font-bold">User Feedback &amp; Testing Issues</h1>
-        <p className="mt-2 max-w-2xl opacity-80">Filter feedback by application, review VerionAI triage, and share resolution updates with the person who raised each item.</p>
+        <p className="mt-2 max-w-2xl opacity-80">Filter feedback by application and status, review VerionAI triage, and share resolution updates with the person who raised each item.</p>
       </div>
     </header>
     <div className="mx-auto max-w-7xl px-5 py-6 md:px-10">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3 rounded-lg border bg-card p-4">
-        <div>
-          <Label className="mb-2 block">Filter by module</Label>
+        <div className="flex w-full flex-wrap gap-3 md:w-auto">
+        <div className="w-full sm:w-72">
+          <Label htmlFor="feedback-module-filter" className="mb-2 block">Filter by module</Label>
           <Select value={moduleFilter} onValueChange={setModuleFilter}>
-            <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="feedback-module-filter" className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All modules</SelectItem>
               {Object.entries(moduleLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
             </SelectContent>
           </Select>
+        </div>
+        <div className="w-full sm:w-48">
+          <Label htmlFor="feedback-status-filter" className="mb-2 block">Filter by status</Label>
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as SelectableResolution | 'all')}>
+            <SelectTrigger id="feedback-status-filter" className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {resolutionOptions.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         </div>
         <div className="flex items-center gap-3">
           <p className="text-sm text-muted-foreground">{feedback.data?.total ?? 0} feedback item{feedback.data?.total === 1 ? '' : 's'}</p>
@@ -187,10 +202,17 @@ export function FeedbackPage() {
       </div>
 
       {feedback.isLoading ? <div className="flex justify-center p-16"><Loader2 className="h-6 w-6 animate-spin" /></div>
+        : feedback.isError ? <Card><CardContent className="space-y-3 p-8 text-center">
+          <p className="font-semibold">Feedback could not be loaded</p>
+          <p className="text-sm text-muted-foreground">{userFacingApiError(feedback.error, 'Please try again.').message}</p>
+          <Button variant="outline" onClick={() => feedback.refetch()}>Retry</Button>
+        </CardContent></Card>
         : items.length === 0 ? <Card><CardContent className="flex flex-col items-center gap-3 p-16 text-center">
           <MessageSquarePlus className="h-10 w-10 text-muted-foreground" />
           <p className="font-semibold">No feedback found</p>
-          <p className="text-sm text-muted-foreground">{moduleFilter === 'all' ? 'Entries submitted via the floating feedback button will appear here.' : `There is no feedback for ${moduleLabels[moduleFilter]}.`}</p>
+          <p className="text-sm text-muted-foreground">{moduleFilter === 'all' && statusFilter === 'all'
+            ? 'Entries submitted via the floating feedback button will appear here.'
+            : 'No feedback matches the selected module and status. Try changing the filters.'}</p>
         </CardContent></Card>
         : <div className="space-y-3">{items.map((entry: FeedbackEntry) => <Card key={entry.id}>
           <CardContent className="p-4">

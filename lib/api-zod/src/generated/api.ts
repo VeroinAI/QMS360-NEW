@@ -1573,7 +1573,8 @@ export const listFeedbackEntriesQueryLimitMax = 200;
 export const ListFeedbackEntriesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listFeedbackEntriesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listFeedbackEntriesQueryLimitMax).default(listFeedbackEntriesQueryLimitDefault),
-  "module": zod.enum(['qaqc', 'lessons', 'audit', 'system']).optional()
+  "module": zod.enum(['qaqc', 'lessons', 'audit', 'system']).optional(),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']).optional().describe('Filter by status. Reviewing includes legacy additional-info-required entries.')
 })
 
 export const ListFeedbackEntriesResponse = zod.object({
@@ -1687,7 +1688,8 @@ export const SubmitFeedbackResponse = zod.object({
  * @summary Download feedback entries and status history as Excel (admin only)
  */
 export const ExportFeedbackEntriesQueryParams = zod.object({
-  "module": zod.enum(['qaqc', 'lessons', 'audit', 'system']).optional()
+  "module": zod.enum(['qaqc', 'lessons', 'audit', 'system']).optional(),
+  "resolution": zod.enum(['open', 'reviewing', 'hold', 'additional_info_required', 'resolved', 'closed']).optional().describe('Filter by status. Reviewing includes legacy additional-info-required entries.')
 })
 
 export const ExportFeedbackEntriesResponse = zod.unknown()

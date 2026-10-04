@@ -5,6 +5,7 @@ import { CreateFeedbackAttachmentBody, SubmitFeedbackBody, TriageFeedbackBody, T
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { AiUnavailableError, triageFeedback as runTriage } from "../lib/ai";
 import { redactFeedbackText } from "../lib/feedback-redaction";
+import { parseFeedbackFilters } from "../lib/feedback-filters";
 import {
   appendFallbackAttachment,
   fallbackAttachmentsByFeedback,
@@ -181,14 +182,12 @@ router.post("/feedback", asyncHandler(async (req, res) => {
 
 router.get("/feedback", requireAdmin, asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
-  const module = typeof req.query.module === "string" ? req.query.module : undefined;
-  if (module && !["qaqc", "lessons", "audit", "system"].includes(module)) {
-    throw new HttpError(422, "Invalid feedback module");
-  }
+  const filters = parseFeedbackFilters(req.query);
   const where = and(
     eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
     isNull(feedbackEntries.deletedAt),
-    module ? eq(feedbackEntries.module, module) : undefined,
+    filters.module ? eq(feedbackEntries.module, filters.module) : undefined,
+    filters.resolutions ? inArray(feedbackEntries.resolution, filters.resolutions) : undefined,
   );
   const [rows, count] = await Promise.all([
     db.select({ entry: feedbackEntrySelection, fullName: users.fullName, email: users.email })
@@ -217,17 +216,15 @@ router.get("/feedback", requireAdmin, asyncHandler(async (req, res) => {
 }));
 
 router.get("/feedback/export", requireAdmin, asyncHandler(async (req, res) => {
-  const module = typeof req.query.module === "string" ? req.query.module : undefined;
-  if (module && !["qaqc", "lessons", "audit", "system"].includes(module)) {
-    throw new HttpError(422, "Invalid feedback module");
-  }
+  const filters = parseFeedbackFilters(req.query);
   const rows = await db.select({ entry: feedbackEntrySelection, fullName: users.fullName, email: users.email })
     .from(feedbackEntries)
     .innerJoin(users, eq(users.id, feedbackEntries.userId))
     .where(and(
       eq(feedbackEntries.organizationId, req.currentUser!.organizationId),
       isNull(feedbackEntries.deletedAt),
-      module ? eq(feedbackEntries.module, module) : undefined,
+      filters.module ? eq(feedbackEntries.module, filters.module) : undefined,
+      filters.resolutions ? inArray(feedbackEntries.resolution, filters.resolutions) : undefined,
     ))
     .orderBy(desc(feedbackEntries.createdAt));
   const history = await statusHistoryByFeedback(rows.map(({ entry }) => entry.id));

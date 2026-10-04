@@ -6,7 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ExportFeedbackEntriesModule } from './exportFeedbackEntriesModule';
+import type { ExportFeedbackEntriesResolution } from './exportFeedbackEntriesResolution';
 
 export type ExportFeedbackEntriesParams = {
 module?: ExportFeedbackEntriesModule;
+/**
+ * Filter by status. Reviewing includes legacy additional-info-required entries.
+ */
+resolution?: ExportFeedbackEntriesResolution;
 };

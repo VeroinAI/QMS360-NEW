@@ -3850,6 +3850,10 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 module?: ListFeedbackEntriesModule;
+/**
+ * Filter by status. Reviewing includes legacy additional-info-required entries.
+ */
+resolution?: ListFeedbackEntriesResolution;
 };
 
 export type ListFeedbackEntriesModule = typeof ListFeedbackEntriesModule[keyof typeof ListFeedbackEntriesModule];
@@ -3862,8 +3866,24 @@ export const ListFeedbackEntriesModule = {
   system: 'system',
 } as const;
 
+export type ListFeedbackEntriesResolution = typeof ListFeedbackEntriesResolution[keyof typeof ListFeedbackEntriesResolution];
+
+
+export const ListFeedbackEntriesResolution = {
+  open: 'open',
+  reviewing: 'reviewing',
+  hold: 'hold',
+  additional_info_required: 'additional_info_required',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
 export type ExportFeedbackEntriesParams = {
 module?: ExportFeedbackEntriesModule;
+/**
+ * Filter by status. Reviewing includes legacy additional-info-required entries.
+ */
+resolution?: ExportFeedbackEntriesResolution;
 };
 
 export type ExportFeedbackEntriesModule = typeof ExportFeedbackEntriesModule[keyof typeof ExportFeedbackEntriesModule];
@@ -3874,6 +3894,18 @@ export const ExportFeedbackEntriesModule = {
   lessons: 'lessons',
   audit: 'audit',
   system: 'system',
+} as const;
+
+export type ExportFeedbackEntriesResolution = typeof ExportFeedbackEntriesResolution[keyof typeof ExportFeedbackEntriesResolution];
+
+
+export const ExportFeedbackEntriesResolution = {
+  open: 'open',
+  reviewing: 'reviewing',
+  hold: 'hold',
+  additional_info_required: 'additional_info_required',
+  resolved: 'resolved',
+  closed: 'closed',
 } as const;
 
 export type ListMyFeedbackEntriesParams = {
