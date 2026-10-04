@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { parseSpreadsheetDate, parseSpreadsheetData, type SpreadsheetDateOptions } from "@workspace/spreadsheet-dates";
 
 export type ReportingType = "monthly" | "daily" | "csat";
 export type ReportingProjectOption = { id: string; name: string; code: string; costCentre?: string | null };
@@ -10,10 +11,10 @@ const TYPE_FIELDS: Record<ReportingType, Array<[string, string, string]>> = {
   monthly: [
     ["noUpdates", "No updates this month?", "boolean"],
     ["pqpStatus", "PQP status", "text"], ["pqpOther", "Other PQP status", "text"],
-    ["pqpSubmittedDate", "PQP submission date (YYYY-MM-DD)", "date"],
-    ["pqpApprovedDate", "PQP approval date (YYYY-MM-DD)", "date"],
-    ["reportReference", "Last report reference", "text"], ["reportFrom", "Report from date (YYYY-MM-DD)", "date"],
-    ["reportTo", "Report to date (YYYY-MM-DD)", "date"],
+    ["pqpSubmittedDate", "PQP submission date (DD/MM/YYYY)", "date"],
+    ["pqpApprovedDate", "PQP approval date (DD/MM/YYYY)", "date"],
+    ["reportReference", "Last report reference", "text"], ["reportFrom", "Report from date (DD/MM/YYYY)", "date"],
+    ["reportTo", "Report to date (DD/MM/YYYY)", "date"],
     ["meetings", "Meetings (JSON array; each entry has type,lastDate,nextDate)", "json"],
     ["internalAudit", "Internal audit (JSON object: conducted,lastDate,nextDate)", "json"],
     ["manpower", "Manpower (JSON array: department,count,approvalRequired,approved,rejected)", "json"],
@@ -58,11 +59,10 @@ function workbookBuffer(base64: string) {
   return bytes;
 }
 
-function parseCell(raw: unknown, kind: string) {
+function parseCell(raw: unknown, kind: string, dateOptions: SpreadsheetDateOptions = {}) {
   if (raw === null || raw === undefined || raw === "") return undefined;
   if (kind === "json") {
-    if (typeof raw !== "string") return raw;
-    return JSON.parse(raw);
+    return parseSpreadsheetData(typeof raw === "string" ? JSON.parse(raw) : raw, dateOptions);
   }
   if (kind === "boolean") {
     if (raw === true || raw === false) return raw;
@@ -71,19 +71,12 @@ function parseCell(raw: unknown, kind: string) {
     if (["no", "false", "0"].includes(value)) return false;
     throw new Error("Enter Yes or No");
   }
-  if (kind === "date" && typeof raw === "number") {
-    const date = XLSX.SSF.parse_date_code(raw);
-    if (!date) throw new Error("Enter a valid date as YYYY-MM-DD");
-    return `${date.y}-${String(date.m).padStart(2, "0")}-${String(date.d).padStart(2, "0")}`;
+  if (kind === "date") {
+    const date = parseSpreadsheetDate(raw, dateOptions);
+    if (!date) throw new Error("Enter a valid date as DD/MM/YYYY");
+    return date;
   }
-  const text = String(raw).trim();
-  if (kind === "date" && text) {
-    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
-    if (!match) throw new Error("Enter a valid date as YYYY-MM-DD");
-    const parsed = new Date(`${text}T00:00:00.000Z`);
-    if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== text) throw new Error("Enter a valid date as YYYY-MM-DD");
-  }
-  return text;
+  return String(raw).trim();
 }
 
 function deepSet(target: Record<string, unknown>, path: string, value: unknown) {
@@ -105,7 +98,7 @@ function tableRows(
   const sheet = workbook.Sheets[sheetName];
   if (!sheet) return [];
   const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
-  const header = (rows[0] ?? []).map((value) => String(value).trim());
+  const header = (rows[0] ?? []).map((value) => String(value).trim().replaceAll("YYYY-MM-DD", "DD/MM/YYYY"));
   if (expectedHeaders.some((expected, index) => header[index] !== expected)) {
     errors.push({ sheet: sheetName, row: 1, field: "header", message: `Expected columns: ${expectedHeaders.join(", ")}` });
     return [];
@@ -138,7 +131,7 @@ function readDynamicSheets(
   if (reportType === "monthly") {
     const meetings: Array<Record<string, unknown>> = [];
     const meetingRows = tableRows(workbook, "Meetings", [
-      "Type", "Last meeting date (YYYY-MM-DD)", "Next meeting date (YYYY-MM-DD)",
+      "Type", "Last meeting date (DD/MM/YYYY)", "Next meeting date (DD/MM/YYYY)",
     ], errors);
     for (const { row, rowNumber } of meetingRows) {
       const type = requiredText(row[0], "Meetings", rowNumber, "Type", errors);
@@ -146,8 +139,9 @@ function readDynamicSheets(
         errors.push({ sheet: "Meetings", row: rowNumber, field: "Type", message: "Select a supported meeting type" });
       }
       try {
-        const lastDate = parseCell(row[1], "date");
-        const nextDate = parseCell(row[2], "date");
+        const dateOptions = { date1904: !!workbook.Workbook?.WBProps?.date1904 };
+        const lastDate = parseCell(row[1], "date", dateOptions);
+        const nextDate = parseCell(row[2], "date", dateOptions);
         if (!lastDate) throw new Error("Last meeting date is required");
         if (!nextDate) throw new Error("Next meeting date is required");
         meetings.push({ type, lastDate, nextDate });
@@ -247,6 +241,7 @@ export function makeQaqcReportingTemplate(
     ["QA/QC Reporting Import Template", "Complete the Values in the Report Data sheet, then upload for preview. Import never saves or submits."],
     ["Report type", reportType],
     ["Period", "Set the reporting period in the application before importing."],
+    ["Date format", "DD/MM/YYYY. Use this format for all date cells and dates inside JSON values."],
     ["Project", "Choose a project in the application. Do not enter or edit a project UUID in this workbook."],
       ["Value format", "Use Yes/No for boolean fields. Dynamic meetings, manpower, ageing, QMS and revision entries have separate sheets."],
     ["", ""],
@@ -259,7 +254,7 @@ export function makeQaqcReportingTemplate(
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), "Report Data");
   if (reportType === "monthly") {
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
-      ["Type", "Last meeting date (YYYY-MM-DD)", "Next meeting date (YYYY-MM-DD)"],
+      ["Type", "Last meeting date (DD/MM/YYYY)", "Next meeting date (DD/MM/YYYY)"],
     ]), "Meetings");
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
       ["Department", "Headcount", "Client approval required (Yes/No)", "Approved", "Rejected"],
@@ -321,7 +316,7 @@ export function parseQaqcReportingWorkbook(input: {
     seen.add(field);
     sourceRows.set(field.split(".")[0]!, { sheet: "Report Data", row: rowNumber });
     try {
-      const value = parseCell(rawValue, fieldSpec.kind);
+      const value = parseCell(rawValue, fieldSpec.kind, { date1904: !!workbook.Workbook?.WBProps?.date1904 });
       if (value !== undefined) deepSet(data, field, value);
     } catch (error) {
       errors.push({ sheet: "Report Data", row: rowNumber, field, message: error instanceof Error ? error.message : "Invalid value" });

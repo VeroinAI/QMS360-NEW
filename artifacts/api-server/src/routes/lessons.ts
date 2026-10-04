@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { formatSpreadsheetData } from "@workspace/spreadsheet-dates";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Router, type IRouter } from "express";
@@ -1166,7 +1167,7 @@ function csvCell(value: unknown) {
 function csv(rows: Array<Record<string, unknown>>) {
   if (!rows.length) return "";
   const keys = Object.keys(rows[0]!);
-  return `${keys.map(csvCell).join(",")}\n${rows.map((row) => keys.map((key) => csvCell(row[key])).join(",")).join("\n")}\n`;
+  return `${keys.map(csvCell).join(",")}\n${rows.map((row) => keys.map((key) => csvCell(formatSpreadsheetData(row[key], key))).join(",")).join("\n")}\n`;
 }
 
 router.get("/reports/log", requirePermission("lessons", "lessons", "select"), asyncHandler(async (req, res) => {

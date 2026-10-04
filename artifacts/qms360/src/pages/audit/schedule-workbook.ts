@@ -1,17 +1,18 @@
 import type { AuditSchedule } from "@workspace/api-client-react";
+import { formatSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import { categoryOptionsForAuditType, linkedAuditTypes } from "./audit-category-options";
 
 export const scheduleImportHeaders = [
   "Audit Type", "Audit Category", "Department / Project", "Location", "Audit Title",
-  "Process / Product Owner", "From Date (YYYY-MM-DD)", "To Date (YYYY-MM-DD)", "Remarks",
+  "Process / Product Owner", "From Date (DD/MM/YYYY)", "To Date (DD/MM/YYYY)", "Remarks",
 ];
 
 const scheduleHeaderAliases: Record<string, string> = {
   audittype: "auditTypes", audittypevalue: "auditTypes", auditcategory: "auditCategory",
   departmentproject: "departmentProject", project: "departmentProject", location: "location",
   audittitle: "title", processeeproductowner: "processProductOwner", processproductowner: "processProductOwner",
-  fromdate: "plannedStartDate", fromdateyyyymmdd: "plannedStartDate", startdate: "plannedStartDate",
-  todate: "plannedEndDate", todateyyyymmdd: "plannedEndDate", enddate: "plannedEndDate",
+  fromdate: "plannedStartDate", fromdateddmmyyyy: "plannedStartDate", fromdateyyyymmdd: "plannedStartDate", startdate: "plannedStartDate",
+  todate: "plannedEndDate", todateddmmyyyy: "plannedEndDate", todateyyyymmdd: "plannedEndDate", enddate: "plannedEndDate",
   remarks: "remarks",
 };
 
@@ -69,7 +70,7 @@ export async function createScheduleWorkbook(
       item.auditTypes?.join(", ") ?? "", item.auditCategory ?? "",
       project ? projectDropdownLabel(project) : item.departmentProject ?? "",
       item.location ?? "", item.title, item.processProductOwner ?? "",
-      item.plannedStartDate.slice(0, 10), item.plannedEndDate.slice(0, 10), item.remarks ?? "",
+      formatSpreadsheetDate(item.plannedStartDate), formatSpreadsheetDate(item.plannedEndDate), item.remarks ?? "",
     ]);
   }
 
@@ -136,6 +137,8 @@ export async function createScheduleWorkbook(
   });
   const lastRow = Math.min(1_048_576, Math.max(1001, schedules.length + 501));
   for (let row = 2; row <= lastRow; row += 1) {
+    sheet.getCell(`G${row}`).numFmt = "dd/mm/yyyy";
+    sheet.getCell(`H${row}`).numFmt = "dd/mm/yyyy";
     sheet.getCell(`A${row}`).dataValidation = listValidation("AuditTypes");
     sheet.getCell(`B${row}`).dataValidation = listValidation(linkedCategories
       ? `INDIRECT(IFERROR(VLOOKUP($A${row},AuditCategoryMap,2,FALSE),"EmptyAuditCategories"))`
@@ -148,10 +151,10 @@ export async function createScheduleWorkbook(
   [
     ["Audit Schedule Import Instructions"],
     ["Template columns", scheduleImportHeaders.join(", ")],
-    ["Mandatory columns", "Audit Type, Audit Category, Department / Project, Audit Title, Process / Product Owner, From Date (YYYY-MM-DD), To Date (YYYY-MM-DD)"],
+    ["Mandatory columns", "Audit Type, Audit Category, Department / Project, Audit Title, Process / Product Owner, From Date (DD/MM/YYYY), To Date (DD/MM/YYYY)"],
     ["Dropdown fields", "Audit Type, Audit Category, Department / Project, Process / Product Owner (active Audit users assigned the Product / Process Owner authorization). The Audit Category dropdown follows the Audit Type when links are configured in master data; reselect the category if you change the type. The Department / Project dropdown depends on Audit Type."],
-    ["Date format", "YYYY-MM-DD"],
-    ["Parent range", range ? `${range.fromDate} through ${range.toDate}` : "No parent range"],
+    ["Date format", "DD/MM/YYYY"],
+    ["Parent range", range ? `${formatSpreadsheetDate(range.fromDate)} through ${formatSpreadsheetDate(range.toDate)}` : "No parent range"],
   ].forEach(row => instructions.addRow(row));
   instructions.getColumn(1).width = 24;
   instructions.getColumn(2).width = 110;

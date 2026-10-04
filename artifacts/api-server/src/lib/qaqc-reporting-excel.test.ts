@@ -14,6 +14,65 @@ const validate = (_type: ReportingType, data: Record<string, unknown>) =>
   typeof data.narrative === "string" ? [] : ["narrative is required"];
 
 describe("QA/QC reporting Excel tools", () => {
+  it("documents DD/MM/YYYY in descriptions and instructions", () => {
+    const workbook = XLSX.read(makeQaqcReportingTemplate("monthly"), { type: "buffer" });
+    const descriptions = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets["Report Data"], { header: 1 }).flat().join(" ");
+    const instructions = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets.Instructions, { header: 1 }).flat().join(" ");
+    expect(descriptions).toContain("DD/MM/YYYY");
+    expect(descriptions).not.toContain("YYYY-MM-DD");
+    expect(instructions).toContain("DD/MM/YYYY");
+  });
+
+  it("normalizes day-first scalar, meeting and JSON dates to existing API dates", () => {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ["Field", "Description", "Value"],
+      ["pqpSubmittedDate", "", "04/05/2026"],
+      ["reportFrom", "", "01/05/2026"],
+      ["reportTo", "", "31/05/2026"],
+      ["internalAudit", "", '{"conducted":true,"lastDate":"03/05/2026","nextDate":"03/06/2026"}'],
+    ]), "Report Data");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ["Type", "Last meeting date (DD/MM/YYYY)", "Next meeting date (DD/MM/YYYY)"],
+      ["Internal Meeting", "04/05/2026", "05/06/2026"],
+    ]), "Meetings");
+    const result = parseQaqcReportingWorkbook({
+      reportType: "monthly",
+      base64: (XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer).toString("base64"),
+      validate: () => [],
+    });
+    expect(result.errors).toEqual([]);
+    expect(result.data.pqpSubmittedDate).toBe("2026-05-04");
+    expect(result.data.reportFrom).toBe("2026-05-01");
+    expect(result.data.reportTo).toBe("2026-05-31");
+    expect(result.data.internalAudit).toEqual({ conducted: true, lastDate: "2026-05-03", nextDate: "2026-06-03" });
+    expect(result.data.meetings).toEqual([{ type: "Internal Meeting", lastDate: "2026-05-04", nextDate: "2026-06-05" }]);
+  });
+
+  it("rejects invalid calendar dates before persistence", () => {
+    const result = parseQaqcReportingWorkbook({
+      reportType: "monthly",
+      base64: base64Workbook([["Field", "Description", "Value"], ["reportFrom", "", "31/02/2026"]]),
+      validate: () => [],
+    });
+    expect(result.errors).toContainEqual({ sheet: "Report Data", row: 2, field: "reportFrom", message: "Enter a valid date as DD/MM/YYYY" });
+    expect(result.data.reportFrom).toBeUndefined();
+  });
+
+  it("honors the workbook 1904 date system for native date values", () => {
+    const workbook = XLSX.utils.book_new();
+    workbook.Workbook = { WBProps: { date1904: true } };
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+      ["Field", "Description", "Value"], ["pqpSubmittedDate", "", 0],
+    ]), "Report Data");
+    const result = parseQaqcReportingWorkbook({
+      reportType: "monthly",
+      base64: (XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer).toString("base64"),
+      validate: () => [],
+    });
+    expect(result.errors).toEqual([]);
+    expect(result.data.pqpSubmittedDate).toBe("1904-01-01");
+  });
   it("creates human-readable instructions, named project options, and a report data sheet", () => {
     const bytes = makeQaqcReportingTemplate("monthly", [{
       id: "project-id-not-a-template-input", name: "Central Hospital", code: "CH-01", costCentre: "CC-4",

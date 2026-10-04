@@ -3,6 +3,7 @@ import http from "node:http";
 import https from "node:https";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import * as XLSX from "xlsx";
+import { isSpreadsheetDateField, parseSpreadsheetData, parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import {
   connectorFieldMappings, db, importTemplates, integrationConnectors, projects, syncJobs, users,
 } from "@workspace/db";
@@ -505,7 +506,11 @@ export function validateTemplateColumns(entity: SyncEntity, columns: TemplateCol
 /** Builds the downloadable .xlsx for a template. Header row only — a hint row
  *  would round-trip through parseImportFile as a bogus data row. */
 export function buildTemplateFile(template: { entity: string; name: string; columns: TemplateColumn[] }): { fileName: string; contentBase64: string } {
-  const headers = template.columns.map((column) => column.header);
+  const headers = template.columns.map((column) => {
+    const header = column.header.replaceAll("YYYY-MM-DD", "DD/MM/YYYY");
+    return (isSpreadsheetDateField(column.field) || isSpreadsheetDateField(column.header)) && !header.includes("DD/MM/YYYY")
+      ? `${header} (DD/MM/YYYY)` : header;
+  });
   const sheet = XLSX.utils.aoa_to_sheet([headers]);
   sheet["!cols"] = headers.map((header) => ({ wch: Math.max(14, header.length + 4) }));
   const workbook = XLSX.utils.book_new();
@@ -527,23 +532,37 @@ export function parseImportFile(buffer: Buffer, template: { columns: TemplateCol
   const sheet = sheetName ? workbook.Sheets[sheetName] : undefined;
   if (!sheet) throw new HttpError(422, "The workbook has no sheets");
   const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
-  const headerRow = (grid[0] ?? []).map((cell) => String(cell ?? "").trim().toLowerCase());
-  const positions = template.columns.map((column) => ({ column, index: headerRow.indexOf(column.header.trim().toLowerCase()) }));
+  const normalizeHeader = (value: unknown) => String(value ?? "").trim().replace(/\s*\((?:DD\/MM\/YYYY|YYYY-MM-DD)\)/gi, "").replace(/YYYY-MM-DD/gi, "DD/MM/YYYY").toLowerCase();
+  const headerRow = (grid[0] ?? []).map(normalizeHeader);
+  const positions = template.columns.map((column) => ({ column, index: headerRow.indexOf(normalizeHeader(column.header)) }));
   const missing = positions.filter((position) => position.column.required && position.index === -1);
   if (missing.length) {
     throw new HttpError(422, `Missing required column(s): ${missing.map((position) => position.column.header).join(", ")}`);
   }
   const rows: Array<Record<string, unknown>> = [];
-  for (const cells of grid.slice(1)) {
+  for (const [rowIndex, cells] of grid.slice(1).entries()) {
     const keyed: Record<string, unknown> = {};
     let hasValue = false;
     for (const { column, index } of positions) {
       if (index === -1) continue;
       const value = cells[index];
       if (value != null && String(value).trim() !== "") hasValue = true;
-      keyed[column.field] = typeof value === "string" ? value.trim() : value;
+      if (value != null && String(value).trim() !== "" && (isSpreadsheetDateField(column.field)
+        || isSpreadsheetDateField(column.header) || /DD\/MM\/YYYY|YYYY-MM-DD/i.test(column.header))) {
+        const date = parseSpreadsheetDate(value, { date1904: !!workbook.Workbook?.WBProps?.date1904 });
+        if (!date) throw new HttpError(422, `Row ${rowIndex + 2}: ${column.field}: enter a valid date as DD/MM/YYYY`);
+        keyed[column.field] = date;
+      } else {
+        keyed[column.field] = typeof value === "string" ? value.trim() : value;
+      }
     }
-    if (hasValue) rows.push(keyed);
+    if (hasValue) {
+      try {
+        rows.push(parseSpreadsheetData(keyed, { date1904: !!workbook.Workbook?.WBProps?.date1904 }));
+      } catch (error) {
+        throw new HttpError(422, `Row ${rowIndex + 2}: ${error instanceof Error ? error.message : "Dates must use DD/MM/YYYY"}`);
+      }
+    }
   }
   if (!rows.length) throw new HttpError(422, "The workbook contains no data rows");
   return rows;

@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import * as XLSX from "xlsx";
+import { formatSpreadsheetData } from "@workspace/spreadsheet-dates";
 import type { ReportingType } from "./qaqc-reporting-excel";
 
 export type QaqcReportExport = {
@@ -92,10 +93,11 @@ function reportWorkbook(report: QaqcReportExport) {
 }
 
 export function exportQaqcReportExcel(report: QaqcReportExport): Buffer {
-  return XLSX.write(reportWorkbook(report), { type: "buffer", bookType: "xlsx" }) as Buffer;
+  return XLSX.write(reportWorkbook(formatSpreadsheetData(report)), { type: "buffer", bookType: "xlsx" }) as Buffer;
 }
 
 export function exportQaqcDashboardExcel(dashboard: QaqcDashboardExport): Buffer {
+  dashboard = formatSpreadsheetData(dashboard);
   const book = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([
     ["Dashboard", dashboard.title ?? "QA/QC reporting dashboard"],

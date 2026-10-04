@@ -74,6 +74,7 @@ import type {
   MeetingMinutes,
 } from "@workspace/api-client-react";
 import { eligiblePlanAudits, loadPlanOptionPages } from "./plan-schedule-options";
+import { parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import {
   AlertTriangle, ArrowLeft, BarChart3, CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck,
   Download, Eye, FileText, FolderOpen, Pencil, Plus, Search, Send, ShieldCheck,
@@ -136,23 +137,6 @@ export type ProgrammeSignatories = {
   preparedBy: ProgrammeSignatory | null;
   reviewedBy: ProgrammeSignatory[];
   approvedBy: ProgrammeSignatory | null;
-};
-const scheduleDate = (value: unknown) => {
-  if (value instanceof Date) {
-    const year = value.getFullYear();
-    const month = value.getMonth() + 1;
-    const day = value.getDate();
-    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  }
-  if (typeof value === "number") {
-    const parsed = XLSX.SSF.parse_date_code(value);
-    return parsed ? `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}` : "";
-  }
-  const candidate = String(value ?? "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return "";
-  const [year, month, day] = candidate.split("-").map(Number);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day ? candidate : "";
 };
 const programmeTimeline = (year: number) => {
   const weekMs = 7 * 24 * 60 * 60 * 1000;
@@ -1228,7 +1212,7 @@ function Schedules() {
     setLoadingFile(true);
     const failures: string[] = []; let created = 0;
     try {
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
       const first = workbook.Sheets[workbook.SheetNames[0]];
       const formulaCell = first && Object.entries(first).find(([address, cell]) =>
         !address.startsWith("!") && Boolean((cell as XLSX.CellObject).f));
@@ -1257,14 +1241,15 @@ function Schedules() {
         const department = isImportedProcessAudit
           ? departments.options.find(item => item.value === departmentProjectText || item.label === departmentProjectText)
           : undefined;
-        const start = scheduleDate(mapped.plannedStartDate); const end = scheduleDate(mapped.plannedEndDate);
+        const dateOptions = { date1904: !!workbook.Workbook?.WBProps?.date1904 };
+        const start = parseSpreadsheetDate(mapped.plannedStartDate, dateOptions); const end = parseSpreadsheetDate(mapped.plannedEndDate, dateOptions);
         const required = ["auditTypes", "auditCategory", "departmentProject", "title", "processProductOwner", "plannedStartDate", "plannedEndDate"];
         const missing = required.filter(key => !String(mapped[key] ?? "").trim());
         if (missing.length) { failures.push(`row ${index + 2}: missing ${missing.join(", ")}`); continue; }
         const categoryError = scheduleCategoryLinkError(auditCategories.values, importedAuditTypes, String(mapped.auditCategory).trim());
         if (categoryError) { failures.push(`row ${index + 2}: ${categoryError}`); continue; }
         if (!eligibleOwners.has(String(mapped.processProductOwner).trim())) { failures.push(`row ${index + 2}: Process / Product Owner must be an active Audit user with Product / Process Owner authorization`); continue; }
-        if (!start || !end) { failures.push(`row ${index + 2}: From Date and To Date must be valid calendar dates in YYYY-MM-DD format`); continue; }
+        if (!start || !end) { failures.push(`row ${index + 2}: From Date and To Date must be valid calendar dates in DD/MM/YYYY format`); continue; }
         if (isImportedProcessAudit && !department) { failures.push(`row ${index + 2}: Department / Project must be an active department value or exact name`); continue; }
         if (!isImportedProcessAudit && !project) { failures.push(`row ${index + 2}: Department / Project must be an active project choice, code, or exact name`); continue; }
         if (end < start) { failures.push(`row ${index + 2}: To Date must be on or after From Date`); continue; }

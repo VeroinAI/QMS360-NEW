@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { formatSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import { and, desc, eq, getTableColumns, inArray, isNull, sql } from "drizzle-orm";
 import { db, feedbackAttachments, feedbackEntries, feedbackStatusHistory, users } from "@workspace/db";
 import { CreateFeedbackAttachmentBody, SubmitFeedbackBody, TriageFeedbackBody, TriageFeedbackResponse, UpdateFeedbackResolutionBody } from "@workspace/api-zod";
@@ -240,10 +241,10 @@ router.get("/feedback/export", requireAdmin, asyncHandler(async (req, res) => {
     Email: email,
     Page: entry.pagePath ?? "",
     Application: entry.appKey ?? "",
-    "Created at": entry.createdAt.toISOString(),
-    "Updated at": entry.updatedAt.toISOString(),
+    "Created at": formatSpreadsheetDate(entry.createdAt),
+    "Updated at": formatSpreadsheetDate(entry.updatedAt),
     "Status history": (history.get(entry.id) ?? []).map((change) =>
-      `${change.changedAt.toISOString()}: ${change.fromStatus} -> ${change.toStatus} by ${change.changedById}`,
+      `${formatSpreadsheetDate(change.changedAt)}: ${change.fromStatus} -> ${change.toStatus} by ${change.changedById}`,
     ).join("\n"),
   }));
   const XLSX = await import("xlsx");

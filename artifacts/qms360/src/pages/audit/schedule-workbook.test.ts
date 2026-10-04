@@ -20,8 +20,8 @@ describe("audit schedule spreadsheet", () => {
     await reopened.xlsx.load(bytes);
     const sheet = reopened.getWorksheet("Audit Schedules")!;
     expect(sheet.getRow(1).values?.slice(1)).toEqual(scheduleImportHeaders);
-    expect(sheet.getCell("G1").value).toBe("From Date (YYYY-MM-DD)");
-    expect(sheet.getCell("H1").value).toBe("To Date (YYYY-MM-DD)");
+    expect(sheet.getCell("G1").value).toBe("From Date (DD/MM/YYYY)");
+    expect(sheet.getCell("H1").value).toBe("To Date (DD/MM/YYYY)");
     expect(sheet.getColumn(7).width).toBeGreaterThanOrEqual(24);
     expect(sheet.getColumn(8).width).toBeGreaterThanOrEqual(24);
     expect(sheet.getCell("A2").dataValidation.formulae).toEqual(["AuditTypes"]);
@@ -59,13 +59,16 @@ describe("audit schedule spreadsheet", () => {
     await reopened.xlsx.load(bytes);
     const sheet = reopened.getWorksheet("Audit Schedules")!;
     expect(sheet.getCell("E2").value).toBe("Plant review");
-    expect(sheet.getCell("G2").value).toBe("2026-10-01");
+    expect(sheet.getCell("G2").value).toBe("01/10/2026");
+    expect(sheet.getCell("G2").numFmt).toBe("dd/mm/yyyy");
     const loaded = XLSX.read(bytes, { type: "array" });
     const data = XLSX.utils.sheet_to_json<Record<string, string>>(loaded.Sheets["Audit Schedules"]);
     expect(scheduleFieldForHeader("From Date (YYYY-MM-DD)")).toBe("plannedStartDate");
     expect(scheduleFieldForHeader("To Date (YYYY-MM-DD)")).toBe("plannedEndDate");
-    expect(data[0]["From Date (YYYY-MM-DD)"]).toBe("2026-10-01");
-    expect(data[0]["To Date (YYYY-MM-DD)"]).toBe("2026-10-02");
+    expect(data[0]["From Date (DD/MM/YYYY)"]).toBe("01/10/2026");
+    expect(data[0]["To Date (DD/MM/YYYY)"]).toBe("02/10/2026");
+    expect(scheduleFieldForHeader("From Date (DD/MM/YYYY)")).toBe("plannedStartDate");
+    expect(scheduleFieldForHeader("To Date (DD/MM/YYYY)")).toBe("plannedEndDate");
     expect(scheduleFieldForHeader("From Date")).toBe("plannedStartDate");
     expect(scheduleFieldForHeader("To Date")).toBe("plannedEndDate");
     expect(sheet.getCell("C3").dataValidation.formulae).toEqual([

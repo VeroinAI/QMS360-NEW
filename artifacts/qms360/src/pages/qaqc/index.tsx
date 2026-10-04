@@ -1,3 +1,4 @@
+import { parseSpreadsheetDate, type SpreadsheetDateOptions } from "@workspace/spreadsheet-dates";
 import { useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Link, Route, Switch, useLocation, useRoute } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
@@ -198,16 +199,19 @@ function parseCsvRows(text: string): string[][] {
   return rows;
 }
 
-function tableToMetricRows(header: string[] | undefined, lines: string[][]): QAQCMetricEntry[] {
+function tableToMetricRows(header: string[] | undefined, lines: unknown[][], dateOptions: SpreadsheetDateOptions = {}): QAQCMetricEntry[] {
   if (!header) return [];
-  const keys = header.map((h) => h.trim());
-  return lines.map((cols) => {
+  const keys = header.map((h) => h.trim().replace(/\s*\((?:DD\/MM\/YYYY|YYYY-MM-DD)\)/gi, ""));
+  return lines.map((cols, index) => {
     const raw: Record<string, string> = {};
     keys.forEach((key, i) => { raw[key] = String(cols[i] ?? '').trim(); });
+    const rawPeriod = cols[keys.indexOf("period")];
+    const period = raw.period ? parseSpreadsheetDate(/^\d{4}-\d{2}$/.test(raw.period) ? `${raw.period}-01` : rawPeriod, dateOptions) : "";
+    if (raw.period && !period) throw new Error(`Row ${index + 2}: period must be a valid date in DD/MM/YYYY format.`);
     return {
       id: raw.id || crypto.randomUUID(),
       projectId: raw.projectId || '',
-      period: raw.period || '',
+      period: period || '',
       category: raw.category || 'External NCR',
       issuedCount: Number(raw.issuedCount || 0),
       closedCount: Number(raw.closedCount || 0),
@@ -243,9 +247,9 @@ async function xlsxToMetricRows(file: File): Promise<QAQCMetricEntry[]> {
   const workbook = XLSX.read(await file.arrayBuffer());
   const sheet = workbook.Sheets[workbook.SheetNames[0]!];
   if (!sheet) return [];
-  const grid = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, raw: false, defval: '' });
+  const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: '' });
   const [header, ...lines] = grid;
-  return tableToMetricRows(header, lines as string[][]);
+  return tableToMetricRows(header?.map(value => String(value)), lines, { date1904: !!workbook.Workbook?.WBProps?.date1904 });
 }
 
 function MetricsPage() {

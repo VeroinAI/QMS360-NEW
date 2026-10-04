@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { formatSpreadsheetDate, isSpreadsheetDateField } from "@workspace/spreadsheet-dates";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql,
@@ -532,7 +533,8 @@ router.get("/dashboard", asyncHandler(async (req, res) => {
 }));
 
 const csvCell = (value: unknown) => `"${String(value ?? "").replaceAll("\"", "\"\"")}"`;
-const toCsv = (headers: string[], rows: unknown[][]) => [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+const toCsv = (headers: string[], rows: unknown[][]) => [headers, ...rows.map(row => row.map((value, index) =>
+  isSpreadsheetDateField(headers[index] ?? "") ? formatSpreadsheetDate(value) : value))].map((row) => row.map(csvCell).join(",")).join("\r\n");
 function sendDownload(res: Response, fileName: string, csv: string) {
   res.json({ delivery: "download", fileName, downloadUrl: `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`, message: null });
 }
@@ -559,13 +561,15 @@ router.get("/reports/document-governance", asyncHandler(async (req, res) => {
   const rows = await db.select().from(documentGovernanceLogEntries).where(and(eq(documentGovernanceLogEntries.organizationId, org(req)), isNull(documentGovernanceLogEntries.deletedAt), ...filters));
   sendDownload(res, "document-governance.csv", toCsv(["Project ID", "Date", "Discipline ID", "Document Type", "Status", "Review Days", "Pending With", "Pending Days", "Correspondence Count"], rows.map((r) => { const m = mapDocument(r); return [m.projectId, m.date, m.disciplineId, m.documentType, m.status, m.reviewDays, m.pendingWith, m.pendingDays, m.correspondenceCount]; })));
 }));
-const TEMPLATE_HEADERS = ["id", "projectId", "period", "category", "issuedCount", "closedCount", "ageing0To15", "ageing15To45", "ageingOver45", "workflowState"];
+const TEMPLATE_HEADERS = ["id", "projectId", "period (DD/MM/YYYY)", "category", "issuedCount", "closedCount", "ageing0To15", "ageing15To45", "ageingOver45", "workflowState"];
 router.get("/metrics/template", asyncHandler(async (req, res) => {
   if (String(req.query.format ?? "") === "xlsx") {
     const XLSX = await import("xlsx");
     const sheet = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS]);
+    const instructions = XLSX.utils.aoa_to_sheet([["Date format", "DD/MM/YYYY"], ["Period", "Enter the reporting date as DD/MM/YYYY. The reporting month is derived from this date."]]);
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, "Metrics");
+    XLSX.utils.book_append_sheet(book, instructions, "Instructions");
     const buffer = XLSX.write(book, { type: "buffer", bookType: "xlsx" }) as Buffer;
     res.json({ delivery: "download", fileName: "qaqc-metrics-template.xlsx", downloadUrl: `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${buffer.toString("base64")}`, message: null });
     return;
