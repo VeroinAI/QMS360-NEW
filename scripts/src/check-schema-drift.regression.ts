@@ -1,8 +1,9 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runSemanticFixtures } from "./schema-semantics.regression";
 
 /**
  * Regression test for the drift guard's parsing of the versioned migrations in
@@ -25,12 +26,19 @@ const migrationSql = journal.entries
   .join("\n");
 
 function runCheck(sqlText: string): { status: number; output: string } {
-  const file = join(mkdtempSync(join(tmpdir(), "drift-guard-")), "schema.sql");
+  const directory = mkdtempSync(join(tmpdir(), "drift-guard-"));
+  const file = join(directory, "schema.sql");
   writeFileSync(file, sqlText);
-  const res = spawnSync("pnpm", ["exec", "tsx", "src/check-schema-drift.ts", file], {
-    cwd: join(here, ".."), encoding: "utf8",
-  });
-  return { status: res.status ?? 1, output: `${res.stdout}\n${res.stderr}` };
+  try {
+    const res = spawnSync("pnpm", ["exec", "tsx", "src/check-schema-drift.ts", "--migration-only", file], {
+      cwd: join(here, ".."), encoding: "utf8",
+      // Offline fixtures need only schema exports; the pool is never connected.
+      env: { ...process.env, DATABASE_URL: "postgresql://fixture:fixture@127.0.0.1:1/fixture" },
+    });
+    return { status: res.status ?? 1, output: `${res.stdout}\n${res.stderr}` };
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 }
 
 function expectCase(name: string, sqlText: string, expectedStatus: number, expectInOutput?: string) {
@@ -53,7 +61,9 @@ function editTableBlock(sql: string, qualifiedTable: string, edit: (block: strin
   return sql.slice(0, start) + edit(block) + sql.slice(end);
 }
 
-// 1. The real migration set must pass.
+await runSemanticFixtures();
+
+// 1. The real migration set must pass, independently of development catalog drift.
 expectCase("untampered migration SQL passes", migrationSql, 0);
 
 // 2. Removing a column from one table must fail — even though other tables keep a

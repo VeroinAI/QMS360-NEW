@@ -2,10 +2,11 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
-import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 import * as schema from "@workspace/db";
 import { db } from "@workspace/db";
 import { managedSchemas } from "@workspace/db/managed-schemas";
+import { drizzleTables, readTables } from "./schema-catalog";
+import { compareTables } from "./schema-semantics";
 
 /**
  * Schema drift guard. Fails loudly (exit 1) when the live database or
@@ -15,10 +16,12 @@ import { managedSchemas } from "@workspace/db/managed-schemas";
  *
  * Errors (exit 1):
  *   1. A drizzle enum type or label is missing from the live database.
- *   2. A drizzle table or column is missing from the live database.
+ *   2. A table/column is missing or a column/index/foreign-key definition differs.
  *   3. A drizzle enum type/label or table is missing from the migration SQL.
  * Warnings (printed, non-fatal): objects present in the database under our
- * managed schemas but not in the drizzle schema.
+ * managed schemas but not in the drizzle schema. They are preserved, not removed.
+ * Equivalent default spelling and constraint/index names do not count as drift.
+ * All live inspection runs in a read-only transaction. This script never runs DDL.
  *
  * Run before promoting schema changes to production:
  *   pnpm --filter @workspace/scripts run check-drift
@@ -33,70 +36,55 @@ const warnings: string[] = [];
 // ---- Drizzle-side truth ---------------------------------------------------------
 type EnumInfo = { schema: string; name: string; values: string[] };
 const enums: EnumInfo[] = [];
-const tables: Array<{ schema: string; name: string; columns: string[] }> = [];
+const tables = drizzleTables(schema);
+// Offline migration-coverage mode for fixtures; normal pre-Publish checks ALWAYS
+// inspect the catalog as well. No connection override/force flag is supported.
+const migrationOnly = process.argv.includes("--migration-only");
 
 for (const value of Object.values(schema)) {
   const v = value as unknown as Record<string, unknown> | null;
   // Drizzle pgEnum instances are callable function objects, not plain objects.
   if (v && (typeof v === "object" || typeof v === "function") && typeof v.enumName === "string" && Array.isArray(v.enumValues)) {
     enums.push({ schema: (v.schema as string) ?? "public", name: v.enumName as string, values: [...(v.enumValues as string[])] });
-  } else if (v instanceof PgTable) {
-    const config = getTableConfig(v);
-    tables.push({ schema: config.schema ?? "public", name: config.name, columns: config.columns.map((c) => c.name) });
   }
 }
 
 // ---- Database-side truth --------------------------------------------------------
 const schemaList = SCHEMAS.map((s) => `'${s}'`).join(", ");
-const enumRows = await db.execute(sql.raw(`
-  SELECT n.nspname AS schema, t.typname AS name, e.enumlabel AS label
-  FROM pg_type t
-  JOIN pg_namespace n ON n.oid = t.typnamespace
-  JOIN pg_enum e ON e.enumtypid = t.oid
-  WHERE n.nspname IN (${schemaList})
-`));
-const dbEnumLabels = new Map<string, Set<string>>();
-for (const row of enumRows.rows as Array<{ schema: string; name: string; label: string }>) {
-  const key = `${row.schema}.${row.name}`;
-  if (!dbEnumLabels.has(key)) dbEnumLabels.set(key, new Set());
-  dbEnumLabels.get(key)!.add(row.label);
-}
-
-const columnRows = await db.execute(sql.raw(`
-  SELECT table_schema, table_name, column_name
-  FROM information_schema.columns
-  WHERE table_schema IN (${schemaList})
-`));
-const dbColumns = new Map<string, Set<string>>();
-for (const row of columnRows.rows as Array<{ table_schema: string; table_name: string; column_name: string }>) {
-  const key = `${row.table_schema}.${row.table_name}`;
-  if (!dbColumns.has(key)) dbColumns.set(key, new Set());
-  dbColumns.get(key)!.add(row.column_name);
-}
-
-// ---- Live database comparisons --------------------------------------------------
-for (const e of enums) {
-  const key = `${e.schema}.${e.name}`;
-  const labels = dbEnumLabels.get(key);
-  if (!labels) { errors.push(`Enum type missing in database: ${key} (expects: ${e.values.join(", ")})`); continue; }
-  for (const value of e.values) {
-    if (!labels.has(value)) errors.push(`Enum label missing in database: ${key} value '${value}'`);
+if (!migrationOnly) await db.transaction(async (tx) => {
+  await tx.execute(sql`SET TRANSACTION READ ONLY`);
+  const enumRows = await tx.execute(sql.raw(`
+    SELECT n.nspname AS schema, t.typname AS name, e.enumlabel AS label
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    JOIN pg_enum e ON e.enumtypid = t.oid
+    WHERE n.nspname IN (${schemaList})
+  `));
+  const dbEnumLabels = new Map<string, Set<string>>();
+  for (const row of enumRows.rows as Array<{ schema: string; name: string; label: string }>) {
+    const key = `${row.schema}.${row.name}`;
+    if (!dbEnumLabels.has(key)) dbEnumLabels.set(key, new Set());
+    dbEnumLabels.get(key)!.add(row.label);
   }
-}
-for (const t of tables) {
-  const key = `${t.schema}.${t.name}`;
-  const columns = dbColumns.get(key);
-  if (!columns) { errors.push(`Table missing in database: ${key}`); continue; }
-  for (const column of t.columns) {
-    if (!columns.has(column)) errors.push(`Column missing in database: ${key}.${column}`);
+
+  const liveTables = await readTables(async <T>(text: string) => (await tx.execute(sql.raw(text))).rows as T[], SCHEMAS);
+  const report = compareTables(tables, liveTables);
+  errors.push(...report.errors);
+  warnings.push(...report.warnings);
+
+  // ---- Live enum comparisons ----------------------------------------------------
+  for (const e of enums) {
+    const key = `${e.schema}.${e.name}`;
+    const labels = dbEnumLabels.get(key);
+    if (!labels) { errors.push(`Enum type missing in database: ${key} (expects: ${e.values.join(", ")})`); continue; }
+    for (const value of e.values) {
+      if (!labels.has(value)) errors.push(`Enum label missing in database: ${key} value '${value}'`);
+    }
   }
-}
-for (const key of dbEnumLabels.keys()) {
-  if (!enums.some((e) => `${e.schema}.${e.name}` === key)) warnings.push(`Enum type in database but not in drizzle schema: ${key}`);
-}
-for (const key of dbColumns.keys()) {
-  if (!tables.some((t) => `${t.schema}.${t.name}` === key)) warnings.push(`Table in database but not in drizzle schema: ${key}`);
-}
+  for (const key of dbEnumLabels.keys()) {
+    if (!enums.some((e) => `${e.schema}.${e.name}` === key)) warnings.push(`Enum type in database but not in drizzle schema: ${key}`);
+  }
+});
 
 // ---- migration SQL comparisons ---------------------------------------------------
 // Scoped parsing, not substring matching: every drizzle column must appear in that
@@ -109,7 +97,7 @@ for (const key of dbColumns.keys()) {
 // up a database Replit does not manage (the Algihaz production Postgres). They are
 // concatenated in journal order so a later ALTER counts towards the object an
 // earlier CREATE introduced.
-// An alternate SQL file can be passed as argv[2] (used by the regression test).
+// An alternate SQL file can be passed as a positional argument (regression fixtures).
 const MIGRATIONS_DIR = join(here, "../../lib/db/drizzle");
 
 function readMigrationSql(): string {
@@ -119,7 +107,7 @@ function readMigrationSql(): string {
   return journal.entries.map((e) => readFileSync(join(MIGRATIONS_DIR, `${e.tag}.sql`), "utf8")).join("\n");
 }
 
-const overridePath = process.argv[2];
+const overridePath = process.argv.slice(2).find((arg) => arg !== "--migration-only");
 const prodSql = (overridePath ? readFileSync(overridePath, "utf8") : readMigrationSql())
   // drizzle-kit emits `;--> statement-breakpoint` on the same line as the statement
   // terminator, so the marker has to go before statements are split on `;`.
@@ -172,16 +160,16 @@ for (const t of tables) {
   const columns = sqlTableColumns.get(key);
   if (!columns) { errors.push(`migrations missing table ${key}`); continue; }
   for (const column of t.columns) {
-    if (!columns.has(column)) errors.push(`migrations missing column ${key}.${column}`);
+    if (!columns.has(column.name)) errors.push(`migrations missing column ${key}.${column.name}`);
   }
 }
 
 // ---- Report ---------------------------------------------------------------------
-console.log(`Checked ${enums.length} enum type(s) and ${tables.length} table(s) across schemas: ${SCHEMAS.join(", ")}`);
+console.log(`Checked ${enums.length} enum type(s) and ${tables.length} table(s) across schemas: ${SCHEMAS.join(", ")}${migrationOnly ? " (migration coverage only; live catalog NOT checked)" : " (read-only live semantic comparison + migration coverage)"}`);
 for (const warning of warnings) console.log(`WARNING: ${warning}`);
 if (errors.length) {
   for (const error of errors) console.error(`DRIFT: ${error}`);
-  console.error(`\n${errors.length} drift error(s) found. Reconcile the database and the lib/db/drizzle migrations before promoting.`);
+  console.error(`\n${errors.length} drift error(s) found. Review targeted development migrations and migration coverage before promoting. Existing constraints/indexes are preserved; never use a broad force push. Production reconciliation requires a separate reviewed, operator-run plan.`);
   process.exit(1);
 }
 console.log("No schema drift detected.");

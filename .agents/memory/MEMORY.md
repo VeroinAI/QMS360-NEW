@@ -1,6 +1,7 @@
 # Memory Index
 
 - [Drizzle multi-schema migration quirks](drizzle-multischema-quirks.md) — drizzle-kit's state is meta/*_snapshot.json, not the .sql files; hand-written migrations silently desync the diff engine.
+- [PostgreSQL catalog comparison](pg-catalog-comparison.md) — identifier arrays, composite-key column identity and index ordering need explicit interpretation.
 - [Drizzle insert compatibility](drizzle-insert-compatibility.md) — omitted values may still emit DEFAULT columns; check INSERT SQL when supporting an older production schema.
 - [Drizzle correlated selections](drizzle-correlated-selection-scoping.md) — selected scalar SQL can lose outer-column qualifiers; test correlations against real legacy rows.
 - [Optional UUID input normalization](optional-uuid-normalization.md) — normalize blank optional UUID form values to null at API boundaries before database writes.
