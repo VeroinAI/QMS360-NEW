@@ -30,3 +30,14 @@ rows would invent a security policy.
 **How to apply:** Keep preparation disconnected from live login and permissions
 until schema, module precedence, role mappings and tenant/department rules are
 confirmed. Drona/HSE role names alone must not grant QMS administrator rights.
+
+Treat DronaHQ profile.uid as public.user_master.user_id for implementation,
+subject to a source/session parity check before production acceptance.
+
+**Why:** On 2026-10-04 the user instructed us to consider those identifiers the
+same. This resolves the intended ID mapping, not verification of a browser's
+claimed identity or the validity of a nonce.
+
+**How to apply:** Do not repeatedly request confirmation of this ID equivalence.
+Preserve its exact decimal value and resolve the environment-specific UUID link
+only after the backend has verified the Drona session.
