@@ -3,6 +3,12 @@ name: Orval zod export naming in api-zod
 description: generated zod consts get operation-derived names; component schemas only contribute TypeScript types — name collisions cause TS2308
 ---
 
+Per-operation Orval `zod` overrides can replace, rather than inherit, global query coercion settings.
+
+**Why:** A pagination validator changed from coercing HTTP query strings to requiring native numbers after a per-operation generation override, rejecting valid requests with 422.
+
+**How to apply:** Explicitly retain the required query coercion in operation-specific Zod overrides. Check generated query validators against real URL query strings, not only native-number unit inputs.
+
 In `lib/api-zod`, the generated zod *values* are named from the **operationId** (`createIntegrationConnector` → `CreateIntegrationConnectorBody`, `PullConnectorDataBody`), not from the component schema they reference. Component schemas (`components/schemas`) only produce TypeScript **types**.
 
 **Why:** naming a component schema exactly `<OperationId>Body` or `<OperationId>Response` makes both generated modules export the same name and codegen fails with TS2308; importing a component-named zod const fails with TS2693 "only refers to a type". Both cost a full edit/codegen cycle.

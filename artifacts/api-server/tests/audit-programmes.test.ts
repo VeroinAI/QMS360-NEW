@@ -153,6 +153,42 @@ afterAll(async () => {
 });
 
 describe("audit programme parent/child workflow", () => {
+  it("shows a newest-first, paginated schedule history including deleted child events without raw private snapshots", async () => {
+    const created = await api("POST", "/programmes", creator.token, {
+      title: "Activity history fixture", fromDate: "2026-01-01", toDate: "2026-12-31",
+    });
+    expect(created.status).toBe(201);
+    const child = await addChild(created.json.id);
+    await db.insert(auditAuditLogEntries).values({
+      organizationId: orgId, actorId: creator.id, entityType: "audit_schedule", entityId: child.id, action: "update",
+      before: { title: "Old title" }, after: { ...child, title: "New title", objectPath: "PRIVATE_PATH", _requestIp: "PRIVATE_IP" },
+      createdAt: new Date("2020-01-01T12:00:00Z"),
+    });
+    expect((await api("DELETE", `/schedules/${child.id}`, creator.token)).status).toBe(204);
+    const history = await api("GET", `/programmes/${created.json.id}/activity?limit=100`, creator.token);
+    expect(history.status).toBe(200);
+    expect(history.json.items.map((row: { action: string }) => row.action)).toEqual(["delete", "create", "update"]);
+    expect(history.json.items[0].actorName).toBe("Programme Creator");
+    expect(history.json.items[0].status).toBe("deleted");
+    expect(history.json.items[0].changes).toEqual([]);
+    expect(JSON.stringify(history.json)).not.toMatch(/PRIVATE_/);
+    expect((await api("GET", `/schedules/${child.id}/activity`, creator.token)).status).toBe(200);
+    expect((await api("GET", `/schedules/${created.json.id}/activity`, creator.token)).status).toBe(404);
+    expect((await api("GET", `/programmes/${child.id}/activity`, creator.token)).status).toBe(404);
+    expect((await api("GET", "/schedules/not-a-uuid/activity", creator.token)).status).toBe(422);
+    expect((await api("GET", `/programmes/${created.json.id}/activity?page=abc`, creator.token)).status).toBe(422);
+    expect((await api("GET", `/programmes/${created.json.id}/activity?page=1.5`, creator.token)).status).toBe(422);
+    expect((await api("GET", `/programmes/${created.json.id}/activity?limit=201`, creator.token)).status).toBe(422);
+    const first = await api("GET", `/programmes/${created.json.id}/activity?page=1&limit=1`, creator.token);
+    const second = await api("GET", `/programmes/${created.json.id}/activity?page=2&limit=1`, creator.token);
+    expect(first.json.total).toBe(3);
+    expect(first.json.items[0].id).not.toBe(second.json.items[0].id);
+    expect(new Date(first.json.items[0].occurredAt).getTime()).toBeGreaterThanOrEqual(new Date(second.json.items[0].occurredAt).getTime());
+    // History has no client-editable or deletable endpoint.
+    expect((await fetch(`${baseUrl}/programmes/${created.json.id}/activity`, {
+      method: "DELETE", headers: { authorization: `Bearer ${creator.token}` },
+    })).status).toBe(404);
+  });
   it("offers only active Product / Process Owner users and enforces that selection on Audit Schedules", async () => {
     const marker = await permission("product_process_owner");
     const ownerRole = await role("Product and Process Owners", [marker.id]);
@@ -330,11 +366,28 @@ describe("audit programme parent/child workflow", () => {
     expect(invalidPlan.json.error).toMatch(/selected when the schedule was created/);
     const observerRole = await role("Circulation Observers", []);
     const circulationRoleIds = [planPayload.auditeeRoleIds[0], observerRole.id];
+    for (const key of ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime", "activityDateTime"]) {
+      for (const value of ["2025-12-31T23:59:00.000Z", "2026-01-03T00:00:00.000Z"]) {
+        const outOfRange = await api("POST", "/plans", creator.token, {
+          ...planPayload, id: crypto.randomUUID(), leadAuditorId: creator.id, circulationRoleIds, [key]: value,
+        });
+        expect(outOfRange.status).toBe(422);
+        expect(outOfRange.json.error).toContain("01/01/2026 to 02/01/2026");
+      }
+    }
     const validPlan = await api("POST", "/plans", creator.token, {
       ...planPayload, id: crypto.randomUUID(), leadAuditorId: creator.id,
       circulationRoleIds,
     });
     expect(validPlan.status).toBe(201);
+    for (const key of ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime", "activityDateTime"]) {
+      const outOfRangeEdit = await api("PUT", `/plans/${validPlan.json.id}`, creator.token, {
+        ...validPlan.json, [key]: "2026-01-03T00:00:00.000Z",
+      });
+      expect(outOfRangeEdit.status).toBe(422);
+      expect(outOfRangeEdit.json.error).toContain("01/01/2026 to 02/01/2026");
+    }
+    expect((await api("GET", `/plans/${validPlan.json.id}`, creator.token)).json.startDateTime).toBe(planPayload.startDateTime);
     expect(validPlan.json.leadAuditorId).toBe(creator.id);
     expect(validPlan.json.circulationRoleIds).toEqual(circulationRoleIds);
     expect(validPlan.json.auditPlanCirculation).toBe("Audit Contributor, Circulation Observers");
@@ -431,11 +484,19 @@ describe("audit programme parent/child workflow", () => {
       title: "Mixed-scope programme", fromDate: "2026-01-01", toDate: "2026-12-31",
     });
     for (const [projectId, title] of [[projectA!.id, "Visible child"], [projectB!.id, "Hidden child"]]) {
-      await db.insert(auditSchedules).values({
+      const [child] = await db.insert(auditSchedules).values({
         organizationId: orgId, year: 2026, title, ownerId: creator.id, workflowState: "draft",
         status: JSON.stringify({ parentId: programme.json.id, projectIds: [projectId], plannedStartDate: "2026-01-01", plannedEndDate: "2026-01-02" }),
+      }).returning();
+      await db.insert(auditAuditLogEntries).values({
+        organizationId: orgId, actorId: creator.id, entityType: "audit_schedule", entityId: child!.id,
+        action: "create", after: child!,
       });
     }
+    const scopedHistory = await api("GET", `/programmes/${programme.json.id}/activity`, scopedToken);
+    expect(scopedHistory.status).toBe(200);
+    expect(scopedHistory.json.items.some((entry: { recordTitle: string }) => entry.recordTitle === "Visible child")).toBe(true);
+    expect(JSON.stringify(scopedHistory.json)).not.toContain("Hidden child");
     expect((await api("GET", `/programmes/${programme.json.id}/signatories`, scopedToken)).status).toBe(403);
     const organizationAdminResult = await api("GET", `/programmes/${programme.json.id}/signatories`, admin.token);
     expect(organizationAdminResult.status).toBe(200);
@@ -828,6 +889,15 @@ describe("audit programme parent/child workflow", () => {
     ]);
     expect(finalEmails.every(row => Array.isArray(row.context.emailAttachments) && row.context.emailAttachments.length === 1)).toBe(true);
     const approvedSignatories = await api("GET", `/programmes/${created.json.id}/signatories`, creator.token);
+    const activity = await api("GET", `/programmes/${created.json.id}/activity?limit=200`, creator.token);
+    expect(activity.status).toBe(200);
+    const recordedActions = activity.json.items.map((entry: { action: string }) => entry.action);
+    for (const action of ["create", "submit", "resubmit", "approve", "send_back",
+      "assign_reference", "programme_submit", "programme_send_back", "programme_approve"]) {
+      expect(recordedActions).toContain(action);
+    }
+    const sendBackEvents = activity.json.items.filter((entry: { action: string }) => entry.action === "send_back" || entry.action === "programme_send_back");
+    expect(sendBackEvents.every((entry: { remarks: string }) => !!entry.remarks)).toBe(true);
     expect(approvedSignatories.json.reviewedBy).toEqual([
       { userId: l1.id, name: "L1 Approver", designation: null, role: "L1 Programme Approver", signatureDataUrl: null },
     ]);

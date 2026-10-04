@@ -56,6 +56,12 @@ export default defineConfig({
       clean: true,
       prettier: true,
       override: {
+        operations: {
+          // Orval's path-schema Params name collides with the query-parameter
+          // TS type on these paginated record routes. IDs are validated by the API.
+          listAuditProgrammeActivity: { zod: { generate: { param: false }, coerce: { query: ["number"] } } },
+          listAuditScheduleActivity: { zod: { generate: { param: false }, coerce: { query: ["number"] } } },
+        },
         zod: {
           coerce: {
             query: ['boolean', 'number', 'string'],

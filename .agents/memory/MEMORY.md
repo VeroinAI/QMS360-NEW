@@ -24,8 +24,10 @@
 - [Admin bulk workflow transfers](admin-bulk-workflow-transfers.md) — admin queues use admin-role scope, not broader view scope; bulk transfers must be atomic before audit or notification.
 - [Two-phase attachment retries](two-phase-attachment-retries.md) — parent creation and evidence uploads must be independently idempotent to survive lost responses.
 - [Audit schedule programme guards](audit-schedule-programme-guards.md) — parent programmes share schedule storage; child endpoints must reject them and await every project-scope check.
+- [Audit Schedule event history](audit-schedule-event-history.md) — scoped, retained, read-only history; canonical events also drive approval cycles and PDF signatories.
 - [Process audit department scope](process-audit-department-scope.md) — Internal Process audits are department-based and projectless; authorize their full schedule-to-audit chain consistently.
 - [Audit Plan activity rows](audit-plan-activity-rows.md) — activity details are repeatable master-data rows; retain single-value fields only for backward compatibility.
+- [Audit Plan date boundaries](audit-plan-date-boundaries.md) — every Plan date/time must fit the child audit's actual From/To dates, with an explicit allowed-range error.
 - [One Plan per Audit Schedule](one-plan-per-audit-schedule.md) — active Audit Plans are one-to-one with schedules; enforce atomically and expose occupancy on schedule responses.
 - [Spreadsheet date policy](spreadsheet-date-policy.md) — Excel/CSV dates are DD/MM/YYYY; preserve internal ISO contracts and support older ISO/native Excel workbooks.
 - [Audit feasibility decisions](audit-feasibility-decisions.md) — Cancel blocks future plans permanently; Reschedule records mandatory feedback but keeps the schedule eligible.

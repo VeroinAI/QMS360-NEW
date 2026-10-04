@@ -1,5 +1,7 @@
 import { confirmedWorkflowMutation, workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { auditTeamLeadLabel } from "./team-lead-label";
+import { ScheduleActivityButton } from "./schedule-activity";
+import { auditPlanDateFields, getAuditPlanDateRange, validateAuditPlanDates, type AuditPlanDateKey } from "@workspace/field-controls";
 import { useEffect, useRef, useState } from "react";
 import { Link, Route, Switch, useLocation, useParams } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1139,6 +1141,7 @@ function Programmes() {
     {!!query.data?.items?.length && <Card><Table><TableHeader><TableRow><TableHead>Audit schedule</TableHead><TableHead>Dates</TableHead><TableHead>Audits</TableHead><TableHead>Status</TableHead><TableHead>Pending approver</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
       {query.data.items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" asChild><Link href={`/audit/schedules/${item.id}`}>{item.title}</Link></Button><div className="text-xs text-muted-foreground">Annual programme</div></TableCell><TableCell>{date(item.fromDate)} – {date(item.toDate)}</TableCell><TableCell>{item.childCount}</TableCell><TableCell><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge></TableCell><TableCell>{item.workflowState === "Submitted" ? <><div className="font-medium">{item.currentApproverNames.length ? item.currentApproverNames.join(", ") : "No active assignee"}</div><div className="text-xs text-muted-foreground">{item.currentApprovalRole ?? "Approval role unavailable"}</div></> : "—"}</TableCell><TableCell><div className="flex justify-end gap-1">
         {item.id !== "legacy" && <Button size="sm" variant="outline" onClick={() => setViewingDetails(item)}><Info className="mr-1 size-4"/>Details</Button>}
+        {item.id !== "legacy" && <ScheduleActivityButton id={item.id} title={item.title} programme/>}
         {item.canManageTeamLeads && <Button size="sm" variant="outline" onClick={() => setManagingLeads(item)}>Manage Team Leads</Button>}
         {item.id !== "legacy" && item.canSubmit && <Button size="sm" disabled={item.childCount === 0 || !!submitting} onClick={() => setSubmitting(item)}>{item.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}
         {item.id !== "legacy" && item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: updated => done("Audit schedule approved", updated), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button><Button size="sm" variant="outline" onClick={() => setSendingBack(item)}>Send back</Button></>}
@@ -1331,6 +1334,7 @@ function Schedules() {
     <State loading={query.isLoading} error={query.error} empty={!items.length}/>
     {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><div className="flex flex-wrap gap-1"><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge><FeasibilityBadge decision={item.feasibilityDecision}/></div></TableCell><TableCell><div className="flex justify-end gap-1">
       <Button size="sm" variant="outline" onClick={() => setDisplaying(item)}>Display</Button>
+      <ScheduleActivityButton id={item.id} title={item.title}/>
       {item.workflowState === "Draft" && <Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button>}
       {item.feasibilityFeedback && <Button size="icon" variant="ghost" aria-label={`View feasibility feedback for ${item.title}`} title="View Remarks / Feedback" onClick={() => setDisplaying(item)}><Info className="size-4"/></Button>}
       {item.workflowState === "Approved" && <Button size="sm" title={!item.parentId ? "New Plans require an audit belonging to a New Schedule" : parentSubmitted ? "New plans cannot be created while the audit schedule is submitted" : item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={!item.parentId || parentSubmitted || item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>}
@@ -1413,6 +1417,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
         .map(id => ({ id, title: `Cached schedule (${id})` }))
       : [];
   const selectedSchedule = sourceSchedules.find(schedule => schedule.id === form.scheduleId) ?? presetSchedule;
+  const planDateRange = getAuditPlanDateRange(selectedSchedule?.plannedStartDate, selectedSchedule?.plannedEndDate);
   const linkedProgrammeId = initial ? selectedSchedule?.parentId : undefined;
   const linkedProgramme = useGetAuditProgramme(linkedProgrammeId ?? "", {
     query: { enabled: !!initial && !!linkedProgrammeId && navigator.onLine, queryKey: getGetAuditProgrammeQueryKey(linkedProgrammeId ?? "") },
@@ -1438,7 +1443,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       auditTypes: schedule.auditTypes ?? [], qaqcReference: schedule.qaqcReference ?? "",
       leadAuditorId: schedule.teamLeadIds == null || schedule.teamLeadIds.includes(current.leadAuditorId) ? current.leadAuditorId : "",
     }));
-    clearError("scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId");
+    clearError("scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId", ...auditPlanDateFields.map(field => field.key));
   };
   const selectProgramme = (id: string) => {
     if (presetSchedule) return;
@@ -1447,7 +1452,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       ...current, scheduleId: "", auditTitle: "", qaqcScope: "", auditTypes: [],
       qaqcReference: "", leadAuditorId: "",
     }));
-    clearError("programmeId", "scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId");
+    clearError("programmeId", "scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId", ...auditPlanDateFields.map(field => field.key));
   };
   const selectedTeamNames = form.teamMemberIds.map(id => users.find(user => user.id === id)?.fullName).filter(Boolean);
   const selectedAuditeeRoleIds = form.auditeeRoleIds ?? [];
@@ -1488,6 +1493,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       ["activityDateTime", form.activityDateTime], ["circulationRoleIds", selectedCirculationRoleIds], ["circulation", circulation],
     ];
     const nextErrors = Object.fromEntries(required.filter(([, value]) => Array.isArray(value) ? !value.length : !String(value ?? "").trim()).map(([key]) => [key, "This field is required."]));
+    Object.assign(nextErrors, validateAuditPlanDates(form, selectedSchedule?.plannedStartDate, selectedSchedule?.plannedEndDate));
     if (auditeeRoles.isFetching || auditeeRoles.isError || selectedCirculationRoleIds.some(id => !circulationRoles.some(role => role.id === id))) {
       nextErrors.circulationRoleIds = "Load and select active Audit workspace roles before saving.";
     }
@@ -1568,6 +1574,18 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   };
   const ErrorText = ({ name }: { name: string }) => errors[name] ? <p className="mt-1 text-sm text-destructive">{errors[name]}</p> : null;
   const invalid = (name: string) => ({ "aria-invalid": errors[name] ? true as const : undefined });
+  const planDateInputProps = (key: AuditPlanDateKey) => ({
+    min: planDateRange?.min, max: planDateRange?.max,
+    onBlur: () => {
+      const dateErrors = validateAuditPlanDates(form, selectedSchedule?.plannedStartDate, selectedSchedule?.plannedEndDate);
+      setErrors(current => {
+        const next = { ...current };
+        if (dateErrors[key]) next[key] = dateErrors[key];
+        else delete next[key];
+        return next;
+      });
+    },
+  });
   const disabled = (key: string) => readOnly || ro(key);
   const submitFeasibility = (decision: "cancelled" | "reschedule") => {
     const feedback = feasibilityFeedback.trim();
@@ -1662,10 +1680,14 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     <div><Label>8. Audit Language *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={form.auditLanguage} {...invalid("auditLanguage")}/><ErrorText name="auditLanguage"/></div>
     <div><Label>9. QA/QC References *</Label><Select value={form.qaqcReference} disabled={readOnly || !form.scheduleId || ro("qaqcReference")} onValueChange={value => set("qaqcReference", value)}><SelectTrigger className="mt-2" {...invalid("qaqcReference")}><SelectValue placeholder="Select QA/QC reference"/></SelectTrigger><SelectContent>{form.qaqcReference && <SelectItem value={form.qaqcReference}>{form.qaqcReference}</SelectItem>}</SelectContent></Select><ErrorText name="qaqcReference"/></div>
     <div><Label>10. Description of Audit</Label><Textarea className="mt-2" value={form.description ?? ""} disabled={disabled("description")} onChange={event => set("description", event.target.value)} placeholder="Optional"/></div>
-    <div><Label>11. Start Date & Time *</Label><Input className="mt-2" type="datetime-local" value={form.startDateTime.slice(0,16)} disabled={disabled("startDateTime")} {...invalid("startDateTime")} onChange={event => set("startDateTime", event.target.value)}/><ErrorText name="startDateTime"/></div>
-    <div><Label>12. End Date & Time *</Label><Input className="mt-2" type="datetime-local" value={form.endDateTime.slice(0,16)} disabled={disabled("endDateTime")} {...invalid("endDateTime")} onChange={event => set("endDateTime", event.target.value)}/><ErrorText name="endDateTime"/></div>
-    <div><Label>13. Opening Meeting *</Label><Input className="mt-2" type="datetime-local" value={form.openingMeetingDateTime.slice(0,16)} disabled={disabled("openingMeetingDateTime")} {...invalid("openingMeetingDateTime")} onChange={event => set("openingMeetingDateTime", event.target.value)}/><ErrorText name="openingMeetingDateTime"/></div>
-    <div><Label>14. Closing Meeting *</Label><Input className="mt-2" type="datetime-local" value={form.closingMeetingDateTime.slice(0,16)} disabled={disabled("closingMeetingDateTime")} {...invalid("closingMeetingDateTime")} onChange={event => set("closingMeetingDateTime", event.target.value)}/><ErrorText name="closingMeetingDateTime"/></div>
+    <p className={`rounded-md border p-3 text-sm ${form.scheduleId && !planDateRange ? "text-destructive" : "text-muted-foreground"}`} data-testid="audit-plan-date-range">
+      {planDateRange ? `Allowed range for all Plan dates: ${planDateRange.label}. This is the selected audit's From Date to To Date, not the annual programme range.`
+        : form.scheduleId ? "Load an audit with valid From Date and To Date values before saving the plan." : "Select an Audit Title to see the allowed date range."}
+    </p>
+    <div><Label>11. Start Date & Time *</Label><Input className="mt-2" type="datetime-local" {...planDateInputProps("startDateTime")} value={form.startDateTime.slice(0,16)} disabled={disabled("startDateTime")} {...invalid("startDateTime")} onChange={event => set("startDateTime", event.target.value)}/><ErrorText name="startDateTime"/></div>
+    <div><Label>12. End Date & Time *</Label><Input className="mt-2" type="datetime-local" {...planDateInputProps("endDateTime")} value={form.endDateTime.slice(0,16)} disabled={disabled("endDateTime")} {...invalid("endDateTime")} onChange={event => set("endDateTime", event.target.value)}/><ErrorText name="endDateTime"/></div>
+    <div><Label>13. Opening Meeting *</Label><Input className="mt-2" type="datetime-local" {...planDateInputProps("openingMeetingDateTime")} value={form.openingMeetingDateTime.slice(0,16)} disabled={disabled("openingMeetingDateTime")} {...invalid("openingMeetingDateTime")} onChange={event => set("openingMeetingDateTime", event.target.value)}/><ErrorText name="openingMeetingDateTime"/></div>
+    <div><Label>14. Closing Meeting *</Label><Input className="mt-2" type="datetime-local" {...planDateInputProps("closingMeetingDateTime")} value={form.closingMeetingDateTime.slice(0,16)} disabled={disabled("closingMeetingDateTime")} {...invalid("closingMeetingDateTime")} onChange={event => set("closingMeetingDateTime", event.target.value)}/><ErrorText name="closingMeetingDateTime"/></div>
     <div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><Label>15–17. Activity Details *</Label><p className="mt-1 text-xs text-muted-foreground">Add one row for each Activities master-data value required in this plan.</p></div>{!readOnly && <Button type="button" variant="outline" size="sm" onClick={addActivity} disabled={ro("activitySection") || ro("activityRemarks") || ro("activityAuditeeId")}><Plus className="mr-2 size-4"/>Add row</Button>}</div>
       <div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead className="min-w-56">15. Activities / Section</TableHead><TableHead className="min-w-72">16. Activities / Section Remarks</TableHead><TableHead className="min-w-56">17. Auditee for the Activity</TableHead>{!readOnly && <TableHead className="w-16 text-right">Action</TableHead>}</TableRow></TableHeader><TableBody>
         {activityRows.map(row => <TableRow key={row.id}><TableCell className="align-top"><Select value={row.section} disabled={disabled("activitySection") || activityMaster.isLoading} onValueChange={value => selectActivity(row.id, value)}><SelectTrigger {...invalid(`activity-${row.id}-section`)}><SelectValue placeholder={activityMaster.isLoading ? "Loading activities…" : "Select activity"}/></SelectTrigger><SelectContent>{activityMaster.options.map(activity => <SelectItem key={activity.value} value={activity.value} disabled={activity.value !== row.section && activityRows.some(candidate => candidate.section === activity.value)}>{activity.label}</SelectItem>)}</SelectContent></Select><ErrorText name={`activity-${row.id}-section`}/></TableCell>
@@ -1674,7 +1696,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
           {!readOnly && <TableCell className="align-top text-right"><Button type="button" size="icon" variant="ghost" aria-label="Delete activity row" onClick={() => deleteActivity(row.id)} disabled={ro("activitySection") || ro("activityRemarks") || ro("activityAuditeeId")}><Trash2 className="size-4"/></Button></TableCell>}</TableRow>)}
         {!activityRows.length && <TableRow><TableCell colSpan={readOnly ? 3 : 4} className="py-8 text-center text-sm text-muted-foreground">No activity rows. Add the first activity.</TableCell></TableRow>}
       </TableBody></Table></div><ErrorText name="activities"/></div>
-    <div><Label>18. Date / Time of Activity *</Label><Input className="mt-2" type="datetime-local" value={form.activityDateTime.slice(0,16)} disabled={disabled("activityDateTime")} {...invalid("activityDateTime")} onChange={event => set("activityDateTime", event.target.value)}/><ErrorText name="activityDateTime"/></div>
+    <div><Label>18. Date / Time of Activity *</Label><Input className="mt-2" type="datetime-local" {...planDateInputProps("activityDateTime")} value={form.activityDateTime.slice(0,16)} disabled={disabled("activityDateTime")} {...invalid("activityDateTime")} onChange={event => set("activityDateTime", event.target.value)}/><ErrorText name="activityDateTime"/></div>
     <div>
       <Label>19. Audit Plan Circulation *</Label>
       <DropdownMenu>

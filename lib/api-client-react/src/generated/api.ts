@@ -63,6 +63,7 @@ import type {
   AuditProgrammeTeamLeadsBody,
   AuditReportDetails,
   AuditSchedule,
+  AuditScheduleActivityPage,
   AuditScheduleBody,
   AuditScheduleFeasibilityBody,
   AuditScheduleNumbering,
@@ -183,8 +184,10 @@ import type {
   ListAuditNotificationTemplatesParams,
   ListAuditNotificationsParams,
   ListAuditPlansParams,
+  ListAuditProgrammeActivityParams,
   ListAuditProgrammesParams,
   ListAuditRolesParams,
+  ListAuditScheduleActivityParams,
   ListAuditSchedulesParams,
   ListAuditUsersParams,
   ListAuditWorkspaceAuditLogParams,
@@ -22762,6 +22765,184 @@ export function useGetGeneratedAuditReport<TData = Awaited<ReturnType<typeof get
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetGeneratedAuditReportQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAuditProgrammeActivityUrl = (id: string,
+    params?: ListAuditProgrammeActivityParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/programmes/${id}/activity?${stringifiedParams}` : `/api/audit/programmes/${id}/activity`
+}
+
+/**
+ * @summary Read the scoped event history of an Audit Schedule and its child audits
+ */
+export const listAuditProgrammeActivity = async (id: string,
+    params?: ListAuditProgrammeActivityParams, options?: Parameters<typeof customFetch>[1]): Promise<AuditScheduleActivityPage> => {
+
+  return customFetch<AuditScheduleActivityPage>(getListAuditProgrammeActivityUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAuditProgrammeActivityQueryKey = (id: string,
+    params?: ListAuditProgrammeActivityParams,) => {
+    return [
+    `/api/audit/programmes/${id}/activity`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAuditProgrammeActivityQueryOptions = <TData = Awaited<ReturnType<typeof listAuditProgrammeActivity>>, TError = ErrorType<unknown>>(id: string,
+    params?: ListAuditProgrammeActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditProgrammeActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAuditProgrammeActivityQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditProgrammeActivity>>> = ({ signal }) => listAuditProgrammeActivity(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditProgrammeActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAuditProgrammeActivityQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditProgrammeActivity>>>
+export type ListAuditProgrammeActivityQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read the scoped event history of an Audit Schedule and its child audits
+ */
+
+export function useListAuditProgrammeActivity<TData = Awaited<ReturnType<typeof listAuditProgrammeActivity>>, TError = ErrorType<unknown>>(
+ id: string,
+    params?: ListAuditProgrammeActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditProgrammeActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAuditProgrammeActivityQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAuditScheduleActivityUrl = (id: string,
+    params?: ListAuditScheduleActivityParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/schedules/${id}/activity?${stringifiedParams}` : `/api/audit/schedules/${id}/activity`
+}
+
+/**
+ * @summary Read the scoped event history of an individual audit in a schedule
+ */
+export const listAuditScheduleActivity = async (id: string,
+    params?: ListAuditScheduleActivityParams, options?: Parameters<typeof customFetch>[1]): Promise<AuditScheduleActivityPage> => {
+
+  return customFetch<AuditScheduleActivityPage>(getListAuditScheduleActivityUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAuditScheduleActivityQueryKey = (id: string,
+    params?: ListAuditScheduleActivityParams,) => {
+    return [
+    `/api/audit/schedules/${id}/activity`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAuditScheduleActivityQueryOptions = <TData = Awaited<ReturnType<typeof listAuditScheduleActivity>>, TError = ErrorType<unknown>>(id: string,
+    params?: ListAuditScheduleActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditScheduleActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAuditScheduleActivityQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditScheduleActivity>>> = ({ signal }) => listAuditScheduleActivity(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditScheduleActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAuditScheduleActivityQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditScheduleActivity>>>
+export type ListAuditScheduleActivityQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read the scoped event history of an individual audit in a schedule
+ */
+
+export function useListAuditScheduleActivity<TData = Awaited<ReturnType<typeof listAuditScheduleActivity>>, TError = ErrorType<unknown>>(
+ id: string,
+    params?: ListAuditScheduleActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditScheduleActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAuditScheduleActivityQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

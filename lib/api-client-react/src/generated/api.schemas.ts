@@ -2362,6 +2362,49 @@ export interface NotificationTemplate {
   enabled: boolean;
 }
 
+export interface AuditScheduleActivityChange {
+  field: string;
+  label: string;
+  /** @nullable */
+  before: string | null;
+  /** @nullable */
+  after: string | null;
+}
+
+export type AuditScheduleActivityEntryRecordKind = typeof AuditScheduleActivityEntryRecordKind[keyof typeof AuditScheduleActivityEntryRecordKind];
+
+
+export const AuditScheduleActivityEntryRecordKind = {
+  programme: 'programme',
+  audit: 'audit',
+  attachment: 'attachment',
+} as const;
+
+export interface AuditScheduleActivityEntry {
+  id: string;
+  /** @nullable */
+  actorId: string | null;
+  actorName: string;
+  action: string;
+  recordId: string;
+  recordTitle: string;
+  recordKind: AuditScheduleActivityEntryRecordKind;
+  occurredAt: string;
+  /** @nullable */
+  previousStatus: string | null;
+  /** @nullable */
+  status: string | null;
+  /** @nullable */
+  remarks: string | null;
+  /** @nullable */
+  requestId: string | null;
+  changes: AuditScheduleActivityChange[];
+}
+
+export type AuditScheduleActivityPage = PageMeta & {
+  items: AuditScheduleActivityEntry[];
+};
+
 /**
  * @nullable
  */
@@ -4772,6 +4815,30 @@ to?: ToParameter;
 };
 
 export type GetAuditFindingsLogReportParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditProgrammeActivityParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListAuditScheduleActivityParams = {
 /**
  * @minimum 1
  */

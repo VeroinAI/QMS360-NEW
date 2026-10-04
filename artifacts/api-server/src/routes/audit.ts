@@ -7,6 +7,8 @@ import { PDFDocument } from "pdf-lib";
 import sharp from "sharp";
 import * as Api from "@workspace/api-zod";
 import { allocateReferenceNumber, hasNumberingPattern } from "../lib/numbering";
+import { scheduleActivityEntry } from "../lib/audit-schedule-activity";
+import { auditPlanDateFields, validateAuditPlanDates } from "@workspace/field-controls";
 import {
   applicationAccess,
   auditAuditLogEntries,
@@ -147,11 +149,16 @@ const body = <T>(schema: { safeParse: (value: unknown) => any }, req: Request): 
   if (!result.success) throw new HttpError(422, result.error.issues.map((i: any) => i.message).join("; "));
   return result.data as T;
 };
-const auditLog = (req: Request, action: string, entityType: string, entityId: string, before?: AnyRow, after?: AnyRow) =>
-  writeAuditLog(db, "audit", {
+const auditLog = (req: Request, action: string, entityType: string, entityId: string, before?: AnyRow, after?: AnyRow, database: typeof db = db) =>
+  writeAuditLog(database, "audit", {
     organizationId: actor(req).organizationId, actorId: actor(req).id, action, entityType, entityId,
-    before, after, ipAddress: req.ip,
-  }, { dispatch: !(["audit_programme", "audit_schedule"].includes(entityType) && ["submit", "approve"].includes(action)) });
+    before, after: ["audit_programme", "audit_schedule", "evidence"].includes(entityType)
+      ? { ...after, _auditContext: {
+        actorName: actor(req).fullName, requestId: String(req.id ?? ""),
+        reason: typeof req.body?.comments === "string" ? req.body.comments
+          : typeof req.body?.feedback === "string" ? req.body.feedback : null,
+      } } : after, ipAddress: req.ip,
+  }, { dispatch: database === db && !(["audit_programme", "audit_schedule"].includes(entityType) && ["submit", "resubmit", "approve"].includes(action)) });
 async function assertAuditUserManagementScope(req: Request, userId: string) {
   if (req.permissionAdminBypass || userId === actor(req).id) return;
   const assignments = await db.select({
@@ -370,6 +377,9 @@ async function assertAuditRecordAccess(req: Request, recordType: string, recordI
 // workflow, evidence, and export operation. This keeps authorization intact
 // even where the child table does not store a project column.
 router.use(asyncHandler(async (req, _res, next) => {
+  // This read-only endpoint checks kind, tenancy and scope against retained
+  // rows itself, allowing authorized access to a deleted child's history.
+  if (req.method === "GET" && /^\/schedules\/[^/]+\/activity$/.test(req.path)) return next();
   const match = /^\/(schedules|plans|audits|findings|cars)(?:\/([^/]+))?/i.exec(req.path);
   let projectIds: string[] = [];
   let recordFound = false;
@@ -882,6 +892,55 @@ router.post("/programmes", asyncHandler(async (req, res) => {
   res.status(201).json(await programmeResponse(req, row, 0));
 }));
 
+async function scheduleActivity(req: Request, res: Response, programme: boolean) {
+  const id = String(req.params.id);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new HttpError(422, "Invalid schedule ID");
+  const parsed = (programme ? Api.ListAuditProgrammeActivityQueryParams : Api.ListAuditScheduleActivityQueryParams).safeParse(req.query);
+  if (!parsed.success || !Number.isSafeInteger(parsed.data.page) || !Number.isSafeInteger(parsed.data.limit)) {
+    throw new HttpError(422, "Invalid audit log pagination");
+  }
+  const organizationId = actor(req).organizationId;
+  // Include soft-deleted records so their retained history remains readable by authorized users.
+  const [record] = await db.select().from(auditSchedules).where(and(
+    eq(auditSchedules.organizationId, organizationId), eq(auditSchedules.id, id),
+  ));
+  if (!record || isProgramme(record) !== programme) throw new HttpError(404, "Audit schedule not found");
+  if (!(await scheduleInScope(req, record))) throw new HttpError(403, "You do not have access to this audit schedule");
+  const candidates = programme ? await db.select().from(auditSchedules).where(and(
+    eq(auditSchedules.organizationId, organizationId),
+    sql`${auditSchedules.status} LIKE ${`%${id}%`}`,
+  )) : [record];
+  const visible = (await Promise.all(candidates.filter(row => !isProgramme(row)
+    && (!programme || scheduleMeta(row).parentId === id))
+    .map(async row => await scheduleInScope(req, row) ? row : null))).filter(Boolean) as AnyRow[];
+  const auditIds = visible.map(row => row.id);
+  const recordIds = [id, ...auditIds];
+  const where = and(eq(auditAuditLogEntries.organizationId, organizationId), or(
+    and(eq(auditAuditLogEntries.entityType, programme ? "audit_programme" : "audit_schedule"), eq(auditAuditLogEntries.entityId, id)),
+    auditIds.length ? and(eq(auditAuditLogEntries.entityType, "audit_schedule"), inArray(auditAuditLogEntries.entityId, auditIds)) : undefined,
+    and(eq(auditAuditLogEntries.entityType, "evidence"), or(
+      and(sql`${auditAuditLogEntries.after}->>'recordType' = 'audit_schedule'`,
+        inArray(sql<string>`${auditAuditLogEntries.after}->>'recordId'`, recordIds)),
+      and(sql`${auditAuditLogEntries.before}->>'recordType' = 'audit_schedule'`,
+        inArray(sql<string>`${auditAuditLogEntries.before}->>'recordId'`, recordIds)),
+    )),
+  ));
+  const { page, limit } = parsed.data;
+  const offset = (page - 1) * limit;
+  const [rows, [{ count }]] = await Promise.all([
+    db.select().from(auditAuditLogEntries).where(where).orderBy(desc(auditAuditLogEntries.createdAt), desc(auditAuditLogEntries.id)).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)::int` }).from(auditAuditLogEntries).where(where),
+  ]);
+  const actorIds = [...new Set(rows.flatMap(row => row.actorId ? [row.actorId] : []))];
+  const people = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName }).from(users)
+    .where(and(eq(users.organizationId, organizationId), inArray(users.id, actorIds))) : [];
+  const names = new Map(people.map(person => [person.id, person.fullName]));
+  const titles = new Map([record, ...visible].map(row => [row.id, row.title]));
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json(paginated(rows.map(row => scheduleActivityEntry(row, row.actorId ? names.get(row.actorId) : undefined, titles.get(row.entityId ?? ""))), count, page, limit));
+}
+router.get("/programmes/:id/activity", asyncHandler(async (req, res) => scheduleActivity(req, res, true)));
+router.get("/schedules/:id/activity", asyncHandler(async (req, res) => scheduleActivity(req, res, false)));
 router.get("/programmes/:id", asyncHandler(async (req, res) => {
   if (String(req.params.id) === "legacy") {
     const children = await programmeChildren(req, "legacy");
@@ -1148,13 +1207,16 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
     for (const [index, child] of sorted.entries()) {
       const fromDate = scheduleMeta(child).plannedStartDate;
       if (!fromDate || !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) throw new HttpError(422, "All audits need a valid From Date before submission");
-      await tx.update(auditSchedules).set({
+      const [renumbered] = await tx.update(auditSchedules).set({
         status: JSON.stringify({
           ...scheduleMeta(child),
           qaqcReference: formatQaqcReference(config.qaqcReference, fromDate, index + 1),
           qaqcReferenceYear: Number(fromDate.slice(0, 4)), qaqcReferenceSequence: index + 1,
         }), updatedAt: new Date(),
-      }).where(eq(auditSchedules.id, child.id));
+      }).where(eq(auditSchedules.id, child.id)).returning();
+      if (renumbered && scheduleMeta(child).qaqcReference !== scheduleMeta(renumbered).qaqcReference) {
+        await auditLog(req, "assign_reference", "audit_schedule", child.id, child, renumbered, tx as unknown as typeof db);
+      }
     }
     const meta = scheduleMeta(current);
     const draftIds = children.filter(child => child.workflowState === "draft").map(child => child.id);
@@ -1164,7 +1226,9 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
       eq(auditSchedules.organizationId, actor(req).organizationId),
       inArray(auditSchedules.id, draftIds),
       eq(auditSchedules.workflowState, "draft"),
-    )).returning({ id: auditSchedules.id }) : [];
+    )).returning() : [];
+    for (const child of promoted) await auditLog(req, "programme_submit", "audit_schedule", child.id,
+      { ...child, workflowState: "draft" }, child, tx as unknown as typeof db);
     const promotedIds = promoted.map(child => child.id);
     const [updated] = await tx.update(auditSchedules).set({
       workflowState: "submitted",
@@ -1197,11 +1261,14 @@ router.post("/programmes/:id/submit", asyncHandler(async (req, res) => {
       recipientIds: firstApprovers, subject: data.subject.trim(),
       text: `${programmeSubmissionMemo(scheduleMeta(updated))}\n\nAudit Schedule "${updated.title}" is awaiting your approval at level ${roles[0].level}. Open QMS360 QMS Audit to review it.`,
     });
+    // Preserve the canonical submit event consumed by approval-cycle/PDF history;
+    // the activity projection labels a Sent Back -> Submitted transition Resubmitted.
+    await auditLog(req, "submit",
+      "audit_programme", updated.id, current, updated, tx as unknown as typeof db);
     return { row: updated, childCount: children.length };
   });
   const recipients = await roleUserIds(actor(req).organizationId, roles[0].id);
   await Promise.all(recipients.filter(id => id !== actor(req).id).map(userId => notify(db, "audit", { organizationId: actor(req).organizationId, userId, type: "programme_submitted", title: "Audit programme awaiting approval", body: row.title, entityType: "audit_programme", entityId: row.id })));
-  await auditLog(req, "submit", "audit_programme", row.id, before, row);
   res.json(await programmeResponse(req, row, childCount));
 }));
 
@@ -1268,13 +1335,15 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
     if (data.decision === "send_back") {
       const autoPromotedIds = meta.autoPromotedChildIds ?? [];
       if (autoPromotedIds.length) {
-        await tx.update(auditSchedules).set({ workflowState: "draft", updatedAt: new Date() })
+        const returned = await tx.update(auditSchedules).set({ workflowState: "draft", updatedAt: new Date() })
           .where(and(
             eq(auditSchedules.organizationId, actor(req).organizationId),
             inArray(auditSchedules.id, autoPromotedIds),
             eq(auditSchedules.workflowState, "submitted"),
             isNull(auditSchedules.deletedAt),
-          ));
+          )).returning();
+        for (const child of returned) await auditLog(req, "programme_send_back", "audit_schedule", child.id,
+          { ...child, workflowState: "submitted" }, child, tx as unknown as typeof db);
       }
     }
     if (complete) {
@@ -1283,8 +1352,13 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
         .filter(candidate => !isProgramme(candidate) && scheduleMeta(candidate).parentId === before.id)
         .map(candidate => candidate.id);
       if (childIds.length) {
-        await tx.update(auditSchedules).set({ workflowState: "approved", updatedAt: new Date() })
-          .where(and(eq(auditSchedules.organizationId, actor(req).organizationId), inArray(auditSchedules.id, childIds)));
+        const approved = await tx.update(auditSchedules).set({ workflowState: "approved", updatedAt: new Date() })
+          .where(and(eq(auditSchedules.organizationId, actor(req).organizationId), inArray(auditSchedules.id, childIds))).returning();
+        for (const child of approved) {
+          const prior = candidates.find(candidate => candidate.id === child.id);
+          if (prior?.workflowState !== "approved") await auditLog(req, "programme_approve", "audit_schedule", child.id,
+            prior, child, tx as unknown as typeof db);
+        }
       }
     }
     if (data.decision === "approve") {
@@ -1314,6 +1388,7 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
         text: `Audit Schedule "${updated.title}" was sent back for revision.\n\nReviewer comments: ${data.comments.trim()}\n\nOpen QMS360 QMS Audit to revise and resubmit the Schedule.`,
       });
     }
+    await auditLog(req, data.decision, "audit_programme", updated.id, current, updated, tx as unknown as typeof db);
     return updated;
   }).catch(async error => {
     if (pdfAttachment) {
@@ -1332,7 +1407,6 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
     const next = (meta.approvalRoles ?? [])[nextIndex]; const recipients = await roleUserIds(actor(req).organizationId, next.id);
     await Promise.all(recipients.map(userId => notify(db, "audit", { organizationId: actor(req).organizationId, userId, type: "programme_submitted", title: "Audit programme awaiting approval", body: row.title, entityType: "audit_programme", entityId: row.id })));
   }
-  await auditLog(req, data.decision, "audit_programme", row.id, before, row);
   res.json(await programmeResponse(req, row, (await programmeChildren(req, row.id)).length));
 }));
 
@@ -1810,6 +1884,10 @@ async function auditPlanUsers(organizationId: string) {
 }
 async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) {
   const scheduleData = scheduleDto(schedule);
+  const dateErrors = validateAuditPlanDates(Object.fromEntries(auditPlanDateFields.map(({ key }) =>
+    [key, typeof req.body?.[key] === "string" ? req.body[key] : data[key]])),
+  scheduleMeta(schedule).plannedStartDate, scheduleMeta(schedule).plannedEndDate);
+  if (Object.keys(dateErrors).length) throw new HttpError(422, Object.values(dateErrors).join("\n"));
   const activities: PlanActivity[] = Array.isArray(data.activities) && data.activities.length
     ? data.activities
     : [{ id: `legacy-${data.id}`, section: data.activitySection, remarks: data.activityRemarks, auditeeId: data.activityAuditeeId }];

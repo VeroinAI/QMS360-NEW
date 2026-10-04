@@ -10296,6 +10296,104 @@ export const GetGeneratedAuditReportResponse = zod.object({
 })
 
 
+/**
+ * @summary Read the scoped event history of an Audit Schedule and its child audits
+ */
+export const listAuditProgrammeActivityQueryPageDefault = 1;
+
+export const listAuditProgrammeActivityQueryLimitDefault = 20;
+export const listAuditProgrammeActivityQueryLimitMax = 200;
+
+
+
+export const ListAuditProgrammeActivityQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditProgrammeActivityQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditProgrammeActivityQueryLimitMax).default(listAuditProgrammeActivityQueryLimitDefault)
+})
+
+export const listAuditProgrammeActivityResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditProgrammeActivityResponse = zod.object({
+  "total": zod.number().min(listAuditProgrammeActivityResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "actorId": zod.string().nullable(),
+  "actorName": zod.string(),
+  "action": zod.string(),
+  "recordId": zod.string(),
+  "recordTitle": zod.string(),
+  "recordKind": zod.enum(['programme', 'audit', 'attachment']),
+  "occurredAt": zod.date(),
+  "previousStatus": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "remarks": zod.string().nullable(),
+  "requestId": zod.string().nullable(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "label": zod.string(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+}))
+}))
+
+
+/**
+ * @summary Read the scoped event history of an individual audit in a schedule
+ */
+export const listAuditScheduleActivityQueryPageDefault = 1;
+
+export const listAuditScheduleActivityQueryLimitDefault = 20;
+export const listAuditScheduleActivityQueryLimitMax = 200;
+
+
+
+export const ListAuditScheduleActivityQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditScheduleActivityQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditScheduleActivityQueryLimitMax).default(listAuditScheduleActivityQueryLimitDefault)
+})
+
+export const listAuditScheduleActivityResponseOneTotalMin = 0;
+
+
+
+
+
+export const ListAuditScheduleActivityResponse = zod.object({
+  "total": zod.number().min(listAuditScheduleActivityResponseOneTotalMin),
+  "page": zod.number().min(1),
+  "limit": zod.number().min(1)
+}).and(zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "actorId": zod.string().nullable(),
+  "actorName": zod.string(),
+  "action": zod.string(),
+  "recordId": zod.string(),
+  "recordTitle": zod.string(),
+  "recordKind": zod.enum(['programme', 'audit', 'attachment']),
+  "occurredAt": zod.date(),
+  "previousStatus": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "remarks": zod.string().nullable(),
+  "requestId": zod.string().nullable(),
+  "changes": zod.array(zod.object({
+  "field": zod.string(),
+  "label": zod.string(),
+  "before": zod.string().nullable(),
+  "after": zod.string().nullable()
+}))
+}))
+}))
+
+
 export const GetAuditCapabilitiesResponse = zod.object({
   "keys": zod.array(zod.string()),
   "administrator": zod.boolean()
