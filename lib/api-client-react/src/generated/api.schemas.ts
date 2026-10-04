@@ -1615,6 +1615,33 @@ export const PermissionKey = {
   qaqccsat_reportsapprove_reject: 'qaqc.csat_reports.approve_reject',
   qaqccsat_reportsimport: 'qaqc.csat_reports.import',
   qaqccsat_reportsexport: 'qaqc.csat_reports.export',
+  auditdashboardview_all: 'audit.dashboard.view_all',
+  auditschedulesview_all: 'audit.schedules.view_all',
+  auditschedulescreate_edit: 'audit.schedules.create_edit',
+  auditschedulesdelete: 'audit.schedules.delete',
+  auditschedulessubmit: 'audit.schedules.submit',
+  auditschedulesapprove_reject: 'audit.schedules.approve_reject',
+  auditschedulesexport: 'audit.schedules.export',
+  auditplansview_all: 'audit.plans.view_all',
+  auditplanscreate_edit: 'audit.plans.create_edit',
+  auditplansdelete: 'audit.plans.delete',
+  auditplanssubmit: 'audit.plans.submit',
+  auditplansexport: 'audit.plans.export',
+  auditauditsview_all: 'audit.audits.view_all',
+  auditauditscreate_edit: 'audit.audits.create_edit',
+  auditauditsdelete: 'audit.audits.delete',
+  auditauditsexport: 'audit.audits.export',
+  auditfindingsview_all: 'audit.findings.view_all',
+  auditfindingscreate_edit: 'audit.findings.create_edit',
+  auditfindingsdelete: 'audit.findings.delete',
+  auditfindingsexport: 'audit.findings.export',
+  auditcarsview_all: 'audit.cars.view_all',
+  auditcarscreate_edit: 'audit.cars.create_edit',
+  auditcarssubmit: 'audit.cars.submit',
+  auditcarsapprove_reject: 'audit.cars.approve_reject',
+  auditcarsexport: 'audit.cars.export',
+  auditreportsview_all: 'audit.reports.view_all',
+  auditreportsexport: 'audit.reports.export',
 } as const;
 
 export interface Permission {
@@ -4754,6 +4781,11 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+};
+
+export type GetAuditCapabilities200 = {
+  keys: string[];
+  administrator: boolean;
 };
 
 export type GetAuditDashboardParams = {

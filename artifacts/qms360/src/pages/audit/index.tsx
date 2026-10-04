@@ -114,6 +114,7 @@ import { FindingsGrid } from "./finding-items";
 import { useLov, withLegacyOption } from "@/lib/use-lov";
 import { categoryOptionsForAuditType } from "./audit-category-options";
 import { useFieldAccess } from "@/lib/use-field-access";
+import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
 import { useFieldControls } from "@/lib/field-controls";
 import {
   cacheAuditPlanContext,
@@ -552,8 +553,9 @@ function Pager({ page, total, onPage }: { page: number; total: number; onPage: (
 }
 
 function AuditNav() {
+  const capabilities = useAuditCapabilities();
   const links = [["Dashboard", "/audit"], ["For my Action", "/audit/my-actions"], ["Schedules", "/audit/schedules"], ["Plans", "/audit/plans"], ["Audits", "/audit/audits"], ["CAR register", "/audit/cars"], ["Reports", "/audit/reports"]];
-  return <nav className="flex gap-1 overflow-x-auto border-b pb-3">{links.map(([label, href]) => <Button key={href} variant="ghost" size="sm" asChild><Link href={href}>{label}</Link></Button>)}</nav>;
+  return <nav className="flex gap-1 overflow-x-auto border-b pb-3">{links.filter(([, href]) => capabilities.canOpen(href)).map(([label, href]) => <Button key={href} variant="ghost" size="sm" asChild><Link href={href}>{label}</Link></Button>)}</nav>;
 }
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -2076,7 +2078,8 @@ function CarActionDetail() {
 
 const reportCards=[["Open vs closed audits","open-vs-closed"],["Findings log","findings-log"],["Audit ageing","ageing"],["CAR status & closure","car-status"],["Annual audit schedule","schedule"]];
 function Reports() {
-  return <div className="space-y-5"><PageHeader title="Report centre" description="Operational audit reports and export files"/><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{reportCards.map(([title,path])=><Card key={path}><CardHeader><div className="mb-2 w-fit rounded-lg bg-accent p-2 text-accent-foreground"><BarChart3 className="size-5"/></div><CardTitle className="text-base">{title}</CardTitle><CardDescription>Current live audit workspace data</CardDescription></CardHeader><CardContent><Button variant="outline" className="w-full" asChild><a href={`/api/audit/reports/${path}?format=csv`} download><Download className="mr-2 size-4"/>Download CSV</a></Button></CardContent></Card>)}</div></div>;
+  const capabilities = useAuditCapabilities();
+  return <div className="space-y-5"><PageHeader title="Report centre" description="Operational audit reports and export files"/>{!capabilities.canExport("reports") && <p className="text-sm text-muted-foreground">Your role can open Reports but does not have report export access.</p>}<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{reportCards.map(([title,path])=><Card key={path}><CardHeader><div className="mb-2 w-fit rounded-lg bg-accent p-2 text-accent-foreground"><BarChart3 className="size-5"/></div><CardTitle className="text-base">{title}</CardTitle><CardDescription>Current live audit workspace data</CardDescription></CardHeader><CardContent>{capabilities.canExport("reports") ? <Button variant="outline" className="w-full" asChild><a href={`/api/audit/reports/${path}?format=csv`} download><Download className="mr-2 size-4"/>Download CSV</a></Button> : <Button variant="outline" className="w-full" disabled><Download className="mr-2 size-4"/>Download CSV</Button>}</CardContent></Card>)}</div></div>;
 }
 
 function Missing() { return <Card><CardContent className="py-14 text-center"><XCircle className="mx-auto mb-3 size-8 text-muted-foreground"/><h2 className="font-semibold">Audit page not found</h2><Button className="mt-4" asChild><Link href="/audit">Return to dashboard</Link></Button></CardContent></Card>; }
@@ -2100,8 +2103,17 @@ function AuditPlanAutoSync() {
   return null;
 }
 
+function AuditAccessBoundary({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+  const capabilities = useAuditCapabilities();
+  if (capabilities.isLoading) return <State loading error={null} empty={false}/>;
+  if (capabilities.error) return <Card><CardContent className="space-y-3 py-10"><p>Audit access controls could not be loaded.</p><Button onClick={() => void capabilities.refetch()}>Retry</Button></CardContent></Card>;
+  if (!capabilities.canOpen(location)) return <Card><CardContent className="py-10 text-center">Your role does not have view access to this Audit module.</CardContent></Card>;
+  return <>{children}</>;
+}
+
 export function AuditRoutes() {
-  return <Layout><AuditPlanAutoSync/><Switch>
+  return <Layout><AuditAccessBoundary><AuditPlanAutoSync/><Switch>
     <Route path="/audit" component={Dashboard}/>
     <Route path="/audit/my-actions" component={MyActions}/>
     <Route path="/audit/schedules/:parentId" component={Schedules}/>
@@ -2115,5 +2127,5 @@ export function AuditRoutes() {
     <Route path="/audit/cars" component={Cars}/>
     <Route path="/audit/reports" component={Reports}/>
     <Route><Missing/></Route>
-  </Switch></Layout>;
+  </Switch></AuditAccessBoundary></Layout>;
 }

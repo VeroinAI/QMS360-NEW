@@ -81,6 +81,71 @@ afterAll(async () => {
 });
 
 describe("Audit role permission persistence", () => {
+  it("persists module grants and enforces them without changing other modules", async () => {
+    const roleId = crypto.randomUUID();
+    const input = {
+      id: roleId, name: `Module-limited role ${suffix}`, description: "Plans-only access",
+      active: true, systemDefault: false, roleAuthorizationLevel: null,
+      permissions: [{ key: "audit.plans.view_all", name: "Plans view" }],
+    };
+    const created = await api("POST", "/audit/admin/roles", input);
+    expect(created.status).toBe(201);
+    expect(created.json.permissions.map((p: { key: string }) => p.key)).toEqual(["audit.plans.view_all"]);
+    const [employee] = await db.insert(users).values({
+      organizationId, username: `module-user.${suffix}`, email: `module-user.${suffix}@example.test`, fullName: "Module fixture user",
+    }).returning();
+    await db.insert(applicationAccess).values({ organizationId, username: employee!.username, canOpenAudit: true });
+    await db.insert(auditUserWorkspaceRoles).values({ organizationId, userId: employee!.id, workspaceRoleId: roleId, projectIds: [] });
+    const token = issueToken(employee!);
+    expect((await api("GET", "/audit/capabilities", undefined, token)).json).toEqual({
+      keys: ["audit.plans.view_all"], administrator: false,
+    });
+    expect((await api("GET", "/audit/plans", undefined, token)).status).toBe(200);
+    for (const module of ["dashboard", "schedules", "audits", "cars", "reports/open-vs-closed"]) {
+      expect((await api("GET", `/audit/${module}`, undefined, token)).status).toBe(403);
+    }
+    expect((await api("POST", "/audit/plans", {}, token)).status).toBe(403);
+    const permissions = [
+      { key: "audit.schedules.view_all", name: "Schedules view" },
+      { key: "audit.schedules.create_edit", name: "Schedules edit" },
+      { key: "audit.dashboard.view_all", name: "Dashboard view" },
+      { key: "audit.reports.view_all", name: "Reports view" },
+    ];
+    const updated = await api("PUT", `/audit/admin/roles/${roleId}`, { ...input, permissions });
+    expect(updated.status).toBe(200);
+    const reopened = await api("GET", "/audit/admin/roles?limit=100");
+    expect(reopened.json.items.find((role: { id: string }) => role.id === roleId).permissions.map((p: { key: string }) => p.key).sort())
+      .toEqual(permissions.map(p => p.key).sort());
+    expect((await api("GET", "/audit/plans", undefined, token)).status).toBe(403);
+    expect((await api("GET", "/audit/dashboard", undefined, token)).status).toBe(200);
+    expect((await api("GET", "/audit/reports/open-vs-closed", undefined, token)).status).toBe(200);
+    expect((await api("GET", "/audit/reports/open-vs-closed?format=csv", undefined, token)).status).toBe(403);
+    expect((await api("POST", "/audit/schedules", {}, token)).status).toBe(422);
+    // Schedule editing must never confer top-level Programme creation.
+    expect((await api("POST", "/audit/programmes", {}, token)).status).toBe(403);
+    expect((await api("PUT", `/audit/admin/roles/${roleId}`, {
+      ...input, permissions: [...permissions, { key: "audit.reports.export", name: "Reports export" }],
+    })).status).toBe(200);
+    const exported = await fetch(`${baseUrl}/audit/reports/open-vs-closed?format=csv`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(exported.status).toBe(200);
+    expect(exported.headers.get("content-type")).toContain("text/csv");
+    const approval = await api("PUT", `/audit/admin/roles/${roleId}`, {
+      ...input, permissions: [{ key: "audit.schedules.approve_reject", name: "Schedule approval" }], roleAuthorizationLevel: 2,
+    });
+    expect(approval.status).toBe(200);
+    expect(approval.json.roleAuthorizationLevel).toBe(2);
+    expect(approval.json.permissions[0].key).toBe("audit.schedules.approve_reject");
+    expect((await api("PUT", `/audit/admin/roles/${roleId}`, {
+      ...input, permissions: [{ key: "audit.schedules.approve_reject", name: "Schedule approval" }],
+    })).status).toBe(422);
+    // Invalid module actions fail before mutating the saved role.
+    expect((await api("PUT", `/audit/admin/roles/${roleId}`, {
+      ...input, permissions: [{ key: "audit.dashboard.delete", name: "Invalid" }],
+    })).status).toBe(422);
+  });
+
   it("creates, lists, updates, and removes permissions without losing role metadata", async () => {
     const roleId = crypto.randomUUID();
     const selectedPermissions = [

@@ -1,3 +1,4 @@
+export * from "./audit-permissions";
 // Shared registry of admin-controllable forms and fields per application.
 // This is the single source of truth for which form/field keys are valid in
 // the organization_settings.branding.fieldControls matrix: the qms360 admin

@@ -137,6 +137,7 @@ import type {
   FieldSettingsCatalog,
   FieldSettingsUpdate,
   GeneratedAuditReport,
+  GetAuditCapabilities200,
   GetAuditDashboardParams,
   GetAuditEscalationsParams,
   GetAuditFindingsLogReportParams,
@@ -22761,6 +22762,77 @@ export function useGetGeneratedAuditReport<TData = Awaited<ReturnType<typeof get
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetGeneratedAuditReportQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAuditCapabilitiesUrl = () => {
+
+
+
+
+  return `/api/audit/capabilities`
+}
+
+export const getAuditCapabilities = async ( options?: Parameters<typeof customFetch>[1]): Promise<GetAuditCapabilities200> => {
+
+  return customFetch<GetAuditCapabilities200>(getGetAuditCapabilitiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditCapabilitiesQueryKey = () => {
+    return [
+    `/api/audit/capabilities`
+    ] as const;
+    }
+
+
+export const getGetAuditCapabilitiesQueryOptions = <TData = Awaited<ReturnType<typeof getAuditCapabilities>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditCapabilities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditCapabilitiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditCapabilities>>> = ({ signal }) => getAuditCapabilities({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditCapabilities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditCapabilitiesQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditCapabilities>>>
+export type GetAuditCapabilitiesQueryError = ErrorType<unknown>
+
+
+
+export function useGetAuditCapabilities<TData = Awaited<ReturnType<typeof getAuditCapabilities>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditCapabilities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditCapabilitiesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

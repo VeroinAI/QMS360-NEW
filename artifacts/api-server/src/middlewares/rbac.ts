@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { qaqcPermissionMatches, type QaqcOperation } from "@workspace/field-controls";
+import { qaqcPermissionMatches, auditModulePermissionMatches, auditModuleReadMatches, type QaqcOperation } from "@workspace/field-controls";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import {
   applicationAccess,
@@ -93,7 +93,7 @@ function grantFor(appKey: AppKey, action: PermissionAction, row: any): Permissio
   if (appKey !== "qaqc" && isAdminName(String(row.roleName ?? ""))) return "full";
   const key = String(row.key ?? "").toLowerCase();
   const isOwnView = /(?:^|[._])view_own(?:_scope)?$/.test(key)
-    && (appKey === "lessons" || appKey === "qaqc" || !key.endsWith("view_own_scope"));
+    && (appKey === "lessons" || appKey === "qaqc" || key.startsWith("audit.") || !key.endsWith("view_own_scope"));
   const inferred = isOwnView ? "own" : key.endsWith("view_all") ? "full" : action;
   return (isOwnView ? "own" : ["full", "own", "select"].includes(row.grant) ? row.grant : inferred) as PermissionAction;
 }
@@ -191,6 +191,13 @@ async function matchingPermissionRows(req: Request, appKey: AppKey, target: Perm
   const normalized = target.module.toLowerCase();
   return rows.filter((row: any) => {
     const key = String(row.key ?? "").toLowerCase();
+    if (appKey === "audit" && key.startsWith("audit.")) {
+      if (isAdminName(String(row.roleName ?? ""))) return true;
+      return target.operation === "review" ? auditModulePermissionMatches(key, normalized, "approve_reject")
+        : target.operation === "export" ? auditModulePermissionMatches(key, normalized, "export")
+        : target.action === "select" ? auditModuleReadMatches(key, normalized)
+        : auditModulePermissionMatches(key, normalized, "create_edit");
+    }
     if (appKey === "qaqc") {
       const op = target.operation === "review" ? "approve_reject" : target.operation;
       return op ? qaqcPermissionMatches(key, target.module, op)
@@ -286,6 +293,18 @@ export function requirePermission(
     const matching = rows.filter((r: any) => {
       const key = String(r.key ?? "").toLowerCase();
       const normalized = module.toLowerCase();
+      if (appKey === "audit" && key.startsWith("audit.")) {
+        if (isAdminName(String(r.roleName ?? ""))) return true;
+        if (options.allowAuditProgrammeCreate) return false;
+        const path = req.originalUrl.split("?")[0];
+        // Read permission is still required to download a record. Export alone
+        // never exposes records, and the extra export check is applied by Audit.
+        return req.method === "GET" || req.method === "HEAD" ? auditModuleReadMatches(key, normalized)
+          : /\/(review|decision)(?:\/|$)/.test(path) ? auditModulePermissionMatches(key, normalized, "approve_reject")
+          : /\/(submit|send|send-for-audit)(?:\/|$)/.test(path) ? auditModulePermissionMatches(key, normalized, "submit")
+          : req.method === "DELETE" ? auditModulePermissionMatches(key, normalized, "delete")
+          : auditModulePermissionMatches(key, normalized, "create_edit");
+      }
       if (appKey === "qaqc") {
         const path = req.originalUrl.split("?")[0];
         const operation = options.qaqcOperation

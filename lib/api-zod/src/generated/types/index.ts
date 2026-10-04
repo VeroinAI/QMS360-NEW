@@ -253,6 +253,7 @@ export * from './fieldSettingsModule';
 export * from './fieldSettingsUpdate';
 export * from './fromParameter';
 export * from './generatedAuditReport';
+export * from './getAuditCapabilities200';
 export * from './getAuditDashboardParams';
 export * from './getAuditEscalationsParams';
 export * from './getAuditFindingsLogReportParams';

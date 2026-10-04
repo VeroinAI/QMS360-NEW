@@ -12,6 +12,7 @@ import {
 } from '@workspace/api-client-react';
 import type { CurrentUser } from '@workspace/api-client-react';
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
+import { useAuditCapabilities } from '@/lib/use-audit-capabilities';
 import { Button } from '@/components/ui/button';
 import { FeedbackWidget } from '@/components/feedback-widget';
 
@@ -47,6 +48,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
   const [location, setLocation] = useLocation();
   const section = (location.startsWith('/qaqc') || location.startsWith('/settings/qaqc')) ? 'qaqc' : (location.startsWith('/lessons') || location.startsWith('/settings/lessons')) ? 'lessons' : location.startsWith('/audit') ? 'audit' : null;
   const [mobileOpen, setMobileOpen] = useState(false);
+  const auditCapabilities = useAuditCapabilities(section === 'audit');
   const [collapsed, setCollapsed] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null);
@@ -96,7 +98,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
     || (user.workspaceRoles?.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
   const isAdmin = platformAdmin;
   const nav = section
-    ? [...appNav[section].filter(([, href]) => section === 'qaqc' ? (cap.administrator || qaqcVisible(href)) : (isAdmin || href !== '/qaqc/settings')), ...(isAdmin ? [
+    ? [...appNav[section].filter(([, href]) => section === 'qaqc' ? (cap.administrator || qaqcVisible(href)) : section === 'audit' ? auditCapabilities.canOpen(href) : (isAdmin || href !== '/qaqc/settings')), ...(isAdmin ? [
       ['User Feedback', '/feedback', MessageSquarePlus] as const,
     ] : [])]
     : [...systemNav, ...(isAdmin ? [

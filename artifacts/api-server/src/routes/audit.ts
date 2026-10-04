@@ -53,11 +53,16 @@ import { renderAuditPlanPdf } from "../lib/audit-plan-pdf";
 import { auditIsComplete, buildConsolidatedAuditReport } from "../lib/audit-consolidated-report";
 import { renderConsolidatedAuditPdf } from "../lib/audit-consolidated-pdf";
 import { auditReportDetailsErrors, type AuditReportDetailsData } from "@workspace/field-controls";
+import { auditModulePermissionCatalog } from "@workspace/field-controls";
+import { activeAuditCapabilities } from "../lib/audit-capabilities";
 
 const router = Router();
 const requireAuditAdmin = requireAppAdmin("audit");
 router.use(requireAuth);
 router.use(requireAppAccess("audit"));
+router.get("/capabilities", asyncHandler(async (req, res) => res.json(await activeAuditCapabilities(req))));
+router.use("/dashboard", requirePermission("audit", "dashboard", "select"));
+router.use("/reports", requirePermission("audit", "reports", "select"), auditExportGuard("reports"));
 const auditModules: Array<[string, string]> = [
   ["/programmes", "schedules"], ["/schedules", "schedules"], ["/plans", "plans"], ["/audits", "audits"],
   ["/findings", "findings"], ["/cars", "cars"],
@@ -77,7 +82,27 @@ for (const [path, module] of auditModules) {
     return requirePermission("audit", module, req.method === "GET" ? "select" : "full", {
       allowAuditScheduleDataEntry: scheduleWrite,
       allowAuditProgrammeCreate: programmeCreate,
-    })(req, res, next);
+    })(req, res, () => auditExportGuard(module)(req, res, next));
+  });
+}
+function auditExportGuard(module: string) {
+  return asyncHandler(async (req, _res, next) => {
+    const isExport = req.method === "GET" && (
+      req.path.endsWith("/report.pdf") || req.path.endsWith("/report/pdf") || (module === "plans" && /^\/[^/]+\/report\/?$/.test(req.path))
+      || String(req.query.format ?? "").toLowerCase() === "csv"
+      || req.accepts(["json", "text/csv"]) === "text/csv"
+    );
+    if (!isExport || req.permissionAdminBypass) return next();
+    const exportScope = await getAuthorizedProjectScope(req, "audit", { module, action: "select", operation: "export" });
+    const intersect = (left: { unrestricted: boolean; projectIds: string[] }, right: typeof left) =>
+      left.unrestricted ? right : right.unrestricted ? left
+        : { unrestricted: false, projectIds: left.projectIds.filter(id => right.projectIds.includes(id)) };
+    const readScope = req.permissionProjectScope ?? { unrestricted: false, projectIds: [] };
+    const scope = intersect(readScope, exportScope);
+    if (!scope.unrestricted && !scope.projectIds.length) throw new HttpError(403, "Export is not permitted for your role in this scope");
+    req.permissionProjectScope = scope;
+    req.permissionFullProjectScope = intersect(req.permissionFullProjectScope ?? { unrestricted: false, projectIds: [] }, exportScope);
+    next();
   });
 }
 const auditEvidenceModules: Record<string, string> = {
@@ -670,7 +695,7 @@ async function approvalRoleChain(organizationId: string) {
     .where(and(
       eq(auditWorkspaceRoles.organizationId, organizationId), eq(auditWorkspaceRoles.status, "active"),
       isNull(auditWorkspaceRoles.deletedAt), eq(auditWorkspaceRolePermissions.organizationId, organizationId),
-      or(eq(auditPermissions.key, "schedules.approve_reject"), eq(auditPermissions.key, "approve_reject"), eq(auditPermissions.key, "schedules")),
+      or(eq(auditPermissions.key, "schedules.approve_reject"), eq(auditPermissions.key, "approve_reject"), eq(auditPermissions.key, "schedules"), eq(auditPermissions.key, "audit.schedules.approve_reject")),
       eq(auditWorkspaceRolePermissions.grant, "full"),
     ));
   const unique = [...new Map(rows.map(row => [row.id, row])).values()]
@@ -3262,7 +3287,10 @@ router.get("/evidence", asyncHandler(async (req, res) => {
 }));
 
 async function scopedAuditRows(req: Request, projectId?: string, module = "audits") {
-  const scope = await getAuthorizedProjectScope(req, "audit", { module, action: "select" });
+  const moduleScope = await getAuthorizedProjectScope(req, "audit", { module, action: "select" });
+  const boundary = req.permissionProjectScope;
+  const scope = !boundary || boundary.unrestricted ? moduleScope : moduleScope.unrestricted ? boundary
+    : { unrestricted: false, projectIds: moduleScope.projectIds.filter(id => boundary.projectIds.includes(id)) };
   if (projectId && !scope.unrestricted && !scope.projectIds.includes(projectId)) {
     throw new HttpError(403, "You do not have access to this project");
   }
@@ -3272,11 +3300,11 @@ async function scopedAuditRows(req: Request, projectId?: string, module = "audit
   ));
 }
 
-async function scopedAuditData(req: Request, projectId?: string) {
+async function scopedAuditData(req: Request, projectId?: string, scopeModule?: string) {
   const [auditRows, findingAudits, carAudits] = await Promise.all([
-    scopedAuditRows(req, projectId, "audits"),
-    scopedAuditRows(req, projectId, "findings"),
-    scopedAuditRows(req, projectId, "cars"),
+    scopedAuditRows(req, projectId, scopeModule ?? "audits"),
+    scopedAuditRows(req, projectId, scopeModule ?? "findings"),
+    scopedAuditRows(req, projectId, scopeModule ?? "cars"),
   ]);
   const findingAuditIds = findingAudits.map((row) => row.id);
   const findingRows = findingAuditIds.length
@@ -3292,8 +3320,8 @@ async function scopedAuditData(req: Request, projectId?: string) {
   return { auditRows, findingRows, carRows };
 }
 
-async function dashboardData(req: Request, projectId?: string) {
-  const { auditRows, findingRows, carRows } = await scopedAuditData(req, projectId);
+async function dashboardData(req: Request, projectId?: string, scopeModule = "dashboard") {
+  const { auditRows, findingRows, carRows } = await scopedAuditData(req, projectId, scopeModule);
   const countBy = (rows: AnyRow[], key: string) => rows.reduce((out: AnyRow, row) => ({ ...out, [row[key]]: (out[row[key]] ?? 0) + 1 }), {});
   const now = dateOnly(new Date())!;
   return {
@@ -3310,33 +3338,33 @@ async function dashboardData(req: Request, projectId?: string) {
 }
 router.get("/dashboard", asyncHandler(async (req, res) => res.json(await dashboardData(req, req.query.projectId ? String(req.query.projectId) : undefined))));
 router.get("/reports/open-vs-closed", asyncHandler(async (req, res) => {
-  const report = await dashboardData(req, req.query.projectId ? String(req.query.projectId) : undefined);
+  const report = await dashboardData(req, req.query.projectId ? String(req.query.projectId) : undefined, "reports");
   const rows = Object.entries(report.metrics.audits as AnyRow).map(([status, count]) => ({ status, count }));
   if (!maybeCsv(req, res, "audit-open-vs-closed", rows)) res.json(report);
 }));
-router.get("/reports/findings-log", requirePermission("audit", "findings", "select"), asyncHandler(async (req, res) => {
+router.get("/reports/findings-log", asyncHandler(async (req, res) => {
   const { page, limit } = pagination(req);
-  const { findingRows } = await scopedAuditData(req, req.query.projectId ? String(req.query.projectId) : undefined);
+  const { findingRows } = await scopedAuditData(req, req.query.projectId ? String(req.query.projectId) : undefined, "reports");
   const sorted = findingRows.sort((a, b) => b.createdAt.valueOf() - a.createdAt.valueOf());
   const result = sorted.slice((page - 1) * limit, page * limit).map(findingDto);
   if (!maybeCsv(req, res, "audit-findings-log", result)) res.json(paginated(result, sorted.length, page, limit));
 }));
 router.get("/reports/ageing", asyncHandler(async (req, res) => {
-  const { findingRows: findings, carRows: cars } = await scopedAuditData(req, req.query.projectId ? String(req.query.projectId) : undefined);
+  const { findingRows: findings, carRows: cars } = await scopedAuditData(req, req.query.projectId ? String(req.query.projectId) : undefined, "reports");
   const bucket = (createdAt: Date) => { const days = Math.floor((Date.now() - createdAt.valueOf()) / 86400000); return days <= 15 ? "0-15" : days <= 45 ? "16-45" : ">45"; };
   const rows = [...findings.map((x) => ({ type: "finding", bucket: bucket(x.createdAt), id: x.id })), ...cars.map((x) => ({ type: "CAR", bucket: bucket(x.createdAt), id: x.id }))];
   const metrics = rows.reduce((out: AnyRow, x) => ({ ...out, [`${x.type}:${x.bucket}`]: (out[`${x.type}:${x.bucket}`] ?? 0) + 1 }), {});
   if (!maybeCsv(req, res, "audit-ageing", rows)) res.json({ generatedAt: new Date(), metrics, series: rows });
 }));
 router.get("/reports/car-status", asyncHandler(async (req, res) => {
-  const { carRows: rows } = await scopedAuditData(req, req.query.projectId ? String(req.query.projectId) : undefined);
+  const { carRows: rows } = await scopedAuditData(req, req.query.projectId ? String(req.query.projectId) : undefined, "reports");
   const metrics = rows.reduce((out: AnyRow, x) => ({ ...out, [x.workflowState]: (out[x.workflowState] ?? 0) + 1 }), {});
   const series = Object.entries(metrics).map(([status, count]) => ({ status, count }));
   if (!maybeCsv(req, res, "car-status", series)) res.json({ generatedAt: new Date(), metrics, series });
 }));
 router.get("/reports/schedule", asyncHandler(async (req, res) => {
   const all = await db.select().from(auditSchedules).where(active(auditSchedules, actor(req).organizationId)).orderBy(desc(auditSchedules.year));
-  const scope = await getAuthorizedProjectScope(req, "audit", { module: "schedules", action: "select" });
+  const scope = await getAuthorizedProjectScope(req, "audit");
   const scoped = all.filter((row) => {
     const ids = scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
     return scope.unrestricted || (ids.length > 0 && ids.every((id) => scope.projectIds.includes(id)));
@@ -3482,7 +3510,12 @@ async function auditRoleResponse(role: AnyRow) {
   return { id: role.id, name: role.name, description: role.description, roleAuthorizationLevel: role.roleAuthorizationLevel, permissions, active: role.status === "active", systemDefault: role.isSystem };
 }
 function auditRoleAuthorizationLevel(data: AnyRow): number | null {
-  if (!data.permissions.some((permission: { key: string }) => permission.key === "approve_reject")) return null;
+  const catalog = new Set(auditModulePermissionCatalog.map(permission => permission.key));
+  if (data.permissions.some((permission: { key: string }) => permission.key.startsWith("audit.") && !catalog.has(permission.key))) {
+    throw new HttpError(422, "Unsupported Audit module permission");
+  }
+  if (!data.permissions.some((permission: { key: string }) =>
+    ["approve_reject", "schedules.approve_reject", "audit.schedules.approve_reject"].includes(permission.key))) return null;
   const level = data.roleAuthorizationLevel;
   if (!Number.isInteger(level) || level < 1 || level > 2147483647) {
     throw new HttpError(422, "Approval Level must be a positive whole number when Approve / reject is selected");
@@ -3490,6 +3523,10 @@ function auditRoleAuthorizationLevel(data: AnyRow): number | null {
   return level;
 }
 async function syncAuditRolePermissions(req: Request, roleId: string, requested: Array<{ key: string; name: string }>) {
+  const catalog = new Map(auditModulePermissionCatalog.map(permission => [permission.key, permission.name]));
+  if (requested.some(permission => permission.key.startsWith("audit.") && !catalog.has(permission.key))) {
+    throw new HttpError(422, "Unsupported Audit module permission");
+  }
   const organizationId = actor(req).organizationId;
   await db.update(auditWorkspaceRolePermissions)
     .set({ deletedAt: new Date(), updatedAt: new Date() })
@@ -3509,7 +3546,7 @@ async function syncAuditRolePermissions(req: Request, roleId: string, requested:
       [permission] = await db.insert(auditPermissions).values({
         organizationId,
         key: requestedPermission.key,
-        label: requestedPermission.name,
+        label: catalog.get(requestedPermission.key) ?? requestedPermission.name,
         category: "audit",
       }).returning();
     }
