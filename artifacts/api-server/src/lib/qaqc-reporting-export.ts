@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import * as XLSX from "xlsx";
+import { applyExcelDateFormats } from "./excel-date-cells";
 import { formatSpreadsheetData } from "@workspace/spreadsheet-dates";
 import type { ReportingType } from "./qaqc-reporting-excel";
 
@@ -93,7 +94,7 @@ function reportWorkbook(report: QaqcReportExport) {
 }
 
 export function exportQaqcReportExcel(report: QaqcReportExport): Buffer {
-  return XLSX.write(reportWorkbook(formatSpreadsheetData(report)), { type: "buffer", bookType: "xlsx" }) as Buffer;
+  return XLSX.write(applyExcelDateFormats(reportWorkbook(formatSpreadsheetData(report))), { type: "buffer", bookType: "xlsx", sheetStubs: true }) as Buffer;
 }
 
 export function exportQaqcDashboardExcel(dashboard: QaqcDashboardExport): Buffer {
@@ -126,7 +127,7 @@ export function exportQaqcDashboardExcel(dashboard: QaqcDashboardExport): Buffer
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(contentRows("computed")), "Calculated Values");
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(contentRows("baseline")), "Baselines");
   }
-  return XLSX.write(book, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  return XLSX.write(applyExcelDateFormats(book), { type: "buffer", bookType: "xlsx", sheetStubs: true }) as Buffer;
 }
 
 function pdfText(value: string) {

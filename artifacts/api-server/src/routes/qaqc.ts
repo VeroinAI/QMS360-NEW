@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { applyExcelDateFormats } from "../lib/excel-date-cells";
 import { formatSpreadsheetDate, isSpreadsheetDateField } from "@workspace/spreadsheet-dates";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
@@ -570,7 +571,7 @@ router.get("/metrics/template", asyncHandler(async (req, res) => {
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, "Metrics");
     XLSX.utils.book_append_sheet(book, instructions, "Instructions");
-    const buffer = XLSX.write(book, { type: "buffer", bookType: "xlsx" }) as Buffer;
+    const buffer = XLSX.write(applyExcelDateFormats(book), { type: "buffer", bookType: "xlsx", sheetStubs: true }) as Buffer;
     res.json({ delivery: "download", fileName: "qaqc-metrics-template.xlsx", downloadUrl: `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${buffer.toString("base64")}`, message: null });
     return;
   }

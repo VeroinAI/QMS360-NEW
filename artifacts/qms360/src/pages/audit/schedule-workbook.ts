@@ -1,5 +1,5 @@
 import type { AuditSchedule } from "@workspace/api-client-react";
-import { formatSpreadsheetDate } from "@workspace/spreadsheet-dates";
+import { excelDateValue, excelDateNumberFormat, formatSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import { categoryOptionsForAuditType, linkedAuditTypes } from "./audit-category-options";
 
 export const scheduleImportHeaders = [
@@ -60,6 +60,8 @@ export async function createScheduleWorkbook(
   const sheet = workbook.addWorksheet("Audit Schedules", { views: [{ state: "frozen", ySplit: 1 }] });
   sheet.addRow(scheduleImportHeaders);
   sheet.columns = [27, 24, 32, 25, 38, 30, 25, 25, 42].map(width => ({ width }));
+  sheet.getColumn(7).numFmt = excelDateNumberFormat;
+  sheet.getColumn(8).numFmt = excelDateNumberFormat;
   sheet.getRow(1).font = { bold: true };
   for (const item of schedules) {
     const project = item.auditTypes?.includes("Quality Internal Process Audit")
@@ -70,7 +72,7 @@ export async function createScheduleWorkbook(
       item.auditTypes?.join(", ") ?? "", item.auditCategory ?? "",
       project ? projectDropdownLabel(project) : item.departmentProject ?? "",
       item.location ?? "", item.title, item.processProductOwner ?? "",
-      formatSpreadsheetDate(item.plannedStartDate), formatSpreadsheetDate(item.plannedEndDate), item.remarks ?? "",
+      excelDateValue(item.plannedStartDate), excelDateValue(item.plannedEndDate), item.remarks ?? "",
     ]);
   }
 
@@ -137,8 +139,8 @@ export async function createScheduleWorkbook(
   });
   const lastRow = Math.min(1_048_576, Math.max(1001, schedules.length + 501));
   for (let row = 2; row <= lastRow; row += 1) {
-    sheet.getCell(`G${row}`).numFmt = "dd/mm/yyyy";
-    sheet.getCell(`H${row}`).numFmt = "dd/mm/yyyy";
+    sheet.getCell(`G${row}`).numFmt = excelDateNumberFormat;
+    sheet.getCell(`H${row}`).numFmt = excelDateNumberFormat;
     sheet.getCell(`A${row}`).dataValidation = listValidation("AuditTypes");
     sheet.getCell(`B${row}`).dataValidation = listValidation(linkedCategories
       ? `INDIRECT(IFERROR(VLOOKUP($A${row},AuditCategoryMap,2,FALSE),"EmptyAuditCategories"))`

@@ -21,7 +21,7 @@ describe("integration Excel date boundaries", () => {
   it("annotates date columns without changing non-date headers", () => {
     const file = buildTemplateFile(template);
     const book = XLSX.read(Buffer.from(file.contentBase64, "base64"), { type: "buffer" });
-    expect(XLSX.utils.sheet_to_json(book.Sheets.Template, { header: 1 }))
+    expect(XLSX.utils.sheet_to_json(book.Sheets.Template, { header: 1, blankrows: false }))
       .toEqual([["Start Date (DD/MM/YYYY)", "Name"]]);
   });
   it.each(["Start Date", "Start Date (DD/MM/YYYY)", "Start Date (YYYY-MM-DD)"])(

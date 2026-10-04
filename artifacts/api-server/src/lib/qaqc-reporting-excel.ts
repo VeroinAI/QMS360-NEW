@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { applyExcelDateFormats } from "./excel-date-cells";
 import { parseSpreadsheetDate, parseSpreadsheetData, type SpreadsheetDateOptions } from "@workspace/spreadsheet-dates";
 
 export type ReportingType = "monthly" | "daily" | "csat";
@@ -270,7 +271,7 @@ export function makeQaqcReportingTemplate(
       ["Document type (Drawings or Submittals)", "Revision name (e.g. Rev 00)", "Approved status count"],
     ]), "Revisions");
   }
-  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  return XLSX.write(applyExcelDateFormats(workbook), { type: "buffer", bookType: "xlsx", sheetStubs: true }) as Buffer;
 }
 
 export function parseQaqcReportingWorkbook(input: {

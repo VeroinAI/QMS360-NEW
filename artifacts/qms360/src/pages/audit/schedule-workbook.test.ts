@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import type { AuditSchedule } from "@workspace/api-client-react";
+import { parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import { createScheduleWorkbook, resolveScheduleProject, scheduleCategoryLinkError, scheduleFieldForHeader, scheduleImportHeaders } from "./schedule-workbook";
 
 const options = {
@@ -59,10 +60,13 @@ describe("audit schedule spreadsheet", () => {
     await reopened.xlsx.load(bytes);
     const sheet = reopened.getWorksheet("Audit Schedules")!;
     expect(sheet.getCell("E2").value).toBe("Plant review");
-    expect(sheet.getCell("G2").value).toBe("01/10/2026");
+    expect(sheet.getCell("G2").value).toEqual(new Date("2026-10-01T00:00:00.000Z"));
     expect(sheet.getCell("G2").numFmt).toBe("dd/mm/yyyy");
-    const loaded = XLSX.read(bytes, { type: "array" });
-    const data = XLSX.utils.sheet_to_json<Record<string, string>>(loaded.Sheets["Audit Schedules"]);
+    const loaded = XLSX.read(bytes, { type: "array", cellNF: true });
+    expect(loaded.Sheets["Audit Schedules"].G2.t).toBe("n");
+    expect(loaded.Sheets["Audit Schedules"].G2.z).toBe("dd/mm/yyyy");
+    expect(parseSpreadsheetDate(loaded.Sheets["Audit Schedules"].G2.v)).toBe("2026-10-01");
+    const data = XLSX.utils.sheet_to_json<Record<string, string>>(loaded.Sheets["Audit Schedules"], { raw: false });
     expect(scheduleFieldForHeader("From Date (YYYY-MM-DD)")).toBe("plannedStartDate");
     expect(scheduleFieldForHeader("To Date (YYYY-MM-DD)")).toBe("plannedEndDate");
     expect(data[0]["From Date (DD/MM/YYYY)"]).toBe("01/10/2026");

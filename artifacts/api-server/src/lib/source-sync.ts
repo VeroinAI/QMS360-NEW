@@ -3,6 +3,7 @@ import http from "node:http";
 import https from "node:https";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import * as XLSX from "xlsx";
+import { applyExcelDateFormats } from "./excel-date-cells";
 import { isSpreadsheetDateField, parseSpreadsheetData, parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import {
   connectorFieldMappings, db, importTemplates, integrationConnectors, projects, syncJobs, users,
@@ -515,7 +516,7 @@ export function buildTemplateFile(template: { entity: string; name: string; colu
   sheet["!cols"] = headers.map((header) => ({ wch: Math.max(14, header.length + 4) }));
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Template");
-  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  const buffer = XLSX.write(applyExcelDateFormats(workbook), { type: "buffer", bookType: "xlsx", sheetStubs: true }) as Buffer;
   const fileName = `${template.entity}-${template.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.xlsx`;
   return { fileName, contentBase64: buffer.toString("base64") };
 }

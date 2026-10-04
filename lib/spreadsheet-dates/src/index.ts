@@ -1,4 +1,5 @@
 export const spreadsheetDateFormat = "DD/MM/YYYY";
+export const excelDateNumberFormat = "dd/mm/yyyy";
 export type SpreadsheetDateOptions = { date1904?: boolean };
 
 function calendarDate(year: number, month: number, day: number): string | null {
@@ -38,6 +39,16 @@ export function formatSpreadsheetDate(raw: unknown): string {
     : raw;
   const iso = parseSpreadsheetDate(input);
   return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : String(raw);
+}
+
+/** Native date value for XLSX writers; date text alone does not set Excel's cell format. */
+export function excelDateValue(raw: unknown, options: SpreadsheetDateOptions = {}): Date | null {
+  if (raw === null || raw === undefined || raw === "") return null;
+  const iso = typeof raw === "number"
+    ? parseSpreadsheetDate(raw, options)
+    : parseSpreadsheetDate(formatSpreadsheetDate(raw));
+  if (!iso) throw new Error("Cannot export an invalid Excel date");
+  return new Date(`${iso}T00:00:00.000Z`);
 }
 
 /** Recognize date fields, not arbitrary ISO-looking text in titles or remarks. */

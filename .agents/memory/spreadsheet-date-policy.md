@@ -26,3 +26,17 @@ workbooks as 1900-based silently shifts dates from 1904-based files.
 **How to apply:** Preserve legacy heading aliases and ISO input compatibility
 while generating only DD/MM/YYYY guidance in new templates. Do not use locale-
 dependent JavaScript date parsing to interpret slash-date text.
+
+XLSX date cells must contain native Excel dates with the explicit custom number
+format `dd/mm/yyyy`, including blank date-entry cells and columns. Merely writing
+DD/MM/YYYY text does not make it a real Excel date.
+
+**Why:** The user reported that date formatting still depended on system defaults
+after the text-format change. Native date cells with a fixed custom format also
+preserve Excel's date sorting and filtering.
+
+**How to apply:** Verify both the serialized cell type and its stored number
+format after reopening a generated workbook. Styled blank cells must stay truly
+blank; they must not become zero/1899 dates or additional import records. CSV
+cannot store Excel cell types or number formats, so keep its day-first text
+behavior separate from XLSX styling.

@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { applyExcelDateFormats } from "../lib/excel-date-cells";
 import { formatSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import { and, desc, eq, getTableColumns, inArray, isNull, sql } from "drizzle-orm";
 import { db, feedbackAttachments, feedbackEntries, feedbackStatusHistory, users } from "@workspace/db";
@@ -256,7 +257,7 @@ router.get("/feedback/export", requireAdmin, asyncHandler(async (req, res) => {
     { wch: 18 }, { wch: 24 }, { wch: 24 }, { wch: 80 },
   ];
   XLSX.utils.book_append_sheet(workbook, worksheet, "Feedback");
-  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  const buffer = XLSX.write(applyExcelDateFormats(workbook), { type: "buffer", bookType: "xlsx", sheetStubs: true }) as Buffer;
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="feedback-${new Date().toISOString().slice(0, 10)}.xlsx"`);
   res.send(buffer);
