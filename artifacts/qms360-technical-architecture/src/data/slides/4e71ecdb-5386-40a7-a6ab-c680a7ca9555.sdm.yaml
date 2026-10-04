@@ -1,0 +1,741 @@
+format: replit.sdm
+version: 1
+size:
+  width: 1920
+  height: 1080
+background:
+  kind: solid
+  color:
+    kind: rgb
+    value: "#FFFFFF"
+theme:
+  colors:
+    dk1: "#000000"
+    dk2: "#44546A"
+    lt1: "#FFFFFF"
+    lt2: "#E7E6E6"
+    accent1: "#4472C4"
+    accent2: "#ED7D31"
+    accent3: "#A5A5A5"
+    accent4: "#FFC000"
+    accent5: "#5B9BD5"
+    accent6: "#70AD47"
+    hlink: "#0563C1"
+    folHlink: "#954F72"
+  fonts:
+    display: Calibri Light
+    body: Calibri
+assets:
+  image-1:
+    src: assets/imported-3c36b649-6117-48af-9b7c-d4c9a4cfa118/image_1.png
+  image-8:
+    src: assets/imported-3c36b649-6117-48af-9b7c-d4c9a4cfa118/image_8.png
+elements:
+  - id: e0
+    name: Image 0
+    frame:
+      x: 1670.4
+      y: 48.96
+      width: 165.6
+      height: 72.86
+    altText: /home/claude/img/logo.png
+    type: image
+    assetId: image-1
+    fit: fill
+  - id: e1
+    name: Text 0
+    frame:
+      x: 86.4
+      y: 1019.52
+      width: 1296
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Quality Internal Audit Report  |  [Audit Ref]  |  [Project / process name]
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 9
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e2
+    name: Text 1
+    frame:
+      x: 86.4
+      y: 57.6
+      width: 1080
+      height: 36
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: EVIDENCE
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 11
+            weight: 700
+            color:
+              kind: rgb
+              value: "#47237F"
+            letterSpacingPt: 2
+          align: left
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e3
+    name: Text 1
+    frame:
+      x: 86.4
+      y: 97.92
+      width: 1540.8
+      height: 108
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Photographic evidence
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 28
+            weight: 700
+            color:
+              kind: rgb
+              value: "#241F33"
+          align: left
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e4
+    name: Shape 2
+    frame:
+      x: 86.4
+      y: 230.4
+      width: 856.8
+      height: 475.2
+    type: shape
+    geometry:
+      kind: preset
+      preset: rect
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+    stroke:
+      color:
+        kind: rgb
+        value: "#A99BC8"
+      widthPt: 1.25
+      dash: dash
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e5
+    name: Image 0
+    frame:
+      x: 468
+      y: 367.2
+      width: 93.6
+      height: 93.6
+    altText: preencoded.png
+    type: image
+    assetId: image-8
+    fit: fill
+  - id: e6
+    name: Text 3
+    frame:
+      x: 86.4
+      y: 475.2
+      width: 856.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Insert photo
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 14
+          align: center
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e7
+    name: Text 4
+    frame:
+      x: 86.4
+      y: 521.28
+      width: 856.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Circle or arrow the defect; one finding per photo pair
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 11
+          align: center
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e8
+    name: Text 5
+    frame:
+      x: 86.4
+      y: 727.2
+      width: 856.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Ref: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[B.x.x]     "
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+            - text: "Grade: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[ ]     "
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+            - text: "Date: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[ ]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e9
+    name: Text 6
+    frame:
+      x: 86.4
+      y: 777.6
+      width: 856.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Location: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[area, grid, element]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e10
+    name: Text 7
+    frame:
+      x: 86.4
+      y: 828
+      width: 856.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Description: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[what the photo shows and why it is a non-conformity]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e11
+    name: Text 8
+    frame:
+      x: 86.4
+      y: 914.4
+      width: 856.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Requirement: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[standard / spec / clause]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e12
+    name: Shape 9
+    frame:
+      x: 976.32
+      y: 230.4
+      width: 856.8
+      height: 475.2
+    type: shape
+    geometry:
+      kind: preset
+      preset: rect
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+    stroke:
+      color:
+        kind: rgb
+        value: "#A99BC8"
+      widthPt: 1.25
+      dash: dash
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e13
+    name: Image 1
+    frame:
+      x: 1357.92
+      y: 367.2
+      width: 93.6
+      height: 93.6
+    altText: preencoded.png
+    type: image
+    assetId: image-8
+    fit: fill
+  - id: e14
+    name: Text 10
+    frame:
+      x: 976.32
+      y: 475.2
+      width: 856.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Insert photo
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 14
+          align: center
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e15
+    name: Text 11
+    frame:
+      x: 976.32
+      y: 521.28
+      width: 856.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Circle or arrow the defect; one finding per photo pair
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 11
+          align: center
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e16
+    name: Text 12
+    frame:
+      x: 976.32
+      y: 727.2
+      width: 856.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Ref: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[B.x.x]     "
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+            - text: "Grade: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[ ]     "
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+            - text: "Date: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[ ]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e17
+    name: Text 13
+    frame:
+      x: 976.32
+      y: 777.6
+      width: 856.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Location: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[area, grid, element]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e18
+    name: Text 14
+    frame:
+      x: 976.32
+      y: 828
+      width: 856.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Description: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[what the photo shows and why it is a non-conformity]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e19
+    name: Text 15
+    frame:
+      x: 976.32
+      y: 914.4
+      width: 856.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Requirement: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[standard / spec / clause]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e20
+    name: Slide Number Placeholder 0
+    frame:
+      x: 1756.8
+      y: 1019.52
+      width: 76.32
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "13"
+              weight: 400
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 9
+            color:
+              kind: rgb
+              value: "#6A6480"
+          align: right
+          indentPt: 0
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2

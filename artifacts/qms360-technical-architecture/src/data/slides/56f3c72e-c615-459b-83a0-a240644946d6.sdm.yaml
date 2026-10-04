@@ -1,0 +1,1082 @@
+format: replit.sdm
+version: 1
+size:
+  width: 1920
+  height: 1080
+background:
+  kind: solid
+  color:
+    kind: rgb
+    value: "#ffffff"
+theme:
+  colors:
+    dk1: "#000000"
+    dk2: "#44546A"
+    lt1: "#FFFFFF"
+    lt2: "#E7E6E6"
+    accent1: "#4472C4"
+    accent2: "#ED7D31"
+    accent3: "#A5A5A5"
+    accent4: "#FFC000"
+    accent5: "#5B9BD5"
+    accent6: "#70AD47"
+    hlink: "#0563C1"
+    folHlink: "#954F72"
+  fonts:
+    display: Calibri Light
+    body: Calibri
+assets:
+  image-1:
+    src: assets/imported-3c36b649-6117-48af-9b7c-d4c9a4cfa118/image_1.png
+  image-5:
+    src: assets/imported-3c36b649-6117-48af-9b7c-d4c9a4cfa118/image_5.png
+  image-6:
+    src: assets/imported-3c36b649-6117-48af-9b7c-d4c9a4cfa118/image_6.png
+  image-7:
+    src: assets/imported-3c36b649-6117-48af-9b7c-d4c9a4cfa118/image_7.png
+elements:
+  - id: e0
+    name: Text 0
+    frame:
+      x: 86.4
+      y: 57.6
+      width: 1152
+      height: 36
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: AUDIT OVERVIEW
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+              letterSpacingPt: 2
+          defaultRunStyle:
+            sizePt: 11
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e1
+    name: Text 1
+    frame:
+      x: 86.4
+      y: 97.92
+      width: 1540.8
+      height: 108
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Audit programme and participation
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 28
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e2
+    name: Image 0
+    frame:
+      x: 1670.4
+      y: 48.96
+      width: 165.6
+      height: 72.86
+    altText: /home/claude/img/logo.png
+    type: image
+    assetId: image-1
+    fit: fill
+  - id: e3
+    name: Text 2
+    frame:
+      x: 86.4
+      y: 1019.52
+      width: 1296
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Quality Internal Audit Report 2026  |  QAM-IA-26-009  |  Expansion of Tabarjal PV 380/132kV BSP
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 9
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e4
+    name: Text 3
+    frame:
+      x: 1756.8
+      y: 1019.52
+      width: 76.32
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "4"
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 9
+          align: right
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e5
+    name: Text 4
+    frame:
+      x: 86.4
+      y: 230.4
+      width: 864
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Daily "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+            - text: programme
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+            - text: " (DD-MMM-YYYY)"
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 15
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e6
+    name: Shape 5
+    frame:
+      x: 148.32
+      y: 324
+      width: 1
+      height: 540
+    type: line
+    points:
+      - x: 0
+        y: 0
+      - x: 1
+        y: 540
+    stroke:
+      color:
+        kind: rgb
+        value: "#DCD2EF"
+      widthPt: 2
+      dash: solid
+  - id: e7
+    name: Shape 6
+    frame:
+      x: 125.28
+      y: 324
+      width: 46.08
+      height: 46.08
+    type: shape
+    geometry:
+      kind: preset
+      preset: ellipse
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#47237F"
+    stroke:
+      color:
+        kind: rgb
+        value: "#FFFFFF"
+      widthPt: 2
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e8
+    name: Text 7
+    frame:
+      x: 208.8
+      y: 298.08
+      width: 244.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: 09:00–09:30
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e9
+    name: Text 8
+    frame:
+      x: 208.8
+      y: 341.28
+      width: 705.6
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Opening meeting with site team
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e10
+    name: Shape 9
+    frame:
+      x: 125.28
+      y: 460.8
+      width: 46.08
+      height: 46.08
+    type: shape
+    geometry:
+      kind: preset
+      preset: ellipse
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#47237F"
+    stroke:
+      color:
+        kind: rgb
+        value: "#FFFFFF"
+      widthPt: 2
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e11
+    name: Text 10
+    frame:
+      x: 208.8
+      y: 434.88
+      width: 244.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: 09:30–12:00
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e12
+    name: Text 11
+    frame:
+      x: 208.8
+      y: 478.08
+      width: 705.6
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Site visit at the (insert the project name)
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e13
+    name: Shape 12
+    frame:
+      x: 125.28
+      y: 597.6
+      width: 46.08
+      height: 46.08
+    type: shape
+    geometry:
+      kind: preset
+      preset: ellipse
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#DCD2EF"
+    stroke:
+      color:
+        kind: rgb
+        value: "#FFFFFF"
+      widthPt: 2
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e14
+    name: Text 13
+    frame:
+      x: 208.8
+      y: 571.68
+      width: 244.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: 12:00–13:00
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e15
+    name: Text 14
+    frame:
+      x: 208.8
+      y: 614.88
+      width: 705.6
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Prayer and lunch break
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e16
+    name: Shape 15
+    frame:
+      x: 125.28
+      y: 734.4
+      width: 46.08
+      height: 46.08
+    type: shape
+    geometry:
+      kind: preset
+      preset: ellipse
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#47237F"
+    stroke:
+      color:
+        kind: rgb
+        value: "#FFFFFF"
+      widthPt: 2
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e17
+    name: Text 16
+    frame:
+      x: 208.8
+      y: 708.48
+      width: 244.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: 13:00–16:00
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e18
+    name: Text 17
+    frame:
+      x: 208.8
+      y: 751.68
+      width: 705.6
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Verification of documents and records; QMS implementation
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e19
+    name: Shape 18
+    frame:
+      x: 125.28
+      y: 871.2
+      width: 46.08
+      height: 46.08
+    type: shape
+    geometry:
+      kind: preset
+      preset: ellipse
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#47237F"
+    stroke:
+      color:
+        kind: rgb
+        value: "#FFFFFF"
+      widthPt: 2
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e20
+    name: Text 19
+    frame:
+      x: 208.8
+      y: 845.28
+      width: 244.8
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: 16:00–16:30
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e21
+    name: Text 20
+    frame:
+      x: 208.8
+      y: 888.48
+      width: 705.6
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Review of the day, closing meeting and recommendations
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e22
+    name: Shape 21
+    frame:
+      x: 1008
+      y: 230.4
+      width: 825.12
+      height: 223.2
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+    stroke:
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e23
+    name: Shape 22
+    frame:
+      x: 1044
+      y: 259.2
+      width: 72
+      height: 72
+    type: shape
+    geometry:
+      kind: preset
+      preset: ellipse
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#DCD2EF"
+    stroke:
+      color:
+        kind: rgb
+        value: "#DCD2EF"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e24
+    name: Image 1
+    frame:
+      x: 1063.44
+      y: 278.64
+      width: 33.12
+      height: 33.12
+    altText: preencoded.png
+    type: image
+    assetId: image-5
+    fit: fill
+  - id: e25
+    name: Text 23
+    frame:
+      x: 1144.8
+      y: 256.32
+      width: 576
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Audit team
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 15
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e26
+    name: Text 24
+    frame:
+      x: 1144.8
+      y: 313.92
+      width: 662.4
+      height: 115.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Engr. (Name: Title)"
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 13.5
+          spaceAfterPt: 3
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e27
+    name: Shape 25
+    frame:
+      x: 1008
+      y: 482.4
+      width: 825.12
+      height: 252
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+    stroke:
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e28
+    name: Shape 26
+    frame:
+      x: 1044
+      y: 511.2
+      width: 72
+      height: 72
+    type: shape
+    geometry:
+      kind: preset
+      preset: ellipse
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#DCD2EF"
+    stroke:
+      color:
+        kind: rgb
+        value: "#DCD2EF"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e29
+    name: Image 2
+    frame:
+      x: 1063.44
+      y: 530.64
+      width: 33.12
+      height: 33.12
+    altText: preencoded.png
+    type: image
+    assetId: image-6
+    fit: fill
+  - id: e30
+    name: Text 27
+    frame:
+      x: 1144.8
+      y: 508.32
+      width: 576
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Auditees present
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 15
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e31
+    name: Text 28
+    frame:
+      x: 1144.8
+      y: 565.92
+      width: 662.4
+      height: 158.4
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Engr. (Name: Title)"
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 13.5
+          spaceAfterPt: 3
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e32
+    name: Shape 29
+    frame:
+      x: 1008
+      y: 763.2
+      width: 825.12
+      height: 216
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#FFFFFF"
+    stroke:
+      color:
+        kind: rgb
+        value: "#C0273B"
+      widthPt: 1.25
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e33
+    name: Shape 30
+    frame:
+      x: 1044
+      y: 792
+      width: 72
+      height: 72
+    type: shape
+    geometry:
+      kind: preset
+      preset: ellipse
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#FBE4E7"
+    stroke:
+      color:
+        kind: rgb
+        value: "#FBE4E7"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e34
+    name: Image 3
+    frame:
+      x: 1063.44
+      y: 811.44
+      width: 33.12
+      height: 33.12
+    altText: preencoded.png
+    type: image
+    assetId: image-7
+    fit: fill
+  - id: e35
+    name: Text 31
+    frame:
+      x: 1144.8
+      y: 789.12
+      width: 576
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Not represented
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#C0273B"
+          defaultRunStyle:
+            sizePt: 15
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e36
+    name: Text 32
+    frame:
+      x: 1144.8
+      y: 842.4
+      width: 662.4
+      height: 122.4
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: E.g. Project Manager, Site Manager, Project Engineers or delegates were not available, limiting verification.
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 13.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0

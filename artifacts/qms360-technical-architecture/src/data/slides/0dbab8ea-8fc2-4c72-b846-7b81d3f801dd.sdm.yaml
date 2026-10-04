@@ -1,0 +1,1023 @@
+format: replit.sdm
+version: 1
+size:
+  width: 1920
+  height: 1080
+background:
+  kind: solid
+  color:
+    kind: rgb
+    value: "#FFFFFF"
+theme:
+  colors:
+    dk1: "#000000"
+    dk2: "#44546A"
+    lt1: "#FFFFFF"
+    lt2: "#E7E6E6"
+    accent1: "#4472C4"
+    accent2: "#ED7D31"
+    accent3: "#A5A5A5"
+    accent4: "#FFC000"
+    accent5: "#5B9BD5"
+    accent6: "#70AD47"
+    hlink: "#0563C1"
+    folHlink: "#954F72"
+  fonts:
+    display: Calibri Light
+    body: Calibri
+assets:
+  image-1:
+    src: assets/imported-3c36b649-6117-48af-9b7c-d4c9a4cfa118/image_1.png
+elements:
+  - id: e0
+    name: Image 0
+    frame:
+      x: 1670.4
+      y: 48.96
+      width: 165.6
+      height: 72.86
+    altText: /home/claude/img/logo.png
+    type: image
+    assetId: image-1
+    fit: fill
+  - id: e1
+    name: Text 0
+    frame:
+      x: 86.4
+      y: 1019.52
+      width: 1296
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Quality Internal Audit Report  |  [Audit Ref]  |  [Project / process name]
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 9
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e2
+    name: Text 1
+    frame:
+      x: 86.4
+      y: 57.6
+      width: 1080
+      height: 36
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: GRADING AND RESPONSE
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 11
+            weight: 700
+            color:
+              kind: rgb
+              value: "#47237F"
+            letterSpacingPt: 2
+          align: left
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e3
+    name: Text 1
+    frame:
+      x: 86.4
+      y: 97.92
+      width: 1540.8
+      height: 108
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Finding grades and response requirements
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 28
+            weight: 700
+            color:
+              kind: rgb
+              value: "#241F33"
+          align: left
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e4
+    name: Shape 2
+    frame:
+      x: 86.4
+      y: 230.4
+      width: 324
+      height: 187.2
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#47237F"
+    stroke:
+      color:
+        kind: rgb
+        value: "#47237F"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e5
+    name: Text 3
+    frame:
+      x: 115.2
+      y: 247.68
+      width: 72
+      height: 64.8
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "1"
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#C8A02A"
+          defaultRunStyle:
+            sizePt: 22
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e6
+    name: Text 4
+    frame:
+      x: 115.2
+      y: 316.8
+      width: 273.6
+      height: 89.28
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Auditee root-cause analysis and CAPA plan
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e7
+    name: Shape 5
+    frame:
+      x: 442.08
+      y: 230.4
+      width: 324
+      height: 187.2
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#47237F"
+    stroke:
+      color:
+        kind: rgb
+        value: "#47237F"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e8
+    name: Text 6
+    frame:
+      x: 470.88
+      y: 247.68
+      width: 72
+      height: 64.8
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "2"
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#C8A02A"
+          defaultRunStyle:
+            sizePt: 22
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e9
+    name: Text 7
+    frame:
+      x: 470.88
+      y: 316.8
+      width: 273.6
+      height: 89.28
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Audit team reviews and accepts plan
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e10
+    name: Shape 8
+    frame:
+      x: 797.76
+      y: 230.4
+      width: 324
+      height: 187.2
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#47237F"
+    stroke:
+      color:
+        kind: rgb
+        value: "#47237F"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e11
+    name: Text 9
+    frame:
+      x: 826.56
+      y: 247.68
+      width: 72
+      height: 64.8
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "3"
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#C8A02A"
+          defaultRunStyle:
+            sizePt: 22
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e12
+    name: Text 10
+    frame:
+      x: 826.56
+      y: 316.8
+      width: 273.6
+      height: 89.28
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Actions implemented with evidence
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e13
+    name: Shape 11
+    frame:
+      x: 1153.44
+      y: 230.4
+      width: 324
+      height: 187.2
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#47237F"
+    stroke:
+      color:
+        kind: rgb
+        value: "#47237F"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e14
+    name: Text 12
+    frame:
+      x: 1182.24
+      y: 247.68
+      width: 72
+      height: 64.8
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "4"
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#C8A02A"
+          defaultRunStyle:
+            sizePt: 22
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e15
+    name: Text 13
+    frame:
+      x: 1182.24
+      y: 316.8
+      width: 273.6
+      height: 89.28
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Effectiveness verified by auditors
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e16
+    name: Shape 14
+    frame:
+      x: 1509.12
+      y: 230.4
+      width: 324
+      height: 187.2
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#2A9D8F"
+    stroke:
+      color:
+        kind: rgb
+        value: "#2A9D8F"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e17
+    name: Text 15
+    frame:
+      x: 1537.92
+      y: 247.68
+      width: 72
+      height: 64.8
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "5"
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 22
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e18
+    name: Text 16
+    frame:
+      x: 1537.92
+      y: 316.8
+      width: 273.6
+      height: 89.28
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Finding closed in tracker
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 12.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e19
+    name: Table 0
+    frame:
+      x: 86.4
+      y: 468
+      width: 1746.72
+      height: 449.28
+    type: table
+    columns:
+      - width: 316.8
+      - width: 806.4
+      - width: 623.52
+    rows:
+      - height: 60.48
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Grade
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Definition
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Response requirement (days from report issue)
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+      - height: 108
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Major
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 13
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#C0273B"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Failure of a required control, or a condition that could compromise the integrity, safety or performance of the works or the system.
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Immediate containment. CAPA plan within 7 days; closure within 30 days.
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 108
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Moderate
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 13
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#E3800B"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Significant departure from a specified requirement that could affect quality if left uncorrected.
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: CAPA plan within 14 days; closure within 45 days.
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 86.4
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Minor
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 13
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#5877B5"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Isolated lapse or documentation gap with low immediate impact.
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: CAPA plan within 14 days; closure within 60 days.
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 86.4
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: OFI
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 13
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#2A9D8F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Improvement suggestion; not a breach of a requirement.
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Auditee decides and records its response; reviewed at the next audit.
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+  - id: e20
+    name: Text 17
+    frame:
+      x: 86.4
+      y: 972
+      width: 1728
+      height: 28.8
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Definitions and response windows are proposed for approval of this standard.
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 9.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e21
+    name: Slide Number Placeholder 0
+    frame:
+      x: 1756.8
+      y: 1019.52
+      width: 76.32
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "14"
+              weight: 400
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 9
+            color:
+              kind: rgb
+              value: "#6A6480"
+          align: right
+          indentPt: 0
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2

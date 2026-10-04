@@ -1,0 +1,1390 @@
+format: replit.sdm
+version: 1
+size:
+  width: 1920
+  height: 1080
+background:
+  kind: solid
+  color:
+    kind: rgb
+    value: "#FFFFFF"
+theme:
+  colors:
+    dk1: "#000000"
+    dk2: "#44546A"
+    lt1: "#FFFFFF"
+    lt2: "#E7E6E6"
+    accent1: "#4472C4"
+    accent2: "#ED7D31"
+    accent3: "#A5A5A5"
+    accent4: "#FFC000"
+    accent5: "#5B9BD5"
+    accent6: "#70AD47"
+    hlink: "#0563C1"
+    folHlink: "#954F72"
+  fonts:
+    display: Calibri Light
+    body: Calibri
+assets:
+  image-1:
+    src: assets/imported-3c36b649-6117-48af-9b7c-d4c9a4cfa118/image_1.png
+elements:
+  - id: e0
+    name: Image 0
+    frame:
+      x: 1670.4
+      y: 48.96
+      width: 165.6
+      height: 72.86
+    altText: /home/claude/img/logo.png
+    type: image
+    assetId: image-1
+    fit: fill
+  - id: e1
+    name: Text 0
+    frame:
+      x: 86.4
+      y: 1019.52
+      width: 1296
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Quality Internal Audit Report  |  [Audit Ref]  |  [Project / process name]
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 9
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e2
+    name: Text 1
+    frame:
+      x: 86.4
+      y: 57.6
+      width: 1080
+      height: 36
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: TEMPLATE CONTROL
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 11
+            weight: 700
+            color:
+              kind: rgb
+              value: "#47237F"
+            letterSpacingPt: 2
+          align: left
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e3
+    name: Text 1
+    frame:
+      x: 86.4
+      y: 97.92
+      width: 1540.8
+      height: 108
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Document control and approval
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 28
+            weight: 700
+            color:
+              kind: rgb
+              value: "#241F33"
+          align: left
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e4
+    name: Shape 2
+    frame:
+      x: 1260
+      y: 48.96
+      width: 374.4
+      height: 43.2
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 21.6
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#C8A02A"
+    stroke:
+      color:
+        kind: rgb
+        value: "#C8A02A"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e5
+    name: Text 3
+    frame:
+      x: 1260
+      y: 48.96
+      width: 374.4
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: TEMPLATE PAGE
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 10
+          align: center
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e6
+    name: Shape 4
+    frame:
+      x: 86.4
+      y: 230.4
+      width: 748.8
+      height: 748.8
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+    stroke:
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e7
+    name: Text 5
+    frame:
+      x: 122.4
+      y: 256.32
+      width: 648
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Document information
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 15
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e8
+    name: Text 6
+    frame:
+      x: 122.4
+      y: 331.2
+      width: 216
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Form title
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 12
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e9
+    name: Text 7
+    frame:
+      x: 345.6
+      y: 331.2
+      width: 468
+      height: 86.4
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Quality Internal Audit Report (standard format)
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e10
+    name: Text 8
+    frame:
+      x: 122.4
+      y: 432
+      width: 216
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Form no.
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 12
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e11
+    name: Text 9
+    frame:
+      x: 345.6
+      y: 432
+      width: 468
+      height: 86.4
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "[QAM-F-000]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e12
+    name: Text 10
+    frame:
+      x: 122.4
+      y: 532.8
+      width: 216
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Revision
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 12
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e13
+    name: Text 11
+    frame:
+      x: 345.6
+      y: 532.8
+      width: 468
+      height: 86.4
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "[00]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e14
+    name: Text 12
+    frame:
+      x: 122.4
+      y: 633.6
+      width: 216
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Effective date
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 12
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e15
+    name: Text 13
+    frame:
+      x: 345.6
+      y: 633.6
+      width: 468
+      height: 86.4
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: 21-Sep-2026
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e16
+    name: Text 14
+    frame:
+      x: 122.4
+      y: 734.4
+      width: 216
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Process owner
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 12
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e17
+    name: Text 15
+    frame:
+      x: 345.6
+      y: 734.4
+      width: 468
+      height: 86.4
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "[Corporate QA/QC Manager]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e18
+    name: Text 16
+    frame:
+      x: 122.4
+      y: 835.2
+      width: 216
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Applies to
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 12
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e19
+    name: Text 17
+    frame:
+      x: 345.6
+      y: 835.2
+      width: 468
+      height: 86.4
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: All quality internal audits conducted by Algihaz auditors
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e20
+    name: Text 18
+    frame:
+      x: 878.4
+      y: 230.4
+      width: 864
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Approval
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 15
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e21
+    name: Table 0
+    frame:
+      x: 878.4
+      y: 280.8
+      width: 954.72
+      height: 325.44
+    type: table
+    columns:
+      - width: 201.6
+      - width: 360
+      - width: 241.92
+      - width: 151.2
+    rows:
+      - height: 57.6
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Role
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Name and title
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Signature
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Date
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+      - height: 89.28
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Prepared by
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Abdulkarim Alanazi / Lead QC and Auditing Engineer
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 89.28
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Reviewed by
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Mohammed Attaullah / title
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 89.28
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Approved by
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Fouad Al-Zahrani / Corporate QA/QC Manager
+                      font:
+                        kind: family
+                        family: Calibri
+                      sizePt: 12
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+  - id: e22
+    name: Text 19
+    frame:
+      x: 878.4
+      y: 648
+      width: 864
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Revision history
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 15
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e23
+    name: Table 1
+    frame:
+      x: 878.4
+      y: 698.4
+      width: 954.72
+      height: 273.6
+    type: table
+    columns:
+      - width: 100.8
+      - width: 201.6
+      - width: 504
+      - width: 148.32
+    rows:
+      - height: 57.6
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Rev
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Date
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Description of change
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: By
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+      - height: 72
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "00"
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: 21-Sep-2026
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Initial issue
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Abdulkarim Alanazi
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 72
+        cells:
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 72
+        cells:
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+  - id: e24
+    name: Slide Number Placeholder 0
+    frame:
+      x: 1756.8
+      y: 1019.52
+      width: 76.32
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "2"
+              weight: 400
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 9
+            color:
+              kind: rgb
+              value: "#6A6480"
+          align: right
+          indentPt: 0
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2

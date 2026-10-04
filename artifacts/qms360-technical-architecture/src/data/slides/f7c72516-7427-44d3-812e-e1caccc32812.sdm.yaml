@@ -1,0 +1,1620 @@
+format: replit.sdm
+version: 1
+size:
+  width: 1920
+  height: 1080
+background:
+  kind: solid
+  color:
+    kind: rgb
+    value: "#FFFFFF"
+theme:
+  colors:
+    dk1: "#000000"
+    dk2: "#44546A"
+    lt1: "#FFFFFF"
+    lt2: "#E7E6E6"
+    accent1: "#4472C4"
+    accent2: "#ED7D31"
+    accent3: "#A5A5A5"
+    accent4: "#FFC000"
+    accent5: "#5B9BD5"
+    accent6: "#70AD47"
+    hlink: "#0563C1"
+    folHlink: "#954F72"
+  fonts:
+    display: Calibri Light
+    body: Calibri
+assets:
+  image-1:
+    src: assets/imported-3c36b649-6117-48af-9b7c-d4c9a4cfa118/image_1.png
+elements:
+  - id: e0
+    name: Image 0
+    frame:
+      x: 1670.4
+      y: 48.96
+      width: 165.6
+      height: 72.86
+    altText: /home/claude/img/logo.png
+    type: image
+    assetId: image-1
+    fit: fill
+  - id: e1
+    name: Text 0
+    frame:
+      x: 86.4
+      y: 1019.52
+      width: 1296
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Quality Internal Audit Report  |  [Audit Ref]  |  [Project / process name]
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 9
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e2
+    name: Text 1
+    frame:
+      x: 86.4
+      y: 57.6
+      width: 1080
+      height: 36
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: PROJECT STATUS
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 11
+            weight: 700
+            color:
+              kind: rgb
+              value: "#47237F"
+            letterSpacingPt: 2
+          align: left
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e3
+    name: Text 1
+    frame:
+      x: 86.4
+      y: 97.92
+      width: 1540.8
+      height: 108
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Overall project progress
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 28
+            weight: 700
+            color:
+              kind: rgb
+              value: "#241F33"
+          align: left
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e4
+    name: Shape 2
+    frame:
+      x: 1260
+      y: 48.96
+      width: 374.4
+      height: 43.2
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 21.6
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#C8A02A"
+    stroke:
+      color:
+        kind: rgb
+        value: "#C8A02A"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e5
+    name: Text 3
+    frame:
+      x: 1260
+      y: 48.96
+      width: 374.4
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: DELETE IF NOT APPLICABLE
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 10
+          align: center
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e6
+    name: Table 0
+    frame:
+      x: 86.4
+      y: 230.4
+      width: 1224
+      height: 673.92
+    type: table
+    columns:
+      - width: 446.4
+      - width: 115.2
+      - width: 144
+      - width: 144
+      - width: 187.2
+      - width: 187.2
+    rows:
+      - height: 74.88
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Phase
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Weight
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Plan
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Actual
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Variance
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Prior period
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+      - height: 74.88
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Project Preparation
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[ ]%"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 74.88
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Engineering & Design
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[ ]%"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 74.88
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Equipment & Material
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[ ]%"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 74.88
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Construction
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[ ]%"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 74.88
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Installation
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[ ]%"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 74.88
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Testing, Commissioning & Energization
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[ ]%"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 74.88
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Project Close-out
+                      color:
+                        kind: rgb
+                        value: "#000000"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[ ]%"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+      - height: 74.88
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Overall
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#47237F"
+                  defaultRunStyle:
+                    sizePt: 13
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#F3EEFA"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: 100%
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#47237F"
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#F3EEFA"
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#F3EEFA"
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#F3EEFA"
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#F3EEFA"
+          - body:
+              paragraphs:
+                - runs: []
+                  defaultRunStyle:
+                    sizePt: 12.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#F3EEFA"
+  - id: e7
+    name: Text 4
+    frame:
+      x: 86.4
+      y: 936
+      width: 1224
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "Data as at: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[DD-MMM-YYYY]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+            - text: "    Source: "
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#241F33"
+            - text: "[weekly progress report ref.]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 11.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e8
+    name: Shape 5
+    frame:
+      x: 1353.6
+      y: 230.4
+      width: 479.52
+      height: 331.2
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+    stroke:
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e9
+    name: Text 6
+    frame:
+      x: 1389.6
+      y: 252
+      width: 432
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: How to read
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e10
+    name: Text 7
+    frame:
+      x: 1389.6
+      y: 302.4
+      width: 417.6
+      height: 244.8
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Variance = Actual − Plan, in percentage points
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 12
+          markerStyle:
+            sizePt: 12
+          bullet:
+            kind: character
+            character: •
+          spaceAfterPt: 6
+          indentPt: 14
+          hangingIndentPt: 14
+        - runs:
+            - text: Weights must total 100%
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 12
+          markerStyle:
+            sizePt: 12
+          bullet:
+            kind: character
+            character: •
+          spaceAfterPt: 6
+          indentPt: 14
+          hangingIndentPt: 14
+        - runs:
+            - text: Overall = Σ (weight × phase progress)
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#241F33"
+          defaultRunStyle:
+            sizePt: 12
+          markerStyle:
+            sizePt: 12
+          bullet:
+            kind: character
+            character: •
+          spaceAfterPt: 6
+          indentPt: 14
+          hangingIndentPt: 14
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e11
+    name: Shape 8
+    frame:
+      x: 1353.6
+      y: 590.4
+      width: 479.52
+      height: 388.8
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+    stroke:
+      color:
+        kind: rgb
+        value: "#F3EEFA"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e12
+    name: Text 9
+    frame:
+      x: 1389.6
+      y: 612
+      width: 432
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Auditor comment
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#47237F"
+          defaultRunStyle:
+            sizePt: 13
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e13
+    name: Text 10
+    frame:
+      x: 1389.6
+      y: 662.4
+      width: 417.6
+      height: 302.4
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "[Main causes of variance; were recovery actions evidenced? Which phase contributes most?]"
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6E5F91"
+          defaultRunStyle:
+            sizePt: 12
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e14
+    name: Slide Number Placeholder 0
+    frame:
+      x: 1756.8
+      y: 1019.52
+      width: 76.32
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "8"
+              weight: 400
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 9
+            color:
+              kind: rgb
+              value: "#6A6480"
+          align: right
+          indentPt: 0
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2

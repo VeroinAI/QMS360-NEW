@@ -1,0 +1,547 @@
+format: replit.sdm
+version: 1
+size:
+  width: 1920
+  height: 1080
+background:
+  kind: solid
+  color:
+    kind: rgb
+    value: "#2B1257"
+theme:
+  colors:
+    dk1: "#000000"
+    dk2: "#44546A"
+    lt1: "#FFFFFF"
+    lt2: "#E7E6E6"
+    accent1: "#4472C4"
+    accent2: "#ED7D31"
+    accent3: "#A5A5A5"
+    accent4: "#FFC000"
+    accent5: "#5B9BD5"
+    accent6: "#70AD47"
+    hlink: "#0563C1"
+    folHlink: "#954F72"
+  fonts:
+    display: Calibri Light
+    body: Calibri
+assets:
+  image-1:
+    src: assets/imported-3c36b649-6117-48af-9b7c-d4c9a4cfa118/image_1.png
+elements:
+  - id: e0
+    name: Shape 0
+    frame:
+      x: 1339.2
+      y: -460.8
+      width: 950.4
+      height: 950.4
+    type: shape
+    geometry:
+      kind: preset
+      preset: ellipse
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#47237F"
+      opacity: 0.45
+    stroke:
+      color:
+        kind: rgb
+        value: "#47237F"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e1
+    name: Shape 1
+    frame:
+      x: -374.4
+      y: 662.4
+      width: 921.6
+      height: 921.6
+    type: shape
+    geometry:
+      kind: preset
+      preset: ellipse
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#47237F"
+      opacity: 0.75
+    stroke:
+      color:
+        kind: rgb
+        value: "#47237F"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e2
+    name: Text 2
+    frame:
+      x: 115.2
+      y: 172.8
+      width: 1152
+      height: 129.6
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: End of Report
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 44
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e3
+    name: Text 3
+    frame:
+      x: 115.2
+      y: 388.8
+      width: 1152
+      height: 43.2
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: ATTACHMENTS (TICK THOSE INCLUDED)
+              font:
+                kind: family
+                family: Calibri
+              weight: 700
+              color:
+                kind: rgb
+                value: "#C8A02A"
+              letterSpacingPt: 2
+          defaultRunStyle:
+            sizePt: 11
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e4
+    name: Text 4
+    frame:
+      x: 115.2
+      y: 460.8
+      width: 64.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: ☐
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#CDB8F0"
+          defaultRunStyle:
+            sizePt: 24
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e5
+    name: Text 5
+    frame:
+      x: 194.4
+      y: 460.8
+      width: 676.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Audit plan / programme
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 16
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e6
+    name: Text 6
+    frame:
+      x: 907.2
+      y: 460.8
+      width: 64.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: ☐
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#CDB8F0"
+          defaultRunStyle:
+            sizePt: 24
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e7
+    name: Text 7
+    frame:
+      x: 986.4
+      y: 460.8
+      width: 676.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Signed attendance sheet
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 16
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e8
+    name: Text 8
+    frame:
+      x: 115.2
+      y: 561.6
+      width: 64.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: ☐
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#CDB8F0"
+          defaultRunStyle:
+            sizePt: 24
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e9
+    name: Text 9
+    frame:
+      x: 194.4
+      y: 561.6
+      width: 676.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Audit checklists and working notes
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 16
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e10
+    name: Text 10
+    frame:
+      x: 907.2
+      y: 561.6
+      width: 64.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: ☐
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#CDB8F0"
+          defaultRunStyle:
+            sizePt: 24
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e11
+    name: Text 11
+    frame:
+      x: 986.4
+      y: 561.6
+      width: 676.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Photographic evidence
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 16
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e12
+    name: Text 12
+    frame:
+      x: 115.2
+      y: 662.4
+      width: 64.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: ☐
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#CDB8F0"
+          defaultRunStyle:
+            sizePt: 24
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e13
+    name: Text 13
+    frame:
+      x: 194.4
+      y: 662.4
+      width: 676.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Non-conformity forms and CAPA responses
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 16
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e14
+    name: Text 14
+    frame:
+      x: 907.2
+      y: 662.4
+      width: 64.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: ☐
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#CDB8F0"
+          defaultRunStyle:
+            sizePt: 24
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e15
+    name: Text 15
+    frame:
+      x: 986.4
+      y: 662.4
+      width: 676.8
+      height: 72
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Supporting records and reports
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#FFFFFF"
+          defaultRunStyle:
+            sizePt: 16
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e16
+    name: Shape 16
+    frame:
+      x: 1526.4
+      y: 892.8
+      width: 273.6
+      height: 129.6
+    type: shape
+    geometry:
+      kind: preset
+      preset: roundRect
+      cornerRadius: 17.28
+    fill:
+      kind: solid
+      color:
+        kind: rgb
+        value: "#FFFFFF"
+    stroke:
+      color:
+        kind: rgb
+        value: "#FFFFFF"
+      widthPt: 1
+      dash: solid
+    body:
+      paragraphs:
+        - runs: []
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
+  - id: e17
+    name: Image 0
+    frame:
+      x: 1552.32
+      y: 907.2
+      width: 221.76
+      height: 97.92
+    altText: /home/claude/img/logo.png
+    type: image
+    assetId: image-1
+    fit: fill

@@ -1,0 +1,939 @@
+format: replit.sdm
+version: 1
+size:
+  width: 1920
+  height: 1080
+background:
+  kind: solid
+  color:
+    kind: rgb
+    value: "#FFFFFF"
+theme:
+  colors:
+    dk1: "#000000"
+    dk2: "#44546A"
+    lt1: "#FFFFFF"
+    lt2: "#E7E6E6"
+    accent1: "#4472C4"
+    accent2: "#ED7D31"
+    accent3: "#A5A5A5"
+    accent4: "#FFC000"
+    accent5: "#5B9BD5"
+    accent6: "#70AD47"
+    hlink: "#0563C1"
+    folHlink: "#954F72"
+  fonts:
+    display: Calibri Light
+    body: Calibri
+assets:
+  image-1:
+    src: assets/imported-3c36b649-6117-48af-9b7c-d4c9a4cfa118/image_1.png
+elements:
+  - id: e0
+    name: Image 0
+    frame:
+      x: 1670.4
+      y: 48.96
+      width: 165.6
+      height: 72.86
+    altText: /home/claude/img/logo.png
+    type: image
+    assetId: image-1
+    fit: fill
+  - id: e1
+    name: Text 0
+    frame:
+      x: 86.4
+      y: 1019.52
+      width: 1296
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Quality Internal Audit Report  |  [Audit Ref]  |  [Project / process name]
+              font:
+                kind: family
+                family: Calibri
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 9
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: middle
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e2
+    name: Text 1
+    frame:
+      x: 86.4
+      y: 57.6
+      width: 1080
+      height: 36
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: OPPORTUNITIES FOR IMPROVEMENT
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 11
+            weight: 700
+            color:
+              kind: rgb
+              value: "#47237F"
+            letterSpacingPt: 2
+          align: left
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e3
+    name: Text 1
+    frame:
+      x: 86.4
+      y: 97.92
+      width: 1540.8
+      height: 108
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: Opportunities for improvement (OFI)
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 28
+            weight: 700
+            color:
+              kind: rgb
+              value: "#241F33"
+          align: left
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e4
+    name: Table 0
+    frame:
+      x: 86.4
+      y: 230.4
+      width: 1746.72
+      height: 653.76
+    type: table
+    columns:
+      - width: 115.2
+      - width: 684
+      - width: 410.4
+      - width: 396
+      - width: 141.12
+    rows:
+      - height: 60.48
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Ref
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Finding
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Objective evidence
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Requirement
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: left
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+          - body:
+              paragraphs:
+                - runs:
+                    - text: Grade
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#47237F"
+      - height: 60.48
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: OFI  Observations that are not breaches of a requirement
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#47237F"
+                  defaultRunStyle:
+                    sizePt: 12
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#F3EEFA"
+            colSpan: 5
+      - height: 106.56
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: B.[n].1
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#47237F"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[What was observed and the improvement suggested]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[Record, document no., photo ref. or interview]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 10.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[Standard clause or good practice, if any]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 10.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: OFI
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#2A9D8F"
+      - height: 106.56
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: B.[n].2
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#47237F"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[What was observed and the improvement suggested]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[Record, document no., photo ref. or interview]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 10.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[Standard clause or good practice, if any]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 10.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: OFI
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#2A9D8F"
+      - height: 106.56
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: B.[n].3
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#47237F"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[What was observed and the improvement suggested]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[Record, document no., photo ref. or interview]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 10.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[Standard clause or good practice, if any]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 10.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: OFI
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#2A9D8F"
+      - height: 106.56
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: B.[n].4
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#47237F"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[What was observed and the improvement suggested]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[Record, document no., photo ref. or interview]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 10.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[Standard clause or good practice, if any]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 10.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: OFI
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#2A9D8F"
+      - height: 106.56
+        cells:
+          - body:
+              paragraphs:
+                - runs:
+                    - text: B.[n].5
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#47237F"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[What was observed and the improvement suggested]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 11.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[Record, document no., photo ref. or interview]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 10.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: "[Standard clause or good practice, if any]"
+                      italic: true
+                      color:
+                        kind: rgb
+                        value: "#6E5F91"
+                  defaultRunStyle:
+                    sizePt: 10.5
+                    font:
+                      kind: family
+                      family: Calibri
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+          - body:
+              paragraphs:
+                - runs:
+                    - text: OFI
+                      weight: 700
+                      color:
+                        kind: rgb
+                        value: "#FFFFFF"
+                  defaultRunStyle:
+                    sizePt: 11
+                    font:
+                      kind: family
+                      family: Calibri
+                  align: center
+                  indentPt: 0
+                  hangingIndentPt: 0
+              overflow: visible
+              insetsPt:
+                top: 3.6
+                right: 7.2
+                bottom: 3.6
+                left: 7.2
+            fill:
+              kind: solid
+              color:
+                kind: rgb
+                value: "#2A9D8F"
+  - id: e5
+    name: Text 2
+    frame:
+      x: 86.4
+      y: 972
+      width: 1728
+      height: 28.8
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: An OFI does not require a formal corrective action response; the auditee decides and records its response.
+              font:
+                kind: family
+                family: Calibri
+              italic: true
+              color:
+                kind: rgb
+                value: "#6A6480"
+          defaultRunStyle:
+            sizePt: 9.5
+          indentPt: 0
+          hangingIndentPt: 0
+      verticalAlign: top
+      overflow: visible
+      insetsPt:
+        top: 0
+        right: 0
+        bottom: 0
+        left: 0
+  - id: e6
+    name: Slide Number Placeholder 0
+    frame:
+      x: 1756.8
+      y: 1019.52
+      width: 76.32
+      height: 31.68
+    type: text
+    body:
+      paragraphs:
+        - runs:
+            - text: "12"
+              weight: 400
+          defaultRunStyle:
+            font:
+              kind: family
+              family: Calibri
+            sizePt: 9
+            color:
+              kind: rgb
+              value: "#6A6480"
+          align: right
+          indentPt: 0
+      overflow: visible
+      insetsPt:
+        top: 3.6
+        right: 7.2
+        bottom: 3.6
+        left: 7.2
