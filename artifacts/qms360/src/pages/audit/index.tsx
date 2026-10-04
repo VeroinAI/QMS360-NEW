@@ -19,6 +19,7 @@ import {
   useGetAudit,
   getGetAuditQueryKey,
   useGetAuditSchedule,
+  getGetAuditScheduleQueryKey,
   useGetCorrectiveActionReport,
   getGetCorrectiveActionReportQueryKey,
   useGetAuditDashboard,
@@ -1350,6 +1351,9 @@ function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClo
 }
 
 function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme, readOnly = false }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; presetSchedule?: AuditSchedule; presetProgramme?: AuditProgramme; readOnly?: boolean }) {
+  const linkedSchedule = useGetAuditSchedule(initial?.scheduleId ?? "", {
+    query: { enabled: !!initial?.scheduleId && navigator.onLine, queryKey: getGetAuditScheduleQueryKey(initial?.scheduleId ?? "") },
+  });
   const [programmeId, setProgrammeId] = useState(presetSchedule?.parentId ?? "");
   const programmes = useQuery({
     queryKey: ["/api/audit/programmes", { purpose: "plan-source-options" }],
@@ -1392,9 +1396,10 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     }
   }, [options.data, schedules, programmeAudits.data]);
   const users = options.data?.users ?? offlineContext?.users ?? [];
-  const effectiveSchedules = navigator.onLine
-    ? schedules
-    : [...new Map([...(offlineContext?.schedules ?? []), ...schedules].map(schedule => [schedule.id, schedule])).values()];
+  const effectiveSchedules = [...new Map([
+    ...(!navigator.onLine ? offlineContext?.schedules ?? [] : []),
+    ...schedules, ...(linkedSchedule.data ? [linkedSchedule.data] : []),
+  ].map(schedule => [schedule.id, schedule])).values()];
   const sourceSchedules = !initial && navigator.onLine ? programmeAudits.data ?? [] : effectiveSchedules;
   const approvedSchedules = initial
     ? effectiveSchedules.filter(schedule => schedule.id === initial.scheduleId)
@@ -1406,6 +1411,10 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
         .map(id => ({ id, title: `Cached schedule (${id})` }))
       : [];
   const selectedSchedule = sourceSchedules.find(schedule => schedule.id === form.scheduleId) ?? presetSchedule;
+  const linkedProgrammeId = initial ? selectedSchedule?.parentId : undefined;
+  const linkedProgramme = useGetAuditProgramme(linkedProgrammeId ?? "", {
+    query: { enabled: !!initial && !!linkedProgrammeId && navigator.onLine, queryKey: getGetAuditProgrammeQueryKey(linkedProgrammeId ?? "") },
+  });
   const leadUsers = selectedSchedule?.teamLeadIds == null
     ? users
     : users.filter(user => selectedSchedule.teamLeadIds?.includes(user.id));
@@ -1590,6 +1599,24 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   return <div className="grid gap-4 py-2">
     {!navigator.onLine && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">You are offline. This plan will be saved on this device and synchronized automatically when the network returns.</div>}
     <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
+      {initial && <div>
+        <Label htmlFor="plan-programme">Audit Schedule *</Label>
+        <Input id="plan-programme" className="mt-2" readOnly
+          value={linkedProgramme.data && linkedProgramme.data.id === linkedProgrammeId ? linkedProgramme.data.title : ""}
+          placeholder={linkedSchedule.isError || linkedProgramme.isError
+            ? "Unable to load linked Audit Schedule"
+            : linkedSchedule.isFetching || linkedProgramme.isFetching
+              ? "Loading Audit Schedule…"
+              : !navigator.onLine ? "Audit Schedule unavailable offline" : "No linked Audit Schedule"}
+        />
+        {(linkedSchedule.isError || linkedProgramme.isError) && <p className="mt-2 text-xs text-destructive">
+          Unable to load the linked Audit Schedule.
+          <Button type="button" size="sm" variant="link" onClick={() => {
+            if (linkedSchedule.isError) void linkedSchedule.refetch();
+            if (linkedProgramme.isError) void linkedProgramme.refetch();
+          }}>Retry</Button>
+        </p>}
+      </div>}
       {!initial && <div>
         <Label htmlFor="plan-programme">Audit Schedule *</Label>
         {presetSchedule ? <Input

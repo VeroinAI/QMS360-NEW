@@ -33,3 +33,9 @@ audit from selecting a source in the general Plans page.
 **How to apply:** Carry the clicked audit and parent into the form, display their
 actual titles as read-only values, and prevent selection handlers from changing
 the source. Preserve editable source selection when there is no preset audit.
+
+Existing Plans must also display their parent **Audit Schedule** above **Audit Title** as a read-only field, even while the other draft fields remain editable.
+
+**Why:** The user requires the same source context in creation and editing without allowing the Edit screen to change the schedule.
+
+**How to apply:** Resolve the parent of the saved audit, not the child's title. Do not depend on the saved audit appearing in the first page of a schedule list, and do not apply creation-only eligibility filters to historical Plans.
