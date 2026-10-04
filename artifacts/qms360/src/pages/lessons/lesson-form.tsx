@@ -1,3 +1,4 @@
+import { requestWorkflowConfirmation, workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import type { ReactNode } from "react";
@@ -355,6 +356,8 @@ export function LessonFormPage({ id }: { id?: string }) {
     }
   }
   async function saveAndSubmit() {
+    if (!validate(true) || uploadBlocking) return;
+    if (!await requestWorkflowConfirmation(detail.data?.workflowState === "Sent Back" ? "resubmit" : "submit", "this lesson")) return;
     const recordId = await saveDraft({ navigateAfterSave: false, requireApprover: true });
     if (!recordId) return;
     try {
@@ -551,7 +554,18 @@ export function LessonFormPage({ id }: { id?: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={review !== null} onOpenChange={(open) => !open && !reviewMutation.isPending && setReview(null)}><DialogContent><DialogHeader><DialogTitle>{review === "approve" ? "Approve lesson" : "Send lesson back"}</DialogTitle><DialogDescription>{review === "send_back" ? "Remarks are required so the creator knows what to change." : "Optionally add an approval remark."}</DialogDescription></DialogHeader><Textarea value={reviewRemarks} onChange={(e) => setReviewRemarks(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" disabled={reviewMutation.isPending} onClick={() => setReview(null)}>Cancel</Button><Button disabled={reviewMutation.isPending || (review === "send_back" && !reviewRemarks.trim())} onClick={() => record && reviewMutation.mutate({ id: record.id, data: { decision: review!, comments: reviewRemarks || undefined } })}>{reviewMutation.isPending ? "Saving decision…" : "Confirm"}</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={review !== null} onOpenChange={(open) => !open && !reviewMutation.isPending && setReview(null)}>
+        <DialogContent><DialogHeader>
+          <DialogTitle>{workflowConfirmationMessage(review === "approve" ? "approve" : "send_back", "this lesson").title}</DialogTitle>
+          <DialogDescription>{workflowConfirmationMessage(review === "approve" ? "approve" : "send_back", "this lesson").description} {review === "send_back" ? "Remarks are required so the creator knows what to change." : "Optionally add an approval remark."}</DialogDescription>
+        </DialogHeader>
+          <Textarea value={reviewRemarks} onChange={(e) => setReviewRemarks(e.target.value)} placeholder="Review remarks" />
+          <DialogFooter>
+            <Button variant="outline" disabled={reviewMutation.isPending} onClick={() => setReview(null)}>Cancel</Button>
+            <Button disabled={reviewMutation.isPending || (review === "send_back" && !reviewRemarks.trim())} onClick={() => record && reviewMutation.mutate({ id: record.id, data: { decision: review!, comments: reviewRemarks || undefined } })}>{reviewMutation.isPending ? "Saving decision…" : workflowConfirmationMessage(review === "approve" ? "approve" : "send_back", "this lesson").confirmLabel}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>;
 
     function PhotoInput({ category }: { category: "before" | "after" }) {

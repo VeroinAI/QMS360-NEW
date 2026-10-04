@@ -31,6 +31,35 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 ## Product
 
+### QMS360 workflow confirmation rule
+
+In QA/QC & Document Governance, Lessons Learned and QMS Audit, any action that
+hands work to another person must ask for explicit confirmation before changing
+the workflow. This includes submit, resend/resubmit, approve, reject/send back,
+audit-plan handoff, extension requests/decisions and pending-action transfers.
+
+- Use an action-specific question that identifies the document and explains the
+  next queue or workflow consequence. Offer an explicit positive action
+  (e.g. “Yes, submit”) and Cancel. Cancellation must send no workflow request.
+- Prefer the shared workflow confirmation helper for one-click actions. An
+  existing decision dialog can serve as the confirmation if it asks the relevant
+  question, explains the consequence and offers both Confirm and Cancel; do not
+  stack duplicate confirmation prompts on it.
+- Validate required fields and remarks before confirmation. For save-and-submit,
+  ask before any save, upload or submit side effects. Preserve input on Cancel.
+- Create, save, save draft, import, local AI accept/edit/reject and settings updates
+  must not acquire workflow confirmations unless they actually hand work to
+  another person.
+- Apply this rule to future buttons and alternate paths, including inboxes,
+  detail pages, bulk actions and keyboard-triggered submissions. Keep backend
+  permissions, validation, transitions and notifications unchanged.
+- The shared confirmed mutation wrapper protects both `mutate` and
+  `mutateAsync`. Treat `WorkflowConfirmationCancelled` from an async action as
+  a normal cancellation, not a server failure; do not show an error toast.
+
+**Why:** The product owner requires protection against accidental handoffs while
+keeping ordinary data entry free of unnecessary confirmation prompts.
+
 _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences

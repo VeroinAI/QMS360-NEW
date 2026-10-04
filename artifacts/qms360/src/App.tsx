@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Toaster } from '@/components/ui/toaster';
+import { WorkflowConfirmationHost } from '@/components/workflow-confirmation';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { userFacingApiError } from '@/lib/api-error';
 import { LandingPage } from '@/pages/landing';
@@ -124,5 +125,5 @@ function AuthenticatedRouter() {
 }
 
 export default function App() {
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><AuthenticatedRouter /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><AuthenticatedRouter /><WorkflowConfirmationHost /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
 }

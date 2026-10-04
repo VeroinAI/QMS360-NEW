@@ -1,3 +1,4 @@
+import { confirmedWorkflowMutation, workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { useEffect, useRef, useState } from "react";
 import { Link, Route, Switch, useLocation, useParams } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -965,7 +966,7 @@ function ProgrammeForm({ onClose }: { onClose: () => void }) {
 }
 
 function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
-  item: { id: string; title: string; submissionReference?: string | null; submissionFrom?: string | null; submissionTo?: string | null };
+  item: { id: string; title: string; workflowState?: string; submissionReference?: string | null; submissionFrom?: string | null; submissionTo?: string | null };
   onClose: () => void;
   onSubmitted: (updated: AuditProgramme) => void;
 }) {
@@ -975,6 +976,7 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
   const [subject, setSubject] = useState(item.title);
   const [mailBody, setMailBody] = useState("");
   const submit = useSubmitAuditProgramme();
+  const confirmation = workflowConfirmationMessage(item.workflowState === "Sent Back" ? "resubmit" : "submit", `"${item.title}"`);
   const { toast } = useToast();
   const submitProgramme = () => {
     if (!subject.trim() || !mailBody.trim()) return;
@@ -989,8 +991,8 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
   return <Dialog open onOpenChange={isOpen => !isOpen && onClose()}>
     <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col">
       <DialogHeader>
-        <DialogTitle>Submit audit schedule</DialogTitle>
-        <DialogDescription>Enter the reference, memo From and To lines, email subject, and memo for this approval submission. From and To are free-text memo headings, not email sender or recipient addresses. Submit and Resubmit email the first approval level through the configured SMTP connector unless an email rule disables it.</DialogDescription>
+        <DialogTitle>{confirmation.title}</DialogTitle>
+        <DialogDescription>{confirmation.description} Enter the reference, memo From and To lines, email subject, and memo for this approval submission. From and To are free-text memo headings, not email sender or recipient addresses. Submit and Resubmit email the first approval level through the configured SMTP connector unless an email rule disables it.</DialogDescription>
       </DialogHeader>
       <div className="grid min-h-0 gap-4 overflow-y-auto py-2 pr-1">
         <div className="grid gap-2"><Label htmlFor="schedule-submission-reference">Reference</Label><Input id="schedule-submission-reference" value={reference} onChange={event => setReference(event.target.value)} maxLength={500}/></div>
@@ -999,7 +1001,7 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
         <div className="grid gap-2"><Label htmlFor="schedule-submission-subject">Subject</Label><Input id="schedule-submission-subject" value={subject} onChange={event => setSubject(event.target.value)} maxLength={200}/></div>
         <div className="grid gap-2"><Label htmlFor="schedule-submission-body">Memo</Label><Textarea id="schedule-submission-body" value={mailBody} onChange={event => setMailBody(event.target.value)} rows={6} maxLength={10000}/></div>
       </div>
-      <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={submitProgramme} disabled={submit.isPending || !subject.trim() || !mailBody.trim()}>Submit for approval</Button></DialogFooter>
+      <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={submitProgramme} disabled={submit.isPending || !subject.trim() || !mailBody.trim()}>{confirmation.confirmLabel}</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
 }
@@ -1022,14 +1024,14 @@ function ProgrammeSendBackDialog({ item, onClose, onSentBack }: {
   return <Dialog open onOpenChange={isOpen => !isOpen && onClose()}>
     <DialogContent className="max-w-2xl">
       <DialogHeader>
-        <DialogTitle>Send back audit schedule</DialogTitle>
-        <DialogDescription>Provide the required remarks for sending {item.title} back.</DialogDescription>
+        <DialogTitle>{workflowConfirmationMessage("send_back", `"${item.title}"`).title}</DialogTitle>
+        <DialogDescription>{workflowConfirmationMessage("send_back", `"${item.title}"`).description} Provide the required remarks.</DialogDescription>
       </DialogHeader>
       <div className="grid gap-2 py-2">
         <Label htmlFor="schedule-send-back-comments">Send-back remarks *</Label>
         <Textarea id="schedule-send-back-comments" value={comments} onChange={event => setComments(event.target.value)} rows={6} autoFocus/>
       </div>
-      <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={sendBack} disabled={review.isPending || !comments.trim()}>Send back</Button></DialogFooter>
+      <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={sendBack} disabled={review.isPending || !comments.trim()}>Yes, send back</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
 }
@@ -1102,7 +1104,7 @@ function Programmes() {
   const query = useListAuditProgrammes({ page, limit: PAGE_SIZE });
   const qc = useQueryClient();
   const { toast } = useToast();
-  const review = useReviewAuditProgramme();
+  const review = confirmedWorkflowMutation(useReviewAuditProgramme(), variables => ({ action: variables.data.decision, document: "this audit schedule" }));
   const remove = useDeleteAuditProgramme();
   const done = (message: string, updated?: AuditProgramme) => {
     if (updated) {
@@ -1155,8 +1157,8 @@ function Schedules() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [loadingFile, setLoadingFile] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const remove = useDeleteAuditSchedule(); const review = useReviewAuditSchedule();
-  const reviewProgramme = useReviewAuditProgramme();
+  const remove = useDeleteAuditSchedule(); const review = confirmedWorkflowMutation(useReviewAuditSchedule(), variables => ({ action: variables.data.decision, document: "this child audit schedule" }));
+  const reviewProgramme = confirmedWorkflowMutation(useReviewAuditProgramme(), variables => ({ action: variables.data.decision, document: "this audit schedule" }));
   const occupiedScheduleIds = new Set((planSchedules.data?.items ?? []).map(plan => plan.scheduleId));
   const items = (query.data?.items ?? [])
     .map(schedule => occupiedScheduleIds.has(schedule.id) ? { ...schedule, hasPlan: true } : schedule)
@@ -1665,8 +1667,8 @@ function SendForAuditDialog({ plan, open, onOpenChange, onSent }: {
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-w-lg">
       <DialogHeader>
-        <DialogTitle>Send for Audit</DialogTitle>
-        <DialogDescription>Select the roles that need to be informed when this Audit Plan is sent to Audit Execution.</DialogDescription>
+        <DialogTitle>{workflowConfirmationMessage("send", "this audit plan").title}</DialogTitle>
+        <DialogDescription>{workflowConfirmationMessage("send", "this audit plan").description} Select the roles that need to be informed.</DialogDescription>
       </DialogHeader>
       <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border p-3">
         {roles.isLoading && <p className="py-4 text-center text-sm text-muted-foreground">Loading roles…</p>}
@@ -1683,7 +1685,7 @@ function SendForAuditDialog({ plan, open, onOpenChange, onSent }: {
       {!roleIds.length && <p className="text-xs text-muted-foreground">Select at least one role to continue.</p>}
       <DialogFooter>
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sendForAudit.isPending}>Cancel</Button>
-        <Button onClick={submit} disabled={!roleIds.length || roles.isLoading || sendForAudit.isPending}>{sendForAudit.isPending ? "Submitting…" : "Submit"}</Button>
+        <Button onClick={submit} disabled={!roleIds.length || roles.isLoading || sendForAudit.isPending}>{sendForAudit.isPending ? "Submitting…" : "Yes, send"}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>;
@@ -1950,7 +1952,11 @@ function CarEditor({car,onClose}:{car:CorrectiveActionReport;onClose:()=>void}) 
 
 function Cars() {
   const [page,setPage]=useState(1);const [status,setStatus]=useState("all");const [edit,setEdit]=useState<CorrectiveActionReport>();const query=useListCorrectiveActionReports({page,limit:PAGE_SIZE,...(status==="all"?{}:{status})});const qc=useQueryClient();const {toast}=useToast();
-  const submit=useSubmitCorrectiveActionReport(),review=useReviewCorrectiveActionReport(),extension=useRequestCarExtension(),extensionReview=useReviewCarExtension(),extensionCancel=useCancelCarExtension(),close=useCloseCorrectiveActionReport();
+  const submit=confirmedWorkflowMutation(useSubmitCorrectiveActionReport(), () => ({action:"submit",document:"this corrective action report"})),
+    review=confirmedWorkflowMutation(useReviewCorrectiveActionReport(), v => ({action:v.data.decision,document:"this corrective action report"}), v => v.data.decision !== "reject" || !!v.data.comments?.trim()),
+    extension=confirmedWorkflowMutation(useRequestCarExtension(), () => ({action:"request_extension",document:"this corrective action report"})),
+    extensionReview=confirmedWorkflowMutation(useReviewCarExtension(), v => ({action:v.data.decision === "approve" ? "approve_extension" : "reject_extension",document:"this corrective action report"})),
+    extensionCancel=useCancelCarExtension(),close=useCloseCorrectiveActionReport();
   const refresh=(title:string)=>{qc.invalidateQueries({queryKey:["/api/audit/cars"]});toast({title})};
   const requestExtension=(id:string)=>{const requestedDueDate=window.prompt("New due date (YYYY-MM-DD)");if(!requestedDueDate)return;const reason=window.prompt("Justification (required)");if(!reason?.trim()){toast({title:"Justification is required",variant:"destructive"});return;}extension.mutate({id,data:{requestedDueDate,reason}},{onSuccess:()=>refresh("Extension requested")})};
   return <div className="space-y-5"><PageHeader title="Corrective Action Register" description="Track ownership, response, review, extensions and closure"/><Select value={status} onValueChange={v=>{setStatus(v);setPage(1)}}><SelectTrigger className="w-52"><SelectValue/></SelectTrigger><SelectContent>{["all","Open","Draft","Submitted","Accepted","Rejected","Extension Requested","Closed"].map(x=><SelectItem key={x} value={x}>{x==="all"?"All statuses":x}</SelectItem>)}</SelectContent></Select><State loading={query.isLoading} error={query.error} empty={!query.data?.items.length}/><Dialog open={!!edit} onOpenChange={v=>!v&&setEdit(undefined)}><DialogContent><DialogHeader><DialogTitle>CAR response</DialogTitle></DialogHeader>{edit&&<CarEditor car={edit} onClose={()=>setEdit(undefined)}/>}</DialogContent></Dialog>
@@ -1963,8 +1969,8 @@ function CarActionDetail() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
-  const submit = useSubmitCorrectiveActionReport();
-  const review = useReviewCorrectiveActionReport();
+  const submit = confirmedWorkflowMutation(useSubmitCorrectiveActionReport(), () => ({ action: "submit", document: "this corrective action report" }));
+  const review = confirmedWorkflowMutation(useReviewCorrectiveActionReport(), variables => ({ action: variables.data.decision, document: "this corrective action report" }));
   const refresh = (message: string) => {
     void qc.invalidateQueries({ queryKey: ["/api/audit/cars"] });
     void qc.invalidateQueries({ queryKey: getGetCorrectiveActionReportQueryKey(id) });
