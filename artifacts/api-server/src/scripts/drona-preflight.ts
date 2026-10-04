@@ -80,7 +80,7 @@ async function main() {
       internalUserCount: targets.filter(target => target.kind === "user").length,
       internalProjectCount: targets.filter(target => target.kind === "project").length,
       assignmentCounts: assignments, mappingSummary,
-      outstanding: ["Backend session verification", "Module/role/tenant policy", "Full schema parity", "Business/history reference parity"],
+      outstanding: ["Backend session verification", "User/project linking and QMS application-access reconciliation", "Full schema parity", "Business/history reference parity"],
     }, null, 2));
   } finally {
     await client.query("ROLLBACK").catch(() => undefined);

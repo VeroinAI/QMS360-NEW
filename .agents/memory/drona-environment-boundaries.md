@@ -28,8 +28,8 @@ handoff protocol. Inferring authentication or module privileges from database
 rows would invent a security policy.
 
 **How to apply:** Keep preparation disconnected from live login and permissions
-until schema, module precedence, role mappings and tenant/department rules are
-confirmed. Drona/HSE role names alone must not grant QMS administrator rights.
+until session verification, environment-specific links and preserved QMS access
+are reconciled. Drona/HSE role names alone must not grant QMS administrator rights.
 
 Treat DronaHQ profile.uid as public.user_master.user_id for implementation,
 subject to a source/session parity check before production acceptance.
@@ -41,3 +41,17 @@ claimed identity or the validity of a nonce.
 **How to apply:** Do not repeatedly request confirmation of this ID equivalence.
 Preserve its exact decimal value and resolve the environment-specific UUID link
 only after the backend has verified the Drona session.
+
+Project membership is an active user's `user_role_mapping` link (through
+`project_mapping`) to an active `project_master` record. Ignore `enable_quality`
+for access; it has no purpose in QMS360 access according to the user.
+
+**Why:** On 2026-10-04 the user explicitly answered the project-access question
+and instructed us to ignore `enable_quality`. Asking Drona that question again
+or deriving extra module gates would contradict the confirmed product rule.
+
+**How to apply:** Use `project_master.is_active` for project activity and retain
+the mapped membership boundary. Keep per-user QMS application access, approvals
+and capability-specific role/project permissions as separate checks. Do not
+turn a project mapping into an application approval or an administrator grant.
+The outstanding Drona technical question is backend session verification.

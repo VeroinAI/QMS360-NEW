@@ -1,4 +1,4 @@
-import type { DronaSourceSnapshot, DronaAssignment } from "./source";
+import type { DronaSourceSnapshot } from "./source";
 
 export type ReviewedDronaProjectLink = {
   environment: string; organizationId: string; externalProjectId: string; internalProjectId: string;
@@ -10,9 +10,10 @@ export type DronaMembershipReview = {
   unresolvedProjectCount: number;
 };
 
-/** Pure, restricted intersection. The caller must supply a reviewed rule for
- * modules/role/tenant/department; there is intentionally no permissive default.
- * This is not wired into middleware while session/policy activation is blocked.
+/** Pure, restricted intersection using the owner-confirmed active-user,
+ * active-project and user/project-mapping condition. enable_quality and module
+ * flags are not access gates. This is not wired into middleware while session
+ * verification and environment-specific reconciliation remain incomplete.
  * QMS capability-specific scope (and full-vs-own ownership) remains authoritative
  * inside this membership boundary; it is never replaced by Drona role names. */
 export function reviewDronaProjectIntersection(input: {
@@ -21,7 +22,6 @@ export function reviewDronaProjectIntersection(input: {
   organizationId: string;
   projectLinks: ReviewedDronaProjectLink[];
   qmsScope: { unrestricted: boolean; projectIds: string[] };
-  assignmentAllowed: (assignment: Readonly<DronaAssignment>) => boolean;
 }): DronaMembershipReview {
   const result: DronaMembershipReview = {
     projectIds: [], unrestricted: false, blockedAssignmentCount: 0, unresolvedProjectCount: 0,
@@ -42,8 +42,7 @@ export function reviewDronaProjectIntersection(input: {
   const allowed = new Set<string>();
   for (const assignment of input.snapshot.assignments) {
     // Null activity is not interpreted as true.
-    if (assignment.assignmentActive !== true || assignment.projectActive !== true
-      || input.assignmentAllowed({ ...assignment }) !== true) {
+    if (assignment.assignmentActive !== true || assignment.projectActive !== true) {
       result.blockedAssignmentCount++;
       continue;
     }

@@ -1,33 +1,19 @@
-Subject: QMS360 DronaHQ integration — remaining verification and deployment details
+Subject: QMS360 DronaHQ integration — only backend login verification remains
 
 Hello Team,
 
-We have integrated the supplied DronaHQ SDK into the QMS360 sign-in entry and prepared the source-table reader, environment-specific identity/project linking validation, read-only migration checks, and review-only DEV/QA SQL.
+The project-access question is resolved: an active user linked through user_role_mapping/project_mapping to an active project_master record has project membership. project_master.is_active determines project activity. We will ignore enable_quality for QMS360 access.
 
-For implementation, we are treating profile.uid as public.user_master.user_id. We will preserve the existing QMS360 UUID references, records, approvals and histories. Drona's production master tables will remain authoritative and read-only from QMS360. We do not need a new registration/login system or production master-table recreation.
+Existing per-user QMS360 application access, approvals and role permissions will remain separate. A project mapping will not automatically grant application approval or administrator permissions.
 
-Production Drona sign-in remains intentionally blocked until the following points are resolved:
+We are treating profile.uid as user_master.user_id. The remaining Drona question is:
 
-1. Backend session verification
-Please provide a sanitized working backend example or API documentation showing how our Node.js backend verifies the uid/nonce returned by getProfile(), or the session proof returned by getSSODetails(). Please include:
-- The supported server-side validation method and exact request/response format.
-- How a successful validation is bound to the current user and our application/container.
-- Expiry, replay/nonce reuse, logout and session-revocation behavior.
-- The intended use of verifyNonce() versus getSSODetails().
-Please do not send live tokens, passwords or secret values by email.
+How should our Node.js backend validate the current Drona login?
 
-2. Project/application access rules
-Please confirm how enable_quality, project module/modules, project_mapping.modules and user_role_mapping.module/modules combine. What do null and empty values mean, and which Drona module values correspond to QA/QC, Audit and Lessons?
-Please also clarify nullable is_active, is_coordinator, role activation/deletion, organization/BU/division boundaries, and department-only access for projectless Process audits. Drona role names will not automatically grant QMS360 administrator permissions; QMS-specific capabilities and app approvals will be retained separately.
+After getProfile() returns uid and nonce, which existing Drona method or API should our backend use to confirm the session is valid? Please share a small sanitized working example or the relevant documentation.
 
-3. Remaining schema details
-Please share the full schema-only definition of user_role_master, the role catalog (IDs/names/status semantics only), actual modules array element types, complete sequence/identity definitions, and relevant constraints/indexes/triggers for the five source tables. Please do not send production personal data, signatures or credentials.
-Our DEV/QA DDL is a review draft based on the supplied CSVs; unconfirmed definitions must be checked before claiming AWS parity.
+If getSSODetails() is the intended method, please show how its result is verified by the backend. The example/documentation should establish the user/session binding and explain expiry, replay prevention and logout/revocation.
 
-4. Deployment and integration testing
-Please confirm the production frontend/API paths, supported DronaHQ container environments, and a non-production container/session for testing. The deployment owner should configure database access securely: source-master SELECT access and the required QMS business-schema access.
-Please identify who will review identity/project mappings, reconcile/apply QMS migrations, and perform production acceptance. We will not transfer QA users, projects or business records into AWS.
-
-Once these details are provided, we can finish the verified sign-in and authorization cutover and test valid/expired/forged sessions, revoked access, project boundaries, app approvals, protected downloads and AI operations.
+Please do not send live credentials or tokens.
 
 Thank you.

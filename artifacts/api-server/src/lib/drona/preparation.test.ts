@@ -26,7 +26,7 @@ function row(overrides: Record<string, unknown> = {}) {
   return {
     user_id: bigId, user_active: true, assignment_id: "11", project_map_id: "12",
     project_id: "13", role_id: "14", role_name: "Digital Admin",
-    assignment_active: true, project_active: true, quality_enabled: true,
+    assignment_active: true, project_active: true,
     coordinator: false, sbg_id: "1", bu_id: "2", division_id: "3",
     department_id: null, assignment_module: null, assignment_modules: [],
     mapping_modules: [], project_module: null, project_modules: ["quality"],
@@ -62,6 +62,13 @@ describe("read-only Drona preparation reader", () => {
   });
   it("returns no snapshot for an unknown user", async () => {
     expect(await readDronaUserSnapshot(client([]).source, bigId)).toBeNull();
+  });
+  it("does not query or require the irrelevant enable_quality field", async () => {
+    const c = client([row()]);
+    const snapshot = await readDronaUserSnapshot(c.source, bigId);
+    expect(snapshot?.assignments[0]?.projectActive).toBe(true);
+    expect(c.query.mock.calls[0]?.[0]).not.toContain("enable_quality");
+    expect(snapshot?.assignments[0]).not.toHaveProperty("qualityEnabled");
   });
   it("retains a user with no assignments as an empty list, not unrestricted access", async () => {
     const c = client([row({ assignment_id: null })]);

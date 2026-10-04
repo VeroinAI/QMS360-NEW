@@ -17,8 +17,9 @@ login/access integration**. Do not tell users that cloning alone enables SSO.
 - Selecting Drona is an intentional temporary lockout while incomplete. Do not
   enable it on a live environment expecting usable sign-in yet.
 - The membership intersection helper is review/test code, not live RBAC wiring.
-  It requires an explicit assignment policy, intersects capability-specific QMS
-  scope, excludes inactive memberships and never yields unrestricted scope.
+  It uses the confirmed active-user/mapped-active-project condition, intersects
+  capability-specific QMS scope, excludes inactive memberships and never yields
+  unrestricted scope. enable_quality is ignored for access.
 - Local/legacy container JWT lifetimes and behavior are not changed. Drona
   session expiry/revocation must be implemented from the actual contract.
 
@@ -117,7 +118,7 @@ provided. It is not a substitute for full schema/history parity checks.
 ## Remaining acceptance gates
 
 Send `email-to-drona-team.txt` to the Drona technical owner. Finish backend
-verification, session revocation, access-policy approval, tenant/department
+verification, session revocation, preserved QMS application access, tenant/department
 coverage, identity/assignment reconciliation and endpoint/UI coverage before
 activating Drona. Then run the coherent critical-journey acceptance pass,
 including downloads/reports and VerionAI.

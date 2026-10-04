@@ -71,18 +71,18 @@ their meaning is unconfirmed. Positive master/assignment IDs are represented as
 canonical decimal strings bounded to PostgreSQL bigint; no JavaScript number
 conversion is allowed.
 
-Before implementing permission decisions, obtain a reviewed matrix covering:
+The owner confirmed the project-access condition: an active user linked through
+`user_role_mapping`/`project_mapping` to an active `project_master` record.
+`project_master.is_active` determines project activity. Ignore `enable_quality`
+for QMS360 access; module fields are retained as source metadata, not invented
+additional project gates. Do not reopen this question with Drona.
 
-| Input | Decision needed |
-|---|---|
-| `project_master.enable_quality` | Whether it gates QA/QC, Audit, Lessons, or another module |
-| Project `module`/`modules` | Precedence and null/empty semantics |
-| Slot `project_mapping.modules` | How slot modules restrict project modules |
-| Assignment `module`/`modules` | Override vs intersection and null/empty behavior |
-| Assignment `is_active`, `is_coordinator` | Nullable-state and coordinator privileges |
-| Role catalog | Active/deleted semantics and approved QMS capability mappings |
-| SBG/BU/division/department | Organization boundaries and projectless Process audits |
-| Existing identity and project pairs | Explicit reviewed links in each environment |
+Keep existing per-user QMS application access, separate application approvals
+and capability-specific role/project permissions inside that membership boundary.
+Inactive/ambiguous assignment activity does not become an active membership.
+Coordinator or source role names do not automatically grant QMS privileges.
+Reconcile reviewed environment/organization-specific identity and project links,
+and preserve the existing department-scoped projectless Process audit policy.
 
 Drona roles such as an HSE or Digital administrator must not automatically
 become QMS platform/application administrators. Keep QMS-specific grants,
@@ -158,7 +158,7 @@ assumed to be Drona's protocol. Sharing a database or host is not authentication
 
 ## Cutover and recovery gates
 
-Do not enable cutover until schema, mappings, tenant/module policy, verified
+Do not enable cutover until schema, mappings, preserved QMS access, verified
 session handoff and complete endpoint coverage are confirmed. Verify valid and
 forged/expired sessions, inactive/revoked users and memberships, no assignments,
 cross-project attempts, role changes, separate app approvals, multiple slots,

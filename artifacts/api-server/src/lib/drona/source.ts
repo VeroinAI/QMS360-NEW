@@ -14,7 +14,6 @@ export type DronaAssignment = {
   roleName: string;
   assignmentActive: boolean | null;
   projectActive: boolean;
-  qualityEnabled: boolean;
   coordinator: boolean | null;
   sbgId: string;
   businessUnitId: string;
@@ -40,7 +39,7 @@ type SourceRow = {
   assignment_id: string | null; project_map_id: string | null;
   project_id: string | null; role_id: string | null; role_name: string | null;
   assignment_active: boolean | null; project_active: boolean | null;
-  quality_enabled: boolean | null; coordinator: boolean | null;
+  coordinator: boolean | null;
   sbg_id: string | null; bu_id: string | null; division_id: string | null;
   department_id: string | null; assignment_module: string | null;
   assignment_modules: unknown; mapping_modules: unknown;
@@ -53,7 +52,7 @@ SELECT u.user_id::text AS user_id, u.is_active AS user_active,
        m.project_map_id::text AS project_map_id, p.project_id::text AS project_id,
        r.user_role_id::text AS role_id, r.user_role AS role_name,
        a.is_active AS assignment_active, p.is_active AS project_active,
-       p.enable_quality AS quality_enabled, a.is_coordinator AS coordinator,
+       a.is_coordinator AS coordinator,
        m.sbg_id::text AS sbg_id, m.bu_id::text AS bu_id,
        m.division_id::text AS division_id, m.department_id::text AS department_id,
        a.module AS assignment_module, a.modules AS assignment_modules,
@@ -109,7 +108,6 @@ export async function readDronaUserSnapshot(
       roleName: required(row.role_name),
       assignmentActive: row.assignment_active,
       projectActive: required(row.project_active),
-      qualityEnabled: required(row.quality_enabled),
       coordinator: row.coordinator,
       sbgId: hierarchyId(row.sbg_id),
       businessUnitId: hierarchyId(row.bu_id),

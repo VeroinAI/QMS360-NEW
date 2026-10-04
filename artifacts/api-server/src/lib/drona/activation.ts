@@ -1,9 +1,9 @@
 /** Selecting Drona must not accidentally fall back to password/bridge login.
- * No environment flag can bypass the missing verifier or policy acceptance.
+ * No environment flag can bypass the missing verifier or access reconciliation.
  * Replace the gate only together with the reviewed, tested real integration. */
 export const DRONA_ACTIVATION_BLOCKERS = [
   "Drona backend session verification is not connected.",
-  "Drona module, role and organization/department rules need acceptance.",
+  "Confirmed active-user/project mappings must be reconciled with each user's QMS application access.",
   "Environment-specific schema and existing-record mappings need reconciliation.",
 ] as const;
 
