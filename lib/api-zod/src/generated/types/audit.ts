@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AuditAdditionalDocuments } from './auditAdditionalDocuments';
+import type { AuditReportDetails } from './auditReportDetails';
 import type { AuditStatus } from './auditStatus';
 import type { ChecklistItem } from './checklistItem';
 import type { MeetingMinutes } from './meetingMinutes';
@@ -16,10 +17,13 @@ export interface Audit {
   projectId: string;
   title: string;
   status: AuditStatus;
+  /** Whether the current user has Audit edit access in this record scope */
+  canEdit?: boolean;
   openingMeeting?: MeetingMinutes;
   closingMeeting?: MeetingMinutes;
   checklist?: ChecklistItem[];
   additionalDocuments?: AuditAdditionalDocuments;
+  reportDetails?: AuditReportDetails;
   /** @nullable */
   startedAt?: Date | null;
   /** @nullable */

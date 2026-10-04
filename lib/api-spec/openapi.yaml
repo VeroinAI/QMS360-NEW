@@ -1411,6 +1411,34 @@ paths:
     delete: {operationId: deleteAudit, tags: [audit], summary: Soft-delete audit, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
   /audit/audits/{id}/attendee-options:
     get: {operationId: listAuditMeetingAttendees, tags: [audit], summary: List active QMS Audit users eligible for meeting attendance, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Audit users, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}}}}, "404": {description: Audit not found}}}
+  /audit/audits/{id}/complete:
+    post:
+      operationId: completeAudit
+      tags: [audit]
+      summary: Mark an audit Complete
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200": {description: Completed audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
+        "403": {description: Audit edit permission required}
+  /audit/audits/{id}/report-details:
+    put:
+      operationId: saveAuditReportDetails
+      tags: [audit]
+      summary: Save editable report-only details
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditReportDetails"}}}}
+      responses:
+        "200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
+        "422": {description: Invalid report details}
+  /audit/audits/{id}/report/pdf:
+    get:
+      operationId: downloadAuditReportPdf
+      tags: [audit]
+      summary: Download completed Audit consolidated report
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200": {description: PDF, content: {application/pdf: {schema: {type: string, format: binary}}}}
+        "409": {description: Complete the audit before viewing its report}
   /audit/audits/{id}/opening-meeting:
     put: {operationId: updateAuditOpeningMeeting, tags: [audit], summary: Record opening meeting minutes, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Meeting"}, responses: {"200": {description: Updated}}}
   /audit/audits/{id}/closing-meeting:
@@ -3272,7 +3300,23 @@ components:
     Audit:
       type: object
       required: [id, planId, projectId, title, status]
-      properties: {id: {type: string}, planId: {type: string}, projectId: {type: string}, title: {type: string}, status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Closed, Deleted]}, openingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, checklist: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}, additionalDocuments: {$ref: "#/components/schemas/AuditAdditionalDocuments"}, startedAt: {type: [string, "null"], format: date-time}, closedAt: {type: [string, "null"], format: date-time}}
+      properties: {id: {type: string}, planId: {type: string}, projectId: {type: string}, title: {type: string}, status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Complete, Closed, Deleted]}, canEdit: {type: boolean, description: Whether the current user has Audit edit access in this record scope}, openingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, checklist: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}, additionalDocuments: {$ref: "#/components/schemas/AuditAdditionalDocuments"}, reportDetails: {$ref: "#/components/schemas/AuditReportDetails"}, startedAt: {type: [string, "null"], format: date-time}, closedAt: {type: [string, "null"], format: date-time}}
+    AuditReportDetails:
+      type: object
+      required: [values, rows]
+      properties:
+        values: {type: object, maxProperties: 60, additionalProperties: {type: string, maxLength: 10000}}
+        rows: {type: object, maxProperties: 10, additionalProperties: {type: array, maxItems: 200, items: {type: object, maxProperties: 10, additionalProperties: {type: string, maxLength: 10000}}}}
+    AuditReportSection:
+      type: object
+      required: [key, title, fields, tables, notes, photos]
+      properties:
+        key: {type: string}
+        title: {type: string}
+        fields: {type: array, items: {type: object, required: [label, value], properties: {label: {type: string}, value: {type: string}}}}
+        tables: {type: array, items: {type: object, required: [title, columns, rows], properties: {title: {type: string}, columns: {type: array, items: {type: string}}, rows: {type: array, items: {type: array, items: {type: string}}}}}}
+        notes: {type: array, items: {type: string}}
+        photos: {type: array, items: {type: object, required: [id, fileName, reference, description], properties: {id: {type: string}, fileName: {type: string}, reference: {type: string}, description: {type: string}}}}
     AuditFinding:
       type: object
       required: [id, auditId, title, description, classification, priority, riskLevel, responsibleDepartments, status]
@@ -3312,7 +3356,7 @@ components:
     GeneratedAuditReport:
       type: object
       required: [audit, findings, cars, generatedAt]
-      properties: {audit: {$ref: "#/components/schemas/Audit"}, findings: {type: array, items: {$ref: "#/components/schemas/AuditFinding"}}, cars: {type: array, items: {$ref: "#/components/schemas/CorrectiveActionReport"}}, generatedAt: {type: string, format: date-time}, downloadUrl: {type: [string, "null"]}}
+      properties: {audit: {$ref: "#/components/schemas/Audit"}, findings: {type: array, items: {$ref: "#/components/schemas/AuditFinding"}}, cars: {type: array, items: {$ref: "#/components/schemas/CorrectiveActionReport"}}, sections: {type: array, items: {$ref: "#/components/schemas/AuditReportSection"}}, generatedAt: {type: string, format: date-time}, downloadUrl: {type: [string, "null"]}}
     ReportDelivery:
       type: object
       required: [delivery, fileName]

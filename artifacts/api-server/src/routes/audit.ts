@@ -1,5 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { PDFDocument } from "pdf-lib";
 import sharp from "sharp";
@@ -48,6 +50,9 @@ import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } fr
 import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-attachments";
 import { auditPlanReportData } from "../lib/audit-plan-report-data";
 import { renderAuditPlanPdf } from "../lib/audit-plan-pdf";
+import { auditIsComplete, buildConsolidatedAuditReport } from "../lib/audit-consolidated-report";
+import { renderConsolidatedAuditPdf } from "../lib/audit-consolidated-pdf";
+import { auditReportDetailsErrors, type AuditReportDetailsData } from "@workspace/field-controls";
 
 const router = Router();
 const requireAuditAdmin = requireAppAdmin("audit");
@@ -2017,7 +2022,7 @@ router.post("/plans/:id/share", asyncHandler(async (req, res) => {
   await auditLog(req, "share", "audit_plan", row.id, before, row); res.status(202).json(planDto(row));
 }));
 
-type AuditMeta = { title?: string; openingMeeting?: AnyRow; closingMeeting?: AnyRow; startedAt?: string | null; closedAt?: string | null; additionalDocuments?: AnyRow };
+type AuditMeta = { title?: string; openingMeeting?: AnyRow; closingMeeting?: AnyRow; startedAt?: string | null; closedAt?: string | null; additionalDocuments?: AnyRow; reportDetails?: AuditReportDetailsData; completedById?: string };
 const auditMeta = (row: AnyRow): AuditMeta => parseJson(row.status, {});
 const legacyDocumentRemarks = (rows: unknown): string => Array.isArray(rows)
   ? rows.filter((entry: AnyRow) => typeof entry.remarks === "string" && entry.remarks.trim())
@@ -2027,11 +2032,13 @@ const documentRemarks = (documents: AnyRow | undefined, section: "designStatus" 
   const key = section === "designStatus" ? "designRemarks" : "procurementRemarks";
   return typeof documents?.[key] === "string" ? documents[key] : legacyDocumentRemarks(documents?.[section]);
 };
-const auditDto = (row: AnyRow) => {
+const auditDto = (row: AnyRow, canEdit = false) => {
   const meta = auditMeta(row);
   return {
     id: row.id, planId: row.auditPlanId!, projectId: row.projectId!, title: meta.title ?? row.referenceNumber,
-    status: ({ planned: "Planned", "in progress": "In Progress", "report draft": "Report Draft", "car follow-up": "CAR Follow-up", closed: "Closed", scheduled: "Planned" } as AnyRow)[row.workflowState.toLowerCase()] ?? "Planned",
+    canEdit,
+    status: auditIsComplete(row.workflowState) ? "Complete" : ({ planned: "Planned", "in progress": "In Progress", "report draft": "Report Draft", "car follow-up": "CAR Follow-up", scheduled: "Planned" } as AnyRow)[row.workflowState.toLowerCase()] ?? "Planned",
+    reportDetails: meta.reportDetails ?? { values: {}, rows: {} },
     openingMeeting: meta.openingMeeting ? { ...meta.openingMeeting, heldAt: new Date(meta.openingMeeting.heldAt) } : undefined,
     closingMeeting: meta.closingMeeting ? { ...meta.closingMeeting, heldAt: new Date(meta.closingMeeting.heldAt) } : undefined,
     checklist: Array.isArray(row.checklistState) ? row.checklistState : [],
@@ -2162,10 +2169,13 @@ router.get("/audits", asyncHandler(async (req, res) => {
   const [rows, [{ count }]] = await Promise.all([
     db.select().from(audits).where(where).orderBy(desc(audits.updatedAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(audits).where(where),
-  ]); res.json(paginated(rows.map(auditDto), Number(count), page, limit));
+  ]);
+  const editScope = await getAuthorizedProjectScope(req, "audit", { module: "audits", action: "full" });
+  res.json(paginated(rows.map(row => auditDto(row, editScope.unrestricted || (row.projectId ? editScope.projectIds.includes(row.projectId) : editScope.projectIds.length > 0))), Number(count), page, limit));
 }));
 router.post("/audits", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditBody, req);
+  if (auditIsComplete(data.status)) throw new HttpError(422, "Create the audit first, then use Mark Complete.");
   await assertFieldAccess(req, "audit", "audit-execution", { mode: "create" });
   const [plan] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, data.planId)));
   if (!plan) throw new HttpError(422, "Audit plan does not belong to this organization");
@@ -2205,12 +2215,68 @@ router.post("/audits", asyncHandler(async (req, res) => {
 }));
 router.get("/audits/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
-  if (!row) throw new HttpError(404, "Audit not found"); res.json(auditDto(row));
+  if (!row) throw new HttpError(404, "Audit not found");
+  const editScope = await getAuthorizedProjectScope(req, "audit", { module: "audits", action: "full" });
+  res.json(auditDto(row, editScope.unrestricted || (row.projectId ? editScope.projectIds.includes(row.projectId) : editScope.projectIds.length > 0)));
+}));
+router.post("/audits/:id/complete", asyncHandler(async (req, res) => {
+  const result = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId),
+      eq(audits.id, String(req.params.id)))).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    if (auditIsComplete(before.workflowState)) return { before, row: before, changed: false };
+    await assertFieldAccess(req, "audit", "audit-execution", {
+      mode: "update", current: auditDto(before), body: { status: "Complete" },
+    });
+    await assertFieldControls(req, "audit", "audit-execution", { mode: "update", current: auditDto(before), body: { status: "Complete" } });
+    const [row] = await tx.update(audits).set({
+      workflowState: "closed", updatedAt: new Date(),
+      status: JSON.stringify({ ...auditMeta(before), closedAt: new Date().toISOString(), completedById: actor(req).id }),
+    }).where(eq(audits.id, before.id)).returning();
+    return { before, row, changed: true };
+  });
+  if (result.changed) await auditLog(req, "complete", "audit", result.row.id, result.before, result.row);
+  res.json(auditDto(result.row, true));
+}));
+router.put("/audits/:id/report-details", asyncHandler(async (req, res) => {
+  const data = body<AuditReportDetailsData>(Api.SaveAuditReportDetailsBody, req);
+  const errors = auditReportDetailsErrors(data);
+  if (errors.length) throw new HttpError(422, errors.join("; "));
+  const { before, row } = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId),
+      eq(audits.id, String(req.params.id)))).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    const captions = data.rows.photographs?.filter(row => row.fileName?.trim()) ?? [];
+    if (captions.length) {
+      const files = await tx.select({ fileName: auditEvidenceFiles.fileName }).from(auditEvidenceFiles).where(and(
+        active(auditEvidenceFiles, actor(req).organizationId), eq(auditEvidenceFiles.recordId, before.id),
+        inArray(auditEvidenceFiles.recordType, ["audit", "audit_execution"]), eq(auditEvidenceFiles.status, "stored"),
+        inArray(auditEvidenceFiles.mimeType, ["image/png", "image/jpeg", "image/webp", "image/gif"]),
+      ));
+      const fileNames = new Set(files.map(file => file.fileName));
+      if (captions.some(row => !fileNames.has(row.fileName.trim()))) {
+        throw new HttpError(422, "Photograph captions must match an uploaded image evidence file name.");
+      }
+    }
+    await assertFieldAccess(req, "audit", "audit-execution", {
+      mode: "update", current: auditDto(before), body: { reportDetails: data },
+    });
+    await assertFieldControls(req, "audit", "audit-execution", { mode: "update", current: auditDto(before), body: { reportDetails: data } });
+    const [row] = await tx.update(audits).set({
+      status: JSON.stringify({ ...auditMeta(before), reportDetails: data }), updatedAt: new Date(),
+    }).where(eq(audits.id, before.id)).returning();
+    return { before, row };
+  });
+  await auditLog(req, "update_report_details", "audit", row.id, before, row);
+  res.json(auditDto(row, true));
 }));
 router.put("/audits/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditBody, req);
   const [before] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit not found");
+  if (auditIsComplete(data.status) !== auditIsComplete(before.workflowState)) {
+    throw new HttpError(409, "Use Mark Complete to complete an audit. Completed audits cannot be reopened through general editing.");
+  }
   const [plan] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, data.planId)));
   if (!plan) throw new HttpError(404, "Audit plan not found");
   await assertAuditProject(req, plan.projectId);
@@ -2218,6 +2284,10 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
     throw new HttpError(422, "Audit project must match the selected plan");
   }
   const values = auditValues(data);
+  if (auditIsComplete(before.workflowState)) {
+    values.workflowState = "closed";
+    values.status = JSON.stringify({ ...parseJson(values.status, {}), closedAt: auditMeta(before).closedAt });
+  }
   values.projectId = plan.projectId;
   // Generated reference numbers are immutable, regardless of the current pattern config.
   if (before.referenceGenerated) values.referenceNumber = before.referenceNumber;
@@ -2226,6 +2296,13 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
   const { locked, row } = await db.transaction(async tx => {
     const [locked] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, before.id))).for("update");
     if (!locked) throw new HttpError(404, "Audit not found");
+    if (auditIsComplete(data.status) !== auditIsComplete(locked.workflowState)) {
+      throw new HttpError(409, "The audit completion status changed. Reload before editing.");
+    }
+    if (auditIsComplete(locked.workflowState)) {
+      values.workflowState = "closed";
+      values.status = JSON.stringify({ ...parseJson(values.status, {}), closedAt: auditMeta(locked).closedAt });
+    }
     const [row] = await tx.update(audits).set({
       ...values, id: undefined,
       status: JSON.stringify({ ...auditMeta(locked), ...parseJson(values.status, {}) }),
@@ -2261,12 +2338,18 @@ async function updateMeeting(req: Request, kind: "opening" | "closing", schema: 
     body: { [`${kind}Meeting`]: data },
     current: { [`${kind}Meeting`]: auditMeta(before)[`${kind}Meeting`] ?? null },
   });
-  const meta = auditMeta(before); meta[`${kind}Meeting`] = { ...data, heldAt: data.heldAt.toISOString() };
-  if (kind === "opening" && !meta.startedAt) meta.startedAt = data.heldAt.toISOString();
-  const [row] = await db.update(audits).set({
-    status: JSON.stringify(meta), [kind === "opening" ? "openingMeetingMinutes" : "closingMeetingMinutes"]: data.minutes,
-    workflowState: kind === "opening" && before.workflowState === "planned" ? "in progress" : before.workflowState, updatedAt: new Date(),
-  }).where(eq(audits.id, before.id)).returning();
+  const row = await db.transaction(async tx => {
+    const [locked] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId),
+      eq(audits.id, before.id))).for("update");
+    if (!locked) throw new HttpError(404, "Audit not found");
+    const meta = auditMeta(locked); meta[`${kind}Meeting`] = { ...data, heldAt: data.heldAt.toISOString() };
+    if (kind === "opening" && !meta.startedAt) meta.startedAt = data.heldAt.toISOString();
+    const [row] = await tx.update(audits).set({
+      status: JSON.stringify(meta), [kind === "opening" ? "openingMeetingMinutes" : "closingMeetingMinutes"]: data.minutes,
+      workflowState: kind === "opening" && locked.workflowState === "planned" ? "in progress" : locked.workflowState, updatedAt: new Date(),
+    }).where(eq(audits.id, locked.id)).returning();
+    return row;
+  });
   await auditLog(req, `${kind}_meeting`, "audit", row.id, before, row); return row;
 }
 router.put("/audits/:id/opening-meeting", asyncHandler(async (req, res) => res.json(auditDto(await updateMeeting(req, "opening", Api.UpdateAuditOpeningMeetingBody)))));
@@ -3181,7 +3264,7 @@ async function dashboardData(req: Request, projectId?: string) {
   return {
     generatedAt: new Date(),
     metrics: {
-      audits: { open: auditRows.filter((x) => x.workflowState !== "closed").length, closed: auditRows.filter((x) => x.workflowState === "closed").length },
+      audits: { open: auditRows.filter((x) => !auditIsComplete(x.workflowState)).length, closed: auditRows.filter((x) => auditIsComplete(x.workflowState)).length },
       findingsByClassification: countBy(findingRows, "classification"),
       carStatus: countBy(carRows, "workflowState"),
       overdueCars: carRows.filter((x) => x.workflowState !== "closed" && (x.extensionDueDate ?? x.dueDate) && (x.extensionDueDate ?? x.dueDate)! < now).length,
@@ -3226,15 +3309,93 @@ router.get("/reports/schedule", asyncHandler(async (req, res) => {
   const rows = scoped.map(row => scheduleDto(row));
   if (!maybeCsv(req, res, "annual-audit-schedule", rows)) res.json(paginated(rows, rows.length, 1, Math.max(1, rows.length)));
 }));
-router.get("/audits/:id/report", asyncHandler(async (req, res) => {
+async function consolidatedReport(req: Request) {
   const [audit] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!audit) throw new HttpError(404, "Audit not found");
+  if (!auditIsComplete(audit.workflowState)) throw new HttpError(409, "Mark the audit Complete before viewing or downloading its report.");
   const [plan] = audit.auditPlanId ? await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, audit.auditPlanId))) : [];
-  if (plan) await assertAuditProject(req, plan.projectId);
+  // The router-wide parent-chain guard already handles both project and
+  // department-scoped Internal Process audits.
   const findings = await db.select().from(auditFindings).where(and(active(auditFindings, actor(req).organizationId), eq(auditFindings.auditId, audit.id)));
   const cars = findings.length ? await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), inArray(correctiveActionReports.auditFindingId, findings.map((x) => x.id)))) : [];
+  const [schedule] = plan?.auditScheduleId ? await db.select().from(auditSchedules).where(and(
+    active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, plan.auditScheduleId))) : [];
+  const [project] = audit.projectId ? await db.select().from(projects).where(and(
+    active(projects, actor(req).organizationId), eq(projects.id, audit.projectId))) : [];
+  const evidence = await db.select().from(auditEvidenceFiles).where(and(
+    active(auditEvidenceFiles, actor(req).organizationId), inArray(auditEvidenceFiles.recordType, ["audit", "audit_execution"]),
+    eq(auditEvidenceFiles.recordId, audit.id), eq(auditEvidenceFiles.status, "stored")));
+  const mappedAudit = auditDto(audit);
+  const meta = plan ? planMeta(plan) : null;
+  // The generic Plan DTO uses epoch placeholders for missing dates and aliases
+  // Audit Types as legacy criteria. Neither is factual consolidated report data.
+  const mappedPlan = plan ? {
+    ...planDto(plan),
+    startDateTime: meta?.startDateTime || plan.auditDate || null,
+    endDateTime: meta?.endDateTime || plan.auditDate || null,
+    activityDateTime: meta?.activityDateTime || plan.auditDate || null,
+    activities: meta?.activities?.length ? meta.activities : meta?.activitySection ? [{
+      section: meta.activitySection, remarks: meta.activityRemarks, auditeeId: meta.activityAuditeeId,
+    }] : [],
+    criteria: scheduleMeta(schedule ?? {}).qaqcClauses ? [scheduleMeta(schedule ?? {}).qaqcClauses]
+      : !meta?.auditTypes ? parseJson(plan.criteria, plan.criteria ? [plan.criteria] : []) : [],
+  } : null;
+  const userIds = [...new Set([
+    mappedPlan?.leadAuditorId, ...(mappedPlan?.teamMemberIds ?? []), ...(mappedPlan?.processOwnerIds ?? []),
+    ...(auditMeta(audit).openingMeeting?.attendees ?? []), ...(auditMeta(audit).closingMeeting?.attendees ?? []), ...cars.map(c => c.ownerId),
+  ].filter((id): id is string => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)))];
+  const nameRows = userIds.length ? await db.select({ id: users.id, name: users.fullName, designation: users.designation }).from(users).where(and(
+    eq(users.organizationId, actor(req).organizationId), inArray(users.id, userIds), isNull(users.deletedAt))) : [];
+  const roleIds = mappedPlan?.auditeeRoleIds ?? [];
+  const roleRows = roleIds.length ? await db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles).where(and(
+    active(auditWorkspaceRoles, actor(req).organizationId), inArray(auditWorkspaceRoles.id, roleIds))) : [];
+  const sections = buildConsolidatedAuditReport({
+    audit: { ...mappedAudit, referenceNumber: audit.referenceNumber }, plan: mappedPlan, project,
+    schedule: schedule ? { ...scheduleMeta(schedule), department: scheduleMeta(schedule).departmentProject } : null,
+    legacyFindings: findings.map(findingDto), cars: cars.map(carDto), evidence,
+    names: new Map(nameRows.map(u => [u.id, [u.name, u.designation].filter(Boolean).join(" / ")])),
+    roleNames: new Map(roleRows.map(r => [r.id, r.name])),
+  });
+  return { audit, mappedAudit, plan, findings, cars, sections, evidence };
+}
+router.get("/audits/:id/report", asyncHandler(async (req, res) => {
+  const { audit, plan, findings, cars, sections } = await consolidatedReport(req);
   const payload = { audit: auditDto(audit), plan: plan ? planDto(plan) : null, findings: findings.map(findingDto), cars: cars.map(carDto), generatedAt: new Date(), downloadUrl: null };
-  if (!maybeCsv(req, res, `audit-${audit.referenceNumber}`, findings.map((finding) => ({ ...findingDto(finding), cars: cars.filter((car) => car.auditFindingId === finding.id).map(carDto) })))) res.json(payload);
+  if (!maybeCsv(req, res, `audit-${audit.referenceNumber}`, sections.flatMap(s => [
+    ...s.fields.map(f => ({ section: s.title, field: f.label, value: f.value })),
+    ...s.tables.flatMap(t => t.rows.map(row => ({ section: s.title, field: t.title, value: t.columns.map((column, i) => `${column}: ${row[i] ?? ""}`).join(" | ") }))),
+  ]))) res.json({ ...payload, sections });
+}));
+router.get("/audits/:id/report/pdf", asyncHandler(async (req, res) => {
+  const report = await consolidatedReport(req);
+  const images = new Map<string, Uint8Array>();
+  for (const photo of report.sections.flatMap(s => s.photos)) {
+    const file = report.evidence.find(f => f.id === photo.id)!;
+    try {
+      let bytes: Buffer;
+      if (file.storageKey.startsWith("gcs:")) {
+        const object = await getObject(file.storageKey.slice(4));
+        if (Number(object.headers.get("content-length") ?? 0) > 20_000_000) throw new Error("Image exceeds report size limit");
+        bytes = Buffer.from(await object.arrayBuffer());
+      } else {
+        // Legacy evidence uses the same upload layout as the authenticated files route.
+        const localKey = file.storageKey.replace(/^local:/, "");
+        if (localKey !== `audit/${file.id}`) throw new Error("Unsupported legacy evidence key");
+        bytes = await readFile(path.resolve(process.cwd(), "uploads", localKey.replace("/", "-")));
+      }
+      if (bytes.length > 20_000_000) throw new Error("Image exceeds report size limit");
+      images.set(photo.id, await sharp(bytes, { limitInputPixels: 16_000_000 }).resize({ width: 1600, height: 1200, fit: "inside", withoutEnlargement: true }).png().toBuffer());
+    } catch {
+      throw new HttpError(502, `Could not load photograph "${photo.fileName}". Please retry the PDF download.`);
+    }
+  }
+  const bytes = await renderConsolidatedAuditPdf({
+    title: report.mappedAudit.title, reference: report.audit.referenceNumber, sections: report.sections, photos: images,
+  });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("Content-Disposition", `attachment; filename="audit-report-${report.audit.id}.pdf"`);
+  res.send(Buffer.from(bytes));
 }));
 
 router.get("/field-controls", asyncHandler(async (req, res) => {

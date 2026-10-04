@@ -14,6 +14,7 @@ export const AuditStatus = {
   In_Progress: 'In Progress',
   Report_Draft: 'Report Draft',
   'CAR_Follow-up': 'CAR Follow-up',
+  Complete: 'Complete',
   Closed: 'Closed',
   Deleted: 'Deleted',
 } as const;

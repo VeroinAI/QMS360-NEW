@@ -1,0 +1,5 @@
+user_role_map_id,project_map_id,user_id,user_role_id,created_at,updated_at,is_coordinator,module,modules,is_active
+1,102,1,2,2025-11-05T11:35:54.948Z,2026-07-29T07:55:18.041Z,false,dashboard,"[""incident"",""dashboard"",""audit"",""quality"",""fleet""]",true
+396,1,1,3,2026-03-19T10:50:26.775Z,2026-05-14T06:43:50.197Z,false,dashboard,"[""dashboard"",""quality"",""ptw""]",true
+52,46,45,14,2025-12-04T17:41:05.791Z,2026-05-18T09:33:23.427Z,false,dashboard,"[""dashboard"",""audit""]",true
+54,48,47,52,2025-12-04T18:09:02.168Z,2026-04-21T08:23:45.334Z,false,dashboard,"[""dashboard"",""audit""]",true

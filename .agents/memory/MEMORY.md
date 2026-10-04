@@ -60,3 +60,5 @@
 - [Monthly quality assessment](quality-assessment-policy.md) — >45-day open NCRs are critical; AI suggestions require human review and confirmation before submission.
 - [Audit Plan PDF policy](audit-plan-pdf-policy.md) — retain the supplied PDF's branding; use each audit's records, mark unavailable values exactly “To Be Mapped”, and never copy sample signatures.
 - [QA/QC role authorization policy](qaqc-role-authorization-policy.md) — edit default-role permissions in place; preserve other apps and legacy ownership semantics.
+- [Audit consolidated report policy](audit-consolidated-report-policy.md) — reports require completion; CARs remain separate; missing template data is editable, never fabricated.
+- [Focused Vitest invocation](focused-vitest-invocation.md) — invoke filtered Vitest directly; passing a literal -- through pnpm test can ignore the intended file filter.

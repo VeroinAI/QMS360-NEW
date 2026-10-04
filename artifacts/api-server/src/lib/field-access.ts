@@ -121,6 +121,7 @@ export const FIELD_CATALOG: Record<AppKey, CatalogForm[]> = {
         f("closingMeeting", "Closing meeting", null),
         f("startedAt", "Started at", null),
         f("closedAt", "Closed at", null),
+        f("reportDetails", "Report details", {}),
       ],
     },
     {

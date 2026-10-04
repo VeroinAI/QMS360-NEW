@@ -7595,6 +7595,12 @@ export const sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesIt
 
 export const sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const sendAuditPlanForExecutionResponseReportDetailsValuesMaxOne = 10000;
+
+export const sendAuditPlanForExecutionResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const sendAuditPlanForExecutionResponseReportDetailsRowsMaxOne = 200;
+
 
 
 export const SendAuditPlanForExecutionResponse = zod.object({
@@ -7602,7 +7608,8 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -7657,6 +7664,10 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
 }).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(sendAuditPlanForExecutionResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(sendAuditPlanForExecutionResponseReportDetailsRowsItemMaxOne))).max(sendAuditPlanForExecutionResponseReportDetailsRowsMaxOne))
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -7709,6 +7720,12 @@ export const listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemO
 
 export const listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const listAuditsResponseTwoItemsItemReportDetailsValuesMaxOne = 10000;
+
+export const listAuditsResponseTwoItemsItemReportDetailsRowsItemMaxOne = 10000;
+
+export const listAuditsResponseTwoItemsItemReportDetailsRowsMaxOne = 200;
+
 
 
 export const ListAuditsResponse = zod.object({
@@ -7721,7 +7738,8 @@ export const ListAuditsResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -7776,6 +7794,10 @@ export const ListAuditsResponse = zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
 }).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(listAuditsResponseTwoItemsItemReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(listAuditsResponseTwoItemsItemReportDetailsRowsItemMaxOne))).max(listAuditsResponseTwoItemsItemReportDetailsRowsMaxOne))
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 }))
@@ -7813,6 +7835,12 @@ export const createAuditBodyAdditionalDocumentsGoodPracticesItemOneEvidenceRefer
 
 export const createAuditBodyAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const createAuditBodyReportDetailsValuesMaxOne = 10000;
+
+export const createAuditBodyReportDetailsRowsItemMaxOne = 10000;
+
+export const createAuditBodyReportDetailsRowsMaxOne = 200;
+
 
 
 export const CreateAuditBody = zod.object({
@@ -7820,7 +7848,8 @@ export const CreateAuditBody = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -7875,6 +7904,10 @@ export const CreateAuditBody = zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
 }).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(createAuditBodyReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(createAuditBodyReportDetailsRowsItemMaxOne))).max(createAuditBodyReportDetailsRowsMaxOne))
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -7917,6 +7950,12 @@ export const getAuditResponseAdditionalDocumentsGoodPracticesItemOneEvidenceRefe
 
 export const getAuditResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const getAuditResponseReportDetailsValuesMaxOne = 10000;
+
+export const getAuditResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const getAuditResponseReportDetailsRowsMaxOne = 200;
+
 
 
 export const GetAuditResponse = zod.object({
@@ -7924,7 +7963,8 @@ export const GetAuditResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -7979,6 +8019,10 @@ export const GetAuditResponse = zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
 }).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(getAuditResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(getAuditResponseReportDetailsRowsItemMaxOne))).max(getAuditResponseReportDetailsRowsMaxOne))
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -8019,6 +8063,12 @@ export const updateAuditBodyAdditionalDocumentsGoodPracticesItemOneEvidenceRefer
 
 export const updateAuditBodyAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const updateAuditBodyReportDetailsValuesMaxOne = 10000;
+
+export const updateAuditBodyReportDetailsRowsItemMaxOne = 10000;
+
+export const updateAuditBodyReportDetailsRowsMaxOne = 200;
+
 
 
 export const UpdateAuditBody = zod.object({
@@ -8026,7 +8076,8 @@ export const UpdateAuditBody = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -8081,6 +8132,10 @@ export const UpdateAuditBody = zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
 }).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(updateAuditBodyReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(updateAuditBodyReportDetailsRowsItemMaxOne))).max(updateAuditBodyReportDetailsRowsMaxOne))
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -8111,6 +8166,255 @@ export const ListAuditMeetingAttendeesResponseItem = zod.object({
   "designation": zod.string().nullish()
 })
 export const ListAuditMeetingAttendeesResponse = zod.array(ListAuditMeetingAttendeesResponseItem)
+
+
+/**
+ * @summary Mark an audit Complete
+ */
+export const CompleteAuditParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const completeAuditResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const completeAuditResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const completeAuditResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const completeAuditResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const completeAuditResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const completeAuditResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const completeAuditResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const completeAuditResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const completeAuditResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const completeAuditResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const completeAuditResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const completeAuditResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const completeAuditResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const completeAuditResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const completeAuditResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
+export const completeAuditResponseReportDetailsValuesMaxOne = 10000;
+
+export const completeAuditResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const completeAuditResponseReportDetailsRowsMaxOne = 200;
+
+
+
+export const CompleteAuditResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(completeAuditResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(completeAuditResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(completeAuditResponseAdditionalDocumentsDesignStatusItemValueMin).max(completeAuditResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(completeAuditResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "designRemarks": zod.string().optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(completeAuditResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(completeAuditResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(completeAuditResponseAdditionalDocumentsProcurementStatusItemValueMin).max(completeAuditResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(completeAuditResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional(),
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(completeAuditResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(completeAuditResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(completeAuditResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(completeAuditResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(completeAuditResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(completeAuditResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(completeAuditResponseReportDetailsRowsItemMaxOne))).max(completeAuditResponseReportDetailsRowsMaxOne))
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Save editable report-only details
+ */
+export const SaveAuditReportDetailsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const saveAuditReportDetailsBodyValuesMaxOne = 10000;
+
+export const saveAuditReportDetailsBodyRowsItemMaxOne = 10000;
+
+export const saveAuditReportDetailsBodyRowsMaxOne = 200;
+
+
+
+export const SaveAuditReportDetailsBody = zod.object({
+  "values": zod.record(zod.string(), zod.string().max(saveAuditReportDetailsBodyValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(saveAuditReportDetailsBodyRowsItemMaxOne))).max(saveAuditReportDetailsBodyRowsMaxOne))
+})
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
+export const saveAuditReportDetailsResponseReportDetailsValuesMaxOne = 10000;
+
+export const saveAuditReportDetailsResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const saveAuditReportDetailsResponseReportDetailsRowsMaxOne = 200;
+
+
+
+export const SaveAuditReportDetailsResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemValueMin).max(saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "designRemarks": zod.string().optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemValueMin).max(saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional(),
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(saveAuditReportDetailsResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(saveAuditReportDetailsResponseReportDetailsRowsItemMaxOne))).max(saveAuditReportDetailsResponseReportDetailsRowsMaxOne))
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Download completed Audit consolidated report
+ */
+export const DownloadAuditReportPdfParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DownloadAuditReportPdfResponse = zod.unknown()
 
 
 /**
@@ -8222,6 +8526,12 @@ export const createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesIte
 
 export const createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const createAuditChecklistItemResponseReportDetailsValuesMaxOne = 10000;
+
+export const createAuditChecklistItemResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const createAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
+
 
 
 export const CreateAuditChecklistItemResponse = zod.object({
@@ -8229,7 +8539,8 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -8283,6 +8594,10 @@ export const CreateAuditChecklistItemResponse = zod.object({
 }).and(zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(createAuditChecklistItemResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(createAuditChecklistItemResponseReportDetailsRowsItemMaxOne))).max(createAuditChecklistItemResponseReportDetailsRowsMaxOne))
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -8339,6 +8654,12 @@ export const editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemO
 
 export const editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const editAuditChecklistItemResponseReportDetailsValuesMaxOne = 10000;
+
+export const editAuditChecklistItemResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const editAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
+
 
 
 export const EditAuditChecklistItemResponse = zod.object({
@@ -8346,7 +8667,8 @@ export const EditAuditChecklistItemResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -8400,6 +8722,10 @@ export const EditAuditChecklistItemResponse = zod.object({
 }).and(zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(editAuditChecklistItemResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(editAuditChecklistItemResponseReportDetailsRowsItemMaxOne))).max(editAuditChecklistItemResponseReportDetailsRowsMaxOne))
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -8457,6 +8783,12 @@ export const importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesIt
 
 export const importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const importAuditChecklistItemsResponseReportDetailsValuesMaxOne = 10000;
+
+export const importAuditChecklistItemsResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const importAuditChecklistItemsResponseReportDetailsRowsMaxOne = 200;
+
 
 
 export const ImportAuditChecklistItemsResponse = zod.object({
@@ -8464,7 +8796,8 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -8518,6 +8851,10 @@ export const ImportAuditChecklistItemsResponse = zod.object({
 }).and(zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(importAuditChecklistItemsResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(importAuditChecklistItemsResponseReportDetailsRowsItemMaxOne))).max(importAuditChecklistItemsResponseReportDetailsRowsMaxOne))
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -8575,6 +8912,12 @@ export const createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemO
 
 export const createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const createAuditFindingItemResponseReportDetailsValuesMaxOne = 10000;
+
+export const createAuditFindingItemResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const createAuditFindingItemResponseReportDetailsRowsMaxOne = 200;
+
 
 
 export const CreateAuditFindingItemResponse = zod.object({
@@ -8582,7 +8925,8 @@ export const CreateAuditFindingItemResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -8637,6 +8981,10 @@ export const CreateAuditFindingItemResponse = zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
 }).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(createAuditFindingItemResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(createAuditFindingItemResponseReportDetailsRowsItemMaxOne))).max(createAuditFindingItemResponseReportDetailsRowsMaxOne))
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -8682,6 +9030,12 @@ export const assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPractic
 
 export const assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const assignAuditFindingActionTakerResponseReportDetailsValuesMaxOne = 10000;
+
+export const assignAuditFindingActionTakerResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const assignAuditFindingActionTakerResponseReportDetailsRowsMaxOne = 200;
+
 
 
 export const AssignAuditFindingActionTakerResponse = zod.object({
@@ -8689,7 +9043,8 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -8744,6 +9099,10 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
 }).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(assignAuditFindingActionTakerResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(assignAuditFindingActionTakerResponseReportDetailsRowsItemMaxOne))).max(assignAuditFindingActionTakerResponseReportDetailsRowsMaxOne))
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
@@ -8792,6 +9151,12 @@ export const replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPractic
 
 export const replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const replaceAuditOrganizationChartResponseReportDetailsValuesMaxOne = 10000;
+
+export const replaceAuditOrganizationChartResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const replaceAuditOrganizationChartResponseReportDetailsRowsMaxOne = 200;
+
 
 
 export const ReplaceAuditOrganizationChartResponse = zod.object({
@@ -8799,7 +9164,8 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -8853,6 +9219,10 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
 }).and(zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(replaceAuditOrganizationChartResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(replaceAuditOrganizationChartResponseReportDetailsRowsItemMaxOne))).max(replaceAuditOrganizationChartResponseReportDetailsRowsMaxOne))
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -8919,6 +9289,12 @@ export const updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesIte
 
 export const updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const updateAuditGoodPracticesResponseReportDetailsValuesMaxOne = 10000;
+
+export const updateAuditGoodPracticesResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const updateAuditGoodPracticesResponseReportDetailsRowsMaxOne = 200;
+
 
 
 export const UpdateAuditGoodPracticesResponse = zod.object({
@@ -8926,7 +9302,8 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -8980,6 +9357,10 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
 }).and(zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(updateAuditGoodPracticesResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(updateAuditGoodPracticesResponseReportDetailsRowsItemMaxOne))).max(updateAuditGoodPracticesResponseReportDetailsRowsMaxOne))
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -9047,6 +9428,12 @@ export const updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesIt
 
 export const updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const updateAuditDocumentStatusResponseReportDetailsValuesMaxOne = 10000;
+
+export const updateAuditDocumentStatusResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const updateAuditDocumentStatusResponseReportDetailsRowsMaxOne = 200;
+
 
 
 export const UpdateAuditDocumentStatusResponse = zod.object({
@@ -9054,7 +9441,8 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -9108,6 +9496,10 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
 }).and(zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(updateAuditDocumentStatusResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(updateAuditDocumentStatusResponseReportDetailsRowsItemMaxOne))).max(updateAuditDocumentStatusResponseReportDetailsRowsMaxOne))
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -9719,6 +10111,12 @@ export const getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPractice
 
 export const getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
 
+export const getGeneratedAuditReportResponseAuditReportDetailsValuesMaxOne = 10000;
+
+export const getGeneratedAuditReportResponseAuditReportDetailsRowsItemMaxOne = 10000;
+
+export const getGeneratedAuditReportResponseAuditReportDetailsRowsMaxOne = 200;
+
 
 
 export const GetGeneratedAuditReportResponse = zod.object({
@@ -9727,7 +10125,8 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "planId": zod.string(),
   "projectId": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Closed', 'Deleted']),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
   "attendees": zod.array(zod.string()),
@@ -9782,6 +10181,10 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "evidenceFileName": zod.string().nullish()
 }))).optional()
 }).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(getGeneratedAuditReportResponseAuditReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(getGeneratedAuditReportResponseAuditReportDetailsRowsItemMaxOne))).max(getGeneratedAuditReportResponseAuditReportDetailsRowsMaxOne))
+}).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 }),
@@ -9817,6 +10220,26 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "effectivenessVerified": zod.boolean().optional(),
   "closedAt": zod.coerce.date().nullish()
 })),
+  "sections": zod.array(zod.object({
+  "key": zod.string(),
+  "title": zod.string(),
+  "fields": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})),
+  "tables": zod.array(zod.object({
+  "title": zod.string(),
+  "columns": zod.array(zod.string()),
+  "rows": zod.array(zod.array(zod.string()))
+})),
+  "notes": zod.array(zod.string()),
+  "photos": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "reference": zod.string(),
+  "description": zod.string()
+}))
+})).optional(),
   "generatedAt": zod.coerce.date(),
   "downloadUrl": zod.string().nullish()
 })

@@ -61,6 +61,7 @@ import type {
   AuditProgrammeSignatories,
   AuditProgrammeSubmissionBody,
   AuditProgrammeTeamLeadsBody,
+  AuditReportDetails,
   AuditSchedule,
   AuditScheduleBody,
   AuditScheduleFeasibilityBody,
@@ -19779,6 +19780,226 @@ export function useListAuditMeetingAttendees<TData = Awaited<ReturnType<typeof l
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListAuditMeetingAttendeesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCompleteAuditUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/complete`
+}
+
+/**
+ * @summary Mark an audit Complete
+ */
+export const completeAudit = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getCompleteAuditUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCompleteAuditMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeAudit>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeAudit>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['completeAudit'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeAudit>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  completeAudit(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteAuditMutationResult = NonNullable<Awaited<ReturnType<typeof completeAudit>>>
+
+    export type CompleteAuditMutationError = ErrorType<void>
+
+    /**
+ * @summary Mark an audit Complete
+ */
+export const useCompleteAudit = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeAudit>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeAudit>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCompleteAuditMutationOptions(options));
+    }
+
+export const getSaveAuditReportDetailsUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/report-details`
+}
+
+/**
+ * @summary Save editable report-only details
+ */
+export const saveAuditReportDetails = async (id: string,
+    auditReportDetails: AuditReportDetails, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getSaveAuditReportDetailsUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditReportDetails)
+  }
+);}
+
+
+
+
+
+export const getSaveAuditReportDetailsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAuditReportDetails>>, TError,{id: string;data: BodyType<AuditReportDetails>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveAuditReportDetails>>, TError,{id: string;data: BodyType<AuditReportDetails>}, TContext> => {
+
+const mutationKey = ['saveAuditReportDetails'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveAuditReportDetails>>, {id: string;data: BodyType<AuditReportDetails>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveAuditReportDetails(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveAuditReportDetailsMutationResult = NonNullable<Awaited<ReturnType<typeof saveAuditReportDetails>>>
+    export type SaveAuditReportDetailsMutationBody = BodyType<AuditReportDetails>
+    export type SaveAuditReportDetailsMutationError = ErrorType<void>
+
+    /**
+ * @summary Save editable report-only details
+ */
+export const useSaveAuditReportDetails = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAuditReportDetails>>, TError,{id: string;data: BodyType<AuditReportDetails>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveAuditReportDetails>>,
+        TError,
+        {id: string;data: BodyType<AuditReportDetails>},
+        TContext
+      > => {
+      return useMutation(getSaveAuditReportDetailsMutationOptions(options));
+    }
+
+export const getDownloadAuditReportPdfUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/report/pdf`
+}
+
+/**
+ * @summary Download completed Audit consolidated report
+ */
+export const downloadAuditReportPdf = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadAuditReportPdfUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadAuditReportPdfQueryKey = (id: string,) => {
+    return [
+    `/api/audit/audits/${id}/report/pdf`
+    ] as const;
+    }
+
+
+export const getDownloadAuditReportPdfQueryOptions = <TData = Awaited<ReturnType<typeof downloadAuditReportPdf>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAuditReportPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadAuditReportPdfQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadAuditReportPdf>>> = ({ signal }) => downloadAuditReportPdf(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadAuditReportPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadAuditReportPdfQueryResult = NonNullable<Awaited<ReturnType<typeof downloadAuditReportPdf>>>
+export type DownloadAuditReportPdfQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download completed Audit consolidated report
+ */
+
+export function useDownloadAuditReportPdf<TData = Awaited<ReturnType<typeof downloadAuditReportPdf>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAuditReportPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadAuditReportPdfQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

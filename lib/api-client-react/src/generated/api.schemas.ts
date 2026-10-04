@@ -3036,9 +3036,21 @@ export const AuditStatus = {
   In_Progress: 'In Progress',
   Report_Draft: 'Report Draft',
   'CAR_Follow-up': 'CAR Follow-up',
+  Complete: 'Complete',
   Closed: 'Closed',
   Deleted: 'Deleted',
 } as const;
+
+export type AuditReportDetailsValues = {[key: string]: string};
+
+export type AuditReportDetailsRowsItem = {[key: string]: string};
+
+export type AuditReportDetailsRows = {[key: string]: AuditReportDetailsRowsItem[]};
+
+export interface AuditReportDetails {
+  values: AuditReportDetailsValues;
+  rows: AuditReportDetailsRows;
+}
 
 export interface Audit {
   id: string;
@@ -3046,14 +3058,44 @@ export interface Audit {
   projectId: string;
   title: string;
   status: AuditStatus;
+  /** Whether the current user has Audit edit access in this record scope */
+  canEdit?: boolean;
   openingMeeting?: MeetingMinutes;
   closingMeeting?: MeetingMinutes;
   checklist?: ChecklistItem[];
   additionalDocuments?: AuditAdditionalDocuments;
+  reportDetails?: AuditReportDetails;
   /** @nullable */
   startedAt?: string | null;
   /** @nullable */
   closedAt?: string | null;
+}
+
+export type AuditReportSectionFieldsItem = {
+  label: string;
+  value: string;
+};
+
+export type AuditReportSectionTablesItem = {
+  title: string;
+  columns: string[];
+  rows: string[][];
+};
+
+export type AuditReportSectionPhotosItem = {
+  id: string;
+  fileName: string;
+  reference: string;
+  description: string;
+};
+
+export interface AuditReportSection {
+  key: string;
+  title: string;
+  fields: AuditReportSectionFieldsItem[];
+  tables: AuditReportSectionTablesItem[];
+  notes: string[];
+  photos: AuditReportSectionPhotosItem[];
 }
 
 export type AuditFindingStatus = typeof AuditFindingStatus[keyof typeof AuditFindingStatus];
@@ -3176,6 +3218,7 @@ export interface GeneratedAuditReport {
   audit: Audit;
   findings: AuditFinding[];
   cars: CorrectiveActionReport[];
+  sections?: AuditReportSection[];
   generatedAt: string;
   /** @nullable */
   downloadUrl?: string | null;

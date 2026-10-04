@@ -7,12 +7,14 @@
  */
 import type { Audit } from './audit';
 import type { AuditFinding } from './auditFinding';
+import type { AuditReportSection } from './auditReportSection';
 import type { CorrectiveActionReport } from './correctiveActionReport';
 
 export interface GeneratedAuditReport {
   audit: Audit;
   findings: AuditFinding[];
   cars: CorrectiveActionReport[];
+  sections?: AuditReportSection[];
   generatedAt: Date;
   /** @nullable */
   downloadUrl?: string | null;

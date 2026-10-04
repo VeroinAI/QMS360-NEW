@@ -7,6 +7,7 @@
 
 export * from "./qaqc-permissions";
 export * from "./email-templates";
+export * from "./audit-report-details";
 export type FieldControlAppKey = "qaqc" | "lessons" | "audit";
 
 export type FieldDefinition = { key: string; label: string };
@@ -127,6 +128,14 @@ export const fieldControlRegistry: Record<FieldControlAppKey, FormDefinition[]> 
     },
   ],
   audit: [
+    {
+      key: "audit-execution",
+      label: "Audit execution",
+      fields: [
+        { key: "status", label: "Completion status" },
+        { key: "reportDetails", label: "Report details" },
+      ],
+    },
     {
       key: "schedule",
       label: "Audit Schedule",

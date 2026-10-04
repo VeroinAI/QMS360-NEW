@@ -1,0 +1,47 @@
+table,column,data_type,length,nullable,default,key
+user_master,user_id,bigint,64-bit,NO,nextval('user_master_user_id_s,PK
+user_master,user_name,character varying,255,NO,,
+user_master,user_email,character varying,255,NO,,
+user_master,is_active,boolean,,NO,true,
+user_master,created_at,timestamp with time zone,,NO,now(),
+user_master,updated_at,timestamp with time zone,,NO,now(),
+user_master,phone_number,character varying,,YES,,
+user_master,badge_no,character varying,255,YES,NULL,
+user_master,user_sign,text,,YES,,
+user_master,created_by,bigint,64-bit,YES,,
+user_master,updated_by,bigint,64-bit,YES,,
+user_role_mapping,user_role_map_id,bigint,64-bit,NO,nextval('user_role_mapping_use,PK
+user_role_mapping,project_map_id,bigint,64-bit,NO,,FK -> project_mapping.project_map_id
+user_role_mapping,user_id,bigint,64-bit,NO,,FK -> user_master.user_id
+user_role_mapping,user_role_id,integer,32-bit,NO,,FK -> user_role_master.user_role_id
+user_role_mapping,created_at,timestamp with time zone,,NO,now(),
+user_role_mapping,updated_at,timestamp with time zone,,NO,now(),
+user_role_mapping,is_coordinator,boolean,,YES,false,
+user_role_mapping,module,character varying,255,YES,,
+user_role_mapping,modules,ARRAY,,YES,'{}',
+user_role_mapping,is_active,boolean,,YES,true,
+project_mapping,project_map_id,bigint,64-bit,NO,nextval('project_mapping_proje,PK
+project_mapping,sbg_id,integer,32-bit,NO,,
+project_mapping,bu_id,integer,32-bit,NO,,
+project_mapping,division_id,integer,32-bit,NO,,
+project_mapping,project_id,bigint,64-bit,NO,,FK -> project_master.project_id
+project_mapping,created_at,timestamp with time zone,,NO,now(),
+project_mapping,updated_at,timestamp with time zone,,NO,now(),
+project_mapping,department_id,integer,32-bit,YES,,
+project_mapping,modules,ARRAY,,YES,'{}',
+project_master,project_id,bigint,64-bit,NO,nextval('project_master_projec,PK
+project_master,project_name,character varying,255,NO,,
+project_master,is_active,boolean,,NO,true,
+project_master,created_at,timestamp with time zone,,NO,now(),
+project_master,updated_at,timestamp with time zone,,NO,now(),
+project_master,observation_project_id,bigint,64-bit,YES,,
+project_master,hse_observation_count,jsonb,,YES,,
+project_master,enable_ptw,boolean,,YES,false,
+project_master,observation_count,jsonb,,YES,,
+project_master,enable_quality,boolean,,NO,false,
+project_master,enable_fleet,boolean,,YES,false,
+project_master,module,character varying,255,YES,,
+project_master,modules,ARRAY,,YES,'{}',
+project_master,contract_number,character varying,100,YES,,
+project_master,project_code,bigint,64-bit,YES,,
+project_master,region_id,integer,32-bit,YES,,
