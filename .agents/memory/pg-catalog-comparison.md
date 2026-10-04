@@ -20,3 +20,15 @@ Semantic normalization must keep SQL literals opaque and compare JSONB numbers l
 **Why:** Parentheses and SQL-looking text inside a quoted predicate are data, not syntax; changing that data changes which rows a partial index constrains. PostgreSQL JSONB also preserves numeric precision beyond JavaScript's safe integer and decimal range, so ordinary JSON.parse can incorrectly classify distinct database defaults as equivalent.
 
 **How to apply:** Rewrite SQL token groups rather than rejoined expression text. For JSONB defaults, preserve numeric lexemes and use exact decimal normalization, or conservatively report differences instead of parsing numbers through JavaScript Number.
+
+PostgreSQL can deparse a text-column `IN` literal list as `= ANY (ARRAY[...])`.
+Treat the known built-in text/literal case as equivalent, but do not generalize
+to arbitrary arrays, casts, operators or expressions.
+
+**Why:** Catalog spelling can otherwise create false drift failures for unchanged
+partial indexes. Overly broad normalization can instead hide real constraint
+changes or alter quoted literal content.
+
+**How to apply:** Require the column's confirmed text type and an exact literal
+list shape. Preserve grouping, literal values, unknown casts and non-equality
+operators; do not rebuild an index solely to match the source SQL spelling.

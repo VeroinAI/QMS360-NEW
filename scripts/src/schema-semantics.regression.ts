@@ -98,6 +98,40 @@ export async function runSemanticFixtures(): Promise<void> {
       assert.match(compareTables([expected], [live]).errors.join("\n"), /Index definition differs/);
     }
   });
+  test("PostgreSQL text IN and ANY array predicates compare without false drift", () => {
+    const expected = fixture(); const live = fixture();
+    expected.columns.push({ name: "action", type: "text", notNull: true, default: null });
+    live.columns.push({ name: "action", type: "text", notNull: true, default: null });
+    expected.indexes[0]!.predicate = `target IN ('application_access', 'access_request')
+      AND action IN ('access_reject', 'access_approve', 'request_access')`;
+    live.indexes[0]!.predicate = `(target = ANY (ARRAY['application_access'::text, 'access_request'::text]))
+      AND (action = ANY (ARRAY['access_reject'::text, 'access_approve'::text, 'request_access'::text]))`;
+    assert.deepEqual(compareTables([expected], [live]).errors, []);
+    assert.equal(normalizeExpression(`target IN ('O''Brien', 'and (target = ''x'')')`, expected),
+      normalizeExpression(`(target = ANY (ARRAY['O''Brien'::pg_catalog.text, 'and (target = ''x'')'::text]))`, expected));
+  });
+  test("membership normalization preserves real predicate differences and unknown types", () => {
+    const table = fixture();
+    const baseline = normalizeExpression(`target IN ('draft', 'approved')`, table);
+    for (const expression of [
+      `target = ANY (ARRAY['draft'::text, 'rejected'::text])`,
+      `target <> ANY (ARRAY['draft'::text, 'approved'::text])`,
+      `target = ALL (ARRAY['draft'::text, 'approved'::text])`,
+      `target = ANY (ARRAY['draft'::varchar, 'approved'::varchar])`,
+      `target = ANY (ARRAY[lower('draft'), 'approved'::text])`,
+      `target = ANY (ARRAY['draft'::text, NULL])`,
+      `target = ANY (ARRAY[]::text[])`,
+      `target = ANY (ARRAY['draft'::text, 'approved'::text]::varchar[])`,
+      `target = ANY (ARRAY['draft'::text, 'approved'::text]) COLLATE "C"`,
+      `lower(target) = ANY (ARRAY['draft'::text, 'approved'::text])`,
+    ]) assert.notEqual(normalizeExpression(expression, table), baseline);
+    assert.notEqual(normalizeExpression(`count IN ('1', '2')`, table),
+      normalizeExpression(`count = ANY (ARRAY['1'::text, '2'::text])`, table));
+    assert.notEqual(normalizeExpression(`target IN ('( draft )', 'approved')`, table),
+      normalizeExpression(`target = ANY (ARRAY['draft'::text, 'approved'::text])`, table));
+    assert.notEqual(normalizeExpression(`target IN ('draft') AND (a OR b)`, table),
+      normalizeExpression(`(target = ANY (ARRAY['draft'::text])) AND a OR b`, table));
+  });
   test("JSONB defaults preserve large integers and high-precision decimals", () => {
     for (const [a, b] of [
       ["9007199254740992", "9007199254740993"],

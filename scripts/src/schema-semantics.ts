@@ -94,6 +94,54 @@ export function normalizeDefault(expression: string | null, type: string): strin
   return value;
 }
 
+/** Parse only a nonempty list of string literals, with optional builtin text
+ * casts. Never erase arbitrary casts, functions, NULLs, array expressions, or
+ * SQL-looking content inside literals. */
+function textLiteralList(parts: string[], start: number, close: string): { values: string[]; end: number } | null {
+  const values: string[] = [];
+  let i = start;
+  while (i < parts.length) {
+    const literal = parts[i];
+    if (!literal || !/^'(?:''|[^'])*'$/.test(literal)) return null;
+    values.push(literal);
+    i++;
+    if (parts[i] === "::") {
+      i++;
+      if (parts[i] === "pg_catalog" && parts[i + 1] === ".") i += 2;
+      if (parts[i] !== "text") return null;
+      i++;
+    }
+    if (parts[i] === close) return { values, end: i };
+    if (parts[i] !== ",") return null;
+    i++;
+  }
+  return null;
+}
+
+/** PG deparses text IN lists as = ANY(ARRAY[...]). Match this narrow,
+ * type-confirmed case, not arbitrary SQL/array/operator equivalence. */
+function normalizeTextMembership(parts: string[], textColumns: Set<string>): string[] {
+  for (let i = 0; i < parts.length; i++) {
+    if (!textColumns.has(parts[i]!) || [".", "::"].includes(parts[i - 1] ?? "")) continue;
+    let list: ReturnType<typeof textLiteralList> = null;
+    let end: number | undefined;
+    if (parts[i + 1] === "in" && parts[i + 2] === "(") {
+      list = textLiteralList(parts, i + 3, ")");
+      end = list?.end;
+    } else if (parts[i + 1] === "=" && parts[i + 2] === "any"
+      && parts[i + 3] === "(" && parts[i + 4] === "array" && parts[i + 5] === "[") {
+      list = textLiteralList(parts, i + 6, "]");
+      if (list && parts[list.end + 1] === ")") end = list.end + 1;
+    }
+    if (!list || end === undefined) continue;
+    const replacement = [parts[i]!, "in", "(",
+      ...list.values.flatMap((value, index) => index ? [",", value] : [value]), ")"];
+    parts.splice(i, end - i + 1, ...replacement);
+    i += replacement.length - 1;
+  }
+  return parts;
+}
+
 /** Remove table qualification and harmless parentheses without changing precedence. */
 export function normalizeExpression(expression: string | null, table: TableDefinition): string | null {
   if (!expression) return null;
@@ -122,6 +170,9 @@ export function normalizeExpression(expression: string | null, table: TableDefin
       if (normalizeType(parts.slice(i + 4, end).join(" ")) === type) parts.splice(i + 3, end - (i + 3));
     }
   }
+  const textColumns = new Set(table.columns.filter(column => normalizeType(column.type) === "text")
+    .map(column => tokens(JSON.stringify(column.name))[0]!));
+  parts = normalizeTextMembership(parts, textColumns);
   const identifier = (token: string | undefined) => token !== undefined
     && (/^[a-z_][\w$]*$/.test(token) || token.startsWith('"'));
   // Rewrite token groups only; quoted literal tokens are always opaque.
@@ -143,7 +194,9 @@ export function normalizeExpression(expression: string | null, table: TableDefin
       || (inner.length === 4 && inner[1] === "is" && inner[2] === "not" && inner[3] === "null");
     const comparison = inner.length === 3 && ["=", "<>", "!=", "<=", ">=", "<", ">"].includes(inner[1]!)
       && inner[2]!.startsWith("'");
-    if (end < parts.length && (atom || nullTest || comparison)) {
+    const membership = textColumns.has(inner[0]!) && inner[1] === "in" && inner[2] === "("
+      && textLiteralList(inner, 3, ")")?.end === inner.length - 1;
+    if (end < parts.length && (atom || nullTest || comparison || membership)) {
       parts.splice(end, 1);
       parts.splice(i, 1);
     }
