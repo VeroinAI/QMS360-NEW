@@ -8,3 +8,15 @@ Do not assume a successful application build means the production database schem
 **Why:** A quality-server publish completed successfully while production remained behind the development schema, causing HTML 500 responses across email rules, email delivery, and organization settings. Replit Support subsequently told the user that this project's automatic Publish migration only propagates `public` schema changes; custom schemas are not propagated, which explains the empty schema diff despite confirmed missing objects.
 
 **How to apply:** Do not suggest another Publish alone as a remedy for missing custom-schema objects. For this project, seek a support-reviewed manual schema-only reconciliation for custom schemas, preserve production data, and avoid the overwrite-data option unless the user explicitly intends to replace it. Do not add startup DDL or deployment migration hooks. Treat a proposed move into `public` as a separate high-risk redesign, not a quick incident fix.
+
+The user reported on 2026-10-04 that Replit Support advised enabling production
+changes and applying the missing DDL manually.
+
+**Why:** This establishes the user's approved operator procedure for the observed
+custom-schema gap; it does not authorize overwriting production data or applying
+unrelated migrations.
+
+**How to apply:** Provide narrowly scoped, transactional schema-only SQL for the
+verified missing objects. The operator must confirm the production target and
+reconcile the migration ledger after application. Do not execute production
+writes through the read-only query callback or infer that the manual SQL ran.
