@@ -45,6 +45,11 @@ audit-plan handoff, extension requests/decisions and pending-action transfers.
   existing decision dialog can serve as the confirmation if it asks the relevant
   question, explains the consequence and offers both Confirm and Cancel; do not
   stack duplicate confirmation prompts on it.
+- Exception: the Audit Schedule submission-details form is data entry, not the
+  final confirmation for submission or resubmission. Clicking “Yes, submit” or
+  “Yes, resubmit” must open a separate confirmation popup before sending.
+  Cancelling that popup must keep
+  the details form open with its entered values intact.
 - Validate required fields and remarks before confirmation. For save-and-submit,
   ask before any save, upload or submit side effects. Preserve input on Cancel.
 - Create, save, save draft, import, local AI accept/edit/reject and settings updates

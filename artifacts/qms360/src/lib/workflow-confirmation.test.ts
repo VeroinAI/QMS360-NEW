@@ -94,6 +94,27 @@ describe("workflow confirmation decisions", () => {
 });
 
 describe("confirmed mutation compatibility", () => {
+  it.each(["submit", "resubmit"] as const)("asks again at the Yes, %s action and keeps entered details on Cancel", async action => {
+    const { original, mutate } = fixture();
+    const guarded = confirmedWorkflowMutation(original, () => ({ action, document: '"AM - Schedule 2027"' }));
+    const variables = { id: "schedule", data: { comments: "Entered submission details" } };
+    const options = { onSuccess: vi.fn(), onError: vi.fn() };
+    guarded.mutate(variables, options);
+    expect(getWorkflowConfirmation()?.title).toBe(`${action === "resubmit" ? "Resubmit" : "Submit"} "AM - Schedule 2027" for approval?`);
+    expect(mutate).not.toHaveBeenCalled();
+    resolveWorkflowConfirmation(getWorkflowConfirmation()!.id, false);
+    await Promise.resolve();
+    expect(mutate).not.toHaveBeenCalled();
+    expect(options.onSuccess).not.toHaveBeenCalled();
+    expect(options.onError).not.toHaveBeenCalled();
+    expect(variables.data.comments).toBe("Entered submission details");
+
+    guarded.mutate(variables, options);
+    resolveWorkflowConfirmation(getWorkflowConfirmation()!.id, true);
+    await Promise.resolve();
+    expect(mutate).toHaveBeenCalledExactlyOnceWith(variables, options);
+  });
+
   it("preserves the original payload, mutation options and state on confirmation", async () => {
     const { guarded, mutate, original } = fixture();
     const variables = { id: "schedule", data: { comments: "Reviewed" } };

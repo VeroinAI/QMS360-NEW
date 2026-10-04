@@ -975,7 +975,11 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
   const [to, setTo] = useState(item.submissionTo ?? "");
   const [subject, setSubject] = useState(item.title);
   const [mailBody, setMailBody] = useState("");
-  const submit = useSubmitAuditProgramme();
+  const submitMutation = useSubmitAuditProgramme();
+  const submit = confirmedWorkflowMutation(submitMutation, () => ({
+    action: item.workflowState === "Sent Back" ? "resubmit" : "submit",
+    document: `"${item.title}"`,
+  }));
   const confirmation = workflowConfirmationMessage(item.workflowState === "Sent Back" ? "resubmit" : "submit", `"${item.title}"`);
   const { toast } = useToast();
   const submitProgramme = () => {
