@@ -1328,7 +1328,7 @@ function Schedules() {
       </div>
     </div>
      <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit audit" : "Create audit"}</DialogTitle></DialogHeader><ScheduleForm initial={editing} parentId={parentId === "legacy" ? undefined : parentId} parentRange={range} onClose={() => setOpen(false)}/></DialogContent></Dialog>
-    <Dialog open={!!planning} onOpenChange={isOpen => !isOpen && setPlanning(undefined)}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader>{planning && <PlanForm schedules={[planning]} presetSchedule={planning} onClose={() => setPlanning(undefined)}/>}</DialogContent></Dialog>
+    <Dialog open={!!planning} onOpenChange={isOpen => !isOpen && setPlanning(undefined)}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader>{planning && <PlanForm schedules={[planning]} presetSchedule={planning} presetProgramme={programme.data} onClose={() => setPlanning(undefined)}/>}</DialogContent></Dialog>
     <Dialog open={!!displaying} onOpenChange={isOpen => !isOpen && setDisplaying(undefined)}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">{displaying && <ScheduleDisplay schedule={displaying} onClose={() => setDisplaying(undefined)}/>}</DialogContent></Dialog>
     <State loading={query.isLoading} error={query.error} empty={!items.length}/>
     {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Schedule</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><div className="flex flex-wrap gap-1"><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge><FeasibilityBadge decision={item.feasibilityDecision}/></div></TableCell><TableCell><div className="flex justify-end gap-1">
@@ -1354,7 +1354,7 @@ function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClo
     <DialogFooter><Button onClick={onClose}>Close</Button></DialogFooter></>;
 }
 
-function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = false }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; presetSchedule?: AuditSchedule; readOnly?: boolean }) {
+function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme, readOnly = false }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; presetSchedule?: AuditSchedule; presetProgramme?: AuditProgramme; readOnly?: boolean }) {
   const [programmeId, setProgrammeId] = useState(presetSchedule?.parentId ?? "");
   const programmes = useQuery({
     queryKey: ["/api/audit/programmes", { purpose: "plan-source-options" }],
@@ -1424,6 +1424,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
     clearError(String(key));
   };
   const selectSchedule = (scheduleId: string) => {
+    if (presetSchedule) return;
     const schedule = approvedSchedules.find(item => item.id === scheduleId);
     if (!schedule) return;
     setForm(current => ({
@@ -1434,6 +1435,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
     clearError("scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId");
   };
   const selectProgramme = (id: string) => {
+    if (presetSchedule) return;
     setProgrammeId(id);
     setForm(current => ({
       ...current, scheduleId: "", auditTitle: "", qaqcScope: "", auditTypes: [],
@@ -1589,10 +1591,15 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
     <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
       {!initial && <div>
         <Label htmlFor="plan-programme">Audit Schedule *</Label>
-        <Select value={programmeId} disabled={disabled("scheduleId") || programmes.isFetching} onValueChange={selectProgramme}>
+        {presetSchedule ? <Input
+          id="plan-programme" className="mt-2" readOnly disabled={disabled("scheduleId")}
+          value={(presetProgramme && presetProgramme.id === presetSchedule.parentId ? presetProgramme.title : undefined)
+            ?? programmes.data?.find(programme => programme.id === presetSchedule.parentId)?.title ?? ""}
+          placeholder="Loading Audit Schedule…" {...invalid("programmeId")}
+        /> : <Select value={programmeId} disabled={disabled("scheduleId") || programmes.isFetching} onValueChange={selectProgramme}>
           <SelectTrigger id="plan-programme" className="mt-2" {...invalid("programmeId")}><SelectValue placeholder="Select a New Schedule"/></SelectTrigger>
           <SelectContent>{programmeOptions.map(programme => <SelectItem key={programme.id} value={programme.id}>{programme.title}</SelectItem>)}</SelectContent>
-        </Select>
+        </Select>}
         <ErrorText name="programmeId"/>
         {programmes.isFetching && <p className="mt-2 text-xs text-muted-foreground">Loading Audit Schedules…</p>}
         {programmes.error && <p className="mt-2 text-xs text-destructive">{errorText(programmes.error)} <Button type="button" size="sm" variant="link" onClick={() => programmes.refetch()}>Retry</Button></p>}
@@ -1600,10 +1607,13 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
       </div>}
       <div>
         <Label htmlFor="plan-source-audit">Audit Title *</Label>
-        <Select value={form.scheduleId} disabled={!!initial || disabled("scheduleId") || !programmeId || programmeAudits.isFetching || !!programmes.error || !!programmeAudits.error} onValueChange={selectSchedule}>
+        {presetSchedule ? <Input
+          id="plan-source-audit" className="mt-2" readOnly disabled={disabled("scheduleId")}
+          value={presetSchedule.title} {...invalid("scheduleId")}
+        /> : <Select value={form.scheduleId} disabled={!!initial || disabled("scheduleId") || !programmeId || programmeAudits.isFetching || !!programmes.error || !!programmeAudits.error} onValueChange={selectSchedule}>
           <SelectTrigger id="plan-source-audit" className="mt-2" {...invalid("scheduleId")}><SelectValue placeholder={!initial && !programmeId ? "Select an Audit Schedule first" : "Select an audit title"}/></SelectTrigger>
           <SelectContent>{approvedSchedules.map(schedule => <SelectItem key={schedule.id} value={schedule.id}>{schedule.title}</SelectItem>)}</SelectContent>
-        </Select>
+        </Select>}
         <ErrorText name="scheduleId"/>
         {!initial && programmeAudits.isFetching && <p className="mt-2 text-xs text-muted-foreground">Loading audits…</p>}
         {!initial && programmeAudits.error && <p className="mt-2 text-xs text-destructive">{errorText(programmeAudits.error)} <Button type="button" size="sm" variant="link" onClick={() => programmeAudits.refetch()}>Retry</Button></p>}

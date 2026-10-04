@@ -21,3 +21,15 @@ different New Schedules cannot be mixed, alongside the one-Plan-per-audit rule.
 and cancelled sources, and clear the source-dependent fields when the parent
 changes. Validate the active parent relationship on creation at the server.
 Do not use this creation restriction to prevent editing historical Plans.
+
+When **New Plan** is opened against an individual audit in **Audits in schedule**
+(including its Programme view), prefill and lock both **Audit Schedule** and
+**Audit Title** to that audit and its parent. Only **Plans → New Plan** offers
+the editable two-stage source dropdowns.
+
+**Why:** The user explicitly distinguished creating a Plan against a specific
+audit from selecting a source in the general Plans page.
+
+**How to apply:** Carry the clicked audit and parent into the form, display their
+actual titles as read-only values, and prevent selection handlers from changing
+the source. Preserve editable source selection when there is no preset audit.
