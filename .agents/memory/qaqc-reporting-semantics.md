@@ -39,8 +39,8 @@ Manpower departments in Metrics entry are free text, as specified in the supplie
 
 **Why:** A text input that accepts a department in its preview but rejects it on save unless it is registered in master data does not implement the supplied field definition.
 
-Metric counts are Phase 1 manual entry. Pulling monthly issued/closed counts from NCR/RFI/RMI source modules is Phase 2, not an implied source sync in the current entry form.
+Metric counts remain manual entry within this application, including creation and editing in the existing QA/QC module. External NCR/RFI/RMI integration is deferred until the user explicitly chooses an authoritative source.
 
-**Why:** The supplied metric-details table explicitly separates manual entry from later integration.
+**Why:** On 2026-10-04 the user clarified: “As of now this will be manual entry within this application. In future, we will see if it has to come from external application.” This supersedes the proposed automatic current-month source integration; the supplied table also separates manual Phase 1 from later integration.
 
-**How to apply:** Carry forward prior submitted report totals automatically, but do not present current-month counts as synchronized without a real source integration.
+**How to apply:** Preserve manual issued/closed entry for external NCR, internal NCR, RFI and RMI. Carry forward prior submitted report totals automatically, but do not introduce source synchronization or a separate record-level source module without new direction from the user.
