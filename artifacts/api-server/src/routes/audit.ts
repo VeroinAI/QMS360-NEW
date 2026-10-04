@@ -1928,10 +1928,16 @@ router.post("/plans", asyncHandler(async (req, res) => {
     ));
     await assertChildSchedule(lockedSchedule);
     const parentId = scheduleMeta(lockedSchedule).parentId;
+    if (!parentId) {
+      throw new HttpError(422, "Select an audit belonging to a New Schedule to create an Audit Plan");
+    }
     if (parentId) {
       const [parent] = await tx.select().from(auditSchedules).where(and(
         active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, parentId),
       )).for("update");
+      if (!parent || !isProgramme(parent)) {
+        throw new HttpError(422, "The audit must belong to an active Audit Schedule created through New Schedule");
+      }
       if (parent?.workflowState === "submitted") {
         throw new HttpError(409, "Audit Plans cannot be created for audits in a submitted programme");
       }

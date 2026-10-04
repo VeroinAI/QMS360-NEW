@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Route, Switch, useLocation, useParams } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   customFetch,
   useCloseCorrectiveActionReport,
@@ -33,6 +33,7 @@ import {
   getAuditProgrammeSignatories,
   getMasterDataLov,
   listAuditSchedules,
+  listAuditProgrammes,
   listPlatformProjects,
   useListAuditEvidence,
   useListAuditPlanNotificationRoles,
@@ -72,6 +73,7 @@ import type {
   CorrectiveActionReport,
   MeetingMinutes,
 } from "@workspace/api-client-react";
+import { eligiblePlanAudits, loadPlanOptionPages } from "./plan-schedule-options";
 import {
   AlertTriangle, ArrowLeft, BarChart3, CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck,
   Download, Eye, FileText, FolderOpen, Pencil, Plus, Search, Send, ShieldCheck,
@@ -883,7 +885,7 @@ function ScheduleGantt({ items, onDisplay, onEdit, onNewPlan, planCreationDisabl
                     <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onDisplay(item)}>Display</Button>
                     {item.workflowState === "Draft" && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onEdit(item)}>Edit</Button>}
                     {item.feasibilityFeedback && <Button size="icon" variant="ghost" className="size-7" aria-label="View feasibility feedback" title="View Remarks / Feedback" onClick={() => onDisplay(item)}><Info className="size-4"/></Button>}
-                    {item.workflowState === "Approved" && <Button size="sm" className="h-7 px-2 text-xs" title={planCreationDisabled ? "New plans cannot be created while the audit schedule is submitted" : item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={planCreationDisabled || item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => onNewPlan(item)}>New Plan</Button>}
+                    {item.workflowState === "Approved" && <Button size="sm" className="h-7 px-2 text-xs" title={!item.parentId ? "New Plans require an audit belonging to a New Schedule" : planCreationDisabled ? "New plans cannot be created while the audit schedule is submitted" : item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={!item.parentId || planCreationDisabled || item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => onNewPlan(item)}>New Plan</Button>}
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center border-r p-3 text-xs" style={{ width: fixedColumns[1].width }}>{item.departmentProject || "—"}</div>
@@ -1333,7 +1335,7 @@ function Schedules() {
       <Button size="sm" variant="outline" onClick={() => setDisplaying(item)}>Display</Button>
       {item.workflowState === "Draft" && <Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button>}
       {item.feasibilityFeedback && <Button size="icon" variant="ghost" aria-label={`View feasibility feedback for ${item.title}`} title="View Remarks / Feedback" onClick={() => setDisplaying(item)}><Info className="size-4"/></Button>}
-      {item.workflowState === "Approved" && <Button size="sm" title={parentSubmitted ? "New plans cannot be created while the audit schedule is submitted" : item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={parentSubmitted || item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>}
+      {item.workflowState === "Approved" && <Button size="sm" title={!item.parentId ? "New Plans require an audit belonging to a New Schedule" : parentSubmitted ? "New plans cannot be created while the audit schedule is submitted" : item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={!item.parentId || parentSubmitted || item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>}
       {item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved") })}>Approve</Button><Button size="sm" variant="outline" onClick={() => sendBack(item.id)}>Send back</Button></>}
       <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved child audits cannot be deleted" : "Delete child audit"} disabled={item.workflowState === "Approved" || remove.isPending} onClick={() => window.confirm("Delete this child audit?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Child audit deleted"), onError: e => toast({ title: "Unable to delete child audit", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>
     </div></TableCell></TableRow>)}</TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card>}
@@ -1353,6 +1355,17 @@ function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClo
 }
 
 function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = false }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; presetSchedule?: AuditSchedule; readOnly?: boolean }) {
+  const [programmeId, setProgrammeId] = useState(presetSchedule?.parentId ?? "");
+  const programmes = useQuery({
+    queryKey: ["/api/audit/programmes", { purpose: "plan-source-options" }],
+    queryFn: () => loadPlanOptionPages(page => listAuditProgrammes({ page, limit: 100 })),
+    enabled: !initial && !readOnly && navigator.onLine,
+  });
+  const programmeAudits = useQuery({
+    queryKey: ["/api/audit/schedules", { parentId: programmeId, purpose: "plan-source-options" }],
+    queryFn: () => loadPlanOptionPages(page => listAuditSchedules({ page, limit: 100, parentId: programmeId })),
+    enabled: !initial && !readOnly && !!programmeId && navigator.onLine,
+  });
   const [form, setForm] = useState<AuditPlan>(initial ?? {
     id: crypto.randomUUID(), scheduleId: presetSchedule?.id ?? "", auditFeasible: true, auditTitle: presetSchedule?.title ?? "", leadAuditorId: "",
     teamMemberIds: [], auditeeId: "", auditeeRoleIds: [], qaqcScope: "", auditTypes: [],
@@ -1378,17 +1391,26 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
   const activityMaster = useLov("activities");
   useEffect(() => { void readAuditPlanContext().then(setOfflineContext).catch(() => undefined); }, []);
   useEffect(() => {
-    if (options.data?.users && schedules.length) {
-      void cacheAuditPlanContext(schedules, options.data.users).then(() => readAuditPlanContext().then(setOfflineContext)).catch(() => undefined);
+    const loadedSchedules = [...new Map([...schedules, ...(programmeAudits.data ?? [])].map(schedule => [schedule.id, schedule])).values()];
+    if (options.data?.users && loadedSchedules.length) {
+      void cacheAuditPlanContext(loadedSchedules, options.data.users).then(() => readAuditPlanContext().then(setOfflineContext)).catch(() => undefined);
     }
-  }, [options.data, schedules]);
+  }, [options.data, schedules, programmeAudits.data]);
   const users = options.data?.users ?? offlineContext?.users ?? [];
   const effectiveSchedules = navigator.onLine
     ? schedules
-    : (schedules.length ? schedules : offlineContext?.schedules ?? []);
-  const approvedSchedules = (presetSchedule ? [presetSchedule] : effectiveSchedules)
-    .filter(schedule => !schedule.hasPlan && schedule.feasibilityDecision !== "cancelled");
-  const selectedSchedule = effectiveSchedules.find(schedule => schedule.id === form.scheduleId) ?? presetSchedule;
+    : [...new Map([...(offlineContext?.schedules ?? []), ...schedules].map(schedule => [schedule.id, schedule])).values()];
+  const sourceSchedules = !initial && navigator.onLine ? programmeAudits.data ?? [] : effectiveSchedules;
+  const approvedSchedules = initial
+    ? effectiveSchedules.filter(schedule => schedule.id === initial.scheduleId)
+    : eligiblePlanAudits(sourceSchedules, programmeId);
+  const programmeOptions = programmes.data
+    ? programmes.data.filter(programme => programme.workflowState !== "Submitted").map(programme => ({ id: programme.id, title: programme.title }))
+    : !navigator.onLine
+      ? [...new Set(effectiveSchedules.map(schedule => schedule.parentId).filter((id): id is string => !!id))]
+        .map(id => ({ id, title: `Cached schedule (${id})` }))
+      : [];
+  const selectedSchedule = sourceSchedules.find(schedule => schedule.id === form.scheduleId) ?? presetSchedule;
   const leadUsers = selectedSchedule?.teamLeadIds == null
     ? users
     : users.filter(user => selectedSchedule.teamLeadIds?.includes(user.id));
@@ -1410,6 +1432,14 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
       leadAuditorId: schedule.teamLeadIds == null || schedule.teamLeadIds.includes(current.leadAuditorId) ? current.leadAuditorId : "",
     }));
     clearError("scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId");
+  };
+  const selectProgramme = (id: string) => {
+    setProgrammeId(id);
+    setForm(current => ({
+      ...current, scheduleId: "", auditTitle: "", qaqcScope: "", auditTypes: [],
+      qaqcReference: "", leadAuditorId: "",
+    }));
+    clearError("programmeId", "scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId");
   };
   const selectedTeamNames = form.teamMemberIds.map(id => users.find(user => user.id === id)?.fullName).filter(Boolean);
   const selectedAuditeeRoleIds = form.auditeeRoleIds ?? [];
@@ -1447,6 +1477,18 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
       ["activityDateTime", form.activityDateTime], ["circulation", circulation],
     ];
     const nextErrors = Object.fromEntries(required.filter(([, value]) => Array.isArray(value) ? !value.length : !String(value ?? "").trim()).map(([key]) => [key, "This field is required."]));
+    if (!initial) {
+      if (!programmeId) nextErrors.programmeId = "Select an Audit Schedule first.";
+      if (!approvedSchedules.some(schedule => schedule.id === form.scheduleId)) {
+        nextErrors.scheduleId = "Select an available audit from the selected Audit Schedule.";
+      }
+      if (navigator.onLine && !programmeOptions.some(programme => programme.id === programmeId)) {
+        nextErrors.programmeId = "Select an available Audit Schedule.";
+      }
+      if (navigator.onLine && (programmes.isFetching || programmeAudits.isFetching || programmes.error || programmeAudits.error)) {
+        nextErrors.scheduleId = "Wait for the audit options to load successfully before saving.";
+      }
+    }
     if (form.leadAuditorId && !leadUsers.some(user => user.id === form.leadAuditorId)) nextErrors.leadAuditorId = "Select a lead from those chosen when this schedule was created.";
     if (!activityRows.length) nextErrors.activities = "Add at least one activity row.";
     activityRows.forEach(row => {
@@ -1544,7 +1586,30 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, readOnly = fals
   };
   return <div className="grid gap-4 py-2">
     {!navigator.onLine && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">You are offline. This plan will be saved on this device and synchronized automatically when the network returns.</div>}
-    <div className="rounded-lg border bg-muted/30 p-4"><Label>Source Audit *</Label><Select value={form.scheduleId} disabled={disabled("scheduleId")} onValueChange={selectSchedule}><SelectTrigger className="mt-2" {...invalid("scheduleId")}><SelectValue placeholder="Select an audit"/></SelectTrigger><SelectContent>{approvedSchedules.map(schedule => <SelectItem key={schedule.id} value={schedule.id}>{schedule.title}</SelectItem>)}</SelectContent></Select><ErrorText name="scheduleId"/>{!approvedSchedules.length && <p className="mt-2 text-xs text-muted-foreground">{navigator.onLine ? "No Audits are available for a new Plan." : "No Audits are available offline. Connect once to cache current schedule data."}</p>}</div>
+    <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
+      {!initial && <div>
+        <Label htmlFor="plan-programme">Audit Schedule *</Label>
+        <Select value={programmeId} disabled={disabled("scheduleId") || programmes.isFetching} onValueChange={selectProgramme}>
+          <SelectTrigger id="plan-programme" className="mt-2" {...invalid("programmeId")}><SelectValue placeholder="Select a New Schedule"/></SelectTrigger>
+          <SelectContent>{programmeOptions.map(programme => <SelectItem key={programme.id} value={programme.id}>{programme.title}</SelectItem>)}</SelectContent>
+        </Select>
+        <ErrorText name="programmeId"/>
+        {programmes.isFetching && <p className="mt-2 text-xs text-muted-foreground">Loading Audit Schedules…</p>}
+        {programmes.error && <p className="mt-2 text-xs text-destructive">{errorText(programmes.error)} <Button type="button" size="sm" variant="link" onClick={() => programmes.refetch()}>Retry</Button></p>}
+        {!programmes.isFetching && !programmes.error && !programmeOptions.length && <p className="mt-2 text-xs text-muted-foreground">No New Schedules are available for planning.</p>}
+      </div>}
+      <div>
+        <Label htmlFor="plan-source-audit">Audit Title *</Label>
+        <Select value={form.scheduleId} disabled={!!initial || disabled("scheduleId") || !programmeId || programmeAudits.isFetching || !!programmes.error || !!programmeAudits.error} onValueChange={selectSchedule}>
+          <SelectTrigger id="plan-source-audit" className="mt-2" {...invalid("scheduleId")}><SelectValue placeholder={!initial && !programmeId ? "Select an Audit Schedule first" : "Select an audit title"}/></SelectTrigger>
+          <SelectContent>{approvedSchedules.map(schedule => <SelectItem key={schedule.id} value={schedule.id}>{schedule.title}</SelectItem>)}</SelectContent>
+        </Select>
+        <ErrorText name="scheduleId"/>
+        {!initial && programmeAudits.isFetching && <p className="mt-2 text-xs text-muted-foreground">Loading audits…</p>}
+        {!initial && programmeAudits.error && <p className="mt-2 text-xs text-destructive">{errorText(programmeAudits.error)} <Button type="button" size="sm" variant="link" onClick={() => programmeAudits.refetch()}>Retry</Button></p>}
+        {!initial && programmeId && !programmeAudits.isFetching && !programmeAudits.error && !approvedSchedules.length && <p className="mt-2 text-xs text-muted-foreground">No audits are available in this schedule. Audits with an existing plan or a cancellation are excluded.</p>}
+      </div>
+    </div>
     <div><Label>1. Audit Feasible *</Label><RadioGroup className="mt-2 flex gap-6" value={form.auditFeasible ? "yes" : "no"} disabled={disabled("auditFeasible")} onValueChange={value => { const feasible = value === "yes"; set("auditFeasible", feasible); if (!feasible) setFeasibilityOpen(true); }}><div className="flex items-center gap-2"><RadioGroupItem value="yes" id="plan-feasible-yes"/><Label htmlFor="plan-feasible-yes">Yes</Label></div><div className="flex items-center gap-2"><RadioGroupItem value="no" id="plan-feasible-no"/><Label htmlFor="plan-feasible-no">No</Label></div></RadioGroup></div>
     <Dialog open={feasibilityOpen} onOpenChange={open => { setFeasibilityOpen(open); if (!open) setForm(current => ({ ...current, auditFeasible: true })); }}><DialogContent><DialogHeader><DialogTitle>Audit is not feasible</DialogTitle><DialogDescription>Enter the required feedback. New dates are required only to reschedule the audit; canceling does not require dates.</DialogDescription></DialogHeader><div><Label htmlFor="feasibility-feedback">Remarks / Feedback *</Label><Textarea id="feasibility-feedback" className="mt-2" rows={5} value={feasibilityFeedback} aria-invalid={!!feasibilityError} onChange={event => { setFeasibilityFeedback(event.target.value); setFeasibilityError(""); }} placeholder="Enter remarks or feedback"/>{feasibilityError && <p className="mt-1 text-sm text-destructive">{feasibilityError}</p>}</div><div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="feasibility-from-date">From Date</Label><Input id="feasibility-from-date" type="date" className="mt-2" value={feasibilityFromDate} aria-invalid={!!feasibilityDateError} onChange={event => { setFeasibilityFromDate(event.target.value); setFeasibilityDateError(""); }}/></div><div><Label htmlFor="feasibility-to-date">To Date</Label><Input id="feasibility-to-date" type="date" className="mt-2" min={feasibilityFromDate || undefined} value={feasibilityToDate} aria-invalid={!!feasibilityDateError} onChange={event => { setFeasibilityToDate(event.target.value); setFeasibilityDateError(""); }}/></div>{feasibilityDateError && <p className="text-sm text-destructive sm:col-span-2">{feasibilityDateError}</p>}</div><DialogFooter><Button variant="destructive" disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("cancelled")}>Cancel Audit</Button><Button disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("reschedule")}>Reschedule Audit</Button></DialogFooter></DialogContent></Dialog>
     <fieldset disabled={!form.auditFeasible} className={`grid gap-4 ${!form.auditFeasible ? "opacity-50" : ""}`}>
