@@ -5,10 +5,13 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./managed-schemas": "./src/managed-schemas.ts"
   },
   "scripts": {
-    "push": "drizzle-kit push --config ./drizzle.config.ts",
+    "push": "tsx ./scripts/push-development.ts",
+    "test-push": "tsx --test ./scripts/push-development.test.ts",
+    "test-push-integration": "tsx ./scripts/push-development.integration.ts",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
     "generate": "drizzle-kit generate --config ./drizzle.config.ts"
   },
@@ -19,6 +22,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "tsx": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "^8.20.0",
     "drizzle-kit": "^0.31.10"

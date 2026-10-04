@@ -10,6 +10,7 @@
     "migrate": "tsx ./src/migrate.ts",
     "check-drift": "tsx ./src/check-schema-drift.ts",
     "test-drift-guard": "tsx ./src/check-schema-drift.regression.ts",
+    "test-post-merge": "tsx ./src/post-merge.regression.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

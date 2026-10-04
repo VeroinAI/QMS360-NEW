@@ -40,7 +40,7 @@ schemas correctly. Do not re-add manual enum blocks.
 
 ## Who owns which database
 
-- **Development** — `drizzle-kit push` (and the post-merge script) normally applies schema changes. If push fails on an already-existing multi-schema enum, verify the live schema and apply only the missing development DDL rather than blindly forcing a broad push.
+- **Development** — the development post-merge flow owns additive schema application. If a push reports an already-existing multi-schema enum, inspect the namespace filter before attempting any DDL repair; never blindly force a broad push.
 - **Replit production** — Replit Support told the user Publish migrates `public`
   only for this project; custom schemas are not included. A support-reviewed
   manual schema-only reconciliation is required for missing custom-schema
@@ -93,3 +93,18 @@ production, even though they existed in development.
 objects, but keep narrow application compatibility for critical features until
 the live production catalog confirms the required object exists. Never compensate
 with startup DDL or a production-targeted migration hook.
+
+## PostgreSQL push success can be misleading
+
+Drizzle-kit 0.31.x's PostgreSQL CLI can catch an SQL error, print it, and still
+return exit status zero. A shell's `set -e` alone does not prove schema application.
+Multi-schema introspection also defaults to `public`; missing app namespaces in
+the filter make already-present enums look new.
+
+**Why:** an existing `evidence_status` conflict hid missing additive development
+columns while setup reported success. Inspection of the installed kit confirmed
+the error was caught without a failing exit status.
+
+**How to apply:** treat namespace coverage and successful live-catalog checks as
+required evidence after development schema updates. Preserve error propagation
+when changing the push tooling; an apparently successful subprocess is not enough.

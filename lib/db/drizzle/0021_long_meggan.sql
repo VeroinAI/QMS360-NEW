@@ -1,0 +1,1 @@
+ALTER TABLE "shared"."application_access" ADD COLUMN "application_reviews" jsonb DEFAULT '{}'::jsonb NOT NULL;

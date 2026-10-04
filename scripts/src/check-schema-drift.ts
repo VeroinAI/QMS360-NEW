@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 import * as schema from "@workspace/db";
 import { db } from "@workspace/db";
+import { managedSchemas } from "@workspace/db/managed-schemas";
 
 /**
  * Schema drift guard. Fails loudly (exit 1) when the live database or
@@ -23,7 +24,7 @@ import { db } from "@workspace/db";
  *   pnpm --filter @workspace/scripts run check-drift
  */
 
-const SCHEMAS = ["public", "shared", "app1_qaqc", "app2_lessons", "app3_audit"];
+const SCHEMAS = managedSchemas;
 const here = dirname(fileURLToPath(import.meta.url));
 
 const errors: string[] = [];
