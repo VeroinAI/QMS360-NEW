@@ -19,6 +19,8 @@ export interface AuditPlan {
   auditeeId: string;
   /** Active Audit workspace roles selected as Auditees */
   auditeeRoleIds?: string[];
+  /** Active Audit workspace roles selected for Audit Plan Circulation */
+  circulationRoleIds?: string[];
   qaqcScope: string;
   /** @minItems 1 */
   auditTypes: string[];

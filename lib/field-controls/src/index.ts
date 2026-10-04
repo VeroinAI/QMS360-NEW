@@ -168,6 +168,7 @@ export const fieldControlRegistry: Record<FieldControlAppKey, FormDefinition[]> 
         { key: "location", label: "Location" },
         { key: "leadAuditorId", label: "Lead auditor" },
         { key: "teamMemberIds", label: "Team members" },
+        { key: "circulationRoleIds", label: "Audit Plan Circulation" },
         { key: "processOwnerIds", label: "Process owners" },
         { key: "feasibilityNotes", label: "Feasibility notes" },
       ],

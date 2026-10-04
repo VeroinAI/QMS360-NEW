@@ -1441,11 +1441,14 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   const selectedTeamNames = form.teamMemberIds.map(id => users.find(user => user.id === id)?.fullName).filter(Boolean);
   const selectedAuditeeRoleIds = form.auditeeRoleIds ?? [];
   const selectedAuditeeRoleNames = selectedAuditeeRoleIds.map(id => auditeeRoles.data?.find(role => role.id === id)?.name).filter(Boolean);
-  const circulationIds = [...new Set([form.leadAuditorId, ...form.teamMemberIds].filter(Boolean))];
-  const circulation = [
-    ...circulationIds.map(id => users.find(user => user.id === id)?.fullName).filter(Boolean),
-    ...selectedAuditeeRoleNames,
-  ].join(", ");
+  const selectedCirculationRoleIds = form.circulationRoleIds ?? [];
+  const circulationRoles = (auditeeRoles.data ?? []).filter(role => role.active);
+  const circulation = selectedCirculationRoleIds.map(id => circulationRoles.find(role => role.id === id)?.name)
+    .filter(Boolean).join(", ");
+  const toggleCirculationRole = (id: string, checked: boolean) => {
+    set("circulationRoleIds", checked ? [...new Set([...selectedCirculationRoleIds, id])] : selectedCirculationRoleIds.filter(item => item !== id));
+    clearError("circulation");
+  };
   const toggleTeamMember = (id: string, checked: boolean) => set("teamMemberIds", checked ? [...form.teamMemberIds, id] : form.teamMemberIds.filter(item => item !== id));
   const toggleAuditeeRole = (id: string, checked: boolean) => set("auditeeRoleIds", checked ? [...new Set([...selectedAuditeeRoleIds, id])] : selectedAuditeeRoleIds.filter(item => item !== id));
   const activityRows: AuditPlanActivity[] = form.activities !== undefined ? form.activities : [{
@@ -1471,9 +1474,12 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       ["auditTypes", form.auditTypes], ["auditLanguage", form.auditLanguage], ["qaqcReference", form.qaqcReference],
       ["startDateTime", form.startDateTime], ["endDateTime", form.endDateTime],
       ["openingMeetingDateTime", form.openingMeetingDateTime], ["closingMeetingDateTime", form.closingMeetingDateTime],
-      ["activityDateTime", form.activityDateTime], ["circulation", circulation],
+      ["activityDateTime", form.activityDateTime], ["circulationRoleIds", selectedCirculationRoleIds], ["circulation", circulation],
     ];
     const nextErrors = Object.fromEntries(required.filter(([, value]) => Array.isArray(value) ? !value.length : !String(value ?? "").trim()).map(([key]) => [key, "This field is required."]));
+    if (auditeeRoles.isFetching || auditeeRoles.isError || selectedCirculationRoleIds.some(id => !circulationRoles.some(role => role.id === id))) {
+      nextErrors.circulationRoleIds = "Load and select active Audit workspace roles before saving.";
+    }
     if (!initial) {
       if (!programmeId) nextErrors.programmeId = "Select an Audit Schedule first.";
       if (!approvedSchedules.some(schedule => schedule.id === form.scheduleId)) {
@@ -1513,7 +1519,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     setErrors({});
     const firstActivity = activityRows[0];
     const payload = {
-      ...form, auditeeId: activityRows[0]?.auditeeId ?? form.auditeeId, activities: activityRows, auditPlanCirculation: circulation,
+      ...form, circulationRoleIds: selectedCirculationRoleIds, auditeeId: activityRows[0]?.auditeeId ?? form.auditeeId, activities: activityRows, auditPlanCirculation: circulation,
       activitySection: firstActivity?.section ?? "", activityRemarks: firstActivity?.remarks ?? "",
       activityAuditeeId: firstActivity?.auditeeId ?? "",
     };
@@ -1640,7 +1646,33 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
         {!activityRows.length && <TableRow><TableCell colSpan={readOnly ? 3 : 4} className="py-8 text-center text-sm text-muted-foreground">No activity rows. Add the first activity.</TableCell></TableRow>}
       </TableBody></Table></div><ErrorText name="activities"/></div>
     <div><Label>18. Date / Time of Activity *</Label><Input className="mt-2" type="datetime-local" value={form.activityDateTime.slice(0,16)} disabled={disabled("activityDateTime")} {...invalid("activityDateTime")} onChange={event => set("activityDateTime", event.target.value)}/><ErrorText name="activityDateTime"/></div>
-    <div><Label>19. Audit Plan Circulation *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={circulation} {...invalid("circulation")} placeholder="Generated from selected Master users"/><ErrorText name="circulation"/></div>
+    <div>
+      <Label>19. Audit Plan Circulation *</Label>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal"
+            disabled={disabled("circulationRoleIds") || ro("auditPlanCirculation") || auditeeRoles.isLoading || auditeeRoles.isError}
+            {...invalid("circulationRoleIds")}>
+            <span className="truncate">{(readOnly ? form.auditPlanCirculation : circulation) || (auditeeRoles.isLoading ? "Loading workspace roles…" : "Select workspace roles")}</span>
+            <ChevronDown className="ml-2 size-4 shrink-0"/>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] max-h-64 overflow-y-auto">
+          {circulationRoles.map(role => <DropdownMenuCheckboxItem key={role.id}
+            checked={selectedCirculationRoleIds.includes(role.id)} onSelect={event => event.preventDefault()}
+            onCheckedChange={checked => toggleCirculationRole(role.id, checked === true)}>{role.name}</DropdownMenuCheckboxItem>)}
+          {selectedCirculationRoleIds.filter(id => !circulationRoles.some(role => role.id === id)).map(id =>
+            <DropdownMenuCheckboxItem key={id} checked onSelect={event => event.preventDefault()}
+              onCheckedChange={() => toggleCirculationRole(id, false)}>
+              {auditeeRoles.data?.find(role => role.id === id)?.name ?? "Unavailable workspace role"} (remove to continue)
+            </DropdownMenuCheckboxItem>)}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {auditeeRoles.isError && <p className="mt-1 text-sm text-destructive">Unable to load Audit workspace roles. Close and reopen the form to retry.</p>}
+      {!auditeeRoles.isLoading && !auditeeRoles.isError && !circulationRoles.length && <p className="mt-1 text-sm text-muted-foreground">No active Audit workspace roles are available.</p>}
+      {initial && initial.circulationRoleIds === undefined && initial.auditPlanCirculation && !readOnly && <p className="mt-1 text-xs text-muted-foreground">Previous circulation: {initial.auditPlanCirculation}. Select the workspace roles to use when saving this plan.</p>}
+      <ErrorText name="circulationRoleIds"/><ErrorText name="circulation"/>
+    </div>
     </fieldset>
     <DialogFooter><Button variant="outline" onClick={onClose}>{readOnly ? "Back to plans" : "Cancel"}</Button>{!readOnly && <Button onClick={save} disabled={!form.auditFeasible || create.isPending || update.isPending}>{initial ? "Save changes" : "Create Plan"}</Button>}</DialogFooter>
   </div>;

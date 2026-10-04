@@ -3243,6 +3243,7 @@ components:
         teamMemberIds: {type: array, minItems: 1, items: {type: string}}
         auditeeId: {type: string}
         auditeeRoleIds: {type: array, items: {type: string}, description: Active Audit workspace roles selected as Auditees}
+        circulationRoleIds: {type: array, items: {type: string}, description: Active Audit workspace roles selected for Audit Plan Circulation}
         qaqcScope: {type: string}
         auditTypes: {type: array, minItems: 1, items: {type: string}}
         auditLanguage: {type: string}

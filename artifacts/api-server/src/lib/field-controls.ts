@@ -71,6 +71,7 @@ type ExtraFieldSpec = {
 };
 
 const EXTRA_FIELD_SPECS: Record<string, ExtraFieldSpec> = {
+  "audit.plan.circulationRoleIds": { createDefault: [] },
   "lessons.lesson-form.gps": {
     bodyKeys: ["gpsLat", "gpsLng"],
     isEmpty: (value) => !Array.isArray(value) || value.some((part) => part === null || part === undefined || part === ""),

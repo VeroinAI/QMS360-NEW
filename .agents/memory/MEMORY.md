@@ -30,7 +30,7 @@
 - [Spreadsheet date policy](spreadsheet-date-policy.md) — Excel/CSV dates are DD/MM/YYYY; preserve internal ISO contracts and support older ISO/native Excel workbooks.
 - [Audit feasibility decisions](audit-feasibility-decisions.md) — Cancel blocks future plans permanently; Reschedule records mandatory feedback but keeps the schedule eligible.
 - [Audit Plan execution handoff](audit-plan-execution-handoff.md) — sending a plan creates or reuses one linked Audit Execution; repeated handoff/open actions must remain idempotent.
-- [Audit Plan auditee roles](audit-plan-auditee-roles.md) — plan-level Auditee is multi-role; activity-level auditees remain independent users.
+- [Audit Plan role selections](audit-plan-auditee-roles.md) — Auditee and Circulation are independent multi-role fields; activity-level auditees remain users.
 - [Outbound email delivery semantics](outbound-email-delivery-semantics.md) — event emails queue per recipient; policy is tenant-wide; test messages remain direct.
 - [Email Rule templates](email-rule-template-policy.md) — per-rule content is configurable; preserve approval audiences and prevent duplicate generic approval dispatch.
 - [Audit approval email audience](audit-approval-email-audience.md) — restrict review-stage recipients; only explicit parent final Email Rule role selections replace participant defaults.

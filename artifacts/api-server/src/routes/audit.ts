@@ -1722,6 +1722,7 @@ type PlanMeta = {
   endDateTime?: string; openingMeetingDateTime?: string; closingMeetingDateTime?: string; activitySection?: string;
   activityRemarks?: string; activityAuditeeId?: string; activityDateTime?: string; auditPlanCirculation?: string;
   activities?: PlanActivity[];
+  circulationRoleIds?: string[];
 };
 const planMeta = (row: AnyRow): PlanMeta => parseJson(row.status, {});
 const planDto = (row: AnyRow) => {
@@ -1733,6 +1734,7 @@ const planDto = (row: AnyRow) => {
     auditTitle: meta.auditTitle ?? row.scope ?? "Audit Plan", leadAuditorId: meta.leadAuditorId ?? row.teamMemberIds[0] ?? "",
     teamMemberIds: row.teamMemberIds, auditeeId: meta.auditeeId ?? meta.processOwnerIds?.[0] ?? "",
     auditeeRoleIds: meta.auditeeRoleIds ?? [],
+    circulationRoleIds: meta.circulationRoleIds,
     qaqcScope: meta.qaqcScope ?? row.scope ?? "", auditTypes, auditLanguage: meta.auditLanguage ?? PLAN_LANGUAGE,
     qaqcReference: meta.qaqcReference ?? "", description: meta.description ?? meta.objectives ?? null,
     startDateTime: meta.startDateTime ?? fallbackDateTime, endDateTime: meta.endDateTime ?? fallbackDateTime,
@@ -1768,6 +1770,7 @@ const planValues = (data: AnyRow) => ({
     activityRemarks: data.activityRemarks, activityAuditeeId: data.activityAuditeeId,
     activities: data.activities,
     activityDateTime: data.activityDateTime, auditPlanCirculation: data.auditPlanCirculation,
+    circulationRoleIds: data.circulationRoleIds,
   }),
 });
 async function auditPlanUsers(organizationId: string) {
@@ -1829,11 +1832,31 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
     .where(and(active(auditWorkspaceRoles, actor(req).organizationId), inArray(auditWorkspaceRoles.id, auditeeRoleIds)));
   if (selectedRoles.length !== auditeeRoleIds.length) throw new HttpError(422, "Select active QMS Audit roles for Auditee");
   const auditeeUserIds = [...new Set((await Promise.all(auditeeRoleIds.map(roleId => roleUserIds(actor(req).organizationId, roleId)))).flat())];
+  const circulationRoleIds = data.circulationRoleIds === undefined
+    ? undefined : [...new Set(data.circulationRoleIds)] as string[];
+  let circulationRoleNames: string[] | undefined;
+  if (circulationRoleIds !== undefined) {
+    if (!circulationRoleIds.length || circulationRoleIds.some(id => !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id))) {
+      throw new HttpError(422, "Select at least one active QMS Audit workspace role for Audit Plan Circulation");
+    }
+    const roles = await db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name })
+      .from(auditWorkspaceRoles).where(and(
+        active(auditWorkspaceRoles, actor(req).organizationId),
+        inArray(auditWorkspaceRoles.id, circulationRoleIds),
+        eq(auditWorkspaceRoles.status, "active"),
+      ));
+    if (roles.length !== circulationRoleIds.length) {
+      throw new HttpError(422, "Select active QMS Audit workspace roles for Audit Plan Circulation");
+    }
+    const byId = new Map(roles.map(role => [role.id, role.name]));
+    circulationRoleNames = circulationRoleIds.map(id => byId.get(id)!);
+  }
   const circulationIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds])];
   return {
     ...data,
     auditeeId: activities[0].auditeeId,
     auditeeRoleIds,
+    circulationRoleIds,
     activities,
     activitySection: activities[0].section,
     activityRemarks: activities[0].remarks,
@@ -1843,7 +1866,7 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
     auditTypes: scheduleData.auditTypes,
     auditLanguage: PLAN_LANGUAGE,
     qaqcReference: scheduleData.qaqcReference,
-    auditPlanCirculation: [
+    auditPlanCirculation: circulationRoleNames?.join(", ") ?? [
       ...circulationIds.map((id) => usersById.get(id)!.fullName),
       ...selectedRoles.map(role => role.name),
     ].join(", "),
@@ -1999,6 +2022,9 @@ router.put("/plans/:id", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit plan not found");
   if (before.workflowState !== "draft") throw new HttpError(409, "Only draft plans can be edited");
+  if (data.circulationRoleIds === undefined && planMeta(before).circulationRoleIds !== undefined) {
+    data = { ...data, circulationRoleIds: planMeta(before).circulationRoleIds };
+  }
   const [schedule] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, data.scheduleId)));
   await assertChildSchedule(schedule);
   if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");

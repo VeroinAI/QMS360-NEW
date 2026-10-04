@@ -45,9 +45,11 @@ async function role(name: string, permissionIds: string[], roleAuthorizationLeve
   const [row] = await db.insert(auditWorkspaceRoles).values({
     organizationId: orgId, name, roleAuthorizationLevel,
   }).returning();
-  await db.insert(auditWorkspaceRolePermissions).values(permissionIds.map(permissionId => ({
-    organizationId: orgId, workspaceRoleId: row!.id, permissionId, grant: "full",
-  })));
+  if (permissionIds.length) {
+    await db.insert(auditWorkspaceRolePermissions).values(permissionIds.map(permissionId => ({
+      organizationId: orgId, workspaceRoleId: row!.id, permissionId, grant: "full",
+    })));
+  }
   return row!;
 }
 
@@ -317,14 +319,47 @@ describe("audit programme parent/child workflow", () => {
       activitySection: "General Requirement", activityRemarks: "Review controls", activityAuditeeId: creator.id,
       activityDateTime: "2026-01-01T09:00:00.000Z", auditPlanCirculation: "Programme Creator", status: "Draft",
     };
+    await db.update(auditSchedules).set({
+      status: JSON.stringify({
+        ...JSON.parse(child.status ?? "{}"), qaqcScope: planPayload.qaqcScope,
+        auditTypes: planPayload.auditTypes, qaqcReference: planPayload.qaqcReference,
+      }),
+    }).where(eq(auditSchedules.id, child.id));
     const invalidPlan = await api("POST", "/plans", creator.token, planPayload);
     expect(invalidPlan.status).toBe(422);
     expect(invalidPlan.json.error).toMatch(/selected when the schedule was created/);
+    const observerRole = await role("Circulation Observers", []);
+    const circulationRoleIds = [planPayload.auditeeRoleIds[0], observerRole.id];
     const validPlan = await api("POST", "/plans", creator.token, {
       ...planPayload, id: crypto.randomUUID(), leadAuditorId: creator.id,
+      circulationRoleIds,
     });
     expect(validPlan.status).toBe(201);
     expect(validPlan.json.leadAuditorId).toBe(creator.id);
+    expect(validPlan.json.circulationRoleIds).toEqual(circulationRoleIds);
+    expect(validPlan.json.auditPlanCirculation).toBe("Audit Contributor, Circulation Observers");
+    const reopenedPlan = await api("GET", `/plans/${validPlan.json.id}`, creator.token);
+    expect(reopenedPlan.json.circulationRoleIds).toEqual(circulationRoleIds);
+    const emptyCirculation = await api("PUT", `/plans/${validPlan.json.id}`, creator.token, {
+      ...validPlan.json, circulationRoleIds: [],
+    });
+    expect(emptyCirculation.status).toBe(422);
+    const invalidCirculation = await api("PUT", `/plans/${validPlan.json.id}`, creator.token, {
+      ...validPlan.json, circulationRoleIds: [crypto.randomUUID()],
+    });
+    expect(invalidCirculation.status).toBe(422);
+    const editedPlan = await api("PUT", `/plans/${validPlan.json.id}`, creator.token, {
+      ...validPlan.json, circulationRoleIds: [observerRole.id],
+    });
+    expect(editedPlan.status, JSON.stringify(editedPlan.json)).toBe(200);
+    expect(editedPlan.json.circulationRoleIds).toEqual([observerRole.id]);
+    expect(editedPlan.json.auditPlanCirculation).toBe("Circulation Observers");
+    expect((await api("GET", `/plans/${validPlan.json.id}`, creator.token)).json.circulationRoleIds).toEqual([observerRole.id]);
+    const legacyEditPayload = { ...editedPlan.json };
+    delete legacyEditPayload.circulationRoleIds;
+    const legacyEdit = await api("PUT", `/plans/${validPlan.json.id}`, creator.token, legacyEditPayload);
+    expect(legacyEdit.status).toBe(200);
+    expect(legacyEdit.json.circulationRoleIds).toEqual([observerRole.id]);
 
     const managerPermission = await permission("audit_program_manager");
     const managerRole = await role("Audit Program Managers", [managerPermission.id]);
