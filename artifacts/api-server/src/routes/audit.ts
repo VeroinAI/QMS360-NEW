@@ -3096,7 +3096,6 @@ router.post("/car-register/start", asyncHandler(async (req, res) => {
     return created!;
   });
   const context = await carContext(req, row.id);
-  await auditLog(req, "open_edit", "corrective_action_report", row.id, undefined, { status: carDto(row).status });
   res.json({ ...carDto(row), canRespond: context.canEditResponse, canReview: context.canReview });
 }));
 
@@ -3363,6 +3362,7 @@ router.get("/cars/:id/activity", asyncHandler(async (req, res) => {
     eq(auditAuditLogEntries.organizationId, actor(req).organizationId),
     eq(auditAuditLogEntries.entityType, "corrective_action_report"),
     eq(auditAuditLogEntries.entityId, context.car.id),
+    inArray(auditAuditLogEntries.action, ["update", "submit"]),
   );
   const [events, [count]] = await Promise.all([
     db.select({ event: auditAuditLogEntries, actorName: users.fullName }).from(auditAuditLogEntries)
@@ -3373,17 +3373,15 @@ router.get("/cars/:id/activity", asyncHandler(async (req, res) => {
   ]);
   res.json({ items: events.map(({ event, actorName }) => {
     const after = event.after as AnyRow | null;
-    const meta = carJson(after?.effectivenessNotes);
     return { id: event.id, action: event.action, actorName: actorName || "Unavailable user",
       createdAt: event.createdAt, status: after?.workflowState ? carDto(after).status : after?.status || null,
-      comments: typeof meta.reviewComments === "string" ? meta.reviewComments : null };
+      comments: null };
   }), total: Number(count?.count ?? 0), page, limit });
 }));
 router.post("/cars/:id/edit-session", asyncHandler(async (req, res) => {
   const context = await carContext(req, String(req.params.id));
   if (!context.canEditResponse) throw new HttpError(403, "Only the assigned action taker may edit this response");
   if (!["open", "draft", "rejected"].includes(context.car.workflowState)) throw new HttpError(409, "CAR cannot be edited in its current state");
-  await auditLog(req, "open_edit", "corrective_action_report", context.car.id, undefined, { status: carDto(context.car).status });
   res.json({ ...carDto(context.car), canRespond: context.canEditResponse, canReview: context.canReview });
 }));
 router.get("/cars/:id", asyncHandler(async (req, res) => {
@@ -3405,12 +3403,26 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
   if (!["open", "draft", "rejected"].includes(before.workflowState)) throw new HttpError(409, "CAR cannot be edited in its current state");
   await assertFieldAccess(req, "audit", "car", { mode: "update", current: carDto(before) });
   await assertFieldControls(req, "audit", "car", { mode: "update", current: carDto(before) });
-  const [row] = await db.update(correctiveActionReports).set({
-    rootCause: data.rootCause, correction: data.correction, correctiveAction: data.correctiveAction,
-    ownerId: context.ownerId, dueDate: before.dueDate, workflowState: "draft", updatedAt: new Date(),
-  }).where(and(eq(correctiveActionReports.id, before.id), eq(correctiveActionReports.workflowState, before.workflowState))).returning();
-  if (!row) throw new HttpError(409, "CAR changed while saving. Reload and retry.");
-  await auditLog(req, "update", "corrective_action_report", row.id, before, row); res.json(carDto(row));
+  const saveAndSubmit = data.saveAndSubmit === true;
+  if (saveAndSubmit) {
+    if (!context.leadId) throw new HttpError(422, "Select a Lead / Internal Auditor in the linked Audit Plan before submitting");
+    if (!data.rootCause?.trim() || !data.correction?.trim() || !data.correctiveAction?.trim()) {
+      throw new HttpError(422, "Root cause, correction, and corrective action are required");
+    }
+  }
+  const row = await db.transaction(async tx => {
+    const [saved] = await tx.update(correctiveActionReports).set({
+      rootCause: data.rootCause, correction: data.correction, correctiveAction: data.correctiveAction,
+      ownerId: context.ownerId, dueDate: before.dueDate, workflowState: saveAndSubmit ? "submitted" : "draft", updatedAt: new Date(),
+    }).where(and(eq(correctiveActionReports.id, before.id), eq(correctiveActionReports.workflowState, before.workflowState))).returning();
+    if (!saved) throw new HttpError(409, "CAR changed while saving. Reload and retry.");
+    await auditLog(req, saveAndSubmit ? "submit" : "update", "corrective_action_report", saved.id, before, saved, tx as unknown as typeof db);
+    return saved;
+  });
+  if (saveAndSubmit) await notify(db, "audit", { organizationId: actor(req).organizationId, userId: context.leadId!,
+    type: "car_submitted", title: "CAR response awaiting your review", body: "The action taker submitted a response to an Audit finding.",
+    entityType: "corrective_action_report", entityId: row.id });
+  res.json(carDto(row));
 }));
 router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
@@ -3418,9 +3430,6 @@ router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
   const context = await carContext(req, before.id);
   if (!context.canEditResponse) throw new HttpError(403, "Only the assigned action taker may submit this response");
   if (!context.leadId) throw new HttpError(422, "Select a Lead / Internal Auditor in the linked Audit Plan before submitting");
-  if (!(await auditUsersWithMarker(actor(req).organizationId, "audit_team_lead")).some(user => user.id === context.leadId)) {
-    throw new HttpError(422, "The linked Audit Team Lead must have active Audit access and Team Lead authorization");
-  }
   if (!["open", "draft", "rejected"].includes(before.workflowState)) throw new HttpError(409, "CAR is not eligible for submission");
   if (!before.rootCause?.trim() || !before.correction?.trim() || !before.correctiveAction?.trim()) throw new HttpError(422, "Root cause, correction, and corrective action are required");
   const [row] = await db.update(correctiveActionReports).set({ workflowState: "submitted", updatedAt: new Date() })

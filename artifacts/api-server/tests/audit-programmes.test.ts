@@ -277,17 +277,46 @@ describe("audit programme parent/child workflow", () => {
       expect((await api("POST", `/cars/${created.json.id}/edit-session`, l2.token)).status).toBe(403);
       const initialLog = await api("GET", `/cars/${created.json.id}/activity?page=1&limit=1`, creator.token);
       expect(initialLog.status, JSON.stringify(initialLog.json)).toBe(200);
-      expect(initialLog.json.items).toHaveLength(1);
-      expect(initialLog.json.total).toBe(4); // create and three authorized Edit openings
-      expect(initialLog.json.items[0]).toMatchObject({ action: "open_edit", actorName: "L1 Approver" });
-      expect(initialLog.json.items[0]).not.toHaveProperty("before");
-      expect(initialLog.json.items[0]).not.toHaveProperty("after");
-      expect((await api("GET", `/cars/${created.json.id}/activity`, creator.token)).json.total).toBe(4); // reads are not actions
+      expect(initialLog.json.items).toHaveLength(0);
+      expect(initialLog.json.total).toBe(0); // create, Edit, Display and Log are not response-save events
+      expect((await api("GET", `/cars/${created.json.id}/activity`, creator.token)).json.total).toBe(0);
       expect((await api("POST", `/cars/${created.json.id}/submit`, l1.token)).status).toBe(422);
       const response = { ...created.json, rootCause: "Controls missing", correction: "Plan updated", correctiveAction: "Review controls monthly" };
+      // Match the current finding's Action Taker, not a stale CAR owner.
+      await db.update(audits).set({ checklistState: (audit!.checklistState as any[]).map(item =>
+        item.id === itemId ? { ...item, actionTakerId: l2.id } : item) }).where(eq(audits.id, audit!.id));
+      expect((await api("GET", `/cars/${created.json.id}`, l1.token)).json.canRespond).toBe(false);
+      expect((await api("POST", `/cars/${created.json.id}/edit-session`, l1.token)).status).toBe(403);
+      expect((await api("PUT", `/cars/${created.json.id}`, l1.token, response)).status).toBe(403);
+      expect((await api("POST", `/cars/${created.json.id}/submit`, l1.token)).status).toBe(403);
+      await db.update(audits).set({ checklistState: audit!.checklistState }).where(eq(audits.id, audit!.id));
       const saved = await api("PUT", `/cars/${created.json.id}`, l1.token, response);
       expect(saved.status, JSON.stringify(saved.json)).toBe(200);
-      expect((await api("POST", `/cars/${created.json.id}/submit`, l1.token)).status).toBe(200);
+      const saveLog = await api("GET", `/cars/${created.json.id}/activity`, creator.token);
+      expect(saveLog.json.total).toBe(1);
+      expect(saveLog.json.items[0]).toMatchObject({ action: "update", actorName: "L1 Approver", status: "Draft", comments: null });
+      expect(saveLog.json.items[0]).not.toHaveProperty("before");
+      expect(saveLog.json.items[0]).not.toHaveProperty("after");
+      expect((await api("PUT", `/cars/${created.json.id}`, l1.token, { ...response, correctiveAction: " ", saveAndSubmit: true })).status).toBe(422);
+      expect((await api("GET", `/cars/${created.json.id}`, l1.token)).json).toMatchObject({ status: "Draft", correctiveAction: response.correctiveAction });
+      expect((await api("GET", `/cars/${created.json.id}/activity`, creator.token)).json.total).toBe(1);
+      // Reviewer eligibility must not prevent the assigned Action Taker from submitting.
+      // Review still requires the existing Team Lead authorization.
+      await db.update(auditPlans).set({ status: JSON.stringify({ leadAuditorId: l2.id }) }).where(eq(auditPlans.id, plan!.id));
+      try {
+        const submitted = await api("PUT", `/cars/${created.json.id}`, l1.token, { ...response, saveAndSubmit: true });
+        expect(submitted.status, JSON.stringify(submitted.json)).toBe(200);
+        expect(submitted.json.status).toBe("Submitted");
+        const submitLog = await api("GET", `/cars/${created.json.id}/activity?page=1&limit=1`, creator.token);
+        expect(submitLog.json.total).toBe(2); // one explicit Save, one combined Save & Submit
+        expect(submitLog.json.items).toHaveLength(1);
+        expect(submitLog.json.items[0]).toMatchObject({ action: "submit", status: "Submitted" });
+        expect((await api("GET", `/cars/${created.json.id}/activity?page=2&limit=1`, creator.token)).json.items[0].action).toBe("update");
+        expect((await api("GET", `/cars/${created.json.id}`, l2.token)).json.canReview).toBe(false);
+        expect((await api("POST", `/cars/${created.json.id}/review`, l2.token, { decision: "accept" })).status).toBe(403);
+      } finally {
+        await db.update(auditPlans).set({ status: plan!.status }).where(eq(auditPlans.id, plan!.id));
+      }
       expect((await api("GET", "/my-actions?limit=100", creator.token)).json.items).toEqual(expect.arrayContaining([
         expect.objectContaining({ id: created.json.id, action: "Review" }),
       ]));
@@ -301,24 +330,22 @@ describe("audit programme parent/child workflow", () => {
       expect(query.status, JSON.stringify(query.json)).toBe(200);
       expect(query.json).toMatchObject({ status: "Returned for query", reviewOutcome: "query", reviewComments: "Provide verification" });
       expect((await api("GET", `/cars/${created.json.id}`, l1.token)).json.reviewComments).toBe("Provide verification");
-      expect((await api("PUT", `/cars/${created.json.id}`, l1.token, response)).status).toBe(200);
-      expect((await api("POST", `/cars/${created.json.id}/submit`, l1.token)).status).toBe(200);
+      expect((await api("PUT", `/cars/${created.json.id}`, l1.token, { ...response, saveAndSubmit: true })).status).toBe(200);
       const rework = await api("POST", `/cars/${created.json.id}/review`, creator.token, { decision: "rework", comments: "Improve the preventive action" });
       expect(rework.json).toMatchObject({ status: "Returned for rework", reviewOutcome: "rework" });
-      expect((await api("PUT", `/cars/${created.json.id}`, l1.token, response)).status).toBe(200);
-      expect((await api("POST", `/cars/${created.json.id}/submit`, l1.token)).status).toBe(200);
+      expect((await api("PUT", `/cars/${created.json.id}`, l1.token, { ...response, saveAndSubmit: true })).status).toBe(200);
       const outcomes = await Promise.all([1,2].map(() => api("POST", `/cars/${created.json.id}/review`, creator.token, { decision: "accept" })));
       expect(outcomes.map(x => x.status).sort()).toEqual([200,409]);
       expect(outcomes.find(x => x.status === 200)!.json.status).toBe("Closed");
       expect((await api("PUT", `/cars/${created.json.id}`, l1.token, response)).status).toBe(409);
       expect((await api("POST", `/cars/${created.json.id}/edit-session`, l1.token)).status).toBe(409);
       const finalLog = await api("GET", `/cars/${created.json.id}/activity`, creator.token);
-      expect(finalLog.json.items).toEqual(expect.arrayContaining([
-        expect.objectContaining({ action: "update" }), expect.objectContaining({ action: "submit" }),
-        expect.objectContaining({ action: "query", comments: "Provide verification" }),
-        expect.objectContaining({ action: "rework", comments: "Improve the preventive action" }),
-        expect.objectContaining({ action: "accept", status: "Closed" }),
-      ]));
+      expect(finalLog.json.total).toBe(4);
+      expect(finalLog.json.items.map((event: { action: string }) => event.action)).toEqual(["submit", "submit", "submit", "update"]);
+      const internalHistory = await db.select({ action: auditAuditLogEntries.action }).from(auditAuditLogEntries)
+        .where(eq(auditAuditLogEntries.entityId, created.json.id));
+      expect(internalHistory.map(event => event.action)).toEqual(expect.arrayContaining(["create", "query", "rework", "accept"]));
+      expect(internalHistory.map(event => event.action)).not.toContain("open_edit");
       expect((await api("GET", `/car-register?status=Closed&projectId=${project!.id}`, creator.token)).json.items[0].car.closedAt).toBeTruthy();
       await db.update(audits).set({ checklistState: [] as any }).where(eq(audits.id, audit!.id));
       expect((await api("GET", `/car-register?projectId=${project!.id}`, creator.token)).json.items).toHaveLength(0);

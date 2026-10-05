@@ -3382,6 +3382,17 @@ export interface CorrectiveActionReport {
   canReview?: boolean;
 }
 
+export interface CarResponseInput {
+  /** @nullable */
+  rootCause?: string | null;
+  /** @nullable */
+  correction?: string | null;
+  /** @nullable */
+  correctiveAction?: string | null;
+  /** Save and submit together with one submission log entry. */
+  saveAndSubmit?: boolean;
+}
+
 export type CarReviewInputDecision = typeof CarReviewInputDecision[keyof typeof CarReviewInputDecision];
 
 

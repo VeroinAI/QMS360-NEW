@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import {
-  customFetch, getGetCorrectiveActionReportQueryKey, getListCarRegisterQueryKey, useListAuditEvidence, useListCarRegister,
-  useReviewCorrectiveActionReport, useStartFindingCar, useSubmitCorrectiveActionReport, useUpdateCorrectiveActionReport,
+   customFetch, getGetCorrectiveActionReportQueryKey, getListCarActivityQueryKey, getListCarRegisterQueryKey, useListAuditEvidence, useListCarRegister,
+  useReviewCorrectiveActionReport, useStartFindingCar, useUpdateCorrectiveActionReport,
   useOpenCarEditSession,
 } from "@workspace/api-client-react";
 import type { CarRegisterEntry, CorrectiveActionReport } from "@workspace/api-client-react";
@@ -31,7 +31,10 @@ export function useCarRefresh(carId?: string) {
   return () => {
     void qc.invalidateQueries({ queryKey: getListCarRegisterQueryKey().slice(0, 1) });
     void qc.invalidateQueries({ queryKey: ["/api/audit/cars"] });
-    if (carId) void qc.invalidateQueries({ queryKey: getGetCorrectiveActionReportQueryKey(carId) });
+    if (carId) {
+      void qc.invalidateQueries({ queryKey: getGetCorrectiveActionReportQueryKey(carId) });
+      void qc.invalidateQueries({ queryKey: getListCarActivityQueryKey(carId).slice(0, 1) });
+    }
     void qc.invalidateQueries({ queryKey: ["/api/audit/my-actions"] });
   };
 }
@@ -46,13 +49,12 @@ export function CarResponseDialog({ car, open, onClose, readOnly = false }: { ca
   const { toast } = useToast();
   const refresh = useCarRefresh(car.id);
   const update = useUpdateCorrectiveActionReport();
-  const submit = useSubmitCorrectiveActionReport();
   const controls = useFieldControls("audit", "car");
   const access = useFieldAccess("audit");
   const viewOnly = readOnly || car.canRespond !== true;
   const [f, setF] = useState({ rootCause: car.rootCause ?? "", correction: car.correction ?? "", correctiveAction: car.correctiveAction ?? "" });
   const [err, setErr] = useState("");
-  const busy = update.isPending || submit.isPending;
+  const busy = update.isPending;
   const valid = !!f.rootCause.trim() && !!f.correction.trim() && !!f.correctiveAction.trim();
   const clean = { rootCause: f.rootCause.trim(), correction: f.correction.trim(), correctiveAction: f.correctiveAction.trim() };
   const run = async (andSubmit: boolean) => {
@@ -66,8 +68,7 @@ export function CarResponseDialog({ car, open, onClose, readOnly = false }: { ca
     });
     if (missing.length) { setErr(`Complete required fields: ${missing.join(", ")}.`); return; }
     try {
-      await update.mutateAsync({ id: car.id, data: { ...car, ...clean } as never });
-      if (andSubmit) await submit.mutateAsync({ id: car.id });
+      await update.mutateAsync({ id: car.id, data: { ...clean, saveAndSubmit: andSubmit } });
       refresh();
       toast({ title: andSubmit ? "CAR submitted" : "Response saved" });
       onClose();

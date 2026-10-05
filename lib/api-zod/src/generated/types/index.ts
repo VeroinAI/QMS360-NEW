@@ -137,6 +137,7 @@ export * from './carPageResponse';
 export * from './carRegisterEntry';
 export * from './carRegisterOption';
 export * from './carRegisterPage';
+export * from './carResponseInput';
 export * from './carReviewInput';
 export * from './carReviewInputDecision';
 export * from './checklistBody';

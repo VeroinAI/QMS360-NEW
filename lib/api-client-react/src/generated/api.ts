@@ -77,9 +77,9 @@ import type {
   BulkImportResult,
   BusinessUnitPageResponse,
   CarActivityPage,
-  CarBody,
   CarPageResponse,
   CarRegisterPage,
+  CarResponseInput,
   CarReviewInput,
   ChecklistBody,
   ConnectorConnectionTestResult,
@@ -22029,17 +22029,17 @@ export const getUpdateCorrectiveActionReportUrl = (id: string,) => {
 }
 
 /**
- * @summary Update root cause, correction, and corrective action
+ * @summary Save CAR response, optionally submitting in the same action
  */
 export const updateCorrectiveActionReport = async (id: string,
-    carBody: CarBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    carResponseInput: CarResponseInput, options?: Parameters<typeof customFetch>[1]): Promise<CorrectiveActionReport> => {
 
-  return customFetch<void>(getUpdateCorrectiveActionReportUrl(id),
+  return customFetch<CorrectiveActionReport>(getUpdateCorrectiveActionReportUrl(id),
   {
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(carBody)
+    body: JSON.stringify(carResponseInput)
   }
 );}
 
@@ -22048,8 +22048,8 @@ export const updateCorrectiveActionReport = async (id: string,
 
 
 export const getUpdateCorrectiveActionReportMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCorrectiveActionReport>>, TError,{id: string;data: BodyType<CarBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateCorrectiveActionReport>>, TError,{id: string;data: BodyType<CarBody>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCorrectiveActionReport>>, TError,{id: string;data: BodyType<CarResponseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCorrectiveActionReport>>, TError,{id: string;data: BodyType<CarResponseInput>}, TContext> => {
 
 const mutationKey = ['updateCorrectiveActionReport'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -22061,7 +22061,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCorrectiveActionReport>>, {id: string;data: BodyType<CarBody>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCorrectiveActionReport>>, {id: string;data: BodyType<CarResponseInput>}> = (props) => {
           const {id,data} = props ?? {};
 
           return  updateCorrectiveActionReport(id,data,requestOptions)
@@ -22075,18 +22075,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type UpdateCorrectiveActionReportMutationResult = NonNullable<Awaited<ReturnType<typeof updateCorrectiveActionReport>>>
-    export type UpdateCorrectiveActionReportMutationBody = BodyType<CarBody>
+    export type UpdateCorrectiveActionReportMutationBody = BodyType<CarResponseInput>
     export type UpdateCorrectiveActionReportMutationError = ErrorType<unknown>
 
     /**
- * @summary Update root cause, correction, and corrective action
+ * @summary Save CAR response, optionally submitting in the same action
  */
 export const useUpdateCorrectiveActionReport = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCorrectiveActionReport>>, TError,{id: string;data: BodyType<CarBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCorrectiveActionReport>>, TError,{id: string;data: BodyType<CarResponseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateCorrectiveActionReport>>,
         TError,
-        {id: string;data: BodyType<CarBody>},
+        {id: string;data: BodyType<CarResponseInput>},
         TContext
       > => {
       return useMutation(getUpdateCorrectiveActionReportMutationOptions(options));

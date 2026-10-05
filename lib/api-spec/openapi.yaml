@@ -1566,7 +1566,7 @@ paths:
       parameters: [{$ref: "#/components/parameters/Id"}]
       responses:
         "200":
-          description: Authorized edit opening recorded in CAR history
+          description: Authorized edit opening without a CAR log entry
           content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}
   /audit/cars/{id}/activity:
     get:
@@ -1575,11 +1575,11 @@ paths:
       parameters: [{$ref: "#/components/parameters/Id"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
       responses:
         "200":
-          description: Scoped CAR history, newest first
+          description: Scoped successful response saves and submissions, newest first
           content: {application/json: {schema: {$ref: "#/components/schemas/CarActivityPage"}}}
   /audit/cars/{id}:
     get: {operationId: getCorrectiveActionReport, tags: [audit], summary: Get a corrective action report, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Corrective action report, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}, "403": {description: CAR is outside the caller's organization or scope}, "404": {description: CAR not found}}}
-    put: {operationId: updateCorrectiveActionReport, tags: [audit], summary: "Update root cause, correction, and corrective action", parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Car"}, responses: {"200": {description: Updated}}}
+    put: {operationId: updateCorrectiveActionReport, tags: [audit], summary: "Save CAR response, optionally submitting in the same action", parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CarResponseInput"}}}}, responses: {"200": {description: Saved or submitted, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}}}
   /audit/cars/{id}/submit:
     post: {operationId: submitCorrectiveActionReport, tags: [audit], summary: Submit CAR, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
   /audit/cars/{id}/review:
@@ -3616,6 +3616,13 @@ components:
         reviewedAt: {type: [string, "null"], format: date-time}
         canRespond: {type: boolean}
         canReview: {type: boolean}
+    CarResponseInput:
+      type: object
+      properties:
+        rootCause: {type: [string, "null"]}
+        correction: {type: [string, "null"]}
+        correctiveAction: {type: [string, "null"]}
+        saveAndSubmit: {type: boolean, default: false, description: "Save and submit together with one submission log entry."}
     CarReviewInput:
       type: object
       required: [decision]

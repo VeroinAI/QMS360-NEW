@@ -20,3 +20,15 @@ CAR response ownership is strict: only the current assigned Action Taker may edi
 **Why:** The user explicitly required assignment-by-user-ID validation; administrative visibility must not permit editing another Action Taker's response.
 
 **How to apply:** Keep response ownership checks independent from viewing and Team Lead review rights. Do not reinstate an administrator edit bypass.
+
+Entering, saving and submitting an assigned CAR response must not depend on the linked reviewer's current Team Lead authorization. Preserve required response fields, lifecycle and review-routing checks, but enforce reviewer authorization when reviewing rather than blocking the Action Taker's submission.
+
+**Why:** The user clarified that the logged-in user's ID must match the finding's Action Taker, rather than changing reviewer permissions to resolve a submission error.
+
+**How to apply:** Validate the current finding assignment, not just a stale saved CAR owner, and keep submission and review authorization separate.
+
+The CAR Register's user-visible Log contains only successful Save Response and Save & Submit Response actions. A combined Save & Submit is one event; opening Edit, Display or Log is not an event. Retain internal canonical workflow history rather than deleting it to simplify this projection.
+
+**Why:** The user explicitly narrowed the register log to these two button actions; internal review and creation history still serves other Audit workflows.
+
+**How to apply:** Filter before history counts and pagination, save-and-submit in one operation, and do not fabricate or rewrite historical button intent.

@@ -10210,13 +10210,22 @@ export const GetCorrectiveActionReportResponse = zod.object({
 
 
 /**
- * @summary Update root cause, correction, and corrective action
+ * @summary Save CAR response, optionally submitting in the same action
  */
 export const UpdateCorrectiveActionReportParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const updateCorrectiveActionReportBodySaveAndSubmitDefault = false;
+
 export const UpdateCorrectiveActionReportBody = zod.object({
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "saveAndSubmit": zod.boolean().default(updateCorrectiveActionReportBodySaveAndSubmitDefault).describe('Save and submit together with one submission log entry.')
+})
+
+export const UpdateCorrectiveActionReportResponse = zod.object({
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -10240,8 +10249,6 @@ export const UpdateCorrectiveActionReportBody = zod.object({
   "canRespond": zod.boolean().optional(),
   "canReview": zod.boolean().optional()
 })
-
-export const UpdateCorrectiveActionReportResponse = zod.unknown()
 
 
 /**

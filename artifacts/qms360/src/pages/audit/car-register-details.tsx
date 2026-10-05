@@ -28,10 +28,7 @@ export function CarDisplayDialog({ entry, onClose, reviewNotes }: { entry: CarRe
 }
 
 const LABELS: Record<string, string> = {
-  create: "CAR created", open_edit: "Edit opened", update: "Response saved", submit: "Response submitted",
-  accept: "Accepted and closed", query: "Returned for query", rework: "Returned for rework", reject: "Rejected",
-  request_extension: "Extension requested", approve_extension: "Extension approved",
-  reject_extension: "Extension rejected", cancel_extension: "Extension cancelled", close: "Closed",
+  update: "Save Response", submit: "Save & Submit Response",
 };
 
 function RecordedCarLog({ carId }: { carId: string }) {
@@ -59,7 +56,7 @@ function RecordedCarLog({ carId }: { carId: string }) {
 export function CarLogDialog({ entry, onClose }: { entry: CarRegisterEntry; onClose: () => void }) {
   return <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
     <DialogContent className="max-h-[85dvh] max-w-4xl overflow-y-auto">
-      <DialogHeader><DialogTitle>CAR action log</DialogTitle><DialogDescription>Recorded actions for this CAR, newest first.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>CAR action log</DialogTitle><DialogDescription>Successful Save Response and Save &amp; Submit Response actions, newest first.</DialogDescription></DialogHeader>
       {entry.car ? <RecordedCarLog carId={entry.car.id} /> : <p className="text-sm text-muted-foreground">No CAR response has been started. No CAR actions have been recorded.</p>}
       <div className="flex justify-end"><Button variant="outline" onClick={onClose}>Close</Button></div>
     </DialogContent>
