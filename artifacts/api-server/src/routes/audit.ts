@@ -60,6 +60,8 @@ import { activeAuditCapabilities } from "../lib/audit-capabilities";
 import { normalizeActivityAssignments, type ActivityRoleAssignment } from "../lib/audit-activity-assignments";
 import { auditModuleReadMatches, auditModulePermissionMatches } from "@workspace/field-controls";
 import { actionableFinding, carAuditContext, carContext, carJson, carRegister, carLeadMarker } from "../lib/car-register";
+import { carWordReportData } from "../lib/car-word-report-data";
+import { CAR_WORD_MIME, renderCarWordReport } from "../lib/car-word-report";
 
 const router = Router();
 const requireAuditAdmin = requireAppAdmin("audit");
@@ -104,7 +106,7 @@ for (const [path, module] of auditModules) {
 function auditExportGuard(module: string) {
   return asyncHandler(async (req, _res, next) => {
     const isExport = req.method === "GET" && (
-      req.path.endsWith("/report.pdf") || req.path.endsWith("/report/pdf") || (module === "plans" && /^\/[^/]+\/report\/?$/.test(req.path))
+      req.path.endsWith("/report.pdf") || req.path.endsWith("/report.docx") || req.path.endsWith("/report/pdf") || (module === "plans" && /^\/[^/]+\/report\/?$/.test(req.path))
       || String(req.query.format ?? "").toLowerCase() === "csv"
       || req.accepts(["json", "text/csv"]) === "text/csv"
     );
@@ -3057,6 +3059,19 @@ const carDto = (row: AnyRow) => {
 
 router.get("/car-register", asyncHandler(async (req, res) => {
   res.json(await carRegister(req, carDto));
+}));
+router.get("/car-register/report.docx", asyncHandler(async (req, res) => {
+  const parsed = Api.DownloadCarWordReportQueryParams.safeParse(req.query);
+  if (!parsed.success || [parsed.data.auditId, parsed.data.itemId, parsed.data.carId].filter(Boolean)
+    .some(id => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id!))) {
+    throw new HttpError(422, "Valid audit and finding identifiers are required");
+  }
+  const data = await carWordReportData(req, parsed.data);
+  const bytes = await renderCarWordReport(data);
+  res.setHeader("Content-Type", CAR_WORD_MIME);
+  res.setHeader("Content-Disposition", `attachment; filename="Corrective_Action_Report_${parsed.data.carId ?? parsed.data.itemId}.docx"`);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.send(bytes);
 }));
 router.post("/car-register/start", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.StartFindingCarBody, req);

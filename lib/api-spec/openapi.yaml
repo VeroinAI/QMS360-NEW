@@ -1548,6 +1548,24 @@ paths:
         "200":
           description: Findings and their corrective action responses
           content: {application/json: {schema: {$ref: "#/components/schemas/CarRegisterPage"}}}
+  /audit/car-register/report.docx:
+    get:
+      operationId: downloadCarWordReport
+      tags: [audit]
+      parameters:
+        - {name: auditId, in: query, required: true, schema: {type: string}}
+        - {name: itemId, in: query, required: true, schema: {type: string}}
+        - {name: carId, in: query, schema: {type: string}}
+      responses:
+        "200":
+          description: Corrective Action Report in the supplied Word template
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema: {type: string, format: binary}
+        "403":
+          description: Record or export access denied
+        "404":
+          description: Finding not found
   /audit/car-register/start:
     post:
       operationId: startFindingCar

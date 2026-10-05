@@ -96,6 +96,7 @@ import type {
   DelegationPageResponse,
   DocumentGovernanceLogEntry,
   DocumentGovernancePageResponse,
+  DownloadCarWordReportParams,
   DownloadQaqcMetricsTemplateParams,
   DownloadQaqcPdfTemplateParams,
   DownloadQaqcSowTemplateParams,
@@ -21718,6 +21719,84 @@ export function useListCarRegister<TData = Awaited<ReturnType<typeof listCarRegi
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListCarRegisterQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDownloadCarWordReportUrl = (params: DownloadCarWordReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/car-register/report.docx?${stringifiedParams}` : `/api/audit/car-register/report.docx`
+}
+
+export const downloadCarWordReport = async (params: DownloadCarWordReportParams, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadCarWordReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadCarWordReportQueryKey = (params?: DownloadCarWordReportParams,) => {
+    return [
+    `/api/audit/car-register/report.docx`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getDownloadCarWordReportQueryOptions = <TData = Awaited<ReturnType<typeof downloadCarWordReport>>, TError = ErrorType<void>>(params: DownloadCarWordReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadCarWordReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadCarWordReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadCarWordReport>>> = ({ signal }) => downloadCarWordReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadCarWordReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadCarWordReportQueryResult = NonNullable<Awaited<ReturnType<typeof downloadCarWordReport>>>
+export type DownloadCarWordReportQueryError = ErrorType<void>
+
+
+
+export function useDownloadCarWordReport<TData = Awaited<ReturnType<typeof downloadCarWordReport>>, TError = ErrorType<void>>(
+ params: DownloadCarWordReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadCarWordReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadCarWordReportQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

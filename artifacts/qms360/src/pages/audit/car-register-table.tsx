@@ -3,10 +3,11 @@ import { CircleCheck } from "lucide-react";
 import type { CarRegisterEntry } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CarWordDownloadButton } from "./car-word-download";
 
 export const CAR_REGISTER_COLUMNS = [
   "Audit Schedule", "Audit Title", "Audit Type", "Project / Department", "Audit Area", "Description",
-  "Audit Findings", "Evidence", "Action Taker", "Corrective Action Recorded", "Edit", "Display", "Close / Resent CAR", "Log",
+  "Audit Findings", "Evidence", "Action Taker", "Corrective Action Recorded", "Edit", "Display", "Close / Resent CAR", "Download", "Log",
 ] as const;
 
 const EDITABLE = ["Open", "Draft", "Rejected", "Returned for query", "Returned for rework"];
@@ -33,7 +34,7 @@ export function CarRegisterTable({ entries, page, limit, busy, renderEvidence, o
         <tr>{CAR_REGISTER_COLUMNS.map(c => <th key={c} scope="col" className="sticky top-0 z-10 border border-border bg-muted px-2 py-2 text-xs font-semibold">{c}</th>)}</tr>
       </thead>
       <tbody>
-        {entries.length === 0 && <tr data-testid="row-car-empty"><td colSpan={14} className="border border-border px-3 py-10 text-center text-sm text-muted-foreground">No findings match these filters.</td></tr>}
+        {entries.length === 0 && <tr data-testid="row-car-empty"><td colSpan={CAR_REGISTER_COLUMNS.length} className="border border-border px-3 py-10 text-center text-sm text-muted-foreground">No findings match these filters.</td></tr>}
         {entries.map(e => {
           const car = e.car;
           const canEdit = !!e.canRespond && !busy
@@ -57,6 +58,7 @@ export function CarRegisterTable({ entries, page, limit, busy, renderEvidence, o
             <td className={cell}><Button size="sm" variant="outline" data-testid={`button-respond-${e.id}`} disabled={!canEdit} onClick={() => onEdit(e)}>Edit</Button></td>
             <td className={cell}><Button size="sm" variant="outline" data-testid={`button-display-${e.id}`} onClick={() => onDisplay(e)}>Display</Button></td>
             <td className={cell}><Button size="sm" variant="outline" data-testid={`button-review-${e.id}`} disabled={!canReview} onClick={() => onReview(e)}>Close / Return CAR</Button></td>
+            <td className={cell}><CarWordDownloadButton entry={e} /></td>
             <td className={cell}><Button size="sm" variant="outline" data-testid={`button-log-${e.id}`} onClick={() => onLog(e)}>Log</Button></td>
           </tr>;
         })}

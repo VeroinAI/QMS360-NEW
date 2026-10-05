@@ -173,6 +173,7 @@ export * from './delegationStatus';
 export * from './documentGovernanceLogEntry';
 export * from './documentGovernancePage';
 export * from './documentGovernancePageResponse';
+export * from './downloadCarWordReportParams';
 export * from './downloadQaqcMetricsTemplateParams';
 export * from './downloadQaqcPdfTemplateParams';
 export * from './downloadQaqcSowTemplateParams';

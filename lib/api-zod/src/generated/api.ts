@@ -10084,6 +10084,15 @@ export const ListCarRegisterResponse = zod.object({
 })
 
 
+export const DownloadCarWordReportQueryParams = zod.object({
+  "auditId": zod.coerce.string(),
+  "itemId": zod.coerce.string(),
+  "carId": zod.coerce.string().optional()
+})
+
+export const DownloadCarWordReportResponse = zod.unknown()
+
+
 
 
 

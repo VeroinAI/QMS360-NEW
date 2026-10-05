@@ -10,6 +10,8 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import auditRouter from "../src/routes/audit";
 import { issueToken } from "../src/lib/auth";
 import { writeFieldControls } from "../src/lib/field-controls";
+import { strFromU8, unzipSync } from "fflate";
+import { DOMParser } from "@xmldom/xmldom";
 
 let app: Express;
 let server: Server;
@@ -29,6 +31,16 @@ async function api(method: string, path: string, token: string, body?: unknown) 
   });
   const text = await response.text();
   return { status: response.status, json: text ? JSON.parse(text) : null };
+}
+
+async function carWord(path: string, token: string) {
+  const response = await fetch(`${baseUrl}/car-register/report.docx?${path}`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const xml = response.ok ? strFromU8(unzipSync(bytes)["word/document.xml"]!) : "";
+  const text = xml ? new DOMParser().parseFromString(xml, "application/xml").documentElement!.textContent : "";
+  return { status: response.status, mime: response.headers.get("content-type"), disposition: response.headers.get("content-disposition"), text };
 }
 
 async function permission(key: string) {
@@ -248,12 +260,43 @@ describe("audit programme parent/child workflow", () => {
       expect(register.status, JSON.stringify(register.json)).toBe(200);
       expect(register.json.items).toHaveLength(1);
       expect(register.json.items[0]).toMatchObject({ itemId, clause: "1", classification: "Moderate NC", actionTakerName: "L1 Approver", status: "Open" });
-      await db.insert(auditFindings).values({
+      const [historical] = await db.insert(auditFindings).values({
         organizationId: orgId, auditId: audit!.id, description: "Excluded historical finding", classification: "nOt aPpLiCaBlE",
-      });
+      }).returning();
+      const [legacyFinding] = await db.insert(auditFindings).values({
+        organizationId: orgId, auditId: audit!.id, description: "Standalone historical finding", classification: "Minor NC",
+      }).returning();
+      expect((await carWord(`auditId=${audit!.id}&itemId=${legacyFinding!.id}`, admin.token)).text).toContain("Standalone historical finding");
+      expect((await carWord(`auditId=${audit!.id}&itemId=${historical!.id}`, admin.token)).status).toBe(404);
+      await db.delete(auditFindings).where(eq(auditFindings.id, legacyFinding!.id));
       expect((await api("GET", `/car-register?projectId=${project!.id}&includeLegacy=true`, creator.token)).json.items).toHaveLength(1);
       expect((await api("GET", `/car-register?scheduleId=${crypto.randomUUID()}`, creator.token)).json.items).toHaveLength(0);
       const [before] = await db.select({ count: sql<number>`count(*)` }).from(correctiveActionReports).where(eq(correctiveActionReports.organizationId, orgId));
+      const reportParams = `auditId=${audit!.id}&itemId=${itemId}`;
+      const blankReport = await carWord(reportParams, admin.token);
+      expect(blankReport.status).toBe(200);
+      expect(blankReport.mime).toContain("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      expect(blankReport.disposition).toContain(".docx");
+      expect(blankReport.text).toContain("Plan not followed");
+      expect(blankReport.text).toContain("L1 Approver");
+      expect(blankReport.text).toContain("To be mapped");
+      // Existing legacy export access remains usable; a module-only reader
+      // without export permission must still be denied.
+      expect((await carWord(reportParams, creator.token)).status).toBe(200);
+      const [viewer] = await db.insert(users).values({
+        organizationId: orgId, email: `car-viewer-${crypto.randomUUID()}@test.invalid`,
+        username: `car-viewer-${crypto.randomUUID()}`, fullName: "CAR report viewer",
+      }).returning();
+      await db.insert(applicationAccess).values({ organizationId: orgId, username: viewer!.username, canOpenAudit: true });
+      await assign(viewer!.id, leadRole.id);
+      const viewerToken = issueToken(viewer!);
+      expect((await api("GET", `/car-register?projectId=${project!.id}`, viewerToken)).status).toBe(200);
+      expect((await carWord(reportParams, viewerToken)).status).toBe(403);
+      await db.delete(auditUserWorkspaceRoles).where(and(
+        eq(auditUserWorkspaceRoles.organizationId, orgId), eq(auditUserWorkspaceRoles.userId, viewer!.id),
+      ));
+      expect((await carWord(`auditId=${crypto.randomUUID()}&itemId=${itemId}`, admin.token)).status).toBe(404);
+      expect((await carWord("auditId=invalid&itemId=invalid", admin.token)).status).toBe(422);
       await api("GET", "/car-register", creator.token);
       const [after] = await db.select({ count: sql<number>`count(*)` }).from(correctiveActionReports).where(eq(correctiveActionReports.organizationId, orgId));
       expect(after!.count).toBe(before!.count);
@@ -292,6 +335,10 @@ describe("audit programme parent/child workflow", () => {
       await db.update(audits).set({ checklistState: audit!.checklistState }).where(eq(audits.id, audit!.id));
       const saved = await api("PUT", `/cars/${created.json.id}`, l1.token, response);
       expect(saved.status, JSON.stringify(saved.json)).toBe(200);
+      const responseReport = await carWord(`${reportParams}&carId=${created.json.id}`, admin.token);
+      expect(responseReport.status).toBe(200);
+      for (const value of [response.rootCause, response.correction, response.correctiveAction]) expect(responseReport.text).toContain(value);
+      expect((await carWord(`auditId=${audit!.id}&itemId=${crypto.randomUUID()}&carId=${created.json.id}`, admin.token)).status).toBe(404);
       const saveLog = await api("GET", `/cars/${created.json.id}/activity`, creator.token);
       expect(saveLog.json.total).toBe(1);
       expect(saveLog.json.items[0]).toMatchObject({ action: "update", actorName: "L1 Approver", status: "Draft", comments: null });
@@ -350,6 +397,12 @@ describe("audit programme parent/child workflow", () => {
       await db.update(audits).set({ checklistState: [] as any }).where(eq(audits.id, audit!.id));
       expect((await api("GET", `/car-register?projectId=${project!.id}`, creator.token)).json.items).toHaveLength(0);
       expect((await api("GET", `/car-register?projectId=${project!.id}&includeLegacy=true`, creator.token)).json.items[0].car.id).toBe(created.json.id);
+      expect((await carWord(`auditId=${audit!.id}&itemId=${created.json.findingId}&carId=${created.json.id}`, admin.token)).status).toBe(200);
+      await db.update(audits).set({ checklistState: (audit!.checklistState as any[]).map(item =>
+        item.id === itemId ? { ...item, auditFinding: "Not applicable" } : item) }).where(eq(audits.id, audit!.id));
+      const retainedReport = await carWord(`auditId=${audit!.id}&itemId=${created.json.findingId}&carId=${created.json.id}`, admin.token);
+      expect(retainedReport.status).toBe(200);
+      expect(retainedReport.text).toContain("Plan not followed");
       expect((await api("GET", `/cars/${created.json.id}`, l1.token)).json).toMatchObject({ status: "Closed", canRespond: false, canReview: false });
       expect((await api("GET", `/cars/${created.json.id}/activity`, l1.token)).status).toBe(200);
     } finally {

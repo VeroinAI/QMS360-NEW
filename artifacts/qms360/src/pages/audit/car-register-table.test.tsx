@@ -18,10 +18,10 @@ const car = (status: CorrectiveActionReport["status"], correctiveAction?: string
 });
 
 describe("Excel-style CAR Register", () => {
-  it("keeps all 14 columns in order with the renamed recorded-action column", () => {
+  it("keeps the recorded-action column and inserts Word Download immediately before Log", () => {
     expect(CAR_REGISTER_COLUMNS).toEqual([
       "Audit Schedule", "Audit Title", "Audit Type", "Project / Department", "Audit Area", "Description",
-      "Audit Findings", "Evidence", "Action Taker", "Corrective Action Recorded", "Edit", "Display", "Close / Resent CAR", "Log",
+      "Audit Findings", "Evidence", "Action Taker", "Corrective Action Recorded", "Edit", "Display", "Close / Resent CAR", "Download", "Log",
     ]);
     const html = render([entry]);
     const headers = [...html.matchAll(/<th\b[^>]*>([^<]*)<\/th>/g)].map(match => match[1]);
@@ -32,6 +32,9 @@ describe("Excel-style CAR Register", () => {
     expect(button(html, "button-respond-finding-1")).not.toContain('disabled=""'); // new CAR can still start
     expect(button(html, "button-review-finding-1")).toContain('disabled=""');
     expect(html).not.toContain("icon-action-taken-finding-1");
+    expect(button(html, "button-download-car-finding-1")).not.toContain('disabled=""');
+    expect(html).toContain('aria-label="Download Word CAR report"');
+    expect(html.indexOf('button-download-car-finding-1')).toBeLessThan(html.indexOf('button-log-finding-1'));
   });
   it("centers a green circled tick only for recorded corrective action", () => {
     const html = render([{ ...entry, car: car("Draft", "Action recorded") }]);
@@ -57,7 +60,7 @@ describe("Excel-style CAR Register", () => {
     expect(button(render([{ ...entry, canRespond: false }]), "button-log-finding-1")).not.toContain('disabled=""');
   });
   it("retains headers and an accessible empty row", () => {
-    expect(render([])).toMatch(/colspan="14"/i);
+    expect(render([])).toMatch(/colspan="15"/i);
     expect(render([])).toContain("No findings match these filters.");
   });
 });

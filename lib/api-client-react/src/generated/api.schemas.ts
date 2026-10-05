@@ -4995,6 +4995,12 @@ page?: PageParameter;
 limit?: LimitParameter;
 };
 
+export type DownloadCarWordReportParams = {
+auditId: string;
+itemId: string;
+carId?: string;
+};
+
 export type ListCarActivityParams = {
 /**
  * @minimum 1
