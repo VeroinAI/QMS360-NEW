@@ -17,7 +17,7 @@ type FieldDef = { key: string; label: string; type?: "date" | "textarea" | "sele
 
 // Limit the editor only; retain the shared report schema and all saved values.
 const editorGroups = auditReportDetailGroups
-  .filter(group => !["document", "profile", "scope", "progress"].includes(group.key))
+  .filter(group => !["document", "profile", "scope", "progress", "photographs"].includes(group.key))
   .map(group => group.key === "conclusion" ? {
     ...group,
     fields: group.fields.filter(field => !["reportIssueDate", "distribution"].includes(field.key)),

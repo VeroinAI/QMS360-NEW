@@ -32,7 +32,10 @@ const audit = {
       distribution: "legacy distribution",
       headlineConclusion: "Retained conclusion",
     },
-    rows: { signOff: [{ name: "legacy signatory" }] },
+    rows: {
+      signOff: [{ name: "legacy signatory" }],
+      photographs: [{ fileName: "saved-evidence.jpg", description: "Saved photograph caption" }],
+    },
   },
 } as unknown as Audit;
 
@@ -42,14 +45,15 @@ describe("Audit Report Details editor", () => {
     for (const label of [
       "Document control", "Project profile", "Objective, scope, criteria and method",
       "Overall project progress (when applicable)", "Report issue date",
-      "Distribution (names / departments)", "Report sign-off",
+      "Distribution (names / departments)", "Report sign-off", "Photograph captions",
+      "Photographs (match the uploaded evidence file name)",
     ]) expect(html).not.toContain(label);
-    for (const value of ["legacy revision", "legacy client", "legacy objective", "legacy progress", "legacy distribution", "legacy signatory"]) {
+    for (const value of ["legacy revision", "legacy client", "legacy objective", "legacy progress", "legacy distribution", "legacy signatory", "saved-evidence.jpg", "Saved photograph caption"]) {
       expect(html).not.toContain(value);
     }
     for (const label of [
       "Executive summary and recurring themes", "Recommended priority actions",
-      "Photograph captions", "Conclusion, distribution and sign-off",
+      "Conclusion, distribution and sign-off",
       "Headline conclusion", "Were the objectives achieved?",
       "System effectiveness and priority findings", "Follow-up audit date", "Follow-up audit scope",
     ]) expect(html).toContain(label);
@@ -68,6 +72,7 @@ describe("Audit Report Details editor", () => {
     expect(conclusion.fields.map(field => field.key)).toContain("reportIssueDate");
     expect(conclusion.fields.map(field => field.key)).toContain("distribution");
     expect(conclusion.collections?.map(collection => collection.key)).toContain("signOff");
+    expect(auditReportDetailGroups.find(group => group.key === "photographs")?.collections?.map(collection => collection.key)).toContain("photographs");
   });
 
   it("preserves read-only access for remaining fields and save", () => {

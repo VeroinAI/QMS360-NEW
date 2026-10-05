@@ -21,7 +21,7 @@ Photo capture dates are not upload dates. Preserve their distinction; missing ca
 
 **How to apply:** Label the upload date separately and never silently substitute it as the capture date.
 
-Report Details no longer exposes Document Control, Project Profile, Objective/scope/criteria/method, or Overall project progress. The conclusion tile also omits Report issue date, Distribution, and Report sign-off.
+Report Details no longer exposes Document Control, Project Profile, Objective/scope/criteria/method, Overall project progress, or Photograph captions. The conclusion tile also omits Report issue date, Distribution, and Report sign-off.
 
 **Why:** The user explicitly removed these inputs from the workspace page and required other functionality to remain unaffected.
 
