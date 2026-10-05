@@ -1,3 +1,4 @@
+export { plannedDate, datedActivities, auditPlanDateErrors, planActivityFieldValues, auditPlanReplayMatches, type DatedActivity } from "./audit-plan-dates";
 export * from "./audit-permissions";
 export * from "./audit-plan-dates";
 // Shared registry of admin-controllable forms and fields per application.
@@ -162,6 +163,12 @@ export const fieldControlRegistry: Record<FieldControlAppKey, FormDefinition[]> 
       key: "plan",
       label: "Audit Plan",
       fields: [
+        { key: "activitySection", label: "Activities / Section" },
+        { key: "activityRemarks", label: "Activity Remarks" },
+        { key: "activityAuditeeId", label: "Activity Auditee" },
+        { key: "activityPlannedStartDateTime", label: "Activity Planned Start" },
+        { key: "activityPlannedEndDateTime", label: "Activity Planned End" },
+        { key: "activityDateTime", label: "Legacy activity date/time lock (both dates)" },
         { key: "scheduleId", label: "Schedule" },
         { key: "scope", label: "Scope" },
         { key: "objectives", label: "Objectives" },

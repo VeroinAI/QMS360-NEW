@@ -55,7 +55,7 @@ import { renderAuditPlanPdf } from "../lib/audit-plan-pdf";
 import { auditIsComplete, buildConsolidatedAuditReport } from "../lib/audit-consolidated-report";
 import { renderConsolidatedAuditPdf } from "../lib/audit-consolidated-pdf";
 import { auditReportDetailsErrors, type AuditReportDetailsData } from "@workspace/field-controls";
-import { auditModulePermissionCatalog } from "@workspace/field-controls";
+import { auditModulePermissionCatalog, datedActivities, auditPlanDateErrors, plannedDate, auditPlanReplayMatches, type DatedActivity } from "@workspace/field-controls";
 import { activeAuditCapabilities } from "../lib/audit-capabilities";
 
 const router = Router();
@@ -1608,6 +1608,7 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
     )).for("update");
     if (!current || current.status !== before.status || current.workflowState !== before.workflowState)
       throw new HttpError(409, "Schedule changed while it was being edited");
+    await assertLinkedPlanDates(tx, req, current, data);
     const originalMeta = scheduleMeta(current);
     let numberMeta = {
       auditNumber: originalMeta.auditNumber ?? "",
@@ -1813,7 +1814,7 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
 }));
 
 const PLAN_LANGUAGE = "Verbal: English\nWriting: English";
-type PlanActivity = { id: string; section: string; remarks: string; auditeeId: string };
+type PlanActivity = DatedActivity & { id: string; section: string; remarks: string; auditeeId: string };
 type PlanMeta = {
   objectives?: string | null; leadAuditorId?: string; processOwnerIds?: string[]; feasibilityNotes?: string | null;
   auditFeasible?: boolean; auditTitle?: string; auditeeId?: string; auditeeRoleIds?: string[]; qaqcScope?: string; auditTypes?: string[];
@@ -1824,9 +1825,27 @@ type PlanMeta = {
   circulationRoleIds?: string[];
 };
 const planMeta = (row: AnyRow): PlanMeta => parseJson(row.status, {});
+function assertPlanDates(data: AnyRow, schedule: AnyRow, activities: DatedActivity[] = data.activities ?? []) {
+  const errors = auditPlanDateErrors(data, scheduleMeta(schedule), activities);
+  if (Object.keys(errors).length) throw new HttpError(422, Object.values(errors).join("; "));
+}
+async function assertLinkedPlanDates(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], req: Request, schedule: AnyRow, data: AnyRow) {
+  const old = scheduleMeta(schedule);
+  const bounds = { plannedStartDate: dateOnly(data.plannedStartDate), plannedEndDate: dateOnly(data.plannedEndDate) };
+  if (old.plannedStartDate === bounds.plannedStartDate && old.plannedEndDate === bounds.plannedEndDate) return;
+  const plans = await tx.select().from(auditPlans).where(and(
+    active(auditPlans, actor(req).organizationId), eq(auditPlans.auditScheduleId, schedule.id),
+  ));
+  for (const plan of plans) {
+    const dto = planDto(plan);
+    const errors = auditPlanDateErrors(dto, bounds, dto.activities);
+    if (Object.keys(errors).length) throw new HttpError(409,
+      `Audit date range cannot change because linked Audit Plan "${dto.auditTitle}" would be invalid: ${Object.values(errors).join("; ")}`);
+  }
+}
 const planDto = (row: AnyRow) => {
   const meta = planMeta(row);
-  const fallbackDateTime = row.auditDate ? `${row.auditDate}T00:00:00.000Z` : new Date(0).toISOString();
+   const fallbackDateTime = "";
   const auditTypes = meta.auditTypes ?? parseJson(row.criteria, row.criteria ? [row.criteria] : []);
   return {
     id: row.id, scheduleId: row.auditScheduleId!, auditFeasible: meta.auditFeasible ?? true,
@@ -1840,12 +1859,12 @@ const planDto = (row: AnyRow) => {
     openingMeetingDateTime: meta.openingMeetingDateTime ?? fallbackDateTime, closingMeetingDateTime: meta.closingMeetingDateTime ?? fallbackDateTime,
     activitySection: meta.activitySection ?? row.location ?? "General Requirement",
     activityRemarks: meta.activityRemarks ?? meta.feasibilityNotes ?? "", activityAuditeeId: meta.activityAuditeeId ?? meta.auditeeId ?? meta.processOwnerIds?.[0] ?? "",
-    activities: meta.activities?.length ? meta.activities : [{
+    activities: datedActivities(meta.activities?.length ? meta.activities : [{
       id: `legacy-${row.id}`, section: meta.activitySection ?? row.location ?? "General Requirement",
       remarks: meta.activityRemarks ?? meta.feasibilityNotes ?? "",
       auditeeId: meta.activityAuditeeId ?? meta.auditeeId ?? meta.processOwnerIds?.[0] ?? "",
-    }],
-    activityDateTime: meta.activityDateTime ?? fallbackDateTime, auditPlanCirculation: meta.auditPlanCirculation ?? "",
+    }], meta.activityDateTime),
+    activityDateTime: meta.activityDateTime ?? "", auditPlanCirculation: meta.auditPlanCirculation ?? "",
     scope: row.scope ?? "", objectives: meta.objectives ?? null,
     criteria: auditTypes, auditDate: row.auditDate ? new Date(row.auditDate) : new Date(0),
     location: row.location ?? "",
@@ -1856,7 +1875,7 @@ const planDto = (row: AnyRow) => {
 const planValues = (data: AnyRow) => ({
   id: data.id, auditScheduleId: data.scheduleId, scope: data.qaqcScope ?? data.scope,
   criteria: JSON.stringify(data.auditTypes ?? data.criteria ?? []),
-  auditDate: dateOnly(data.startDateTime ?? data.auditDate)!, location: data.location,
+   auditDate: plannedDate(data.startDateTime ?? data.auditDate)!, location: data.location,
   teamMemberIds: data.teamMemberIds,
   workflowState: String(data.status).toLowerCase(),
   status: JSON.stringify({
@@ -1868,7 +1887,7 @@ const planValues = (data: AnyRow) => ({
     closingMeetingDateTime: data.closingMeetingDateTime, activitySection: data.activitySection,
     activityRemarks: data.activityRemarks, activityAuditeeId: data.activityAuditeeId,
     activities: data.activities,
-    activityDateTime: data.activityDateTime, auditPlanCirculation: data.auditPlanCirculation,
+    activityDateTime: data.activities?.[0]?.plannedStartDateTime, auditPlanCirculation: data.auditPlanCirculation,
     circulationRoleIds: data.circulationRoleIds,
   }),
 });
@@ -1894,7 +1913,7 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   const required = [
     "auditTitle", "leadAuditorId", "qaqcScope", "auditLanguage", "qaqcReference",
     "startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime",
-    "activityDateTime", "auditPlanCirculation",
+    "auditPlanCirculation",
   ];
   const auditeeRoleIds = [...new Set((data.auditeeRoleIds ?? []).filter(Boolean))] as string[];
   if (typeof data.auditFeasible !== "boolean" || required.some((key) => !String(data[key] ?? "").trim()) || !data.teamMemberIds?.length || !data.auditTypes?.length || !auditeeRoleIds.length) {
@@ -1909,12 +1928,7 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   }
   await Promise.all(activities.map(activity =>
     assertLovValue(db, actor(req).organizationId, "activities", activity.section)));
-  const times = ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime", "activityDateTime"]
-    .map((key) => [key, new Date(data[key])] as const);
-  if (times.some(([, value]) => Number.isNaN(value.getTime()))) throw new HttpError(422, "Enter valid date and time values");
-  const byKey = Object.fromEntries(times.map(([key, value]) => [key, value.getTime()]));
-  if (byKey.endDateTime < byKey.startDateTime) throw new HttpError(422, "End Date & Time must be on or after Start Date & Time");
-  if (byKey.closingMeetingDateTime < byKey.openingMeetingDateTime) throw new HttpError(422, "Closing Meeting must be on or after Opening Meeting");
+  assertPlanDates(data, schedule, activities);
   const options = await auditPlanUsers(actor(req).organizationId);
   const usersById = new Map(options.map((option) => [option.id, option]));
   const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, ...activities.map(activity => activity.auditeeId)])];
@@ -1960,7 +1974,7 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
     auditeeId: activities[0].auditeeId,
     auditeeRoleIds,
     circulationRoleIds,
-    activities,
+    activities: activities.map(({ legacyDateTimeDerived: _derived, ...activity }) => activity),
     activitySection: activities[0].section,
     activityRemarks: activities[0].remarks,
     activityAuditeeId: activities[0].auditeeId,
@@ -2001,7 +2015,7 @@ router.post("/schedules/:id/feasibility", asyncHandler(async (req, res) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${actor(req).organizationId}), hashtext(${scheduleId}))`);
     const [schedule] = await tx.select().from(auditSchedules).where(and(
       active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, scheduleId),
-    ));
+    )).for("update");
     await assertChildSchedule(schedule);
     if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
     const [schedulePlan] = await tx.select({ id: auditPlans.id }).from(auditPlans).where(and(
@@ -2044,6 +2058,16 @@ router.post("/plans", asyncHandler(async (req, res) => {
     active(auditPlans, actor(req).organizationId), eq(auditPlans.id, data.id),
   ));
   if (existing) {
+    const [schedule] = await db.select().from(auditSchedules).where(and(
+      active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, existing.auditScheduleId!),
+    ));
+    await assertChildSchedule(schedule);
+    if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
+    assertPlanDates(data, schedule);
+    assertPlanDates(planDto(existing), schedule);
+    if (!auditPlanReplayMatches(data, planDto(existing))) {
+      throw new HttpError(409, "Audit Plan already saved with different planned data. Your correction was not saved. Review the saved plan and apply the correction to its draft.");
+    }
     res.status(200).json(planDto(existing));
     return;
   }
@@ -2054,8 +2078,9 @@ router.post("/plans", asyncHandler(async (req, res) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${actor(req).organizationId}), hashtext(${schedule.id}))`);
     const [lockedSchedule] = await tx.select().from(auditSchedules).where(and(
       active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, schedule.id),
-    ));
+    )).for("update");
     await assertChildSchedule(lockedSchedule);
+    if (!await scheduleInScope(req, lockedSchedule)) throw new HttpError(403, "You do not have access to this schedule");
     const parentId = scheduleMeta(lockedSchedule).parentId;
     if (!parentId) {
       throw new HttpError(422, "Select an audit belonging to a New Schedule to create an Audit Plan");
@@ -2080,7 +2105,7 @@ router.post("/plans", asyncHandler(async (req, res) => {
     if (schedulePlan) throw new HttpError(409, "An Audit Plan already exists for this Audit Schedule");
     data = await normalizeAuditPlan(req, data, lockedSchedule);
     const [created] = await tx.insert(auditPlans).values({
-      organizationId: actor(req).organizationId, projectId: schedule.projectId, ...planValues(data),
+      organizationId: actor(req).organizationId, projectId: lockedSchedule.projectId, ...planValues(data),
     }).returning();
     return created;
   });
@@ -2131,7 +2156,6 @@ router.put("/plans/:id", asyncHandler(async (req, res) => {
   const [schedule] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, data.scheduleId)));
   await assertChildSchedule(schedule);
   if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
-  data = await normalizeAuditPlan(req, data, schedule);
   const linkedAudits = await db.select({ projectId: audits.projectId }).from(audits).where(and(
     active(audits, actor(req).organizationId), eq(audits.auditPlanId, before.id),
   ));
@@ -2140,7 +2164,23 @@ router.put("/plans/:id", asyncHandler(async (req, res) => {
   }
   await assertFieldAccess(req, "audit", "plan", { mode: "update", current: planDto(before) });
   await assertFieldControls(req, "audit", "plan", { mode: "update", current: planDto(before) });
-  const [row] = await db.update(auditPlans).set({ ...planValues(data), id: undefined, projectId: schedule.projectId, updatedAt: new Date() }).where(eq(auditPlans.id, before.id)).returning();
+  const row = await db.transaction(async tx => {
+    const [lockedSchedule] = await tx.select().from(auditSchedules).where(and(
+      active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, schedule.id),
+    )).for("update");
+    await assertChildSchedule(lockedSchedule);
+    if (!await scheduleInScope(req, lockedSchedule)) throw new HttpError(403, "You do not have access to this schedule");
+    const [occupied] = await tx.select({ id: auditPlans.id }).from(auditPlans).where(and(
+      active(auditPlans, actor(req).organizationId), eq(auditPlans.auditScheduleId, schedule.id),
+      sql`${auditPlans.id} <> ${before.id}`,
+    ));
+    if (occupied) throw new HttpError(409, "An Audit Plan already exists for this Audit Schedule");
+    data = await normalizeAuditPlan(req, data, lockedSchedule);
+    const [updated] = await tx.update(auditPlans).set({ ...planValues(data), id: undefined, projectId: lockedSchedule.projectId, updatedAt: new Date() })
+      .where(and(eq(auditPlans.id, before.id), eq(auditPlans.workflowState, "draft"), eq(auditPlans.status, before.status))).returning();
+    if (!updated) throw new HttpError(409, "Audit Plan changed while it was being edited");
+    return updated;
+  });
   await auditLog(req, "update", "audit_plan", row.id, before, row); res.json(planDto(row));
 }));
 router.delete("/plans/:id", asyncHandler(async (req, res) => {
@@ -2152,7 +2192,17 @@ router.post("/plans/:id/share", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit plan not found");
   if (before.workflowState !== "draft") throw new HttpError(409, "Only draft plans can be shared");
-  const [row] = await db.update(auditPlans).set({ workflowState: "shared", updatedAt: new Date() }).where(eq(auditPlans.id, before.id)).returning();
+  const row = await db.transaction(async tx => {
+    const [schedule] = await tx.select().from(auditSchedules).where(and(
+      active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, before.auditScheduleId!),
+    )).for("update");
+    await assertChildSchedule(schedule);
+    assertPlanDates(planDto(before), schedule);
+    const [updated] = await tx.update(auditPlans).set({ workflowState: "shared", updatedAt: new Date() })
+      .where(and(eq(auditPlans.id, before.id), eq(auditPlans.workflowState, "draft"), eq(auditPlans.status, before.status))).returning();
+    if (!updated) throw new HttpError(409, "Audit Plan changed while it was being shared");
+    return updated;
+  });
   await Promise.all((planMeta(row).processOwnerIds ?? []).map((id) => notify(db, "audit", {
     organizationId: actor(req).organizationId, userId: id, type: "plan_shared", title: "Audit plan shared",
     body: row.scope ?? "An audit plan has been shared with you.", entityType: "audit_plan", entityId: row.id,
@@ -2222,9 +2272,12 @@ router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
   let created = false;
   const result = await db.transaction(async tx => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${organizationId}), hashtext(${planId}))`);
+    const [schedule] = await tx.select().from(auditSchedules).where(and(
+      active(auditSchedules, organizationId), eq(auditSchedules.id, plan.auditScheduleId!),
+    )).for("update");
     const [lockedPlan] = await tx.select().from(auditPlans).where(and(
       active(auditPlans, organizationId), eq(auditPlans.id, planId),
-    ));
+    )).for("update");
     if (!lockedPlan) throw new HttpError(404, "Audit plan not found");
 
     const [existing] = await tx.select().from(audits).where(and(
@@ -2244,6 +2297,9 @@ router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
       return existing;
     }
     if (!informedRoleIds.length) throw new HttpError(400, "Select at least one role to inform");
+    await assertChildSchedule(schedule);
+    if (lockedPlan.auditScheduleId !== schedule.id) throw new HttpError(409, "Audit Plan changed while it was being sent. Retry.");
+    assertPlanDates(planDto(lockedPlan), schedule);
 
     if (!["draft", "ready", "shared"].includes(workflowState)) {
       throw new HttpError(409, "Only draft or shared plans can be sent for audit");
@@ -3365,10 +3421,7 @@ router.get("/evidence", asyncHandler(async (req, res) => {
 }));
 
 async function scopedAuditRows(req: Request, projectId?: string, module = "audits") {
-  const moduleScope = await getAuthorizedProjectScope(req, "audit", { module, action: "select" });
-  const boundary = req.permissionProjectScope;
-  const scope = !boundary || boundary.unrestricted ? moduleScope : moduleScope.unrestricted ? boundary
-    : { unrestricted: false, projectIds: moduleScope.projectIds.filter(id => boundary.projectIds.includes(id)) };
+  const scope = await getAuthorizedProjectScope(req, "audit", { module, action: "select" });
   if (projectId && !scope.unrestricted && !scope.projectIds.includes(projectId)) {
     throw new HttpError(403, "You do not have access to this project");
   }
@@ -3442,7 +3495,7 @@ router.get("/reports/car-status", asyncHandler(async (req, res) => {
 }));
 router.get("/reports/schedule", asyncHandler(async (req, res) => {
   const all = await db.select().from(auditSchedules).where(active(auditSchedules, actor(req).organizationId)).orderBy(desc(auditSchedules.year));
-  const scope = await getAuthorizedProjectScope(req, "audit");
+  const scope = await getAuthorizedProjectScope(req, "audit", { module: "schedules", action: "select" });
   const scoped = all.filter((row) => {
     const ids = scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
     return scope.unrestricted || (ids.length > 0 && ids.every((id) => scope.projectIds.includes(id)));
@@ -3474,10 +3527,7 @@ async function consolidatedReport(req: Request) {
     ...planDto(plan),
     startDateTime: meta?.startDateTime || plan.auditDate || null,
     endDateTime: meta?.endDateTime || plan.auditDate || null,
-    activityDateTime: meta?.activityDateTime || plan.auditDate || null,
-    activities: meta?.activities?.length ? meta.activities : meta?.activitySection ? [{
-      section: meta.activitySection, remarks: meta.activityRemarks, auditeeId: meta.activityAuditeeId,
-    }] : [],
+    activities: planDto(plan).activities,
     criteria: scheduleMeta(schedule ?? {}).qaqcClauses ? [scheduleMeta(schedule ?? {}).qaqcClauses]
       : !meta?.auditTypes ? parseJson(plan.criteria, plan.criteria ? [plan.criteria] : []) : [],
   } : null;

@@ -2,6 +2,7 @@ import type { Request } from "express";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, moduleFieldSettings } from "@workspace/db";
 import { HttpError, type AppKey } from "./workspace";
+import { planActivityFieldValues } from "@workspace/field-controls";
 
 // Catalog of user-controllable form fields per module. This is the single
 // source of truth: the admin settings UI renders it (via GET
@@ -98,6 +99,8 @@ export const FIELD_CATALOG: Record<AppKey, CatalogForm[]> = {
         f("activityRemarks", "Activities / section remarks", ""),
         f("activityAuditeeId", "Auditee for the activity", ""),
         f("activityDateTime", "Date / time of activity", ""),
+        f("activityPlannedStartDateTime", "Activity Planned Start", []),
+        f("activityPlannedEndDateTime", "Activity Planned End", []),
         f("auditPlanCirculation", "Audit plan circulation", ""),
         f("circulationRoleIds", "Audit plan circulation roles", []),
         f("scope", "Scope", ""),
@@ -376,7 +379,9 @@ export async function assertFieldAccess(
   if (!user || isAdminUser(user)) return;
   const readOnly = await readOnlyFieldKeys(user.organizationId, module, formKey);
   if (!readOnly.size) return;
-  const body = opts.body ?? ((req.body ?? {}) as Record<string, unknown>);
+  const rawBody = opts.body ?? ((req.body ?? {}) as Record<string, unknown>);
+  const body = module === "audit" && formKey === "plan" ? planActivityFieldValues(rawBody) : rawBody;
+  const current = module === "audit" && formKey === "plan" && opts.current ? planActivityFieldValues(opts.current) : opts.current;
   const form = FIELD_CATALOG[module].find((entry) => entry.formKey === formKey);
   const blocked: string[] = [];
   for (const fieldKey of readOnly) {
@@ -384,7 +389,7 @@ export async function assertFieldAccess(
     const catalogField = form?.fields.find((entry) => entry.fieldKey === fieldKey);
     if (catalogField?.serverManaged) continue;
     if (opts.mode === "update") {
-      if (opts.current && valuesEqual(body[fieldKey], opts.current[fieldKey])) continue;
+      if (current && valuesEqual(body[fieldKey], current[fieldKey])) continue;
       blocked.push(fieldKey);
     } else {
       const fallback = catalogField ? resolveDefault(catalogField.createDefault) : undefined;

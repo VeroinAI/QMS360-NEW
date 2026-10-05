@@ -28,17 +28,22 @@ export interface AuditPlan {
   qaqcReference: string;
   /** @nullable */
   description?: string | null;
-  startDateTime: Date;
-  endDateTime: Date;
-  openingMeetingDateTime: Date;
-  closingMeetingDateTime: Date;
+  /** Saved planned date/time, retaining its calendar day and wall-clock time. */
+  startDateTime: string;
+  /** Saved planned date/time, retaining its calendar day and wall-clock time. */
+  endDateTime: string;
+  /** Saved opening meeting date/time. */
+  openingMeetingDateTime: string;
+  /** Saved closing meeting date/time. */
+  closingMeetingDateTime: string;
   /** Legacy first-row compatibility field; values come from Activities master data */
   activitySection: string;
   activityRemarks: string;
   activityAuditeeId: string;
   /** @minItems 1 */
   activities?: AuditPlanActivity[];
-  activityDateTime: Date;
+  /** Deprecated first-row mirror; saved shared timestamps support legacy rows only. */
+  activityDateTime?: string;
   auditPlanCirculation: string;
   status: AuditPlanStatus;
   /** Legacy compatibility field */

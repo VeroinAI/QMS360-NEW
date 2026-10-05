@@ -6,7 +6,16 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Activity-specific planned wall-clock dates. Undated historical rows may derive both dates from an actually saved shared timestamp.
+ */
 export interface AuditPlanActivity {
+  /** Planned Start date and time; required for all new saves. */
+  plannedStartDateTime?: string;
+  /** Planned End date and time; required for all new saves. */
+  plannedEndDateTime?: string;
+  /** Read compatibility marker for a saved shared legacy timestamp. */
+  legacyDateTimeDerived?: boolean;
   id: string;
   section: string;
   remarks: string;

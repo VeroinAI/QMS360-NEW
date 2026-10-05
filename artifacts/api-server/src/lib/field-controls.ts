@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, organizationSettings } from "@workspace/db";
-import { unknownFieldControlKeys } from "@workspace/field-controls";
+import { unknownFieldControlKeys, planActivityFieldValues } from "@workspace/field-controls";
 import { FIELD_CATALOG, isAdminUser, resolveDefault, valuesEqual } from "./field-access";
 import { HttpError, type AppKey } from "./workspace";
 
@@ -149,7 +149,9 @@ export async function assertFieldControls(
   if (!user || isAdminUser(user)) return;
   const form = (await readFieldControls(user.organizationId, appKey))[formKey];
   if (!form) return;
-  const body = opts.body ?? ((req.body ?? {}) as Record<string, unknown>);
+  const rawBody = opts.body ?? ((req.body ?? {}) as Record<string, unknown>);
+  const body = appKey === "audit" && formKey === "plan" ? planActivityFieldValues(rawBody) : rawBody;
+  const current = appKey === "audit" && formKey === "plan" && opts.current ? planActivityFieldValues(opts.current) : opts.current;
   const readOnlyWrites: string[] = [];
   const missingMandatory: string[] = [];
   for (const [fieldKey, setting] of Object.entries(form)) {
@@ -163,7 +165,7 @@ export async function assertFieldControls(
     if (setting?.access === "read_only" && presentIn(body)) {
       if (opts.mode === "update") {
         const changed = spec.bodyKeys.some((key) =>
-          key in body && body[key] !== undefined && !valuesEqual(body[key], opts.current?.[key]));
+           key in body && body[key] !== undefined && !valuesEqual(body[key], current?.[key]));
         if (changed) readOnlyWrites.push(fieldKey);
       } else {
         const fallback = createDefaultValue(spec);
@@ -177,7 +179,7 @@ export async function assertFieldControls(
 
     if (setting?.requirement === "mandatory") {
       if (spec.mandatoryWhen && !spec.mandatoryWhen(body)) continue;
-      const value = valueFrom(presentIn(body) ? body : opts.current);
+       const value = valueFrom(presentIn(body) ? body : current);
       const empty = spec.isEmpty ? spec.isEmpty(value) : isBlankValue(value);
       if (empty) missingMandatory.push(fieldKey);
     }

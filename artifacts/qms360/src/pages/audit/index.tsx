@@ -1,7 +1,8 @@
 import { confirmedWorkflowMutation, workflowConfirmationMessage } from "@/lib/workflow-confirmation";
+import { newPlanActivity, selectPlanActivity } from "@/lib/audit-plan-activities";
 import { auditTeamLeadLabel } from "./team-lead-label";
 import { ScheduleActivityButton } from "./schedule-activity";
-import { auditPlanDateFields, getAuditPlanDateRange, validateAuditPlanDates, type AuditPlanDateKey } from "@workspace/field-controls";
+import { getAuditPlanDateRange } from "@workspace/field-controls";
 import { useEffect, useRef, useState } from "react";
 import { Link, Route, Switch, useLocation, useParams } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -80,6 +81,7 @@ import type {
 } from "@workspace/api-client-react";
 import { eligiblePlanAudits, loadPlanOptionPages } from "./plan-schedule-options";
 import { parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
+import { auditPlanDateErrors, datedActivities, plannedDate } from "@workspace/field-controls";
 import {
   AlertTriangle, ArrowLeft, BarChart3, CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck,
   Download, Eye, FileText, FolderOpen, Pencil, Plus, Search, Send, ShieldCheck,
@@ -121,9 +123,11 @@ import { useFieldControls } from "@/lib/field-controls";
 import {
   cacheAuditPlanContext,
   queueAuditPlan,
+  listQueuedAuditPlans,
   readAuditPlanContext,
   syncQueuedAuditPlans,
   type AuditPlanOfflineContext,
+  type QueuedAuditPlan,
 } from "@/lib/pwa";
 
 const PAGE_SIZE = 10;
@@ -1356,7 +1360,7 @@ function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClo
     <DialogFooter><Button onClick={onClose}>Close</Button></DialogFooter></>;
 }
 
-function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme, readOnly = false }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; presetSchedule?: AuditSchedule; presetProgramme?: AuditProgramme; readOnly?: boolean }) {
+function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme, readOnly = false, queued = false, queuedOperation = "create" }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; presetSchedule?: AuditSchedule; presetProgramme?: AuditProgramme; readOnly?: boolean; queued?: boolean; queuedOperation?: "create" | "update" }) {
   const linkedSchedule = useGetAuditSchedule(initial?.scheduleId ?? "", {
     query: { enabled: !!initial?.scheduleId && navigator.onLine, queryKey: getGetAuditScheduleQueryKey(initial?.scheduleId ?? "") },
   });
@@ -1371,13 +1375,17 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     queryFn: () => loadPlanOptionPages(page => listAuditSchedules({ page, limit: 100, parentId: programmeId })),
     enabled: !initial && !readOnly && !!programmeId && navigator.onLine,
   });
-  const [form, setForm] = useState<AuditPlan>(initial ?? {
+  const [form, setForm] = useState<AuditPlan>(initial ? {
+    ...initial, activities: datedActivities(initial.activities ?? [{
+      id: `legacy-${initial.id}`, section: initial.activitySection, remarks: initial.activityRemarks, auditeeId: initial.activityAuditeeId,
+    }], initial.activityDateTime),
+  } : {
     id: crypto.randomUUID(), scheduleId: presetSchedule?.id ?? "", auditFeasible: true, auditTitle: presetSchedule?.title ?? "", leadAuditorId: "",
     teamMemberIds: [], auditeeId: "", auditeeRoleIds: [], qaqcScope: "", auditTypes: [],
     auditLanguage: "Verbal: English\nWriting: English", qaqcReference: presetSchedule?.qaqcReference ?? "", description: "",
     startDateTime: "", endDateTime: "", openingMeetingDateTime: "", closingMeetingDateTime: "",
     activitySection: "General Requirement", activityRemarks: "", activityAuditeeId: "",
-    activities: [{ id: crypto.randomUUID(), section: "", remarks: "", auditeeId: "" }],
+    activities: [newPlanActivity()],
     activityDateTime: "", auditPlanCirculation: "", status: "Draft",
     ...(presetSchedule ? { qaqcScope: presetSchedule.qaqcScope ?? "", auditTypes: presetSchedule.auditTypes ?? [] } : {}),
   });
@@ -1389,7 +1397,10 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   const [feasibilityToDate, setFeasibilityToDate] = useState("");
   const [feasibilityDateError, setFeasibilityDateError] = useState("");
   const [offlineContext, setOfflineContext] = useState<AuditPlanOfflineContext | null>(null);
-  const fc = useFieldControls("audit", "plan"); const ro = (key: string) => fc.fieldProps(key).disabled;
+  const fc = useFieldControls("audit", "plan");
+  const fa = useFieldAccess("audit");
+  const ro = (key: string) => fc.fieldProps(key).disabled || fa.readOnly("plan", key)
+    || (key.startsWith("activityPlanned") && (fc.fieldProps("activityDateTime").disabled || fa.readOnly("plan", "activityDateTime")));
   const create = useCreateAuditPlan(); const update = useUpdateAuditPlan(); const recordFeasibility = useRecordAuditScheduleFeasibility(); const qc = useQueryClient(); const { toast } = useToast();
   const options = useGetAuditPlanOptions();
   const auditeeRoles = useListAuditPlanNotificationRoles();
@@ -1443,7 +1454,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       auditTypes: schedule.auditTypes ?? [], qaqcReference: schedule.qaqcReference ?? "",
       leadAuditorId: schedule.teamLeadIds == null || schedule.teamLeadIds.includes(current.leadAuditorId) ? current.leadAuditorId : "",
     }));
-    clearError("scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId", ...auditPlanDateFields.map(field => field.key));
+    clearError("scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId");
   };
   const selectProgramme = (id: string) => {
     if (presetSchedule) return;
@@ -1452,7 +1463,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       ...current, scheduleId: "", auditTitle: "", qaqcScope: "", auditTypes: [],
       qaqcReference: "", leadAuditorId: "",
     }));
-    clearError("programmeId", "scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId", ...auditPlanDateFields.map(field => field.key));
+    clearError("programmeId", "scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId");
   };
   const selectedTeamNames = form.teamMemberIds.map(id => users.find(user => user.id === id)?.fullName).filter(Boolean);
   const selectedAuditeeRoleIds = form.auditeeRoleIds ?? [];
@@ -1470,18 +1481,24 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   const activityRows: AuditPlanActivity[] = form.activities !== undefined ? form.activities : [{
     id: `legacy-${form.id}`, section: form.activitySection, remarks: form.activityRemarks, auditeeId: form.activityAuditeeId,
   }];
+  const dateBounds = {
+    min: plannedDate(selectedSchedule?.plannedStartDate) ? `${selectedSchedule!.plannedStartDate.slice(0, 10)}T00:00` : undefined,
+    max: plannedDate(selectedSchedule?.plannedEndDate) ? `${selectedSchedule!.plannedEndDate.slice(0, 10)}T23:59:59` : undefined,
+  };
+  const activityStructureLocked = ["activitySection", "activityRemarks", "activityAuditeeId", "activityPlannedStartDateTime", "activityPlannedEndDateTime"].some(ro);
   const setActivity = (id: string, key: keyof Omit<AuditPlanActivity, "id">, value: string) => {
-    set("activities", activityRows.map(row => row.id === id ? { ...row, [key]: value } : row));
+    set("activities", activityRows.map(row => row.id === id ? { ...row, [key]: value,
+      ...(key === "plannedStartDateTime" || key === "plannedEndDateTime" ? { legacyDateTimeDerived: false } : {}) } : row));
     clearError(`activity-${id}-${key}`, "activities");
   };
   const selectActivity = (id: string, section: string) => {
     const selected = activityMaster.options.find(activity => activity.value === section);
     const remarks = typeof selected?.metadata?.activityDefaultRemarks === "string"
       ? selected.metadata.activityDefaultRemarks : "";
-    set("activities", activityRows.map(row => row.id === id ? { ...row, section, remarks } : row));
+    set("activities", selectPlanActivity(activityRows, id, section, remarks, ro("activityRemarks")));
     clearError(`activity-${id}-section`, `activity-${id}-remarks`, "activities");
   };
-  const addActivity = () => set("activities", [...activityRows, { id: crypto.randomUUID(), section: "", remarks: "", auditeeId: "" }]);
+  const addActivity = () => set("activities", [...activityRows, newPlanActivity()]);
   const deleteActivity = (id: string) => set("activities", activityRows.filter(row => row.id !== id));
   const save = () => {
     const required: Array<[keyof AuditPlan | "circulation", unknown]> = [
@@ -1490,10 +1507,10 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       ["auditTypes", form.auditTypes], ["auditLanguage", form.auditLanguage], ["qaqcReference", form.qaqcReference],
       ["startDateTime", form.startDateTime], ["endDateTime", form.endDateTime],
       ["openingMeetingDateTime", form.openingMeetingDateTime], ["closingMeetingDateTime", form.closingMeetingDateTime],
-      ["activityDateTime", form.activityDateTime], ["circulationRoleIds", selectedCirculationRoleIds], ["circulation", circulation],
+      ["circulationRoleIds", selectedCirculationRoleIds], ["circulation", circulation],
     ];
     const nextErrors = Object.fromEntries(required.filter(([, value]) => Array.isArray(value) ? !value.length : !String(value ?? "").trim()).map(([key]) => [key, "This field is required."]));
-    Object.assign(nextErrors, validateAuditPlanDates(form, selectedSchedule?.plannedStartDate, selectedSchedule?.plannedEndDate));
+    Object.assign(nextErrors, auditPlanDateErrors(form as unknown as Record<string, unknown>, selectedSchedule ?? {}, activityRows));
     if (auditeeRoles.isFetching || auditeeRoles.isError || selectedCirculationRoleIds.some(id => !circulationRoles.some(role => role.id === id))) {
       nextErrors.circulationRoleIds = "Load and select active Audit workspace roles before saving.";
     }
@@ -1527,18 +1544,13 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       requestAnimationFrame(() => document.querySelector<HTMLElement>("[aria-invalid='true']")?.focus());
       return;
     }
-    if (new Date(form.endDateTime) < new Date(form.startDateTime)) {
-      setErrors({ endDateTime: "End Date & Time must be on or after Start Date & Time." }); return;
-    }
-    if (new Date(form.closingMeetingDateTime) < new Date(form.openingMeetingDateTime)) {
-      setErrors({ closingMeetingDateTime: "Closing Meeting must be on or after Opening Meeting." }); return;
-    }
     setErrors({});
     const firstActivity = activityRows[0];
     const payload = {
       ...form, circulationRoleIds: selectedCirculationRoleIds, auditeeId: activityRows[0]?.auditeeId ?? form.auditeeId, activities: activityRows, auditPlanCirculation: circulation,
       activitySection: firstActivity?.section ?? "", activityRemarks: firstActivity?.remarks ?? "",
       activityAuditeeId: firstActivity?.auditeeId ?? "",
+      activityDateTime: firstActivity?.plannedStartDateTime ?? "",
     };
     const success = (title: string, updated?: AuditPlan) => {
       qc.invalidateQueries({ queryKey: ["/api/audit/plans"] });
@@ -1548,19 +1560,27 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       toast({ title });
       onClose();
     };
-    if (initial) {
+    if (initial && !queued) {
       update.mutate({ id: form.id, data: payload }, { onSuccess: updated => success("Audit plan updated", updated), onError: e => toast({ title: "Unable to save", description: errorText(e), variant: "destructive" }) });
       return;
     }
     const saveOffline = async () => {
       try {
-        await queueAuditPlan(payload);
-        success("Audit plan saved offline. It will sync automatically when the network returns.");
+        await queueAuditPlan(payload, queued ? queuedOperation : "create");
+        window.dispatchEvent(new Event("audit-plan-outbox-changed"));
+        success(navigator.onLine ? "Audit Plan saved on this device. Retrying synchronization." : "Audit plan saved offline. It will sync automatically when the network returns.");
+        if (navigator.onLine) void syncQueuedAuditPlans().then(result => {
+          if (result.synced) {
+            qc.invalidateQueries({ queryKey: ["/api/audit/plans"] });
+            qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
+          }
+          if (result.failed) toast({ title: "Audit Plan needs correction", description: result.errors?.[0] ?? "Synchronization failed. Your plan remains on this device.", variant: "destructive" });
+        }).catch(error => toast({ title: "Unable to synchronize", description: errorText(error), variant: "destructive" }));
       } catch (error) {
         toast({ title: "Unable to save offline", description: errorText(error), variant: "destructive" });
       }
     };
-    if (!navigator.onLine) {
+    if (!navigator.onLine || queued) {
       void saveOffline();
       return;
     }
@@ -1573,11 +1593,14 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     });
   };
   const ErrorText = ({ name }: { name: string }) => errors[name] ? <p className="mt-1 text-sm text-destructive">{errors[name]}</p> : null;
-  const invalid = (name: string) => ({ "aria-invalid": errors[name] ? true as const : undefined });
-  const planDateInputProps = (key: AuditPlanDateKey) => ({
-    min: planDateRange?.min, max: planDateRange?.max,
+  const invalid = (name: string) => ({
+    "aria-invalid": errors[name] ? true as const : undefined,
+    ...(["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime"].includes(name)
+      || /^activity-.*-planned(?:Start|End)DateTime$/.test(name) ? plannedBlur(name) : {}),
+  });
+  const plannedBlur = (key: string) => ({
     onBlur: () => {
-      const dateErrors = validateAuditPlanDates(form, selectedSchedule?.plannedStartDate, selectedSchedule?.plannedEndDate);
+      const dateErrors = auditPlanDateErrors(form as unknown as Record<string, unknown>, selectedSchedule ?? {}, activityRows);
       setErrors(current => {
         const next = { ...current };
         if (dateErrors[key]) next[key] = dateErrors[key];
@@ -1663,6 +1686,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
           <SelectContent>{approvedSchedules.map(schedule => <SelectItem key={schedule.id} value={schedule.id}>{schedule.title}</SelectItem>)}</SelectContent>
         </Select>}
         <ErrorText name="scheduleId"/>
+        {planDateRange && <p className="mt-2 text-xs text-muted-foreground">Allowed planned dates: {planDateRange.label}. Times on the final date are included.</p>}
         {!initial && programmeAudits.isFetching && <p className="mt-2 text-xs text-muted-foreground">Loading audits…</p>}
         {!initial && programmeAudits.error && <p className="mt-2 text-xs text-destructive">{errorText(programmeAudits.error)} <Button type="button" size="sm" variant="link" onClick={() => programmeAudits.refetch()}>Retry</Button></p>}
         {!initial && programmeId && !programmeAudits.isFetching && !programmeAudits.error && !approvedSchedules.length && <p className="mt-2 text-xs text-muted-foreground">No audits are available in this schedule. Audits with an existing plan or a cancellation are excluded.</p>}
@@ -1680,25 +1704,22 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     <div><Label>8. Audit Language *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={form.auditLanguage} {...invalid("auditLanguage")}/><ErrorText name="auditLanguage"/></div>
     <div><Label>9. QA/QC References *</Label><Select value={form.qaqcReference} disabled={readOnly || !form.scheduleId || ro("qaqcReference")} onValueChange={value => set("qaqcReference", value)}><SelectTrigger className="mt-2" {...invalid("qaqcReference")}><SelectValue placeholder="Select QA/QC reference"/></SelectTrigger><SelectContent>{form.qaqcReference && <SelectItem value={form.qaqcReference}>{form.qaqcReference}</SelectItem>}</SelectContent></Select><ErrorText name="qaqcReference"/></div>
     <div><Label>10. Description of Audit</Label><Textarea className="mt-2" value={form.description ?? ""} disabled={disabled("description")} onChange={event => set("description", event.target.value)} placeholder="Optional"/></div>
-    <p className={`rounded-md border p-3 text-sm ${form.scheduleId && !planDateRange ? "text-destructive" : "text-muted-foreground"}`} data-testid="audit-plan-date-range">
-      {planDateRange ? `Allowed range for all Plan dates: ${planDateRange.label}. This is the selected audit's From Date to To Date, not the annual programme range.`
-        : form.scheduleId ? "Load an audit with valid From Date and To Date values before saving the plan." : "Select an Audit Title to see the allowed date range."}
-    </p>
-    <div><Label>11. Start Date & Time *</Label><Input className="mt-2" type="datetime-local" {...planDateInputProps("startDateTime")} value={form.startDateTime.slice(0,16)} disabled={disabled("startDateTime")} {...invalid("startDateTime")} onChange={event => set("startDateTime", event.target.value)}/><ErrorText name="startDateTime"/></div>
-    <div><Label>12. End Date & Time *</Label><Input className="mt-2" type="datetime-local" {...planDateInputProps("endDateTime")} value={form.endDateTime.slice(0,16)} disabled={disabled("endDateTime")} {...invalid("endDateTime")} onChange={event => set("endDateTime", event.target.value)}/><ErrorText name="endDateTime"/></div>
-    <div><Label>13. Opening Meeting *</Label><Input className="mt-2" type="datetime-local" {...planDateInputProps("openingMeetingDateTime")} value={form.openingMeetingDateTime.slice(0,16)} disabled={disabled("openingMeetingDateTime")} {...invalid("openingMeetingDateTime")} onChange={event => set("openingMeetingDateTime", event.target.value)}/><ErrorText name="openingMeetingDateTime"/></div>
-    <div><Label>14. Closing Meeting *</Label><Input className="mt-2" type="datetime-local" {...planDateInputProps("closingMeetingDateTime")} value={form.closingMeetingDateTime.slice(0,16)} disabled={disabled("closingMeetingDateTime")} {...invalid("closingMeetingDateTime")} onChange={event => set("closingMeetingDateTime", event.target.value)}/><ErrorText name="closingMeetingDateTime"/></div>
-    <div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><Label>15–17. Activity Details *</Label><p className="mt-1 text-xs text-muted-foreground">Add one row for each Activities master-data value required in this plan.</p></div>{!readOnly && <Button type="button" variant="outline" size="sm" onClick={addActivity} disabled={ro("activitySection") || ro("activityRemarks") || ro("activityAuditeeId")}><Plus className="mr-2 size-4"/>Add row</Button>}</div>
-      <div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead className="min-w-56">15. Activities / Section</TableHead><TableHead className="min-w-72">16. Activities / Section Remarks</TableHead><TableHead className="min-w-56">17. Auditee for the Activity</TableHead>{!readOnly && <TableHead className="w-16 text-right">Action</TableHead>}</TableRow></TableHeader><TableBody>
+    <div><Label>11. Start Date & Time *</Label><Input className="mt-2" type="datetime-local" {...dateBounds} value={form.startDateTime.slice(0,16)} disabled={disabled("startDateTime")} {...invalid("startDateTime")} onChange={event => set("startDateTime", event.target.value)}/><ErrorText name="startDateTime"/></div>
+    <div><Label>12. End Date & Time *</Label><Input className="mt-2" type="datetime-local" {...dateBounds} value={form.endDateTime.slice(0,16)} disabled={disabled("endDateTime")} {...invalid("endDateTime")} onChange={event => set("endDateTime", event.target.value)}/><ErrorText name="endDateTime"/></div>
+    <div><Label>13. Opening Meeting *</Label><Input className="mt-2" type="datetime-local" {...dateBounds} value={form.openingMeetingDateTime.slice(0,16)} disabled={disabled("openingMeetingDateTime")} {...invalid("openingMeetingDateTime")} onChange={event => set("openingMeetingDateTime", event.target.value)}/><ErrorText name="openingMeetingDateTime"/></div>
+    <div><Label>14. Closing Meeting *</Label><Input className="mt-2" type="datetime-local" {...dateBounds} value={form.closingMeetingDateTime.slice(0,16)} disabled={disabled("closingMeetingDateTime")} {...invalid("closingMeetingDateTime")} onChange={event => set("closingMeetingDateTime", event.target.value)}/><ErrorText name="closingMeetingDateTime"/></div>
+    <div className="min-w-0 max-w-full space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><Label>15. Activity Details *</Label><p className="mt-1 text-xs text-muted-foreground">Add one row for each Activities master-data value. Planned dates must fall within the linked Audit, including its first and last day.</p></div>{!readOnly && <Button type="button" variant="outline" size="sm" onClick={addActivity} disabled={activityStructureLocked}><Plus className="mr-2 size-4"/>Add row</Button>}</div>
+      <div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead className="min-w-56">Activities / Section</TableHead><TableHead className="min-w-72">Remarks</TableHead><TableHead className="min-w-56">Auditee for the Activity</TableHead><TableHead className="min-w-56">Planned Start *</TableHead><TableHead className="min-w-56">Planned End *</TableHead>{!readOnly && <TableHead className="w-16 text-right">Action</TableHead>}</TableRow></TableHeader><TableBody>
         {activityRows.map(row => <TableRow key={row.id}><TableCell className="align-top"><Select value={row.section} disabled={disabled("activitySection") || activityMaster.isLoading} onValueChange={value => selectActivity(row.id, value)}><SelectTrigger {...invalid(`activity-${row.id}-section`)}><SelectValue placeholder={activityMaster.isLoading ? "Loading activities…" : "Select activity"}/></SelectTrigger><SelectContent>{activityMaster.options.map(activity => <SelectItem key={activity.value} value={activity.value} disabled={activity.value !== row.section && activityRows.some(candidate => candidate.section === activity.value)}>{activity.label}</SelectItem>)}</SelectContent></Select><ErrorText name={`activity-${row.id}-section`}/></TableCell>
           <TableCell className="align-top"><Textarea rows={3} value={row.remarks} disabled={disabled("activityRemarks")} {...invalid(`activity-${row.id}-remarks`)} onChange={event => setActivity(row.id, "remarks", event.target.value)} placeholder="Enter remarks"/><ErrorText name={`activity-${row.id}-remarks`}/></TableCell>
           <TableCell className="align-top"><Select value={row.auditeeId} disabled={readOnly || ro("activityAuditeeId")} onValueChange={value => setActivity(row.id, "auditeeId", value)}><SelectTrigger {...invalid(`activity-${row.id}-auditeeId`)}><SelectValue placeholder="Select activity auditee"/></SelectTrigger><SelectContent>{users.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><ErrorText name={`activity-${row.id}-auditeeId`}/></TableCell>
-          {!readOnly && <TableCell className="align-top text-right"><Button type="button" size="icon" variant="ghost" aria-label="Delete activity row" onClick={() => deleteActivity(row.id)} disabled={ro("activitySection") || ro("activityRemarks") || ro("activityAuditeeId")}><Trash2 className="size-4"/></Button></TableCell>}</TableRow>)}
-        {!activityRows.length && <TableRow><TableCell colSpan={readOnly ? 3 : 4} className="py-8 text-center text-sm text-muted-foreground">No activity rows. Add the first activity.</TableCell></TableRow>}
+          <TableCell className="align-top"><Input aria-label={`Planned Start for ${row.section || "activity"}`} type="datetime-local" {...dateBounds} value={(row.plannedStartDateTime ?? "").slice(0,16)} disabled={disabled("activityPlannedStartDateTime")} {...invalid(`activity-${row.id}-plannedStartDateTime`)} onChange={event => setActivity(row.id, "plannedStartDateTime", event.target.value)}/><ErrorText name={`activity-${row.id}-plannedStartDateTime`}/>{row.legacyDateTimeDerived && <p className="mt-1 text-xs text-muted-foreground">Derived from saved legacy date/time. Confirm or correct before saving.</p>}</TableCell>
+          <TableCell className="align-top"><Input aria-label={`Planned End for ${row.section || "activity"}`} type="datetime-local" {...dateBounds} value={(row.plannedEndDateTime ?? "").slice(0,16)} disabled={disabled("activityPlannedEndDateTime")} {...invalid(`activity-${row.id}-plannedEndDateTime`)} onChange={event => setActivity(row.id, "plannedEndDateTime", event.target.value)}/><ErrorText name={`activity-${row.id}-plannedEndDateTime`}/></TableCell>
+          {!readOnly && <TableCell className="align-top text-right"><Button type="button" size="icon" variant="ghost" aria-label="Delete activity row" onClick={() => deleteActivity(row.id)} disabled={activityStructureLocked}><Trash2 className="size-4"/></Button></TableCell>}</TableRow>)}
+        {!activityRows.length && <TableRow><TableCell colSpan={readOnly ? 5 : 6} className="py-8 text-center text-sm text-muted-foreground">No activity rows. Add the first activity.</TableCell></TableRow>}
       </TableBody></Table></div><ErrorText name="activities"/></div>
-    <div><Label>18. Date / Time of Activity *</Label><Input className="mt-2" type="datetime-local" {...planDateInputProps("activityDateTime")} value={form.activityDateTime.slice(0,16)} disabled={disabled("activityDateTime")} {...invalid("activityDateTime")} onChange={event => set("activityDateTime", event.target.value)}/><ErrorText name="activityDateTime"/></div>
     <div>
-      <Label>19. Audit Plan Circulation *</Label>
+      <Label>16. Audit Plan Circulation *</Label>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal"
@@ -1783,6 +1804,14 @@ function SendForAuditDialog({ plan, open, onOpenChange, onSent }: {
 }
 
 function Plans() {
+  const [queuedPlans, setQueuedPlans] = useState<QueuedAuditPlan[]>([]);
+  const [correcting, setCorrecting] = useState<QueuedAuditPlan>();
+  useEffect(() => {
+    const load = () => { void listQueuedAuditPlans().then(setQueuedPlans).catch(() => undefined); };
+    load();
+    window.addEventListener("audit-plan-outbox-changed", load);
+    return () => window.removeEventListener("audit-plan-outbox-changed", load);
+  }, []);
   const [page, setPage] = useState(1); const [open, setOpen] = useState(false); const [search, setSearch] = useState(""); const [sendPlan, setSendPlan] = useState<AuditPlan>();
   const [, navigate] = useLocation();
   const query = useListAuditPlans({ page, limit: PAGE_SIZE }); const knownPlans = useListAuditPlans({ page: 1, limit: 100 }); const schedules = useListAuditSchedules({ page: 1, limit: 100 }); const openAudit = useSendAuditPlanForExecution(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
@@ -1798,6 +1827,8 @@ function Plans() {
   };
   return <div className="space-y-5"><PageHeader title="Audit plans" description="Define the Stage 2 Audit Planning programme" action={<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button><Plus className="mr-2 size-4"/>New plan</Button></DialogTrigger><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader><PlanForm schedules={availableSchedules} onClose={() => setOpen(false)}/></DialogContent></Dialog>}/><Input className="max-w-sm" placeholder="Search audit title…" value={search} onChange={e => setSearch(e.target.value)}/><State loading={query.isLoading} error={query.error} empty={!items.length}/>
     <div className="grid gap-4 md:grid-cols-2">{items.map(plan => <Card key={plan.id}><CardHeader><div className="flex justify-between gap-2"><CardTitle className="text-base"><Link className="underline-offset-4 hover:underline" href={`/audit/plans/${plan.id}`}>{plan.auditTitle}</Link></CardTitle><Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div><CardDescription>{date(plan.startDateTime)} · {plan.activitySection}</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><p><b>Audit type:</b> {plan.auditTypes.join(", ")}</p><p><b>Team:</b> {plan.teamMemberIds.length} member(s)</p><p className="text-muted-foreground">{plan.description || plan.activityRemarks}</p><div className="flex flex-wrap justify-end gap-2"><AuditPlanDownload id={plan.id}/><Button size="sm" variant="outline" asChild><Link href={`/audit/plans/${plan.id}`}>{plan.status === "Draft" ? <Pencil className="mr-2 size-4"/> : <Eye className="mr-2 size-4"/>}{plan.status === "Draft" ? "Edit" : "View"}</Link></Button>{plan.status === "Draft" && <Button size="sm" onClick={() => setSendPlan(plan)}><Send className="mr-2 size-4"/>Send for Audit</Button>}<Button size="sm" variant="outline" disabled={plan.status === "Draft" || openAudit.isPending} title={plan.status === "Draft" ? "Send this plan for audit first" : "Open Audit Execution"} onClick={() => openAudit.mutate({ id: plan.id, data: { roleIds: [] } }, { onSuccess: audit => navigate(`/audit/audits/${audit.id}`), onError: error => toast({ title: "Unable to open Audit Execution", description: errorText(error), variant: "destructive" }) })}><ClipboardCheck className="mr-2 size-4"/>Audit</Button><Button size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></div></CardContent></Card>)}</div>
+    {!!queuedPlans.length && <Card><CardHeader><CardTitle>Plans saved on this device</CardTitle><CardDescription>Correct rejected plans here, then save to retry synchronization. A correction to an already saved plan must be reviewed and applied to its editable draft.</CardDescription></CardHeader><CardContent className="space-y-3">{queuedPlans.map(item => <div key={item.id} className="rounded border p-3"><p className="font-medium">{item.plan.auditTitle}</p><p className="text-sm text-destructive">{item.lastError ?? "Awaiting synchronization"}</p><div className="mt-2 flex flex-wrap gap-2">{item.savedPlanConflict && <Button variant="outline" asChild><Link href={`/audit/plans/${item.id}`}>Compare saved plan</Link></Button>}<Button variant="outline" onClick={() => setCorrecting(item)}>{item.savedPlanConflict ? "Review and apply to saved draft" : "Correct queued plan"}</Button></div></div>)}</CardContent></Card>}
+    <Dialog open={!!correcting} onOpenChange={isOpen => !isOpen && setCorrecting(undefined)}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{correcting?.savedPlanConflict ? "Review correction to saved draft" : "Correct queued Audit Plan"}</DialogTitle>{correcting?.savedPlanConflict && <p className="text-sm text-muted-foreground">Saving applies these corrections to the existing draft. If it is no longer editable, your correction stays on this device with an error.</p>}</DialogHeader>{correcting && <PlanForm key={correcting.id} initial={correcting.plan} queued queuedOperation={correcting.savedPlanConflict ? "update" : correcting.operation ?? "create"} schedules={schedules.data?.items ?? []} onClose={() => setCorrecting(undefined)}/>}</DialogContent></Dialog>
     <SendForAuditDialog plan={sendPlan} open={!!sendPlan} onOpenChange={isOpen => !isOpen && setSendPlan(undefined)} onSent={() => refresh("Audit sent to Audit Execution")} />
     {items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}</div>;
 }
@@ -2116,7 +2147,7 @@ function AuditPlanAutoSync() {
         qc.invalidateQueries({ queryKey: ["/api/audit/plans"] });
         toast({ title: `${result.synced} offline Audit Plan${result.synced === 1 ? "" : "s"} synchronized` });
       }
-      if (result.failed) toast({ title: "Some offline Audit Plans could not be synchronized", description: "They remain safely stored on this device and will be retried.", variant: "destructive" });
+      if (result.failed) toast({ title: "Some offline Audit Plans need correction", description: `${result.errors?.[0] ?? "Synchronization failed."} Open Audit Plans and choose Correct queued plan. Your data remains saved on this device.`, variant: "destructive" });
     };
     void sync();
     window.addEventListener("online", sync);

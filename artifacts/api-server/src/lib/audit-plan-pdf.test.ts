@@ -3,6 +3,7 @@ import { PDFDocument } from "pdf-lib";
 import { readFile, writeFile } from "node:fs/promises";
 import { auditPlanReportData, TO_BE_MAPPED } from "./audit-plan-report-data";
 import { renderAuditPlanPdf } from "./audit-plan-pdf";
+import { auditPlanDateErrors } from "@workspace/field-controls";
 
 const people = new Map([["lead", "Test Lead Auditor"], ["team", "Test Team Member"], ["owner", "Test Activity Owner"]]);
 const roles = new Map([["role", "Project Team"]]);
@@ -22,6 +23,19 @@ const project = { name: "TEST PROJECT FOR AUDIT PLAN", code: "Not a contract num
 const data = () => auditPlanReportData(plan, meta, schedule, project, people, roles, "Asia/Kolkata");
 
 describe("Audit Plan PDF mappings", () => {
+  it("maps each activity range independently, preserves local times and marks legacy derivation", () => {
+    const report = auditPlanReportData(plan, { ...meta, activities: [
+      { ...meta.activities[0], plannedStartDateTime: "2026-01-26T09:00", plannedEndDateTime: "2026-01-26T10:00" },
+      { section: "Design", remarks: "Design records", auditeeId: "team", plannedStartDateTime: "2026-01-27T22:00", plannedEndDateTime: "2026-01-27T23:59" },
+    ] }, schedule, project, people, roles, "Asia/Kolkata");
+    expect(report.activities[0]?.plannedStart).toBe("26-01-2026\n09:00");
+    expect(report.activities[1]?.plannedEnd).toBe("27-01-2026\n23:59");
+    expect(report.activities[1]?.dateTime).not.toContain("26-01-2026");
+    expect(data().activities[0]?.legacyDateTimeDerived).toBe(true);
+    const unavailable = auditPlanReportData({}, {}, {}, undefined, people, roles, "UTC");
+    expect(unavailable.activities[0]?.plannedStart).toBe(TO_BE_MAPPED);
+    expect(unavailable.activities[0]?.plannedEnd).toBe(TO_BE_MAPPED);
+  });
   it("resolves distinct lead, team, plan auditee roles, and activity auditee users", () => {
     const report = data();
     expect(report.lead).toBe("Test Lead Auditor");
@@ -44,9 +58,37 @@ describe("Audit Plan PDF mappings", () => {
     expect(report.lead).toBe(TO_BE_MAPPED);
     expect(report.activities[0]?.section).toBe(TO_BE_MAPPED);
   });
-  it("formats meeting times in the downloading user's timezone", () => {
-    expect(data().opening).toBe("26-01-2026\n09:00");
+  it("preserves planned meeting times rather than converting them to the downloading user's timezone", () => {
+    expect(data().opening).toBe("26-01-2026\n03:30");
     expect(data().start).toBe("26-01-2026");
+  });
+  it.each(["Z", "+14:00", "-12:00"])("preserves boundary dates and wall-clock times for planned timestamps ending in %s", suffix => {
+    const start = `2026-01-01T00:15${suffix}`, end = `2026-01-02T23:59${suffix}`;
+    const planned = { ...meta, startDateTime: start, endDateTime: end,
+      openingMeetingDateTime: start, closingMeetingDateTime: end,
+      activities: [{ ...meta.activities[0], plannedStartDateTime: start, plannedEndDateTime: end }] };
+    expect(auditPlanDateErrors(planned, { plannedStartDate: "2026-01-01", plannedEndDate: "2026-01-02" }, planned.activities)).toEqual({});
+    for (const zone of ["Asia/Kolkata", "America/Los_Angeles", "UTC"]) {
+      const report = auditPlanReportData(plan, planned, schedule, project, people, roles, zone);
+      expect(report.start).toBe("01-01-2026");
+      expect(report.end).toBe("02-01-2026");
+      expect(report.opening).toBe("01-01-2026\n00:15");
+      expect(report.closing).toBe("02-01-2026\n23:59");
+      expect(report.activities[0]?.plannedStart).toBe("01-01-2026\n00:15");
+      expect(report.activities[0]?.plannedEnd).toBe("02-01-2026\n23:59");
+    }
+  });
+  it("converts actual preparation timestamps to the requested timezone", () => {
+    const created = { ...plan, createdAt: "2026-01-22T23:45:00Z" };
+    expect(auditPlanReportData(created, meta, schedule, project, people, roles, "Asia/Kolkata").preparedDate).toBe("23-01-2026");
+    expect(auditPlanReportData(created, meta, schedule, project, people, roles, "America/Los_Angeles").preparedDate).toBe("22-01-2026");
+  });
+  it("keeps invalid planned dates unavailable instead of rolling them into another day", () => {
+    const report = auditPlanReportData(plan, { ...meta, activities: [
+      { ...meta.activities[0], plannedStartDateTime: "2026-02-30T00:15Z", plannedEndDateTime: "2026-01-02T23:59-24:00" },
+    ] }, schedule, project, people, roles, "Asia/Kolkata");
+    expect(report.activities[0]?.plannedStart).toBe(TO_BE_MAPPED);
+    expect(report.activities[0]?.plannedEnd).toBe(TO_BE_MAPPED);
   });
   it("preserves repeatable activity order and supports legacy single activity fields", () => {
     const multiple = auditPlanReportData(plan, { ...meta, activities: [...meta.activities, { section: "Design", remarks: "Design records", auditeeId: "team" }] }, schedule, project, people, roles, "UTC");

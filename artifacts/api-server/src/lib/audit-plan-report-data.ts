@@ -1,3 +1,4 @@
+import { datedActivities, plannedDate } from "@workspace/field-controls";
 export const TO_BE_MAPPED = "To Be Mapped";
 type RecordData = Record<string, any>;
 export type AuditPlanReportData = {
@@ -6,7 +7,7 @@ export type AuditPlanReportData = {
   standards: string; language: string; sheqReference: string;
   start: string; end: string; opening: string; closing: string;
   project: Array<[string, string]>;
-  activities: Array<{ section: string; remarks: string; auditee: string; dateTime: string }>;
+  activities: Array<{ section: string; remarks: string; auditee: string; dateTime: string; plannedStart?: string; plannedEnd?: string; legacyDateTimeDerived?: boolean }>;
 };
 export function mapped(value: unknown): string {
   if (typeof value === "string" && value.trim()) return value.trim();
@@ -26,15 +27,20 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
   const name = (id: unknown) => typeof id === "string" ? mapped(userNames.get(id)) : TO_BE_MAPPED;
   const names = (ids: unknown, source: Map<string, string>) => Array.isArray(ids) && ids.length
     ? ids.map(id => mapped(source.get(id))).join(", ") : TO_BE_MAPPED;
-  const date = (value: unknown, withTime = false) => {
+  const instantDate = (value: unknown) => {
     if (!value) return TO_BE_MAPPED;
-    if (!withTime && typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value.split("-").reverse().join("-");
     const d = new Date(value as string);
     if (!Number.isFinite(d.getTime())) return TO_BE_MAPPED;
-    const parts = new Intl.DateTimeFormat("en-GB", { timeZone, day: "2-digit", month: "2-digit", year: "numeric",
-      ...(withTime ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" as const } : {}) }).formatToParts(d);
+    const parts = new Intl.DateTimeFormat("en-GB", { timeZone, day: "2-digit", month: "2-digit", year: "numeric" }).formatToParts(d);
     const part = (key: string) => parts.find(p => p.type === key)?.value ?? "";
-    return `${part("day")}-${part("month")}-${part("year")}${withTime ? `\n${part("hour")}:${part("minute")}` : ""}`;
+    return `${part("day")}-${part("month")}-${part("year")}`;
+  };
+  const date = (value: unknown, withTime = false) => {
+    // Planned values are calendar/wall-clock inputs, even if a historical client added an offset.
+    // Actual instants (for example preparation time) use instantDate instead.
+    const saved = value instanceof Date && Number.isFinite(value.getTime()) ? value.toISOString() : value;
+    if (typeof saved !== "string" || !plannedDate(saved) || (withTime && !saved.includes("T"))) return TO_BE_MAPPED;
+    return `${saved.slice(0, 10).split("-").reverse().join("-")}${withTime ? `\n${saved.slice(11, 16)}` : ""}`;
   };
   const fields = project?.customFields ?? {};
   const activityRows = Array.isArray(meta.activities) && meta.activities.length ? meta.activities : [{
@@ -49,7 +55,7 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
   }
   return {
     title: mapped(project?.name ?? meta.auditTitle ?? plan.scope),
-    reference: number, auditNumber: number, preparedDate: date(plan.createdAt),
+    reference: number, auditNumber: number, preparedDate: instantDate(plan.createdAt),
     lead: name(meta.leadAuditorId ?? plan.teamMemberIds?.[0]), team: names(plan.teamMemberIds, userNames),
     auditee: meta.auditeeRoleIds?.length ? names(meta.auditeeRoleIds, roleNames) : name(meta.auditeeId ?? meta.processOwnerIds?.[0]),
     scope: mapped(meta.qaqcScope ?? plan.scope), types: Array.isArray(types) && types.length ? types.join(", ") : mapped(plan.criteria),
@@ -68,7 +74,11 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
       ["FAC", custom(fields, "fac", "facDate")], ["Contract Value", custom(fields, "contractValue")],
       ["Contract Signed Date", custom(fields, "contractSignedDate")], ["PTS #", custom(fields, "ptsNumber", "ptsNo", "pts #")],
     ],
-    activities: activityRows.map((row: RecordData) => ({ section: mapped(row.section), remarks: mapped(row.remarks),
-      auditee: name(row.auditeeId), dateTime: date(meta.activityDateTime, true) })),
+    activities: datedActivities<RecordData>(activityRows, meta.activityDateTime).map((row: RecordData) => {
+      const start = date(row.plannedStartDateTime, true), end = date(row.plannedEndDateTime, true);
+      return { section: mapped(row.section), remarks: mapped(row.remarks), auditee: name(row.auditeeId),
+        plannedStart: start, plannedEnd: end, legacyDateTimeDerived: row.legacyDateTimeDerived,
+        dateTime: `Planned Start: ${start}\nPlanned End: ${end}${row.legacyDateTimeDerived ? "\nDerived from saved legacy date/time" : ""}` };
+    }),
   };
 }

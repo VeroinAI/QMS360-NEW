@@ -28,6 +28,7 @@
 - [Process audit department scope](process-audit-department-scope.md) — Internal Process audits are department-based and projectless; authorize their full schedule-to-audit chain consistently.
 - [Audit Plan activity rows](audit-plan-activity-rows.md) — activity details are repeatable master-data rows; retain single-value fields only for backward compatibility.
 - [Audit Plan date boundaries](audit-plan-date-boundaries.md) — every Plan date/time must fit the child audit's actual From/To dates, with an explicit allowed-range error.
+- [Audit Plan calendar dates](audit-plan-calendar-dates.md) — preserve wall-clock report dates, derived legacy values and recoverable offline corrections.
 - [One Plan per Audit Schedule](one-plan-per-audit-schedule.md) — active Audit Plans are one-to-one with schedules; enforce atomically and expose occupancy on schedule responses.
 - [Spreadsheet date policy](spreadsheet-date-policy.md) — Excel/CSV dates are DD/MM/YYYY; preserve internal ISO contracts and support older ISO/native Excel workbooks.
 - [Audit feasibility decisions](audit-feasibility-decisions.md) — Cancel blocks future plans permanently; Reschedule records mandatory feedback but keeps the schedule eligible.

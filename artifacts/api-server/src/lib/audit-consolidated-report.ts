@@ -1,4 +1,4 @@
-import { auditReportDetailGroups, type AuditReportDetailsData } from "@workspace/field-controls";
+import { auditReportDetailGroups, datedActivities, plannedDate, type AuditReportDetailsData } from "@workspace/field-controls";
 
 type Row = Record<string, any>;
 export type ReportSectionData = {
@@ -90,8 +90,16 @@ export function buildConsolidatedAuditReport(input: {
     ["Method", recorded("method")], ["Sampling basis", recorded("samplingBasis")],
   ]);
   const programme = section("programme", "Audit programme and participation");
-  programme.tables.push({ title: "Audit programme", columns: ["Date / time", "Activity", "Remarks", "Auditee"],
-    rows: (plan?.activities ?? []).map((a: Row) => [value(plan?.activityDateTime), value(a.section), value(a.remarks), name(a.auditeeId)]) });
+  const activities = datedActivities(plan?.activities?.length ? plan.activities : plan ? [{
+    section: plan.activitySection, remarks: plan.activityRemarks, auditeeId: plan.activityAuditeeId,
+  }] : [], plan?.activityDateTime);
+  const planned = (dateTime: unknown) => plannedDate(dateTime) && typeof dateTime === "string" && dateTime.includes("T")
+    ? dateTime : "To Be Mapped";
+  programme.tables.push({ title: "Audit programme", columns: ["Planned Start", "Planned End", "Activity", "Remarks", "Auditee"],
+    rows: activities.map((a: Row) => [
+      `${planned(a.plannedStartDateTime)}${a.legacyDateTimeDerived && planned(a.plannedStartDateTime) !== "To Be Mapped" ? " (derived legacy)" : ""}`,
+      `${planned(a.plannedEndDateTime)}${a.legacyDateTimeDerived && planned(a.plannedEndDateTime) !== "To Be Mapped" ? " (derived legacy)" : ""}`,
+      value(a.section), value(a.remarks), name(a.auditeeId)]) });
   fields(programme, [
     ["Opening meeting", date(audit.openingMeeting?.heldAt)], ["Opening minutes", audit.openingMeeting?.minutes],
     ["Audit team", namesOf(plan?.teamMemberIds)], ["Auditees present", namesOf(audit.openingMeeting?.attendees)],

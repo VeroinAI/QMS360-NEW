@@ -3308,7 +3308,7 @@ components:
         users: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
     AuditPlan:
       type: object
-      required: [id, scheduleId, auditFeasible, auditTitle, leadAuditorId, teamMemberIds, auditeeId, qaqcScope, auditTypes, auditLanguage, qaqcReference, startDateTime, endDateTime, openingMeetingDateTime, closingMeetingDateTime, activitySection, activityRemarks, activityAuditeeId, activityDateTime, auditPlanCirculation, status]
+      required: [id, scheduleId, auditFeasible, auditTitle, leadAuditorId, teamMemberIds, auditeeId, qaqcScope, auditTypes, auditLanguage, qaqcReference, startDateTime, endDateTime, openingMeetingDateTime, closingMeetingDateTime, activitySection, activityRemarks, activityAuditeeId, auditPlanCirculation, status]
       properties:
         id: {type: string}
         scheduleId: {type: string}
@@ -3324,10 +3324,10 @@ components:
         auditLanguage: {type: string}
         qaqcReference: {type: string}
         description: {type: [string, "null"]}
-        startDateTime: {type: string, format: date-time}
-        endDateTime: {type: string, format: date-time}
-        openingMeetingDateTime: {type: string, format: date-time}
-        closingMeetingDateTime: {type: string, format: date-time}
+        startDateTime: {type: string, description: "Saved planned date/time, retaining its calendar day and wall-clock time."}
+        endDateTime: {type: string, description: "Saved planned date/time, retaining its calendar day and wall-clock time."}
+        openingMeetingDateTime: {type: string, description: "Saved opening meeting date/time."}
+        closingMeetingDateTime: {type: string, description: "Saved closing meeting date/time."}
         activitySection: {type: string, description: Legacy first-row compatibility field; values come from Activities master data}
         activityRemarks: {type: string}
         activityAuditeeId: {type: string}
@@ -3335,7 +3335,7 @@ components:
           type: array
           minItems: 1
           items: {$ref: "#/components/schemas/AuditPlanActivity"}
-        activityDateTime: {type: string, format: date-time}
+        activityDateTime: {type: string, description: "Deprecated first-row mirror; saved shared timestamps support legacy rows only."}
         auditPlanCirculation: {type: string}
         status: {type: string, enum: [Draft, Shared, Active, Completed, Deleted]}
         scope: {type: string, description: Legacy compatibility field}
@@ -3347,8 +3347,12 @@ components:
         feasibilityNotes: {type: [string, "null"], description: Legacy compatibility field}
     AuditPlanActivity:
       type: object
+      description: "Activity-specific planned wall-clock dates. Undated historical rows may derive both dates from an actually saved shared timestamp."
       required: [id, section, remarks, auditeeId]
       properties:
+        plannedStartDateTime: {type: string, description: "Planned Start date and time; required for all new saves."}
+        plannedEndDateTime: {type: string, description: "Planned End date and time; required for all new saves."}
+        legacyDateTimeDerived: {type: boolean, description: "Read compatibility marker for a saved shared legacy timestamp."}
         id: {type: string}
         section: {type: string}
         remarks: {type: string}

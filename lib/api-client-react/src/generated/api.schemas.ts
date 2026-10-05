@@ -2864,7 +2864,16 @@ export const AuditPlanStatus = {
   Deleted: 'Deleted',
 } as const;
 
+/**
+ * Activity-specific planned wall-clock dates. Undated historical rows may derive both dates from an actually saved shared timestamp.
+ */
 export interface AuditPlanActivity {
+  /** Planned Start date and time; required for all new saves. */
+  plannedStartDateTime?: string;
+  /** Planned End date and time; required for all new saves. */
+  plannedEndDateTime?: string;
+  /** Read compatibility marker for a saved shared legacy timestamp. */
+  legacyDateTimeDerived?: boolean;
   id: string;
   section: string;
   remarks: string;
@@ -2891,9 +2900,13 @@ export interface AuditPlan {
   qaqcReference: string;
   /** @nullable */
   description?: string | null;
+  /** Saved planned date/time, retaining its calendar day and wall-clock time. */
   startDateTime: string;
+  /** Saved planned date/time, retaining its calendar day and wall-clock time. */
   endDateTime: string;
+  /** Saved opening meeting date/time. */
   openingMeetingDateTime: string;
+  /** Saved closing meeting date/time. */
   closingMeetingDateTime: string;
   /** Legacy first-row compatibility field; values come from Activities master data */
   activitySection: string;
@@ -2901,7 +2914,8 @@ export interface AuditPlan {
   activityAuditeeId: string;
   /** @minItems 1 */
   activities?: AuditPlanActivity[];
-  activityDateTime: string;
+  /** Deprecated first-row mirror; saved shared timestamps support legacy rows only. */
+  activityDateTime?: string;
   auditPlanCirculation: string;
   status: AuditPlanStatus;
   /** Legacy compatibility field */
@@ -4961,4 +4975,3 @@ export const EmailRuleRoleOptionsApp = {
   lessons: 'lessons',
   qaqc: 'qaqc',
 } as const;
-

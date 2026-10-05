@@ -107,12 +107,12 @@ export async function renderAuditPlanPdf(data: AuditPlanReportData): Promise<Uin
   }
   text(page, "Section/Activities to be\nAccessed", 40, 664, 179, 35, 11, true, purple, true);
   text(page, "Auditee", 225, 664, 159, 35, 11, true, purple, true);
-  text(page, "Date/Time", 390, 664, 164, 35, 11, true, purple, true);
+   text(page, "Planned Start / Planned End", 390, 664, 164, 35, 11, true, purple, true);
   let y = 704;
   const newActivityPage = async (withTable = true) => {
     page = await add(2); header(page);
     if (!withTable) { y = 151; return; }
-    [["Section/Activities to be Accessed", 35, 185], ["Auditee", 220, 165], ["Date/Time", 385, 174]].forEach(([label, x, width]) => {
+     [["Section/Activities to be Accessed", 35, 185], ["Auditee", 220, 165], ["Planned Start / Planned End", 385, 174]].forEach(([label, x, width]) => {
       lineBox(page, x as number, 151, width as number, 38, pale);
       text(page, label as string, (x as number) + 5, 157, (width as number) - 10, 29, 10, true, purple, true);
     });

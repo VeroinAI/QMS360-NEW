@@ -2,13 +2,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express, { type Express } from "express";
 import type { Server } from "node:http";
 import {
-  applicationAccess, auditAuditLogEntries, auditNotifications, auditPermissions, auditPlans, auditSchedules, organizationSettings,
+  applicationAccess, auditAuditLogEntries, auditNotifications, auditPermissions, auditPlans, auditSchedules, audits, organizationSettings,
   auditUserWorkspaceRoles, auditWorkspaceRolePermissions, auditWorkspaceRoles,
-  db, masterDataGroups, masterDataValues, organizations, outboundEmails, platformRoles, projects, users,
+  db, masterDataGroups, masterDataValues, moduleFieldSettings, organizations, outboundEmails, platformRoles, projects, users,
 } from "@workspace/db";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import auditRouter from "../src/routes/audit";
 import { issueToken } from "../src/lib/auth";
+import { writeFieldControls } from "../src/lib/field-controls";
 
 let app: Express;
 let server: Server;
@@ -120,6 +121,7 @@ beforeAll(async () => {
     ["audit_types", "Quality Internal Product Audit"],
     ["departments", "Quality Department"],
     ["activities", "General Requirement"],
+    ["activities", "Design"],
   ]) {
     let [group] = await db.select().from(masterDataGroups).where(and(
       eq(masterDataGroups.organizationId, orgId), eq(masterDataGroups.code, code),
@@ -135,6 +137,7 @@ afterAll(async () => {
   await db.delete(outboundEmails).where(eq(outboundEmails.organizationId, orgId));
   await db.delete(auditNotifications).where(eq(auditNotifications.organizationId, orgId));
   await db.delete(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, orgId));
+  await db.delete(audits).where(eq(audits.organizationId, orgId));
   await db.delete(auditPlans).where(eq(auditPlans.organizationId, orgId));
   await db.delete(auditSchedules).where(eq(auditSchedules.organizationId, orgId));
   await db.delete(auditUserWorkspaceRoles).where(eq(auditUserWorkspaceRoles.organizationId, orgId));
@@ -143,6 +146,7 @@ afterAll(async () => {
   await db.delete(auditWorkspaceRoles).where(eq(auditWorkspaceRoles.organizationId, orgId));
   await db.delete(masterDataValues).where(eq(masterDataValues.organizationId, orgId));
   await db.delete(masterDataGroups).where(eq(masterDataGroups.organizationId, orgId));
+  await db.delete(moduleFieldSettings).where(eq(moduleFieldSettings.organizationId, orgId));
   await db.delete(applicationAccess).where(eq(applicationAccess.organizationId, orgId));
   await db.delete(projects).where(eq(projects.organizationId, orgId));
   await db.delete(users).where(eq(users.organizationId, orgId));
@@ -188,6 +192,97 @@ describe("audit programme parent/child workflow", () => {
     expect((await fetch(`${baseUrl}/programmes/${created.json.id}/activity`, {
       method: "DELETE", headers: { authorization: `Bearer ${creator.token}` },
     })).status).toBe(404);
+  });
+  it("enforces dated activities on saves, stale replay, share, first handoff and Audit range edits", async () => {
+    const programme = await api("POST", "/programmes", creator.token, {
+      title: "Date invariant programme", fromDate: "2026-01-01", toDate: "2026-12-31",
+    });
+    const child = await addChild(programme.json.id);
+    const [workspaceRole] = await db.select().from(auditWorkspaceRoles).where(and(
+      eq(auditWorkspaceRoles.organizationId, orgId), eq(auditWorkspaceRoles.name, "Audit Contributor"),
+    ));
+    const payload = {
+      id: crypto.randomUUID(), scheduleId: child.id, auditFeasible: true, auditTitle: child.title,
+      leadAuditorId: creator.id, teamMemberIds: [creator.id], auditeeId: creator.id,
+      auditeeRoleIds: [workspaceRole!.id], circulationRoleIds: [workspaceRole!.id],
+      qaqcScope: "ISO 9001", auditTypes: ["Quality Internal Process Audit"], auditLanguage: "Verbal: English\nWriting: English",
+      qaqcReference: "QAM-IA/26-", startDateTime: "2026-01-01T00:00", endDateTime: "2026-01-02T23:59:59",
+      openingMeetingDateTime: "2026-01-01T08:00", closingMeetingDateTime: "2026-01-02T23:59",
+      activitySection: "General Requirement", activityRemarks: "Review", activityAuditeeId: creator.id,
+      auditPlanCirculation: "Audit Contributor", status: "Draft",
+      activities: [
+        { id: crypto.randomUUID(), section: "General Requirement", remarks: "Review", auditeeId: creator.id,
+          plannedStartDateTime: "2026-01-01T09:00", plannedEndDateTime: "2026-01-01T10:00" },
+        { id: crypto.randomUUID(), section: "Design", remarks: "Design review", auditeeId: creator.id,
+          plannedStartDateTime: "2026-01-02T22:00", plannedEndDateTime: "2026-01-02T23:59:59" },
+      ],
+    };
+    for (const end of ["", "invalid", "2026-01-03T00:00", "2026-01-02T21:00"]) {
+      const invalid = await api("POST", "/plans", creator.token, { ...payload,
+        activities: [payload.activities[0], { ...payload.activities[1], plannedEndDateTime: end }] });
+      expect(invalid.status, JSON.stringify(invalid.json)).toBe(422);
+      expect(invalid.json.error).toContain("Activity 2 Planned End");
+    }
+    const created = await api("POST", "/plans", creator.token, payload);
+    expect(created.status, JSON.stringify(created.json)).toBe(201);
+    expect(created.json.activities).toEqual(payload.activities);
+    const reopened = await api("GET", `/plans/${payload.id}`, creator.token);
+    expect(reopened.json.activities).toEqual(payload.activities);
+    const changedSecondRow = { ...payload, activities: [payload.activities[0],
+      { ...payload.activities[1], plannedEndDateTime: "2026-01-02T23:58" }] };
+    expect((await api("POST", "/plans", creator.token, payload)).status).toBe(200);
+    const conflictingReplay = await api("POST", "/plans", creator.token, changedSecondRow);
+    expect(conflictingReplay.status).toBe(409);
+    expect(conflictingReplay.json.error).toContain("already saved with different planned data");
+    expect((await api("GET", `/plans/${payload.id}`, creator.token)).json.activities).toEqual(payload.activities);
+    const appliedCorrection = await api("PUT", `/plans/${payload.id}`, creator.token, changedSecondRow);
+    expect(appliedCorrection.status).toBe(200);
+    expect(appliedCorrection.json.activities[1].plannedEndDateTime).toBe("2026-01-02T23:58");
+    expect((await api("PUT", `/plans/${payload.id}`, creator.token, payload)).status).toBe(200);
+    for (const fieldKey of ["activityPlannedEndDateTime", "activityDateTime"]) {
+      await writeFieldControls(orgId, "audit", { plan: { [fieldKey]: { access: "read_only", requirement: "optional" } } });
+      expect((await api("PUT", `/plans/${payload.id}`, creator.token, changedSecondRow)).status).toBe(422);
+      expect((await api("PUT", `/plans/${payload.id}`, creator.token, payload)).status).toBe(200);
+    }
+    await writeFieldControls(orgId, "audit", {});
+    await db.insert(moduleFieldSettings).values({
+      organizationId: orgId, module: "audit", formKey: "plan", fieldKey: "activityPlannedEndDateTime", access: "read_only",
+    });
+    expect((await api("PUT", `/plans/${payload.id}`, creator.token, changedSecondRow)).status).toBe(422);
+    expect((await api("PUT", `/plans/${payload.id}`, creator.token, payload)).status).toBe(200);
+    await db.delete(moduleFieldSettings).where(eq(moduleFieldSettings.organizationId, orgId));
+    expect((await api("PUT", `/plans/${payload.id}`, creator.token, { ...payload,
+      closingMeetingDateTime: "2026-01-03T00:00" })).status).toBe(422);
+    const editSchedule = await api("GET", `/schedules/${child.id}`, creator.token);
+    const incompatible = await api("PUT", `/schedules/${child.id}`, creator.token, {
+      ...editSchedule.json, plannedEndDate: "2026-01-01",
+    });
+    expect(incompatible.status).toBe(409);
+    expect(incompatible.json.error).toContain("linked Audit Plan");
+    const blockedReschedule = await api("POST", `/schedules/${child.id}/feasibility`, creator.token, {
+      decision: "reschedule", feedback: "Must not truncate the plan", fromDate: "2026-01-01", toDate: "2026-01-01",
+    });
+    expect(blockedReschedule.status).toBe(409);
+    const [stored] = await db.select().from(auditPlans).where(eq(auditPlans.id, payload.id));
+    const meta = JSON.parse(stored!.status!);
+    await db.update(auditPlans).set({ status: JSON.stringify({ ...meta, activities: meta.activities.map((row: object) =>
+      ({ ...row, plannedEndDateTime: "2026-01-03T00:00" })) }) }).where(eq(auditPlans.id, payload.id));
+    expect((await api("POST", `/plans/${payload.id}/share`, creator.token)).status).toBe(422);
+    expect((await api("POST", `/plans/${payload.id}/send-for-audit`, creator.token, { roleIds: [workspaceRole!.id] })).status).toBe(422);
+    expect((await api("POST", "/plans", creator.token, payload)).status).toBe(422);
+    await db.update(auditPlans).set({ status: stored!.status }).where(eq(auditPlans.id, payload.id));
+    const first = await api("POST", `/plans/${payload.id}/send-for-audit`, creator.token, { roleIds: [workspaceRole!.id] });
+    expect(first.status, JSON.stringify(first.json)).toBe(200);
+    const retry = await api("POST", `/plans/${payload.id}/send-for-audit`, creator.token, { roleIds: [] });
+    expect(retry.json.id).toBe(first.json.id);
+    // Historical undated rows stay readable; a saved shared timestamp is explicit derived data.
+    await db.update(auditPlans).set({ workflowState: "draft", status: JSON.stringify({ ...meta,
+      activityDateTime: "2025-12-31T09:00", activities: meta.activities.map(({ plannedStartDateTime: _start, plannedEndDateTime: _end, ...row }: any) => row),
+    }) }).where(eq(auditPlans.id, payload.id));
+    const legacy = await api("GET", `/plans/${payload.id}`, creator.token);
+    expect(legacy.json.activities[0].legacyDateTimeDerived).toBe(true);
+    expect((await api("PUT", `/plans/${payload.id}`, creator.token, legacy.json)).status).toBe(422);
+    expect((await api("PUT", `/plans/${payload.id}`, creator.token, payload)).status).toBe(200);
   });
   it("offers only active Product / Process Owner users and enforces that selection on Audit Schedules", async () => {
     const marker = await permission("product_process_owner");
@@ -354,6 +449,8 @@ describe("audit programme parent/child workflow", () => {
       openingMeetingDateTime: "2026-01-01T08:00:00.000Z", closingMeetingDateTime: "2026-01-01T15:30:00.000Z",
       activitySection: "General Requirement", activityRemarks: "Review controls", activityAuditeeId: creator.id,
       activityDateTime: "2026-01-01T09:00:00.000Z", auditPlanCirculation: "Programme Creator", status: "Draft",
+      activities: [{ id: crypto.randomUUID(), section: "General Requirement", remarks: "Review controls", auditeeId: creator.id,
+        plannedStartDateTime: "2026-01-01T09:00", plannedEndDateTime: "2026-01-01T10:00" }],
     };
     await db.update(auditSchedules).set({
       status: JSON.stringify({
