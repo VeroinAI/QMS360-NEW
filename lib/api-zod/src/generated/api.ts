@@ -9919,7 +9919,7 @@ export const CreateFindingCarsResponse = zod.object({
   "rootCause": zod.string().nullish(),
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
-  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Extension Requested', 'Closed']),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
   "dueDate": zod.coerce.date(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
@@ -9927,7 +9927,13 @@ export const CreateFindingCarsResponse = zod.object({
   "extensionReviewedBy": zod.string().nullish(),
   "extensionReviewedAt": zod.coerce.date().nullish(),
   "effectivenessVerified": zod.boolean().optional(),
-  "closedAt": zod.coerce.date().nullish()
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
 }))
 }))
 
@@ -9967,7 +9973,7 @@ export const ListCorrectiveActionReportsResponse = zod.object({
   "rootCause": zod.string().nullish(),
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
-  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Extension Requested', 'Closed']),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
   "dueDate": zod.coerce.date(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
@@ -9975,9 +9981,125 @@ export const ListCorrectiveActionReportsResponse = zod.object({
   "extensionReviewedBy": zod.string().nullish(),
   "extensionReviewedAt": zod.coerce.date().nullish(),
   "effectivenessVerified": zod.boolean().optional(),
-  "closedAt": zod.coerce.date().nullish()
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
 }))
 }))
+
+
+export const listCarRegisterQueryPageDefault = 1;
+
+export const listCarRegisterQueryLimitDefault = 20;
+export const listCarRegisterQueryLimitMax = 200;
+
+
+
+export const ListCarRegisterQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "scheduleId": zod.coerce.string().optional(),
+  "status": zod.coerce.string().optional(),
+  "includeLegacy": zod.coerce.boolean().optional(),
+  "page": zod.coerce.number().min(1).default(listCarRegisterQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listCarRegisterQueryLimitMax).default(listCarRegisterQueryLimitDefault)
+})
+
+export const ListCarRegisterResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "auditId": zod.string(),
+  "itemId": zod.string(),
+  "auditTitle": zod.string(),
+  "scheduleId": zod.string().nullish(),
+  "scheduleName": zod.string().optional(),
+  "projectId": zod.string().nullish(),
+  "projectName": zod.string().optional(),
+  "clause": zod.string(),
+  "auditArea": zod.string(),
+  "description": zod.string(),
+  "classification": zod.string(),
+  "actionTakerName": zod.string(),
+  "evidenceIds": zod.array(zod.string()),
+  "status": zod.string(),
+  "canRespond": zod.boolean(),
+  "canReview": zod.boolean(),
+  "legacy": zod.boolean().optional(),
+  "car": zod.object({
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
+}).optional()
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "projects": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "schedules": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+}))
+})
+
+
+
+
+
+
+export const StartFindingCarBody = zod.object({
+  "auditId": zod.string().min(1),
+  "itemId": zod.string().min(1)
+})
+
+export const StartFindingCarResponse = zod.object({
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
+})
 
 
 /**
@@ -9995,7 +10117,7 @@ export const GetCorrectiveActionReportResponse = zod.object({
   "rootCause": zod.string().nullish(),
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
-  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Extension Requested', 'Closed']),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
   "dueDate": zod.coerce.date(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
@@ -10003,7 +10125,13 @@ export const GetCorrectiveActionReportResponse = zod.object({
   "extensionReviewedBy": zod.string().nullish(),
   "extensionReviewedAt": zod.coerce.date().nullish(),
   "effectivenessVerified": zod.boolean().optional(),
-  "closedAt": zod.coerce.date().nullish()
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
 })
 
 
@@ -10022,7 +10150,7 @@ export const UpdateCorrectiveActionReportBody = zod.object({
   "rootCause": zod.string().nullish(),
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
-  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Extension Requested', 'Closed']),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
   "dueDate": zod.coerce.date(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
@@ -10030,7 +10158,13 @@ export const UpdateCorrectiveActionReportBody = zod.object({
   "extensionReviewedBy": zod.string().nullish(),
   "extensionReviewedAt": zod.coerce.date().nullish(),
   "effectivenessVerified": zod.boolean().optional(),
-  "closedAt": zod.coerce.date().nullish()
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
 })
 
 export const UpdateCorrectiveActionReportResponse = zod.unknown()
@@ -10047,14 +10181,14 @@ export const SubmitCorrectiveActionReportResponse = zod.unknown()
 
 
 /**
- * @summary Accept or reject CAR
+ * @summary Team Lead closes or returns CAR
  */
 export const ReviewCorrectiveActionReportParams = zod.object({
   "id": zod.coerce.string()
 })
 
 export const ReviewCorrectiveActionReportBody = zod.object({
-  "decision": zod.enum(['accept', 'reject']),
+  "decision": zod.enum(['accept', 'reject', 'query', 'rework']),
   "comments": zod.string().nullish()
 })
 
@@ -10478,7 +10612,7 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "rootCause": zod.string().nullish(),
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
-  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Extension Requested', 'Closed']),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
   "dueDate": zod.coerce.date(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
@@ -10486,7 +10620,13 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "extensionReviewedBy": zod.string().nullish(),
   "extensionReviewedAt": zod.coerce.date().nullish(),
   "effectivenessVerified": zod.boolean().optional(),
-  "closedAt": zod.coerce.date().nullish()
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
 })),
   "sections": zod.array(zod.object({
   "key": zod.string(),

@@ -24,7 +24,6 @@ import type {
   AISettings,
   AISettingsBody,
   AISuggestion,
-  AcceptRejectBody,
   AccessRequestPageResponse,
   AdminDecisionBody,
   AppOverview,
@@ -79,6 +78,8 @@ import type {
   BusinessUnitPageResponse,
   CarBody,
   CarPageResponse,
+  CarRegisterPage,
+  CarReviewInput,
   ChecklistBody,
   ConnectorConnectionTestResult,
   ContainerSsoInput,
@@ -138,6 +139,7 @@ import type {
   FieldMappingWorkspace,
   FieldSettingsCatalog,
   FieldSettingsUpdate,
+  FindingCarInput,
   GeneratedAuditReport,
   GetAuditCapabilities200,
   GetAuditDashboardParams,
@@ -194,6 +196,7 @@ import type {
   ListAuditWorkspaceAuditLogParams,
   ListAuditsParams,
   ListBusinessUnitsParams,
+  ListCarRegisterParams,
   ListCorrectiveActionReportsParams,
   ListCustomerSatisfactionEntriesParams,
   ListDocumentGovernanceLogParams,
@@ -21647,6 +21650,149 @@ export function useListCorrectiveActionReports<TData = Awaited<ReturnType<typeof
 
 
 
+export const getListCarRegisterUrl = (params?: ListCarRegisterParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/car-register?${stringifiedParams}` : `/api/audit/car-register`
+}
+
+export const listCarRegister = async (params?: ListCarRegisterParams, options?: Parameters<typeof customFetch>[1]): Promise<CarRegisterPage> => {
+
+  return customFetch<CarRegisterPage>(getListCarRegisterUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCarRegisterQueryKey = (params?: ListCarRegisterParams,) => {
+    return [
+    `/api/audit/car-register`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCarRegisterQueryOptions = <TData = Awaited<ReturnType<typeof listCarRegister>>, TError = ErrorType<unknown>>(params?: ListCarRegisterParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCarRegister>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCarRegisterQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCarRegister>>> = ({ signal }) => listCarRegister(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCarRegister>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCarRegisterQueryResult = NonNullable<Awaited<ReturnType<typeof listCarRegister>>>
+export type ListCarRegisterQueryError = ErrorType<unknown>
+
+
+
+export function useListCarRegister<TData = Awaited<ReturnType<typeof listCarRegister>>, TError = ErrorType<unknown>>(
+ params?: ListCarRegisterParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCarRegister>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCarRegisterQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartFindingCarUrl = () => {
+
+
+
+
+  return `/api/audit/car-register/start`
+}
+
+export const startFindingCar = async (findingCarInput: FindingCarInput, options?: Parameters<typeof customFetch>[1]): Promise<CorrectiveActionReport> => {
+
+  return customFetch<CorrectiveActionReport>(getStartFindingCarUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(findingCarInput)
+  }
+);}
+
+
+
+
+
+export const getStartFindingCarMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startFindingCar>>, TError,{data: BodyType<FindingCarInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startFindingCar>>, TError,{data: BodyType<FindingCarInput>}, TContext> => {
+
+const mutationKey = ['startFindingCar'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startFindingCar>>, {data: BodyType<FindingCarInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  startFindingCar(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartFindingCarMutationResult = NonNullable<Awaited<ReturnType<typeof startFindingCar>>>
+    export type StartFindingCarMutationBody = BodyType<FindingCarInput>
+    export type StartFindingCarMutationError = ErrorType<unknown>
+
+    export const useStartFindingCar = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startFindingCar>>, TError,{data: BodyType<FindingCarInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startFindingCar>>,
+        TError,
+        {data: BodyType<FindingCarInput>},
+        TContext
+      > => {
+      return useMutation(getStartFindingCarMutationOptions(options));
+    }
+
 export const getGetCorrectiveActionReportUrl = (id: string,) => {
 
 
@@ -21876,17 +22022,17 @@ export const getReviewCorrectiveActionReportUrl = (id: string,) => {
 }
 
 /**
- * @summary Accept or reject CAR
+ * @summary Team Lead closes or returns CAR
  */
 export const reviewCorrectiveActionReport = async (id: string,
-    acceptRejectBody: AcceptRejectBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    carReviewInput: CarReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
 
   return customFetch<void>(getReviewCorrectiveActionReportUrl(id),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(acceptRejectBody)
+    body: JSON.stringify(carReviewInput)
   }
 );}
 
@@ -21895,8 +22041,8 @@ export const reviewCorrectiveActionReport = async (id: string,
 
 
 export const getReviewCorrectiveActionReportMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCorrectiveActionReport>>, TError,{id: string;data: BodyType<AcceptRejectBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof reviewCorrectiveActionReport>>, TError,{id: string;data: BodyType<AcceptRejectBody>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCorrectiveActionReport>>, TError,{id: string;data: BodyType<CarReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewCorrectiveActionReport>>, TError,{id: string;data: BodyType<CarReviewInput>}, TContext> => {
 
 const mutationKey = ['reviewCorrectiveActionReport'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -21908,7 +22054,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewCorrectiveActionReport>>, {id: string;data: BodyType<AcceptRejectBody>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewCorrectiveActionReport>>, {id: string;data: BodyType<CarReviewInput>}> = (props) => {
           const {id,data} = props ?? {};
 
           return  reviewCorrectiveActionReport(id,data,requestOptions)
@@ -21922,18 +22068,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type ReviewCorrectiveActionReportMutationResult = NonNullable<Awaited<ReturnType<typeof reviewCorrectiveActionReport>>>
-    export type ReviewCorrectiveActionReportMutationBody = BodyType<AcceptRejectBody>
+    export type ReviewCorrectiveActionReportMutationBody = BodyType<CarReviewInput>
     export type ReviewCorrectiveActionReportMutationError = ErrorType<unknown>
 
     /**
- * @summary Accept or reject CAR
+ * @summary Team Lead closes or returns CAR
  */
 export const useReviewCorrectiveActionReport = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCorrectiveActionReport>>, TError,{id: string;data: BodyType<AcceptRejectBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCorrectiveActionReport>>, TError,{id: string;data: BodyType<CarReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof reviewCorrectiveActionReport>>,
         TError,
-        {id: string;data: BodyType<AcceptRejectBody>},
+        {id: string;data: BodyType<CarReviewInput>},
         TContext
       > => {
       return useMutation(getReviewCorrectiveActionReportMutationOptions(options));

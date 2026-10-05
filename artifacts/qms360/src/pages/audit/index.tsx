@@ -5,6 +5,7 @@ import { ActivityMultiSelect, ScheduleActivityRoleFields } from "./activity-role
 import { auditTeamLeadLabel } from "./team-lead-label";
 import { ScheduleActivityButton } from "./schedule-activity";
 import { getAuditPlanDateRange } from "@workspace/field-controls";
+import { CarRegister, CarResponseDialog, CarReviewDialog } from "./car-register";
 import { useEffect, useRef, useState } from "react";
 import { Link, Route, Switch, useLocation, useParams } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2137,33 +2138,16 @@ function CarEditor({car,onClose}:{car:CorrectiveActionReport;onClose:()=>void}) 
 }
 
 function Cars() {
-  const [page,setPage]=useState(1);const [status,setStatus]=useState("all");const [edit,setEdit]=useState<CorrectiveActionReport>();const query=useListCorrectiveActionReports({page,limit:PAGE_SIZE,...(status==="all"?{}:{status})});const qc=useQueryClient();const {toast}=useToast();
-  const submit=confirmedWorkflowMutation(useSubmitCorrectiveActionReport(), () => ({action:"submit",document:"this corrective action report"})),
-    review=confirmedWorkflowMutation(useReviewCorrectiveActionReport(), v => ({action:v.data.decision,document:"this corrective action report"}), v => v.data.decision !== "reject" || !!v.data.comments?.trim()),
-    extension=confirmedWorkflowMutation(useRequestCarExtension(), () => ({action:"request_extension",document:"this corrective action report"})),
-    extensionReview=confirmedWorkflowMutation(useReviewCarExtension(), v => ({action:v.data.decision === "approve" ? "approve_extension" : "reject_extension",document:"this corrective action report"})),
-    extensionCancel=useCancelCarExtension(),close=useCloseCorrectiveActionReport();
-  const refresh=(title:string)=>{qc.invalidateQueries({queryKey:["/api/audit/cars"]});toast({title})};
-  const requestExtension=(id:string)=>{const requestedDueDate=window.prompt("New due date (YYYY-MM-DD)");if(!requestedDueDate)return;const reason=window.prompt("Justification (required)");if(!reason?.trim()){toast({title:"Justification is required",variant:"destructive"});return;}extension.mutate({id,data:{requestedDueDate,reason}},{onSuccess:()=>refresh("Extension requested")})};
-  return <div className="space-y-5"><PageHeader title="Corrective Action Register" description="Track ownership, response, review, extensions and closure"/><Select value={status} onValueChange={v=>{setStatus(v);setPage(1)}}><SelectTrigger className="w-52"><SelectValue/></SelectTrigger><SelectContent>{["all","Open","Draft","Submitted","Accepted","Rejected","Extension Requested","Closed"].map(x=><SelectItem key={x} value={x}>{x==="all"?"All statuses":x}</SelectItem>)}</SelectContent></Select><State loading={query.isLoading} error={query.error} empty={!query.data?.items.length}/><Dialog open={!!edit} onOpenChange={v=>!v&&setEdit(undefined)}><DialogContent><DialogHeader><DialogTitle>CAR response</DialogTitle></DialogHeader>{edit&&<CarEditor car={edit} onClose={()=>setEdit(undefined)}/>}</DialogContent></Dialog>
-    <div className="space-y-3">{query.data?.items.map(car=>{const overdue=car.status!=="Closed"&&new Date(car.dueDate)<new Date();return <Card key={car.id} className={overdue?"border-destructive":""}><CardContent className="pt-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap gap-2"><Badge variant={workflowTone(car.status)}>{car.status}</Badge>{overdue&&<Badge variant="destructive">Overdue · priority may auto-upgrade</Badge>}{car.extensionStatus&&<Badge variant="outline">Extension {car.extensionStatus}</Badge>}</div><h3 className="mt-3 font-semibold">{car.responsibleDepartment}</h3><p className="text-sm text-muted-foreground">Due {date(car.dueDate)} · Owner {car.ownerId}</p><p className="mt-2 text-sm"><b>Root cause:</b> {car.rootCause||"Not provided"}</p></div><div className="flex max-w-lg flex-wrap justify-end gap-2"><Button size="sm" variant="outline" onClick={()=>setEdit(car)}>Edit response</Button>{["Open","Draft","Rejected"].includes(car.status)&&<Button size="sm" onClick={()=>submit.mutate({id:car.id},{onSuccess:()=>refresh("CAR submitted")})}>Submit</Button>}{car.status==="Submitted"&&<><Button size="sm" onClick={()=>review.mutate({id:car.id,data:{decision:"accept"}},{onSuccess:()=>refresh("CAR accepted")})}>Accept</Button><Button size="sm" variant="outline" onClick={()=>{const comments=window.prompt("Rejection remarks");review.mutate({id:car.id,data:{decision:"reject",comments}},{onSuccess:()=>refresh("CAR rejected")})}}>Reject</Button></>}{car.status==="Accepted"&&car.extensionStatus!=="pending"&&<Button size="sm" variant="outline" onClick={()=>requestExtension(car.id)}>Extension</Button>}{car.extensionStatus==="pending"&&<><Button size="sm" onClick={()=>extensionReview.mutate({id:car.id,data:{decision:"approve"}},{onSuccess:()=>refresh("Extension approved")})}>Approve extension</Button><Button size="sm" variant="outline" onClick={()=>{const comments=window.prompt("Rejection remarks (required)");if(!comments?.trim())return;extensionReview.mutate({id:car.id,data:{decision:"reject",comments}},{onSuccess:()=>refresh("Extension rejected")})}}>Reject extension</Button><Button size="sm" variant="ghost" onClick={()=>window.confirm("Withdraw this extension request? The CAR returns to its previous step.")&&extensionCancel.mutate({id:car.id},{onSuccess:()=>refresh("Extension withdrawn")})}>Withdraw</Button></>}{car.status==="Accepted"&&<Button size="sm" onClick={()=>window.confirm("Verify effectiveness and close this CAR?")&&close.mutate({id:car.id},{onSuccess:()=>refresh("CAR closed")})}>Close</Button>}</div></div></CardContent></Card>})}</div>{query.data?.items.length?<Pager page={page} total={query.data.total} onPage={setPage}/>:null}</div>;
+  return <CarRegister/>;
 }
 
 function CarActionDetail() {
   const { id = "" } = useParams<{ id: string }>();
-  const query = useGetCorrectiveActionReport(id);
+  const query = useGetCorrectiveActionReport(id, { query: { queryKey: getGetCorrectiveActionReportQueryKey(id), refetchInterval: 20_000 } });
   const qc = useQueryClient();
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
-  const submit = confirmedWorkflowMutation(useSubmitCorrectiveActionReport(), () => ({ action: "submit", document: "this corrective action report" }));
-  const review = confirmedWorkflowMutation(useReviewCorrectiveActionReport(), variables => ({ action: variables.data.decision, document: "this corrective action report" }));
-  const refresh = (message: string) => {
-    void qc.invalidateQueries({ queryKey: ["/api/audit/cars"] });
-    void qc.invalidateQueries({ queryKey: getGetCorrectiveActionReportQueryKey(id) });
-    void qc.invalidateQueries({ queryKey: ["/api/audit/my-actions"] });
-    toast({ title: message });
-  };
-  const failure = (error: unknown) => toast({ title: "Unable to update CAR", description: errorText(error), variant: "destructive" });
+  const [reviewing, setReviewing] = useState(false);
   const car = query.data;
   return <div className="space-y-5">
     <Button variant="ghost" asChild><Link href="/audit/my-actions"><ArrowLeft className="mr-2 size-4"/>For my Action</Link></Button>
@@ -2178,18 +2162,14 @@ function CarActionDetail() {
         <div><p className="font-medium">Correction</p><p className="whitespace-pre-wrap">{car.correction || "Not provided"}</p></div>
         <div><p className="font-medium">Corrective action</p><p className="whitespace-pre-wrap">{car.correctiveAction || "Not provided"}</p></div>
       </div>
+      {car.reviewComments && <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm"><b>Review{car.reviewOutcome ? ` (${car.reviewOutcome})` : ""}:</b> {car.reviewComments}</p>}
       <div className="flex flex-wrap gap-2">
-        {["Open", "Draft", "Rejected"].includes(car.status) && <>
-          <Button variant="outline" onClick={() => setEditing(true)}>Edit response</Button>
-          <Button disabled={submit.isPending} onClick={() => submit.mutate({ id: car.id }, { onSuccess: () => refresh("CAR submitted"), onError: failure })}>Submit</Button>
-        </>}
-        {car.status === "Submitted" && <>
-          <Button disabled={review.isPending} onClick={() => review.mutate({ id: car.id, data: { decision: "accept" } }, { onSuccess: () => refresh("CAR accepted"), onError: failure })}>Accept</Button>
-          <Button variant="outline" disabled={review.isPending} onClick={() => { const comments = window.prompt("Rejection remarks (required)"); if (comments?.trim()) review.mutate({ id: car.id, data: { decision: "reject", comments: comments.trim() } }, { onSuccess: () => refresh("CAR rejected"), onError: failure }); }}>Reject</Button>
-        </>}
+        {car.canRespond && ["Open", "Draft", "Rejected", "Returned for query", "Returned for rework"].includes(car.status) && <Button variant="outline" onClick={() => setEditing(true)}>Edit response</Button>}
+        {car.canReview && car.status === "Submitted" && <Button onClick={() => setReviewing(true)}>Review</Button>}
       </div>
     </CardContent></Card>}
-    <Dialog open={editing} onOpenChange={setEditing}><DialogContent><DialogHeader><DialogTitle>CAR response</DialogTitle></DialogHeader>{car && <CarEditor car={car} onClose={() => { setEditing(false); refresh("CAR updated"); }}/>}</DialogContent></Dialog>
+    {car && editing && <CarResponseDialog car={car} open onClose={() => setEditing(false)}/>}
+    {car && reviewing && <CarReviewDialog car={car} open onClose={() => setReviewing(false)}/>}
   </div>;
 }
 

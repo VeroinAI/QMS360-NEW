@@ -4,7 +4,7 @@ import type { Server } from "node:http";
 import {
   applicationAccess, auditAuditLogEntries, auditNotifications, auditPermissions, auditPlans, auditSchedules, audits, organizationSettings,
   auditUserWorkspaceRoles, auditWorkspaceRolePermissions, auditWorkspaceRoles,
-  db, masterDataGroups, masterDataValues, moduleFieldSettings, organizations, outboundEmails, platformRoles, projects, users,
+  correctiveActionReports, auditFindings, db, masterDataGroups, masterDataValues, moduleFieldSettings, organizations, outboundEmails, platformRoles, projects, users,
 } from "@workspace/db";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import auditRouter from "../src/routes/audit";
@@ -137,6 +137,8 @@ afterAll(async () => {
   await db.delete(outboundEmails).where(eq(outboundEmails.organizationId, orgId));
   await db.delete(auditNotifications).where(eq(auditNotifications.organizationId, orgId));
   await db.delete(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, orgId));
+  await db.delete(correctiveActionReports).where(eq(correctiveActionReports.organizationId, orgId));
+  await db.delete(auditFindings).where(eq(auditFindings.organizationId, orgId));
   await db.delete(audits).where(eq(audits.organizationId, orgId));
   await db.delete(auditPlans).where(eq(auditPlans.organizationId, orgId));
   await db.delete(auditSchedules).where(eq(auditSchedules.organizationId, orgId));
@@ -157,6 +159,78 @@ afterAll(async () => {
 });
 
 describe("audit programme parent/child workflow", () => {
+  it("registers actual findings, filters them, preserves response identity and closes only on assigned Team Lead acceptance", async () => {
+    const actionRole = await role("CAR action taker", [(await permission("create_edit")).id, (await permission("submit")).id, (await permission("view_all")).id]);
+    const leadRole = await role("CAR Team Lead", [(await permission("audit.cars.view_all")).id, (await permission("audit_team_lead")).id]);
+    await assign(creator.id, leadRole.id);
+    await assign(l1.id, actionRole.id);
+    try {
+      const [project] = await db.insert(projects).values({ organizationId: orgId, name: "CAR project", code: `CAR-${crypto.randomUUID().slice(0,8)}` }).returning();
+      const [schedule] = await db.insert(auditSchedules).values({ organizationId: orgId, projectId: project!.id, year: 2026, title: "CAR schedule",
+        status: JSON.stringify({ projectIds: [project!.id] }) }).returning();
+      const [plan] = await db.insert(auditPlans).values({ organizationId: orgId, projectId: project!.id, auditScheduleId: schedule!.id,
+        status: JSON.stringify({ leadAuditorId: creator.id }) }).returning();
+      const itemId = crypto.randomUUID();
+      const [audit] = await db.insert(audits).values({ organizationId: orgId, projectId: project!.id, auditPlanId: plan!.id,
+        referenceNumber: `CAR-${crypto.randomUUID()}`, checklistState: [
+          { id: itemId, source: "finding", clause: "1", auditArea: "Project management", description: "Plan not followed",
+            auditFinding: "Moderate NC", actionTakerId: l1.id, evidenceIds: [] },
+          { id: crypto.randomUUID(), clause: "2", result: "Not applicable" },
+        ] as any }).returning();
+      const register = await api("GET", `/car-register?projectId=${project!.id}&scheduleId=${schedule!.id}`, creator.token);
+      expect(register.status, JSON.stringify(register.json)).toBe(200);
+      expect(register.json.items).toHaveLength(1);
+      expect(register.json.items[0]).toMatchObject({ itemId, clause: "1", classification: "Moderate NC", actionTakerName: "L1 Approver", status: "Open" });
+      expect((await api("GET", `/car-register?scheduleId=${crypto.randomUUID()}`, creator.token)).json.items).toHaveLength(0);
+      const [before] = await db.select({ count: sql<number>`count(*)` }).from(correctiveActionReports).where(eq(correctiveActionReports.organizationId, orgId));
+      await api("GET", "/car-register", creator.token);
+      const [after] = await db.select({ count: sql<number>`count(*)` }).from(correctiveActionReports).where(eq(correctiveActionReports.organizationId, orgId));
+      expect(after!.count).toBe(before!.count);
+      expect((await api("POST", "/car-register/start", l2.token, { auditId: audit!.id, itemId })).status).toBe(403);
+      const created = await api("POST", "/car-register/start", l1.token, { auditId: audit!.id, itemId });
+      expect(created.status, JSON.stringify(created.json)).toBe(200);
+      const retry = await api("POST", "/car-register/start", l1.token, { auditId: audit!.id, itemId });
+      expect(retry.json.id).toBe(created.json.id);
+      expect((await api("POST", `/cars/${created.json.id}/submit`, l1.token)).status).toBe(422);
+      const response = { ...created.json, rootCause: "Controls missing", correction: "Plan updated", correctiveAction: "Review controls monthly" };
+      const saved = await api("PUT", `/cars/${created.json.id}`, l1.token, response);
+      expect(saved.status, JSON.stringify(saved.json)).toBe(200);
+      expect((await api("POST", `/cars/${created.json.id}/submit`, l1.token)).status).toBe(200);
+      expect((await api("GET", "/my-actions?limit=100", creator.token)).json.items).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: created.json.id, action: "Review" }),
+      ]));
+      expect((await api("GET", "/my-actions?limit=100", admin.token)).json.items).not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: created.json.id, action: "Review" }),
+      ]));
+      expect((await api("POST", `/cars/${created.json.id}/review`, l2.token, { decision: "accept" })).status).toBe(403);
+      expect((await api("POST", `/cars/${created.json.id}/review`, admin.token, { decision: "accept" })).status).toBe(403);
+      expect((await api("POST", `/cars/${created.json.id}/review`, creator.token, { decision: "query" })).status).toBe(422);
+      const query = await api("POST", `/cars/${created.json.id}/review`, creator.token, { decision: "query", comments: "Provide verification" });
+      expect(query.status, JSON.stringify(query.json)).toBe(200);
+      expect(query.json).toMatchObject({ status: "Returned for query", reviewOutcome: "query", reviewComments: "Provide verification" });
+      expect((await api("GET", `/cars/${created.json.id}`, l1.token)).json.reviewComments).toBe("Provide verification");
+      expect((await api("PUT", `/cars/${created.json.id}`, l1.token, response)).status).toBe(200);
+      expect((await api("POST", `/cars/${created.json.id}/submit`, l1.token)).status).toBe(200);
+      const rework = await api("POST", `/cars/${created.json.id}/review`, creator.token, { decision: "rework", comments: "Improve the preventive action" });
+      expect(rework.json).toMatchObject({ status: "Returned for rework", reviewOutcome: "rework" });
+      expect((await api("PUT", `/cars/${created.json.id}`, l1.token, response)).status).toBe(200);
+      expect((await api("POST", `/cars/${created.json.id}/submit`, l1.token)).status).toBe(200);
+      const outcomes = await Promise.all([1,2].map(() => api("POST", `/cars/${created.json.id}/review`, creator.token, { decision: "accept" })));
+      expect(outcomes.map(x => x.status).sort()).toEqual([200,409]);
+      expect(outcomes.find(x => x.status === 200)!.json.status).toBe("Closed");
+      expect((await api("PUT", `/cars/${created.json.id}`, l1.token, response)).status).toBe(409);
+      expect((await api("GET", `/car-register?status=Closed&projectId=${project!.id}`, creator.token)).json.items[0].car.closedAt).toBeTruthy();
+      await db.update(audits).set({ checklistState: [] as any }).where(eq(audits.id, audit!.id));
+      expect((await api("GET", `/car-register?projectId=${project!.id}`, creator.token)).json.items).toHaveLength(0);
+      expect((await api("GET", `/car-register?projectId=${project!.id}&includeLegacy=true`, creator.token)).json.items[0].car.id).toBe(created.json.id);
+      expect((await api("GET", `/cars/${created.json.id}`, l1.token)).json).toMatchObject({ status: "Closed", canRespond: false, canReview: false });
+    } finally {
+      await db.delete(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, orgId),
+        eq(auditUserWorkspaceRoles.userId, l1.id), eq(auditUserWorkspaceRoles.workspaceRoleId, actionRole.id)));
+      await db.delete(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, orgId),
+        eq(auditUserWorkspaceRoles.userId, creator.id), eq(auditUserWorkspaceRoles.workspaceRoleId, leadRole.id)));
+    }
+  });
   it("persists schedule role/users and editable multi-user activity snapshots without granting roles", async () => {
     const [contributor] = await db.select().from(auditWorkspaceRoles).where(and(
       eq(auditWorkspaceRoles.organizationId, orgId), eq(auditWorkspaceRoles.name, "Audit Contributor"),

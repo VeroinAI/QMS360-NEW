@@ -34,4 +34,14 @@ export interface CorrectiveActionReport {
   effectivenessVerified?: boolean;
   /** @nullable */
   closedAt?: Date | null;
+  /** @nullable */
+  reviewComments?: string | null;
+  /** @nullable */
+  reviewOutcome?: string | null;
+  /** @nullable */
+  reviewedBy?: string | null;
+  /** @nullable */
+  reviewedAt?: Date | null;
+  canRespond?: boolean;
+  canReview?: boolean;
 }

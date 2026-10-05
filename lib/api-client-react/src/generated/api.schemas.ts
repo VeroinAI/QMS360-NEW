@@ -3326,6 +3326,8 @@ export const CorrectiveActionReportStatus = {
   Submitted: 'Submitted',
   Accepted: 'Accepted',
   Rejected: 'Rejected',
+  Returned_for_query: 'Returned for query',
+  Returned_for_rework: 'Returned for rework',
   Extension_Requested: 'Extension Requested',
   Closed: 'Closed',
 } as const;
@@ -3368,6 +3370,77 @@ export interface CorrectiveActionReport {
   effectivenessVerified?: boolean;
   /** @nullable */
   closedAt?: string | null;
+  /** @nullable */
+  reviewComments?: string | null;
+  /** @nullable */
+  reviewOutcome?: string | null;
+  /** @nullable */
+  reviewedBy?: string | null;
+  /** @nullable */
+  reviewedAt?: string | null;
+  canRespond?: boolean;
+  canReview?: boolean;
+}
+
+export type CarReviewInputDecision = typeof CarReviewInputDecision[keyof typeof CarReviewInputDecision];
+
+
+export const CarReviewInputDecision = {
+  accept: 'accept',
+  reject: 'reject',
+  query: 'query',
+  rework: 'rework',
+} as const;
+
+export interface CarReviewInput {
+  decision: CarReviewInputDecision;
+  /** @nullable */
+  comments?: string | null;
+}
+
+export interface FindingCarInput {
+  /** @minLength 1 */
+  auditId: string;
+  /** @minLength 1 */
+  itemId: string;
+}
+
+export interface CarRegisterOption {
+  id: string;
+  name: string;
+}
+
+export interface CarRegisterEntry {
+  id: string;
+  auditId: string;
+  itemId: string;
+  auditTitle: string;
+  /** @nullable */
+  scheduleId?: string | null;
+  scheduleName?: string;
+  /** @nullable */
+  projectId?: string | null;
+  projectName?: string;
+  clause: string;
+  auditArea: string;
+  description: string;
+  classification: string;
+  actionTakerName: string;
+  evidenceIds: string[];
+  status: string;
+  canRespond: boolean;
+  canReview: boolean;
+  legacy?: boolean;
+  car?: CorrectiveActionReport;
+}
+
+export interface CarRegisterPage {
+  items: CarRegisterEntry[];
+  total: number;
+  page: number;
+  limit: number;
+  projects: CarRegisterOption[];
+  schedules: CarRegisterOption[];
 }
 
 export type AcceptRejectReviewDecision = typeof AcceptRejectReviewDecision[keyof typeof AcceptRejectReviewDecision];
@@ -4857,6 +4930,22 @@ limit?: LimitParameter;
 
 export type ListCorrectiveActionReportsParams = {
 status?: string;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListCarRegisterParams = {
+projectId?: string;
+scheduleId?: string;
+status?: string;
+includeLegacy?: boolean;
 /**
  * @minimum 1
  */

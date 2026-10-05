@@ -3,11 +3,17 @@ name: Audit Team Lead marker
 description: Intent and security boundary for the Audit Team Lead role authorization.
 ---
 
-Treat Audit Team Lead as a role-level authorization marker for future QMS Audit features, not as a general-purpose permission to create, review, approve, or view Audit records.
+Treat Audit Team Lead as a role-level authorization marker for explicitly defined QMS Audit features, not as a general-purpose permission to create, review, approve, or view Audit records.
 
 **Why:** The user requested a way to identify the Audit Team Lead role now, for functionality to be specified later. Adding implicit powers before that functionality is defined would change access unexpectedly.
 
 **How to apply:** Future features may explicitly check this authorization on an active assigned Audit role, alongside their normal application access and scope requirements. Do not infer the marker from the role's display name or make it grant existing capabilities.
+
+CAR responses are reviewed by the linked Audit Plan's Lead / Internal Auditor, who must also have active Audit Team Lead authorization and normal CAR read/project access. Accepting closes the CAR immediately; queries or rework require comments and permit the action taker to revise and resubmit.
+
+**Why:** The user requested a finding-to-response workflow reviewed by that audit's Team Lead, not general administrator approval followed by a separate closure stage.
+
+**How to apply:** Assignment and active authorization must both hold. Administrator access alone does not substitute for the assigned reviewer, and the marker alone must not unlock unrelated actions.
 
 New Audit programmes capture the selected Team Lead user IDs at creation. Child Audit Plans choose their Lead / Internal Auditor from that parent selection, not from everyone who currently holds the role. Existing programmes without a saved selection remain unrestricted for compatibility.
 

@@ -45,7 +45,7 @@
 - [Shared application approval recovery](shared-application-approval-recovery.md) — shared active status can hide an unapproved app; recover requests without changing unrelated access.
 - [Audit type-category links](audit-type-category-links.md) — administrators maintain category-to-type links in master data; do not infer a hardcoded mapping from existing schedules.
 - [Task rebase verification](task-rebase-verification.md) — after resolving overlapping task edits, rerun focused tests against the final rebased tree; semantic merging can scramble test bodies.
-- [Audit Team Lead marker](audit-team-lead-marker.md) — role authorization identifies future Audit Team Lead workflows; it must not grant unrelated actions by itself.
+- [Audit Team Lead marker](audit-team-lead-marker.md) — assigned leads review CARs with scoped read access; acceptance closes immediately; the marker grants no unrelated rights.
 - [Audit Program Manager marker](audit-program-manager-marker.md) — permits only post-approval Team Lead changes on scoped Audit Schedules, not general edit or approval.
 - [Audit Schedule data-entry scope](audit-schedule-data-entry-scope.md) — legacy Audit “Create / edit” grants are schedule-only; do not turn them into global Audit write rights.
 - [Audit module access](audit-module-access.md) — module grants are additive; narrow global grants explicitly and preserve Programme creation, approval levels and assignment scope.

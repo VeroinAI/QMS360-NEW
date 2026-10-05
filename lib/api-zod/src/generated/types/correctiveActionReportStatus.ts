@@ -15,6 +15,8 @@ export const CorrectiveActionReportStatus = {
   Submitted: 'Submitted',
   Accepted: 'Accepted',
   Rejected: 'Rejected',
+  Returned_for_query: 'Returned for query',
+  Returned_for_rework: 'Returned for rework',
   Extension_Requested: 'Extension Requested',
   Closed: 'Closed',
 } as const;

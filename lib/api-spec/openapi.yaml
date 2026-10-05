@@ -1530,13 +1530,39 @@ paths:
     post: {operationId: createFindingCars, tags: [audit], summary: Create one CAR per responsible department, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/CreateCars"}, responses: {"201": {$ref: "#/components/responses/CarPage"}}}
   /audit/cars:
     get: {operationId: listCorrectiveActionReports, tags: [audit], summary: List corrective action reports, parameters: [{name: status, in: query, schema: {type: string}}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/CarPage"}}}
+  /audit/car-register:
+    get:
+      operationId: listCarRegister
+      tags: [audit]
+      parameters:
+        - {name: projectId, in: query, schema: {type: string}}
+        - {name: scheduleId, in: query, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string}}
+        - {name: includeLegacy, in: query, schema: {type: boolean}}
+        - {$ref: "#/components/parameters/Page"}
+        - {$ref: "#/components/parameters/Limit"}
+      responses:
+        "200":
+          description: Findings and their corrective action responses
+          content: {application/json: {schema: {$ref: "#/components/schemas/CarRegisterPage"}}}
+  /audit/car-register/start:
+    post:
+      operationId: startFindingCar
+      tags: [audit]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/FindingCarInput"}}}
+      responses:
+        "200":
+          description: Created or existing response
+          content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}
   /audit/cars/{id}:
     get: {operationId: getCorrectiveActionReport, tags: [audit], summary: Get a corrective action report, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Corrective action report, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}, "403": {description: CAR is outside the caller's organization or scope}, "404": {description: CAR not found}}}
     put: {operationId: updateCorrectiveActionReport, tags: [audit], summary: "Update root cause, correction, and corrective action", parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Car"}, responses: {"200": {description: Updated}}}
   /audit/cars/{id}/submit:
     post: {operationId: submitCorrectiveActionReport, tags: [audit], summary: Submit CAR, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
   /audit/cars/{id}/review:
-    post: {operationId: reviewCorrectiveActionReport, tags: [audit], summary: Accept or reject CAR, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AcceptReject"}, responses: {"200": {description: Reviewed}}}
+    post: {operationId: reviewCorrectiveActionReport, tags: [audit], summary: Team Lead closes or returns CAR, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CarReviewInput"}}}}, responses: {"200": {description: Reviewed}}}
   /audit/cars/{id}/extension:
     post: {operationId: requestCarExtension, tags: [audit], summary: Request CAR due-date extension, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Extension"}, responses: {"200": {description: Requested}}}
   /audit/cars/{id}/extension/review:
@@ -3554,7 +3580,7 @@ components:
         rootCause: {type: [string, "null"]}
         correction: {type: [string, "null"]}
         correctiveAction: {type: [string, "null"]}
-        status: {type: string, enum: [Open, Draft, Submitted, Accepted, Rejected, Extension Requested, Closed]}
+        status: {type: string, enum: [Open, Draft, Submitted, Accepted, Rejected, Returned for query, Returned for rework, Extension Requested, Closed]}
         dueDate: {type: string, format: date}
         extensionRequestedTo: {type: [string, "null"], format: date}
         extensionReason: {type: [string, "null"]}
@@ -3563,6 +3589,63 @@ components:
         extensionReviewedAt: {type: [string, "null"], format: date-time}
         effectivenessVerified: {type: boolean}
         closedAt: {type: [string, "null"], format: date-time}
+        reviewComments: {type: [string, "null"]}
+        reviewOutcome: {type: [string, "null"]}
+        reviewedBy: {type: [string, "null"]}
+        reviewedAt: {type: [string, "null"], format: date-time}
+        canRespond: {type: boolean}
+        canReview: {type: boolean}
+    CarReviewInput:
+      type: object
+      required: [decision]
+      properties:
+        decision: {type: string, enum: [accept, reject, query, rework]}
+        comments: {type: [string, "null"]}
+    FindingCarInput:
+      type: object
+      required: [auditId, itemId]
+      properties:
+        auditId: {type: string, minLength: 1}
+        itemId: {type: string, minLength: 1}
+    CarRegisterOption:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: string}
+        name: {type: string}
+    CarRegisterEntry:
+      type: object
+      required: [id, auditId, itemId, auditTitle, clause, auditArea, description, classification, actionTakerName, status, canRespond, canReview, evidenceIds]
+      properties:
+        id: {type: string}
+        auditId: {type: string}
+        itemId: {type: string}
+        auditTitle: {type: string}
+        scheduleId: {type: [string, "null"]}
+        scheduleName: {type: string}
+        projectId: {type: [string, "null"]}
+        projectName: {type: string}
+        clause: {type: string}
+        auditArea: {type: string}
+        description: {type: string}
+        classification: {type: string}
+        actionTakerName: {type: string}
+        evidenceIds: {type: array, items: {type: string}}
+        status: {type: string}
+        canRespond: {type: boolean}
+        canReview: {type: boolean}
+        legacy: {type: boolean}
+        car: {$ref: "#/components/schemas/CorrectiveActionReport"}
+    CarRegisterPage:
+      type: object
+      required: [items, total, page, limit, projects, schedules]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/CarRegisterEntry"}}
+        total: {type: number}
+        page: {type: number}
+        limit: {type: number}
+        projects: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        schedules: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
     AcceptRejectReview:
       type: object
       required: [decision]
