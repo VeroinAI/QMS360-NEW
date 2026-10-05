@@ -61,6 +61,7 @@ export default defineConfig({
           // TS type on these paginated record routes. IDs are validated by the API.
           listAuditProgrammeActivity: { zod: { generate: { param: false }, coerce: { query: ["number"] } } },
           listAuditScheduleActivity: { zod: { generate: { param: false }, coerce: { query: ["number"] } } },
+          listCarActivity: { zod: { generate: { param: false }, coerce: { query: ["number"] } } },
         },
         zod: {
           coerce: {

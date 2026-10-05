@@ -1559,6 +1559,24 @@ paths:
         "200":
           description: Created or existing response
           content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}
+  /audit/cars/{id}/edit-session:
+    post:
+      operationId: openCarEditSession
+      tags: [audit]
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200":
+          description: Authorized edit opening recorded in CAR history
+          content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}
+  /audit/cars/{id}/activity:
+    get:
+      operationId: listCarActivity
+      tags: [audit]
+      parameters: [{$ref: "#/components/parameters/Id"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses:
+        "200":
+          description: Scoped CAR history, newest first
+          content: {application/json: {schema: {$ref: "#/components/schemas/CarActivityPage"}}}
   /audit/cars/{id}:
     get: {operationId: getCorrectiveActionReport, tags: [audit], summary: Get a corrective action report, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Corrective action report, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}, "403": {description: CAR is outside the caller's organization or scope}, "404": {description: CAR not found}}}
     put: {operationId: updateCorrectiveActionReport, tags: [audit], summary: "Update root cause, correction, and corrective action", parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Car"}, responses: {"200": {description: Updated}}}
@@ -3610,6 +3628,25 @@ components:
       properties:
         auditId: {type: string, minLength: 1}
         itemId: {type: string, minLength: 1}
+    CarActivityPage:
+      type: object
+      required: [items, total, page, limit]
+      properties:
+        total: {type: number}
+        page: {type: number}
+        limit: {type: number}
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, action, actorName, createdAt]
+            properties:
+              id: {type: string}
+              action: {type: string}
+              actorName: {type: string}
+              createdAt: {type: string, format: date-time}
+              status: {type: [string, "null"]}
+              comments: {type: [string, "null"]}
     CarRegisterOption:
       type: object
       required: [id, name]

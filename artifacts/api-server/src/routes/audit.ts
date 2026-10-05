@@ -3096,6 +3096,7 @@ router.post("/car-register/start", asyncHandler(async (req, res) => {
     return created!;
   });
   const context = await carContext(req, row.id);
+  await auditLog(req, "open_edit", "corrective_action_report", row.id, undefined, { status: carDto(row).status });
   res.json({ ...carDto(row), canRespond: context.canEditResponse, canReview: context.canReview });
 }));
 
@@ -3354,6 +3355,36 @@ router.get("/cars", asyncHandler(async (req, res) => {
     db.select({ car: correctiveActionReports }).from(correctiveActionReports).innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id)).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(where).orderBy(desc(correctiveActionReports.updatedAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(correctiveActionReports).innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id)).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(where),
   ]); res.json(paginated(rows.map((row) => carDto(row.car)), Number(count), page, limit));
+}));
+router.get("/cars/:id/activity", asyncHandler(async (req, res) => {
+  const context = await carContext(req, String(req.params.id), true);
+  const { page, limit, offset } = pagination(req);
+  const predicate = and(
+    eq(auditAuditLogEntries.organizationId, actor(req).organizationId),
+    eq(auditAuditLogEntries.entityType, "corrective_action_report"),
+    eq(auditAuditLogEntries.entityId, context.car.id),
+  );
+  const [events, [count]] = await Promise.all([
+    db.select({ event: auditAuditLogEntries, actorName: users.fullName }).from(auditAuditLogEntries)
+      .leftJoin(users, eq(users.id, auditAuditLogEntries.actorId))
+      .where(predicate).orderBy(desc(auditAuditLogEntries.createdAt), desc(auditAuditLogEntries.id))
+      .limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)::int` }).from(auditAuditLogEntries).where(predicate),
+  ]);
+  res.json({ items: events.map(({ event, actorName }) => {
+    const after = event.after as AnyRow | null;
+    const meta = carJson(after?.effectivenessNotes);
+    return { id: event.id, action: event.action, actorName: actorName || "Unavailable user",
+      createdAt: event.createdAt, status: after?.workflowState ? carDto(after).status : after?.status || null,
+      comments: typeof meta.reviewComments === "string" ? meta.reviewComments : null };
+  }), total: Number(count?.count ?? 0), page, limit });
+}));
+router.post("/cars/:id/edit-session", asyncHandler(async (req, res) => {
+  const context = await carContext(req, String(req.params.id));
+  if (!context.canEditResponse) throw new HttpError(403, "Only the assigned action taker may edit this response");
+  if (!["open", "draft", "rejected"].includes(context.car.workflowState)) throw new HttpError(409, "CAR cannot be edited in its current state");
+  await auditLog(req, "open_edit", "corrective_action_report", context.car.id, undefined, { status: carDto(context.car).status });
+  res.json({ ...carDto(context.car), canRespond: context.canEditResponse, canReview: context.canReview });
 }));
 router.get("/cars/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(correctiveActionReports).where(and(

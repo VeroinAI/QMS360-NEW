@@ -8,3 +8,9 @@ Keep historical standalone Audit finding records and their CAR links intact when
 **Why:** Existing audits may already have CAR relationships and report history based on the older records. The revised workspace uses checklist results and finding-only entries; these identities are not interchangeable.
 
 **How to apply:** When changing reports, exports, or CAR flows, account for both record families and avoid duplicate display or destructive migration.
+
+The CAR Register workbook's green tick means corrective action was recorded, not that the CAR was accepted, closed, or its effectiveness verified. Display and Log are read-only; Edit retains the assigned-action-taker rules, and Close/Return retains assigned Team Lead review.
+
+**Why:** The user requested a spreadsheet-style projection with action indicators and history, not a new approval workflow or a data migration.
+
+**How to apply:** Keep the indicator separate from lifecycle status and preserve existing identities and permissions when revising the register.

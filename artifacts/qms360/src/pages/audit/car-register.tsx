@@ -4,9 +4,9 @@ import { Download } from "lucide-react";
 import {
   customFetch, getGetCorrectiveActionReportQueryKey, getListCarRegisterQueryKey, useListAuditEvidence, useListCarRegister,
   useReviewCorrectiveActionReport, useStartFindingCar, useSubmitCorrectiveActionReport, useUpdateCorrectiveActionReport,
+  useOpenCarEditSession,
 } from "@workspace/api-client-react";
 import type { CarRegisterEntry, CorrectiveActionReport } from "@workspace/api-client-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { CarRegisterTable } from "./car-register-table";
+import { CarDisplayDialog, CarLogDialog } from "./car-register-details";
 import { useFieldControls } from "@/lib/field-controls";
 import { useFieldAccess } from "@/lib/use-field-access";
 
@@ -22,7 +24,6 @@ const LIMIT = 10;
 const EDITABLE = ["Open", "Draft", "Rejected", "Returned for query", "Returned for rework"];
 const STATUSES = ["Open", "Draft", "Submitted", "Returned for query", "Returned for rework", "Accepted", "Rejected", "Extension Requested", "Closed"];
 const errorText = (e: unknown) => e instanceof Error ? e.message : "Please try again.";
-const tone = (s: string) => s === "Closed" || s === "Accepted" ? "default" as const : s === "Rejected" ? "destructive" as const : "secondary" as const;
 const outcomeLabel = (o?: string | null) => o === "query" ? "Query" : o === "rework" ? "Rework" : o === "reject" ? "Rejected" : o === "accept" ? "Accepted" : o ?? "";
 
 export function useCarRefresh(carId?: string) {
@@ -141,13 +142,22 @@ export function CarRegister() {
   const [legacy, setLegacy] = useState(false);
   const [respond, setRespond] = useState<CorrectiveActionReport>();
   const [reviewing, setReviewing] = useState<CorrectiveActionReport>();
+  const [displaying, setDisplaying] = useState<CarRegisterEntry>();
+  const [logging, setLogging] = useState<CarRegisterEntry>();
   const params = { page, limit: LIMIT, includeLegacy: legacy, ...(projectId !== "all" && { projectId }), ...(scheduleId !== "all" && { scheduleId }), ...(auditTitle !== "all" && { auditTitle }), ...(auditType !== "all" && { auditType }), ...(department !== "all" && { department }), ...(status !== "all" && { status }) };
   const query = useListCarRegister(params, { query: { queryKey: getListCarRegisterQueryKey(params), refetchInterval: 20_000, staleTime: 10_000, refetchOnWindowFocus: true } });
   const start = useStartFindingCar();
+  const editSession = useOpenCarEditSession();
   const data = query.data;
   const reset = <T,>(set: (v: T) => void) => (v: T) => { set(v); setPage(1); };
   const open = (e: CarRegisterEntry) => {
-    if (e.car) { setRespond(e.car); return; }
+    if (e.car) {
+      editSession.mutate({ id: e.car.id }, {
+        onSuccess: car => setRespond(car),
+        onError: err => toast({ title: "Unable to open CAR", description: errorText(err), variant: "destructive" }),
+      });
+      return;
+    }
     start.mutate({ data: { auditId: e.auditId, itemId: e.itemId } }, {
       onSuccess: car => { refresh(); setRespond(car as CorrectiveActionReport); },
       onError: err => toast({ title: "Unable to start CAR", description: errorText(err), variant: "destructive" }),
@@ -168,33 +178,14 @@ export function CarRegister() {
     </div>
     {query.isLoading && <Card><CardContent className="animate-pulse py-14 text-center text-muted-foreground">Loading…</CardContent></Card>}
     {query.error && <Card className="border-destructive"><CardContent className="py-8 text-center text-destructive">{errorText(query.error)} <Button size="sm" variant="outline" className="ml-2" onClick={() => void query.refetch()}>Retry</Button></CardContent></Card>}
-    {data && !data.items.length && <Card><CardContent className="py-14 text-center">No findings match these filters.</CardContent></Card>}
-    <div className="space-y-3">{data?.items.map(e => {
-      const car = e.car; const editable = !!car && EDITABLE.includes(car.status) || (!car && !e.legacy && EDITABLE.includes(e.status));
-      return <Card key={e.id} data-testid={`row-car-${e.id}`}><CardContent className="space-y-3 pt-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2"><Badge variant={tone(e.status)}>{e.status}</Badge><Badge variant="outline">{e.classification}</Badge>{e.legacy && <Badge variant="outline">Historical</Badge>}</div>
-          <div className="flex flex-wrap gap-2">
-            {e.canRespond && editable && <Button size="sm" data-testid={`button-respond-${e.id}`} disabled={start.isPending} onClick={() => open(e)}>{car?.rootCause ? "Edit response" : "Respond"}</Button>}
-            {e.canReview && car?.status === "Submitted" && <Button size="sm" variant="outline" data-testid={`button-review-${e.id}`} onClick={() => setReviewing(car)}>Review</Button>}
-          </div></div>
-        <div className="grid gap-3 text-sm md:grid-cols-4">
-          <div><p className="text-xs text-muted-foreground">Clause</p><p className="font-medium">{e.clause || "—"}</p></div>
-          <div><p className="text-xs text-muted-foreground">Audit area</p><p>{e.auditArea || "—"}</p></div>
-          <div><p className="text-xs text-muted-foreground">Action taker</p><p>{e.actionTakerName || "—"}</p></div>
-          <div><p className="text-xs text-muted-foreground">Evidence</p><div><Evidence entry={e}/></div></div>
-        </div>
-        <p className="whitespace-pre-wrap text-sm">{e.description || "No description."}</p>
-        <p className="text-xs text-muted-foreground">{e.auditTitle}{e.auditTypes?.length ? ` · ${e.auditTypes.join(", ")}` : ""}{e.department ? ` · ${e.department}` : e.projectName ? ` · ${e.projectName}` : ""}{e.scheduleName ? ` · ${e.scheduleName}` : ""}</p>
-        {car && (car.rootCause || car.correction || car.correctiveAction) && <div className="grid gap-3 rounded-md bg-muted/40 p-3 text-sm md:grid-cols-3">
-          <div><p className="font-medium">Root cause</p><p className="whitespace-pre-wrap">{car.rootCause || "—"}</p></div>
-          <div><p className="font-medium">Correction</p><p className="whitespace-pre-wrap">{car.correction || "—"}</p></div>
-          <div><p className="font-medium">Corrective action</p><p className="whitespace-pre-wrap">{car.correctiveAction || "—"}</p></div></div>}
-        {car && <CarReviewNotes car={car}/>}
-      </CardContent></Card>; })}</div>
+    {data && <CarRegisterTable entries={data.items} page={page} limit={LIMIT} busy={start.isPending || editSession.isPending}
+      renderEvidence={entry => <Evidence entry={entry} />} onEdit={open} onDisplay={setDisplaying}
+      onReview={entry => { if (entry.car) setReviewing(entry.car); }} onLog={setLogging} />}
     {data && data.items.length > 0 && <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground"><span>{data.total} total</span>
       <div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page * LIMIT >= data.total} onClick={() => setPage(page + 1)}>Next</Button></div></div>}
     {respond && <CarResponseDialog key={respond.id} car={respond} open onClose={() => setRespond(undefined)}/>}
     {reviewing && <CarReviewDialog key={reviewing.id} car={reviewing} open onClose={() => setReviewing(undefined)}/>}
+    {displaying && <CarDisplayDialog entry={displaying} reviewNotes={displaying.car && <CarReviewNotes car={displaying.car} />} onClose={() => setDisplaying(undefined)} />}
+    {logging && <CarLogDialog key={logging.id} entry={logging} onClose={() => setLogging(undefined)} />}
   </div>;
 }

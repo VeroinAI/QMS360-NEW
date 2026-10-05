@@ -248,6 +248,10 @@ describe("audit programme parent/child workflow", () => {
       expect(register.status, JSON.stringify(register.json)).toBe(200);
       expect(register.json.items).toHaveLength(1);
       expect(register.json.items[0]).toMatchObject({ itemId, clause: "1", classification: "Moderate NC", actionTakerName: "L1 Approver", status: "Open" });
+      await db.insert(auditFindings).values({
+        organizationId: orgId, auditId: audit!.id, description: "Excluded historical finding", classification: "nOt aPpLiCaBlE",
+      });
+      expect((await api("GET", `/car-register?projectId=${project!.id}&includeLegacy=true`, creator.token)).json.items).toHaveLength(1);
       expect((await api("GET", `/car-register?scheduleId=${crypto.randomUUID()}`, creator.token)).json.items).toHaveLength(0);
       const [before] = await db.select({ count: sql<number>`count(*)` }).from(correctiveActionReports).where(eq(correctiveActionReports.organizationId, orgId));
       await api("GET", "/car-register", creator.token);
@@ -258,6 +262,16 @@ describe("audit programme parent/child workflow", () => {
       expect(created.status, JSON.stringify(created.json)).toBe(200);
       const retry = await api("POST", "/car-register/start", l1.token, { auditId: audit!.id, itemId });
       expect(retry.json.id).toBe(created.json.id);
+      expect((await api("POST", `/cars/${created.json.id}/edit-session`, l1.token)).status).toBe(200);
+      expect((await api("POST", `/cars/${created.json.id}/edit-session`, l2.token)).status).toBe(403);
+      const initialLog = await api("GET", `/cars/${created.json.id}/activity?page=1&limit=1`, creator.token);
+      expect(initialLog.status, JSON.stringify(initialLog.json)).toBe(200);
+      expect(initialLog.json.items).toHaveLength(1);
+      expect(initialLog.json.total).toBe(4); // create and three authorized Edit openings
+      expect(initialLog.json.items[0]).toMatchObject({ action: "open_edit", actorName: "L1 Approver" });
+      expect(initialLog.json.items[0]).not.toHaveProperty("before");
+      expect(initialLog.json.items[0]).not.toHaveProperty("after");
+      expect((await api("GET", `/cars/${created.json.id}/activity`, creator.token)).json.total).toBe(4); // reads are not actions
       expect((await api("POST", `/cars/${created.json.id}/submit`, l1.token)).status).toBe(422);
       const response = { ...created.json, rootCause: "Controls missing", correction: "Plan updated", correctiveAction: "Review controls monthly" };
       const saved = await api("PUT", `/cars/${created.json.id}`, l1.token, response);
@@ -286,11 +300,20 @@ describe("audit programme parent/child workflow", () => {
       expect(outcomes.map(x => x.status).sort()).toEqual([200,409]);
       expect(outcomes.find(x => x.status === 200)!.json.status).toBe("Closed");
       expect((await api("PUT", `/cars/${created.json.id}`, l1.token, response)).status).toBe(409);
+      expect((await api("POST", `/cars/${created.json.id}/edit-session`, l1.token)).status).toBe(409);
+      const finalLog = await api("GET", `/cars/${created.json.id}/activity`, creator.token);
+      expect(finalLog.json.items).toEqual(expect.arrayContaining([
+        expect.objectContaining({ action: "update" }), expect.objectContaining({ action: "submit" }),
+        expect.objectContaining({ action: "query", comments: "Provide verification" }),
+        expect.objectContaining({ action: "rework", comments: "Improve the preventive action" }),
+        expect.objectContaining({ action: "accept", status: "Closed" }),
+      ]));
       expect((await api("GET", `/car-register?status=Closed&projectId=${project!.id}`, creator.token)).json.items[0].car.closedAt).toBeTruthy();
       await db.update(audits).set({ checklistState: [] as any }).where(eq(audits.id, audit!.id));
       expect((await api("GET", `/car-register?projectId=${project!.id}`, creator.token)).json.items).toHaveLength(0);
       expect((await api("GET", `/car-register?projectId=${project!.id}&includeLegacy=true`, creator.token)).json.items[0].car.id).toBe(created.json.id);
       expect((await api("GET", `/cars/${created.json.id}`, l1.token)).json).toMatchObject({ status: "Closed", canRespond: false, canReview: false });
+      expect((await api("GET", `/cars/${created.json.id}/activity`, l1.token)).status).toBe(200);
     } finally {
       await db.delete(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, orgId),
         eq(auditUserWorkspaceRoles.userId, l1.id), eq(auditUserWorkspaceRoles.workspaceRoleId, actionRole.id)));

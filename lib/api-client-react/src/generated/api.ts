@@ -76,6 +76,7 @@ import type {
   AuthenticationConfiguration,
   BulkImportResult,
   BusinessUnitPageResponse,
+  CarActivityPage,
   CarBody,
   CarPageResponse,
   CarRegisterPage,
@@ -196,6 +197,7 @@ import type {
   ListAuditWorkspaceAuditLogParams,
   ListAuditsParams,
   ListBusinessUnitsParams,
+  ListCarActivityParams,
   ListCarRegisterParams,
   ListCorrectiveActionReportsParams,
   ListCustomerSatisfactionEntriesParams,
@@ -21792,6 +21794,154 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getStartFindingCarMutationOptions(options));
     }
+
+export const getOpenCarEditSessionUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/cars/${id}/edit-session`
+}
+
+export const openCarEditSession = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<CorrectiveActionReport> => {
+
+  return customFetch<CorrectiveActionReport>(getOpenCarEditSessionUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getOpenCarEditSessionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openCarEditSession>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof openCarEditSession>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['openCarEditSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof openCarEditSession>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  openCarEditSession(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OpenCarEditSessionMutationResult = NonNullable<Awaited<ReturnType<typeof openCarEditSession>>>
+
+    export type OpenCarEditSessionMutationError = ErrorType<unknown>
+
+    export const useOpenCarEditSession = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openCarEditSession>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof openCarEditSession>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getOpenCarEditSessionMutationOptions(options));
+    }
+
+export const getListCarActivityUrl = (id: string,
+    params?: ListCarActivityParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/cars/${id}/activity?${stringifiedParams}` : `/api/audit/cars/${id}/activity`
+}
+
+export const listCarActivity = async (id: string,
+    params?: ListCarActivityParams, options?: Parameters<typeof customFetch>[1]): Promise<CarActivityPage> => {
+
+  return customFetch<CarActivityPage>(getListCarActivityUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCarActivityQueryKey = (id: string,
+    params?: ListCarActivityParams,) => {
+    return [
+    `/api/audit/cars/${id}/activity`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCarActivityQueryOptions = <TData = Awaited<ReturnType<typeof listCarActivity>>, TError = ErrorType<unknown>>(id: string,
+    params?: ListCarActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCarActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCarActivityQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCarActivity>>> = ({ signal }) => listCarActivity(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCarActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCarActivityQueryResult = NonNullable<Awaited<ReturnType<typeof listCarActivity>>>
+export type ListCarActivityQueryError = ErrorType<unknown>
+
+
+
+export function useListCarActivity<TData = Awaited<ReturnType<typeof listCarActivity>>, TError = ErrorType<unknown>>(
+ id: string,
+    params?: ListCarActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCarActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCarActivityQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetCorrectiveActionReportUrl = (id: string,) => {
 

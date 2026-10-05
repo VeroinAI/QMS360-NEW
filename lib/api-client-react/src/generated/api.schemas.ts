@@ -3405,6 +3405,24 @@ export interface FindingCarInput {
   itemId: string;
 }
 
+export type CarActivityPageItemsItem = {
+  id: string;
+  action: string;
+  actorName: string;
+  createdAt: string;
+  /** @nullable */
+  status?: string | null;
+  /** @nullable */
+  comments?: string | null;
+};
+
+export interface CarActivityPage {
+  total: number;
+  page: number;
+  limit: number;
+  items: CarActivityPageItemsItem[];
+}
+
 export interface CarRegisterOption {
   id: string;
   name: string;
@@ -4955,6 +4973,18 @@ auditType?: string;
 department?: string;
 status?: string;
 includeLegacy?: boolean;
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+};
+
+export type ListCarActivityParams = {
 /**
  * @minimum 1
  */

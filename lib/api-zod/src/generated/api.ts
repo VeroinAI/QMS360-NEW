@@ -10119,6 +10119,63 @@ export const StartFindingCarResponse = zod.object({
 })
 
 
+export const OpenCarEditSessionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const OpenCarEditSessionResponse = zod.object({
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
+})
+
+
+export const listCarActivityQueryPageDefault = 1;
+
+export const listCarActivityQueryLimitDefault = 20;
+export const listCarActivityQueryLimitMax = 200;
+
+
+
+export const ListCarActivityQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listCarActivityQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listCarActivityQueryLimitMax).default(listCarActivityQueryLimitDefault)
+})
+
+export const ListCarActivityResponse = zod.object({
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "actorName": zod.string(),
+  "createdAt": zod.date(),
+  "status": zod.string().nullish(),
+  "comments": zod.string().nullish()
+}))
+})
+
+
 /**
  * @summary Get a corrective action report
  */

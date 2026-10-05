@@ -99,6 +99,7 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
     const sourceRows = checklist.map(item => ({ item, legacy: false,
       finding: auditFindingsRows.find(f => (f.evidence as any)?.sourceChecklistItemId === item.id) }));
     if (String(req.query.includeLegacy) === "true") sourceRows.push(...auditFindingsRows
+      .filter(f => f.classification?.trim().toLowerCase() !== "not applicable")
       .filter(f => !(f.evidence as any)?.sourceChecklistItemId || !checklist.some(item => item.id === (f.evidence as any)?.sourceChecklistItemId))
       .map(f => ({ item: { id: f.id, description: f.description, auditFinding: f.classification }, legacy: true, finding: f })));
     for (const source of sourceRows) {

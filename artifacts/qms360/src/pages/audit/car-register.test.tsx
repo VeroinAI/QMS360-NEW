@@ -13,6 +13,7 @@ vi.mock("@workspace/api-client-react", async importOriginal => ({
   ...await importOriginal<typeof import("@workspace/api-client-react")>(),
   useListCarRegister: list,
   useStartFindingCar: () => ({ isPending: false }),
+  useOpenCarEditSession: () => ({ isPending: false }),
 }));
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
