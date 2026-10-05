@@ -20,6 +20,7 @@ import { Switch as Toggle } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { MasterDataRolePicker } from './role-picker';
 
 const scopes = ['global', 'qaqc', 'lessons', 'audit'] as const;
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'The request could not be completed.';
@@ -63,7 +64,7 @@ function MasterDataPage() {
       </CardContent></Card>}
     </div>}
     {groupEditor !== undefined && <GroupDialog group={groupEditor} close={() => setGroupEditor(undefined)} />}
-     {valueEditor !== undefined && selected && <ValueDialog groupId={selected.id} groupCode={selected.code} auditTypes={auditTypeOptions} value={valueEditor} close={() => setValueEditor(undefined)} />}
+     {valueEditor !== undefined && selected && <ValueDialog groupId={selected.id} groupCode={selected.code} groupScope={selected.appScope} auditTypes={auditTypeOptions} value={valueEditor} close={() => setValueEditor(undefined)} />}
     {deleteTarget && <DeleteDialog target={deleteTarget} close={() => setDeleteTarget(undefined)} />}
   </div>;
 }
@@ -75,7 +76,7 @@ function GroupDialog({ group, close }: { group: MasterDataGroup | null; close: (
   return <Dialog open onOpenChange={open => !open && close()}><DialogContent><DialogHeader><DialogTitle>{group ? 'Edit group' : 'Add master-data group'}</DialogTitle><DialogDescription>Define a reusable list and its application scope.</DialogDescription></DialogHeader><div className="space-y-4"><div><Label>Code</Label><Input disabled={!!group} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></div><div><Label>Name</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div><div><Label>Description</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div><div><Label>Application scope</Label><Select value={form.appScope} onValueChange={appScope => setForm({ ...form, appScope: appScope as typeof form.appScope })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{scopes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div><div><Label>Sort order</Label><Input type="number" value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: Number(e.target.value) })} /></div></div><DialogFooter><Button variant="outline" onClick={close}>Cancel</Button><Button disabled={!form.name.trim() || !form.code.trim() || create.isPending || update.isPending} onClick={save}>Save group</Button></DialogFooter></DialogContent></Dialog>;
 }
 
-function ValueDialog({ groupId, groupCode, auditTypes, value, close }: { groupId: string; groupCode: string; auditTypes: { value: string; label: string }[]; value: MasterDataValue | null; close: () => void }) {
+function ValueDialog({ groupId, groupCode, groupScope, auditTypes, value, close }: { groupId: string; groupCode: string; groupScope: string; auditTypes: { value: string; label: string }[]; value: MasterDataValue | null; close: () => void }) {
   const isActivitiesGroup = groupCode.trim().toLowerCase() === 'activities';
   const isAuditCategory = groupCode.trim().toLowerCase() === 'audit_categories';
   const existingMetadata = value?.metadata ?? {};
@@ -85,6 +86,7 @@ function ValueDialog({ groupId, groupCode, auditTypes, value, close }: { groupId
       ? existingMetadata.activityDefaultRemarks : '',
     auditTypeValues: isAuditCategory && Array.isArray(existingMetadata.auditTypeValues)
       ? existingMetadata.auditTypeValues.filter((item): item is string => typeof item === 'string') : [],
+    assignedRoles: existingMetadata.assignedRoles ?? [],
   });
   const create = useCreateMasterDataValue(); const update = useUpdateMasterDataValue(); const client = useQueryClient(); const { toast } = useToast();
   const save = () => {
@@ -92,12 +94,48 @@ function ValueDialog({ groupId, groupCode, auditTypes, value, close }: { groupId
     const fail = (e: unknown) => toast({ title: 'Could not save value', description: errorText(e), variant: 'destructive' });
     const data = {
       value: form.value, label: form.label, sortOrder: form.sortOrder, active: form.active,
-      ...(isActivitiesGroup ? { metadata: { ...existingMetadata, activityDefaultRemarks: form.defaultRemarks } } : {}),
-      ...(isAuditCategory ? { metadata: { ...existingMetadata, auditTypeValues: form.auditTypeValues } } : {}),
+      metadata: {
+        ...existingMetadata, assignedRoles: form.assignedRoles,
+        ...(isActivitiesGroup ? { activityDefaultRemarks: form.defaultRemarks } : {}),
+        ...(isAuditCategory ? { auditTypeValues: form.auditTypeValues } : {}),
+      },
     };
     value ? update.mutate({ id: value.id, data }, { onSuccess: done, onError: fail }) : create.mutate({ groupId, data }, { onSuccess: done, onError: fail });
   };
-   return <Dialog open onOpenChange={open => !open && close()}><DialogContent><DialogHeader><DialogTitle>{value ? 'Edit value' : 'Add value'}</DialogTitle><DialogDescription>Values are immediately available in application dropdowns.</DialogDescription></DialogHeader><div className="space-y-4"><div><Label>Value</Label><Input value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} /></div><div><Label>Label</Label><Input value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} /></div>{isActivitiesGroup && <div><Label>Activities / Section Remarks</Label><Textarea rows={6} value={form.defaultRemarks} onChange={e => setForm({ ...form, defaultRemarks: e.target.value })} placeholder="Enter the default multiline remarks copied into a new Audit Plan activity row" /><p className="mt-1 text-xs text-muted-foreground">When this activity is selected in a new Audit Plan, these remarks are copied into the row and can still be edited for that plan.</p></div>}{isAuditCategory && <fieldset className="space-y-2 rounded-md border p-3"><legend className="px-1 text-sm font-medium">Linked Audit Types</legend>{auditTypes.map(type => <label key={type.value} className="flex items-center gap-2 text-sm"><Checkbox checked={form.auditTypeValues.includes(type.value)} onCheckedChange={checked => setForm(current => ({ ...current, auditTypeValues: checked === true ? [...current.auditTypeValues, type.value] : current.auditTypeValues.filter(item => item !== type.value) }))} />{type.label}</label>)}{!auditTypes.length && <p className="text-sm text-muted-foreground">Add an active Audit Type in master data first.</p>}<p className="text-xs text-muted-foreground">Until any category is linked, existing categories remain available for all Audit Types. Once links exist, only linked categories appear for each type.</p></fieldset>}<div><Label>Sort order</Label><Input type="number" value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: Number(e.target.value) })} /></div>{value && <label className="flex items-center gap-3"><Toggle checked={form.active} onCheckedChange={active => setForm({ ...form, active })} />Active</label>}</div><DialogFooter><Button variant="outline" onClick={close}>Cancel</Button><Button disabled={!form.value.trim() || create.isPending || update.isPending} onClick={save}>Save value</Button></DialogFooter></DialogContent></Dialog>;
+  return <Dialog open onOpenChange={open => !open && close()}>
+    <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogHeader><DialogTitle>{value ? 'Edit value' : 'Add value'}</DialogTitle>
+        <DialogDescription>Values are immediately available in application dropdowns.</DialogDescription>
+      </DialogHeader>
+      <div className="space-y-4">
+        <div><Label>Value</Label><Input value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} /></div>
+        <div><Label>Label</Label><Input value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} /></div>
+        <MasterDataRolePicker scope={groupScope} value={form.assignedRoles}
+          onChange={assignedRoles => setForm(current => ({ ...current, assignedRoles }))} />
+        {isActivitiesGroup && <div>
+          <Label>Activities / Section Remarks</Label>
+          <Textarea rows={6} value={form.defaultRemarks} onChange={e => setForm({ ...form, defaultRemarks: e.target.value })}
+            placeholder="Enter the default multiline remarks copied into a new Audit Plan activity row" />
+          <p className="mt-1 text-xs text-muted-foreground">When this activity is selected in a new Audit Plan, these remarks are copied into the row and can still be edited for that plan.</p>
+        </div>}
+        {isAuditCategory && <fieldset className="space-y-2 rounded-md border p-3">
+          <legend className="px-1 text-sm font-medium">Linked Audit Types</legend>
+          {auditTypes.map(type => <label key={type.value} className="flex items-center gap-2 text-sm">
+            <Checkbox checked={form.auditTypeValues.includes(type.value)} onCheckedChange={checked => setForm(current => ({
+              ...current, auditTypeValues: checked === true ? [...current.auditTypeValues, type.value] : current.auditTypeValues.filter(item => item !== type.value),
+            }))} />{type.label}
+          </label>)}
+          {!auditTypes.length && <p className="text-sm text-muted-foreground">Add an active Audit Type in master data first.</p>}
+          <p className="text-xs text-muted-foreground">Until any category is linked, existing categories remain available for all Audit Types. Once links exist, only linked categories appear for each type.</p>
+        </fieldset>}
+        <div><Label>Sort order</Label><Input type="number" value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: Number(e.target.value) })} /></div>
+        {value && <label className="flex items-center gap-3"><Toggle checked={form.active} onCheckedChange={active => setForm({ ...form, active })} />Active</label>}
+      </div>
+      <DialogFooter><Button variant="outline" onClick={close}>Cancel</Button>
+        <Button disabled={!form.value.trim() || create.isPending || update.isPending} onClick={save}>Save value</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>;
 }
 
 function DeleteDialog({ target, close }: { target: { kind: 'group' | 'value'; id: string; name: string }; close: () => void }) {

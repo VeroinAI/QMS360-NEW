@@ -530,7 +530,48 @@ export interface SaveFieldMappingsInput {
   mappings: SaveFieldMappingsInputMappingsItem[];
 }
 
-export type MasterDataValueMetadata = { [key: string]: unknown };
+export type MasterDataRoleAssignmentApplication = typeof MasterDataRoleAssignmentApplication[keyof typeof MasterDataRoleAssignmentApplication];
+
+
+export const MasterDataRoleAssignmentApplication = {
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+} as const;
+
+export interface MasterDataRoleAssignment {
+  application: MasterDataRoleAssignmentApplication;
+  /** @minLength 1 */
+  roleId: string;
+}
+
+export type MasterDataRoleOptionApplication = typeof MasterDataRoleOptionApplication[keyof typeof MasterDataRoleOptionApplication];
+
+
+export const MasterDataRoleOptionApplication = {
+  qaqc: 'qaqc',
+  lessons: 'lessons',
+  audit: 'audit',
+} as const;
+
+export interface MasterDataRoleOption {
+  id: string;
+  name: string;
+  application: MasterDataRoleOptionApplication;
+  active: boolean;
+}
+
+export interface MasterDataRoleOptions {
+  items: MasterDataRoleOption[];
+}
+
+export type MasterDataValueMetadata = { [key: string]: unknown } & {
+  /**
+     * Informational role assignments only; do not restrict visibility or grant permissions.
+     * @maxItems 200
+     */
+  assignedRoles?: MasterDataRoleAssignment[];
+};
 
 export interface MasterDataValue {
   id: string;
@@ -569,13 +610,11 @@ export interface MasterDataGroupList {
   total: number;
 }
 
-export type MasterDataLovValuesItemMetadata = { [key: string]: unknown };
-
 export type MasterDataLovValuesItem = {
   value: string;
   label: string;
   sortOrder: number;
-  metadata: MasterDataLovValuesItemMetadata;
+  metadata: MasterDataValueMetadata;
 };
 
 export interface MasterDataLov {
@@ -621,17 +660,13 @@ export interface UpdateMasterDataGroupInput {
   sortOrder?: number;
 }
 
-export type CreateMasterDataValueInputMetadata = { [key: string]: unknown };
-
 export interface CreateMasterDataValueInput {
   /** @minLength 1 */
   value: string;
   label?: string;
   sortOrder?: number;
-  metadata?: CreateMasterDataValueInputMetadata;
+  metadata?: MasterDataValueMetadata;
 }
-
-export type UpdateMasterDataValueInputMetadata = { [key: string]: unknown };
 
 export interface UpdateMasterDataValueInput {
   /** @minLength 1 */
@@ -639,7 +674,7 @@ export interface UpdateMasterDataValueInput {
   label?: string;
   sortOrder?: number;
   active?: boolean;
-  metadata?: UpdateMasterDataValueInputMetadata;
+  metadata?: MasterDataValueMetadata;
 }
 
 export interface HealthStatus {

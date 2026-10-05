@@ -5,11 +5,11 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
-import type { MasterDataLovValuesItemMetadata } from './masterDataLovValuesItemMetadata';
+import type { MasterDataValueMetadata } from './masterDataValueMetadata';
 
 export type MasterDataLovValuesItem = {
   value: string;
   label: string;
   sortOrder: number;
-  metadata: MasterDataLovValuesItemMetadata;
+  metadata: MasterDataValueMetadata;
 };

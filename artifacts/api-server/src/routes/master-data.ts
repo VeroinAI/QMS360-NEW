@@ -7,6 +7,7 @@ import {
   CreateMasterDataValueResponse,
   GetMasterDataLovResponse,
   ListMasterDataResponse,
+  ListMasterDataRolesResponse,
   UpdateMasterDataGroupBody,
   UpdateMasterDataGroupResponse,
   UpdateMasterDataValueBody,
@@ -16,6 +17,7 @@ import { db, masterDataGroups, masterDataValues } from "@workspace/db";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { asyncHandler, HttpError, writeAuditLog } from "../lib/workspace";
 import { masterDataGroupCodeAliases } from "../lib/lov";
+import { masterDataMetadata, masterDataRoleOptions } from "../lib/master-data-roles";
 
 const router: IRouter = Router();
 router.use(requireAuth);
@@ -83,6 +85,9 @@ router.get("/platform/master-data", requireAdmin, asyncHandler(async (req, res) 
   }));
 }));
 
+router.get("/platform/master-data/roles", requireAdmin, asyncHandler(async (req, res) => {
+  res.json(ListMasterDataRolesResponse.parse({ items: await masterDataRoleOptions(req.currentUser!.organizationId) }));
+}));
 router.get("/platform/master-data/lov/:code", asyncHandler(async (req, res) => {
   const organizationId = req.currentUser!.organizationId;
   const requestedCode = String(req.params.code);
@@ -190,7 +195,7 @@ router.post("/platform/master-data/groups/:groupId/values", requireAdmin, asyncH
   const parsed = CreateMasterDataValueBody.safeParse(req.body);
   if (!parsed.success) throw new HttpError(422, parsed.error.issues[0]?.message ?? "Invalid master data value");
   const user = req.currentUser!;
-  const [group] = await db.select({ id: masterDataGroups.id }).from(masterDataGroups).where(and(
+  const [group] = await db.select({ id: masterDataGroups.id, appScope: masterDataGroups.appScope }).from(masterDataGroups).where(and(
     eq(masterDataGroups.id, String(req.params.groupId)),
     eq(masterDataGroups.organizationId, user.organizationId),
     isNull(masterDataGroups.deletedAt),
@@ -207,6 +212,7 @@ router.post("/platform/master-data/groups/:groupId/values", requireAdmin, asyncH
     organizationId: user.organizationId,
     groupId: group.id,
     ...parsed.data,
+    metadata: await masterDataMetadata(user.organizationId, group.appScope, parsed.data.metadata),
     label: parsed.data.label ?? parsed.data.value,
   }).returning();
   await auditAll({
@@ -226,6 +232,11 @@ router.put("/platform/master-data/values/:id", requireAdmin, asyncHandler(async 
     isNull(masterDataValues.deletedAt),
   )).limit(1);
   if (!before) throw new HttpError(404, "Master data value not found");
+  const [group] = await db.select({ appScope: masterDataGroups.appScope }).from(masterDataGroups).where(and(
+    eq(masterDataGroups.id, before.groupId), eq(masterDataGroups.organizationId, user.organizationId),
+    isNull(masterDataGroups.deletedAt),
+  ));
+  if (!group) throw new HttpError(404, "Master data group not found");
   if (parsed.data.value && parsed.data.value !== before.value) {
     const [duplicate] = await db.select({ id: masterDataValues.id }).from(masterDataValues).where(and(
       eq(masterDataValues.organizationId, user.organizationId),
@@ -235,7 +246,8 @@ router.put("/platform/master-data/values/:id", requireAdmin, asyncHandler(async 
     )).limit(1);
     if (duplicate) throw new HttpError(409, "Master data value already exists");
   }
-  const [updated] = await db.update(masterDataValues).set({ ...parsed.data, updatedAt: new Date() })
+  const metadata = await masterDataMetadata(user.organizationId, group.appScope, parsed.data.metadata, before.metadata);
+  const [updated] = await db.update(masterDataValues).set({ ...parsed.data, metadata, updatedAt: new Date() })
     .where(and(
       eq(masterDataValues.id, before.id),
       eq(masterDataValues.organizationId, user.organizationId),

@@ -5,5 +5,12 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { MasterDataRoleAssignment } from './masterDataRoleAssignment';
 
-export type MasterDataValueMetadata = { [key: string]: unknown };
+export type MasterDataValueMetadata = { [key: string]: unknown } & {
+  /**
+     * Informational role assignments only; do not restrict visibility or grant permissions.
+     * @maxItems 200
+     */
+  assignedRoles?: MasterDataRoleAssignment[];
+};

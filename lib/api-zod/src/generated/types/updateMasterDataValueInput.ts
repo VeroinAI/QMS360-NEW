@@ -5,7 +5,7 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
-import type { UpdateMasterDataValueInputMetadata } from './updateMasterDataValueInputMetadata';
+import type { MasterDataValueMetadata } from './masterDataValueMetadata';
 
 export interface UpdateMasterDataValueInput {
   /** @minLength 1 */
@@ -13,5 +13,5 @@ export interface UpdateMasterDataValueInput {
   label?: string;
   sortOrder?: number;
   active?: boolean;
-  metadata?: UpdateMasterDataValueInputMetadata;
+  metadata?: MasterDataValueMetadata;
 }

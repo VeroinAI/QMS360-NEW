@@ -370,6 +370,18 @@ paths:
       summary: List all master data groups and values
       responses:
         "200": {description: Master data, content: {application/json: {schema: {$ref: "#/components/schemas/MasterDataGroupList"}}}}
+  /platform/master-data/roles:
+    get:
+      operationId: listMasterDataRoles
+      tags: [Platform]
+      summary: List organization application roles for Master Data assignments
+      responses:
+        "200":
+          description: Active and inactive application roles, without permission changes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MasterDataRoleOptions"
   /platform/master-data/lov/{code}:
     get:
       operationId: getMasterDataLov
@@ -2149,6 +2161,36 @@ components:
         entity: {type: string, minLength: 1}
         active: {type: boolean}
         mappings: {type: array, items: {type: object, required: [sourceField, targetField], properties: {sourceField: {type: string, minLength: 1}, targetField: {type: string, minLength: 1}}}}
+    MasterDataRoleAssignment:
+      type: object
+      required: [application, roleId]
+      properties:
+        application: {type: string, enum: [qaqc, lessons, audit]}
+        roleId: {type: string, minLength: 1}
+    MasterDataRoleOption:
+      type: object
+      required: [id, name, application, active]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        application: {type: string, enum: [qaqc, lessons, audit]}
+        active: {type: boolean}
+    MasterDataRoleOptions:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/MasterDataRoleOption"}}
+    MasterDataValueMetadata:
+      allOf:
+        - type: object
+          properties:
+            assignedRoles:
+              type: array
+              maxItems: 200
+              description: Informational role assignments only; do not restrict visibility or grant permissions.
+              items: {$ref: "#/components/schemas/MasterDataRoleAssignment"}
+        - type: object
+          additionalProperties: true
     MasterDataValue:
       type: object
       required: [id, groupId, value, label, sortOrder, active, metadata]
@@ -2159,7 +2201,7 @@ components:
         label: {type: string}
         sortOrder: {type: number}
         active: {type: boolean}
-        metadata: {type: object, additionalProperties: true}
+        metadata: {$ref: "#/components/schemas/MasterDataValueMetadata"}
     MasterDataGroup:
       type: object
       required: [id, code, name, description, appScope, isSystem, sortOrder, values]
@@ -2192,7 +2234,7 @@ components:
               value: {type: string}
               label: {type: string}
               sortOrder: {type: number}
-              metadata: {type: object, additionalProperties: true}
+              metadata: {$ref: "#/components/schemas/MasterDataValueMetadata"}
     CreateMasterDataGroupInput:
       type: object
       required: [code, name]
@@ -2217,7 +2259,7 @@ components:
         value: {type: string, minLength: 1}
         label: {type: string}
         sortOrder: {type: number, default: 0}
-        metadata: {type: object, additionalProperties: true}
+        metadata: {$ref: "#/components/schemas/MasterDataValueMetadata"}
     UpdateMasterDataValueInput:
       type: object
       properties:
@@ -2225,7 +2267,7 @@ components:
         label: {type: string}
         sortOrder: {type: number}
         active: {type: boolean}
-        metadata: {type: object, additionalProperties: true}
+        metadata: {$ref: "#/components/schemas/MasterDataValueMetadata"}
     HealthStatus:
       type: object
       properties:

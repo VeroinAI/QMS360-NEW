@@ -238,6 +238,7 @@ import type {
   MasterDataGroup,
   MasterDataGroupList,
   MasterDataLov,
+  MasterDataRoleOptions,
   MasterDataValue,
   MaterialInspectionEntry,
   MaterialInspectionPageResponse,
@@ -2387,6 +2388,83 @@ export function useListMasterData<TData = Awaited<ReturnType<typeof listMasterDa
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListMasterDataQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMasterDataRolesUrl = () => {
+
+
+
+
+  return `/api/platform/master-data/roles`
+}
+
+/**
+ * @summary List organization application roles for Master Data assignments
+ */
+export const listMasterDataRoles = async ( options?: Parameters<typeof customFetch>[1]): Promise<MasterDataRoleOptions> => {
+
+  return customFetch<MasterDataRoleOptions>(getListMasterDataRolesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMasterDataRolesQueryKey = () => {
+    return [
+    `/api/platform/master-data/roles`
+    ] as const;
+    }
+
+
+export const getListMasterDataRolesQueryOptions = <TData = Awaited<ReturnType<typeof listMasterDataRoles>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMasterDataRoles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMasterDataRolesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMasterDataRoles>>> = ({ signal }) => listMasterDataRoles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMasterDataRoles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMasterDataRolesQueryResult = NonNullable<Awaited<ReturnType<typeof listMasterDataRoles>>>
+export type ListMasterDataRolesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List organization application roles for Master Data assignments
+ */
+
+export function useListMasterDataRoles<TData = Awaited<ReturnType<typeof listMasterDataRoles>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMasterDataRoles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMasterDataRolesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
