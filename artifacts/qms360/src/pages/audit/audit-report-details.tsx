@@ -15,6 +15,15 @@ import { useAuditEditAccess } from "./audit-complete";
 
 type FieldDef = { key: string; label: string; type?: "date" | "textarea" | "select"; options?: string[] };
 
+// Limit the editor only; retain the shared report schema and all saved values.
+const editorGroups = auditReportDetailGroups
+  .filter(group => !["document", "profile", "scope", "progress"].includes(group.key))
+  .map(group => group.key === "conclusion" ? {
+    ...group,
+    fields: group.fields.filter(field => !["reportIssueDate", "distribution"].includes(field.key)),
+    collections: group.collections?.filter(collection => collection.key !== "signOff"),
+  } : group);
+
 function Control({ id, field, value, disabled, onChange }: { id: string; field: FieldDef; value: string; disabled: boolean; onChange: (v: string) => void }) {
   if (field.type === "textarea") return <Textarea id={id} rows={3} value={value} disabled={disabled} onChange={e => onChange(e.target.value)} />;
   if (field.type === "select") return <><Select value={value} disabled={disabled} onValueChange={onChange}><SelectTrigger id={id}><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{field.options?.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select>{value && !disabled && <Button type="button" variant="ghost" size="sm" className="mt-1 h-7 px-2 text-xs" onClick={() => onChange("")} data-testid={`button-clear-${id}`}>Clear selection</Button>}</>;
@@ -49,7 +58,7 @@ export function AuditReportDetailsEditor({ audit }: { audit: Audit }) {
   const disabled = !canEdit || save.isPending;
   return <div className="space-y-4">
     <p className="text-sm text-muted-foreground">These fields appear only in the consolidated audit report. They can be completed before or after the audit is marked Complete.</p>
-    {auditReportDetailGroups.map(group => <Card key={group.key}>
+    {editorGroups.map(group => <Card key={group.key}>
       <CardHeader><CardTitle className="text-base">{group.label}</CardTitle></CardHeader>
       <CardContent className="space-y-6">
         {group.fields.length > 0 && <div className="grid gap-4 md:grid-cols-2">{group.fields.map(f => {
