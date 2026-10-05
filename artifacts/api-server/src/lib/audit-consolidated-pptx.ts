@@ -3,6 +3,7 @@ import { DOMParser, XMLSerializer, type Document, type Element } from "@xmldom/x
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { ReportSectionData } from "./audit-consolidated-report";
 import { auditPptxMappings, mappedText, PPTX_UNMAPPED } from "./audit-pptx-mapping";
+import { programmeEntries, programmeLines } from "./audit-programme-pptx-layout";
 
 export const AUDIT_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -63,6 +64,34 @@ function setShape(doc: Document, id: number, text: string) {
   const node = shape(doc, id);
   if (!node) throw new Error(`PowerPoint template is missing shape ${id}`);
   setText(node, text);
+}
+/** Programme rows use bounded lines and explicit fonts, not viewer-dependent autofit. */
+function programmeBox(doc: Document, id: number, text: string, size: number, lineHeight: number, rect?: { y: number; width: number; height: number }) {
+  setShape(doc, id, text);
+  const node = shape(doc, id)!;
+  if (rect) {
+    const transform = elements(node, A, "xfrm")[0]!;
+    elements(transform, A, "off")[0]!.setAttribute("y", String(rect.y));
+    const ext = elements(transform, A, "ext")[0]!;
+    ext.setAttribute("cx", String(rect.width)); ext.setAttribute("cy", String(rect.height));
+  }
+  const body = elements(node, A, "bodyPr")[0]!;
+  for (const attr of ["lIns", "rIns", "tIns", "bIns"]) body.setAttribute(attr, "0");
+  body.setAttribute("wrap", "none"); body.setAttribute("vertOverflow", "clip"); body.setAttribute("horzOverflow", "clip");
+  for (const fit of elements(body, A, "normAutofit")) body.removeChild(fit);
+  body.appendChild(doc.createElementNS(A, "a:noAutofit"));
+  for (const p of elements(node, A, "p")) {
+    let props = elements(p, A, "pPr")[0];
+    if (!props) { props = doc.createElementNS(A, "a:pPr"); p.insertBefore(props, p.firstChild); }
+    for (const tag of ["lnSpc", "spcBef", "spcAft"]) {
+      for (const existing of elements(props, A, tag)) props.removeChild(existing);
+      const spacing = doc.createElementNS(A, `a:${tag}`);
+      const points = doc.createElementNS(A, "a:spcPts");
+      points.setAttribute("val", String(tag === "lnSpc" ? lineHeight : 0));
+      spacing.appendChild(points); props.appendChild(spacing);
+    }
+    for (const tag of ["rPr", "endParaRPr"]) for (const r of elements(p, A, tag)) r.setAttribute("sz", String(size));
+  }
 }
 function setTable(table: Element, rows: string[][], start: number, capacity: number) {
   const templateRows = elements(table, A, "tr").slice(start, start + capacity);
@@ -129,12 +158,14 @@ export async function renderConsolidatedAuditPptx(input: {
         held, PPTX_UNMAPPED, `${meeting} meeting (recorded)`, minutes, programmeField("Auditees present"),
       ]);
     }
-    const activities = chunks(activityRows, 5);
+    const activities = chunks(programmeEntries(activityRows), 5);
+    const participation = [28, 33, 38].map(id => chunks(programmeLines(mapping?.shapes[id] ?? PPTX_UNMAPPED, 26), id === 33 ? 5 : 4));
     const photos = chunks(section("photographs")?.photos ?? [], 2);
     const themeRows = section("findings-summary")?.tables[1]?.rows ?? [];
     const themes = chunks(themeRows, 3);
     const count = Math.max(1, ...pages.map(p => p.length), slideNumber === 5 ? activities.length : 1,
-      slideNumber === 13 ? photos.length : 1, slideNumber === 7 ? themes.length : 1);
+      slideNumber === 13 ? photos.length : 1, slideNumber === 7 ? themes.length : 1,
+      ...(slideNumber === 5 ? participation.map(p => p.length) : [1]));
     for (let page = 0; page < count; page++) {
       const doc = parse(files[path]!);
       // Clean template instructions before inserting record data; brackets in
@@ -155,9 +186,12 @@ export async function renderConsolidatedAuditPptx(input: {
       if (slideNumber === 5) {
         for (let i = 0; i < 5; i++) {
           const row = activities[page]?.[i];
-          setShape(doc, 10 + i * 3, row ? `${mappedText(row[0])}\n${mappedText(row[1])}` : PPTX_UNMAPPED);
-          setShape(doc, 11 + i * 3, row ? row.slice(2).map(mappedText).join("\n") : PPTX_UNMAPPED);
+          const top = 1892808 + i * 868680;
+          programmeBox(doc, 10 + i * 3, row?.times ?? PPTX_UNMAPPED, 1100, 1200, { y: top, width: 4480560, height: 330200 });
+          programmeBox(doc, 11 + i * 3, row?.details ?? PPTX_UNMAPPED, 1050, 1150, { y: top + 360200, width: 4480560, height: 480000 });
         }
+        [28, 33, 38].forEach((id, i) => programmeBox(doc, id, participation[i]?.[page]?.join("\n") ?? PPTX_UNMAPPED, 1100, 1250));
+        setShape(doc, 6, String(outputSlides.length + 1));
       }
       if (slideNumber === 7) {
         for (let i = 0; i < 3; i++) {

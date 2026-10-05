@@ -31,6 +31,8 @@ describe("Original Audit PowerPoint report template", () => {
       const path = `ppt/slides/slide${slide}.xml`;
       const source = parse(original[path]!); const output = parse(result[path]!);
       for (const tag of ["xfrm", "tblPr", "tblGrid", "tcPr"]) {
+        // Programme text boxes are intentionally widened/repositioned to fix overflow.
+        if (slide === 5 && tag === "xfrm") continue;
         expect(Array.from(output.getElementsByTagNameNS(A, tag)).map(n => n.toString()))
           .toEqual(Array.from(source.getElementsByTagNameNS(A, tag)).map(n => n.toString()));
       }
@@ -84,5 +86,45 @@ describe("Original Audit PowerPoint report template", () => {
     expect([null, undefined, "", "Not recorded", "To Be Mapped"].map(mappedText)).toEqual(Array(5).fill("To be mapped"));
     expect(mappedText(0)).toBe("0");
     expect(mappedText("Not recorded; verifier Not recorded")).toBe("To be mapped; verifier To be mapped");
+  });
+  it("keeps programme dates and long details inside non-overlapping bounded boxes", async () => {
+    const data = sections();
+    const programme = data.find(s => s.key === "programme")!;
+    const details = "A long activity description with important details that must be preserved in the downloaded report. ".repeat(15);
+    programme.tables[0]!.rows = [[
+      "2026-10-12T10:10:00.000Z (derived legacy)", "2026-10-12T10:10:00.000Z (derived legacy)",
+      "Opening meeting", details, "Recorded Auditor / QA/QC Manager",
+    ]];
+    const result = unzipSync(await renderConsolidatedAuditPptx({ sections: data }));
+    const docs = Object.entries(result).filter(([name]) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+      .map(([, bytes]) => parse(bytes)).filter(doc =>
+        Array.from(doc.getElementsByTagNameNS(A, "t")).some(t => t.textContent === "Audit programme and participation"));
+    expect(docs.length).toBeGreaterThan(1);
+    const bodies: string[] = [];
+    for (const doc of docs) {
+      const shape = (id: number) => Array.from(doc.getElementsByTagNameNS(P, "sp")).find(s =>
+        s.getElementsByTagNameNS(P, "cNvPr")[0]?.getAttribute("id") === String(id))!;
+      for (let i = 0; i < 5; i++) {
+        const header = shape(10 + i * 3), body = shape(11 + i * 3);
+        const box = (node: typeof header) => ({
+          y: Number(node.getElementsByTagNameNS(A, "off")[0]!.getAttribute("y")),
+          h: Number(node.getElementsByTagNameNS(A, "ext")[0]!.getAttribute("cy")),
+        });
+        expect(box(header).y + box(header).h).toBeLessThan(box(body).y);
+        if (i < 4) expect(box(body).y + box(body).h).toBeLessThan(box(shape(13 + i * 3)).y);
+        expect(body.getElementsByTagNameNS(A, "p").length).toBeLessThanOrEqual(3);
+        expect(header.getElementsByTagNameNS(A, "p").length).toBeLessThanOrEqual(2);
+        expect(body.getElementsByTagNameNS(A, "noAutofit").length).toBe(1);
+        expect(body.getElementsByTagNameNS(A, "bodyPr")[0]!.getAttribute("wrap")).toBe("none");
+        const lines = Array.from(body.getElementsByTagNameNS(A, "t")).map(t => t.textContent);
+        if (!lines.includes("To be mapped")) bodies.push(...lines);
+      }
+      const headerText = Array.from(shape(10).getElementsByTagNameNS(A, "t")).map(t => t.textContent).join("\n");
+      expect(headerText).toContain("12 Oct 2026, 10:10");
+      expect(headerText).not.toContain("T10:10:00.000Z");
+    }
+    const preserved = bodies.join(" ").replace(/\s+/g, " ");
+    expect(preserved).toContain(details.trim());
+    expect(preserved).toContain("Recorded Auditor / QA/QC Manager");
   });
 });

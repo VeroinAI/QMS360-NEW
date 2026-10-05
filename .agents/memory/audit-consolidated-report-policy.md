@@ -32,3 +32,9 @@ The Audits workspace Report button downloads a PowerPoint report using the suppl
 **Why:** The user explicitly requested a matching PowerPoint report, not a redesigned deck or a PDF. Template sample people, references, dates and conclusions are not audit data.
 
 **How to apply:** Populate the original OOXML template, continue excess rows/photos on matching slides, and use actual saved records. Preserve completion/export guards and the separate CAR lifecycle. Keep the existing PDF endpoint and report editor unaffected.
+
+Do not rely on PowerPoint's automatic text fitting to contain dynamic programme details.
+
+**Why:** A downloaded report showed ISO timestamps and multiline activity details overlapping adjacent rows despite automatic fitting being enabled; template boxes were designed for short time ranges.
+
+**How to apply:** Budget explicit lines and font sizes within each box, display readable saved wall-clock dates, and paginate excess text without dropping recorded information.
