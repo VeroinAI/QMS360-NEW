@@ -2638,6 +2638,34 @@ export interface EscalationSummary {
   lastNotifiedAt?: string | null;
 }
 
+export interface AuditActivityRoleAssignment {
+  /** @minLength 1 */
+  roleId: string;
+  /**
+     * @minItems 1
+     * @maxItems 200
+     * @items.minLength 1
+     */
+  userIds: string[];
+}
+
+export interface AuditActivityRoleOption {
+  id: string;
+  name: string;
+}
+
+export interface AuditPlanUserOption {
+  id: string;
+  fullName: string;
+  /** @nullable */
+  designation?: string | null;
+}
+
+export interface AuditScheduleActivityOptions {
+  users: AuditPlanUserOption[];
+  roles: AuditActivityRoleOption[];
+}
+
 /**
  * Latest infeasible audit decision
  * @nullable
@@ -2681,6 +2709,8 @@ export interface AuditSchedule {
      */
   readonly teamLeadIds?: readonly string[] | null;
   year: number;
+  /** @maxItems 200 */
+  activityRoleAssignments?: AuditActivityRoleAssignment[];
   title: string;
   /** Whether an active Audit Plan already exists for this schedule */
   hasPlan?: boolean;
@@ -2872,13 +2902,6 @@ export interface AuditScheduleSubmission {
   mailBody: string;
 }
 
-export interface AuditPlanUserOption {
-  id: string;
-  fullName: string;
-  /** @nullable */
-  designation?: string | null;
-}
-
 export type AuditTeamLeadOption = AuditPlanUserOption & ({
   /** @nullable */
   email: string | null;
@@ -2913,6 +2936,16 @@ export interface AuditPlanActivity {
   section: string;
   remarks: string;
   auditeeId: string;
+  /**
+     * @maxItems 200
+     * @items.minLength 1
+     */
+  roleIds?: string[];
+  /**
+     * @maxItems 200
+     * @items.minLength 1
+     */
+  auditeeIds?: string[];
 }
 
 export interface AuditPlan {
@@ -5010,3 +5043,4 @@ export const EmailRuleRoleOptionsApp = {
   lessons: 'lessons',
   qaqc: 'qaqc',
 } as const;
+

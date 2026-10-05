@@ -157,6 +157,77 @@ afterAll(async () => {
 });
 
 describe("audit programme parent/child workflow", () => {
+  it("persists schedule role/users and editable multi-user activity snapshots without granting roles", async () => {
+    const [contributor] = await db.select().from(auditWorkspaceRoles).where(and(
+      eq(auditWorkspaceRoles.organizationId, orgId), eq(auditWorkspaceRoles.name, "Audit Contributor"),
+    ));
+    const marker = await permission("product_process_owner");
+    const ownerRole = await role("Assignment product owner", [marker.id]);
+    await assign(creator.id, ownerRole.id);
+    try {
+    const options = await api("GET", "/schedule-activity-options", admin.token);
+    expect(options.status, JSON.stringify(options.json)).toBe(200);
+    expect(options.json.users.some((user: { id: string }) => user.id === l1.id)).toBe(true);
+    const programme = await api("POST", "/programmes", creator.token, {
+      title: "Activity assignments programme", fromDate: "2026-01-01", toDate: "2026-12-31",
+    });
+    const activityRoleAssignments = [{ roleId: contributor!.id, userIds: [creator.id, l1.id] }];
+    const scheduleInput = {
+      id: crypto.randomUUID(), parentId: programme.json.id, year: 2026, title: "Assignment schedule",
+      projectIds: [], auditTypes: ["Quality Internal Process Audit"], auditCategory: "Internal",
+      departmentProject: "Quality Department", processProductOwner: "Programme Creator",
+      plannedStartDate: "2026-01-01", plannedEndDate: "2026-01-02", qaqcScope: "ISO 9001",
+      qaqcClauses: "ISO 9001", workflowState: "Draft", activityRoleAssignments,
+    };
+    const createdSchedule = await api("POST", "/schedules", admin.token, scheduleInput);
+    expect(createdSchedule.status, JSON.stringify(createdSchedule.json)).toBe(201);
+    expect(createdSchedule.json.activityRoleAssignments).toEqual(activityRoleAssignments);
+    const scheduleId = createdSchedule.json.id;
+    expect((await api("GET", `/schedules/${scheduleId}`, admin.token)).json.activityRoleAssignments).toEqual(activityRoleAssignments);
+    const editedSchedule = await api("PUT", `/schedules/${scheduleId}`, admin.token, {
+      ...scheduleInput, activityRoleAssignments: [{ roleId: contributor!.id, userIds: [l2.id] }],
+    });
+    expect(editedSchedule.status, JSON.stringify(editedSchedule.json)).toBe(200);
+    expect(editedSchedule.json.activityRoleAssignments[0].userIds).toEqual([l2.id]);
+    const omitted = { ...scheduleInput };
+    delete (omitted as Partial<typeof scheduleInput>).activityRoleAssignments;
+    const preserved = await api("PUT", `/schedules/${scheduleId}`, admin.token, omitted);
+    expect(preserved.status, JSON.stringify(preserved.json)).toBe(200);
+    expect(preserved.json.activityRoleAssignments[0].userIds).toEqual([l2.id]);
+    const invalid = await api("PUT", `/schedules/${scheduleId}`, admin.token, {
+      ...scheduleInput, activityRoleAssignments: [{ roleId: contributor!.id, userIds: [crypto.randomUUID()] }],
+    });
+    expect(invalid.status).toBe(422);
+    const activities = [{ id: crypto.randomUUID(), section: "General Requirement", remarks: "Review",
+      roleIds: [contributor!.id], auditeeId: creator.id, auditeeIds: [creator.id, l1.id],
+      plannedStartDateTime: "2026-01-01T09:00", plannedEndDateTime: "2026-01-01T10:00" }];
+    const planInput = {
+      id: crypto.randomUUID(), scheduleId, auditFeasible: true, auditTitle: scheduleInput.title,
+      leadAuditorId: creator.id, teamMemberIds: [creator.id], auditeeId: creator.id,
+      auditeeRoleIds: [contributor!.id], circulationRoleIds: [contributor!.id],
+      qaqcScope: "ISO 9001", auditTypes: scheduleInput.auditTypes, auditLanguage: "Verbal: English\nWriting: English",
+      qaqcReference: "QAM-IA/26-", startDateTime: "2026-01-01T00:00", endDateTime: "2026-01-02T23:59",
+      openingMeetingDateTime: "2026-01-01T08:00", closingMeetingDateTime: "2026-01-02T11:00",
+      activitySection: "General Requirement", activityRemarks: "Review", activityAuditeeId: creator.id,
+      auditPlanCirculation: "Audit Contributor", status: "Draft", activities,
+    };
+    const plan = await api("POST", "/plans", admin.token, planInput);
+    expect(plan.status, JSON.stringify(plan.json)).toBe(201);
+    expect(plan.json.activities).toEqual(activities);
+    expect((await api("GET", `/plans/${plan.json.id}`, admin.token)).json.activities).toEqual(activities);
+    const overridden = [{ ...activities[0], auditeeId: l2.id, auditeeIds: [l2.id], roleIds: [ownerRole.id] }];
+    const modified = await api("PUT", `/plans/${plan.json.id}`, admin.token, { ...planInput, activities: overridden });
+    expect(modified.status, JSON.stringify(modified.json)).toBe(200);
+    expect(modified.json.activities).toEqual(overridden);
+    expect((await api("GET", `/plans/${plan.json.id}`, admin.token)).json.activities).toEqual(overridden);
+    expect((await api("PUT", `/schedules/${scheduleId}`, admin.token, { ...scheduleInput, activityRoleAssignments: [] })).json.activityRoleAssignments).toEqual([]);
+    } finally {
+      await db.delete(auditUserWorkspaceRoles).where(and(
+        eq(auditUserWorkspaceRoles.organizationId, orgId), eq(auditUserWorkspaceRoles.userId, creator.id),
+        eq(auditUserWorkspaceRoles.workspaceRoleId, ownerRole.id),
+      ));
+    }
+  });
   it("shows a newest-first, paginated schedule history including deleted child events without raw private snapshots", async () => {
     const created = await api("POST", "/programmes", creator.token, {
       title: "Activity history fixture", fromDate: "2026-01-01", toDate: "2026-12-31",
@@ -463,7 +534,8 @@ describe("audit programme parent/child workflow", () => {
     expect(invalidPlan.json.error).toMatch(/selected when the schedule was created/);
     const observerRole = await role("Circulation Observers", []);
     const circulationRoleIds = [planPayload.auditeeRoleIds[0], observerRole.id];
-    for (const key of ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime", "activityDateTime"]) {
+    // Explicit per-activity dates supersede the shared legacy timestamp.
+    for (const key of ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime"]) {
       for (const value of ["2025-12-31T23:59:00.000Z", "2026-01-03T00:00:00.000Z"]) {
         const outOfRange = await api("POST", "/plans", creator.token, {
           ...planPayload, id: crypto.randomUUID(), leadAuditorId: creator.id, circulationRoleIds, [key]: value,
@@ -477,7 +549,7 @@ describe("audit programme parent/child workflow", () => {
       circulationRoleIds,
     });
     expect(validPlan.status).toBe(201);
-    for (const key of ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime", "activityDateTime"]) {
+    for (const key of ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime"]) {
       const outOfRangeEdit = await api("PUT", `/plans/${validPlan.json.id}`, creator.token, {
         ...validPlan.json, [key]: "2026-01-03T00:00:00.000Z",
       });

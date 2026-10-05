@@ -72,7 +72,8 @@ export function planActivityFieldValues(source: Record<string, unknown>): Record
   const values = (key: keyof DatedActivity) => rows.map(row => `${row.id ?? ""}:${String(row[key] ?? "")}`);
   return {
     ...source, activitySection: values("section"), activityRemarks: values("remarks"),
-    activityAuditeeId: values("auditeeId"),
+    activityAuditeeId: rows.map(row => `${row.id ?? ""}:${String((row as DatedActivity & { auditeeIds?: string[] }).auditeeIds ?? row.auditeeId ?? "")}`),
+    activityRoleIds: rows.map(row => `${row.id ?? ""}:${JSON.stringify((row as DatedActivity & { roleIds?: string[] }).roleIds ?? [])}`),
     activityPlannedStartDateTime: values("plannedStartDateTime"),
     activityPlannedEndDateTime: values("plannedEndDateTime"),
     // Retain existing administrators' shared date locks over BOTH new controls.

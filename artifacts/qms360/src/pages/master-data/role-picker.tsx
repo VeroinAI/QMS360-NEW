@@ -17,7 +17,7 @@ export function MasterDataRolePicker({ scope, value, onChange }: {
     !options.some(option => roleKey(role) === roleKey({ application: option.application, roleId: option.id }))) : [];
   return <fieldset className="space-y-3 rounded-md border p-3">
     <legend className="px-1 text-sm font-medium">Assigned Roles (optional)</legend>
-    <p className="text-xs text-muted-foreground">Select one or multiple application roles. Assignments are saved with this value only; they do not change permissions or dropdown visibility.</p>
+    <p className="text-xs text-muted-foreground">Select one or multiple application roles. Roles are saved with this value; they do not change permissions or dropdown visibility.</p>
     {roles.isLoading && <p className="text-sm text-muted-foreground">Loading roles…</p>}
     {roles.isError && <div role="alert" className="text-sm text-destructive">Unable to load roles. Existing selections are retained.
       <Button type="button" variant="link" size="sm" onClick={() => void roles.refetch()}>Retry</Button>

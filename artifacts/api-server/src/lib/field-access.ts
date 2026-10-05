@@ -60,6 +60,7 @@ export const FIELD_CATALOG: Record<AppKey, CatalogForm[]> = {
       formKey: "schedule",
       label: "Annual audit schedule",
       fields: [
+        f("activityRoleAssignments", "Activity role / user assignments", []),
         f("auditTypes", "Audit types", []),
         f("auditCategory", "Audit category", ""),
         f("departmentProject", "Department / project", ""),
@@ -98,6 +99,7 @@ export const FIELD_CATALOG: Record<AppKey, CatalogForm[]> = {
         f("activitySection", "Activities / section", ""),
         f("activityRemarks", "Activities / section remarks", ""),
         f("activityAuditeeId", "Auditee for the activity", ""),
+        f("activityRoleIds", "Roles for the activity", []),
         f("activityDateTime", "Date / time of activity", ""),
         f("activityPlannedStartDateTime", "Activity Planned Start", []),
         f("activityPlannedEndDateTime", "Activity Planned End", []),

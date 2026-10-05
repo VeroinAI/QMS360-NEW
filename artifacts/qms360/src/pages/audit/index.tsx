@@ -1,5 +1,7 @@
 import { confirmedWorkflowMutation, workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { newPlanActivity, selectPlanActivity } from "@/lib/audit-plan-activities";
+import { activityRoleDefaults, activityAuditeeDefaults, activityAuditeeIds, withActivityAuditees } from "@/lib/audit-activity-defaults";
+import { ActivityMultiSelect, ScheduleActivityRoleFields } from "./activity-role-fields";
 import { auditTeamLeadLabel } from "./team-lead-label";
 import { ScheduleActivityButton } from "./schedule-activity";
 import { getAuditPlanDateRange } from "@workspace/field-controls";
@@ -29,6 +31,7 @@ import {
   useGetAuditPlan,
   getGetAuditPlanQueryKey,
   useGetAuditPlanOptions,
+  useGetAuditScheduleActivityOptions,
   useListAuditTeamLeads,
   useListAuditMeetingAttendees,
   useListAuditProcessProductOwners,
@@ -635,6 +638,7 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     currentApprovalRole: null, approvalRoles: [], canReview: false,
   });
   const create = useCreateAuditSchedule(); const update = useUpdateAuditSchedule();
+  const activityAssignmentOptions = useGetAuditScheduleActivityOptions();
   const auditTypes = useLov("audit_types");
   const auditCategories = useLov("audit_categories");
   const processOwners = useListAuditProcessProductOwners();
@@ -719,6 +723,9 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     }
     if (!form.departmentProject?.trim() || (!isProcessAudit && !form.projectIds?.length)) missing.departmentProject = `${isProcessAudit ? "Department" : "Project"} is required.`;
     if (!form.title.trim()) missing.title = "Audit Title is required.";
+    if ((form.activityRoleAssignments ?? []).some(item => !item.roleId || !item.userIds.length)) {
+      missing.activityRoleAssignments = "Select a role and one or more users for every activity role assignment.";
+    }
     if (!form.processProductOwner?.trim()) missing.processProductOwner = "Process / Product Owner is required.";
     if (!form.plannedStartDate) missing.plannedStartDate = "From Date is required.";
     if (!form.plannedEndDate) missing.plannedEndDate = "To Date is required.";
@@ -814,6 +821,16 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     <div><Label>10. QA/QC Scope *</Label><Input readOnly value={form.qaqcScope ?? ""}/></div>
     <div><Label>11. QA/QC Clauses *</Label><Input readOnly value={form.qaqcClauses ?? ""}/></div>
     <div><Label>12. Remarks{req("remarks") ? " *" : ""}</Label><Textarea value={form.remarks ?? ""} disabled={ro("remarks")} onChange={e => field("remarks", e.target.value)}/></div>
+    <div id="schedule-activityRoleAssignments">
+      <ScheduleActivityRoleFields value={form.activityRoleAssignments ?? []}
+        onChange={activityRoleAssignments => setForm(current => ({ ...current, activityRoleAssignments }))}
+        roles={activityAssignmentOptions.data?.roles ?? []}
+        users={(activityAssignmentOptions.data?.users ?? []).map(user => ({ id: user.id, name: user.fullName }))}
+        disabled={ro("activityRoleAssignments") || activityAssignmentOptions.isLoading || activityAssignmentOptions.isError}/>
+      {activityAssignmentOptions.isLoading && <p className="text-sm text-muted-foreground">Loading activity roles and users…</p>}
+      {activityAssignmentOptions.isError && <p role="alert" className="text-sm text-destructive">Unable to load activity roles and users. Existing assignments are retained. <Button variant="link" size="sm" onClick={() => void activityAssignmentOptions.refetch()}>Retry</Button></p>}
+      {error("activityRoleAssignments")}
+    </div>
     <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={() => void save()} disabled={create.isPending || update.isPending}>Save schedule</Button></DialogFooter>
   </div>;
 }
@@ -1361,9 +1378,6 @@ function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClo
 }
 
 function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme, readOnly = false, queued = false, queuedOperation = "create" }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; presetSchedule?: AuditSchedule; presetProgramme?: AuditProgramme; readOnly?: boolean; queued?: boolean; queuedOperation?: "create" | "update" }) {
-  const linkedSchedule = useGetAuditSchedule(initial?.scheduleId ?? "", {
-    query: { enabled: !!initial?.scheduleId && navigator.onLine, queryKey: getGetAuditScheduleQueryKey(initial?.scheduleId ?? "") },
-  });
   const [programmeId, setProgrammeId] = useState(presetSchedule?.parentId ?? "");
   const programmes = useQuery({
     queryKey: ["/api/audit/programmes", { purpose: "plan-source-options" }],
@@ -1391,6 +1405,9 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [feasibilityOpen, setFeasibilityOpen] = useState(false);
+  const linkedSchedule = useGetAuditSchedule(form.scheduleId ?? "", {
+    query: { enabled: !!form.scheduleId && navigator.onLine, staleTime: 0, refetchOnMount: "always", queryKey: getGetAuditScheduleQueryKey(form.scheduleId ?? "") },
+  });
   const [feasibilityFeedback, setFeasibilityFeedback] = useState("");
   const [feasibilityError, setFeasibilityError] = useState("");
   const [feasibilityFromDate, setFeasibilityFromDate] = useState("");
@@ -1427,7 +1444,8 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       ? [...new Set(effectiveSchedules.map(schedule => schedule.parentId).filter((id): id is string => !!id))]
         .map(id => ({ id, title: `Cached schedule (${id})` }))
       : [];
-  const selectedSchedule = sourceSchedules.find(schedule => schedule.id === form.scheduleId) ?? presetSchedule;
+  const selectedSchedule = linkedSchedule.data?.id === form.scheduleId ? linkedSchedule.data
+    : sourceSchedules.find(schedule => schedule.id === form.scheduleId) ?? presetSchedule;
   const planDateRange = getAuditPlanDateRange(selectedSchedule?.plannedStartDate, selectedSchedule?.plannedEndDate);
   const linkedProgrammeId = initial ? selectedSchedule?.parentId : undefined;
   const linkedProgramme = useGetAuditProgramme(linkedProgrammeId ?? "", {
@@ -1492,14 +1510,42 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     clearError(`activity-${id}-${key}`, "activities");
   };
   const selectActivity = (id: string, section: string) => {
+    if (!selectedSchedule || linkedSchedule.isFetching) {
+      toast({ title: "Select a schedule and wait for it to load before choosing an activity." });
+      return;
+    }
     const selected = activityMaster.options.find(activity => activity.value === section);
     const remarks = typeof selected?.metadata?.activityDefaultRemarks === "string"
       ? selected.metadata.activityDefaultRemarks : "";
-    set("activities", selectPlanActivity(activityRows, id, section, remarks, ro("activityRemarks")));
+    const roleIds = activityRoleDefaults(selected?.metadata);
+    set("activities", selectPlanActivity(activityRows, id, section, remarks, ro("activityRemarks")).map(row => {
+      if (row.id !== id) return row;
+      const updated = disabled("activityRoleIds") ? row : { ...row, roleIds };
+      return disabled("activityAuditeeId") ? updated : withActivityAuditees(updated,
+        activityAuditeeDefaults(updated.roleIds ?? [], selectedSchedule?.activityRoleAssignments));
+    }));
     clearError(`activity-${id}-section`, `activity-${id}-remarks`, "activities");
   };
   const addActivity = () => set("activities", [...activityRows, newPlanActivity()]);
   const deleteActivity = (id: string) => set("activities", activityRows.filter(row => row.id !== id));
+  const setActivityRoles = (id: string, roleIds: string[]) => {
+    set("activities", activityRows.map(row => row.id !== id ? row : disabled("activityAuditeeId") ? { ...row, roleIds }
+      : withActivityAuditees({ ...row, roleIds }, activityAuditeeDefaults(roleIds, selectedSchedule?.activityRoleAssignments))));
+    clearError(`activity-${id}-auditeeId`, "activities");
+  };
+  const setActivityAuditees = (id: string, auditeeIds: string[]) => {
+    set("activities", activityRows.map(row => row.id === id ? withActivityAuditees(row, auditeeIds) : row));
+    clearError(`activity-${id}-auditeeId`, "activities");
+  };
+  useEffect(() => {
+    if (disabled("activityRoleIds") || !activityMaster.options.length) return;
+    setForm(current => {
+      if (!current.activities?.some(row => row.section && row.roleIds === undefined)) return current;
+      return { ...current, activities: current.activities.map(row => row.roleIds !== undefined ? row : {
+        ...row, roleIds: activityRoleDefaults(activityMaster.options.find(option => option.value === row.section)?.metadata),
+      }) };
+    });
+  }, [activityMaster.options, readOnly]);
   const save = () => {
     const required: Array<[keyof AuditPlan | "circulation", unknown]> = [
       ["scheduleId", form.scheduleId], ["auditTitle", form.auditTitle], ["leadAuditorId", form.leadAuditorId],
@@ -1531,7 +1577,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     activityRows.forEach(row => {
       if (!row.section.trim()) nextErrors[`activity-${row.id}-section`] = "Select an activity.";
       if (!row.remarks.trim()) nextErrors[`activity-${row.id}-remarks`] = "Enter activity remarks.";
-      if (!row.auditeeId) nextErrors[`activity-${row.id}-auditeeId`] = "Select an auditee.";
+      if (!activityAuditeeIds(row).length) nextErrors[`activity-${row.id}-auditeeId`] = "Select one or more auditees.";
     });
     activityRows.forEach((row, index) => {
       const section = row.section.trim().toLocaleLowerCase();
@@ -1709,14 +1755,32 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     <div><Label>13. Opening Meeting *</Label><Input className="mt-2" type="datetime-local" {...dateBounds} value={form.openingMeetingDateTime.slice(0,16)} disabled={disabled("openingMeetingDateTime")} {...invalid("openingMeetingDateTime")} onChange={event => set("openingMeetingDateTime", event.target.value)}/><ErrorText name="openingMeetingDateTime"/></div>
     <div><Label>14. Closing Meeting *</Label><Input className="mt-2" type="datetime-local" {...dateBounds} value={form.closingMeetingDateTime.slice(0,16)} disabled={disabled("closingMeetingDateTime")} {...invalid("closingMeetingDateTime")} onChange={event => set("closingMeetingDateTime", event.target.value)}/><ErrorText name="closingMeetingDateTime"/></div>
     <div className="min-w-0 max-w-full space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><Label>15. Activity Details *</Label><p className="mt-1 text-xs text-muted-foreground">Add one row for each Activities master-data value. Planned dates must fall within the linked Audit, including its first and last day.</p></div>{!readOnly && <Button type="button" variant="outline" size="sm" onClick={addActivity} disabled={activityStructureLocked}><Plus className="mr-2 size-4"/>Add row</Button>}</div>
-      <div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead className="min-w-56">Activities / Section</TableHead><TableHead className="min-w-72">Remarks</TableHead><TableHead className="min-w-56">Auditee for the Activity</TableHead><TableHead className="min-w-56">Planned Start *</TableHead><TableHead className="min-w-56">Planned End *</TableHead>{!readOnly && <TableHead className="w-16 text-right">Action</TableHead>}</TableRow></TableHeader><TableBody>
+      <p className="text-sm text-muted-foreground">Activity roles default from the Activities master. Auditees default from the selected schedule’s role assignments. You can change either selection; saved choices are not overwritten when defaults change.</p>
+      {auditeeRoles.isError && <p role="alert" className="text-sm text-destructive">Unable to load activity roles. <Button type="button" variant="link" onClick={() => void auditeeRoles.refetch()}>Retry</Button></p>}
+      <div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead className="min-w-56">Activities / Section</TableHead><TableHead className="min-w-72">Remarks</TableHead><TableHead className="min-w-56">Roles for the Activity</TableHead><TableHead className="min-w-56">Auditees for the Activity</TableHead><TableHead className="min-w-56">Planned Start *</TableHead><TableHead className="min-w-56">Planned End *</TableHead>{!readOnly && <TableHead className="w-16 text-right">Action</TableHead>}</TableRow></TableHeader><TableBody>
         {activityRows.map(row => <TableRow key={row.id}><TableCell className="align-top"><Select value={row.section} disabled={disabled("activitySection") || activityMaster.isLoading} onValueChange={value => selectActivity(row.id, value)}><SelectTrigger {...invalid(`activity-${row.id}-section`)}><SelectValue placeholder={activityMaster.isLoading ? "Loading activities…" : "Select activity"}/></SelectTrigger><SelectContent>{activityMaster.options.map(activity => <SelectItem key={activity.value} value={activity.value} disabled={activity.value !== row.section && activityRows.some(candidate => candidate.section === activity.value)}>{activity.label}</SelectItem>)}</SelectContent></Select><ErrorText name={`activity-${row.id}-section`}/></TableCell>
           <TableCell className="align-top"><Textarea rows={3} value={row.remarks} disabled={disabled("activityRemarks")} {...invalid(`activity-${row.id}-remarks`)} onChange={event => setActivity(row.id, "remarks", event.target.value)} placeholder="Enter remarks"/><ErrorText name={`activity-${row.id}-remarks`}/></TableCell>
-          <TableCell className="align-top"><Select value={row.auditeeId} disabled={readOnly || ro("activityAuditeeId")} onValueChange={value => setActivity(row.id, "auditeeId", value)}><SelectTrigger {...invalid(`activity-${row.id}-auditeeId`)}><SelectValue placeholder="Select activity auditee"/></SelectTrigger><SelectContent>{users.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><ErrorText name={`activity-${row.id}-auditeeId`}/></TableCell>
+          <TableCell className="align-top">
+            <ActivityMultiSelect label={`Select roles for ${row.section || "activity"}`}
+              options={(auditeeRoles.data ?? []).filter(role => role.active).map(role => ({ id: role.id, name: role.name }))}
+              value={row.roleIds ?? activityRoleDefaults(activityMaster.options.find(option => option.value === row.section)?.metadata)} disabled={disabled("activityRoleIds") || auditeeRoles.isLoading || auditeeRoles.isError || linkedSchedule.isFetching || !selectedSchedule}
+              onChange={ids => setActivityRoles(row.id, ids)}/>
+            {!readOnly && <Button type="button" variant="link" size="sm" disabled={disabled("activityRoleIds") || !row.section || activityMaster.isLoading || !!activityMaster.error || linkedSchedule.isFetching}
+              onClick={() => setActivityRoles(row.id, activityRoleDefaults(activityMaster.options.find(option => option.value === row.section)?.metadata))}>Use activity master roles</Button>}
+          </TableCell>
+          <TableCell className="align-top">
+            <ActivityMultiSelect label={`Select auditees for ${row.section || "activity"}`} options={users.map(user => ({ id: user.id, name: user.fullName }))}
+              value={activityAuditeeIds(row)} disabled={disabled("activityAuditeeId")} onChange={ids => setActivityAuditees(row.id, ids)}/>
+            {!readOnly && <Button type="button" variant="link" size="sm" disabled={disabled("activityAuditeeId") || !selectedSchedule || linkedSchedule.isFetching || !activityAuditeeDefaults(row.roleIds ?? [], selectedSchedule?.activityRoleAssignments).length}
+              onClick={() => setActivityAuditees(row.id, activityAuditeeDefaults(row.roleIds ?? [], selectedSchedule?.activityRoleAssignments))}>Use schedule auditees</Button>}
+            <ErrorText name={`activity-${row.id}-auditeeId`}/>
+            {!!row.roleIds?.length && !activityAuditeeDefaults(row.roleIds, selectedSchedule?.activityRoleAssignments).length &&
+              <p className="mt-1 text-xs text-muted-foreground">No users are assigned to these roles in this schedule. Select auditees manually or update the schedule.</p>}
+          </TableCell>
           <TableCell className="align-top"><Input aria-label={`Planned Start for ${row.section || "activity"}`} type="datetime-local" {...dateBounds} value={(row.plannedStartDateTime ?? "").slice(0,16)} disabled={disabled("activityPlannedStartDateTime")} {...invalid(`activity-${row.id}-plannedStartDateTime`)} onChange={event => setActivity(row.id, "plannedStartDateTime", event.target.value)}/><ErrorText name={`activity-${row.id}-plannedStartDateTime`}/>{row.legacyDateTimeDerived && <p className="mt-1 text-xs text-muted-foreground">Derived from saved legacy date/time. Confirm or correct before saving.</p>}</TableCell>
           <TableCell className="align-top"><Input aria-label={`Planned End for ${row.section || "activity"}`} type="datetime-local" {...dateBounds} value={(row.plannedEndDateTime ?? "").slice(0,16)} disabled={disabled("activityPlannedEndDateTime")} {...invalid(`activity-${row.id}-plannedEndDateTime`)} onChange={event => setActivity(row.id, "plannedEndDateTime", event.target.value)}/><ErrorText name={`activity-${row.id}-plannedEndDateTime`}/></TableCell>
           {!readOnly && <TableCell className="align-top text-right"><Button type="button" size="icon" variant="ghost" aria-label="Delete activity row" onClick={() => deleteActivity(row.id)} disabled={activityStructureLocked}><Trash2 className="size-4"/></Button></TableCell>}</TableRow>)}
-        {!activityRows.length && <TableRow><TableCell colSpan={readOnly ? 5 : 6} className="py-8 text-center text-sm text-muted-foreground">No activity rows. Add the first activity.</TableCell></TableRow>}
+        {!activityRows.length && <TableRow><TableCell colSpan={readOnly ? 6 : 7} className="py-8 text-center text-sm text-muted-foreground">No activity rows. Add the first activity.</TableCell></TableRow>}
       </TableBody></Table></div><ErrorText name="activities"/></div>
     <div>
       <Label>16. Audit Plan Circulation *</Label>

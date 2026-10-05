@@ -6668,6 +6668,12 @@ export const listAuditSchedulesResponseOneTotalMin = 0;
 
 
 
+
+
+export const listAuditSchedulesResponseTwoItemsItemActivityRoleAssignmentsItemUserIdsMax = 200;
+
+export const listAuditSchedulesResponseTwoItemsItemActivityRoleAssignmentsMax = 200;
+
 export const listAuditSchedulesResponseTwoItemsItemGpsLatMin = -90;
 export const listAuditSchedulesResponseTwoItemsItemGpsLatMax = 90;
 
@@ -6686,6 +6692,10 @@ export const ListAuditSchedulesResponse = zod.object({
   "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
   "teamLeadIds": zod.array(zod.string()).nullish().describe('Selected leads on the parent programme; null for legacy schedules'),
   "year": zod.number(),
+  "activityRoleAssignments": zod.array(zod.object({
+  "roleId": zod.string().min(1),
+  "userIds": zod.array(zod.string().min(1)).min(1).max(listAuditSchedulesResponseTwoItemsItemActivityRoleAssignmentsItemUserIdsMax)
+})).max(listAuditSchedulesResponseTwoItemsItemActivityRoleAssignmentsMax).optional(),
   "title": zod.string(),
   "hasPlan": zod.boolean().optional().describe('Whether an active Audit Plan already exists for this schedule'),
   "feasibilityDecision": zod.union([zod.literal('cancelled'),zod.literal('reschedule'),zod.literal(null)]).nullish().describe('Latest infeasible audit decision'),
@@ -6729,6 +6739,12 @@ export const ListAuditSchedulesResponse = zod.object({
 /**
  * @summary Create audit schedule
  */
+
+
+export const createAuditScheduleBodyActivityRoleAssignmentsItemUserIdsMax = 200;
+
+export const createAuditScheduleBodyActivityRoleAssignmentsMax = 200;
+
 export const createAuditScheduleBodyGpsLatMin = -90;
 export const createAuditScheduleBodyGpsLatMax = 90;
 
@@ -6741,6 +6757,10 @@ export const CreateAuditScheduleBody = zod.object({
   "id": zod.string(),
   "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
   "year": zod.number(),
+  "activityRoleAssignments": zod.array(zod.object({
+  "roleId": zod.string().min(1),
+  "userIds": zod.array(zod.string().min(1)).min(1).max(createAuditScheduleBodyActivityRoleAssignmentsItemUserIdsMax)
+})).max(createAuditScheduleBodyActivityRoleAssignmentsMax).optional(),
   "title": zod.string(),
   "hasPlan": zod.boolean().optional().describe('Whether an active Audit Plan already exists for this schedule'),
   "feasibilityDecision": zod.union([zod.literal('cancelled'),zod.literal('reschedule'),zod.literal(null)]).nullish().describe('Latest infeasible audit decision'),
@@ -7128,6 +7148,12 @@ export const GetAuditScheduleParams = zod.object({
   "id": zod.coerce.string()
 })
 
+
+
+export const getAuditScheduleResponseActivityRoleAssignmentsItemUserIdsMax = 200;
+
+export const getAuditScheduleResponseActivityRoleAssignmentsMax = 200;
+
 export const getAuditScheduleResponseGpsLatMin = -90;
 export const getAuditScheduleResponseGpsLatMax = 90;
 
@@ -7141,6 +7167,10 @@ export const GetAuditScheduleResponse = zod.object({
   "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
   "teamLeadIds": zod.array(zod.string()).nullish().describe('Selected leads on the parent programme; null for legacy schedules'),
   "year": zod.number(),
+  "activityRoleAssignments": zod.array(zod.object({
+  "roleId": zod.string().min(1),
+  "userIds": zod.array(zod.string().min(1)).min(1).max(getAuditScheduleResponseActivityRoleAssignmentsItemUserIdsMax)
+})).max(getAuditScheduleResponseActivityRoleAssignmentsMax).optional(),
   "title": zod.string(),
   "hasPlan": zod.boolean().optional().describe('Whether an active Audit Plan already exists for this schedule'),
   "feasibilityDecision": zod.union([zod.literal('cancelled'),zod.literal('reschedule'),zod.literal(null)]).nullish().describe('Latest infeasible audit decision'),
@@ -7187,6 +7217,12 @@ export const UpdateAuditScheduleParams = zod.object({
   "id": zod.coerce.string()
 })
 
+
+
+export const updateAuditScheduleBodyActivityRoleAssignmentsItemUserIdsMax = 200;
+
+export const updateAuditScheduleBodyActivityRoleAssignmentsMax = 200;
+
 export const updateAuditScheduleBodyGpsLatMin = -90;
 export const updateAuditScheduleBodyGpsLatMax = 90;
 
@@ -7199,6 +7235,10 @@ export const UpdateAuditScheduleBody = zod.object({
   "id": zod.string(),
   "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
   "year": zod.number(),
+  "activityRoleAssignments": zod.array(zod.object({
+  "roleId": zod.string().min(1),
+  "userIds": zod.array(zod.string().min(1)).min(1).max(updateAuditScheduleBodyActivityRoleAssignmentsItemUserIdsMax)
+})).max(updateAuditScheduleBodyActivityRoleAssignmentsMax).optional(),
   "title": zod.string(),
   "hasPlan": zod.boolean().optional().describe('Whether an active Audit Plan already exists for this schedule'),
   "feasibilityDecision": zod.union([zod.literal('cancelled'),zod.literal('reschedule'),zod.literal(null)]).nullish().describe('Latest infeasible audit decision'),
@@ -7300,6 +7340,12 @@ export const RecordAuditScheduleFeasibilityBody = zod.object({
   "toDate": zod.coerce.date().optional().describe('Required when rescheduling an audit')
 })
 
+
+
+export const recordAuditScheduleFeasibilityResponseActivityRoleAssignmentsItemUserIdsMax = 200;
+
+export const recordAuditScheduleFeasibilityResponseActivityRoleAssignmentsMax = 200;
+
 export const recordAuditScheduleFeasibilityResponseGpsLatMin = -90;
 export const recordAuditScheduleFeasibilityResponseGpsLatMax = 90;
 
@@ -7313,6 +7359,10 @@ export const RecordAuditScheduleFeasibilityResponse = zod.object({
   "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
   "teamLeadIds": zod.array(zod.string()).nullish().describe('Selected leads on the parent programme; null for legacy schedules'),
   "year": zod.number(),
+  "activityRoleAssignments": zod.array(zod.object({
+  "roleId": zod.string().min(1),
+  "userIds": zod.array(zod.string().min(1)).min(1).max(recordAuditScheduleFeasibilityResponseActivityRoleAssignmentsItemUserIdsMax)
+})).max(recordAuditScheduleFeasibilityResponseActivityRoleAssignmentsMax).optional(),
   "title": zod.string(),
   "hasPlan": zod.boolean().optional().describe('Whether an active Audit Plan already exists for this schedule'),
   "feasibilityDecision": zod.union([zod.literal('cancelled'),zod.literal('reschedule'),zod.literal(null)]).nullish().describe('Latest infeasible audit decision'),
@@ -7374,6 +7424,12 @@ export const listAuditPlansResponseOneTotalMin = 0;
 
 
 
+export const listAuditPlansResponseTwoItemsItemActivitiesItemRoleIdsMax = 200;
+
+
+export const listAuditPlansResponseTwoItemsItemActivitiesItemAuditeeIdsMax = 200;
+
+
 
 
 export const ListAuditPlansResponse = zod.object({
@@ -7410,7 +7466,9 @@ export const ListAuditPlansResponse = zod.object({
   "id": zod.string(),
   "section": zod.string(),
   "remarks": zod.string(),
-  "auditeeId": zod.string()
+  "auditeeId": zod.string(),
+  "roleIds": zod.array(zod.string().min(1)).max(listAuditPlansResponseTwoItemsItemActivitiesItemRoleIdsMax).optional(),
+  "auditeeIds": zod.array(zod.string().min(1)).max(listAuditPlansResponseTwoItemsItemActivitiesItemAuditeeIdsMax).optional()
 }).describe('Activity-specific planned wall-clock dates. Undated historical rows may derive both dates from an actually saved shared timestamp.')).min(1).optional(),
   "activityDateTime": zod.string().optional().describe('Deprecated first-row mirror; saved shared timestamps support legacy rows only.'),
   "auditPlanCirculation": zod.string(),
@@ -7430,6 +7488,12 @@ export const ListAuditPlansResponse = zod.object({
  * @summary Create plan linked to schedule
  */
 
+
+
+export const createAuditPlanBodyActivitiesItemRoleIdsMax = 200;
+
+
+export const createAuditPlanBodyActivitiesItemAuditeeIdsMax = 200;
 
 
 
@@ -7463,7 +7527,9 @@ export const CreateAuditPlanBody = zod.object({
   "id": zod.string(),
   "section": zod.string(),
   "remarks": zod.string(),
-  "auditeeId": zod.string()
+  "auditeeId": zod.string(),
+  "roleIds": zod.array(zod.string().min(1)).max(createAuditPlanBodyActivitiesItemRoleIdsMax).optional(),
+  "auditeeIds": zod.array(zod.string().min(1)).max(createAuditPlanBodyActivitiesItemAuditeeIdsMax).optional()
 }).describe('Activity-specific planned wall-clock dates. Undated historical rows may derive both dates from an actually saved shared timestamp.')).min(1).optional(),
   "activityDateTime": zod.string().optional().describe('Deprecated first-row mirror; saved shared timestamps support legacy rows only.'),
   "auditPlanCirculation": zod.string(),
@@ -7478,6 +7544,19 @@ export const CreateAuditPlanBody = zod.object({
 })
 
 export const CreateAuditPlanResponse = zod.void()
+
+
+export const GetAuditScheduleActivityOptionsResponse = zod.object({
+  "users": zod.array(zod.object({
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+})),
+  "roles": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+}))
+})
 
 
 /**
@@ -7527,6 +7606,12 @@ export const GetAuditPlanParams = zod.object({
 
 
 
+export const getAuditPlanResponseActivitiesItemRoleIdsMax = 200;
+
+
+export const getAuditPlanResponseActivitiesItemAuditeeIdsMax = 200;
+
+
 
 
 export const GetAuditPlanResponse = zod.object({
@@ -7558,7 +7643,9 @@ export const GetAuditPlanResponse = zod.object({
   "id": zod.string(),
   "section": zod.string(),
   "remarks": zod.string(),
-  "auditeeId": zod.string()
+  "auditeeId": zod.string(),
+  "roleIds": zod.array(zod.string().min(1)).max(getAuditPlanResponseActivitiesItemRoleIdsMax).optional(),
+  "auditeeIds": zod.array(zod.string().min(1)).max(getAuditPlanResponseActivitiesItemAuditeeIdsMax).optional()
 }).describe('Activity-specific planned wall-clock dates. Undated historical rows may derive both dates from an actually saved shared timestamp.')).min(1).optional(),
   "activityDateTime": zod.string().optional().describe('Deprecated first-row mirror; saved shared timestamps support legacy rows only.'),
   "auditPlanCirculation": zod.string(),
@@ -7581,6 +7668,12 @@ export const UpdateAuditPlanParams = zod.object({
 })
 
 
+
+
+export const updateAuditPlanBodyActivitiesItemRoleIdsMax = 200;
+
+
+export const updateAuditPlanBodyActivitiesItemAuditeeIdsMax = 200;
 
 
 
@@ -7614,7 +7707,9 @@ export const UpdateAuditPlanBody = zod.object({
   "id": zod.string(),
   "section": zod.string(),
   "remarks": zod.string(),
-  "auditeeId": zod.string()
+  "auditeeId": zod.string(),
+  "roleIds": zod.array(zod.string().min(1)).max(updateAuditPlanBodyActivitiesItemRoleIdsMax).optional(),
+  "auditeeIds": zod.array(zod.string().min(1)).max(updateAuditPlanBodyActivitiesItemAuditeeIdsMax).optional()
 }).describe('Activity-specific planned wall-clock dates. Undated historical rows may derive both dates from an actually saved shared timestamp.')).min(1).optional(),
   "activityDateTime": zod.string().optional().describe('Deprecated first-row mirror; saved shared timestamps support legacy rows only.'),
   "auditPlanCirculation": zod.string(),
@@ -7629,6 +7724,12 @@ export const UpdateAuditPlanBody = zod.object({
 })
 
 
+
+
+export const updateAuditPlanResponseActivitiesItemRoleIdsMax = 200;
+
+
+export const updateAuditPlanResponseActivitiesItemAuditeeIdsMax = 200;
 
 
 
@@ -7662,7 +7763,9 @@ export const UpdateAuditPlanResponse = zod.object({
   "id": zod.string(),
   "section": zod.string(),
   "remarks": zod.string(),
-  "auditeeId": zod.string()
+  "auditeeId": zod.string(),
+  "roleIds": zod.array(zod.string().min(1)).max(updateAuditPlanResponseActivitiesItemRoleIdsMax).optional(),
+  "auditeeIds": zod.array(zod.string().min(1)).max(updateAuditPlanResponseActivitiesItemAuditeeIdsMax).optional()
 }).describe('Activity-specific planned wall-clock dates. Undated historical rows may derive both dates from an actually saved shared timestamp.')).min(1).optional(),
   "activityDateTime": zod.string().optional().describe('Deprecated first-row mirror; saved shared timestamps support legacy rows only.'),
   "auditPlanCirculation": zod.string(),
@@ -10173,6 +10276,12 @@ export const getAuditScheduleReportResponseOneTotalMin = 0;
 
 
 
+
+
+export const getAuditScheduleReportResponseTwoItemsItemActivityRoleAssignmentsItemUserIdsMax = 200;
+
+export const getAuditScheduleReportResponseTwoItemsItemActivityRoleAssignmentsMax = 200;
+
 export const getAuditScheduleReportResponseTwoItemsItemGpsLatMin = -90;
 export const getAuditScheduleReportResponseTwoItemsItemGpsLatMax = 90;
 
@@ -10191,6 +10300,10 @@ export const GetAuditScheduleReportResponse = zod.object({
   "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
   "teamLeadIds": zod.array(zod.string()).nullish().describe('Selected leads on the parent programme; null for legacy schedules'),
   "year": zod.number(),
+  "activityRoleAssignments": zod.array(zod.object({
+  "roleId": zod.string().min(1),
+  "userIds": zod.array(zod.string().min(1)).min(1).max(getAuditScheduleReportResponseTwoItemsItemActivityRoleAssignmentsItemUserIdsMax)
+})).max(getAuditScheduleReportResponseTwoItemsItemActivityRoleAssignmentsMax).optional(),
   "title": zod.string(),
   "hasPlan": zod.boolean().optional().describe('Whether an active Audit Plan already exists for this schedule'),
   "feasibilityDecision": zod.union([zod.literal('cancelled'),zod.literal('reschedule'),zod.literal(null)]).nullish().describe('Latest infeasible audit decision'),
@@ -11480,3 +11593,5 @@ export const SimulateEmailRuleResponse = zod.object({
   "email": zod.string()
 }))
 })
+
+

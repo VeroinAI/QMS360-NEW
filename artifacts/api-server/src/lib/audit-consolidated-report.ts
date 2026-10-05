@@ -99,7 +99,7 @@ export function buildConsolidatedAuditReport(input: {
     rows: activities.map((a: Row) => [
       `${planned(a.plannedStartDateTime)}${a.legacyDateTimeDerived && planned(a.plannedStartDateTime) !== "To Be Mapped" ? " (derived legacy)" : ""}`,
       `${planned(a.plannedEndDateTime)}${a.legacyDateTimeDerived && planned(a.plannedEndDateTime) !== "To Be Mapped" ? " (derived legacy)" : ""}`,
-      value(a.section), value(a.remarks), name(a.auditeeId)]) });
+      value(a.section), value(a.remarks), a.auditeeIds !== undefined ? namesOf(a.auditeeIds) : name(a.auditeeId)]) });
   fields(programme, [
     ["Opening meeting", date(audit.openingMeeting?.heldAt)], ["Opening minutes", audit.openingMeeting?.minutes],
     ["Audit team", namesOf(plan?.teamMemberIds)], ["Auditees present", namesOf(audit.openingMeeting?.attendees)],

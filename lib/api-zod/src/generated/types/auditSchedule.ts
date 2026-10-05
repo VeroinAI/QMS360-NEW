@@ -5,6 +5,7 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { AuditActivityRoleAssignment } from './auditActivityRoleAssignment';
 import type { AuditScheduleFeasibilityDecision } from './auditScheduleFeasibilityDecision';
 import type { AuditScheduleL1ReviewStatus } from './auditScheduleL1ReviewStatus';
 import type { AuditScheduleL2ReviewStatus } from './auditScheduleL2ReviewStatus';
@@ -23,6 +24,8 @@ export interface AuditSchedule {
      */
   readonly teamLeadIds?: readonly string[] | null;
   year: number;
+  /** @maxItems 200 */
+  activityRoleAssignments?: AuditActivityRoleAssignment[];
   title: string;
   /** Whether an active Audit Plan already exists for this schedule */
   hasPlan?: boolean;

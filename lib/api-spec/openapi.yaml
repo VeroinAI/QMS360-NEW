@@ -1426,6 +1426,15 @@ paths:
   /audit/plans:
     get: {operationId: listAuditPlans, tags: [audit], summary: List audit plans, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditPlanPage"}}}
     post: {operationId: createAuditPlan, tags: [audit], summary: Create plan linked to schedule, requestBody: {$ref: "#/components/requestBodies/AuditPlan"}, responses: {"201": {description: Created}}}
+  /audit/schedule-activity-options:
+    get:
+      operationId: getAuditScheduleActivityOptions
+      responses:
+        "200":
+          description: Active organization Audit roles and eligible Audit users for schedule-local activity assignments
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuditScheduleActivityOptions"}
   /audit/plan-options:
     get: {operationId: getAuditPlanOptions, tags: [audit], summary: List active organization users available to Audit Plan master fields, responses: {"200": {description: Plan options, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanOptions"}}}}}}
   /audit/plan-notification-roles:
@@ -3212,6 +3221,22 @@ components:
       type: object
       required: [id, recordType, recordId, priority, level, dueAt, status]
       properties: {id: {type: string}, recordType: {type: string}, recordId: {type: string}, priority: {type: string}, level: {type: string}, dueAt: {type: string, format: date-time}, status: {type: string, enum: [open, resolved, paused]}, lastNotifiedAt: {type: [string, "null"], format: date-time}}
+    AuditActivityRoleAssignment:
+      type: object
+      required: [roleId, userIds]
+      properties:
+        roleId: {type: string, minLength: 1}
+        userIds: {type: array, minItems: 1, maxItems: 200, items: {type: string, minLength: 1}}
+    AuditActivityRoleOption:
+      type: object
+      required: [id, name]
+      properties: {id: {type: string}, name: {type: string}}
+    AuditScheduleActivityOptions:
+      type: object
+      required: [users, roles]
+      properties:
+        users: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
+        roles: {type: array, items: {$ref: "#/components/schemas/AuditActivityRoleOption"}}
     AuditSchedule:
       type: object
       required: [id, year, title, projectIds, plannedStartDate, plannedEndDate, workflowState, currentApprovalRole, approvalRoles, canReview]
@@ -3220,6 +3245,7 @@ components:
         parentId: {type: [string, "null"], description: Parent audit programme identifier}
         teamLeadIds: {type: ["array", "null"], items: {type: string}, readOnly: true, description: Selected leads on the parent programme; null for legacy schedules}
         year: {type: number}
+        activityRoleAssignments: {type: array, maxItems: 200, items: {$ref: "#/components/schemas/AuditActivityRoleAssignment"}}
         title: {type: string}
         hasPlan: {type: boolean, description: Whether an active Audit Plan already exists for this schedule}
         feasibilityDecision: {type: [string, "null"], enum: [cancelled, reschedule, null], description: Latest infeasible audit decision}
@@ -3399,6 +3425,8 @@ components:
         section: {type: string}
         remarks: {type: string}
         auditeeId: {type: string}
+        roleIds: {type: array, maxItems: 200, items: {type: string, minLength: 1}}
+        auditeeIds: {type: array, maxItems: 200, items: {type: string, minLength: 1}}
     MeetingMinutes:
       type: object
       required: [heldAt, attendees, minutes]

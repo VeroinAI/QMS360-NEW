@@ -20,4 +20,14 @@ export interface AuditPlanActivity {
   section: string;
   remarks: string;
   auditeeId: string;
+  /**
+     * @maxItems 200
+     * @items.minLength 1
+     */
+  roleIds?: string[];
+  /**
+     * @maxItems 200
+     * @items.minLength 1
+     */
+  auditeeIds?: string[];
 }

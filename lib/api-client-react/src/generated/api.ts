@@ -63,6 +63,7 @@ import type {
   AuditProgrammeTeamLeadsBody,
   AuditReportDetails,
   AuditSchedule,
+  AuditScheduleActivityOptions,
   AuditScheduleActivityPage,
   AuditScheduleBody,
   AuditScheduleFeasibilityBody,
@@ -18979,6 +18980,77 @@ export const useCreateAuditPlan = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getCreateAuditPlanMutationOptions(options));
     }
+
+export const getGetAuditScheduleActivityOptionsUrl = () => {
+
+
+
+
+  return `/api/audit/schedule-activity-options`
+}
+
+export const getAuditScheduleActivityOptions = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditScheduleActivityOptions> => {
+
+  return customFetch<AuditScheduleActivityOptions>(getGetAuditScheduleActivityOptionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditScheduleActivityOptionsQueryKey = () => {
+    return [
+    `/api/audit/schedule-activity-options`
+    ] as const;
+    }
+
+
+export const getGetAuditScheduleActivityOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditScheduleActivityOptionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>> = ({ signal }) => getAuditScheduleActivityOptions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditScheduleActivityOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>>
+export type GetAuditScheduleActivityOptionsQueryError = ErrorType<unknown>
+
+
+
+export function useGetAuditScheduleActivityOptions<TData = Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditScheduleActivityOptionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetAuditPlanOptionsUrl = () => {
 

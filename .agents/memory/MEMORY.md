@@ -50,7 +50,7 @@
 - [Audit Schedule data-entry scope](audit-schedule-data-entry-scope.md) — legacy Audit “Create / edit” grants are schedule-only; do not turn them into global Audit write rights.
 - [Audit module access](audit-module-access.md) — module grants are additive; narrow global grants explicitly and preserve Programme creation, approval levels and assignment scope.
 - [Application settings navigation](application-settings-navigation.md) — each application's Settings pages retain that application's sidebar, including Audit.
-- [Master Data role assignments](master-data-role-policy.md) — user chose informational role assignments only, without visibility, permission or assignee changes.
+- [Master Data role assignments](master-data-role-policy.md) — no visibility or permission changes; Audit activity roles now provide editable schedule-based Plan defaults.
 - [OpenAPI metadata validation](openapi-metadata-validation.md) — typed metadata validators must preserve unknown keys on request and response paths.
 - [Product / Process Owner marker](product-process-owner-marker.md) — assigned Audit users can be selected as Schedule owners; the marker alone grants no Audit actions.
 - [Audit Area master data reuse](audit-area-master-data.md) — Audit Checklist uses the existing shared “Audit Area” group; do not create a parallel audit_areas list.

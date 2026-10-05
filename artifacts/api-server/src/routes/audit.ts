@@ -57,6 +57,8 @@ import { renderConsolidatedAuditPdf } from "../lib/audit-consolidated-pdf";
 import { auditReportDetailsErrors, type AuditReportDetailsData } from "@workspace/field-controls";
 import { auditModulePermissionCatalog, datedActivities, auditPlanDateErrors, plannedDate, auditPlanReplayMatches, type DatedActivity } from "@workspace/field-controls";
 import { activeAuditCapabilities } from "../lib/audit-capabilities";
+import { normalizeActivityAssignments, type ActivityRoleAssignment } from "../lib/audit-activity-assignments";
+import { auditModuleReadMatches, auditModulePermissionMatches } from "@workspace/field-controls";
 
 const router = Router();
 const requireAuditAdmin = requireAppAdmin("audit");
@@ -247,6 +249,7 @@ const maybeCsv = (req: Request, res: Response, name: string, rows: AnyRow[]) => 
 };
 
 type ScheduleMeta = {
+  activityRoleAssignments?: ActivityRoleAssignment[];
   programme?: boolean; parentId?: string | null; fromDate?: string; toDate?: string;
   teamLeadIds?: string[];
   approvalRoles?: Array<{ id: string; name: string }>; approvalIndex?: number;
@@ -434,6 +437,7 @@ const scheduleDto = (row: AnyRow, canReview = false, hasPlan = false, teamLeadId
     : null;
   return {
     id: row.id, parentId: meta.parentId ?? null, teamLeadIds, year: row.year, title: row.title, projectIds: meta.projectIds ?? (row.projectId ? [row.projectId] : []),
+    activityRoleAssignments: meta.activityRoleAssignments ?? [],
     auditTypes: meta.auditTypes ?? [], plannedStartDate: new Date(meta.plannedStartDate ?? `${row.year}-01-01`),
     plannedEndDate: new Date(meta.plannedEndDate ?? `${row.year}-12-31`), ownerId: row.ownerId ?? undefined,
     workflowState: ({ draft: "Draft", submitted: "Submitted", approved: "Approved", sent_back: "Sent Back" } as AnyRow)[row.workflowState] ?? "Draft",
@@ -461,6 +465,7 @@ const scheduleValues = (data: AnyRow) => ({
   workflowState: ({ Draft: "draft", Submitted: "submitted", Approved: "approved", "Sent Back": "sent_back", Deleted: "deleted" } as AnyRow)[data.workflowState],
   status: JSON.stringify({
     parentId: data.parentId ?? null,
+    activityRoleAssignments: data.activityRoleAssignments ?? [],
     projectIds: data.projectIds, auditTypes: data.auditTypes ?? [], plannedStartDate: dateOnly(data.plannedStartDate),
     plannedEndDate: dateOnly(data.plannedEndDate), reviewComments: data.reviewComments ?? null,
     auditCategory: data.auditCategory, departmentProject: data.departmentProject, location: data.location,
@@ -1431,6 +1436,7 @@ router.get("/schedules", asyncHandler(async (req, res) => {
 }));
 router.post("/schedules", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditScheduleBody, req);
+  data.activityRoleAssignments = await validateActivityRoleAssignments(actor(req).organizationId, data.activityRoleAssignments ?? []);
   await assertValidParent(actor(req).organizationId, data.parentId);
   const requestedProjectIds = data.projectIds?.length ? data.projectIds : [data.projectId].filter(Boolean);
   let projectIds = requestedProjectIds.length
@@ -1571,6 +1577,8 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditScheduleBody, req);
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   await assertChildSchedule(before);
+  data.activityRoleAssignments = await validateActivityRoleAssignments(actor(req).organizationId,
+    data.activityRoleAssignments ?? scheduleMeta(before).activityRoleAssignments ?? []);
   data.parentId = data.parentId ?? scheduleMeta(before).parentId ?? null;
   await assertValidParent(actor(req).organizationId, data.parentId);
   const requestedProjectIds = data.projectIds?.length ? data.projectIds : [data.projectId].filter(Boolean);
@@ -1814,7 +1822,7 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
 }));
 
 const PLAN_LANGUAGE = "Verbal: English\nWriting: English";
-type PlanActivity = DatedActivity & { id: string; section: string; remarks: string; auditeeId: string };
+type PlanActivity = DatedActivity & { id: string; section: string; remarks: string; auditeeId: string; roleIds?: string[]; auditeeIds?: string[] };
 type PlanMeta = {
   objectives?: string | null; leadAuditorId?: string; processOwnerIds?: string[]; feasibilityNotes?: string | null;
   auditFeasible?: boolean; auditTitle?: string; auditeeId?: string; auditeeRoleIds?: string[]; qaqcScope?: string; auditTypes?: string[];
@@ -1901,6 +1909,16 @@ async function auditPlanUsers(organizationId: string) {
     .orderBy(asc(users.fullName));
   return [...new Map(rows.map((row) => [row.id, row])).values()];
 }
+async function activityRoleOptions(organizationId: string) {
+  return db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles)
+    .where(and(active(auditWorkspaceRoles, organizationId), eq(auditWorkspaceRoles.status, "active")))
+    .orderBy(asc(auditWorkspaceRoles.name));
+}
+async function validateActivityRoleAssignments(organizationId: string, assignments: ActivityRoleAssignment[]) {
+  if (!assignments.length) return [];
+  const [roles, people] = await Promise.all([activityRoleOptions(organizationId), auditPlanUsers(organizationId)]);
+  return normalizeActivityAssignments(assignments, new Set(roles.map(role => role.id)), new Set(people.map(user => user.id)));
+}
 async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) {
   const scheduleData = scheduleDto(schedule);
   const dateErrors = validateAuditPlanDates(Object.fromEntries(auditPlanDateFields.map(({ key }) =>
@@ -1910,6 +1928,18 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   const activities: PlanActivity[] = Array.isArray(data.activities) && data.activities.length
     ? data.activities
     : [{ id: `legacy-${data.id}`, section: data.activitySection, remarks: data.activityRemarks, auditeeId: data.activityAuditeeId }];
+  for (const activity of activities) {
+    if (activity.auditeeIds !== undefined) {
+      activity.auditeeIds = [...new Set(activity.auditeeIds)];
+      activity.auditeeId = activity.auditeeIds[0] ?? "";
+    }
+    if (activity.roleIds !== undefined) activity.roleIds = [...new Set(activity.roleIds)];
+  }
+  const activityRoles = new Set((activities.some(activity => activity.roleIds?.length)
+    ? await activityRoleOptions(actor(req).organizationId) : []).map(role => role.id));
+  if (activities.some(activity => activity.roleIds?.some(id => !activityRoles.has(id)))) {
+    throw new HttpError(422, "Select active QMS Audit roles for each activity");
+  }
   const required = [
     "auditTitle", "leadAuditorId", "qaqcScope", "auditLanguage", "qaqcReference",
     "startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime",
@@ -1931,7 +1961,7 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   assertPlanDates(data, schedule, activities);
   const options = await auditPlanUsers(actor(req).organizationId);
   const usersById = new Map(options.map((option) => [option.id, option]));
-  const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, ...activities.map(activity => activity.auditeeId)])];
+  const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, ...activities.flatMap(activity => activity.auditeeIds ?? [activity.auditeeId])])];
   if (participantIds.some((id) => !usersById.has(id))) throw new HttpError(422, "Select active QMS Audit users for all Master fields");
   const parentId = scheduleMeta(schedule).parentId;
   if (parentId) {
@@ -1991,6 +2021,16 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
     location: scheduleData.location,
   };
 }
+router.get("/schedule-activity-options", asyncHandler(async (req, res) => {
+  const capabilities = await activeAuditCapabilities(req);
+  if (!capabilities.administrator && !capabilities.keys.some(key =>
+    auditModuleReadMatches(key, "schedules") || auditModulePermissionMatches(key, "schedules", "create_edit"))) {
+    throw new HttpError(403, "Audit Schedule access is required to select activity roles and users");
+  }
+  const organizationId = actor(req).organizationId;
+  const [people, roles] = await Promise.all([auditPlanUsers(organizationId), activityRoleOptions(organizationId)]);
+  res.json(Api.GetAuditScheduleActivityOptionsResponse.parse({ users: people, roles }));
+}));
 router.get("/plan-options", requirePermission("audit", "plans", "select"), asyncHandler(async (req, res) => {
   res.json({ users: await auditPlanUsers(actor(req).organizationId) });
 }));
@@ -2130,7 +2170,7 @@ router.get("/plans/:id/report", asyncHandler(async (req, res) => {
     .where(and(active(projects, orgId), eq(projects.id, plan.projectId))) : [];
   const uuid = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value);
   const userIds = [...new Set([meta.leadAuditorId, ...plan.teamMemberIds, meta.auditeeId,
-    ...(meta.processOwnerIds ?? []), meta.activityAuditeeId, ...(meta.activities ?? []).map(row => row.auditeeId)].filter(uuid))];
+    ...(meta.processOwnerIds ?? []), meta.activityAuditeeId, ...(meta.activities ?? []).flatMap(row => row.auditeeIds ?? [row.auditeeId])].filter(uuid))];
   const roleIds = (meta.auditeeRoleIds ?? []).filter(uuid);
   const [people, roles] = await Promise.all([
     userIds.length ? db.select({ id: users.id, name: users.fullName }).from(users).where(and(active(users, orgId), inArray(users.id, userIds))) : [],
@@ -3533,6 +3573,7 @@ async function consolidatedReport(req: Request) {
   } : null;
   const userIds = [...new Set([
     mappedPlan?.leadAuditorId, ...(mappedPlan?.teamMemberIds ?? []), ...(mappedPlan?.processOwnerIds ?? []),
+    ...(mappedPlan?.activities ?? []).flatMap(row => row.auditeeIds ?? [row.auditeeId]),
     ...(auditMeta(audit).openingMeeting?.attendees ?? []), ...(auditMeta(audit).closingMeeting?.attendees ?? []), ...cars.map(c => c.ownerId),
   ].filter((id): id is string => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)))];
   const nameRows = userIds.length ? await db.select({ id: users.id, name: users.fullName, designation: users.designation }).from(users).where(and(
