@@ -20247,6 +20247,83 @@ export const useSaveAuditReportDetails = <TError = ErrorType<void>,
       return useMutation(getSaveAuditReportDetailsMutationOptions(options));
     }
 
+export const getDownloadAuditReportPptxUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/report/pptx`
+}
+
+/**
+ * @summary Download completed Audit report using the original PowerPoint template
+ */
+export const downloadAuditReportPptx = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadAuditReportPptxUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadAuditReportPptxQueryKey = (id: string,) => {
+    return [
+    `/api/audit/audits/${id}/report/pptx`
+    ] as const;
+    }
+
+
+export const getDownloadAuditReportPptxQueryOptions = <TData = Awaited<ReturnType<typeof downloadAuditReportPptx>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAuditReportPptx>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadAuditReportPptxQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadAuditReportPptx>>> = ({ signal }) => downloadAuditReportPptx(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadAuditReportPptx>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadAuditReportPptxQueryResult = NonNullable<Awaited<ReturnType<typeof downloadAuditReportPptx>>>
+export type DownloadAuditReportPptxQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download completed Audit report using the original PowerPoint template
+ */
+
+export function useDownloadAuditReportPptx<TData = Awaited<ReturnType<typeof downloadAuditReportPptx>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAuditReportPptx>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadAuditReportPptxQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getDownloadAuditReportPdfUrl = (id: string,) => {
 
 

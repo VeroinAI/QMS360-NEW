@@ -53,6 +53,7 @@ import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-
 import { auditPlanReportData } from "../lib/audit-plan-report-data";
 import { renderAuditPlanPdf } from "../lib/audit-plan-pdf";
 import { auditIsComplete, buildConsolidatedAuditReport } from "../lib/audit-consolidated-report";
+import { AUDIT_PPTX_MIME, renderConsolidatedAuditPptx } from "../lib/audit-consolidated-pptx";
 import { renderConsolidatedAuditPdf } from "../lib/audit-consolidated-pdf";
 import { auditReportDetailsErrors, type AuditReportDetailsData } from "@workspace/field-controls";
 import { auditModulePermissionCatalog, datedActivities, auditPlanDateErrors, plannedDate, auditPlanReplayMatches, type DatedActivity } from "@workspace/field-controls";
@@ -106,7 +107,7 @@ for (const [path, module] of auditModules) {
 function auditExportGuard(module: string) {
   return asyncHandler(async (req, _res, next) => {
     const isExport = req.method === "GET" && (
-      req.path.endsWith("/report.pdf") || req.path.endsWith("/report.docx") || req.path.endsWith("/report/pdf") || (module === "plans" && /^\/[^/]+\/report\/?$/.test(req.path))
+      req.path.endsWith("/report.pdf") || req.path.endsWith("/report.docx") || req.path.endsWith("/report/pdf") || req.path.endsWith("/report/pptx") || (module === "plans" && /^\/[^/]+\/report\/?$/.test(req.path))
       || String(req.query.format ?? "").toLowerCase() === "csv"
       || req.accepts(["json", "text/csv"]) === "text/csv"
     );
@@ -3738,6 +3739,51 @@ router.get("/audits/:id/report", asyncHandler(async (req, res) => {
     ...s.fields.map(f => ({ section: s.title, field: f.label, value: f.value })),
     ...s.tables.flatMap(t => t.rows.map(row => ({ section: s.title, field: t.title, value: t.columns.map((column, i) => `${column}: ${row[i] ?? ""}`).join(" | ") }))),
   ]))) res.json({ ...payload, sections });
+}));
+router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
+  const report = await consolidatedReport(req);
+  // The legacy DTO defaults a missing due date to creation time. That is not
+  // a real deadline; this export must use the stored date/approved extension.
+  const tracker = report.sections.find(s => s.key === "corrective-actions")?.tables[0];
+  const reviewers = [...new Set(report.cars.map(car => carMeta(car).reviewedBy).filter((id): id is string => !!id))];
+  const reviewerRows = reviewers.length ? await db.select({ id: users.id, name: users.fullName }).from(users).where(and(
+    eq(users.organizationId, actor(req).organizationId), inArray(users.id, reviewers), isNull(users.deletedAt))) : [];
+  const date = (value?: string | Date | null) => value ? new Date(value).toLocaleDateString("en-GB", { timeZone: "Asia/Riyadh" }) : "To be mapped";
+  tracker?.rows.forEach((row, i) => {
+    const car = report.cars[i]!;
+    const meta = carMeta(car);
+    row[5] = date(car.extensionStatus === "approved" && car.extensionDueDate ? car.extensionDueDate : car.dueDate);
+    row[7] = meta.reviewedAt && (meta.reviewOutcome === "accept" || car.workflowState === "closed" || car.workflowState === "accepted")
+      ? `${reviewerRows.find(u => u.id === meta.reviewedBy)?.name || "To be mapped"} / ${date(meta.reviewedAt)}`
+      : "To be mapped";
+  });
+  const images = new Map<string, Uint8Array>();
+  for (const photo of report.sections.flatMap(s => s.photos)) {
+    const file = report.evidence.find(f => f.id === photo.id)!;
+    try {
+      let bytes: Buffer;
+      if (file.storageKey.startsWith("gcs:")) {
+        const object = await getObject(file.storageKey.slice(4));
+        if (Number(object.headers.get("content-length") ?? 0) > 20_000_000) throw new Error("Image exceeds report size limit");
+        bytes = Buffer.from(await object.arrayBuffer());
+      } else {
+        const localKey = file.storageKey.replace(/^local:/, "");
+        if (localKey !== `audit/${file.id}`) throw new Error("Unsupported legacy evidence key");
+        bytes = await readFile(path.resolve(process.cwd(), "uploads", localKey.replace("/", "-")));
+      }
+      if (bytes.length > 20_000_000) throw new Error("Image exceeds report size limit");
+      // Fit to the original template rectangle without distorting photographs.
+      images.set(photo.id, await sharp(bytes, { limitInputPixels: 16_000_000 })
+        .resize({ width: 1442, height: 800, fit: "contain", background: "#F3EEFA" }).png().toBuffer());
+    } catch {
+      throw new HttpError(502, `Could not load photograph "${photo.fileName}". Please retry the PowerPoint download.`);
+    }
+  }
+  const bytes = await renderConsolidatedAuditPptx({ sections: report.sections, photos: images });
+  res.setHeader("Content-Type", AUDIT_PPTX_MIME);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("Content-Disposition", `attachment; filename="audit-report-${report.audit.id}.pptx"`);
+  res.send(bytes);
 }));
 router.get("/audits/:id/report/pdf", asyncHandler(async (req, res) => {
   const report = await consolidatedReport(req);

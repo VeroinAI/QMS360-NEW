@@ -1488,6 +1488,16 @@ paths:
       responses:
         "200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
         "422": {description: Invalid report details}
+  /audit/audits/{id}/report/pptx:
+    get:
+      operationId: downloadAuditReportPptx
+      tags: [audit]
+      summary: Download completed Audit report using the original PowerPoint template
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200": {description: PowerPoint report, content: {application/vnd.openxmlformats-officedocument.presentationml.presentation: {schema: {type: string, format: binary}}}}
+        "403": {description: Audit read and export permission required}
+        "409": {description: Complete the audit before downloading its report}
   /audit/audits/{id}/report/pdf:
     get:
       operationId: downloadAuditReportPdf

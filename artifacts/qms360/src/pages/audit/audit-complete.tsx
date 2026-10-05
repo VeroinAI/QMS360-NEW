@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCompleteAudit } from "@workspace/api-client-react";
-import { CheckCircle2 } from "lucide-react";
+import { customFetch, useCompleteAudit } from "@workspace/api-client-react";
+import { CheckCircle2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -19,10 +18,26 @@ export function useAuditEditAccess(audit: { canEdit?: boolean }, fieldKey?: "sta
 }
 
 export function ReportButton({ audit, size }: { audit: { id: string; status: string }; size?: "sm" }) {
+  const [busy, setBusy] = useState(false);
+  const { toast } = useToast();
   const ok = isAuditReportEligible(audit.status);
-  return ok
-    ? <Button variant="outline" size={size} asChild><Link href={`/audit/audits/${audit.id}/report`} data-testid={`link-report-${audit.id}`}>Report</Link></Button>
-    : <Button variant="outline" size={size} disabled title="Report is available once the audit is marked Complete" data-testid={`button-report-${audit.id}`}>Report</Button>;
+  const download = async () => {
+    if (busy || !ok) return;
+    setBusy(true);
+    try {
+      const blob = await customFetch<Blob>(`/api/audit/audits/${encodeURIComponent(audit.id)}/report/pptx`, { responseType: "blob" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url; link.download = `audit-report-${audit.id}.pptx`;
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      toast({ title: "Unable to download PowerPoint report", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  return <Button variant="outline" size={size} disabled={!ok || busy} onClick={() => void download()}
+    title={ok ? "Download PowerPoint report" : "Report is available once the audit is marked Complete"}
+    data-testid={`button-report-${audit.id}`}><Download className="mr-2 size-4"/>{busy ? "Preparing…" : "Report"}</Button>;
 }
 
 export function MarkCompleteButton({ audit, size }: { audit: { id: string; title: string; status: string; canEdit?: boolean }; size?: "sm" }) {
@@ -44,7 +59,7 @@ export function MarkCompleteButton({ audit, size }: { audit: { id: string; title
     <Button size={size} onClick={() => setOpen(true)} data-testid={`button-complete-${audit.id}`}><CheckCircle2 className="mr-2 size-4"/>Mark Complete</Button>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent>
       <DialogHeader><DialogTitle>Mark this audit Complete?</DialogTitle>
-        <DialogDescription>{audit.title}. Completing the audit enables the consolidated audit report and its PDF download. It does not close any Corrective Action Reports; those continue to be tracked separately.</DialogDescription></DialogHeader>
+        <DialogDescription>{audit.title}. Completing the audit enables the consolidated audit report and its PowerPoint download. It does not close any Corrective Action Reports; those continue to be tracked separately.</DialogDescription></DialogHeader>
       <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
         <Button disabled={complete.isPending} onClick={confirm} data-testid="button-confirm-complete">{complete.isPending ? "Completing…" : "Mark Complete"}</Button></DialogFooter>
     </DialogContent></Dialog>

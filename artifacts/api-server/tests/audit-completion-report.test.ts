@@ -99,6 +99,7 @@ describe.skipIf(process.env.QMS_AUDIT_REPORT_CLEANUP === "1")("Audit completion 
     expect((await api("GET", `/audits/${auditId}/report`)).status).toBe(409);
     expect((await api("GET", `/audits/${auditId}/report?format=csv`)).status).toBe(409);
     expect((await api("GET", `/audits/${auditId}/report/pdf`)).status).toBe(409);
+    expect((await api("GET", `/audits/${auditId}/report/pptx`)).status).toBe(409);
   });
   it("does not grant completion or report editing to view-only users", async () => {
     expect((await api("GET", `/audits/${auditId}`, undefined, viewerToken)).body.canEdit).toBe(false);
@@ -141,6 +142,32 @@ describe.skipIf(process.env.QMS_AUDIT_REPORT_CLEANUP === "1")("Audit completion 
     expect(sections.find((s: any) => s.key === "design-procurement").tables[0].rows[0]).toEqual(["Status A", "4", "100.00%"]);
     expect(sections.find((s: any) => s.key === "conforming").tables[1].rows[0]).toContain("Controlled revision");
     expect(sections.find((s: any) => s.key === "corrective-actions").tables[0].rows[0]).toContain("Open");
+  });
+  it("downloads PowerPoint read-only and preserves export access boundaries", async () => {
+    const before = await db.select().from(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, orgId));
+    const res = await fetch(`${base}/api/audit/audits/${auditId}/report/pptx`, { headers: { authorization: `Bearer ${token}` } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/vnd.openxmlformats-officedocument.presentationml.presentation");
+    expect(res.headers.get("content-disposition")).toContain(`audit-report-${auditId}.pptx`);
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect(Array.from(bytes.slice(0, 2))).toEqual([80, 75]);
+    expect((await db.select().from(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, orgId))).length).toBe(before.length);
+    const [car] = await db.select().from(correctiveActionReports).where(eq(correctiveActionReports.auditFindingId, findingId));
+    expect(car!.workflowState).toBe("open");
+    // Legacy module "select" retains its existing export right; narrower modern view grants do not.
+    const legacy = await fetch(`${base}/api/audit/audits/${auditId}/report/pptx`, { headers: { authorization: `Bearer ${viewerToken}` } });
+    expect(legacy.status).toBe(200);
+    const [permission] = await db.select().from(auditPermissions).where(eq(auditPermissions.organizationId, orgId));
+    try {
+      await db.update(auditPermissions).set({ key: "audit.audits.view_all" }).where(eq(auditPermissions.id, permission!.id));
+      const denied = await fetch(`${base}/api/audit/audits/${auditId}/report/pptx`, { headers: { authorization: `Bearer ${viewerToken}` } });
+      expect(denied.status).toBe(403);
+    } finally {
+      await db.update(auditPermissions).set({ key: "audits" }).where(eq(auditPermissions.id, permission!.id));
+    }
+    expect((await fetch(`${base}/api/audit/audits/${auditId}/report/pptx`)).status).toBe(401);
+    expect((await fetch(`${base}/api/audit/audits/${randomUUID()}/report/pptx`, { headers: { authorization: `Bearer ${token}` } })).status).toBe(404);
   });
   it("preserves completion through concurrent meeting and report edits", async () => {
     const results = await Promise.all([

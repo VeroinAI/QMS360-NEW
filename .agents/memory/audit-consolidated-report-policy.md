@@ -26,3 +26,9 @@ Report Details no longer exposes Document Control, Project Profile, Objective/sc
 **Why:** The user explicitly removed these inputs from the workspace page and required other functionality to remain unaffected.
 
 **How to apply:** Treat this as editor-only scope. Preserve existing stored values, shared report definitions, and consolidated PDF behavior unless separately requested.
+
+The Audits workspace Report button downloads a PowerPoint report using the supplied consolidated-report PPTX's original branding, colours, tables and slide layouts. Unavailable values read exactly **To be mapped**.
+
+**Why:** The user explicitly requested a matching PowerPoint report, not a redesigned deck or a PDF. Template sample people, references, dates and conclusions are not audit data.
+
+**How to apply:** Populate the original OOXML template, continue excess rows/photos on matching slides, and use actual saved records. Preserve completion/export guards and the separate CAR lifecycle. Keep the existing PDF endpoint and report editor unaffected.

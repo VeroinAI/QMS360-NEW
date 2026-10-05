@@ -8666,6 +8666,16 @@ export const SaveAuditReportDetailsResponse = zod.object({
 
 
 /**
+ * @summary Download completed Audit report using the original PowerPoint template
+ */
+export const DownloadAuditReportPptxParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DownloadAuditReportPptxResponse = zod.unknown()
+
+
+/**
  * @summary Download completed Audit consolidated report
  */
 export const DownloadAuditReportPdfParams = zod.object({
