@@ -159,6 +159,73 @@ afterAll(async () => {
 });
 
 describe("audit programme parent/child workflow", () => {
+  it("filters CAR findings by title, type, department and combined columns before pagination", async () => {
+    const productType = "Quality Internal Product Audit";
+    const processType = "Quality Internal Process Audit";
+    const [project] = await db.insert(projects).values({
+      organizationId: orgId, name: "Filter project", code: `FILTER-${crypto.randomUUID().slice(0, 8)}`,
+    }).returning();
+    const createFinding = async (title: string, type: string, department?: string) => {
+      const projectId = department ? null : project!.id;
+      const [schedule] = await db.insert(auditSchedules).values({
+        organizationId: orgId, projectId, year: 2026, title: `${title} schedule`,
+        status: JSON.stringify({ auditTypes: [type], departmentProject: department }),
+      }).returning();
+      const [plan] = await db.insert(auditPlans).values({
+        organizationId: orgId, projectId, auditScheduleId: schedule!.id,
+        status: JSON.stringify({ leadAuditorId: creator.id }),
+      }).returning();
+      const [audit] = await db.insert(audits).values({
+        organizationId: orgId, projectId, auditPlanId: plan!.id,
+        referenceNumber: `FILTER-${crypto.randomUUID()}`, status: JSON.stringify({ title }),
+        checklistState: [{
+          id: crypto.randomUUID(), description: "Filter finding",
+          auditFinding: "Minor NC", actionTakerId: l1.id,
+        }] as any,
+      }).returning();
+      return { schedule: schedule!, audit: audit! };
+    };
+    const product = await createFinding("Product filter audit", productType);
+    const process = await createFinding("Process filter audit", processType, "Quality Department");
+    await createFinding("Other process filter audit", processType, "Engineering Department");
+    const get = async (filters: Record<string, string>) => {
+      const result = await api("GET", `/car-register?${new URLSearchParams(filters)}`, admin.token);
+      expect(result.status, JSON.stringify(result.json)).toBe(200);
+      return result.json;
+    };
+    const all = await get({ limit: "1" });
+    expect(all.total).toBe(3);
+    expect(all.items).toHaveLength(1);
+    expect(all.auditTitles).toHaveLength(3);
+    expect(all.auditTypes).toEqual(expect.arrayContaining([
+      { id: productType, name: productType }, { id: processType, name: processType },
+    ]));
+    expect(all.departments).toHaveLength(2);
+    const byType = await get({ auditType: processType });
+    expect(byType.total).toBe(2);
+    expect(byType.projects).toEqual([]);
+    expect(byType.departments).toHaveLength(2);
+    const byDepartment = await get({ department: "Quality Department" });
+    expect(byDepartment.items).toEqual([expect.objectContaining({
+      auditId: process.audit.id, department: "Quality Department", auditTypes: [processType],
+    })]);
+    const combined = await get({
+      auditTitle: "Product filter audit", auditType: productType,
+      projectId: project!.id, scheduleId: product.schedule.id, status: "Open",
+    });
+    expect(combined.total).toBe(1);
+    expect(combined.items[0].auditId).toBe(product.audit.id);
+    expect(combined.departments).toEqual([]);
+    expect(combined.projects).toEqual([{ id: project!.id, name: "Filter project" }]);
+    expect((await get({ auditTitle: "Missing title" })).total).toBe(0);
+    expect((await get({ auditType: productType, department: "Quality Department" })).total).toBe(0);
+    expect((await get({ auditType: processType, projectId: project!.id })).total).toBe(0);
+    const closed = await get({ status: "Closed" });
+    expect(closed.items).toEqual([]);
+    expect(closed.auditTitles).toHaveLength(3);
+    expect((await get({})).total).toBe(3);
+  });
+
   it("registers actual findings, filters them, preserves response identity and closes only on assigned Team Lead acceptance", async () => {
     const actionRole = await role("CAR action taker", [(await permission("create_edit")).id, (await permission("submit")).id, (await permission("view_all")).id]);
     const leadRole = await role("CAR Team Lead", [(await permission("audit.cars.view_all")).id, (await permission("audit_team_lead")).id]);

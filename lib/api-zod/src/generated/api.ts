@@ -10002,6 +10002,9 @@ export const listCarRegisterQueryLimitMax = 200;
 export const ListCarRegisterQueryParams = zod.object({
   "projectId": zod.coerce.string().optional(),
   "scheduleId": zod.coerce.string().optional(),
+  "auditTitle": zod.coerce.string().optional(),
+  "auditType": zod.coerce.string().optional(),
+  "department": zod.coerce.string().optional(),
   "status": zod.coerce.string().optional(),
   "includeLegacy": zod.coerce.boolean().optional(),
   "page": zod.coerce.number().min(1).default(listCarRegisterQueryPageDefault),
@@ -10014,6 +10017,8 @@ export const ListCarRegisterResponse = zod.object({
   "auditId": zod.string(),
   "itemId": zod.string(),
   "auditTitle": zod.string(),
+  "auditTypes": zod.array(zod.string()).optional(),
+  "department": zod.string().nullish(),
   "scheduleId": zod.string().nullish(),
   "scheduleName": zod.string().optional(),
   "projectId": zod.string().nullish(),
@@ -10061,6 +10066,18 @@ export const ListCarRegisterResponse = zod.object({
   "name": zod.string()
 })),
   "schedules": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "auditTitles": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "auditTypes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "departments": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string()
 }))

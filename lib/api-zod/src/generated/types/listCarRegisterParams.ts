@@ -11,6 +11,9 @@ import type { PageParameter } from './pageParameter';
 export type ListCarRegisterParams = {
 projectId?: string;
 scheduleId?: string;
+auditTitle?: string;
+auditType?: string;
+department?: string;
 status?: string;
 includeLegacy?: boolean;
 /**

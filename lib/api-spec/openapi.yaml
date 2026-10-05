@@ -1537,6 +1537,9 @@ paths:
       parameters:
         - {name: projectId, in: query, schema: {type: string}}
         - {name: scheduleId, in: query, schema: {type: string}}
+        - {name: auditTitle, in: query, schema: {type: string}}
+        - {name: auditType, in: query, schema: {type: string}}
+        - {name: department, in: query, schema: {type: string}}
         - {name: status, in: query, schema: {type: string}}
         - {name: includeLegacy, in: query, schema: {type: boolean}}
         - {$ref: "#/components/parameters/Page"}
@@ -3621,6 +3624,8 @@ components:
         auditId: {type: string}
         itemId: {type: string}
         auditTitle: {type: string}
+        auditTypes: {type: array, items: {type: string}}
+        department: {type: [string, "null"]}
         scheduleId: {type: [string, "null"]}
         scheduleName: {type: string}
         projectId: {type: [string, "null"]}
@@ -3638,7 +3643,7 @@ components:
         car: {$ref: "#/components/schemas/CorrectiveActionReport"}
     CarRegisterPage:
       type: object
-      required: [items, total, page, limit, projects, schedules]
+      required: [items, total, page, limit, projects, schedules, auditTitles, auditTypes, departments]
       properties:
         items: {type: array, items: {$ref: "#/components/schemas/CarRegisterEntry"}}
         total: {type: number}
@@ -3646,6 +3651,9 @@ components:
         limit: {type: number}
         projects: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
         schedules: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        auditTitles: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        auditTypes: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        departments: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
     AcceptRejectReview:
       type: object
       required: [decision]

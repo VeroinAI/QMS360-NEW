@@ -15,4 +15,7 @@ export interface CarRegisterPage {
   limit: number;
   projects: CarRegisterOption[];
   schedules: CarRegisterOption[];
+  auditTitles: CarRegisterOption[];
+  auditTypes: CarRegisterOption[];
+  departments: CarRegisterOption[];
 }

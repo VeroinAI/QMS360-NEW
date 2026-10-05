@@ -20,7 +20,7 @@ import { useFieldAccess } from "@/lib/use-field-access";
 
 const LIMIT = 10;
 const EDITABLE = ["Open", "Draft", "Rejected", "Returned for query", "Returned for rework"];
-const STATUSES = ["Open", "Draft", "Submitted", "Returned for query", "Returned for rework", "Rejected", "Closed"];
+const STATUSES = ["Open", "Draft", "Submitted", "Returned for query", "Returned for rework", "Accepted", "Rejected", "Extension Requested", "Closed"];
 const errorText = (e: unknown) => e instanceof Error ? e.message : "Please try again.";
 const tone = (s: string) => s === "Closed" || s === "Accepted" ? "default" as const : s === "Rejected" ? "destructive" as const : "secondary" as const;
 const outcomeLabel = (o?: string | null) => o === "query" ? "Query" : o === "rework" ? "Rework" : o === "reject" ? "Rejected" : o === "accept" ? "Accepted" : o ?? "";
@@ -134,11 +134,14 @@ export function CarRegister() {
   const [page, setPage] = useState(1);
   const [projectId, setProjectId] = useState("all");
   const [scheduleId, setScheduleId] = useState("all");
+  const [auditTitle, setAuditTitle] = useState("all");
+  const [auditType, setAuditType] = useState("all");
+  const [department, setDepartment] = useState("all");
   const [status, setStatus] = useState("all");
   const [legacy, setLegacy] = useState(false);
   const [respond, setRespond] = useState<CorrectiveActionReport>();
   const [reviewing, setReviewing] = useState<CorrectiveActionReport>();
-  const params = { page, limit: LIMIT, includeLegacy: legacy, ...(projectId !== "all" && { projectId }), ...(scheduleId !== "all" && { scheduleId }), ...(status !== "all" && { status }) };
+  const params = { page, limit: LIMIT, includeLegacy: legacy, ...(projectId !== "all" && { projectId }), ...(scheduleId !== "all" && { scheduleId }), ...(auditTitle !== "all" && { auditTitle }), ...(auditType !== "all" && { auditType }), ...(department !== "all" && { department }), ...(status !== "all" && { status }) };
   const query = useListCarRegister(params, { query: { queryKey: getListCarRegisterQueryKey(params), refetchInterval: 20_000, staleTime: 10_000, refetchOnWindowFocus: true } });
   const start = useStartFindingCar();
   const data = query.data;
@@ -154,9 +157,13 @@ export function CarRegister() {
   return <div className="space-y-5">
     <div><h1 className="text-2xl font-semibold tracking-tight">Corrective Action Register</h1><p className="mt-1 text-sm text-muted-foreground">Audit findings and the corrective action responses raised against them</p></div>
     <div className="flex flex-wrap items-center gap-3">
-      <Select value={projectId} onValueChange={reset(setProjectId)}><SelectTrigger className="w-52" data-testid="select-car-project"><SelectValue/></SelectTrigger><SelectContent>{opts("All projects", data?.projects)}</SelectContent></Select>
-      <Select value={scheduleId} onValueChange={reset(setScheduleId)}><SelectTrigger className="w-52" data-testid="select-car-schedule"><SelectValue/></SelectTrigger><SelectContent>{opts("All schedules", data?.schedules)}</SelectContent></Select>
-      <Select value={status} onValueChange={reset(setStatus)}><SelectTrigger className="w-44" data-testid="select-car-status"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+      <Select value={scheduleId} onValueChange={reset(setScheduleId)}><SelectTrigger aria-label="Audit Schedule" className="w-52" data-testid="select-car-schedule"><SelectValue/></SelectTrigger><SelectContent>{opts("All audit schedules", data?.schedules)}</SelectContent></Select>
+      <Select value={auditTitle} onValueChange={reset(setAuditTitle)}><SelectTrigger aria-label="Audit Title" className="w-52" data-testid="select-car-audit-title"><SelectValue/></SelectTrigger><SelectContent>{opts("All audit titles", data?.auditTitles)}</SelectContent></Select>
+      <Select value={auditType} onValueChange={v => { setAuditType(v); setProjectId("all"); setDepartment("all"); setPage(1); }}><SelectTrigger aria-label="Audit Type" className="w-64" data-testid="select-car-audit-type"><SelectValue/></SelectTrigger><SelectContent>{opts("All audit types", data?.auditTypes)}</SelectContent></Select>
+      {auditType !== "Quality Internal Process Audit" && <Select value={projectId} onValueChange={reset(setProjectId)}><SelectTrigger aria-label="Project" className="w-52" data-testid="select-car-project"><SelectValue/></SelectTrigger><SelectContent>{opts("All projects", data?.projects)}</SelectContent></Select>}
+      {(auditType === "all" || auditType === "Quality Internal Process Audit") && <Select value={department} onValueChange={reset(setDepartment)}><SelectTrigger aria-label="Department" className="w-52" data-testid="select-car-department"><SelectValue/></SelectTrigger><SelectContent>{opts("All departments", data?.departments)}</SelectContent></Select>}
+      <Select value={status} onValueChange={reset(setStatus)}><SelectTrigger aria-label="Status" className="w-44" data-testid="select-car-status"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem>{STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+      <Button variant="ghost" size="sm" data-testid="button-clear-car-filters" onClick={() => { setScheduleId("all"); setAuditTitle("all"); setAuditType("all"); setProjectId("all"); setDepartment("all"); setStatus("all"); setPage(1); }}>Clear filters</Button>
       <label className="flex items-center gap-2 text-sm"><Checkbox data-testid="checkbox-include-legacy" checked={legacy} onCheckedChange={v => { setLegacy(v === true); setPage(1); }}/>Include historical findings</label>
     </div>
     {query.isLoading && <Card><CardContent className="animate-pulse py-14 text-center text-muted-foreground">Loading…</CardContent></Card>}
@@ -178,7 +185,7 @@ export function CarRegister() {
           <div><p className="text-xs text-muted-foreground">Evidence</p><div><Evidence entry={e}/></div></div>
         </div>
         <p className="whitespace-pre-wrap text-sm">{e.description || "No description."}</p>
-        <p className="text-xs text-muted-foreground">{e.auditTitle}{e.projectName ? ` · ${e.projectName}` : ""}{e.scheduleName ? ` · ${e.scheduleName}` : ""}</p>
+        <p className="text-xs text-muted-foreground">{e.auditTitle}{e.auditTypes?.length ? ` · ${e.auditTypes.join(", ")}` : ""}{e.department ? ` · ${e.department}` : e.projectName ? ` · ${e.projectName}` : ""}{e.scheduleName ? ` · ${e.scheduleName}` : ""}</p>
         {car && (car.rootCause || car.correction || car.correctiveAction) && <div className="grid gap-3 rounded-md bg-muted/40 p-3 text-sm md:grid-cols-3">
           <div><p className="font-medium">Root cause</p><p className="whitespace-pre-wrap">{car.rootCause || "—"}</p></div>
           <div><p className="font-medium">Correction</p><p className="whitespace-pre-wrap">{car.correction || "—"}</p></div>

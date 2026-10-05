@@ -87,7 +87,6 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
   const scope = await getAuthorizedProjectScope(req, "audit");
   const writeScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full" });
   const entries: any[] = [];
-  const projectOptions = new Map<string, string>(), scheduleOptions = new Map<string, string>();
   for (const audit of auditRows) {
     const plan = planRows.find(row => row.id === audit.auditPlanId);
     const schedule = scheduleRows.find(row => row.id === plan?.auditScheduleId);
@@ -109,8 +108,6 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
         const ownerId = item.actionTakerId || car?.ownerId;
         if (!full && ownerId !== userId && pm.leadAuditorId !== userId && !plan?.teamMemberIds.includes(userId)) continue;
         const projectName = projectRows.find(p => p.id === audit.projectId)?.name || sm.departmentProject || "Department-based audit";
-        if (audit.projectId) projectOptions.set(audit.projectId, projectName);
-        if (schedule) scheduleOptions.set(schedule.id, schedule.title);
         const inactiveSource = source.legacy && !!(source.finding?.evidence as any)?.sourceChecklistItemId;
         const canRespond = !inactiveSource && (ownerId === userId || ["Super Admin", "Org Admin"].includes(req.currentUser!.platformRole))
           && writableProject(writeScope, audit.projectId, Boolean(process));
@@ -118,6 +115,8 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
         const response = car ? { ...dto(car), canRespond, canReview } : undefined;
         entries.push({ id: car?.id || `${audit.id}:${item.id}`, auditId: audit.id, itemId: item.id,
           auditTitle: carJson(audit.status).title || audit.referenceNumber, scheduleId: schedule?.id || null,
+          auditTypes: Array.isArray(sm.auditTypes) ? sm.auditTypes.filter((type: unknown) => typeof type === "string" && type.trim()) : [],
+          department: process && !audit.projectId ? sm.departmentProject || null : null,
           scheduleName: schedule?.title || "No linked schedule", projectId: audit.projectId,
           projectName, clause: item.clause || "", auditArea: item.auditArea || source.finding?.responsibleDepartment || "",
           description: item.description || item.question || "", classification: item.auditFinding || item.result || "",
@@ -129,9 +128,20 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
   }
   const filtered = entries.filter(entry => (!req.query.projectId || entry.projectId === req.query.projectId)
     && (!req.query.scheduleId || entry.scheduleId === req.query.scheduleId)
+    && (!req.query.auditTitle || entry.auditTitle === req.query.auditTitle)
+    && (!req.query.auditType || entry.auditTypes.includes(req.query.auditType))
+    && (!req.query.department || entry.department === req.query.department)
     && (!req.query.status || entry.status === req.query.status));
+  // Options are scoped to authorized findings, not the current page or other filters.
+  const options = (rows: any[], id: (row: any) => string | null, name: (row: any) => string) =>
+    [...new Map(rows.filter(row => id(row)).map(row => [id(row)!, name(row)])).entries()]
+      .map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  const typeEntries = entries.filter(entry => !req.query.auditType || entry.auditTypes.includes(req.query.auditType));
   const page = Math.max(1, Number(req.query.page) || 1), limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
   return { items: filtered.slice((page - 1) * limit, page * limit), total: filtered.length, page, limit,
-    projects: [...projectOptions].map(([id, name]) => ({ id, name })),
-    schedules: [...scheduleOptions].map(([id, name]) => ({ id, name })) };
+    projects: options(typeEntries, row => row.projectId, row => row.projectName),
+    schedules: options(entries, row => row.scheduleId, row => row.scheduleName),
+    auditTitles: options(entries, row => row.auditTitle, row => row.auditTitle),
+    auditTypes: options(entries.flatMap(entry => entry.auditTypes.map((type: string) => ({ type }))), row => row.type, row => row.type),
+    departments: options(typeEntries, row => row.department, row => row.department) };
 }

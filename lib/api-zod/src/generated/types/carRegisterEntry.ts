@@ -12,6 +12,9 @@ export interface CarRegisterEntry {
   auditId: string;
   itemId: string;
   auditTitle: string;
+  auditTypes?: string[];
+  /** @nullable */
+  department?: string | null;
   /** @nullable */
   scheduleId?: string | null;
   scheduleName?: string;

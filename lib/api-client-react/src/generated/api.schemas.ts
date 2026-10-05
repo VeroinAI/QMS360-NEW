@@ -3415,6 +3415,9 @@ export interface CarRegisterEntry {
   auditId: string;
   itemId: string;
   auditTitle: string;
+  auditTypes?: string[];
+  /** @nullable */
+  department?: string | null;
   /** @nullable */
   scheduleId?: string | null;
   scheduleName?: string;
@@ -3441,6 +3444,9 @@ export interface CarRegisterPage {
   limit: number;
   projects: CarRegisterOption[];
   schedules: CarRegisterOption[];
+  auditTitles: CarRegisterOption[];
+  auditTypes: CarRegisterOption[];
+  departments: CarRegisterOption[];
 }
 
 export type AcceptRejectReviewDecision = typeof AcceptRejectReviewDecision[keyof typeof AcceptRejectReviewDecision];
@@ -4944,6 +4950,9 @@ limit?: LimitParameter;
 export type ListCarRegisterParams = {
 projectId?: string;
 scheduleId?: string;
+auditTitle?: string;
+auditType?: string;
+department?: string;
 status?: string;
 includeLegacy?: boolean;
 /**
