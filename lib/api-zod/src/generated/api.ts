@@ -5512,6 +5512,16 @@ export const SearchLessonsLogResponse = zod.object({
 
 
 /**
+ * @summary List creators of lessons visible to the current user
+ */
+export const ListLessonsLogCreatorsResponseItem = zod.object({
+  "id": zod.string(),
+  "fullName": zod.string()
+})
+export const ListLessonsLogCreatorsResponse = zod.array(ListLessonsLogCreatorsResponseItem)
+
+
+/**
  * @summary Atomically transfer pending lesson actions to another eligible approver
  */
 
@@ -5706,6 +5716,7 @@ export const GetAuditEscalationsResponse = zod.object({
  * @summary Export every lesson matching the lesson-log filters
  */
 export const ExportLessonsLogQueryParams = zod.object({
+  "creatorId": zod.coerce.string().optional(),
   "search": zod.coerce.string().optional(),
   "projectId": zod.coerce.string().optional(),
   "disciplineId": zod.coerce.string().optional(),

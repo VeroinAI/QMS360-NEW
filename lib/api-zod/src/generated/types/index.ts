@@ -366,6 +366,7 @@ export * from './listLessonsAuditLogParams';
 export * from './listLessonsDelegationPendingFormsParams';
 export * from './listLessonsDelegationsParams';
 export * from './listLessonsEvidenceParams';
+export * from './listLessonsLogCreators200Item';
 export * from './listLessonsNotificationsParams';
 export * from './listLessonsNotificationTemplatesParams';
 export * from './listLessonsRolesParams';

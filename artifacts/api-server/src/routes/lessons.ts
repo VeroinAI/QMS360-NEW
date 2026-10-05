@@ -976,6 +976,25 @@ async function lessonLogScope(req: any) {
   return getAuthorizedProjectScope(req, "lessons");
 }
 
+router.get("/log/creators", requirePermission("lessons", "lessons", "select"), asyncHandler(async (req, res) => {
+  const scope = await lessonLogScope(req);
+  const baseWhere = and(
+    eq(lessonLearnedForms.organizationId, req.currentUser!.organizationId),
+    isNull(lessonLearnedForms.deletedAt),
+    scope.unrestricted ? undefined : inArray(lessonLearnedForms.projectId, scope.projectIds),
+  );
+  const visibleWhere = await lessonVisibilityWhere(req, baseWhere, false);
+  const creators = await db.selectDistinct({ id: users.id, fullName: users.fullName })
+    .from(lessonLearnedForms)
+    .innerJoin(users, and(
+      eq(users.id, lessonLearnedForms.creatorId),
+      eq(users.organizationId, req.currentUser!.organizationId),
+    ))
+    .where(visibleWhere)
+    .orderBy(asc(users.fullName), asc(users.id));
+  res.json(creators);
+}));
+
 router.get("/log", requirePermission("lessons", "lessons", "select"), asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const where = await logWhere(req);

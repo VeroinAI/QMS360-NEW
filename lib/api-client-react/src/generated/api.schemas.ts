@@ -4696,6 +4696,11 @@ export const SearchLessonsLogWorkflowState = {
   Sent_Back: 'Sent Back',
 } as const;
 
+export type ListLessonsLogCreators200Item = {
+  id: string;
+  fullName: string;
+};
+
 export type GetLessonsEscalationsParams = {
 /**
  * @minimum 1
@@ -4733,6 +4738,7 @@ limit?: LimitParameter;
 };
 
 export type ExportLessonsLogParams = {
+creatorId?: string;
 search?: string;
 projectId?: ProjectIdParameter;
 disciplineId?: string;

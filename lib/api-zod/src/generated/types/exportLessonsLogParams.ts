@@ -13,6 +13,7 @@ import type { ReportFormatParameter } from './reportFormatParameter';
 import type { ToParameter } from './toParameter';
 
 export type ExportLessonsLogParams = {
+creatorId?: string;
 search?: string;
 projectId?: ProjectIdParameter;
 disciplineId?: string;

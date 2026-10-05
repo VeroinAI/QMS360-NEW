@@ -78,6 +78,32 @@ describe("GET /api/lessons/log search", () => {
     expect(byUserReference.json.items.map(item => item.id)).not.toContain(unrelated!.id);
   });
 
+  it("lists distinct visible creators and applies Created By to pagination and exports", async () => {
+    const [otherCreator] = await db.insert(users).values({
+      organizationId: orgId, email: `creator.${suffix}@example.test`, username: `creator.${suffix}`, fullName: "Another Creator",
+    }).returning();
+    const [matching, other] = await db.insert(lessonLearnedForms).values([
+      { organizationId: orgId, projectId, disciplineId, referenceNumber: `LL-CREATOR-${suffix}`, title: "Creator filter lesson", issueCategory: "Minor", impact: "Positive", creatorId: otherCreator!.id },
+      { organizationId: orgId, projectId, disciplineId, referenceNumber: `LL-CREATOR-OTHER-${suffix}`, title: "Creator filter lesson", issueCategory: "Minor", impact: "Positive", creatorId },
+    ]).returning();
+    const creators = await api("/log/creators");
+    expect(creators.status).toBe(200);
+    expect(creators.json).toEqual([
+      { id: otherCreator!.id, fullName: "Another Creator" },
+      { id: creatorId, fullName: "Lesson Search Admin" },
+    ]);
+    const filter = `creatorId=${otherCreator!.id}&projectId=${projectId}&search=Creator%20filter`;
+    const filtered = await api(`/log?${filter}&page=1&limit=1`);
+    expect(filtered.status).toBe(200);
+    expect(filtered.json.total).toBe(1);
+    expect(filtered.json.items.map((item: { id: string }) => item.id)).toEqual([matching!.id]);
+    const exported = await api(`/reports/log?${filter}&format=json`);
+    expect(exported.status).toBe(200);
+    const payload = JSON.parse(decodeURIComponent(exported.json.downloadUrl.split(",")[1]));
+    expect(payload.map((item: { id: string }) => item.id)).toEqual([matching!.id]);
+    expect(payload.map((item: { id: string }) => item.id)).not.toContain(other!.id);
+  });
+
   it("filters lessons by project and discipline", async () => {
     const [otherProject] = await db.insert(projects).values({
       organizationId: orgId, code: `P2-${suffix}`, name: "Other Project",

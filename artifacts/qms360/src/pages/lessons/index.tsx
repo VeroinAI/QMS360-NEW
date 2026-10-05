@@ -9,6 +9,7 @@ import {
   useGetLessonsEscalations,
   useGetLessonsReferenceData,
   useSearchLessonsLog,
+  useListLessonsLogCreators,
   useGetCurrentUser,
   useListLessonApprovers,
   useListLessonsUsers,
@@ -230,13 +231,19 @@ function LogPage() {
   const [category, setCategory] = useState("all");
   const [impact, setImpact] = useState("all");
   const [workflowState, setWorkflowState] = useState("all");
+  const [creatorId, setCreatorId] = useState("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
   const user = useGetCurrentUser();
   const isAdmin = ["Super Admin", "Org Admin"].includes(user.data?.platformRole ?? "") || (user.data?.workspaceRoles?.some((role) => /\b(admin|administrator)\b/i.test(role)) ?? false);
 
-  const params = useMemo(() => ({ search: search || undefined, projectId: projectId === "all" ? undefined : projectId, disciplineId: disciplineId === "all" ? undefined : disciplineId, category: category === "all" ? undefined : category, impact: impact === "all" ? undefined : impact as "Positive" | "Negative", workflowState: workflowState === "all" ? undefined : workflowState as SearchLessonsLogWorkflowState, from: from || undefined, to: to || undefined, page, limit: PAGE_SIZE }), [search, projectId, disciplineId, category, impact, workflowState, from, to, page]);
+  const params = useMemo(() => ({ search: search || undefined, projectId: projectId === "all" ? undefined : projectId, disciplineId: disciplineId === "all" ? undefined : disciplineId, category: category === "all" ? undefined : category, impact: impact === "all" ? undefined : impact as "Positive" | "Negative", workflowState: workflowState === "all" ? undefined : workflowState as SearchLessonsLogWorkflowState, creatorId: creatorId === "all" ? undefined : creatorId, from: from || undefined, to: to || undefined, page, limit: PAGE_SIZE }), [search, projectId, disciplineId, category, impact, workflowState, creatorId, from, to, page]);
+  const creators = useListLessonsLogCreators({ query: {
+    enabled: !!user.data?.id,
+    queryKey: ["/api/lessons/log/creators", user.data?.id],
+    refetchInterval: 30000,
+  } });
   const log = useSearchLessonsLog(params, {
     query: {
       enabled: !!user.data?.id,
@@ -281,6 +288,7 @@ function LogPage() {
        <div className="space-y-1.5"><Label>Status</Label><Select value={workflowState} onValueChange={(v) => { setWorkflowState(v); setPage(1); }}><SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem><SelectItem value="Draft">Draft</SelectItem><SelectItem value="Submitted">Submitted</SelectItem><SelectItem value="Approved">Approved</SelectItem><SelectItem value="Sent Back">Sent Back</SelectItem></SelectContent></Select></div>
       <div className="space-y-1.5 md:col-span-1 xl:col-span-2"><Label>From</Label><Input type="date" aria-label="From date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} /></div>
       <div className="space-y-1.5 md:col-span-1 xl:col-span-2"><Label>To</Label><Input type="date" aria-label="To date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} /></div>
+      <div className="space-y-1.5"><Label htmlFor="lessons-log-created-by">Created By</Label><Select value={creatorId} onValueChange={(v) => { setCreatorId(v); setPage(1); }} disabled={creators.isLoading || creators.isError}><SelectTrigger id="lessons-log-created-by"><SelectValue placeholder="All creators" /></SelectTrigger><SelectContent><SelectItem value="all">All creators</SelectItem>{creators.data?.map((person) => <SelectItem key={person.id} value={person.id}>{person.fullName}</SelectItem>)}</SelectContent></Select>{creators.isError && <p className="text-xs text-destructive">Unable to load creators.</p>}</div>
     </CardContent></Card>
     <LoadState loading={log.isLoading} error={log.error} empty={!log.data?.items.length}>
       <Card><Table><TableHeader><TableRow><TableHead>Lesson</TableHead><TableHead>Project</TableHead><TableHead>Discipline</TableHead><TableHead>Category</TableHead><TableHead>Impact</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="w-24" /></TableRow></TableHeader><TableBody>

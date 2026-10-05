@@ -213,6 +213,7 @@ import type {
   ListLessonsDelegationPendingFormsParams,
   ListLessonsDelegationsParams,
   ListLessonsEvidenceParams,
+  ListLessonsLogCreators200Item,
   ListLessonsNotificationTemplatesParams,
   ListLessonsNotificationsParams,
   ListLessonsRolesParams,
@@ -13821,6 +13822,83 @@ export function useSearchLessonsLog<TData = Awaited<ReturnType<typeof searchLess
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getSearchLessonsLogQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListLessonsLogCreatorsUrl = () => {
+
+
+
+
+  return `/api/lessons/log/creators`
+}
+
+/**
+ * @summary List creators of lessons visible to the current user
+ */
+export const listLessonsLogCreators = async ( options?: Parameters<typeof customFetch>[1]): Promise<ListLessonsLogCreators200Item[]> => {
+
+  return customFetch<ListLessonsLogCreators200Item[]>(getListLessonsLogCreatorsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListLessonsLogCreatorsQueryKey = () => {
+    return [
+    `/api/lessons/log/creators`
+    ] as const;
+    }
+
+
+export const getListLessonsLogCreatorsQueryOptions = <TData = Awaited<ReturnType<typeof listLessonsLogCreators>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonsLogCreators>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListLessonsLogCreatorsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listLessonsLogCreators>>> = ({ signal }) => listLessonsLogCreators({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listLessonsLogCreators>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListLessonsLogCreatorsQueryResult = NonNullable<Awaited<ReturnType<typeof listLessonsLogCreators>>>
+export type ListLessonsLogCreatorsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List creators of lessons visible to the current user
+ */
+
+export function useListLessonsLogCreators<TData = Awaited<ReturnType<typeof listLessonsLogCreators>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listLessonsLogCreators>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListLessonsLogCreatorsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

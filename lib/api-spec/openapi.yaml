@@ -1246,6 +1246,24 @@ paths:
         - {$ref: "#/components/parameters/Page"}
         - {$ref: "#/components/parameters/Limit"}
       responses: {"200": {$ref: "#/components/responses/LessonFormPage"}}
+  /lessons/log/creators:
+    get:
+      operationId: listLessonsLogCreators
+      tags: [lessons]
+      summary: List creators of lessons visible to the current user
+      responses:
+        "200":
+          description: Visible lesson creators
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, fullName]
+                  properties:
+                    id: {type: string}
+                    fullName: {type: string}
   /lessons/admin/pending-actions/reassign:
     post:
       operationId: reassignLessonsPendingActions
@@ -1280,6 +1298,7 @@ paths:
       tags: [lessons]
       summary: Export every lesson matching the lesson-log filters
       parameters:
+        - {name: creatorId, in: query, schema: {type: string}}
         - {name: search, in: query, schema: {type: string}}
         - {$ref: "#/components/parameters/ProjectId"}
         - {name: disciplineId, in: query, schema: {type: string}}
