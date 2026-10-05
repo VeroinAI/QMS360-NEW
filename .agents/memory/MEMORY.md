@@ -49,6 +49,7 @@
 - [Audit Program Manager marker](audit-program-manager-marker.md) — permits only post-approval Team Lead changes on scoped Audit Schedules, not general edit or approval.
 - [Audit Schedule data-entry scope](audit-schedule-data-entry-scope.md) — legacy Audit “Create / edit” grants are schedule-only; do not turn them into global Audit write rights.
 - [Audit module access](audit-module-access.md) — module grants are additive; narrow global grants explicitly and preserve Programme creation, approval levels and assignment scope.
+- [Application settings navigation](application-settings-navigation.md) — each application's Settings pages retain that application's sidebar, including Audit.
 - [Product / Process Owner marker](product-process-owner-marker.md) — assigned Audit users can be selected as Schedule owners; the marker alone grants no Audit actions.
 - [Audit Area master data reuse](audit-area-master-data.md) — Audit Checklist uses the existing shared “Audit Area” group; do not create a parallel audit_areas list.
 - [Audit Schedule numbering policy](audit-schedule-numbering-policy.md) — QA/QC Reference uses each audit's From Date year; yearless Audit Numbers remain unique per project/department across years.

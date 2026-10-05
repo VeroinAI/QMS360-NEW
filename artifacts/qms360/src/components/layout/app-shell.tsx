@@ -15,6 +15,7 @@ import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { useAuditCapabilities } from '@/lib/use-audit-capabilities';
 import { Button } from '@/components/ui/button';
 import { FeedbackWidget } from '@/components/feedback-widget';
+import { applicationSection } from './application-section';
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -46,7 +47,7 @@ const systemNav = [
 export function AppShell({ children, user }: { children: ReactNode; user: CurrentUser }) {
   const queryClient = useQueryClient();
   const [location, setLocation] = useLocation();
-  const section = (location.startsWith('/qaqc') || location.startsWith('/settings/qaqc')) ? 'qaqc' : (location.startsWith('/lessons') || location.startsWith('/settings/lessons')) ? 'lessons' : location.startsWith('/audit') ? 'audit' : null;
+  const section = applicationSection(location);
   const [mobileOpen, setMobileOpen] = useState(false);
   const auditCapabilities = useAuditCapabilities(section === 'audit');
   const [collapsed, setCollapsed] = useState(false);
