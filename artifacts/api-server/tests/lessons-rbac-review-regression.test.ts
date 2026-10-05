@@ -233,6 +233,56 @@ afterAll(async () => {
 });
 
 describe("non-admin lesson visibility and capabilities", () => {
+  it("requires an explicit approval role grant even for admins and ignores role names", async () => {
+    const [adminRole, superRole] = await db.insert(platformRoles).values([
+      { organizationId: orgId, name: "Org Admin", isSystem: true },
+      { organizationId: orgId, name: "Super Admin", isSystem: true },
+    ]).returning();
+    const admin = await makeUser("approval.admin", orgId, adminRole!.id);
+    const superAdmin = await makeUser("approval.super", orgId, superRole!.id);
+    const namedOnly = await makeUser("named.only.approver");
+    const custom = await makeUser("custom.reviewer");
+    await giveLessonsRole(namedOnly.id, "Administrator Approver", ["view_all"]);
+    await giveLessonsRole(custom.id, "Quality Lead", ["approve_reject"]);
+    await db.insert(lessonApproverScopes).values(
+      [admin, superAdmin, namedOnly, custom].map(person => ({
+        organizationId: orgId, userId: person.id, projectId: projectAId,
+      })),
+    );
+    const list = async () => {
+      const result = await api("GET", `/approvers?projectId=${projectAId}&includeSelf=true`, { token: admin.token });
+      expect(result.status).toBe(200);
+      return result.json.map((person: { id: string }) => person.id);
+    };
+    let ids = await list();
+    expect(ids).toContain(custom.id);
+    expect(ids).toContain(approver.id);
+    for (const person of [admin, superAdmin, namedOnly]) expect(ids).not.toContain(person.id);
+
+    const [draft] = await db.insert(lessonLearnedForms).values(
+      lessonValues(`UNAUTHORIZED-APPROVER-${suffix}`, owner.id),
+    ).returning();
+    const rejected = await api("PUT", `/forms/${draft!.id}`, {
+      token: owner.token, body: updateBody(draft!.id, { approverId: admin.id }),
+    });
+    expect(rejected.status).toBe(422);
+    expect(rejected.json.error).toMatch(/approver/i);
+
+    await giveLessonsRole(admin.id, "Quality Reviewer", ["approve_reject"]);
+    expect(await list()).toContain(admin.id);
+    const [permission] = await db.select().from(lessonsPermissions).where(and(
+      eq(lessonsPermissions.organizationId, orgId), eq(lessonsPermissions.key, "approve_reject"),
+    ));
+    const [assignment] = await db.select().from(lessonsUserWorkspaceRoles).where(and(
+      eq(lessonsUserWorkspaceRoles.organizationId, orgId), eq(lessonsUserWorkspaceRoles.userId, admin.id),
+    ));
+    await db.update(lessonsWorkspaceRolePermissions).set({ deletedAt: new Date() }).where(and(
+      eq(lessonsWorkspaceRolePermissions.workspaceRoleId, assignment!.workspaceRoleId),
+      eq(lessonsWorkspaceRolePermissions.permissionId, permission!.id),
+    ));
+    expect(await list()).not.toContain(admin.id);
+  });
+
   it("keeps a full-stored view_own_scope grant limited to owned or assigned in-scope rows everywhere", async () => {
     const [owned, assignedScoped, assignedOutsideScope, unrelated] = await db.insert(lessonLearnedForms).values([
       lessonValues(`OWNED-${suffix}`, reader.id),

@@ -355,34 +355,50 @@ async function eligibleApprovers(organizationId: string): Promise<EligibleApprov
     id: users.id,
     fullName: users.fullName,
     email: users.email,
-    platformRole: platformRoles.name,
     workspaceRole: lessonsWorkspaceRoles.name,
+    approvalPermission: lessonsPermissions.key,
   })
     .from(users)
-    .leftJoin(platformRoles, eq(users.platformRoleId, platformRoles.id))
     .leftJoin(lessonsUserWorkspaceRoles, and(
       eq(lessonsUserWorkspaceRoles.userId, users.id),
+      eq(lessonsUserWorkspaceRoles.organizationId, organizationId),
+      eq(lessonsUserWorkspaceRoles.status, "active"),
       isNull(lessonsUserWorkspaceRoles.deletedAt),
     ))
     .leftJoin(lessonsWorkspaceRoles, and(
       eq(lessonsWorkspaceRoles.id, lessonsUserWorkspaceRoles.workspaceRoleId),
+      eq(lessonsWorkspaceRoles.organizationId, organizationId),
       isNull(lessonsWorkspaceRoles.deletedAt),
       eq(lessonsWorkspaceRoles.status, "active"),
+    ))
+    .leftJoin(lessonsWorkspaceRolePermissions, and(
+      eq(lessonsWorkspaceRolePermissions.workspaceRoleId, lessonsWorkspaceRoles.id),
+      eq(lessonsWorkspaceRolePermissions.organizationId, organizationId),
+      inArray(lessonsWorkspaceRolePermissions.grant, ["full", "own", "select"]),
+      isNull(lessonsWorkspaceRolePermissions.deletedAt),
+    ))
+    .leftJoin(lessonsPermissions, and(
+      eq(lessonsPermissions.id, lessonsWorkspaceRolePermissions.permissionId),
+      eq(lessonsPermissions.organizationId, organizationId),
+      isNull(lessonsPermissions.deletedAt),
+      sql`lower(${lessonsPermissions.key}) ~ '(^|[._])approve_reject$'`,
     ))
     .where(and(
       eq(users.organizationId, organizationId),
       eq(users.accessStatus, "active"),
       isNull(users.deletedAt),
     ));
-  const byUser = new Map<string, { fullName: string; email: string; platformRole: string | null; roles: Set<string> }>();
+  const byUser = new Map<string, { fullName: string; email: string; canApprove: boolean; roles: Set<string> }>();
   for (const row of rows) {
-    const entry = byUser.get(row.id) ?? { fullName: row.fullName, email: row.email, platformRole: row.platformRole, roles: new Set<string>() };
+    const entry = byUser.get(row.id) ?? { fullName: row.fullName, email: row.email, canApprove: false, roles: new Set<string>() };
     if (row.workspaceRole) entry.roles.add(row.workspaceRole);
+    if (row.approvalPermission) entry.canApprove = true;
     byUser.set(row.id, entry);
   }
-  const isApproverRole = (name: string) => /approv/i.test(name) || /\b(admin|administrator)\b/i.test(name);
   return [...byUser.entries()]
-    .filter(([, entry]) => ["Super Admin", "Org Admin"].includes(entry.platformRole ?? "") || [...entry.roles].some(isApproverRole))
+    // Assignment eligibility requires an explicit role grant; admin bypass and
+    // role names must never put an unauthorized user in the approver picker.
+    .filter(([, entry]) => entry.canApprove)
     .map(([id, entry]) => ({ id, fullName: entry.fullName, email: entry.email, roles: [...entry.roles].sort() }))
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 }

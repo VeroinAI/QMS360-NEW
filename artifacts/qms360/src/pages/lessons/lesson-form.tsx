@@ -15,6 +15,7 @@ import {
   useGetLessonForm,
   useGetLessonsReferenceData,
   useListLessonApprovers,
+  getListLessonApproversQueryKey,
   useListLessonFormActivity,
   useRephraseLessonField,
   useReviewLessonForm,
@@ -192,7 +193,8 @@ export function LessonFormPage({ id }: { id?: string }) {
   // Scope-aware: once the org defines approver scopes (Settings → Users &
   // Access), only approvers matching this lesson's project/discipline/
   // categorisation are offered.
-  const approvers = useListLessonApprovers({ projectId: draft.projectId || undefined, discipline: draft.disciplineId || undefined, categorisation: draft.categorisationId || undefined });
+  const approverParams = { projectId: draft.projectId || undefined, discipline: draft.disciplineId || undefined, categorisation: draft.categorisationId || undefined };
+  const approvers = useListLessonApprovers(approverParams, { query: { queryKey: getListLessonApproversQueryKey(approverParams), staleTime: 0, refetchInterval: 30000 } });
   const disciplines = useLov("disciplines");
   const categorisations = useLov("lesson_categorisations");
   const issueCategories = useLov("lesson_issue_categories");
@@ -247,12 +249,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   const hasBeforePhoto = Boolean(detail.data?.photos?.some((p) => p.category === "before" && p.status === "confirmed"));
   const hasAfterPhoto = Boolean(detail.data?.photos?.some((p) => p.category === "after" && p.status === "confirmed"));
   const photosReady = hasBeforePhoto && hasAfterPhoto;
-  const approverOptions = useMemo(() => {
-    const options = approvers.data ?? [];
-    return draft.approverId && !options.some((x) => x.id === draft.approverId)
-      ? [...options, { id: draft.approverId, fullName: "Current approver", email: "", roles: [] }]
-      : options;
-  }, [approvers.data, draft.approverId]);
+  const approverOptions = approvers.data ?? [];
   const approverUnsaved = Boolean(detail.data) && draft.approverId !== (detail.data?.approverId ?? "");
   function set<K extends keyof Draft>(key: K, value: Draft[K]) { setDraft((d) => ({ ...d, [key]: value })); setErrors((e) => ({ ...e, [key]: "" })); }
   function validate(requireApprover = true) {

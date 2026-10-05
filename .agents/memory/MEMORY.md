@@ -8,6 +8,7 @@
 - [Password rotation policy](password-rotation-policy.md) — administrator-assigned passwords remain valid; do not add a forced password-change gate or session flag.
 - [RBAC setup for testing non-admin writes](demo-seed-users.md) — seeded workspace roles start with zero permission grants, so non-admin writes 403 until granted; never store credentials in memory.
 - [Lessons API request-body quirks](lessons-api-quirks.md) — discipline/categorisation take master-data values not UUIDs; server assigns its own id on create.
+- [Lessons approver eligibility](lessons-approver-eligibility.md) — approver selection requires an explicit role approval grant, including for administrators.
 - [Wouter :rest* wildcard limitation](wouter-rest-wildcard.md) — :rest* matches one segment only; deep nested routes need explicit App.tsx routes.
 - [Orval zod export naming](openapi-zod-naming.md) — zod consts get operationId-derived names; component schemas are types only; `<OperationId>Body` schema names collide with TS2308.
 - [SSRF policy for outbound URLs](egress-ssrf-policy.md) — tenant-configured URLs with credentials need pinned DNS + SOURCE_SYNC_ALLOWED_HOSTS allowlist; never plain fetch; classify IPs on 16-byte form.
