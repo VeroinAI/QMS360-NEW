@@ -13,12 +13,12 @@ export function CarDisplayDialog({ entry, onClose, reviewNotes }: { entry: CarRe
     ["Audit Area", entry.auditArea], ["Clause", entry.clause], ["Description", entry.description],
     ["Audit Findings", entry.classification], ["Action Taker", entry.actionTakerName],
     ["Status", entry.status], ["Root cause", car?.rootCause], ["Correction", car?.correction],
-    ["Corrective action taken", car?.correctiveAction],
+    ["Corrective action recorded", car?.correctiveAction],
   ];
   return <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
     <DialogContent className="max-h-[85dvh] max-w-3xl overflow-y-auto">
-      <DialogHeader><DialogTitle>CAR details</DialogTitle><DialogDescription>Read-only finding and corrective action response.</DialogDescription></DialogHeader>
-      <dl className="grid gap-4 sm:grid-cols-2">{fields.map(([label, value]) => <div key={label} className={["Description", "Root cause", "Correction", "Corrective action taken"].includes(label!) ? "sm:col-span-2" : ""}>
+       <DialogHeader><DialogTitle>CAR Response</DialogTitle><DialogDescription>{car ? "Read-only finding and corrective action response." : "No CAR response has been recorded for this finding yet. Finding details are read-only."}</DialogDescription></DialogHeader>
+       <dl className="grid gap-4 sm:grid-cols-2">{fields.map(([label, value]) => <div key={label} className={["Description", "Root cause", "Correction", "Corrective action recorded"].includes(label!) ? "sm:col-span-2" : ""}>
         <dt className="text-xs font-medium text-muted-foreground">{label}</dt><dd className="whitespace-pre-wrap break-words text-sm">{value || "—"}</dd>
       </div>)}</dl>
       {reviewNotes}

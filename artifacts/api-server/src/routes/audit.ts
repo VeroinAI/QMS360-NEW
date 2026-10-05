@@ -3073,7 +3073,7 @@ router.post("/car-register/start", asyncHandler(async (req, res) => {
     const item = Array.isArray(locked.checklistState) ? locked.checklistState.find((item: AnyRow) => item.id === data.itemId) as AnyRow : null;
     if (!item || !actionableFinding(item)) throw new HttpError(404, "Finding not found in this audit");
     if (!item.actionTakerId) throw new HttpError(422, "Assign an action taker to the finding before starting its CAR");
-    if (item.actionTakerId !== actor(req).id && !["Super Admin", "Org Admin"].includes(actor(req).platformRole)) {
+    if (item.actionTakerId !== actor(req).id) {
       throw new HttpError(403, "Only the assigned action taker may respond to this finding");
     }
     const existingFindings = await tx.select().from(auditFindings).where(and(active(auditFindings, organizationId), eq(auditFindings.auditId, audit.id)));
@@ -3401,7 +3401,7 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "CAR not found");
   const context = await carContext(req, before.id);
-  if (!context.canRespond) throw new HttpError(403, "Only the assigned action taker may update this response");
+  if (!context.canEditResponse) throw new HttpError(403, "Only the assigned action taker may update this response");
   if (!["open", "draft", "rejected"].includes(before.workflowState)) throw new HttpError(409, "CAR cannot be edited in its current state");
   await assertFieldAccess(req, "audit", "car", { mode: "update", current: carDto(before) });
   await assertFieldControls(req, "audit", "car", { mode: "update", current: carDto(before) });
@@ -3416,7 +3416,7 @@ router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "CAR not found");
   const context = await carContext(req, before.id);
-  if (!context.canRespond) throw new HttpError(403, "Only the assigned action taker may submit this response");
+  if (!context.canEditResponse) throw new HttpError(403, "Only the assigned action taker may submit this response");
   if (!context.leadId) throw new HttpError(422, "Select a Lead / Internal Auditor in the linked Audit Plan before submitting");
   if (!(await auditUsersWithMarker(actor(req).organizationId, "audit_team_lead")).some(user => user.id === context.leadId)) {
     throw new HttpError(422, "The linked Audit Team Lead must have active Audit access and Team Lead authorization");

@@ -18,10 +18,10 @@ const car = (status: CorrectiveActionReport["status"], correctiveAction?: string
 });
 
 describe("Excel-style CAR Register", () => {
-  it("matches all 14 workbook columns in order, with no extra columns", () => {
+  it("keeps all 14 columns in order with the renamed recorded-action column", () => {
     expect(CAR_REGISTER_COLUMNS).toEqual([
       "Audit Schedule", "Audit Title", "Audit Type", "Project / Department", "Audit Area", "Description",
-      "Audit Findings", "Evidence", "Action Taker", "Corrective Action Taken", "Edit", "Display", "Close / Resent CAR", "Log",
+      "Audit Findings", "Evidence", "Action Taker", "Corrective Action Recorded", "Edit", "Display", "Close / Resent CAR", "Log",
     ]);
     const html = render([entry]);
     const headers = [...html.matchAll(/<th\b[^>]*>([^<]*)<\/th>/g)].map(match => match[1]);
@@ -33,8 +33,15 @@ describe("Excel-style CAR Register", () => {
     expect(button(html, "button-review-finding-1")).toContain('disabled=""');
     expect(html).not.toContain("icon-action-taken-finding-1");
   });
-  it("shows a green tick only for recorded corrective action", () => {
-    expect(render([{ ...entry, car: car("Draft", "Action recorded") }])).toContain('aria-label="Corrective action taken"');
+  it("centers a green circled tick only for recorded corrective action", () => {
+    const html = render([{ ...entry, car: car("Draft", "Action recorded") }]);
+    expect(html).toContain('aria-label="Corrective action recorded"');
+    expect(html).toContain("lucide-circle-check");
+    const indicatorCell = html.match(/<td[^>]*data-testid="cell-action-recorded-finding-1"[^>]*>/)?.[0];
+    expect(indicatorCell).toContain("align-middle");
+    expect(indicatorCell).toContain("text-center");
+    expect(indicatorCell).not.toContain("align-top");
+    expect(html).toContain("mx-auto size-5 text-green-600");
     expect(render([{ ...entry, car: { ...car("Draft", "  "), rootCause: "Root cause only" } }])).not.toContain("icon-action-taken");
   });
   it("keeps edit and review permissions and lifecycle guards", () => {

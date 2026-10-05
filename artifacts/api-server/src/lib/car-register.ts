@@ -64,7 +64,7 @@ export async function carContext(req: Request, carId: string, allowInactiveSourc
     && !context.plan?.teamMemberIds.includes(req.currentUser!.id)) {
     throw new HttpError(403, "This CAR is outside your own-record scope");
   }
-  const canRespond = !inactiveSource && (ownerId === req.currentUser!.id || ["Super Admin", "Org Admin"].includes(req.currentUser!.platformRole));
+  const canRespond = !inactiveSource && ownerId === req.currentUser!.id;
   const writeScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full" });
   const canEditResponse = canRespond && writableProject(writeScope, audit.projectId, Boolean(context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit")));
   const canReview = !inactiveSource && context.leadId === req.currentUser!.id && await carLeadMarker(org, req.currentUser!.id);
@@ -110,7 +110,7 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
         if (!full && ownerId !== userId && pm.leadAuditorId !== userId && !plan?.teamMemberIds.includes(userId)) continue;
         const projectName = projectRows.find(p => p.id === audit.projectId)?.name || sm.departmentProject || "Department-based audit";
         const inactiveSource = source.legacy && !!(source.finding?.evidence as any)?.sourceChecklistItemId;
-        const canRespond = !inactiveSource && (ownerId === userId || ["Super Admin", "Org Admin"].includes(req.currentUser!.platformRole))
+        const canRespond = !inactiveSource && ownerId === userId
           && writableProject(writeScope, audit.projectId, Boolean(process));
         const canReview = !inactiveSource && pm.leadAuditorId === userId && leadMarker;
         const response = car ? { ...dto(car), canRespond, canReview } : undefined;

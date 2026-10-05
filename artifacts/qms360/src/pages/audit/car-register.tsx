@@ -42,19 +42,21 @@ export function CarReviewNotes({ car }: { car: CorrectiveActionReport }) {
     <b>Review{car.reviewOutcome ? ` — ${outcomeLabel(car.reviewOutcome)}` : ""}:</b> <span className="whitespace-pre-wrap">{car.reviewComments || "No comments."}</span></div>;
 }
 
-export function CarResponseDialog({ car, open, onClose }: { car: CorrectiveActionReport; open: boolean; onClose: () => void }) {
+export function CarResponseDialog({ car, open, onClose, readOnly = false }: { car: CorrectiveActionReport; open: boolean; onClose: () => void; readOnly?: boolean }) {
   const { toast } = useToast();
   const refresh = useCarRefresh(car.id);
   const update = useUpdateCorrectiveActionReport();
   const submit = useSubmitCorrectiveActionReport();
   const controls = useFieldControls("audit", "car");
   const access = useFieldAccess("audit");
+  const viewOnly = readOnly || car.canRespond !== true;
   const [f, setF] = useState({ rootCause: car.rootCause ?? "", correction: car.correction ?? "", correctiveAction: car.correctiveAction ?? "" });
   const [err, setErr] = useState("");
   const busy = update.isPending || submit.isPending;
   const valid = !!f.rootCause.trim() && !!f.correction.trim() && !!f.correctiveAction.trim();
   const clean = { rootCause: f.rootCause.trim(), correction: f.correction.trim(), correctiveAction: f.correctiveAction.trim() };
   const run = async (andSubmit: boolean) => {
+    if (viewOnly) return;
     setErr("");
     if (andSubmit && !valid) { setErr("Root cause, correction and corrective action are all required to submit."); return; }
     const body = { ...car, ...clean };
@@ -71,17 +73,17 @@ export function CarResponseDialog({ car, open, onClose }: { car: CorrectiveActio
       onClose();
     } catch (e) { setErr(errorText(e)); refresh(); }
   };
-  const field = (key: keyof typeof f, label: string) => <div className="space-y-1"><Label htmlFor={`car-${key}`}>{label} *</Label>
-    <Textarea id={`car-${key}`} data-testid={`input-car-${key}`} rows={3} value={f[key]} disabled={busy || controls.fieldProps(key).disabled || access.readOnly("car", key)} onChange={e => setF(v => ({ ...v, [key]: e.target.value }))}/></div>;
+  const field = (key: keyof typeof f, label: string) => <div className="space-y-1"><Label htmlFor={`car-${key}`}>{label}{!viewOnly && " *"}</Label>
+    <Textarea id={`car-${key}`} data-testid={`input-car-${key}`} rows={3} value={f[key]} readOnly={viewOnly} disabled={!viewOnly && (busy || controls.fieldProps(key).disabled || access.readOnly("car", key))} onChange={e => { if (!viewOnly) setF(v => ({ ...v, [key]: e.target.value })); }}/></div>;
   return <Dialog open={open} onOpenChange={v => { if (!v && !busy) onClose(); }}>
     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
-      <DialogHeader><DialogTitle>CAR response</DialogTitle><DialogDescription>Describe the cause and the actions taken for this finding.</DialogDescription></DialogHeader>
+       <DialogHeader><DialogTitle>CAR Response</DialogTitle><DialogDescription>{viewOnly ? "Read-only CAR response. Only the assigned Action Taker can edit this response." : "Describe the cause and the actions taken for this finding."}</DialogDescription></DialogHeader>
       <CarReviewNotes car={car}/>
       {field("rootCause", "Root cause")}{field("correction", "Correction")}{field("correctiveAction", "Corrective action")}
       {err && <p role="alert" data-testid="status-car-error" className="text-sm text-destructive">{err}</p>}
-      <DialogFooter><Button variant="outline" disabled={busy} onClick={onClose}>Cancel</Button>
-        <Button variant="outline" data-testid="button-save-car" disabled={busy} onClick={() => void run(false)}>Save response</Button>
-        <Button data-testid="button-save-submit-car" disabled={busy} onClick={() => void run(true)}>{busy ? "Working…" : "Save & submit"}</Button></DialogFooter>
+       <DialogFooter><Button variant="outline" disabled={busy} onClick={onClose}>{viewOnly ? "Close" : "Cancel"}</Button>
+         {!viewOnly && <><Button variant="outline" data-testid="button-save-car" disabled={busy} onClick={() => void run(false)}>Save response</Button>
+         <Button data-testid="button-save-submit-car" disabled={busy} onClick={() => void run(true)}>{busy ? "Working…" : "Save & submit"}</Button></>}</DialogFooter>
     </DialogContent></Dialog>;
 }
 
@@ -151,6 +153,7 @@ export function CarRegister() {
   const data = query.data;
   const reset = <T,>(set: (v: T) => void) => (v: T) => { set(v); setPage(1); };
   const open = (e: CarRegisterEntry) => {
+    if (!e.canRespond) return;
     if (e.car) {
       editSession.mutate({ id: e.car.id }, {
         onSuccess: car => setRespond(car),
@@ -185,7 +188,9 @@ export function CarRegister() {
       <div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page * LIMIT >= data.total} onClick={() => setPage(page + 1)}>Next</Button></div></div>}
     {respond && <CarResponseDialog key={respond.id} car={respond} open onClose={() => setRespond(undefined)}/>}
     {reviewing && <CarReviewDialog key={reviewing.id} car={reviewing} open onClose={() => setReviewing(undefined)}/>}
-    {displaying && <CarDisplayDialog entry={displaying} reviewNotes={displaying.car && <CarReviewNotes car={displaying.car} />} onClose={() => setDisplaying(undefined)} />}
+    {displaying && (displaying.car
+      ? <CarResponseDialog key={`display-${displaying.car.id}`} car={displaying.car} open readOnly onClose={() => setDisplaying(undefined)} />
+      : <CarDisplayDialog entry={displaying} onClose={() => setDisplaying(undefined)} />)}
     {logging && <CarLogDialog key={logging.id} entry={logging} onClose={() => setLogging(undefined)} />}
   </div>;
 }

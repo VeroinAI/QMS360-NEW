@@ -262,6 +262,17 @@ describe("audit programme parent/child workflow", () => {
       expect(created.status, JSON.stringify(created.json)).toBe(200);
       const retry = await api("POST", "/car-register/start", l1.token, { auditId: audit!.id, itemId });
       expect(retry.json.id).toBe(created.json.id);
+      // Viewing is independent from response ownership, including for administrators.
+      const adminView = await api("GET", `/cars/${created.json.id}`, admin.token);
+      expect(adminView.status).toBe(200);
+      expect(adminView.json).toMatchObject({ ownerId: l1.id, canRespond: false });
+      const adminRegister = await api("GET", `/car-register?projectId=${project!.id}`, admin.token);
+      expect(adminRegister.json.items[0]).toMatchObject({ canRespond: false, car: { canRespond: false } });
+      expect((await api("POST", "/car-register/start", admin.token, { auditId: audit!.id, itemId })).status).toBe(403);
+      expect((await api("POST", `/cars/${created.json.id}/edit-session`, admin.token)).status).toBe(403);
+      expect((await api("PUT", `/cars/${created.json.id}`, admin.token, { ...created.json, ownerId: admin.id, rootCause: "Unauthorized change" })).status).toBe(403);
+      expect((await api("POST", `/cars/${created.json.id}/submit`, admin.token)).status).toBe(403);
+      expect((await api("GET", `/cars/${created.json.id}`, l1.token)).json).toMatchObject({ ownerId: l1.id, canRespond: true, rootCause: null });
       expect((await api("POST", `/cars/${created.json.id}/edit-session`, l1.token)).status).toBe(200);
       expect((await api("POST", `/cars/${created.json.id}/edit-session`, l2.token)).status).toBe(403);
       const initialLog = await api("GET", `/cars/${created.json.id}/activity?page=1&limit=1`, creator.token);

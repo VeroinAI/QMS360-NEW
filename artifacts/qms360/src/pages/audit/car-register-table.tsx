@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import { Check } from "lucide-react";
+import { CircleCheck } from "lucide-react";
 import type { CarRegisterEntry } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export const CAR_REGISTER_COLUMNS = [
   "Audit Schedule", "Audit Title", "Audit Type", "Project / Department", "Audit Area", "Description",
-  "Audit Findings", "Evidence", "Action Taker", "Corrective Action Taken", "Edit", "Display", "Close / Resent CAR", "Log",
+  "Audit Findings", "Evidence", "Action Taker", "Corrective Action Recorded", "Edit", "Display", "Close / Resent CAR", "Log",
 ] as const;
 
 const EDITABLE = ["Open", "Draft", "Rejected", "Returned for query", "Returned for rework"];
@@ -53,7 +53,7 @@ export function CarRegisterTable({ entries, page, limit, busy, renderEvidence, o
             </td>
             <td className={cell}>{renderEvidence(e)}</td>
             <td className={cell}>{e.actionTakerName}</td>
-            <td className={`${cell} text-center`}>{done && <Check className="mx-auto size-4 text-green-600" role="img" aria-label="Corrective action taken" data-testid={`icon-action-taken-${e.id}`} />}</td>
+            <td className={`${cell.replace("align-top", "align-middle")} text-center`} data-testid={`cell-action-recorded-${e.id}`}>{done && <CircleCheck className="mx-auto size-5 text-green-600" role="img" aria-label="Corrective action recorded" data-testid={`icon-action-taken-${e.id}`} />}</td>
             <td className={cell}><Button size="sm" variant="outline" data-testid={`button-respond-${e.id}`} disabled={!canEdit} onClick={() => onEdit(e)}>Edit</Button></td>
             <td className={cell}><Button size="sm" variant="outline" data-testid={`button-display-${e.id}`} onClick={() => onDisplay(e)}>Display</Button></td>
             <td className={cell}><Button size="sm" variant="outline" data-testid={`button-review-${e.id}`} disabled={!canReview} onClick={() => onReview(e)}>Close / Return CAR</Button></td>
