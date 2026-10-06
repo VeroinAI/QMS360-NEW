@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, Route, Switch } from "wouter";
-import { AlertTriangle, BookOpen, Download, Plus, Search, Trash2, ClipboardCheck } from "lucide-react";
+import { AlertTriangle, BookOpen, Download, Plus, Search, Trash2, ClipboardCheck, User } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   downloadLessonFormPdf,
@@ -32,6 +32,7 @@ import { LoadState, PageHeader, StateBadge, errorMessage } from "./common";
 import { useLov } from "@/lib/use-lov";
 import { LessonsNotificationsPage } from "@/pages/notifications";
 import { VerionBadge } from "@/components/verion-ai";
+import { useOverviewLessons } from "./use-overview-lessons";
 
 const PAGE_SIZE = 10;
 
@@ -64,12 +65,8 @@ function LessonActions() {
 
 function HomePage() {
   const user = useGetCurrentUser();
-  const log = useSearchLessonsLog({ page: 1, limit: 20 });
+  const { log, created, pending: userPendingQuery } = useOverviewLessons(user.data?.id);
   const escalations = useGetLessonsEscalations({ page: 1, limit: 100 });
-  const userPendingQuery = useSearchLessonsLog(
-    { pendingApproval: true, limit: 5 },
-    { query: { enabled: !!user.data?.id, refetchInterval: 30000, queryKey: ['/api/lessons/log', 'pendingApproval', user.data?.id, { limit: 5 }] } }
-  );
   const lessons = log.data?.items ?? [];
   const pendingLessons = userPendingQuery.data?.items ?? [];
   const active = escalations.data?.items.filter((e) => e.status === "open") ?? [];
@@ -77,9 +74,9 @@ function HomePage() {
 
   const metrics = [
     { label: "Total lessons", value: log.isLoading ? null : (log.data?.total ?? 0), Icon: BookOpen, href: null },
+    { label: "Lessons created by me", value: created.isLoading ? null : (created.isError ? "Unavailable" : (created.data?.total ?? 0)), Icon: User, href: null },
     { label: "For my Action", value: userPendingQuery.isLoading ? null : (userPendingQuery.isError ? "Unavailable" : (pendingMyApproval ?? 0)), Icon: ClipboardCheck, href: "/lessons/approvals" },
     { label: "Major + Negative open (recent)", value: log.isLoading ? null : lessons.filter((x) => x.issueCategory === "Major" && x.impact === "Negative" && x.workflowState !== "Approved").length, Icon: AlertTriangle, href: null },
-    { label: "Active escalations (recent)", value: escalations.isLoading ? null : active.length, Icon: AlertTriangle, href: null },
   ];
 
   return <div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -16,6 +16,7 @@ import { useAuditCapabilities } from '@/lib/use-audit-capabilities';
 import { Button } from '@/components/ui/button';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { applicationSection } from './application-section';
+import { LessonsProjectFilterContext } from '@/lib/lessons-project-filter';
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -48,6 +49,8 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
   const queryClient = useQueryClient();
   const [location, setLocation] = useLocation();
   const section = applicationSection(location);
+  const [lessonsProject, setLessonsProject] = useState({ userId: user.id, projectId: "" });
+  const lessonsProjectId = lessonsProject.userId === user.id ? lessonsProject.projectId : "";
   const [mobileOpen, setMobileOpen] = useState(false);
   const auditCapabilities = useAuditCapabilities(section === 'audit');
   const [collapsed, setCollapsed] = useState(false);
@@ -159,7 +162,11 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
             <p className="truncate text-sm font-semibold">{orgName}</p>
             <p className="text-xs text-muted-foreground">Enterprise Quality Management</p>
           </div>
-          <select aria-label="Project selector" className="hidden max-w-56 rounded-md border border-border bg-background px-3 py-2 text-xs sm:block">
+          <select key={section === 'lessons' ? 'lessons-project' : 'other-project'} aria-label="Project selector" className="hidden max-w-56 rounded-md border border-border bg-background px-3 py-2 text-xs sm:block"
+            {...(section === 'lessons' ? {
+              value: lessonsProjectId,
+              onChange: (event: ChangeEvent<HTMLSelectElement>) => setLessonsProject({ userId: user.id, projectId: event.target.value }),
+            } : {})}>
             <option value="">All projects</option>
             {(projects.data?.items ?? []).map(project => <option key={project.id} value={project.id}>{project.code} · {project.name}</option>)}
           </select>
@@ -180,7 +187,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
             </div>}
           </div>
         </header>
-        <main className="mx-auto max-w-[1440px] p-4 md:p-8">{children}</main>
+        <main className="mx-auto max-w-[1440px] p-4 md:p-8"><LessonsProjectFilterContext.Provider value={section === 'lessons' ? lessonsProjectId || undefined : undefined}>{children}</LessonsProjectFilterContext.Provider></main>
       </div>
       <FeedbackWidget />
     </div>
