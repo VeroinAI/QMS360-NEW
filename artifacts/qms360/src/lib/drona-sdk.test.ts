@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { dronaProfileProof } from './drona-sdk';
+import { dronaProfileProof, dronaProfileEmail } from './drona-sdk';
+
+describe('Drona approved email-only handoff', () => {
+  it('sends only normalized email, not nonce or UID', () => {
+    expect(dronaProfileEmail({ email: ' Synthetic@Example.test ', uid: '123', nonce: 'not-forwarded' }))
+      .toEqual({ email: 'synthetic@example.test' });
+  });
+  it.each([{}, { email: '' }, { email: 'invalid' }, { email: 123 }])('rejects malformed email', profile => {
+    expect(() => dronaProfileEmail(profile)).toThrow('valid profile email');
+  });
+});
 
 describe('Drona SDK profile normalization', () => {
   it('preserves exact large string IDs and returns only the proof fields', () => {

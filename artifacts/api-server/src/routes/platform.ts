@@ -21,6 +21,7 @@ import {
   resetNumberingPattern, saveNumberingPattern, type NumberingModule,
 } from "../lib/numbering";
 import { getPlatformEffectiveProjectScope } from "../middlewares/rbac";
+import { restrictDronaProjects } from "../lib/drona/session";
 
 const router: IRouter = Router();
 const platformAdmin = requirePlatformRole("Super Admin", "Org Admin");
@@ -257,9 +258,9 @@ router.get("/platform/context", requireAuth, async (req, res): Promise<void> => 
     lessons: access?.canOpenLessons ?? false,
     audit: access?.canOpenAudit ?? false,
   };
-  const scope = ["Super Admin", "Org Admin"].includes(user.platformRole)
+  const scope = restrictDronaProjects(req.dronaProjectIds, ["Super Admin", "Org Admin"].includes(user.platformRole)
     ? { unrestricted: true, projectIds: [] }
-    : await getPlatformEffectiveProjectScope(user.id, user.organizationId);
+    : await getPlatformEffectiveProjectScope(user.id, user.organizationId));
   const projectRows = await db
     .select({
       id: projects.id,
@@ -299,9 +300,9 @@ router.get("/platform/projects", requireAuth, async (req, res): Promise<void> =>
     res.status(401).json({ error: "Authentication required" });
     return;
   }
-  const scope = ["Super Admin", "Org Admin"].includes(user.platformRole)
+  const scope = restrictDronaProjects(req.dronaProjectIds, ["Super Admin", "Org Admin"].includes(user.platformRole)
     ? { unrestricted: true, projectIds: [] }
-    : await getPlatformEffectiveProjectScope(user.id, user.organizationId);
+    : await getPlatformEffectiveProjectScope(user.id, user.organizationId));
   const { page, limit, offset } = pagination(req);
   const where = and(
     eq(projects.organizationId, user.organizationId),
@@ -335,9 +336,9 @@ router.get("/platform/projects", requireAuth, async (req, res): Promise<void> =>
 
 router.get("/platform/business-units", requireAuth, async (req, res): Promise<void> => {
   const user = req.currentUser!;
-  const scope = ["Super Admin", "Org Admin"].includes(user.platformRole)
+  const scope = restrictDronaProjects(req.dronaProjectIds, ["Super Admin", "Org Admin"].includes(user.platformRole)
     ? { unrestricted: true, projectIds: [] }
-    : await getPlatformEffectiveProjectScope(user.id, user.organizationId);
+    : await getPlatformEffectiveProjectScope(user.id, user.organizationId));
   const { page, limit, offset } = pagination(req);
   const where = and(eq(businessUnits.organizationId, user.organizationId), isNull(businessUnits.deletedAt));
   const [rows, countRows] = await Promise.all([
@@ -379,9 +380,9 @@ router.get("/platform/reference-data", requireAuth, async (req, res): Promise<vo
   const user = req.currentUser!;
   const since = typeof req.query.since === "string" ? new Date(req.query.since) : null;
   if (since && Number.isNaN(since.valueOf())) { res.status(422).json({ error: "Invalid since timestamp" }); return; }
-  const scope = ["Super Admin", "Org Admin"].includes(user.platformRole)
+  const scope = restrictDronaProjects(req.dronaProjectIds, ["Super Admin", "Org Admin"].includes(user.platformRole)
     ? { unrestricted: true, projectIds: [] }
-    : await getPlatformEffectiveProjectScope(user.id, user.organizationId);
+    : await getPlatformEffectiveProjectScope(user.id, user.organizationId));
   const updated = since ? gt(projects.updatedAt, since) : undefined;
   const [projectRows, unitRows] = await Promise.all([
     db.select({

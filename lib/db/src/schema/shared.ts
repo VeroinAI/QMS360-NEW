@@ -93,6 +93,7 @@ export const projects = sharedSchema.table("projects", {
   ...auditColumns,
 }, (table) => [
   uniqueIndex("projects_org_code_active_idx").on(table.organizationId, table.code).where(sql`${table.deletedAt} IS NULL`),
+  uniqueIndex("drona_projects_id_org_link_idx").on(table.id, table.organizationId),
   index("projects_business_unit_idx").on(table.businessUnitId),
 ]);
 
@@ -118,6 +119,7 @@ export const users = sharedSchema.table("users", {
 }, (table) => [
   uniqueIndex("users_org_email_active_idx").on(table.organizationId, table.email).where(sql`${table.deletedAt} IS NULL`),
   uniqueIndex("users_org_username_active_idx").on(table.organizationId, table.username).where(sql`${table.deletedAt} IS NULL`),
+  uniqueIndex("drona_users_id_org_link_idx").on(table.id, table.organizationId),
   index("users_project_idx").on(table.projectId),
 ]);
 

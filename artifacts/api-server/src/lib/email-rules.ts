@@ -4,6 +4,7 @@ import {
   lessonLearnedForms, lessonsUserWorkspaceRoles, lessonsWorkspaceRoles, userWorkspaceRoles, users, workspaceRoles,
 } from "@workspace/db";
 import { enqueueEmail } from "./email-queue";
+import { removeEmailPdfAttachment, type EmailPdfAttachment } from "./email-attachments";
 import { logger } from "./logger";
 import { emailTemplateContext } from "./email-template-context";
 
@@ -168,12 +169,22 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
   return { rule, recipients: [...new Map(recipients.map((item) => [item.email.toLowerCase(), item])).values()], sender };
 }
 
-export async function dispatchEmailRule(event: AuditEvent) {
+export async function dispatchEmailRule(event: AuditEvent, options: {
+  emailAttachments?: () => Promise<EmailPdfAttachment[]>;
+} = {}) {
+  let attachments: EmailPdfAttachment[] = [];
+  let queued = false;
   try {
     const result = await resolveEmailRule(db, event);
     if (!result.rule || !result.recipients.length) return result;
-    await enqueueEmail(db, {
+    // Only generate/store a report when an enabled rule actually has recipients.
+    // The queue retains the private snapshot for SMTP retries.
+    if (event.app === "lessons" && event.entityType === "lesson_form" && event.action === "submit") {
+      attachments = await options.emailAttachments?.() ?? [];
+    }
+    const delivery = await enqueueEmail(db, {
       organizationId: event.organizationId, recipientIds: [], recipients: result.recipients,
+      ...(attachments.length ? { attachments } : {}),
       sender: result.sender ?? undefined,
       ruleTemplate: result.rule.recipientConfig,
       templateValues: result.rule.recipientConfig?.subjectTemplate || result.rule.recipientConfig?.bodyTemplate
@@ -182,10 +193,19 @@ export async function dispatchEmailRule(event: AuditEvent) {
       text: `A ${event.entityType.replaceAll("_", " ")} record was ${event.action.replaceAll("_", " ")} in QMS360.${event.entityId ? `\n\nRecord reference: ${event.entityId}` : ""}`,
       context: { kind: "email_event_rule", app: event.app, ruleId: result.rule.id, eventType: result.rule.eventType, entityId: event.entityId },
     });
+    queued = delivery.queued > 0;
     return result;
   } catch (error) {
     logger.error({ error, event }, "Email event rule dispatch failed");
     return { rule: null, recipients: [] };
+  } finally {
+    if (!queued) {
+      for (const attachment of attachments) {
+        await removeEmailPdfAttachment(event.organizationId, attachment.objectPath).catch(error => {
+          logger.warn({ error, event }, "Unqueued email PDF attachment cleanup failed");
+        });
+      }
+    }
   }
 }
 

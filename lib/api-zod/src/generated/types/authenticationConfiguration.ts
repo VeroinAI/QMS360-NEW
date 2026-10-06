@@ -11,5 +11,7 @@ export interface AuthenticationConfiguration {
   mode: AuthenticationConfigurationMode;
   localLoginAllowed: boolean;
   dronaReady: boolean;
+  /** Explicitly approved email-only login; Drona session and nonce are not verified. */
+  dronaEmailException?: boolean;
   blockers: string[];
 }

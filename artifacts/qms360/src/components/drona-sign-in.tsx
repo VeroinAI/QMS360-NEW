@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { dronaSignIn, type AuthResponse, type AuthenticationConfiguration } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
-import { fetchDronaSessionProof } from '@/lib/drona-sdk';
+import { fetchDronaEmail } from '@/lib/drona-sdk';
+import { dronaSignInError } from '@/lib/drona-errors';
 
 export function DronaSignIn({ config, onSession }: {
   config: AuthenticationConfiguration;
@@ -9,27 +10,32 @@ export function DronaSignIn({ config, onSession }: {
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const attempted = useRef(false);
   const connect = async () => {
     if (busy) return;
     setBusy(true);
     setError('');
     try {
-      const proof = await fetchDronaSessionProof();
+      const proof = await fetchDronaEmail();
       const session = await dronaSignIn(proof);
       onSession(session);
     } catch (cause) {
-      // Server errors are generic; never render arbitrary SDK profile/error payloads.
-      const status = (cause as { status?: number }).status;
-      setError(status === 503
-        ? 'Drona is connected, but QMS360 sign-in is awaiting backend verification and access setup.'
-        : status ? 'Drona sign-in could not be completed. Contact your administrator.'
-          : cause instanceof Error ? cause.message : 'Drona sign-in could not be completed.');
+      setError(dronaSignInError(cause));
     } finally {
       setBusy(false);
     }
   };
+  useEffect(() => {
+    if (config.dronaReady && !attempted.current) {
+      attempted.current = true;
+      void connect();
+    }
+  }, [config.dronaReady]);
   return <div className="mt-6 space-y-4" data-testid="drona-sign-in">
     <p className="text-sm text-muted-foreground">Use your existing Drona session. No separate QMS360 password is required.</p>
+    {config.dronaEmailException && <p className="text-xs text-muted-foreground" role="status">
+      Approved email-only exception: Drona session and nonce validation are currently bypassed.
+    </p>}
     {!config.dronaReady && <div className="rounded-lg border border-border bg-muted p-4 text-sm" role="status">
       <p className="font-medium">Drona sign-in is awaiting activation</p>
       <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">

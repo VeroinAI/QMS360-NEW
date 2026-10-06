@@ -1,4 +1,4 @@
-Subject: QMS360 DronaHQ integration — only backend login verification remains
+Subject: QMS360 DronaHQ integration — approved email-only exception handoff
 
 Hello Team,
 
@@ -6,7 +6,23 @@ The project-access question is resolved: an active user linked through user_role
 
 Existing per-user QMS360 application access, approvals and role permissions will remain separate. A project mapping will not automatically grant application approval or administrator permissions.
 
-We are treating profile.uid as user_master.user_id. The remaining Drona question is:
+For the approved exception in the shared PRD/UAT environment, QMS360 will match
+profile.email to user_master.user_email. Profile UID is not assumed to be the
+source user ID. QMS360 will retain reviewed internal UUID links.
+
+Drona session and nonce validation will be bypassed under an explicit server
+setting. This is not verified SSO. Network access must be restricted and the
+existing QMS account/application/role approvals remain enforced. No QMS
+administrator permission is inferred from Drona roles.
+
+The implementation and operator setup instructions are in
+docs/drona/email-exception-handoff.md. The team must review the schema/migration
+ledger, apply the QMS-only link migration and reviewed private mappings, configure
+the shared target and complete real container acceptance after the private GitHub
+sync. No production personal records or mapping files should be committed.
+
+The following remains future security work, not a blocker to the approved
+exception:
 
 How should our Node.js backend validate the current Drona login?
 

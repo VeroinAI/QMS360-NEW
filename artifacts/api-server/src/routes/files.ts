@@ -134,7 +134,7 @@ async function authorizeEvidence(req: express.Request, found: NonNullable<Awaite
   if (!parent) return false;
   const scope = await getAuthorizedProjectScope(req, found.app as RbacAppKey, { module: parent.module, action });
   if (parent.allowProjectless) {
-    if (!scope.unrestricted && !scope.projectIds.length) return false;
+    if (!scope.unrestricted && !scope.projectIds.length && !scope.processAuditsAllowed) return false;
   } else if (!scope.unrestricted && (parent.projectIds ?? [parent.projectId!]).some((projectId) => !scope.projectIds.includes(projectId))) return false;
   if (found.app === "lessons" && action === "select") {
     const [lesson] = await db.select().from(lessonLearnedForms).where(and(

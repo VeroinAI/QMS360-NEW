@@ -1912,6 +1912,9 @@ components:
           type: boolean
         dronaReady:
           type: boolean
+        dronaEmailException:
+          type: boolean
+          description: Explicitly approved email-only login; Drona session and nonce are not verified.
         blockers:
           type: array
           items:
@@ -1919,8 +1922,12 @@ components:
     DronaSessionInput:
       type: object
       additionalProperties: false
-      required: [uid, nonce]
+      required: [email]
       properties:
+        email:
+          type: string
+          pattern: '^[^\s@]+@[^\s@]+\.[^\s@]+$'
+          maxLength: 255
         uid:
           type: string
           pattern: '^[1-9][0-9]*$'

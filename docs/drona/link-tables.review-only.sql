@@ -1,4 +1,6 @@
--- DRAFT ONLY. Not registered as a migration, not executed at startup.
+-- HISTORICAL REFERENCE ONLY. Superseded by the canonical Drizzle migration
+-- lib/db/drizzle/0023_drona_identity_links.sql. Do not apply both.
+-- Not executed at startup.
 -- Review against the actual environment schema and migration ledger first.
 -- This is QMS-owned linking storage, NOT Drona master-table DDL.
 -- No public tables are created, modified, or populated.

@@ -2,7 +2,7 @@ import type { Request } from "express";
 import { and, eq, isNull } from "drizzle-orm";
 import { auditFindings, auditPlans, auditSchedules, audits, correctiveActionReports, db, projects, users,
   auditUserWorkspaceRoles, auditWorkspaceRoles, auditWorkspaceRolePermissions, auditPermissions } from "@workspace/db";
-import { getAuthorizedProjectScope, getAuthorizedFullProjectScope } from "../middlewares/rbac";
+import { getAuthorizedProjectScope, getAuthorizedFullProjectScope, type EffectiveProjectScope } from "../middlewares/rbac";
 import { HttpError } from "./workspace";
 
 export const carJson = (value: string | null | undefined): any => {
@@ -16,8 +16,9 @@ export const actionableFinding = (item: any) => {
   return typeof classification === "string" && !!classification.trim() && classification.trim().toLowerCase() !== "not applicable";
 };
 const active = (table: any, organizationId: string) => and(eq(table.organizationId, organizationId), isNull(table.deletedAt));
-const writableProject = (scope: { unrestricted: boolean; projectIds: string[] }, projectId: string | null, process: boolean) =>
-  scope.unrestricted || (projectId ? scope.projectIds.includes(projectId) : process && scope.projectIds.length > 0);
+const writableProject = (scope: EffectiveProjectScope, projectId: string | null, process: boolean) =>
+  scope.unrestricted || (projectId ? scope.projectIds.includes(projectId)
+    : process && (scope.projectIds.length > 0 || scope.processAuditsAllowed === true));
 
 export async function carLeadMarker(organizationId: string, userId: string) {
   const rows = await db.select({ id: auditUserWorkspaceRoles.id }).from(auditUserWorkspaceRoles)
@@ -41,7 +42,7 @@ export async function carAuditContext(req: Request, audit: typeof audits.$inferS
   const scope = await getAuthorizedProjectScope(req, "audit");
   const process = scheduleMeta.auditTypes?.includes("Quality Internal Process Audit");
   if (!scope.unrestricted && !(audit.projectId && scope.projectIds.includes(audit.projectId))
-    && !(process && !audit.projectId && scope.projectIds.length)) throw new HttpError(403, "This audit is outside your CAR project scope");
+    && !(process && !audit.projectId && (scope.projectIds.length || scope.processAuditsAllowed))) throw new HttpError(403, "This audit is outside your CAR project scope");
   return { audit, plan, schedule, planMeta, scheduleMeta, leadId: planMeta.leadAuditorId as string | undefined };
 }
 
@@ -60,6 +61,7 @@ export async function carContext(req: Request, carId: string, allowInactiveSourc
   const ownerId = item?.actionTakerId || car.ownerId;
   const fullScope = await getAuthorizedFullProjectScope(req, "audit");
   if (!fullScope.unrestricted && !(audit.projectId && fullScope.projectIds.includes(audit.projectId))
+    && !(fullScope.processAuditsAllowed && !audit.projectId && context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit"))
     && ownerId !== req.currentUser!.id && context.leadId !== req.currentUser!.id
     && !context.plan?.teamMemberIds.includes(req.currentUser!.id)) {
     throw new HttpError(403, "This CAR is outside your own-record scope");
@@ -92,8 +94,10 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
     const schedule = scheduleRows.find(row => row.id === plan?.auditScheduleId);
     const pm = carJson(plan?.status), sm = carJson(schedule?.status);
     const process = sm.auditTypes?.includes("Quality Internal Process Audit");
-    if (!scope.unrestricted && !(audit.projectId && scope.projectIds.includes(audit.projectId)) && !(process && !audit.projectId && scope.projectIds.length)) continue;
-    const full = fullScope.unrestricted || !!(audit.projectId && fullScope.projectIds.includes(audit.projectId));
+    if (!scope.unrestricted && !(audit.projectId && scope.projectIds.includes(audit.projectId))
+      && !(process && !audit.projectId && (scope.projectIds.length || scope.processAuditsAllowed))) continue;
+    const full = fullScope.unrestricted || !!(audit.projectId && fullScope.projectIds.includes(audit.projectId))
+      || !!(fullScope.processAuditsAllowed && process && !audit.projectId);
     const auditFindingsRows = findings.filter(f => f.auditId === audit.id);
     const checklist = Array.isArray(audit.checklistState) ? audit.checklistState.filter(actionableFinding) as any[] : [];
     const sourceRows = checklist.map(item => ({ item, legacy: false,

@@ -29,17 +29,16 @@ the separation at backend routes, not just by hiding the screen. Drona hosting
 does not replace backend session verification.
 
 Existing Drona registration is not a verified session. Do not repeatedly ask the
-user to choose an SSO protocol; obtain the secure current-user handoff from the
-Drona technical owner. Missing session documentation blocks authentication
-cutover, not independently validated source-reader/linking preparation.
+user to choose an SSO protocol. The secure current-user handoff remains a future
+requirement, but the owner explicitly approved an email-only exception.
 
 **Why:** The user expects no separate production login and does not know the
 handoff protocol. Inferring authentication or module privileges from database
 rows would invent a security policy.
 
-**How to apply:** Keep preparation disconnected from live login and permissions
-until session verification, environment-specific links and preserved QMS access
-are reconciled. Drona/HSE role names alone must not grant QMS administrator rights.
+**How to apply:** Require explicit exception activation and reviewed
+environment-specific links. Preserve QMS access; Drona/HSE role names alone must
+not grant QMS administrator rights.
 
 Use DronaHQ profile.email to match public.user_master.user_email, then retain
 the matched source user ID and existing environment-specific internal UUID link.
@@ -61,10 +60,23 @@ server session.
 **Why:** The Drona technical owner's follow-up rules out the previously suggested
 alternatives; repeating those questions does not resolve backend authentication.
 
-**How to apply:** Await the supported backend nonce-validation contract for
-production login activation. Request its documentation, identity binding,
-lifetime/replay behavior and non-production testing route when available.
-Continue independently safe preparation without bypassing authentication.
+**How to apply:** Keep the verified-session route fail-closed until a supported
+backend contract exists. The approved email-only route is a separate exception,
+not a replacement security guarantee.
+
+On 2026-10-06 the user stated that Drona PRD and UAT are the same environment
+and explicitly authorized proceeding without Drona session/nonce validation,
+using Drona profile.email. This supersedes the previous no-cutover rule for
+that exception, not the requirement to preserve QMS permissions and mappings.
+
+**Why:** The user accepted the exception after the impersonation risk and
+production limitation were explained, then clarified the shared environment.
+
+**How to apply:** Document the bypass honestly, require explicit server-side
+activation, and use one reviewed environment key for that shared AWS target.
+Never label it verified SSO or assume a separate isolated UAT. Keep Replit
+DEV/QA data and configuration separate. Removing the bypass remains future
+security work when a supported verifier is supplied.
 
 Project membership is an active user's `user_role_mapping` link (through
 `project_mapping`) to an active `project_master` record. Ignore `enable_quality`
@@ -78,4 +90,7 @@ or deriving extra module gates would contradict the confirmed product rule.
 the mapped membership boundary. Keep per-user QMS application access, approvals
 and capability-specific role/project permissions as separate checks. Do not
 turn a project mapping into an application approval or an administrator grant.
-The outstanding Drona technical question is backend session verification.
+For Drona sessions, membership also caps otherwise-global QMS project grants;
+keep own/full visibility distinctions within that intersection.
+Backend session verification remains unresolved, but no longer blocks the
+explicitly approved email-only implementation/handoff.

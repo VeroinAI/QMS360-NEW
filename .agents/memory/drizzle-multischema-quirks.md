@@ -38,6 +38,20 @@ schemas correctly. Do not re-add manual enum blocks.
 `generate` also does not need an interactive TTY; `--name <tag>` runs clean under
 `< /dev/null`.
 
+## New composite foreign keys need their unique indexes first
+
+Check statement ordering when a generated migration adds both a composite
+foreign key and its prerequisite unique index. The generator can emit the
+foreign key before the index.
+
+**Why:** PostgreSQL cannot install that foreign key until its referenced
+columns have the matching uniqueness guarantee, even if the index appears
+later in the same migration.
+
+**How to apply:** Reorder the generated SQL statements so prerequisite indexes
+precede foreign keys, without changing the generated schema snapshot/journal.
+Validate the entire migration in a rollback-only transaction before handoff.
+
 ## Who owns which database
 
 - **Development** — the development post-merge flow owns additive schema application. If a push reports an already-existing multi-schema enum, inspect the namespace filter before attempting any DDL repair; never blindly force a broad push.

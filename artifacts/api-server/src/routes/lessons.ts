@@ -32,6 +32,7 @@ import {
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../lib/application-access-requests";
 import { createLessonPdf } from "../lib/lesson-pdf";
+import { storeEmailPdfAttachment, type EmailPdfAttachment } from "../lib/email-attachments";
 import {
   applicationAccess,
   db,
@@ -295,11 +296,11 @@ function formJsonList(rows: Array<typeof lessonLearnedForms.$inferSelect>, names
   return rows.map((row) => formJson(row, undefined, row.disciplineId ? names.get(row.disciplineId) : undefined));
 }
 
-async function audit(req: any, action: string, entityType: string, entityId?: string, before?: Record<string, unknown>, after?: Record<string, unknown>) {
+async function audit(req: any, action: string, entityType: string, entityId?: string, before?: Record<string, unknown>, after?: Record<string, unknown>, emailAttachments?: () => Promise<EmailPdfAttachment[]>) {
   await writeAuditLog(db, "lessons", {
     organizationId: req.currentUser.organizationId, actorId: req.currentUser.id,
     action, entityType, entityId, before, after, ipAddress: req.ip,
-  });
+  }, { emailAttachments });
 }
 
 // Read-only discipline lookup for query-time scope filtering: accepts either
@@ -764,7 +765,9 @@ router.post("/forms/:id/submit", asyncHandler(async (req, res) => {
     isNull(lessonLearnedForms.deletedAt),
   )).returning();
   if (!row) throw new HttpError(409, "This lesson form has already been submitted");
-  await audit(req, "submit", "lesson_form", before.id, await formJsonNamed(before), await formJsonNamed(row!));
+  await audit(req, "submit", "lesson_form", before.id, await formJsonNamed(before), await formJsonNamed(row!), async () => [
+    await storeEmailPdfAttachment(row!.organizationId, row!.referenceNumber, await lessonReportPdf(row!, evidence as Array<typeof lessonsEvidenceFiles.$inferSelect>)),
+  ]);
   // Notification persistence is best effort. The state transition and audit
   // record above are authoritative and must not be reported as a workflow
   // failure when the notification store is unavailable.
@@ -1224,13 +1227,19 @@ router.get("/reports/log", requirePermission("lessons", "lessons", "select"), as
   res.json({ delivery: "download", fileName, downloadUrl: `data:${format === "csv" ? "text/csv" : "application/json"};charset=utf-8,${encodeURIComponent(content)}`, message: null });
 }));
 
+async function lessonReportPdf(
+  row: typeof lessonLearnedForms.$inferSelect,
+  photos: Array<typeof lessonsEvidenceFiles.$inferSelect>,
+) {
+  return createLessonPdf(await formJsonNamed(row, photos), await lessonPdfAssets(row, photos));
+}
+
 router.get("/forms/:id/report.pdf", asyncHandler(async (req, res) => {
   const row = await getForm(String(req.params.id), req.currentUser!.organizationId);
   if (!row) notFound("Lesson form not found");
   if (!await canReadLesson(req, row)) throw new HttpError(403, "You do not have permission to view this lesson");
   const photos = (await listEvidence(db, "lessons", row.organizationId, "lesson_form", row.id)) as Array<typeof lessonsEvidenceFiles.$inferSelect>;
-  const data = await formJsonNamed(row, photos);
-  const content = (await createLessonPdf(data, await lessonPdfAssets(row, photos))).toString("base64");
+  const content = (await lessonReportPdf(row, photos)).toString("base64");
   res.json({
     delivery: "download",
     fileName: `${row.referenceNumber}.pdf`,

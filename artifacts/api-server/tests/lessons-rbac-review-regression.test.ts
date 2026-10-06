@@ -1,9 +1,11 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { PDFDocument } from "pdf-lib";
 import type { Server } from "node:http";
 import { and, eq, inArray } from "drizzle-orm";
 import {
   applicationAccess,
   db,
+  emailEventRules,
   lessonApproverScopes,
   lessonLearnedForms,
   lessonNotifications,
@@ -22,6 +24,7 @@ import {
 } from "@workspace/db";
 import app from "../src/app";
 import { issueToken } from "../src/lib/auth";
+import * as objectStorage from "../src/lib/objectStorage";
 
 let server: Server;
 let baseUrl: string;
@@ -231,6 +234,7 @@ afterAll(async () => {
   await db.delete(users).where(inArray(users.organizationId, orgIds));
   await db.delete(platformRoles).where(inArray(platformRoles.organizationId, orgIds));
   await db.delete(outboundEmails).where(inArray(outboundEmails.organizationId, orgIds));
+  await db.delete(emailEventRules).where(inArray(emailEventRules.organizationId, orgIds));
   await db.delete(organizations).where(inArray(organizations.id, orgIds));
 });
 
@@ -534,5 +538,72 @@ describe("approver notification and action queue consistency", () => {
     expect((await api("POST", `/forms/${lesson!.id}/review`, { token: approver.token, body: { decision: "approve" } })).status).toBe(200);
     const afterReview = await api("GET", "/log?pendingApproval=true&limit=100", { token: approver.token });
     expect(afterReview.json.items.some((row: { id: string }) => row.id === lesson!.id)).toBe(false);
+  });
+});
+
+describe("submission email PDF attachment", () => {
+  it("queues the Download PDF report for the approver exactly once, with the submitted snapshot", async () => {
+    const [rule] = await db.insert(emailEventRules).values({
+      organizationId: orgId, name: `PDF submission ${suffix}`,
+      eventType: "lessons.lesson_form.submit", recipientMode: "linked_approver",
+      recipientConfig: {
+        subjectTemplate: "Please review this lesson",
+        bodyTemplate: "The Lessons Learned form is attached for review.",
+      },
+    }).returning();
+    const [lesson] = await db.insert(lessonLearnedForms).values(
+      lessonValues(`EMAIL-PDF-${suffix}`, owner.id, { approverId: approver.id }),
+    ).returning();
+    await db.insert(lessonsEvidenceFiles).values(["before", "after"].map(category => ({
+      organizationId: orgId, app: "lessons", recordType: "lesson_form", recordId: lesson!.id,
+      category, fileName: `${category}.jpg`, mimeType: "image/jpeg", sizeBytes: 100,
+      storageKey: `tests/${suffix}/${category}.jpg`, uploadedById: owner.id, status: "stored",
+    })));
+    let storedPdf: Buffer | undefined;
+    const store = vi.spyOn(objectStorage, "storeObject").mockImplementation(async (objectPath, bytes, mimeType) => {
+      expect(mimeType).toBe("application/pdf");
+      storedPdf = Buffer.from(bytes);
+      return `/private/${objectPath}`;
+    });
+    try {
+      const submitted = await api("POST", `/forms/${lesson!.id}/submit`, { token: owner.token });
+      expect(submitted.status).toBe(200);
+      expect(submitted.json.workflowState).toBe("Submitted");
+      const queued = () => db.select().from(outboundEmails).where(and(
+        eq(outboundEmails.organizationId, orgId), eq(outboundEmails.entityId, lesson!.id),
+      ));
+      await expect.poll(async () => (await queued()).length, { timeout: 10000 }).toBe(1);
+      const [email] = await queued();
+      const [recipient] = await db.select().from(users).where(eq(users.id, approver.id));
+      expect(email!.recipientEmail).toBe(recipient!.email);
+      expect(email!.subject).toBe("Please review this lesson");
+      expect(email!.bodyText).toBe("The Lessons Learned form is attached for review.");
+      expect(email!.context.emailAttachments).toEqual([{
+        filename: `${lesson!.referenceNumber}.pdf`,
+        contentType: "application/pdf",
+        objectPath: expect.stringContaining(`/email-attachments/${orgId}/${lesson!.referenceNumber}/`),
+      }]);
+      expect(storedPdf!.subarray(0, 5).toString()).toBe("%PDF-");
+      const downloaded = await api("GET", `/forms/${lesson!.id}/report.pdf`, { token: approver.token });
+      expect(downloaded.status).toBe(200);
+      expect(downloaded.json.fileName).toBe(`${lesson!.referenceNumber}.pdf`);
+      // Ignore PDF creation timestamps, then compare the actual rendered report.
+      const normalize = async (bytes: Buffer) => {
+        const pdf = await PDFDocument.load(bytes);
+        pdf.setCreationDate(new Date(0));
+        pdf.setModificationDate(new Date(0));
+        return Buffer.from(await pdf.save());
+      };
+      expect(await normalize(storedPdf!)).toEqual(await normalize(Buffer.from(
+        downloaded.json.downloadUrl.split(",")[1], "base64",
+      )));
+      const repeated = await api("POST", `/forms/${lesson!.id}/submit`, { token: owner.token });
+      expect(repeated.status).toBe(409);
+      expect(await queued()).toHaveLength(1);
+      expect(store).toHaveBeenCalledOnce();
+    } finally {
+      store.mockRestore();
+      await db.update(emailEventRules).set({ enabled: false }).where(eq(emailEventRules.id, rule!.id));
+    }
   });
 });

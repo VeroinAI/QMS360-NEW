@@ -22,7 +22,10 @@ const jwtSecret = (() => {
   return secret;
 })();
 
-export type AuthToken = { sub: string; organizationId: string };
+export type AuthToken = {
+  sub: string; organizationId: string;
+  source?: "drona-email-exception"; externalUserId?: string; environment?: string;
+};
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12);
@@ -41,7 +44,24 @@ export function verifyToken(token: string): AuthToken {
   if (typeof decoded === "string" || typeof decoded.sub !== "string" || typeof decoded.organizationId !== "string") {
     throw new Error("Invalid token payload");
   }
-  return { sub: decoded.sub, organizationId: decoded.organizationId };
+  const base = {
+    sub: decoded.sub, organizationId: decoded.organizationId,
+  };
+  if (decoded.source !== "drona-email-exception") return base;
+  return {
+    ...base,
+    source: decoded.source,
+    externalUserId: typeof decoded.externalUserId === "string" ? decoded.externalUserId : undefined,
+    environment: typeof decoded.environment === "string" ? decoded.environment : undefined,
+  };
+}
+
+export function issueDronaToken(user: { id: string; organizationId: string }, externalUserId: string, environment: string): string {
+  // Short-lived QMS session. This does NOT validate or inherit a Drona session.
+  return jwt.sign({
+    sub: user.id, organizationId: user.organizationId, source: "drona-email-exception",
+    externalUserId, environment,
+  }, jwtSecret, { expiresIn: "30m" });
 }
 
 export async function getUserContext(userId: string) {

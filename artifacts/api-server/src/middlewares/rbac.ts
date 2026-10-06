@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { restrictDronaProjects } from "../lib/drona/session";
 import { qaqcPermissionMatches, auditModulePermissionMatches, auditModuleReadMatches, type QaqcOperation } from "@workspace/field-controls";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import {
@@ -35,8 +36,10 @@ declare global {
 const platformAdmins = new Set(["Super Admin", "Org Admin"]);
 const isAdminName = (name: string) => /\b(admin|administrator)\b/i.test(name);
 
-export type EffectiveProjectScope = { unrestricted: boolean; projectIds: string[] };
+export type EffectiveProjectScope = { unrestricted: boolean; projectIds: string[]; processAuditsAllowed?: boolean };
 type PermissionTarget = { module: string; action: PermissionAction; operation?: "review" | QaqcOperation };
+const restrictScope = (req: Request, appKey: AppKey, scope: EffectiveProjectScope) =>
+  restrictDronaProjects(req.dronaProjectIds, scope, appKey === "audit");
 
 function appTables(appKey: AppKey) {
   if (appKey === "lessons") return {
@@ -78,7 +81,7 @@ export async function getPlatformEffectiveProjectScope(userId: string, organizat
 }
 
 export async function assertProjectAccess(req: Request, projectId: string): Promise<void> {
-  if (req.permissionAdminBypass) return;
+  if (req.permissionAdminBypass && req.dronaProjectIds === undefined) return;
   const appKey = (req.baseUrl.match(/lessons|audit|qaqc/)?.[0] ?? "qaqc") as AppKey;
   const scope = await getAuthorizedProjectScope(req, appKey);
   if (!scope.unrestricted && !scope.projectIds.includes(projectId)) {
@@ -105,6 +108,8 @@ function projectScopeFromRows(rows: any[]): EffectiveProjectScope {
 }
 
 export function canManageAssignmentScope(req: Request, projectIds: string[] | null | undefined, businessUnitIds?: string[] | null): boolean {
+  if (req.dronaProjectIds !== undefined && (businessUnitIds?.length || !projectIds?.length
+    || projectIds.some(id => !req.dronaProjectIds!.includes(id)))) return false;
   if (req.permissionAdminBypass) return true;
   const scope = req.permissionProjectScope;
   if (!scope) return false;
@@ -129,7 +134,11 @@ export function requireAppAdmin(appKey: AppKey) {
     if (scope === null) return void res.status(403).json({ error: "Application administrator access is required" });
     if (platformAdmins.has(user.platformRole)) {
       req.permissionScope = "full";
-      req.permissionAdminBypass = true;
+      req.permissionAdminBypass = req.dronaProjectIds === undefined;
+      if (req.dronaProjectIds !== undefined) {
+        req.permissionProjectScope = restrictScope(req, appKey, { unrestricted: true, projectIds: [] });
+        req.permissionFullProjectScope = req.permissionProjectScope;
+      }
       return next();
     }
     const t = appTables(appKey) as any;
@@ -144,7 +153,7 @@ export function requireAppAdmin(appKey: AppKey) {
         sql`${t.roles.name} ~* ${"\\m(admin|administrator)\\M"}`,
       ));
     if (!rows.length) return void res.status(403).json({ error: "Application administrator access is required" });
-    const effectiveScope = projectScopeFromRows(rows);
+    const effectiveScope = restrictScope(req, appKey, projectScopeFromRows(rows));
     req.permissionScope = "full";
     req.permissionProjectScope = effectiveScope;
     req.permissionFullProjectScope = effectiveScope;
@@ -156,10 +165,10 @@ export function requireAppAdmin(appKey: AppKey) {
 export async function getAppAdminScope(req: Request, appKey: AppKey): Promise<EffectiveProjectScope | null> {
   const user = req.currentUser;
   if (!user) return null;
-  if (platformAdmins.has(user.platformRole)) return { unrestricted: true, projectIds: [] };
+  if (platformAdmins.has(user.platformRole)) return restrictScope(req, appKey, { unrestricted: true, projectIds: [] });
   if (appKey === "qaqc") {
     const rows = await matchingPermissionRows(req, appKey, { module: "administration", action: "full", operation: "configure_masters" });
-    return rows.length ? projectScopeFromRows(rows) : null;
+    return rows.length ? restrictScope(req, appKey, projectScopeFromRows(rows)) : null;
   }
   const t = appTables(appKey) as any;
   const rows = await db.select({ projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds })
@@ -167,7 +176,7 @@ export async function getAppAdminScope(req: Request, appKey: AppKey): Promise<Ef
     .where(and(eq(t.userRoles.userId, user.id), eq(t.userRoles.organizationId, user.organizationId),
       isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt),
       eq(t.roles.status, "active"), sql`${t.roles.name} ~* ${"\\m(admin|administrator)\\M"}`));
-  return rows.length ? projectScopeFromRows(rows) : null;
+  return rows.length ? restrictScope(req, appKey, projectScopeFromRows(rows)) : null;
 }
 
 async function matchingPermissionRows(req: Request, appKey: AppKey, target: PermissionTarget) {
@@ -213,24 +222,24 @@ async function matchingPermissionRows(req: Request, appKey: AppKey, target: Perm
 /** Resolve the projects covered by the role assignments that authorized this request.
  * Falls back to all active assignments for routes guarded only by application access. */
 export async function getAuthorizedProjectScope(req: Request, appKey: AppKey, target?: PermissionTarget): Promise<EffectiveProjectScope> {
-  if (req.permissionAdminBypass || platformAdmins.has(req.currentUser?.platformRole ?? "")) return { unrestricted: true, projectIds: [] };
+  if (req.permissionAdminBypass || platformAdmins.has(req.currentUser?.platformRole ?? "")) return restrictScope(req, appKey, { unrestricted: true, projectIds: [] });
   if (target) {
     const matching = await matchingPermissionRows(req, appKey, target);
     const rows = matching.filter((row) => rank[grantFor(appKey, target.action, row)] >= rank[target.action]);
-    return projectScopeFromRows(rows);
+    return restrictScope(req, appKey, projectScopeFromRows(rows));
   }
-  if (req.permissionProjectScope) return req.permissionProjectScope;
-  return getEffectiveProjectScope(req.currentUser!.id, req.currentUser!.organizationId, appKey);
+  if (req.permissionProjectScope) return restrictScope(req, appKey, req.permissionProjectScope);
+  return restrictScope(req, appKey, await getEffectiveProjectScope(req.currentUser!.id, req.currentUser!.organizationId, appKey));
 }
 
 export async function getAuthorizedFullProjectScope(req: Request, appKey: AppKey, target?: PermissionTarget): Promise<EffectiveProjectScope> {
-  if (req.permissionAdminBypass || platformAdmins.has(req.currentUser?.platformRole ?? "")) return { unrestricted: true, projectIds: [] };
+  if (req.permissionAdminBypass || platformAdmins.has(req.currentUser?.platformRole ?? "")) return restrictScope(req, appKey, { unrestricted: true, projectIds: [] });
   if (target) {
     const matching = await matchingPermissionRows(req, appKey, target);
     const rows = matching.filter((row) => grantFor(appKey, target.action, row) === "full");
-    return projectScopeFromRows(rows);
+    return restrictScope(req, appKey, projectScopeFromRows(rows));
   }
-  return req.permissionFullProjectScope ?? { unrestricted: false, projectIds: [] };
+  return restrictScope(req, appKey, req.permissionFullProjectScope ?? { unrestricted: false, projectIds: [] });
 }
 
 export function requireAppAccess(appKey: AppKey) {
@@ -238,9 +247,16 @@ export function requireAppAccess(appKey: AppKey) {
     const user = req.currentUser;
     if (!user) return void res.status(401).json({ error: "Authentication required" });
     if (platformAdmins.has(user.platformRole)) {
-      req.permissionAdminBypass = true;
+      req.permissionAdminBypass = req.dronaProjectIds === undefined;
+      if (req.dronaProjectIds !== undefined) {
+        req.permissionProjectScope = restrictScope(req, appKey, { unrestricted: true, projectIds: [] });
+        req.permissionFullProjectScope = req.permissionProjectScope;
+      }
       return next();
     }
+    // Application approval and active QMS assignments are independent of Drona
+    // project membership. Each record operation applies the intersection below.
+    // In particular, an approved department-only Process Audit must remain usable.
     const scope = await getEffectiveProjectScope(user.id, user.organizationId, appKey);
     if (!scope.unrestricted && !scope.projectIds.length) {
       return void res.status(403).json({ error: "You do not have access to any projects in this application" });
@@ -268,7 +284,13 @@ export function requirePermission(
     const user = req.currentUser;
     if (!user) return void res.status(401).json({ error: "Authentication required" });
     if (platformAdmins.has(user.platformRole)) {
-      req.permissionScope = "full"; req.permissionAdminBypass = true; return next();
+      req.permissionScope = "full";
+      req.permissionAdminBypass = req.dronaProjectIds === undefined;
+      if (req.dronaProjectIds !== undefined) {
+        req.permissionProjectScope = restrictScope(req, appKey, { unrestricted: true, projectIds: [] });
+        req.permissionFullProjectScope = req.permissionProjectScope;
+      }
+      return next();
     }
     const t = appTables(appKey) as any;
     const rows = await db.select({
@@ -333,8 +355,8 @@ export function requirePermission(
       return void res.status(403).json({ error: "This action is not permitted for your role" });
     }
     const authorizingRows = matching.filter((row: any) => rank[grantFor(appKey, action, row)] >= rank[action]);
-    req.permissionProjectScope = projectScopeFromRows(authorizingRows);
-    req.permissionFullProjectScope = projectScopeFromRows(authorizingRows.filter((row: any) => grantFor(appKey, action, row) === "full"));
+    req.permissionProjectScope = restrictScope(req, appKey, projectScopeFromRows(authorizingRows));
+    req.permissionFullProjectScope = restrictScope(req, appKey, projectScopeFromRows(authorizingRows.filter((row: any) => grantFor(appKey, action, row) === "full")));
     req.permissionScope = action === "own" ? "own" : granted;
     next();
   };

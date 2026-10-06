@@ -82,6 +82,7 @@ export const GetAuthConfigurationResponse = zod.object({
   "mode": zod.enum(['local', 'container', 'drona', 'disabled']),
   "localLoginAllowed": zod.boolean(),
   "dronaReady": zod.boolean(),
+  "dronaEmailException": zod.boolean().optional().describe('Explicitly approved email-only login; Drona session and nonce are not verified.'),
   "blockers": zod.array(zod.string())
 })
 
@@ -90,6 +91,10 @@ export const GetAuthConfigurationResponse = zod.object({
  * Disabled until Drona backend verification and access-policy acceptance are implemented. A profile or client-side nonce check alone never issues a session.
  * @summary Exchange a DronaHQ session proof
  */
+export const dronaSignInBodyEmailMax = 255;
+
+
+export const dronaSignInBodyEmailRegExp = new RegExp('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
 export const dronaSignInBodyUidMax = 19;
 
 
@@ -99,8 +104,9 @@ export const dronaSignInBodyNonceMax = 4096;
 
 
 export const DronaSignInBody = zod.object({
-  "uid": zod.string().max(dronaSignInBodyUidMax).regex(dronaSignInBodyUidRegExp),
-  "nonce": zod.string().min(1).max(dronaSignInBodyNonceMax)
+  "email": zod.string().max(dronaSignInBodyEmailMax).regex(dronaSignInBodyEmailRegExp),
+  "uid": zod.string().max(dronaSignInBodyUidMax).regex(dronaSignInBodyUidRegExp).optional(),
+  "nonce": zod.string().min(1).max(dronaSignInBodyNonceMax).optional()
 })
 
 export const DronaSignInResponse = zod.object({

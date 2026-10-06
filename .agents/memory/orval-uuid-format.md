@@ -14,3 +14,12 @@ Bare OpenAPI integer output properties can also generate unavailable `z.int()` v
 **Why:** Adding count/page/limit integer properties failed the generated library typecheck even though generation itself succeeded.
 
 **How to apply:** Check generated-library compilation whenever adding scalar schema formats or types; do not assume successful generation proves Zod compatibility.
+
+The same compatibility issue affects `format: email`: Orval emits unavailable
+`z.email()` rather than the installed Zod's string email validator.
+
+**Why:** An email-formatted Drona input generated successfully but failed the
+library typecheck. A string with an explicit email pattern was compatible.
+
+**How to apply:** Use a compatible pattern or explicit server validator for new
+email inputs, and retain the generated-library compilation check.

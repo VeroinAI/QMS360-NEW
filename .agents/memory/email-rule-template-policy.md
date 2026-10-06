@@ -13,3 +13,15 @@ Protected Audit approval emails must use the workflow queue only, not a second g
 **Why:** Once templates can contain review comments, a duplicate generic dispatch could expose content outside the saved approval audience or bypass a disabled matching workflow rule.
 
 **How to apply:** Apply content templates inside the existing participant-scoped approval queue. Do not copy the example document's To/CC lists into new recipient rules.
+
+Lessons Learned submission emails must include the form PDF as an actual
+attachment, using the same report as the form's Download PDF action.
+
+**Why:** The business requested the downloadable form in the existing email sent
+for approval, without changing unrelated workflows. A download link alone does
+not fulfill this requirement.
+
+**How to apply:** Preserve the configured submission recipients and templates.
+Keep a private submitted-report snapshot available for queued delivery retries;
+do not add PDFs to Lessons review emails or other application events as a side
+effect.

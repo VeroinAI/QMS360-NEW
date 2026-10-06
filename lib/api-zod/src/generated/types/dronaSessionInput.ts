@@ -8,13 +8,18 @@
 
 export interface DronaSessionInput {
   /**
+     * @maxLength 255
+     * @pattern ^[^\s@]+@[^\s@]+\.[^\s@]+$
+     */
+  email: string;
+  /**
      * @maxLength 19
      * @pattern ^[1-9][0-9]*$
      */
-  uid: string;
+  uid?: string;
   /**
      * @minLength 1
      * @maxLength 4096
      */
-  nonce: string;
+  nonce?: string;
 }

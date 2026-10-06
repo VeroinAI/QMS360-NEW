@@ -1,4 +1,11 @@
-# Drona integration preparation — cutover not enabled
+# Drona integration
+
+The current approved email-only implementation and GitHub/AWS instructions are
+in [email-exception-handoff.md](email-exception-handoff.md). Drona PRD and UAT are
+one shared target. The implementation is explicitly unverified and default-off.
+The preparation notes below are historical/reference material; the previous
+no-cutover rule was superseded only for the owner-approved exception.
+Do not treat draft SQL as an applied migration.
 
 ## Status and boundaries
 

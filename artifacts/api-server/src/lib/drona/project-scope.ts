@@ -12,8 +12,8 @@ export type DronaMembershipReview = {
 
 /** Pure, restricted intersection using the owner-confirmed active-user,
  * active-project and user/project-mapping condition. enable_quality and module
- * flags are not access gates. This is not wired into middleware while session
- * verification and environment-specific reconciliation remain incomplete.
+ * flags are not access gates. This is the operator's pure review helper;
+ * live exception sessions use the membership reader in session.ts.
  * QMS capability-specific scope (and full-vs-own ownership) remains authoritative
  * inside this membership boundary; it is never replaced by Drona role names. */
 export function reviewDronaProjectIntersection(input: {

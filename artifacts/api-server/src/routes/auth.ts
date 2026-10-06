@@ -14,10 +14,11 @@ import {
   GetAuthConfigurationResponse,
 } from "@workspace/api-zod";
 import { db, users, platformRoles } from "@workspace/db";
-import { ensureOrganization, getUserContext, hashPassword, issueToken, verifyPassword } from "../lib/auth";
+import { ensureOrganization, getUserContext, hashPassword, issueToken, issueDronaToken, verifyPassword } from "../lib/auth";
 import { requireAuth } from "../middlewares/auth";
 import { authenticationConfiguration, authenticationUnavailableMessage } from "../lib/drona/activation";
-import { dronaId } from "../lib/drona/ids";
+import { DronaAccessError, resolveDronaEmail, dronaSessionProjects } from "../lib/drona/session";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -26,7 +27,7 @@ router.get("/auth/config", (_req, res): void => {
   res.json(GetAuthConfigurationResponse.parse(authenticationConfiguration(process.env.AUTH_STRATEGY)));
 });
 
-router.post("/auth/drona", (req, res): void => {
+router.post("/auth/drona", async (req, res): Promise<void> => {
   res.setHeader("Cache-Control", "no-store");
   if (authenticationConfiguration(process.env.AUTH_STRATEGY).mode !== "drona") {
     res.status(409).json({ error: "Drona authentication mode is not selected" });
@@ -35,25 +36,44 @@ router.post("/auth/drona", (req, res): void => {
   const parsed = DronaSignInBody.safeParse(req.body);
   if (!parsed.success) {
     // Do not return validation payloads that could expose the nonce.
-    res.status(400).json({ error: "A valid Drona user ID and session proof are required" });
+    res.status(400).json({ error: "A valid Drona profile email is required" });
+    return;
+  }
+  const config = authenticationConfiguration(process.env.AUTH_STRATEGY);
+  if (!config.dronaReady) {
+    res.status(503).json({ error: authenticationUnavailableMessage("drona") });
     return;
   }
   try {
-    dronaId(parsed.data.uid);
-    if (!parsed.data.nonce.trim()) throw new Error("Empty proof");
-  } catch {
-    res.status(400).json({ error: "A valid Drona user ID and session proof are required" });
-    return;
+    const identity = await resolveDronaEmail(parsed.data.email);
+    await dronaSessionProjects(identity);
+    const context = await getUserContext(identity.id);
+    if (!context || context.organizationId !== identity.organizationId) {
+      res.status(403).json({ error: "QMS account access is unavailable" });
+      return;
+    }
+    logger.warn({ organizationId: identity.organizationId, userId: identity.id, environment: process.env.DRONA_ENVIRONMENT },
+      "Drona email-only exception session issued; Drona session and nonce were not verified");
+    res.json(LoginResponse.parse({
+      token: issueDronaToken(identity, identity.externalUserId, process.env.DRONA_ENVIRONMENT!),
+      user: context,
+    }));
+  } catch (error) {
+    if (error instanceof DronaAccessError) {
+      res.status(error.status).json({ error: error.message });
+    } else {
+      // Driver errors may contain query parameters (including the supplied
+      // email). Do not log source profiles or private identity inputs.
+      logger.error({ errorType: error instanceof Error ? error.name : "UnknownError" }, "Drona identity and membership lookup failed");
+      res.status(503).json({ error: "Drona identity/project data is unavailable. Contact your administrator." });
+    }
   }
-  // Deliberately no database lookup, identity creation, nonce echo or JWT.
-  // The SDK's profile and client verifyNonce callback are not backend proof.
-  res.status(503).json({ error: authenticationUnavailableMessage("drona") });
 });
 
 router.post("/auth/login", async (req, res): Promise<void> => {
   const unavailable = authenticationUnavailableMessage(process.env.AUTH_STRATEGY);
-  if (unavailable) {
-    res.status(503).json({ error: unavailable });
+  if (unavailable || !authenticationConfiguration(process.env.AUTH_STRATEGY).localLoginAllowed) {
+    res.status(503).json({ error: unavailable ?? "Use Drona sign-in; local login is disabled." });
     return;
   }
   const parsed = LoginBody.safeParse(req.body);
@@ -84,8 +104,8 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 
 router.post("/auth/register", async (req, res): Promise<void> => {
   const unavailable = authenticationUnavailableMessage(process.env.AUTH_STRATEGY);
-  if (unavailable) {
-    res.status(503).json({ error: unavailable });
+  if (unavailable || !authenticationConfiguration(process.env.AUTH_STRATEGY).localLoginAllowed) {
+    res.status(503).json({ error: unavailable ?? "Use Drona sign-in; local registration is disabled." });
     return;
   }
   const parsed = RegisterBody.safeParse(req.body);

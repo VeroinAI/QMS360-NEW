@@ -1,6 +1,6 @@
 import sdkUrl from '../../../../attached_assets/dronahq_1446_1791109292884.js?url';
 
-type Profile = { uid?: unknown; nonce?: unknown };
+type Profile = { uid?: unknown; nonce?: unknown; email?: unknown };
 type DronaSdk = {
   IsReady?: boolean;
   user?: { getProfile?: (success: (profile: Profile) => void, error: (error: unknown) => void) => void };
@@ -49,7 +49,7 @@ export function dronaProfileProof(profile: Profile): { uid: string; nonce: strin
 
 /** Never log/store the full profile or nonce. This reads the container only;
  * the backend must independently verify the result before issuing a session. */
-export async function fetchDronaSessionProof(): Promise<{ uid: string; nonce: string }> {
+async function fetchDronaProfile(): Promise<Profile> {
   await loadSdk();
   await new Promise<void>((resolve, reject) => {
     const started = Date.now();
@@ -69,8 +69,7 @@ export async function fetchDronaSessionProof(): Promise<{ uid: string; nonce: st
     try {
       window.DronaHQ!.user!.getProfile!(profile => {
         window.clearTimeout(timer);
-        try { resolve(dronaProfileProof(profile)); }
-        catch (error) { reject(error); }
+        resolve(profile);
       }, () => {
         window.clearTimeout(timer);
         reject(new Error('Drona could not provide the current session.'));
@@ -80,4 +79,21 @@ export async function fetchDronaSessionProof(): Promise<{ uid: string; nonce: st
       reject(new Error('Drona could not provide the current session.'));
     }
   });
+}
+
+export function dronaProfileEmail(profile: Profile): { email: string } {
+  const email = typeof profile?.email === 'string' ? profile.email.trim().toLowerCase() : '';
+  if (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error('Drona did not supply a valid profile email.');
+  }
+  return { email };
+}
+
+/** Approved exception only: email identifies an account, not a verified session. */
+export async function fetchDronaEmail(): Promise<{ email: string }> {
+  return dronaProfileEmail(await fetchDronaProfile());
+}
+
+export async function fetchDronaSessionProof(): Promise<{ uid: string; nonce: string }> {
+  return dronaProfileProof(await fetchDronaProfile());
 }
