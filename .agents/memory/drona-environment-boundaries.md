@@ -18,6 +18,16 @@ in each environment. Drona owns its existing public masters; keep source reads
 outside QMS-managed schema generation until ownership exclusions are validated.
 Do not run live QA/production SQL or use startup DDL for this integration.
 
+The temporary QMS360 sign-in screen is for Replit DEV/QA only. AWS/Drona
+production must use Drona login and must not expose the temporary sign-in path.
+
+**Why:** The user clarified that code is handed off through GitHub to AWS/Drona;
+they did not approve a separate temporary QMS360 login for real production.
+
+**How to apply:** Keep authentication behavior environment-specific and enforce
+the separation at backend routes, not just by hiding the screen. Drona hosting
+does not replace backend session verification.
+
 Existing Drona registration is not a verified session. Do not repeatedly ask the
 user to choose an SSO protocol; obtain the secure current-user handoff from the
 Drona technical owner. Missing session documentation blocks authentication
