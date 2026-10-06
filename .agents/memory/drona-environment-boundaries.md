@@ -38,8 +38,10 @@ the matched source user ID and existing environment-specific internal UUID link.
 that email is the common identifier. This supersedes the earlier assumption that
 profile.uid and user_master.user_id necessarily identify the same user.
 
-**How to apply:** Confirm unique email matching and normalization rules; reject
-missing or ambiguous matches. Matching a database row is not authentication.
+**How to apply:** The user confirmed on 2026-10-06 that emails should be treated
+as unique for this mapping; do not ask for uniqueness confirmation again.
+Reject missing or ambiguous matches if actual data violates that assumption.
+Matching a database row is not authentication.
 The owner also reported that no backend nonce-validation API currently exists.
 Do not describe a browser-supplied email or client-side nonce check as a verified
 server session; production cutover still needs a trustworthy identity handoff.
