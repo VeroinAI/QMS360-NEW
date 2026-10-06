@@ -18,6 +18,18 @@ in each environment. Drona owns its existing public masters; keep source reads
 outside QMS-managed schema generation until ownership exclusions are validated.
 Do not run live QA/production SQL or use startup DDL for this integration.
 
+The user stated on 2026-10-06 that Drona/AWS already contains shared data used by
+their other applications. This does not establish that QMS360-specific internal
+user/project records exist on that target.
+
+**Why:** Existing common Drona data and existing QMS application records were
+being conflated during deployment discussion.
+
+**How to apply:** Reuse Drona's existing masters; do not suggest recreating them.
+Distinguish those masters from QMS internal records and reviewed links, and
+confirm the target inventory before claiming that SQL creation plus cloning is
+sufficient for access.
+
 The temporary QMS360 sign-in screen is for Replit DEV/QA only. AWS/Drona
 production must use Drona login and must not expose the temporary sign-in path.
 
