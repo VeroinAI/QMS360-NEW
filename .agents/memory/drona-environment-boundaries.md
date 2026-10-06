@@ -31,16 +31,18 @@ rows would invent a security policy.
 until session verification, environment-specific links and preserved QMS access
 are reconciled. Drona/HSE role names alone must not grant QMS administrator rights.
 
-Treat DronaHQ profile.uid as public.user_master.user_id for implementation,
-subject to a source/session parity check before production acceptance.
+Use DronaHQ profile.email to match public.user_master.user_email, then retain
+the matched source user ID and existing environment-specific internal UUID link.
 
-**Why:** On 2026-10-04 the user instructed us to consider those identifiers the
-same. This resolves the intended ID mapping, not verification of a browser's
-claimed identity or the validity of a nonce.
+**Why:** On 2026-10-06 the user relayed the Drona technical owner's clarification
+that email is the common identifier. This supersedes the earlier assumption that
+profile.uid and user_master.user_id necessarily identify the same user.
 
-**How to apply:** Do not repeatedly request confirmation of this ID equivalence.
-Preserve its exact decimal value and resolve the environment-specific UUID link
-only after the backend has verified the Drona session.
+**How to apply:** Confirm unique email matching and normalization rules; reject
+missing or ambiguous matches. Matching a database row is not authentication.
+The owner also reported that no backend nonce-validation API currently exists.
+Do not describe a browser-supplied email or client-side nonce check as a verified
+server session; production cutover still needs a trustworthy identity handoff.
 
 Project membership is an active user's `user_role_mapping` link (through
 `project_mapping`) to an active `project_master` record. Ignore `enable_quality`
