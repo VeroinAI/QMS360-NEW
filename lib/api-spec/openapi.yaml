@@ -3291,6 +3291,7 @@ components:
         gpsLng: {type: [number, "null"], minimum: -180, maximum: 180}
         creatorId: {type: string}
         approverId: {type: [string, "null"]}
+        approverName: {type: [string, "null"], readOnly: true, description: Display name of the assigned approver, independent of selectable approver eligibility}
         canReview: {type: boolean, readOnly: true}
         version: {type: number, minimum: 1}
         conflictFlag: {type: boolean}

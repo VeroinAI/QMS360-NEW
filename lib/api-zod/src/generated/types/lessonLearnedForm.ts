@@ -47,6 +47,11 @@ export interface LessonLearnedForm {
   creatorId?: string;
   /** @nullable */
   approverId?: string | null;
+  /**
+     * Display name of the assigned approver
+     * @nullable
+     */
+  readonly approverName?: string | null;
   readonly canReview?: boolean;
   /** @minimum 1 */
   version: number;

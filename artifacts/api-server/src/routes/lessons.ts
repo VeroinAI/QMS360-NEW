@@ -187,7 +187,7 @@ async function disciplineNameById(disciplineId: string | null): Promise<string |
 
 /** Approval-record user details (name, designation, signature URL) for submitter and reviewer. */
 async function approvalPeopleJson(row: typeof lessonLearnedForms.$inferSelect) {
-  const ids = [row.submittedById, row.reviewedById].filter((v): v is string => Boolean(v));
+  const ids = [row.submittedById, row.reviewedById, row.approverId].filter((v): v is string => Boolean(v));
   const rows = ids.length
     ? await db.select({
       id: users.id,
@@ -208,6 +208,7 @@ async function approvalPeopleJson(row: typeof lessonLearnedForms.$inferSelect) {
   const submitter = person(row.submittedById);
   const reviewer = person(row.reviewedById);
   return {
+    approverName: person(row.approverId).name,
     submittedAt: row.submittedAt,
     submittedByName: submitter.name,
     submittedByDesignation: submitter.designation,

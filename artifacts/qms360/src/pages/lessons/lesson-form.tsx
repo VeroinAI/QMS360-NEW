@@ -1,4 +1,5 @@
 import { responseFieldLabels } from "@/lib/response-field-labels";
+import { lessonApproverDisplayName } from "./approver-display";
 import { requestWorkflowConfirmation, workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -251,6 +252,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   const hasAfterPhoto = Boolean(detail.data?.photos?.some((p) => p.category === "after" && p.status === "confirmed"));
   const photosReady = hasBeforePhoto && hasAfterPhoto;
   const approverOptions = approvers.data ?? [];
+  const approverDisplayName = lessonApproverDisplayName(draft.approverId, detail.data, approverOptions, user.data);
   const approverUnsaved = Boolean(detail.data) && draft.approverId !== (detail.data?.approverId ?? "");
   function set<K extends keyof Draft>(key: K, value: Draft[K]) { setDraft((d) => ({ ...d, [key]: value })); setErrors((e) => ({ ...e, [key]: "" })); }
   function validate(requireApprover = true) {
@@ -574,7 +576,7 @@ export function LessonFormPage({ id }: { id?: string }) {
       const editableState = isNew || record?.workflowState === "Draft" || record?.workflowState === "Sent Back";
       const pending = create.isPending || update.isPending || submit.isPending;
       return <Card className={mobile ? "border-0 shadow-none" : undefined}><CardHeader className={mobile ? "hidden" : undefined}><CardTitle>Workflow</CardTitle></CardHeader><CardContent className={mobile ? "p-0" : undefined}>
-        <Field label="Approver" error={errors.approverId} required={fp("approverId").required}><Select value={draft.approverId} onValueChange={(v) => set("approverId", v)} disabled={disabled("approverId") || approvers.isLoading}><SelectTrigger><SelectValue placeholder="Select approver" /></SelectTrigger><SelectContent>{approverOptions.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent></Select>{!readOnly && !mobile && <p className="mt-1 text-xs text-muted-foreground">Routes the lesson to this person for review. You cannot select yourself.</p>}</Field>
+        <Field label="Approver" error={errors.approverId} required={fp("approverId").required}><Select value={draft.approverId} onValueChange={(v) => set("approverId", v)} disabled={disabled("approverId") || approvers.isLoading}><SelectTrigger><SelectValue placeholder="Select approver">{approverDisplayName}</SelectValue></SelectTrigger><SelectContent>{approverOptions.map((x) => <SelectItem key={x.id} value={x.id}>{x.fullName}</SelectItem>)}</SelectContent></Select>{!readOnly && !mobile && <p className="mt-1 text-xs text-muted-foreground">Routes the lesson to this person for review. You cannot select yourself.</p>}</Field>
         {!readOnly && <div className="mt-4 grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => void saveDraft()} disabled={pending || uploadBlocking}>{(create.isPending || update.isPending) && <Loader2 className="animate-spin" />} Save draft</Button>{editableState && <Button onClick={() => void saveAndSubmit()} disabled={pending || uploadBlocking}><Loader2 className={pending ? "animate-spin" : "hidden"} /> Save & submit</Button>}</div>}
         {saveError && <p className="mt-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive" role="alert">{saveError}</p>}
         {editableState && !mobile && <p className="mt-2 text-center text-xs text-muted-foreground">Submission requires an approver and at least one confirmed before and after photo.</p>}

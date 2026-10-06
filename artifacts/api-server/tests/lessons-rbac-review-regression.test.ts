@@ -15,6 +15,7 @@ import {
   lessonsWorkspaceRolePermissions,
   lessonsWorkspaceRoles,
   organizations,
+  outboundEmails,
   platformRoles,
   projects,
   users,
@@ -229,6 +230,7 @@ afterAll(async () => {
   await db.delete(projects).where(inArray(projects.organizationId, orgIds));
   await db.delete(users).where(inArray(users.organizationId, orgIds));
   await db.delete(platformRoles).where(inArray(platformRoles.organizationId, orgIds));
+  await db.delete(outboundEmails).where(inArray(outboundEmails.organizationId, orgIds));
   await db.delete(organizations).where(inArray(organizations.id, orgIds));
 });
 
@@ -341,6 +343,15 @@ describe("non-admin lesson visibility and capabilities", () => {
       body: { decision: "approve" },
     });
     expect(denied.status).toBe(403);
+
+    const detail = await api("GET", `/forms/${submitted!.id}`, { token: approver.token });
+    expect(detail.status).toBe(200);
+    expect(detail.json.approverId).toBe(approver.id);
+    expect(detail.json.approverName).toBe("Lessons configured.approver");
+    expect(detail.json.canReview).toBe(true);
+    const choices = await api("GET", `/approvers?projectId=${projectAId}`, { token: approver.token });
+    expect(choices.status).toBe(200);
+    expect(choices.json.some((choice: { id: string }) => choice.id === approver.id)).toBe(false);
 
     const approved = await api("POST", `/forms/${submitted!.id}/review`, {
       token: approver.token,
