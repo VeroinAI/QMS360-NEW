@@ -42,9 +42,19 @@ profile.uid and user_master.user_id necessarily identify the same user.
 as unique for this mapping; do not ask for uniqueness confirmation again.
 Reject missing or ambiguous matches if actual data violates that assumption.
 Matching a database row is not authentication.
-The owner also reported that no backend nonce-validation API currently exists.
+The owner confirmed that nonce validation is Drona's session-verification
+mechanism, that no alternative signed-token or trusted server-to-server handoff
+is available, and that a backend nonce-validation API is being explored.
 Do not describe a browser-supplied email or client-side nonce check as a verified
-server session; production cutover still needs a trustworthy identity handoff.
+server session.
+
+**Why:** The Drona technical owner's follow-up rules out the previously suggested
+alternatives; repeating those questions does not resolve backend authentication.
+
+**How to apply:** Await the supported backend nonce-validation contract for
+production login activation. Request its documentation, identity binding,
+lifetime/replay behavior and non-production testing route when available.
+Continue independently safe preparation without bypassing authentication.
 
 Project membership is an active user's `user_role_mapping` link (through
 `project_mapping`) to an active `project_master` record. Ignore `enable_quality`
