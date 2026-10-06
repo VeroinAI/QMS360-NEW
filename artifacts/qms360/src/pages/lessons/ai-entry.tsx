@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { responseFieldLabel } from "@/lib/response-field-labels";
 import { useLocation } from "wouter";
 import { Check, Loader2, Sparkles } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -125,13 +126,13 @@ export function AiEntryPage() {
         <Choice label="Categorisation" value={text(extracted.categorisationId)} onChange={(v) => update("categorisationId", v)} options={categorisations.options} disabled={fp("categorisationId").disabled} required={fp("categorisationId").required} />
          <Choice label="Issue category" value={text(extracted.issueCategory)} onChange={(v) => update("issueCategory", v)} options={issueCategories.options} disabled={fp("issueCategory").disabled} required={fp("issueCategory").required} />
          <Choice label="Impact" value={text(extracted.impact)} onChange={(v) => update("impact", v)} options={impacts.options} disabled={fp("impact").disabled} required={fp("impact").required} />
-        {["description","rootCause","correction","correctiveAction"].map((field) => <div className="sm:col-span-2" key={field}><Label className="mb-2 block capitalize">{field.replace(/([A-Z])/g, " $1")}{fp(field).required && <span className="ml-1 text-destructive">*</span>}</Label><Textarea rows={4} value={text(extracted[field])} onChange={(e) => update(field, e.target.value)} disabled={fp(field).disabled} /></div>)}
+        {["description","rootCause","correction","correctiveAction"].map((field) => <div className="sm:col-span-2" key={field}><Label className="mb-2 block">{field === "description" ? "Description" : responseFieldLabel(field)}{fp(field).required && <span className="ml-1 text-destructive">*</span>}</Label><Textarea rows={4} value={text(extracted[field])} onChange={(e) => update(field, e.target.value)} disabled={fp(field).disabled} /></div>)}
         <div className="sm:col-span-2"><Button className="w-full" onClick={createLesson} disabled={transaction.missing.length > 0 || create.isPending}>{create.isPending ? <Loader2 className="animate-spin" /> : <Check />} Create draft lesson</Button></div>
       </CardContent></Card>
       <Card><CardHeader><CardTitle>Follow-up questions</CardTitle></CardHeader><CardContent className="space-y-5">
         {transaction.missing.length === 0 ? <div className="rounded-lg bg-accent/10 p-4 text-sm"><Check className="mb-2 text-accent" />All required details were extracted. Review the preview before creating.</div> : transaction.missing.map((item) => {
           const options = missingOptions(item);
-          return <div key={item.field}><Label className="mb-2 block">{item.question}</Label>{options.length ? <Select value={answers[item.field] ?? ""} onValueChange={(v) => setAnswers((x) => ({ ...x, [item.field]: v }))}><SelectTrigger><SelectValue placeholder="Select an answer" /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem value={option.value} key={option.value}>{option.label}</SelectItem>)}</SelectContent></Select> : <Input value={answers[item.field] ?? ""} onChange={(e) => setAnswers((x) => ({ ...x, [item.field]: e.target.value }))} />}<Button size="sm" variant="outline" className="mt-2" onClick={() => submitAnswer(item)} disabled={answer.isPending}>Add to VerionAI draft</Button></div>;
+          return <div key={item.field}><Label className="mb-2 block">{responseFieldLabel(item.field) !== item.field ? responseFieldLabel(item.field) : item.question}</Label>{options.length ? <Select value={answers[item.field] ?? ""} onValueChange={(v) => setAnswers((x) => ({ ...x, [item.field]: v }))}><SelectTrigger><SelectValue placeholder="Select an answer" /></SelectTrigger><SelectContent>{options.map((option) => <SelectItem value={option.value} key={option.value}>{option.label}</SelectItem>)}</SelectContent></Select> : <Input value={answers[item.field] ?? ""} onChange={(e) => setAnswers((x) => ({ ...x, [item.field]: e.target.value }))} />}<Button size="sm" variant="outline" className="mt-2" onClick={() => submitAnswer(item)} disabled={answer.isPending}>Add to VerionAI draft</Button></div>;
         })}
       </CardContent></Card>
       </div>

@@ -1,3 +1,4 @@
+import { responseFieldLabel } from "@/lib/response-field-labels";
 import { useQueryClient } from '@tanstack/react-query';
 import { matchesWorkspaceUserSearch } from './workspace-user-search';
 import { useLov } from '@/lib/use-lov';
@@ -673,7 +674,7 @@ function FormFields({ app }: { app: AppKey }) {
       <CardContent>
         <div className="mb-4 max-w-sm"><Label>Form</Label><Select value={form.key} onValueChange={key => { setFormKey(key); setDraft(undefined); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{forms.map(f => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}</SelectContent></Select></div>
         <Table><TableHeader><TableRow><TableHead>Field</TableHead><TableHead className="w-44">Access</TableHead><TableHead className="w-44">Requirement</TableHead></TableRow></TableHeader>
-          <TableBody>{form.fields.map(f => <TableRow key={f.key}><TableCell className="font-medium">{f.label}</TableCell>
+          <TableBody>{form.fields.map(f => <TableRow key={f.key}><TableCell className="font-medium">{responseFieldLabel(f.label)}</TableCell>
             <TableCell><Select value={matrix[f.key]?.access ?? 'editable'} onValueChange={v => patch(f.key, { access: v as FieldControlSetting['access'] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{accessOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></TableCell>
             <TableCell><Select value={matrix[f.key]?.requirement ?? 'optional'} onValueChange={v => patch(f.key, { requirement: v as FieldControlSetting['requirement'] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{requirementOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></TableCell>
           </TableRow>)}</TableBody></Table>

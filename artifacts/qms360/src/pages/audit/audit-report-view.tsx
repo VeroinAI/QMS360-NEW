@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { responseFieldLabel } from "@/lib/response-field-labels";
 import { Link, useParams } from "wouter";
 import { customFetch, downloadAuditReportPdf, useGetGeneratedAuditReport, useGetAudit } from "@workspace/api-client-react";
 import type { AuditReportSection } from "@workspace/api-client-react";
@@ -33,10 +34,10 @@ function Photo({ photo }: { photo: AuditReportSection["photos"][number] }) {
 function Section({ section, index }: { section: AuditReportSection; index: number }) {
   return <section aria-labelledby={`sec-${section.key}`} className="space-y-4 border-b pb-8 last:border-0" data-testid={`section-report-${section.key}`}>
     <h2 id={`sec-${section.key}`} className="text-lg font-semibold"><span className="mr-2 text-muted-foreground">{index + 1}.</span>{section.title}</h2>
-    {section.fields.length > 0 && <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">{section.fields.map((f, i) => <div key={i} className="min-w-0"><dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{f.label}</dt><dd className="whitespace-pre-wrap break-words text-sm">{f.value || "—"}</dd></div>)}</dl>}
+    {section.fields.length > 0 && <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">{section.fields.map((f, i) => <div key={i} className="min-w-0"><dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{responseFieldLabel(f.label)}</dt><dd className="whitespace-pre-wrap break-words text-sm">{f.value || "—"}</dd></div>)}</dl>}
     {section.tables.map((t, i) => <div key={i} className="space-y-2">
       {t.title && <h3 className="text-sm font-semibold">{t.title}</h3>}
-      {t.rows.length ? <div className="overflow-x-auto rounded-md border"><Table><TableHeader><TableRow>{t.columns.map((c, j) => <TableHead key={j}>{c}</TableHead>)}</TableRow></TableHeader>
+      {t.rows.length ? <div className="overflow-x-auto rounded-md border"><Table><TableHeader><TableRow>{t.columns.map((c, j) => <TableHead key={j}>{responseFieldLabel(c)}</TableHead>)}</TableRow></TableHeader>
         <TableBody>{t.rows.map((r, ri) => <TableRow key={ri}>{r.map((c, ci) => <TableCell key={ci} className="whitespace-pre-wrap align-top text-sm">{c || "—"}</TableCell>)}</TableRow>)}</TableBody></Table></div>
         : <p className="text-sm text-muted-foreground">No entries.</p>}
     </div>)}

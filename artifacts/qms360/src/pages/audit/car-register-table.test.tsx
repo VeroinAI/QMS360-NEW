@@ -25,7 +25,8 @@ describe("Excel-style CAR Register", () => {
     ]);
     const html = render([entry]);
     const headers = [...html.matchAll(/<th\b[^>]*>([^<]*)<\/th>/g)].map(match => match[1]);
-    expect(headers).toEqual([...CAR_REGISTER_COLUMNS]);
+    expect(headers).toEqual(CAR_REGISTER_COLUMNS.map(column => column === "Corrective Action Recorded"
+      ? "How It can Be Avoided in Future? (Corrective Action) — Recorded" : column));
     expect(html).toContain("Quality Department");
     expect(html).not.toContain(">Project<");
     expect(html).toContain("Evidence link");
@@ -38,7 +39,7 @@ describe("Excel-style CAR Register", () => {
   });
   it("centers a green circled tick only for recorded corrective action", () => {
     const html = render([{ ...entry, car: car("Draft", "Action recorded") }]);
-    expect(html).toContain('aria-label="Corrective action recorded"');
+    expect(html).toContain('aria-label="How It can Be Avoided in Future? (Corrective Action) — Recorded"');
     expect(html).toContain("lucide-circle-check");
     const indicatorCell = html.match(/<td[^>]*data-testid="cell-action-recorded-finding-1"[^>]*>/)?.[0];
     expect(indicatorCell).toContain("align-middle");

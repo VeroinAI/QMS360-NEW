@@ -1,4 +1,5 @@
 import { confirmedWorkflowMutation, workflowConfirmationMessage } from "@/lib/workflow-confirmation";
+import { responseFieldLabels } from "@/lib/response-field-labels";
 import { newPlanActivity, selectPlanActivity } from "@/lib/audit-plan-activities";
 import { activityRoleDefaults, activityAuditeeDefaults, activityAuditeeIds, withActivityAuditees } from "@/lib/audit-activity-defaults";
 import { ActivityMultiSelect, ScheduleActivityRoleFields } from "./activity-role-fields";
@@ -2134,7 +2135,7 @@ function CarEditor({car,onClose}:{car:CorrectiveActionReport;onClose:()=>void}) 
   const [form,setForm]=useState(car);const mutation=useUpdateCorrectiveActionReport();const qc=useQueryClient();const {toast}=useToast();
   const fc=useFieldControls("audit","car"); const ro=(key:string)=>fc.fieldProps(key).disabled; const req=(key:string)=>fc.fieldProps(key).required;
   const save=()=>{const missing=fc.mandatoryFieldKeys().filter(key=>{const value=(form as unknown as Record<string,unknown>)[key];return value==null||(typeof value==="string"&&!value.trim());});if(missing.length){toast({title:"Complete mandatory fields",description:`Required by your administrator: ${missing.join(", ")}`,variant:"destructive"});return;}mutation.mutate({id:car.id,data:form},{onSuccess:()=>{qc.invalidateQueries({queryKey:["/api/audit/cars"]});toast({title:"CAR updated"});onClose();}})};
-  return <div className="space-y-3"><div><Label>Root cause{req("rootCause") ? " *" : ""}</Label><Textarea value={form.rootCause??""} disabled={ro("rootCause")} onChange={e=>setForm(v=>({...v,rootCause:e.target.value}))}/></div><div><Label>Correction{req("correction") ? " *" : ""}</Label><Textarea value={form.correction??""} disabled={ro("correction")} onChange={e=>setForm(v=>({...v,correction:e.target.value}))}/></div><div><Label>Corrective action{req("correctiveAction") ? " *" : ""}</Label><Textarea value={form.correctiveAction??""} disabled={ro("correctiveAction")} onChange={e=>setForm(v=>({...v,correctiveAction:e.target.value}))}/></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save}>Save response</Button></DialogFooter></div>;
+  return <div className="space-y-3"><div><Label>{responseFieldLabels.rootCause}{req("rootCause") ? " *" : ""}</Label><Textarea value={form.rootCause??""} disabled={ro("rootCause")} onChange={e=>setForm(v=>({...v,rootCause:e.target.value}))}/></div><div><Label>{responseFieldLabels.correction}{req("correction") ? " *" : ""}</Label><Textarea value={form.correction??""} disabled={ro("correction")} onChange={e=>setForm(v=>({...v,correction:e.target.value}))}/></div><div><Label>{responseFieldLabels.correctiveAction}{req("correctiveAction") ? " *" : ""}</Label><Textarea value={form.correctiveAction??""} disabled={ro("correctiveAction")} onChange={e=>setForm(v=>({...v,correctiveAction:e.target.value}))}/></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save}>Save response</Button></DialogFooter></div>;
 }
 
 function Cars() {
@@ -2158,9 +2159,9 @@ function CarActionDetail() {
         <h2 className="mt-3 text-lg font-semibold">{car.responsibleDepartment}</h2>
         <p className="text-sm text-muted-foreground">Due {date(car.dueDate)}</p></div>
       <div className="grid gap-4 text-sm md:grid-cols-3">
-        <div><p className="font-medium">Root cause</p><p className="whitespace-pre-wrap">{car.rootCause || "Not provided"}</p></div>
-        <div><p className="font-medium">Correction</p><p className="whitespace-pre-wrap">{car.correction || "Not provided"}</p></div>
-        <div><p className="font-medium">Corrective action</p><p className="whitespace-pre-wrap">{car.correctiveAction || "Not provided"}</p></div>
+        <div><p className="font-medium">{responseFieldLabels.rootCause}</p><p className="whitespace-pre-wrap">{car.rootCause || "Not provided"}</p></div>
+        <div><p className="font-medium">{responseFieldLabels.correction}</p><p className="whitespace-pre-wrap">{car.correction || "Not provided"}</p></div>
+        <div><p className="font-medium">{responseFieldLabels.correctiveAction}</p><p className="whitespace-pre-wrap">{car.correctiveAction || "Not provided"}</p></div>
       </div>
       {car.reviewComments && <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm"><b>Review{car.reviewOutcome ? ` (${car.reviewOutcome})` : ""}:</b> {car.reviewComments}</p>}
       <div className="flex flex-wrap gap-2">

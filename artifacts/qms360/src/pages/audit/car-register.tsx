@@ -1,3 +1,4 @@
+import { responseFieldLabels } from "@/lib/response-field-labels";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download } from "lucide-react";
@@ -60,7 +61,7 @@ export function CarResponseDialog({ car, open, onClose, readOnly = false }: { ca
   const run = async (andSubmit: boolean) => {
     if (viewOnly) return;
     setErr("");
-    if (andSubmit && !valid) { setErr("Root cause, correction and corrective action are all required to submit."); return; }
+    if (andSubmit && !valid) { setErr(`${responseFieldLabels.rootCause}, ${responseFieldLabels.correction} and ${responseFieldLabels.correctiveAction} are all required to submit.`); return; }
     const body = { ...car, ...clean };
     const missing = controls.mandatoryFieldKeys().filter(key => {
       const value = (body as unknown as Record<string, unknown>)[key];
@@ -80,7 +81,7 @@ export function CarResponseDialog({ car, open, onClose, readOnly = false }: { ca
     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
        <DialogHeader><DialogTitle>CAR Response</DialogTitle><DialogDescription>{viewOnly ? "Read-only CAR response. Only the assigned Action Taker can edit this response." : "Describe the cause and the actions taken for this finding."}</DialogDescription></DialogHeader>
       <CarReviewNotes car={car}/>
-      {field("rootCause", "Root cause")}{field("correction", "Correction")}{field("correctiveAction", "Corrective action")}
+      {field("rootCause", responseFieldLabels.rootCause)}{field("correction", responseFieldLabels.correction)}{field("correctiveAction", responseFieldLabels.correctiveAction)}
       {err && <p role="alert" data-testid="status-car-error" className="text-sm text-destructive">{err}</p>}
        <DialogFooter><Button variant="outline" disabled={busy} onClick={onClose}>{viewOnly ? "Close" : "Cancel"}</Button>
          {!viewOnly && <><Button variant="outline" data-testid="button-save-car" disabled={busy} onClick={() => void run(false)}>Save response</Button>
@@ -104,7 +105,7 @@ export function CarReviewDialog({ car, open, onClose }: { car: CorrectiveActionR
   };
   return <Dialog open={open} onOpenChange={v => { if (!v && !review.isPending) onClose(); }}>
     <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>Review CAR response</DialogTitle><DialogDescription>Accepting closes the CAR immediately.</DialogDescription></DialogHeader>
-      <div className="space-y-1 text-sm"><p><b>Root cause:</b> {car.rootCause}</p><p><b>Correction:</b> {car.correction}</p><p><b>Corrective action:</b> {car.correctiveAction}</p></div>
+      <div className="space-y-1 text-sm"><p><b>{responseFieldLabels.rootCause}:</b> {car.rootCause}</p><p><b>{responseFieldLabels.correction}:</b> {car.correction}</p><p><b>{responseFieldLabels.correctiveAction}:</b> {car.correctiveAction}</p></div>
       <Select value={decision} onValueChange={v => { setDecision(v as typeof decision); setErr(""); }}>
         <SelectTrigger data-testid="select-review-decision"><SelectValue/></SelectTrigger>
         <SelectContent><SelectItem value="accept">Accept and close</SelectItem><SelectItem value="query">Query</SelectItem><SelectItem value="rework">Rework</SelectItem></SelectContent></Select>

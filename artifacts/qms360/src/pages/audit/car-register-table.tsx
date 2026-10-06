@@ -1,3 +1,4 @@
+import { responseFieldLabel } from "@/lib/response-field-labels";
 import type { ReactNode } from "react";
 import { CircleCheck } from "lucide-react";
 import type { CarRegisterEntry } from "@workspace/api-client-react";
@@ -31,7 +32,7 @@ export function CarRegisterTable({ entries, page, limit, busy, renderEvidence, o
     <table className="w-full min-w-[1600px] border-collapse text-left">
       <caption className="sr-only">Corrective action register, page {page}, up to {limit} findings per page</caption>
       <thead>
-        <tr>{CAR_REGISTER_COLUMNS.map(c => <th key={c} scope="col" className="sticky top-0 z-10 border border-border bg-muted px-2 py-2 text-xs font-semibold">{c}</th>)}</tr>
+        <tr>{CAR_REGISTER_COLUMNS.map(c => <th key={c} scope="col" className="sticky top-0 z-10 border border-border bg-muted px-2 py-2 text-xs font-semibold">{responseFieldLabel(c)}</th>)}</tr>
       </thead>
       <tbody>
         {entries.length === 0 && <tr data-testid="row-car-empty"><td colSpan={CAR_REGISTER_COLUMNS.length} className="border border-border px-3 py-10 text-center text-sm text-muted-foreground">No findings match these filters.</td></tr>}
@@ -54,7 +55,7 @@ export function CarRegisterTable({ entries, page, limit, busy, renderEvidence, o
             </td>
             <td className={cell}>{renderEvidence(e)}</td>
             <td className={cell}>{e.actionTakerName}</td>
-            <td className={`${cell.replace("align-top", "align-middle")} text-center`} data-testid={`cell-action-recorded-${e.id}`}>{done && <CircleCheck className="mx-auto size-5 text-green-600" role="img" aria-label="Corrective action recorded" data-testid={`icon-action-taken-${e.id}`} />}</td>
+            <td className={`${cell.replace("align-top", "align-middle")} text-center`} data-testid={`cell-action-recorded-${e.id}`}>{done && <CircleCheck className="mx-auto size-5 text-green-600" role="img" aria-label={responseFieldLabel("Corrective action recorded")} data-testid={`icon-action-taken-${e.id}`} />}</td>
             <td className={cell}><Button size="sm" variant="outline" data-testid={`button-respond-${e.id}`} disabled={!canEdit} onClick={() => onEdit(e)}>Edit</Button></td>
             <td className={cell}><Button size="sm" variant="outline" data-testid={`button-display-${e.id}`} onClick={() => onDisplay(e)}>Display</Button></td>
             <td className={cell}><Button size="sm" variant="outline" data-testid={`button-review-${e.id}`} disabled={!canReview} onClick={() => onReview(e)}>Close / Return CAR</Button></td>

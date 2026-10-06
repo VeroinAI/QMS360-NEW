@@ -1,3 +1,4 @@
+import { responseFieldLabel } from "@/lib/response-field-labels";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { getListCarActivityQueryKey, useListCarActivity } from "@workspace/api-client-react";
@@ -19,7 +20,7 @@ export function CarDisplayDialog({ entry, onClose, reviewNotes }: { entry: CarRe
     <DialogContent className="max-h-[85dvh] max-w-3xl overflow-y-auto">
        <DialogHeader><DialogTitle>CAR Response</DialogTitle><DialogDescription>{car ? "Read-only finding and corrective action response." : "No CAR response has been recorded for this finding yet. Finding details are read-only."}</DialogDescription></DialogHeader>
        <dl className="grid gap-4 sm:grid-cols-2">{fields.map(([label, value]) => <div key={label} className={["Description", "Root cause", "Correction", "Corrective action recorded"].includes(label!) ? "sm:col-span-2" : ""}>
-        <dt className="text-xs font-medium text-muted-foreground">{label}</dt><dd className="whitespace-pre-wrap break-words text-sm">{value || "—"}</dd>
+        <dt className="text-xs font-medium text-muted-foreground">{responseFieldLabel(label!)}</dt><dd className="whitespace-pre-wrap break-words text-sm">{value || "—"}</dd>
       </div>)}</dl>
       {reviewNotes}
       <div className="flex justify-end"><Button variant="outline" onClick={onClose}>Close</Button></div>
