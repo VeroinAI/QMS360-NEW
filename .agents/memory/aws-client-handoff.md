@@ -3,6 +3,17 @@ name: AWS client handoff
 description: Safety boundaries when handing QMS360 frontend, backend source, and migrations to a client-hosted environment.
 ---
 
+The user clarified that the QMS360 frontend is hosted in Drona; AWS handoff must
+distinguish Drona frontend delivery from AWS backend/database preparation.
+
+**Why:** Generic instructions to serve the frontend on AWS incorrectly imply a
+second frontend deployment rather than updating the existing Drona frontend.
+
+**How to apply:** Ask the Drona team to update the frontend and retain SDK/profile
+integration. Ask the AWS team to deploy the API, configure database/session
+settings and reconcile migrations. Confirm frontend-to-API routing and access
+policies without assuming both services share a host.
+
 The user stated on 2026-10-04 that the GitHub handoff repository is now **private**. This supersedes the earlier temporary-public-clone approach. Use authorized private repository access for the client's clone; do not suggest reopening it publicly. Private visibility does not authorize moving production personal/signature datasets or DEV/QA business data between environments.
 
 **Why:** The user changed the repository visibility after a data-privacy warning. Any earlier public exposure cannot be undone by changing visibility, and credentials or real datasets still need an explicit secure-handling review.
