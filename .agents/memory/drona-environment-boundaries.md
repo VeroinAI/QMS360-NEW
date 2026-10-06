@@ -33,6 +33,19 @@ sufficient for access.
 The temporary QMS360 sign-in screen is for Replit DEV/QA only. AWS/Drona
 production must use Drona login and must not expose the temporary sign-in path.
 
+The user's clarification concerns login/signup only: "login / signup should be
+done from drona" using its public-schema tables, with no separate QMS sign-in
+or registration. Do not interpret that as authorization to replace QMS
+application approvals or role permissions with Drona application assignments.
+
+**Why:** On 2026-10-06 the user explicitly corrected a discussion that conflated
+their authentication expectation with application-access policy.
+
+**How to apply:** Keep Drona-owned registration and the QMS identity handoff
+separate from authorization. Explain any internal identity/link prerequisites
+without describing them as another user-facing signup, and do not ask again
+about changing application approvals merely to clarify login.
+
 **Why:** The user clarified that code is handed off through GitHub to AWS/Drona;
 they did not approve a separate temporary QMS360 login for real production.
 
