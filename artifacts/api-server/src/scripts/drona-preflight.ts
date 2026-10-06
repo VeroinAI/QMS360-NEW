@@ -36,9 +36,9 @@ async function main() {
     );
     const { rows: linkTableRows } = await client.query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'shared'
-       AND table_name = ANY($1::text[])`, [["drona_user_links", "drona_project_links"]],
+       AND table_name = ANY($1::text[])`, [["drona_user_links", "drona_project_links", "drona_provisioning_history"]],
     );
-    const missingLinkTables = ["drona_user_links", "drona_project_links"]
+    const missingLinkTables = ["drona_user_links", "drona_project_links", "drona_provisioning_history"]
       .filter(table => !linkTableRows.some(row => row.table_name === table));
     let mappingSummary: { additions: number; unresolved: number } | null = null;
     if (args[3]) {

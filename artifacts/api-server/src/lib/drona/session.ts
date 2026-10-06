@@ -1,37 +1,14 @@
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { dronaId } from "./ids";
-
-export class DronaAccessError extends Error {
-  constructor(public status: number, message: string) { super(message); }
-}
+import { ensureDronaProjects, provisionDronaEmail } from "./provisioning";
+import { DronaAccessError } from "./errors";
+export { DronaAccessError } from "./errors";
 
 type Identity = { id: string; organizationId: string; externalUserId: string };
-type SourceUser = { external_id: string; active: boolean };
 
 export async function resolveDronaEmail(email: string): Promise<Identity> {
-  const normalized = email.trim().toLowerCase();
-  const source = await db.execute(sql`
-    SELECT user_id::text AS external_id, is_active AS active
-    FROM public.user_master WHERE lower(btrim(user_email)) = ${normalized} LIMIT 2
-  `);
-  const rows = source.rows as SourceUser[];
-  if (rows.length !== 1 || rows[0]!.active !== true) {
-    throw new DronaAccessError(401, "Drona user is unavailable or ambiguous");
-  }
-  const externalUserId = dronaId(rows[0]!.external_id);
-  const links = await db.execute(sql`
-    SELECT u.id, u.organization_id AS "organizationId"
-    FROM shared.drona_user_links l
-    JOIN shared.users u ON u.id = l.user_id AND u.organization_id = l.organization_id
-    WHERE l.environment_key = ${process.env.DRONA_ENVIRONMENT!}
-      AND l.organization_id = ${process.env.DRONA_ORGANIZATION_ID!}::uuid
-      AND l.external_user_id = ${externalUserId}::bigint
-      AND lower(btrim(u.email)) = ${normalized}
-      AND u.deleted_at IS NULL AND u.access_status = 'active' LIMIT 2
-  `);
-  if (links.rows.length !== 1) throw new DronaAccessError(403, "QMS identity mapping or account access is unavailable");
-  return { ...(links.rows[0] as { id: string; organizationId: string }), externalUserId };
+  return provisionDronaEmail(email);
 }
 
 /** Recheck source activity, identity linkage and project membership on every
@@ -47,9 +24,10 @@ export async function dronaSessionProjects(identity: Identity): Promise<string[]
       AND l.user_id = ${identity.id}::uuid
       AND l.external_user_id = ${externalUserId}::bigint
       AND s.is_active = true AND lower(btrim(s.user_email)) = lower(btrim(u.email))
-      AND u.deleted_at IS NULL AND u.access_status = 'active'
+      AND u.deleted_at IS NULL AND u.access_status = 'active' AND u.status = 'active'
   `);
   if (result.rows.length !== 1) throw new DronaAccessError(401, "Drona account or identity mapping is no longer active");
+  await ensureDronaProjects(identity);
   const projects = await db.execute(sql`
     SELECT DISTINCT q.id
     FROM public.user_role_mapping a

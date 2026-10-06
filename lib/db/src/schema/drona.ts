@@ -1,6 +1,6 @@
 import { check, foreignKey, primaryKey, text, timestamp, unique, bigint, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { projects, sharedSchema, users } from "./shared";
+import { organizations, projects, sharedSchema, users } from "./shared";
 
 const reviewColumns = {
   environmentKey: text("environment_key").notNull(),
@@ -36,4 +36,21 @@ export const dronaProjectLinks = sharedSchema.table("drona_project_links", {
   check("drona_project_links_review_check", sql`length(btrim(${t.reviewReference})) > 0`),
   foreignKey({ columns: [t.projectId, t.organizationId], foreignColumns: [projects.id, projects.organizationId] }),
   foreignKey({ columns: [t.reviewedBy, t.organizationId], foreignColumns: [users.id, users.organizationId] }),
+]);
+
+// Retained independently of live links: removing a link must not cause the next
+// automatic login/sync to recreate it. IDs deliberately survive soft deletion.
+export const dronaProvisioningHistory = sharedSchema.table("drona_provisioning_history", {
+  environmentKey: text("environment_key").notNull(),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  kind: text("kind").notNull(),
+  externalId: bigint("external_id", { mode: "bigint" }).notNull(),
+  internalId: uuid("internal_id").notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  primaryKey({ columns: [t.environmentKey, t.organizationId, t.kind, t.externalId] }),
+  unique("drona_provisioning_history_internal_key").on(t.environmentKey, t.organizationId, t.kind, t.internalId),
+  check("drona_provisioning_history_kind_check", sql`${t.kind} IN ('user', 'project')`),
+  check("drona_provisioning_history_environment_check", sql`${t.environmentKey} ~ '^[a-z][a-z0-9_-]{1,63}$'`),
+  check("drona_provisioning_history_id_check", sql`${t.externalId} > 0`),
 ]);

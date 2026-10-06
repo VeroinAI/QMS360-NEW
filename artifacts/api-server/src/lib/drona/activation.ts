@@ -21,7 +21,7 @@ export function authenticationConfiguration(strategy: string | undefined) {
     dronaReady: ready,
     ...(exception ? { dronaEmailException: true } : {}),
     blockers: mode === "drona" ? ready ? [] : exception
-      ? ["Reviewed environment-specific identity/project mappings and organization configuration are required."]
+      ? ["Reviewed target organization/environment and automatic-setup database migrations are required."]
       : [...DRONA_ACTIVATION_BLOCKERS]
       : mode === "disabled" ? ["Unsupported authentication strategy."] : [],
   };
@@ -31,7 +31,7 @@ export function authenticationUnavailableMessage(strategy: string | undefined): 
   const config = authenticationConfiguration(strategy);
   return config.mode === "drona" && !config.dronaReady
     ? config.dronaEmailException
-      ? "Drona email-only exception is not activated: reviewed identity/project mappings and organization/environment configuration are required."
+      ? "Drona email-only exception is not activated: reviewed target configuration and automatic-setup database migrations are required."
       : "Drona sign-in is not activated: backend session verification and access reconciliation are required."
     : config.mode === "disabled" ? "Authentication configuration is invalid." : null;
 }

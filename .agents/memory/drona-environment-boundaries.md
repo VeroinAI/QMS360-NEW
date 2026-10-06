@@ -13,8 +13,9 @@ or public GitHub.
 boundaries. Equal numeric IDs across environments do not establish equal
 identities; current QMS history must retain its stable internal UUID references.
 
-**How to apply:** Reconcile explicit reviewed identity/project pairs separately
-in each environment. Drona owns its existing public masters; keep source reads
+**How to apply:** Reconcile identities/projects separately in each environment,
+using the owner-approved automatic-setup policy for unambiguous matches and
+explicit reviewed pairs for conflicts. Drona owns its public masters; keep source reads
 outside QMS-managed schema generation until ownership exclusions are validated.
 Do not run live QA/production SQL or use startup DDL for this integration.
 
@@ -33,6 +34,13 @@ sufficient for access.
 The temporary QMS360 sign-in screen is for Replit DEV/QA only. AWS/Drona
 production must use Drona login and must not expose the temporary sign-in path.
 
+**Why:** The user clarified that code is handed off through GitHub to AWS/Drona;
+they did not approve a separate temporary QMS360 login for real production.
+
+**How to apply:** Keep authentication behavior environment-specific and enforce
+the separation at backend routes, not just by hiding the screen. Drona hosting
+does not replace backend session verification.
+
 The user's clarification concerns login/signup only: "login / signup should be
 done from drona" using its public-schema tables, with no separate QMS sign-in
 or registration. Do not interpret that as authorization to replace QMS
@@ -45,13 +53,6 @@ their authentication expectation with application-access policy.
 separate from authorization. Explain any internal identity/link prerequisites
 without describing them as another user-facing signup, and do not ask again
 about changing application approvals merely to clarify login.
-
-**Why:** The user clarified that code is handed off through GitHub to AWS/Drona;
-they did not approve a separate temporary QMS360 login for real production.
-
-**How to apply:** Keep authentication behavior environment-specific and enforce
-the separation at backend routes, not just by hiding the screen. Drona hosting
-does not replace backend session verification.
 
 Existing Drona registration is not a verified session. Do not repeatedly ask the
 user to choose an SSO protocol. The secure current-user handoff remains a future

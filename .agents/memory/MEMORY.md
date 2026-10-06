@@ -74,5 +74,6 @@
 - [QA/QC role authorization policy](qaqc-role-authorization-policy.md) — edit default-role permissions in place; preserve other apps and legacy ownership semantics.
 - [Audit consolidated report policy](audit-consolidated-report-policy.md) — reports require completion; CARs remain separate; missing template data is editable, never fabricated.
 - [Focused Vitest invocation](focused-vitest-invocation.md) — invoke filtered Vitest directly; passing a literal -- through pnpm test can ignore the intended file filter.
-- [Drona environment boundaries](drona-environment-boundaries.md) — preserve DEV/QA identities; AWS owns public masters; use reviewed environment-specific links and a verified session handoff.
+- [Drona environment boundaries](drona-environment-boundaries.md) — AWS owns public masters; preserve DEV/QA and QMS approvals; email-only login is an explicit unverified exception.
+- [Drona automatic setup](drona-automatic-setup-policy.md) — source-owned signup needs no routine manual linking; preserve QMS permissions/history and keep removed links revoked.
 - [CAR Word template policy](car-word-template-policy.md) — row downloads retain the supplied Word format; unavailable values read exactly “To be mapped”; never fabricate signatures or record data.

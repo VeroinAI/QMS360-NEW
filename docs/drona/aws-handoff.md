@@ -2,7 +2,7 @@
 
 **Current handoff:** [Drona email-only exception](email-exception-handoff.md).
 The owner approved the exception for the shared Drona PRD/UAT environment.
-Use that document for current behavior, migration/mapping preparation and
+Use that document for current automatic identity/project setup, one-time migrations and
 activation. The notes below describe the earlier blocked-verifier preparation
 and are retained as historical context, not current activation instructions.
 

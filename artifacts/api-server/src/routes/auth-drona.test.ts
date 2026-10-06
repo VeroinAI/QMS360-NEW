@@ -128,7 +128,7 @@ describe("explicitly approved Drona email-only exception", () => {
     const response = await post("/auth/drona", { email: "synthetic@example.test" });
     expect(response.status).toBe(503);
     const message = (await response.json() as { error: string }).error;
-    expect(message).toContain("reviewed identity/project mappings");
+    expect(message).toContain("reviewed target configuration");
     expect(message).not.toContain("backend session verification");
     expect(mocks.resolveDronaEmail).not.toHaveBeenCalled();
   });
