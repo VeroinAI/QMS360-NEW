@@ -780,6 +780,8 @@ export interface DronaProjectMasterRecord {
   /** @nullable */
   businessUnit: string | null;
   /** @nullable */
+  costCentre: string | null;
+  /** @nullable */
   location: string | null;
   status: string;
   recordSource: string;
@@ -788,6 +790,21 @@ export interface DronaProjectMasterRecord {
   createdAt: string;
   updatedAt: string;
   dronaLinks: DronaProjectMasterRecordDronaLinksItem[];
+}
+
+export interface ProjectCostCentreInput {
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  costCentre: string | null;
+}
+
+export interface ProjectCostCentreResult {
+  id: string;
+  /** @nullable */
+  costCentre: string | null;
+  updatedAt: string;
 }
 
 export interface Project {

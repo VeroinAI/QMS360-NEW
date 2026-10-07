@@ -14,6 +14,8 @@ export interface DronaProjectMasterRecord {
   /** @nullable */
   businessUnit: string | null;
   /** @nullable */
+  costCentre: string | null;
+  /** @nullable */
   location: string | null;
   status: string;
   recordSource: string;

@@ -266,6 +266,32 @@ paths:
                   limit: {type: number}
                   linkMetadataAvailable: {type: boolean}
         "403": {description: Administrator access required}
+  /integrations/project-master/{projectId}/cost-centre:
+    patch:
+      operationId: updateDronaProjectCostCentre
+      tags: [integrations]
+      summary: Set or clear only the QMS cost center of a saved Drona project
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ProjectCostCentreInput"}
+      responses:
+        "200":
+          description: Saved cost center
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ProjectCostCentreResult"}
+        "400": {description: Invalid project or cost center}
+        "401": {description: Authentication required}
+        "403": {description: Administrator access required}
+        "404": {description: Project not available within current project access}
   /platform/application-access:
     get:
       operationId: getApplicationAccess
@@ -2501,12 +2527,13 @@ components:
         email: {type: string}
     DronaProjectMasterRecord:
       type: object
-      required: [id, code, name, businessUnit, location, status, recordSource, externalId, createdAt, updatedAt, dronaLinks]
+      required: [id, code, name, businessUnit, location, status, recordSource, externalId, createdAt, updatedAt, dronaLinks, costCentre]
       properties:
         id: {type: string}
         code: {type: string}
         name: {type: string}
         businessUnit: {type: ["string", "null"]}
+        costCentre: {type: ["string", "null"]}
         location: {type: ["string", "null"]}
         status: {type: string}
         recordSource: {type: string}
@@ -2522,6 +2549,19 @@ components:
               externalProjectId: {type: string}
               environment: {type: string}
               linkedAt: {type: string, format: date-time}
+    ProjectCostCentreInput:
+      type: object
+      additionalProperties: false
+      required: [costCentre]
+      properties:
+        costCentre: {type: ["string", "null"], maxLength: 100}
+    ProjectCostCentreResult:
+      type: object
+      required: [id, costCentre, updatedAt]
+      properties:
+        id: {type: string}
+        costCentre: {type: ["string", "null"]}
+        updatedAt: {type: string, format: date-time}
     Project:
       type: object
       required: [id, code, name, businessUnit, status]

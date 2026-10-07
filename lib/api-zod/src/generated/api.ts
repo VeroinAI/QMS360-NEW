@@ -333,6 +333,7 @@ export const ListDronaProjectMasterResponse = zod.object({
   "code": zod.string(),
   "name": zod.string(),
   "businessUnit": zod.string().nullable(),
+  "costCentre": zod.string().nullable(),
   "location": zod.string().nullable(),
   "status": zod.string(),
   "recordSource": zod.string(),
@@ -349,6 +350,31 @@ export const ListDronaProjectMasterResponse = zod.object({
   "page": zod.number(),
   "limit": zod.number(),
   "linkMetadataAvailable": zod.boolean()
+})
+
+
+/**
+ * @summary Set or clear only the QMS cost center of a saved Drona project
+ */
+export const updateDronaProjectCostCentrePathProjectIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const UpdateDronaProjectCostCentreParams = zod.object({
+  "projectId": zod.coerce.string().regex(updateDronaProjectCostCentrePathProjectIdRegExp)
+})
+
+export const updateDronaProjectCostCentreBodyCostCentreMax = 100;
+
+
+
+export const UpdateDronaProjectCostCentreBody = zod.object({
+  "costCentre": zod.string().max(updateDronaProjectCostCentreBodyCostCentreMax).nullable()
+})
+
+export const UpdateDronaProjectCostCentreResponse = zod.object({
+  "id": zod.string(),
+  "costCentre": zod.string().nullable(),
+  "updatedAt": zod.coerce.date()
 })
 
 

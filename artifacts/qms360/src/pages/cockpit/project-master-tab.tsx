@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { getListDronaProjectMasterQueryKey, useListDronaProjectMaster } from '@workspace/api-client-react';
-import type { DronaProjectMasterRecord } from '@workspace/api-client-react';
+import { getListDronaProjectMasterQueryKey, useListDronaProjectMaster, useGetCurrentUser } from '@workspace/api-client-react';
+import type { DronaProjectMasterRecord, ListDronaProjectMaster200, ProjectCostCentreResult } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, ChevronLeft, ChevronRight, Info, RefreshCw, Search } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
+import { ProjectCostCentreEditor } from './project-cost-centre-editor';
 
 const LIMIT = 20;
 const dash = '—';
@@ -26,10 +29,15 @@ function dronaIds(r: DronaProjectMasterRecord) {
 }
 
 export function ProjectMasterTab() {
+  const currentUser = useGetCurrentUser();
+  const canEditCostCentre = ['Super Admin', 'Org Admin'].includes(currentUser.data?.platformRole ?? '');
+  const client = useQueryClient();
+  const { toast } = useToast();
   const [input, setInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<DronaProjectMasterRecord | null>(null);
+  const [savingCostCentre, setSavingCostCentre] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => { setSearch(input.trim()); setPage(1); }, 350);
     return () => clearTimeout(t);
@@ -48,12 +56,19 @@ export function ProjectMasterTab() {
   useEffect(() => {
     if (data) setSelected(record => record ? data.items.find(item => item.id === record.id) ?? null : null);
   }, [data]);
+  const savedCostCentre = (result: ProjectCostCentreResult) => {
+    setSelected(record => record?.id === result.id ? null : record);
+    client.setQueriesData<ListDronaProjectMaster200>({ queryKey: getListDronaProjectMasterQueryKey() }, previous =>
+      previous ? { ...previous, items: previous.items.map(record => record.id === result.id ? { ...record, ...result } : record) } : previous);
+    void client.invalidateQueries({ queryKey: getListDronaProjectMasterQueryKey() });
+    toast({ title: 'Cost center saved' });
+  };
 
   return <div className="space-y-4" data-testid="project-master-tab">
     <Card>
       <CardHeader className="flex-row flex-wrap items-start justify-between gap-3">
         <div className="max-w-2xl"><CardTitle>Project Master</CardTitle>
-          <CardDescription>Read-only view of saved QMS360 project records transferred from Drona, within your current project access. Master data is maintained in Drona; nothing can be edited here.</CardDescription></div>
+          <CardDescription>Saved QMS360 project records transferred from Drona, within your current project access. Project details remain read-only; administrators can manage the QMS360 cost center for Lessons Learned numbering.</CardDescription></div>
         <Button variant="outline" onClick={() => q.refetch()} disabled={q.isFetching} data-testid="button-refresh-project-master"><RefreshCw className={`mr-2 h-4 w-4 ${q.isFetching ? 'animate-spin' : ''}`} />Refresh</Button>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -64,10 +79,11 @@ export function ProjectMasterTab() {
         {q.isError && data && <p className="text-sm text-destructive">Refresh failed; showing previously loaded data.</p>}
         {data && items.length === 0 && <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground" data-testid="empty-project-master">{search ? `No saved projects match “${search}”.` : 'No saved Drona projects are available within your current project access.'}</div>}
         {items.length > 0 && <div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow>
-          <TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Business unit</TableHead><TableHead>Location</TableHead><TableHead>Status</TableHead><TableHead>Drona ID</TableHead><TableHead>Source</TableHead></TableRow></TableHeader><TableBody>
-          {items.map((r) => { const ids = dronaIds(r); return <TableRow key={r.id} className="cursor-pointer" tabIndex={0} aria-label={`View ${r.code} project details`} onClick={() => setSelected(r)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(r); } }} data-testid={`row-project-master-${r.id}`}>
+          <TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Business unit</TableHead><TableHead>Location</TableHead><TableHead>Status</TableHead><TableHead>Cost center</TableHead><TableHead>Drona ID</TableHead><TableHead>Source</TableHead></TableRow></TableHeader><TableBody>
+          {items.map((r) => { const ids = dronaIds(r); return <TableRow key={r.id} className="cursor-pointer" tabIndex={0} aria-label={`View ${r.code} project details`} onClick={() => setSelected(r)} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setSelected(r); } }} data-testid={`row-project-master-${r.id}`}>
             <TableCell className="whitespace-nowrap font-medium">{show(r.code)}</TableCell><TableCell>{show(r.name)}</TableCell><TableCell>{show(r.businessUnit)}</TableCell><TableCell>{show(r.location)}</TableCell>
             <TableCell><Badge variant={r.status === 'active' ? 'default' : 'secondary'}>{show(r.status)}</Badge></TableCell>
+             <TableCell><div className="whitespace-nowrap">{show(r.costCentre)}</div>{canEditCostCentre && <Button variant="link" size="sm" className="h-auto p-0" aria-label={`${r.costCentre ? 'Edit' : 'Set'} cost center for ${r.code}`} onClick={event => { event.stopPropagation(); setSelected(r); }} data-testid={`button-edit-cost-centre-${r.id}`}>{r.costCentre ? 'Edit cost center' : 'Set cost center'}</Button>}</TableCell>
             <TableCell className="whitespace-nowrap font-mono text-xs">{ids.length ? ids.join(', ') : dash}</TableCell><TableCell>{show(r.recordSource)}</TableCell></TableRow>; })}
         </TableBody></Table></div>}
         {data && total > 0 && <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
@@ -77,11 +93,14 @@ export function ProjectMasterTab() {
             <Button variant="outline" size="sm" disabled={page >= pages || q.isFetching} onClick={() => setPage((p) => p + 1)} data-testid="button-next-page">Next<ChevronRight className="ml-1 h-4 w-4" /></Button></div></div>}
       </CardContent>
     </Card>
-    <Dialog open={!!selected} onOpenChange={(o) => { if (!o) setSelected(null); }}><DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
-      {selected && <><DialogHeader><DialogTitle>{show(selected.code)} — {show(selected.name)}</DialogTitle><DialogDescription>Read-only saved record. Maintain project master data in Drona.</DialogDescription></DialogHeader>
+    <Dialog open={!!selected} onOpenChange={(o) => { if (!o && !savingCostCentre) setSelected(null); }}><DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto"
+      onEscapeKeyDown={event => { if (savingCostCentre) event.preventDefault(); }}
+      onPointerDownOutside={event => { if (savingCostCentre) event.preventDefault(); }}>
+      {selected && <><DialogHeader><DialogTitle>{show(selected.code)} — {show(selected.name)}</DialogTitle><DialogDescription>Drona master fields remain read-only. Administrators can maintain this project's QMS360 cost center below.</DialogDescription></DialogHeader>
         <dl className="grid gap-3 text-sm sm:grid-cols-2">
-          {([['QMS UUID', selected.id], ['Code', selected.code], ['Name', selected.name], ['Business unit', selected.businessUnit], ['Location', selected.location], ['Status', selected.status], ['Record source', selected.recordSource], ['Created', fmt(selected.createdAt)], ['Record updated', fmt(selected.updatedAt)]] as Array<[string, string | null]>).map(([k, v]) => <div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="break-all font-medium">{show(v)}</dd></div>)}
+          {([['QMS UUID', selected.id], ['Code', selected.code], ['Name', selected.name], ['Business unit', selected.businessUnit], ['Location', selected.location], ['Status', selected.status], ['Cost center', selected.costCentre], ['Record source', selected.recordSource], ['Created', fmt(selected.createdAt)], ['Record updated', fmt(selected.updatedAt)]] as Array<[string, string | null]>).map(([k, v]) => <div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="break-all font-medium">{show(v)}</dd></div>)}
         </dl>
+         {canEditCostCentre && <ProjectCostCentreEditor key={selected.id} record={selected} onSaved={savedCostCentre} onPendingChange={setSavingCostCentre} />}
         <div><p className="mb-2 text-sm font-medium">Drona links</p>
           {(() => { const links = selected.dronaLinks ?? []; const direct = selected.recordSource === 'drona' && selected.externalId && !links.some((l) => l.externalProjectId === selected.externalId);
             if (!links.length && !direct) return <p className="text-sm text-muted-foreground">No Drona link recorded.</p>;

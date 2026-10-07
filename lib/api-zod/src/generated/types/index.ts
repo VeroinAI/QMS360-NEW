@@ -462,6 +462,8 @@ export * from './platformRoleUpdateResult';
 export * from './pQICategory';
 export * from './pQIResult';
 export * from './project';
+export * from './projectCostCentreInput';
+export * from './projectCostCentreResult';
 export * from './projectIdParameter';
 export * from './projectPage';
 export * from './projectPageResponse';

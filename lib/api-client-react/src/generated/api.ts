@@ -269,6 +269,8 @@ import type {
   PlatformRoleUpdate,
   PlatformRoleUpdateResult,
   Project,
+  ProjectCostCentreInput,
+  ProjectCostCentreResult,
   ProjectPageResponse,
   PromptAnswerBody,
   PromptBody,
@@ -1446,6 +1448,78 @@ export function useListDronaProjectMaster<TData = Awaited<ReturnType<typeof list
 
 
 
+
+export const getUpdateDronaProjectCostCentreUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/integrations/project-master/${projectId}/cost-centre`
+}
+
+/**
+ * @summary Set or clear only the QMS cost center of a saved Drona project
+ */
+export const updateDronaProjectCostCentre = async (projectId: string,
+    projectCostCentreInput: ProjectCostCentreInput, options?: Parameters<typeof customFetch>[1]): Promise<ProjectCostCentreResult> => {
+
+  return customFetch<ProjectCostCentreResult>(getUpdateDronaProjectCostCentreUrl(projectId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(projectCostCentreInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateDronaProjectCostCentreMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDronaProjectCostCentre>>, TError,{projectId: string;data: BodyType<ProjectCostCentreInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDronaProjectCostCentre>>, TError,{projectId: string;data: BodyType<ProjectCostCentreInput>}, TContext> => {
+
+const mutationKey = ['updateDronaProjectCostCentre'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDronaProjectCostCentre>>, {projectId: string;data: BodyType<ProjectCostCentreInput>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  updateDronaProjectCostCentre(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDronaProjectCostCentreMutationResult = NonNullable<Awaited<ReturnType<typeof updateDronaProjectCostCentre>>>
+    export type UpdateDronaProjectCostCentreMutationBody = BodyType<ProjectCostCentreInput>
+    export type UpdateDronaProjectCostCentreMutationError = ErrorType<void>
+
+    /**
+ * @summary Set or clear only the QMS cost center of a saved Drona project
+ */
+export const useUpdateDronaProjectCostCentre = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDronaProjectCostCentre>>, TError,{projectId: string;data: BodyType<ProjectCostCentreInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateDronaProjectCostCentre>>,
+        TError,
+        {projectId: string;data: BodyType<ProjectCostCentreInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateDronaProjectCostCentreMutationOptions(options));
+    }
 
 export const getGetApplicationAccessUrl = () => {
 

@@ -48,7 +48,30 @@ parallel master table.
 **Why:** Drona remains the project-master owner, and the user explicitly asked
 not to create tables or disturb other development for this view.
 
-**How to apply:** Keep the register read-only and within existing Cockpit
+**How to apply:** Keep Drona master fields read-only and within existing Cockpit
 administrator/project scope. Display saved QMS data and known links honestly;
 do not describe record-update timestamps as source-sync timestamps or turn
 opening the view into a new import, migration or master-maintenance process.
+
+The user subsequently authorized Super Admin / administrator users to select a
+project in this register and maintain its QMS cost center for Lessons Learned
+numbering. This is a narrow exception to the read-only register, not permission
+to edit Drona-owned master fields.
+
+**Why:** Cost centers are QMS-managed numbering inputs; the user explicitly
+requested this correction without affecting other development.
+
+**How to apply:** Reuse existing project extra fields and preserve unrelated
+metadata, project identity, links and scope. Do not renumber historical Lessons
+references or invent a new numbering format without confirming the business
+format.
+
+Cost center maintenance and Lessons Learned numbering changes are separate
+authorizations.
+
+**Why:** The user explicitly chose to save cost centers while keeping existing
+numbering, rather than include cost centers in new references.
+
+**How to apply:** Saving, editing or clearing a project cost center must not
+change Lessons reference formats, counters or issued numbers. Integrate cost
+centers into numbering only when the user separately requests that change.
