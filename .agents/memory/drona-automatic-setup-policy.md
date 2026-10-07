@@ -48,6 +48,9 @@ live, shared, manageable Drona project membership.
 **Why:** The owner reported that provisioned Employees were hidden from all
 three application administrators, preventing their first role assignment, and
 authorized correcting visibility without removing the agreed Drona boundaries.
+On 2026-10-07 the owner confirmed that the administrator could see users and
+assign projects. This confirmation does not establish which production setup
+step resolved the issue or authorize organization-wide discovery.
 
 **How to apply:** Do not solve onboarding by granting every user a platform
 role, automatically approving applications, or making Drona Super Admin sessions
