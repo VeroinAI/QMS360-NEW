@@ -72,6 +72,19 @@ administrators scoped, enforce same-organization active project validation, and
 retain separate approvals. QMS role assignment must not create source membership
 or broaden operational forms, records, delegations or access-review queues.
 
+Fresh production organizations may have no application roles or permission
+catalogue entries. Super Admin must be able to create the first role from
+Roles & Permissions without personal Drona project membership or demo seeding.
+
+**Why:** On 2026-10-07 the owner confirmed production had just gone live with
+no roles and explicitly requested first-role creation. Role-definition
+administration is a separate organization-level action, not project operation.
+
+**How to apply:** Keep creation available in the empty role-list state and
+create selected permission definitions on demand. Permit Super Admin role
+definitions without relaxing other organization-wide QA/QC settings, ordinary
+administrator scopes, application approvals or operational Drona boundaries.
+
 The user requested Project Master in Integration Cockpit as a display of
 projects already transferred to QMS360, reusing existing records rather than a
 parallel master table.

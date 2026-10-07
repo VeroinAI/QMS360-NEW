@@ -59,7 +59,10 @@ export async function qaqcAdminTask(req: Request, res: Response, next: NextFunct
       || path.startsWith("/ai-settings") && req.method !== "GET"
       || path.startsWith("/notification-templates") && req.method !== "GET"
       || path.startsWith("/escalation-rules") && req.method !== "GET";
-    if (organizationWide && !req.permissionAdminBypass && !req.permissionProjectScope?.unrestricted) {
+    // Platform Super Admin may define organization roles without personal
+    // Drona membership. Other organization-wide settings retain their scope.
+    const superAdminRoleDefinition = path.startsWith("/roles") && req.currentUser?.platformRole === "Super Admin";
+    if (organizationWide && !superAdminRoleDefinition && !req.permissionAdminBypass && !req.permissionProjectScope?.unrestricted) {
       res.status(403).json({ error: "Organization-wide configuration requires an organization-wide role assignment" }); return;
     }
     next();

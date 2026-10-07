@@ -19,6 +19,8 @@ import {
   workspaceRoles, userWorkspaceRoles, auditLogEntries,
   lessonsWorkspaceRoles, lessonsUserWorkspaceRoles, lessonsAuditLogEntries,
   auditWorkspaceRoles, auditUserWorkspaceRoles, auditAuditLogEntries,
+  permissions, workspaceRolePermissions, lessonsPermissions, lessonsWorkspaceRolePermissions,
+  auditPermissions, auditWorkspaceRolePermissions,
 } from "@workspace/db";
 import { issueToken } from "../src/lib/auth";
 import { canManageAssignmentScope, isSuperAdminRoleAdministration } from "../src/middlewares/rbac";
@@ -29,13 +31,13 @@ import auditRouter from "../src/routes/audit";
 
 const org = randomUUID(), foreignOrg = randomUUID();
 let server: Server, base: string;
-let superToken: string, orgToken: string, employeeToken: string;
+let superToken: string, orgToken: string, employeeToken: string, bootstrapToken: string;
 let targetId: string, foreignUser: string, firstProject: string, secondProject: string, foreignProject: string;
 const roleIds: Record<string, string> = {};
 const apps = [
-  { name: "qaqc", roles: workspaceRoles, assignments: userWorkspaceRoles, logs: auditLogEntries },
-  { name: "lessons", roles: lessonsWorkspaceRoles, assignments: lessonsUserWorkspaceRoles, logs: lessonsAuditLogEntries },
-  { name: "audit", roles: auditWorkspaceRoles, assignments: auditUserWorkspaceRoles, logs: auditAuditLogEntries },
+  { name: "qaqc", roles: workspaceRoles, assignments: userWorkspaceRoles, logs: auditLogEntries, permissions, grants: workspaceRolePermissions },
+  { name: "lessons", roles: lessonsWorkspaceRoles, assignments: lessonsUserWorkspaceRoles, logs: lessonsAuditLogEntries, permissions: lessonsPermissions, grants: lessonsWorkspaceRolePermissions },
+  { name: "audit", roles: auditWorkspaceRoles, assignments: auditUserWorkspaceRoles, logs: auditAuditLogEntries, permissions: auditPermissions, grants: auditWorkspaceRolePermissions },
 ] as const;
 async function request(method: string, path: string, token = superToken, body?: unknown, project?: string) {
   const response = await fetch(`${base}${path}`, {
@@ -57,15 +59,17 @@ beforeAll(async () => {
     { organizationId: org, name: "Super Admin" },
     { organizationId: org, name: "Org Admin" },
     { organizationId: org, name: "Employee" },
+    { organizationId: foreignOrg, name: "Super Admin" },
   ]).returning();
   const people = await db.insert(users).values([
     { organizationId: org, username: `super-${org}`, email: `super-${org}@example.test`, fullName: "Synthetic Super", platformRoleId: roles[0]!.id },
     { organizationId: org, username: `org-${org}`, email: `org-${org}@example.test`, fullName: "Synthetic Org", platformRoleId: roles[1]!.id },
     { organizationId: org, username: `target-${org}`, email: `target-${org}@example.test`, fullName: "Synthetic Employee" },
-    { organizationId: foreignOrg, username: `foreign-${org}`, email: `foreign-${org}@example.test`, fullName: "Foreign Employee" },
+    { organizationId: foreignOrg, username: `foreign-${org}`, email: `foreign-${org}@example.test`, fullName: "Foreign Administrator", platformRoleId: roles[3]!.id },
   ]).returning();
   superToken = issueToken(people[0]!); orgToken = issueToken(people[1]!);
   employeeToken = issueToken(people[2]!); targetId = people[2]!.id; foreignUser = people[3]!.id;
+  bootstrapToken = issueToken(people[3]!);
   const records = await db.insert(projects).values([
     { organizationId: org, name: "First active", code: `A-${org}` },
     { organizationId: org, name: "Second active", code: `B-${org}` },
@@ -93,20 +97,47 @@ beforeAll(async () => {
 afterAll(async () => {
   if (server) await new Promise<void>(resolve => server.close(() => resolve()));
   for (const app of apps) {
-    await db.delete(app.logs).where(eq(app.logs.organizationId, org));
-    await db.delete(app.assignments).where(eq(app.assignments.organizationId, org));
-    await db.delete(app.roles).where(eq(app.roles.organizationId, org));
+    await db.delete(app.logs).where(inArray(app.logs.organizationId, [org, foreignOrg]));
+    await db.delete(app.assignments).where(inArray(app.assignments.organizationId, [org, foreignOrg]));
+    await db.delete(app.grants).where(inArray(app.grants.organizationId, [org, foreignOrg]));
+    await db.delete(app.roles).where(inArray(app.roles.organizationId, [org, foreignOrg]));
+    await db.delete(app.permissions).where(inArray(app.permissions.organizationId, [org, foreignOrg]));
   }
   await db.delete(outboundEmails).where(eq(outboundEmails.organizationId, org));
   await db.delete(applicationAccess).where(eq(applicationAccess.organizationId, org));
   await db.delete(users).where(inArray(users.organizationId, [org, foreignOrg]));
   await db.delete(projects).where(inArray(projects.organizationId, [org, foreignOrg]));
-  await db.delete(platformRoles).where(eq(platformRoles.organizationId, org));
+  await db.delete(platformRoles).where(inArray(platformRoles.organizationId, [org, foreignOrg]));
   await db.delete(organizations).where(inArray(organizations.id, [org, foreignOrg]));
   vi.unstubAllEnvs();
 });
 
 describe("Super Admin role-administration-only project exception", () => {
+  it.each(apps)("creates the first role and permissions in an unseeded $name organization without Drona membership", async app => {
+    const path = `/${app.name}/admin/roles`;
+    expect((await request("GET", path, bootstrapToken)).data.items).toEqual([]);
+    const created = await request("POST", path, bootstrapToken, {
+      id: randomUUID(), name: "First custom role", description: "Fresh organization", active: true,
+      permissions: [{ key: "view_all", name: "View all" }, { key: "create_edit", name: "Create / edit" }],
+    });
+    expect(created.status, JSON.stringify(created.data)).toBe(201);
+    const loaded = await request("GET", path, bootstrapToken);
+    expect(loaded.data.total).toBe(1);
+    expect(loaded.data.items[0].name).toBe("First custom role");
+    expect(loaded.data.items[0].permissions.map((p: { key: string }) => p.key).sort()).toEqual(["create_edit", "view_all"]);
+    const updated = await request("PUT", `${path}/${loaded.data.items[0].id}`, bootstrapToken, {
+      ...loaded.data.items[0], name: "First custom role updated",
+    });
+    expect(updated.status, JSON.stringify(updated.data)).toBe(200);
+    expect((await request("GET", path, bootstrapToken)).data.items[0].name).toBe("First custom role updated");
+    expect((await request("GET", path)).data.items.some((r: { name: string }) => r.name === "First custom role updated")).toBe(false);
+  });
+  it("retains QA/QC project-scope restrictions for other administrators and unrelated configuration", async () => {
+    expect((await request("POST", "/qaqc/admin/roles", orgToken, {
+      id: randomUUID(), name: "Not permitted", active: true, description: "", permissions: [],
+    })).status).toBe(403);
+    expect((await request("PUT", "/qaqc/admin/escalation-rules", superToken, {})).status).toBe(403);
+  });
   it.each(apps)("lists all active organization projects for $name without personal membership", async app => {
     const result = await request("GET", `/platform/role-assignment-projects?application=${app.name}`);
     expect(result.status).toBe(200);
