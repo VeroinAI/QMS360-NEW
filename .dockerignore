@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+**/dist
+.git
+attached_assets
+screenshots
+*.mp4
+.agents
+canvas
+delivery
+e2e
