@@ -26,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 
 import { EmailRulesTab } from './email-rules-tab';
 import { EmailQueueTab } from './email-queue-tab';
+import { ProjectMasterTab } from './project-master-tab';
 
 const icons = { platform: CloudCog, email: Mail, ai: Bot, oracle_adw: Database, bi: FileSpreadsheet, source_api: PlugZap } as Record<string, typeof CloudCog>;
 const labels = { platform: 'Platform sync', email: 'Email SMTP', ai: 'AI provider', oracle_adw: 'Oracle ADW', bi: 'BI / Excel export', source_api: 'Source system API' } as Record<string, string>;
@@ -448,6 +449,7 @@ export function CockpitPage() {
           <TabsTrigger value="email">Email rules</TabsTrigger>
           {currentUser.data?.platformRole === 'Super Admin' && <TabsTrigger value="email-queue">Email queue</TabsTrigger>}
           <TabsTrigger value="import">Data import</TabsTrigger>
+          <TabsTrigger value="project-master">Project master</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -477,6 +479,7 @@ export function CockpitPage() {
         {currentUser.data?.platformRole === 'Super Admin' && <TabsContent value="email-queue"><EmailQueueTab /></TabsContent>}
 
         <TabsContent value="import"><ImportTab /></TabsContent>
+        <TabsContent value="project-master"><ProjectMasterTab /></TabsContent>
 
         <TabsContent value="activity">
           <Card><CardHeader><CardTitle>Sync activity</CardTitle><CardDescription>Recent pulls, imports and deliveries with retry controls.</CardDescription></CardHeader><CardContent>{jobs.data?.items.length ? <><Table><TableHeader><TableRow><TableHead>Source</TableHead><TableHead>Started</TableHead><TableHead>Duration</TableHead><TableHead>Records</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{jobs.data.items.map(job => <TableRow key={job.id}><TableCell>{connectorName(job.connectorId)}</TableCell><TableCell>{new Date(job.startedAt).toLocaleString()}</TableCell><TableCell>{job.durationMs != null ? `${Math.round(job.durationMs / 1000)}s` : '—'}</TableCell><TableCell>{job.sourceCount ?? 0} → {job.targetCount ?? 0}</TableCell><TableCell><Status value={job.status} />{job.error && <p className="mt-1 max-w-xs text-xs text-destructive">{job.error}</p>}</TableCell><TableCell>{job.status === 'failed' && <Button size="sm" variant="outline" disabled={retry.isPending} onClick={() => retry.mutate({ id: job.id }, { onSuccess: (job2) => refresh(job2.status === 'succeeded' ? 'Email resent successfully' : 'Retry attempted — delivery still failing'), onError: fail })}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button>}</TableCell></TableRow>)}</TableBody></Table><div className="mt-4 flex items-center justify-between"><p className="text-sm text-muted-foreground">Page {page} of {Math.max(1, Math.ceil((jobs.data.total ?? 0) / 10))}</p><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(v => v - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page * 10 >= (jobs.data.total ?? 0)} onClick={() => setPage(v => v + 1)}>Next</Button></div></div></> : <p className="py-10 text-center text-sm text-muted-foreground">No sync jobs have run yet.</p>}</CardContent></Card>

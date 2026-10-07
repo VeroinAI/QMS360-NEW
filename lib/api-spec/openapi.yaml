@@ -239,6 +239,33 @@ paths:
       parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
       responses:
         "200": {$ref: "#/components/responses/BusinessUnitPage"}
+  /integrations/project-master:
+    get:
+      operationId: listDronaProjectMaster
+      tags: [integrations]
+      summary: Read transferred Drona projects within existing administrator project scope
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: "#/components/parameters/Page"}
+        - {$ref: "#/components/parameters/Limit"}
+        - name: search
+          in: query
+          schema: {type: string, maxLength: 120}
+      responses:
+        "200":
+          description: Saved QMS project records and existing Drona link details
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, page, limit, linkMetadataAvailable]
+                properties:
+                  items: {type: array, items: {$ref: "#/components/schemas/DronaProjectMasterRecord"}}
+                  total: {type: number}
+                  page: {type: number}
+                  limit: {type: number}
+                  linkMetadataAvailable: {type: boolean}
+        "403": {description: Administrator access required}
   /platform/application-access:
     get:
       operationId: getApplicationAccess
@@ -2472,6 +2499,29 @@ components:
       properties:
         userId: {type: string}
         email: {type: string}
+    DronaProjectMasterRecord:
+      type: object
+      required: [id, code, name, businessUnit, location, status, recordSource, externalId, createdAt, updatedAt, dronaLinks]
+      properties:
+        id: {type: string}
+        code: {type: string}
+        name: {type: string}
+        businessUnit: {type: ["string", "null"]}
+        location: {type: ["string", "null"]}
+        status: {type: string}
+        recordSource: {type: string}
+        externalId: {type: ["string", "null"]}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        dronaLinks:
+          type: array
+          items:
+            type: object
+            required: [externalProjectId, environment, linkedAt]
+            properties:
+              externalProjectId: {type: string}
+              environment: {type: string}
+              linkedAt: {type: string, format: date-time}
     Project:
       type: object
       required: [id, code, name, businessUnit, status]

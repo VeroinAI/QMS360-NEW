@@ -40,3 +40,15 @@ link. Interpreting that as approval would expand authorization unexpectedly.
 **How to apply:** Keep automatic setup separate from QMS application approvals,
 workspace roles and administrator eligibility. Do not use Drona role labels or
 link-review metadata to grant privileges.
+
+The user requested Project Master in Integration Cockpit as a display of
+projects already transferred to QMS360, reusing existing records rather than a
+parallel master table.
+
+**Why:** Drona remains the project-master owner, and the user explicitly asked
+not to create tables or disturb other development for this view.
+
+**How to apply:** Keep the register read-only and within existing Cockpit
+administrator/project scope. Display saved QMS data and known links honestly;
+do not describe record-update timestamps as source-sync timestamps or turn
+opening the view into a new import, migration or master-maintenance process.

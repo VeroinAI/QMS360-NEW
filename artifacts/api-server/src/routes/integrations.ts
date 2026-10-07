@@ -19,8 +19,10 @@ import {
 } from "../lib/source-sync";
 import { paginated, pagination } from "../lib/workspace";
 import { requireAdmin, requireAuth, requirePlatformRole } from "../middlewares/auth";
+import projectMasterRouter from "./project-master";
 
 const router: IRouter = Router();
+router.use(projectMasterRouter);
 const families = new Set(["platform", "email", "ai", "oracle_adw", "bi", "source_api"]);
 const statuses = new Set(["Connected", "Degraded", "Failed", "Disabled"]);
 const superAdmin = requirePlatformRole("Super Admin");

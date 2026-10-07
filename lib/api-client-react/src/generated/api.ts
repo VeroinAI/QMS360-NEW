@@ -203,6 +203,8 @@ import type {
   ListCorrectiveActionReportsParams,
   ListCustomerSatisfactionEntriesParams,
   ListDocumentGovernanceLogParams,
+  ListDronaProjectMaster200,
+  ListDronaProjectMasterParams,
   ListFeedbackEntriesParams,
   ListImportTemplatesParams,
   ListIntegrationConnectorsParams,
@@ -1349,6 +1351,90 @@ export function useListBusinessUnits<TData = Awaited<ReturnType<typeof listBusin
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListBusinessUnitsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListDronaProjectMasterUrl = (params?: ListDronaProjectMasterParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/integrations/project-master?${stringifiedParams}` : `/api/integrations/project-master`
+}
+
+/**
+ * @summary Read transferred Drona projects within existing administrator project scope
+ */
+export const listDronaProjectMaster = async (params?: ListDronaProjectMasterParams, options?: Parameters<typeof customFetch>[1]): Promise<ListDronaProjectMaster200> => {
+
+  return customFetch<ListDronaProjectMaster200>(getListDronaProjectMasterUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDronaProjectMasterQueryKey = (params?: ListDronaProjectMasterParams,) => {
+    return [
+    `/api/integrations/project-master`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListDronaProjectMasterQueryOptions = <TData = Awaited<ReturnType<typeof listDronaProjectMaster>>, TError = ErrorType<void>>(params?: ListDronaProjectMasterParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDronaProjectMaster>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDronaProjectMasterQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDronaProjectMaster>>> = ({ signal }) => listDronaProjectMaster(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDronaProjectMaster>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDronaProjectMasterQueryResult = NonNullable<Awaited<ReturnType<typeof listDronaProjectMaster>>>
+export type ListDronaProjectMasterQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read transferred Drona projects within existing administrator project scope
+ */
+
+export function useListDronaProjectMaster<TData = Awaited<ReturnType<typeof listDronaProjectMaster>>, TError = ErrorType<void>>(
+ params?: ListDronaProjectMasterParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDronaProjectMaster>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDronaProjectMasterQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -310,6 +310,49 @@ export const ListBusinessUnitsResponse = zod.object({
 
 
 /**
+ * @summary Read transferred Drona projects within existing administrator project scope
+ */
+export const listDronaProjectMasterQueryPageDefault = 1;
+
+export const listDronaProjectMasterQueryLimitDefault = 20;
+export const listDronaProjectMasterQueryLimitMax = 200;
+
+export const listDronaProjectMasterQuerySearchMax = 120;
+
+
+
+export const ListDronaProjectMasterQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listDronaProjectMasterQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listDronaProjectMasterQueryLimitMax).default(listDronaProjectMasterQueryLimitDefault),
+  "search": zod.coerce.string().max(listDronaProjectMasterQuerySearchMax).optional()
+})
+
+export const ListDronaProjectMasterResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "businessUnit": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "status": zod.string(),
+  "recordSource": zod.string(),
+  "externalId": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "dronaLinks": zod.array(zod.object({
+  "externalProjectId": zod.string(),
+  "environment": zod.string(),
+  "linkedAt": zod.coerce.date()
+}))
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number(),
+  "linkMetadataAvailable": zod.boolean()
+})
+
+
+/**
  * @summary Get current user's application access flags
  */
 export const GetApplicationAccessResponse = zod.object({

@@ -767,6 +767,29 @@ export interface UserEmailUpdateResult {
   email: string;
 }
 
+export type DronaProjectMasterRecordDronaLinksItem = {
+  externalProjectId: string;
+  environment: string;
+  linkedAt: string;
+};
+
+export interface DronaProjectMasterRecord {
+  id: string;
+  code: string;
+  name: string;
+  /** @nullable */
+  businessUnit: string | null;
+  /** @nullable */
+  location: string | null;
+  status: string;
+  recordSource: string;
+  /** @nullable */
+  externalId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  dronaLinks: DronaProjectMasterRecordDronaLinksItem[];
+}
+
 export interface Project {
   id: string;
   code: string;
@@ -4021,6 +4044,30 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+};
+
+export type ListDronaProjectMasterParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
+/**
+ * @maxLength 120
+ */
+search?: string;
+};
+
+export type ListDronaProjectMaster200 = {
+  items: DronaProjectMasterRecord[];
+  total: number;
+  page: number;
+  limit: number;
+  linkMetadataAvailable: boolean;
 };
 
 export type GetPlatformReferenceDataParams = {
