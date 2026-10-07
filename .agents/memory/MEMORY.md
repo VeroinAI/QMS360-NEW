@@ -2,6 +2,7 @@
 
 - [Drizzle multi-schema migration quirks](drizzle-multischema-quirks.md) — drizzle-kit's state is meta/*_snapshot.json, not the .sql files; hand-written migrations silently desync the diff engine.
 - [PostgreSQL catalog comparison](pg-catalog-comparison.md) — identifier arrays, composite-key column identity and index ordering need explicit interpretation.
+- [JSONB merge precedence](jsonb-merge-precedence.md) — parenthesize extracted operands in concatenations; test preservation of destination-only metadata.
 - [Drizzle insert compatibility](drizzle-insert-compatibility.md) — omitted values may still emit DEFAULT columns; check INSERT SQL when supporting an older production schema.
 - [Drizzle correlated selections](drizzle-correlated-selection-scoping.md) — selected scalar SQL can lose outer-column qualifiers; test correlations against real legacy rows.
 - [Drizzle SQL array binding](drizzle-sql-array-binding.md) — interpolated arrays can become SQL tuples; bind scoped UUID lists explicitly and make empty scope deny all.

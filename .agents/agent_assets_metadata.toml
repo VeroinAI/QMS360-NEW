@@ -64,3 +64,17 @@ mtime_ms = 1791114548960
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/813eb2bb-885c-4c3a-b754-8982c921f5fb/6efad46f-7e2b-4ceb-8f33-d4cfc115873f"
 storage_version_token = "1791114594680267"
 content_type = "text/plain"
+
+[[outputs]]
+id = "bKBYS5eiWGbK62G3kzfo0"
+uri = "file://.local/exports/algihaz-qms360-master-data-2026-10-07.zip"
+type = "unspecified"
+title = "Algihaz QMS360 Master Data Transfer"
+description = "Private transfer package: 21 master groups, 98 values, JSON/CSV inventories, dry-run-first AWS PostgreSQL import and database-team instructions. No users, permissions or operational records included."
+logical_id = "c8289c2a-82ff-46d7-b29a-26c40847cf5a"
+content_hash = "sha256:b2555f19a546ce6e55a017d767d5ee6ff349dc7714838aaf6296c2fe973bdefa"
+size = 26316
+mtime_ms = 1791377445198
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/c8289c2a-82ff-46d7-b29a-26c40847cf5a/7abd39c5-e7ab-47cb-830c-6bcd62f33d84"
+storage_version_token = "1791377466425094"
+content_type = "application/octet-stream"
