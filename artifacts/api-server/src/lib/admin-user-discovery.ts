@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { canManageAssignmentScope } from "../middlewares/rbac";
+import { canManageAssignmentScope, isSuperAdminRoleAdministration } from "../middlewares/rbac";
 
 type Assignment = {
   userId: string;
@@ -14,6 +14,7 @@ type Assignment = {
 export async function visibleAdminUsers<T extends { id: string }>(
   req: Request, users: T[], assignments: Assignment[],
 ): Promise<T[]> {
+  if (isSuperAdminRoleAdministration(req)) return users;
   if (req.permissionAdminBypass && req.dronaProjectIds === undefined) return users;
   const manageableProjects = (req.dronaProjectIds ?? [])
     .filter(id => canManageAssignmentScope(req, [id]));

@@ -107,7 +107,13 @@ function projectScopeFromRows(rows: any[]): EffectiveProjectScope {
     : { unrestricted: false, projectIds: [...new Set(rows.flatMap((row) => row.projectIds ?? []))] as string[] };
 }
 
+export function isSuperAdminRoleAdministration(req: Request): boolean {
+  return req.currentUser?.platformRole === "Super Admin"
+    && /\/admin\/users(?:\/[^/]+\/roles(?:\/[^/]+)?)?\/?$/.test(`${req.baseUrl}${req.path}`);
+}
+
 export function canManageAssignmentScope(req: Request, projectIds: string[] | null | undefined, businessUnitIds?: string[] | null): boolean {
+  if (isSuperAdminRoleAdministration(req)) return true;
   if (req.dronaProjectIds !== undefined && (businessUnitIds?.length || !projectIds?.length
     || projectIds.some(id => !req.dronaProjectIds!.includes(id)))) return false;
   if (req.permissionAdminBypass) return true;
@@ -177,6 +183,17 @@ export async function getAppAdminScope(req: Request, appKey: AppKey): Promise<Ef
       isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt),
       eq(t.roles.status, "active"), sql`${t.roles.name} ~* ${"\\m(admin|administrator)\\M"}`));
   return rows.length ? restrictScope(req, appKey, projectScopeFromRows(rows)) : null;
+}
+
+/** Separate project catalogue for Assign Role; never use for operational access. */
+export async function getRoleAssignmentProjectScope(req: Request, appKey: AppKey): Promise<EffectiveProjectScope | null> {
+  if (req.currentUser?.platformRole === "Super Admin") return { unrestricted: true, projectIds: [] };
+  if (!req.currentUser) return null;
+  if (appKey === "qaqc" && !platformAdmins.has(req.currentUser.platformRole)) {
+    const rows = await matchingPermissionRows(req, appKey, { module: "administration", action: "full", operation: "manage_roles" });
+    return rows.length ? restrictScope(req, appKey, projectScopeFromRows(rows)) : null;
+  }
+  return getAppAdminScope(req, appKey);
 }
 
 async function matchingPermissionRows(req: Request, appKey: AppKey, target: PermissionTarget) {

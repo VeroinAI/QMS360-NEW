@@ -403,6 +403,8 @@ export * from './listQaqcTargetsParams';
 export * from './listQaqcUsersParams';
 export * from './listQtbtEntriesParams';
 export * from './listQualityBriefsParams';
+export * from './listRoleAssignmentProjects200Item';
+export * from './listRoleAssignmentProjectsParams';
 export * from './listSyncJobsParams';
 export * from './loginInput';
 export * from './masterDataGroup';

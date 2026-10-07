@@ -1,3 +1,4 @@
+import { getListRoleAssignmentProjectsQueryKey, useListRoleAssignmentProjects } from "@workspace/api-client-react";
 import { responseFieldLabel } from "@/lib/response-field-labels";
 import { useQueryClient } from '@tanstack/react-query';
 import { matchesWorkspaceUserSearch } from './workspace-user-search';
@@ -179,7 +180,6 @@ function ApproverScopes() {
 function UsersAccess({ app }: { app: AppKey }) {
   const [accessPage, setAccessPage] = useState(1);
   const api = useAdmin(app, 1, undefined, accessPage); const act = useActions(app); const [search, setSearch] = useState('');
-  const platform = useGetPlatformContext();
   const [roleDialog, setRoleDialog] = useState<{ userId: string; editing?: Role }>();
   const [roleId, setRoleId] = useState(''); const [scopeType, setScopeType] = useState<'organization' | 'project'>('organization');
   const [scopeIds, setScopeIds] = useState<string[]>([]); const [projectSearch, setProjectSearch] = useState('');
@@ -192,6 +192,10 @@ function UsersAccess({ app }: { app: AppKey }) {
   const currentUser = useGetCurrentUser();
   const cap = useQaqcCapabilities(app === 'qaqc');
   const cR = app !== 'qaqc' || cap.canTask('manage_roles'); const cA = app !== 'qaqc' || cap.canTask('manage_access'); const cD = app !== 'qaqc' || cap.canTask('delegate');
+  const assignmentProjects = useListRoleAssignmentProjects({ application: app }, { query: {
+    enabled: cR, queryKey: getListRoleAssignmentProjectsQueryKey({ application: app }),
+  } });
+  const platform = { data: { projects: assignmentProjects.data ?? [] } };
   const canManagePlatformRoles = ['Super Admin', 'Org Admin'].includes(currentUser.data?.platformRole ?? '');
   const platformRoles = useListPlatformRoles({ query: { queryKey: getListPlatformRolesQueryKey(), enabled: canManagePlatformRoles } });
   const updatePlatformRole = useUpdateUserPlatformRole();
@@ -262,7 +266,7 @@ function UsersAccess({ app }: { app: AppKey }) {
     { query: { enabled: app === 'lessons' && delegateOpen && !!delegation.projectId && !!delegation.delegatorId, queryKey: getListLessonsDelegationPendingFormsQueryKey(pendingFormParams) } },
   );
   const users = api.users.data?.items.filter(u => matchesWorkspaceUserSearch(u, search)) ?? [];
-  const projects = platform.data?.projects.filter(p => `${p.name} ${p.code}`.toLowerCase().includes(projectSearch.toLowerCase())) ?? [];
+  const projects = assignmentProjects.data?.filter(p => `${p.name} ${p.code}`.toLowerCase().includes(projectSearch.toLowerCase())) ?? [];
   const resetRoleDialog = () => { setRoleDialog(undefined); setRoleId(''); setScopeType('organization'); setScopeIds([]); setProjectSearch(''); };
   const openRoleDialog = (userId: string, editing?: Role) => {
     setRoleDialog({ userId, editing }); setRoleId(editing?.id ?? '');
@@ -302,9 +306,9 @@ function UsersAccess({ app }: { app: AppKey }) {
   const displayedLessonIds = pendingForms.data?.map((form) => form.id) ?? [];
   const allLessonsSelected = displayedLessonIds.length > 0 && displayedLessonIds.every((id) => delegation.lessonFormIds.includes(id));
   const pending = api.access.data?.items.filter(r => r.status === 'pending') ?? [];
-  const loading = api.users.isLoading || api.roles.isLoading || api.access.isLoading || api.delegations.isLoading || currentUser.isLoading || (canManagePlatformRoles && platformRoles.isLoading);
-  const error = (cR || app !== 'qaqc' ? api.users.error || api.roles.error : null) || (cA ? api.access.error : null) || (cD ? api.delegations.error : null) || currentUser.error || (canManagePlatformRoles ? platformRoles.error : null);
-  return <PageState loading={loading} error={error} onRetry={() => { api.users.refetch(); api.roles.refetch(); api.access.refetch(); api.delegations.refetch(); }}>
+  const loading = api.users.isLoading || api.roles.isLoading || api.access.isLoading || api.delegations.isLoading || currentUser.isLoading || assignmentProjects.isLoading || (canManagePlatformRoles && platformRoles.isLoading);
+  const error = (cR || app !== 'qaqc' ? api.users.error || api.roles.error : null) || (cA ? api.access.error : null) || (cD ? api.delegations.error : null) || currentUser.error || assignmentProjects.error || (canManagePlatformRoles ? platformRoles.error : null);
+  return <PageState loading={loading} error={error} onRetry={() => { api.users.refetch(); api.roles.refetch(); api.access.refetch(); api.delegations.refetch(); assignmentProjects.refetch(); }}>
     {!cR && cD && <div className="mb-5"><Button onClick={() => setDelegateOpen(true)}><Plus className="mr-2 h-4 w-4" />Delegate access</Button></div>}
     {cR && <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle>Workspace users</CardTitle><CardDescription>Assign application roles and review access.</CardDescription></div>{cD && <Button onClick={() => setDelegateOpen(true)}><Plus className="mr-2 h-4 w-4" />Delegation</Button>}</CardHeader><CardContent><div className="relative mb-4 max-w-sm"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={search} onChange={e => setSearch(e.target.value)} className="pl-9" placeholder="Search user, email or workspace role" aria-label="Search user, email or workspace role" /></div>
       <Table><TableHeader><TableRow><TableHead>User</TableHead><TableHead>Platform role</TableHead><TableHead>Workspace roles</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{users.map(u => <TableRow key={u.id}><TableCell><p className="font-medium">{u.fullName}</p><p className="text-xs text-muted-foreground">{u.email}</p></TableCell><TableCell>{canManagePlatformRoles ? <Select value={platformRoles.data?.find(r => r.name === u.platformRole)?.id ?? ''} disabled={updatePlatformRole.isPending || u.id === currentUser.data?.id} onValueChange={roleId => changePlatformRole(u.id, roleId)}><SelectTrigger className="min-w-44" aria-label={`Platform role for ${u.fullName}`}><SelectValue placeholder={u.platformRole} /></SelectTrigger><SelectContent>{platformRoles.data?.map(role => <SelectItem key={role.id} value={role.id} disabled={role.name === 'Super Admin' && currentUser.data?.platformRole !== 'Super Admin'}>{role.name}</SelectItem>)}</SelectContent></Select> : <Badge variant="outline">{u.platformRole}</Badge>}</TableCell><TableCell><div className="flex flex-col items-start gap-2">{u.workspaceRoles.map(r => { const selectedNames = (r.scopeIds ?? []).map(id => platform.data?.projects.find(p => p.id === id)?.name ?? id); return <div key={r.id} className="flex flex-wrap items-center gap-2"><div><Badge variant="secondary">{r.name}</Badge><p className="text-xs text-muted-foreground">{r.scopeType === 'project' ? `Selected projects: ${selectedNames.join(', ') || 'None'}` : 'Organization-wide'}</p></div><Button type="button" size="sm" variant="outline" onClick={() => openRoleDialog(u.id, r)}>Edit scope</Button><Button type="button" size="sm" variant="outline" className="h-7 border-destructive/50 px-2 text-xs text-destructive hover:bg-destructive hover:text-destructive-foreground" disabled={act.removeRole.isPending} onClick={() => removeRole(u.id, r)}><Trash2 className="mr-1 h-3.5 w-3.5" />Remove role</Button></div>; })}{!u.workspaceRoles.length && <span className="text-sm text-muted-foreground">No role assigned</span>}</div></TableCell><TableCell><Badge variant={u.status === 'Active' ? 'default' : 'secondary'}>{u.status}</Badge></TableCell><TableCell className="space-x-2"><Button size="sm" variant="outline" onClick={() => openRoleDialog(u.id)}>Assign role</Button><Button size="sm" variant="outline" onClick={() => openEmail(u)}>Edit email</Button><Button size="sm" variant="outline" onClick={() => openPassword(u)}><KeyRound className="mr-1 h-4 w-4" />Set password</Button>{(app === 'lessons' || app === 'audit') && <Button size="sm" variant="ghost" onClick={() => openProfile(u)}>Edit profile</Button>}</TableCell></TableRow>)}</TableBody></Table>

@@ -4087,6 +4087,16 @@ export type ListDronaProjectMaster200 = {
   linkMetadataAvailable: boolean;
 };
 
+export type ListRoleAssignmentProjectsParams = {
+application: AppKey;
+};
+
+export type ListRoleAssignmentProjects200Item = {
+  id: string;
+  code: string;
+  name: string;
+};
+
 export type GetPlatformReferenceDataParams = {
 since?: SinceParameter;
 };

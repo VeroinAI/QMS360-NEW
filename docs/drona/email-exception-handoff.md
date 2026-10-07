@@ -51,6 +51,13 @@ The Replit DEV/QA environment remains separate from the shared Drona AWS target.
    project scope. Even global QMS grants cannot expand this project set.
    Removed project links remain excluded. `enable_quality` and Drona role names grant
   no QMS privileges.
+- Super Admin alone has an organization-wide role-administration exception:
+  the Assign Role project catalogue and application user-list/role endpoints
+  do not require the administrator's personal Drona project membership.
+  Projects must already exist as active, non-deleted QMS records in that
+  organization. This does not import all public projects, write source
+  membership, approve applications, or widen operational project access.
+  Org Admin and application administrators retain their existing scope.
 - Department-only Internal Process Audits retain their existing QMS approval
   and capability rules even when no Drona project is assigned. Only descendants
   of a confirmed Process schedule receive this projectless exception.

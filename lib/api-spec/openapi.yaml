@@ -292,6 +292,33 @@ paths:
         "401": {description: Authentication required}
         "403": {description: Administrator access required}
         "404": {description: Project not available within current project access}
+  /platform/role-assignment-projects:
+    get:
+      operationId: listRoleAssignmentProjects
+      tags: [platform]
+      summary: List active projects available for application role administration
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: application
+          in: query
+          required: true
+          schema: {$ref: "#/components/schemas/AppKey"}
+      responses:
+        "200":
+          description: Super Admin sees organization projects; other administrators retain their scope
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, code, name]
+                  properties:
+                    id: {type: string}
+                    code: {type: string}
+                    name: {type: string}
+        "403": {description: Application administrator access required}
+        "422": {description: Invalid application}
   /platform/application-access:
     get:
       operationId: getApplicationAccess

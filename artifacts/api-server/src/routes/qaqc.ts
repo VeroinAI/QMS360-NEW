@@ -15,7 +15,7 @@ import {
 } from "../lib/workspace";
 import { allocateReferenceNumber } from "../lib/numbering";
 import { requireAuth } from "../middlewares/auth";
-import { assertCanManageAssignmentScope, assertProjectAccess, canManageAssignmentScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
+import { assertCanManageAssignmentScope, assertProjectAccess, canManageAssignmentScope, getAuthorizedProjectScope, isSuperAdminRoleAdministration, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
 import { assertProjectInOrg, assertProjectScopeInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess, filterReadOnlyValues, readOnlyFields } from "../lib/field-access";
@@ -845,7 +845,14 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   await audit(req, "assign_role", "user_workspace_role", row.id, existing, row); res.json(row);
 }));
 router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) => {
-  const user: any = await activeRow(req, users, String(req.params.userId));
+  // Role administration is organization-scoped for Super Admin; a user's
+  // legacy project_id must not reapply operational Drona restrictions here.
+  const user: any = isSuperAdminRoleAdministration(req)
+    ? (await db.select().from(users).where(and(
+      eq(users.id, String(req.params.userId)), eq(users.organizationId, org(req)), isNull(users.deletedAt),
+    )).limit(1))[0]
+    : await activeRow(req, users, String(req.params.userId));
+  if (!user) throw new HttpError(404, "User not found");
   const [assignment] = await db.select().from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.organizationId, org(req)), eq(userWorkspaceRoles.userId, user.id), eq(userWorkspaceRoles.workspaceRoleId, String(req.params.id)), isNull(userWorkspaceRoles.deletedAt))).limit(1);
   if (!assignment) throw new HttpError(404, "Role assignment not found");
   assertCanManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds);

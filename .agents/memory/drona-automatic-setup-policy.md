@@ -42,8 +42,9 @@ workspace roles and administrator eligibility. Do not use Drona role labels or
 link-review metadata to grant privileges.
 
 First-role administrator discovery must not depend on the user already holding
-an application role. Keep discovery separate from authorization and limited to
-live, shared, manageable Drona project membership.
+an application role. Keep discovery separate from authorization. Ordinary
+application administrators remain limited to live, shared, manageable Drona
+project membership; Super Admin has the role-administration exception below.
 
 **Why:** The owner reported that provisioned Employees were hidden from all
 three application administrators, preventing their first role assignment, and
@@ -54,8 +55,22 @@ step resolved the issue or authorize organization-wide discovery.
 
 **How to apply:** Do not solve onboarding by granting every user a platform
 role, automatically approving applications, or making Drona Super Admin sessions
-unrestricted. Users with no shared manageable project still require a legitimate
-source assignment or a separately reviewed change to the access policy.
+operationally unrestricted. Outside the Super Admin role-administration exception,
+users with no shared manageable project require legitimate source assignments.
+
+Super Admin may administer application roles across their QMS organization,
+without personal Drona project membership; operational access stays capped.
+
+**Why:** On 2026-10-07 the owner explicitly authorized Super Admin to see
+organization projects and assign them to others without being personally
+assigned. This supersedes the earlier role-administration scope restriction,
+not Drona source ownership or ordinary-user authorization.
+
+**How to apply:** Limit the exception to role project selection and application
+user-list/role create, edit and removal. Keep Org Admin and application
+administrators scoped, enforce same-organization active project validation, and
+retain separate approvals. QMS role assignment must not create source membership
+or broaden operational forms, records, delegations or access-review queues.
 
 The user requested Project Master in Integration Cockpit as a display of
 projects already transferred to QMS360, reusing existing records rather than a

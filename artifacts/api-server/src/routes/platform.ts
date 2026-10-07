@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   GetApplicationAccessResponse, GetFieldSettingsResponse, GetNumberingConfigResponse, GetOrganizationSettingsResponse,
   GetPlatformContextResponse, GetPlatformReferenceDataResponse,
-  ListBusinessUnitsResponse, ListPlatformProjectsResponse, ResetNumberingPatternResponse,
+  ListBusinessUnitsResponse, ListPlatformProjectsResponse, ListRoleAssignmentProjectsResponse, ResetNumberingPatternResponse,
   SetUserTemporaryPasswordBody, UpdateUserPlatformRoleBody, UpdateUserPlatformRoleResponse,
   UpdateUserEmailBody, UpdateUserEmailResponse,
   UpdateFieldSettingsBody, UpdateFieldSettingsResponse, UpdateNumberingPatternBody, UpdateNumberingPatternResponse, UpdateOrganizationSettingsBody,
@@ -20,7 +20,7 @@ import {
   effectivePattern, formatReferenceNumber, getNumberingMap, isConfigured, NUMBERING_MODULES,
   resetNumberingPattern, saveNumberingPattern, type NumberingModule,
 } from "../lib/numbering";
-import { getPlatformEffectiveProjectScope } from "../middlewares/rbac";
+import { getPlatformEffectiveProjectScope, getRoleAssignmentProjectScope } from "../middlewares/rbac";
 import { restrictDronaProjects } from "../lib/drona/session";
 
 const router: IRouter = Router();
@@ -238,6 +238,26 @@ function userHasAppAccess(platformRole: string, roleNames: string[], appKey: str
   if (appKey === "lessons") return roleText.includes("Form ");
   return roleText.includes("Audit") || roleText.includes("Process");
 }
+
+router.get("/platform/role-assignment-projects", requireAuth, async (req, res): Promise<void> => {
+  const application = req.query.application;
+  if (typeof application !== "string" || !["qaqc", "lessons", "audit"].includes(application)) {
+    res.status(422).json({ error: "Choose a valid application" });
+    return;
+  }
+  const scope = await getRoleAssignmentProjectScope(req, application as AppKey);
+  if (!scope) {
+    res.status(403).json({ error: "Application administrator access is required" });
+    return;
+  }
+  const rows = await db.select({ id: projects.id, code: projects.code, name: projects.name })
+    .from(projects).where(and(
+      eq(projects.organizationId, req.currentUser!.organizationId),
+      eq(projects.status, "active"), isNull(projects.deletedAt),
+      scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds),
+    )).orderBy(asc(projects.name), asc(projects.id));
+  res.json(ListRoleAssignmentProjectsResponse.parse(rows));
+});
 
 router.get("/platform/context", requireAuth, async (req, res): Promise<void> => {
   const user = req.currentUser;

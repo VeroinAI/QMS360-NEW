@@ -379,6 +379,21 @@ export const UpdateDronaProjectCostCentreResponse = zod.object({
 
 
 /**
+ * @summary List active projects available for application role administration
+ */
+export const ListRoleAssignmentProjectsQueryParams = zod.object({
+  "application": zod.enum(['qaqc', 'lessons', 'audit'])
+})
+
+export const ListRoleAssignmentProjectsResponseItem = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string()
+})
+export const ListRoleAssignmentProjectsResponse = zod.array(ListRoleAssignmentProjectsResponseItem)
+
+
+/**
  * @summary Get current user's application access flags
  */
 export const GetApplicationAccessResponse = zod.object({

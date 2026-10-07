@@ -243,6 +243,8 @@ import type {
   ListQaqcUsersParams,
   ListQtbtEntriesParams,
   ListQualityBriefsParams,
+  ListRoleAssignmentProjects200Item,
+  ListRoleAssignmentProjectsParams,
   ListSyncJobsParams,
   LoginInput,
   MasterDataGroup,
@@ -1520,6 +1522,90 @@ export const useUpdateDronaProjectCostCentre = <TError = ErrorType<void>,
       > => {
       return useMutation(getUpdateDronaProjectCostCentreMutationOptions(options));
     }
+
+export const getListRoleAssignmentProjectsUrl = (params: ListRoleAssignmentProjectsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/platform/role-assignment-projects?${stringifiedParams}` : `/api/platform/role-assignment-projects`
+}
+
+/**
+ * @summary List active projects available for application role administration
+ */
+export const listRoleAssignmentProjects = async (params: ListRoleAssignmentProjectsParams, options?: Parameters<typeof customFetch>[1]): Promise<ListRoleAssignmentProjects200Item[]> => {
+
+  return customFetch<ListRoleAssignmentProjects200Item[]>(getListRoleAssignmentProjectsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRoleAssignmentProjectsQueryKey = (params?: ListRoleAssignmentProjectsParams,) => {
+    return [
+    `/api/platform/role-assignment-projects`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListRoleAssignmentProjectsQueryOptions = <TData = Awaited<ReturnType<typeof listRoleAssignmentProjects>>, TError = ErrorType<void>>(params: ListRoleAssignmentProjectsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRoleAssignmentProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRoleAssignmentProjectsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoleAssignmentProjects>>> = ({ signal }) => listRoleAssignmentProjects(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRoleAssignmentProjects>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRoleAssignmentProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof listRoleAssignmentProjects>>>
+export type ListRoleAssignmentProjectsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List active projects available for application role administration
+ */
+
+export function useListRoleAssignmentProjects<TData = Awaited<ReturnType<typeof listRoleAssignmentProjects>>, TError = ErrorType<void>>(
+ params: ListRoleAssignmentProjectsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRoleAssignmentProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRoleAssignmentProjectsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetApplicationAccessUrl = () => {
 
