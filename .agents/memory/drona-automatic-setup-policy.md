@@ -41,6 +41,19 @@ link. Interpreting that as approval would expand authorization unexpectedly.
 workspace roles and administrator eligibility. Do not use Drona role labels or
 link-review metadata to grant privileges.
 
+First-role administrator discovery must not depend on the user already holding
+an application role. Keep discovery separate from authorization and limited to
+live, shared, manageable Drona project membership.
+
+**Why:** The owner reported that provisioned Employees were hidden from all
+three application administrators, preventing their first role assignment, and
+authorized correcting visibility without removing the agreed Drona boundaries.
+
+**How to apply:** Do not solve onboarding by granting every user a platform
+role, automatically approving applications, or making Drona Super Admin sessions
+unrestricted. Users with no shared manageable project still require a legitimate
+source assignment or a separately reviewed change to the access policy.
+
 The user requested Project Master in Integration Cockpit as a display of
 projects already transferred to QMS360, reusing existing records rather than a
 parallel master table.

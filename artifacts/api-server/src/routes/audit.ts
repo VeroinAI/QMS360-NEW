@@ -1,3 +1,4 @@
+import { visibleAdminUsers } from "../lib/admin-user-discovery";
 import { Router, type Request, type Response } from "express";
 import { randomUUID } from "node:crypto";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
@@ -3973,8 +3974,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
     db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), isNull(auditUserWorkspaceRoles.deletedAt))),
     db.select({ id: platformRoles.id, name: platformRoles.name }).from(platformRoles).where(and(eq(platformRoles.organizationId, actor(req).organizationId), isNull(platformRoles.deletedAt))),
   ]);
-  const visibleRows = req.permissionAdminBypass ? allRows : allRows.filter((u) =>
-    u.id === actor(req).id || allAssignments.some((a) => a.userId === u.id && canManageAssignmentScope(req, a.projectIds, a.businessUnitIds)));
+  const visibleRows = await visibleAdminUsers(req, allRows, allAssignments);
   const rows = visibleRows.slice(offset, offset + limit);
   const assignments = rows.length ? await db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), inArray(auditUserWorkspaceRoles.userId, rows.map((x) => x.id)), isNull(auditUserWorkspaceRoles.deletedAt))) : [];
   const visibleAssignments = assignments.filter((assignment) => canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds));

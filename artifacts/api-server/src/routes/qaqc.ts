@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { applyExcelDateFormats } from "../lib/excel-date-cells";
 import { formatSpreadsheetDate, isSpreadsheetDateField } from "@workspace/spreadsheet-dates";
+import { visibleAdminUsers } from "../lib/admin-user-discovery";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql,
@@ -820,8 +821,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
     db.select().from(userWorkspaceRoles).where(and(eq(userWorkspaceRoles.organizationId, org(req)), isNull(userWorkspaceRoles.deletedAt))),
     db.select({ id: platformRoles.id, name: platformRoles.name }).from(platformRoles).where(and(eq(platformRoles.organizationId, org(req)), isNull(platformRoles.deletedAt))),
   ]);
-  const visibleRows = req.permissionAdminBypass ? allRows : allRows.filter((u) =>
-    u.id === actor(req) || allAssignments.some((a) => a.userId === u.id && canManageAssignmentScope(req, a.projectIds, a.businessUnitIds)));
+  const visibleRows = await visibleAdminUsers(req, allRows, allAssignments);
   const rows = visibleRows.slice(offset, offset + limit);
   const items = await Promise.all(rows.map(async (u) => {
     const assigned = await db.select({ role: workspaceRoles, assignment: userWorkspaceRoles }).from(userWorkspaceRoles).innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id)).where(and(eq(userWorkspaceRoles.userId, u.id), isNull(userWorkspaceRoles.deletedAt), isNull(workspaceRoles.deletedAt)));

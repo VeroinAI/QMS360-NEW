@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { formatSpreadsheetData } from "@workspace/spreadsheet-dates";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { visibleAdminUsers } from "../lib/admin-user-discovery";
 import { Router, type IRouter } from "express";
 import {
   and, asc, desc, eq, gte, gt, ilike, inArray, isNull, lte, ne, or, sql,
@@ -1350,8 +1351,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
     db.select().from(lessonsWorkspaceRoles).where(and(eq(lessonsWorkspaceRoles.organizationId, req.currentUser!.organizationId), isNull(lessonsWorkspaceRoles.deletedAt))),
     db.select().from(platformRoles),
   ]);
-  const visibleRows = req.permissionAdminBypass ? allRows : allRows.filter((u) =>
-    u.id === req.currentUser!.id || assignments.some((a) => a.userId === u.id && canManageAssignmentScope(req, a.projectIds, a.businessUnitIds)));
+  const visibleRows = await visibleAdminUsers(req, allRows, assignments);
   const rows = visibleRows.slice(offset, offset + limit);
   const rolePayload = new Map((await Promise.all(roles.map(roleJson))).map((r) => [r.id, r]));
   res.json(paginated(rows.map((u) => ({ id: u.id, username: u.username, fullName: u.fullName, email: u.email, designation: u.designation, signatureUrl: u.signaturePath ? `/api/lessons/users/${u.id}/signature` : null, platformRole: platform.find((p) => p.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: assignments.filter((a) => a.userId === u.id && canManageAssignmentScope(req, a.projectIds, a.businessUnitIds)).map((a) => ({ ...rolePayload.get(a.workspaceRoleId)!, scopeType: a.projectIds?.length ? "project" as const : "organization" as const, scopeIds: a.projectIds ?? [] })).filter(Boolean), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt })), visibleRows.length, page, limit));
