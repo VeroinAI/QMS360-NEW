@@ -78,3 +78,17 @@ mtime_ms = 1791377445198
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/c8289c2a-82ff-46d7-b29a-26c40847cf5a/7abd39c5-e7ab-47cb-830c-6bcd62f33d84"
 storage_version_token = "1791377466425094"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "BXAhJDT6MzDcr7iyUKkD2"
+uri = "file://.local/exports/algihaz-platform-roles.zip"
+type = "unspecified"
+title = "Algihaz Holding — Platform Role Data and SQL"
+description = "7 platform-role records from Replit production, CSV/JSON exports and guarded SQL for the migrated QMS360 app1_qaqc.platform_roles table. Includes dry-run and commit instructions."
+logical_id = "941fa948-ee64-45e5-ae53-ea12f72050b8"
+content_hash = "sha256:b4e7df40aa4677196f26119edcb7e009845b390a25f6e4f8e7a41f016f3089c3"
+size = 5321
+mtime_ms = 1791466003483
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/941fa948-ee64-45e5-ae53-ea12f72050b8/c5b55643-b010-49d7-b1ef-4ed1c2ba1197"
+storage_version_token = "1791466011540550"
+content_type = "application/octet-stream"

@@ -19,3 +19,15 @@ The user stated on 2026-10-04 that the GitHub handoff repository is now **privat
 **Why:** The user changed the repository visibility after a data-privacy warning. Any earlier public exposure cannot be undone by changing visibility, and credentials or real datasets still need an explicit secure-handling review.
 
 **How to apply:** Review the handoff for secrets and unnecessary real datasets without changing Git history or deleting uploads without approval. Keep environment configuration and data reconciliation separate from cloning code. Do not make infrastructure changes before the client's capabilities are confirmed. If a DBA executes SQL files manually, reconcile exactly which migrations ran and their migration ledger before invoking the migration runner, rather than replaying the baseline.
+
+The user stated on 2026-10-08 that they have migrated the database to the Drona
+server. Their subsequent platform-role request is a selective data extraction,
+not a request to repeat the full database migration.
+
+**Why:** The user explicitly distinguished missing platform-role data from the
+earlier master-data export.
+
+**How to apply:** Treat catalogue transfers separately from schema deployment.
+Confirm whether the destination is the migrated QMS role catalogue or a
+Drona-owned role table before mapping identities; neither approval authorizes
+changing users' role assignments or importing unrelated permission grants.
