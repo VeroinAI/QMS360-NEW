@@ -31,3 +31,14 @@ earlier master-data export.
 Confirm whether the destination is the migrated QMS role catalogue or a
 Drona-owned role table before mapping identities; neither approval authorizes
 changing users' role assignments or importing unrelated permission grants.
+
+For system-default role transfers, the user explicitly means application roles
+across Lessons Learned, QA/QC and Audit, not merely the global platform-role list.
+
+**Why:** The user clarified the intended role scope after receiving the platform
+catalogue. Confusing the two leaves each application's role list unpopulated.
+
+**How to apply:** Export the system-marked application roles from the requested
+source environment. Keep role definitions separate from optional current
+permission grants and user assignments; do not regenerate untouched factory
+defaults when the user requested persisted production data.

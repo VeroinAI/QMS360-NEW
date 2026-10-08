@@ -92,3 +92,17 @@ mtime_ms = 1791466003483
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/941fa948-ee64-45e5-ae53-ea12f72050b8/c5b55643-b010-49d7-b1ef-4ed1c2ba1197"
 storage_version_token = "1791466011540550"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "dPVVgoq5Eh335BkAxsLVz"
+uri = "file://.local/exports/qms360-all-system-default-roles.zip"
+type = "unspecified"
+title = "QMS360 — System-Default Roles for All Modules"
+description = "Production export: 8 application system roles across Lessons Learned, QA/QC and Audit, plus 7 platform roles. Includes actual CSV/JSON data, executable dry-run-first SQL and a separate optional import for 21 current application permission links."
+logical_id = "25b33d1b-ba29-4656-83f4-4d8e7bafa914"
+content_hash = "sha256:4b09caa83835934fc4a53de79de604dd6bed0ebbc1c83c283c2fbed9b033bb71"
+size = 21204
+mtime_ms = 1791466895548
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/25b33d1b-ba29-4656-83f4-4d8e7bafa914/effca9ba-1f5f-46f6-acbb-89dba13901c6"
+storage_version_token = "1791466905548677"
+content_type = "application/octet-stream"
