@@ -7,6 +7,7 @@ import { ActivityMultiSelect, ScheduleActivityRoleFields } from "./activity-role
 import { auditTeamLeadLabel } from "./team-lead-label";
 import { ScheduleActivityButton } from "./schedule-activity";
 import { getAuditPlanDateRange } from "@workspace/field-controls";
+import { appendChecklistEvidence, uploadChecklistEvidence, type PendingChecklistEvidence } from "./checklist-evidence-uploads";
 import { CarRegister, CarResponseDialog, CarReviewDialog } from "./car-register";
 import { useEffect, useRef, useState } from "react";
 import { Link, Route, Switch, useLocation, useParams } from "wouter";
@@ -1995,7 +1996,7 @@ function MeetingEditor({ auditId, kind, value }: { auditId: string; kind: "openi
 }
 
 function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistItem[] }) {
-  const empty = () => ({ clause: "", auditArea: "", question: "", description: "", auditFinding: "", evidenceIds: [] as string[], file: null as File | null });
+  const empty = () => ({ clause: "", auditArea: "", question: "", description: "", auditFinding: "", evidenceIds: [] as string[], files: [] as PendingChecklistEvidence[] });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ChecklistItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChecklistItem | null>(null);
@@ -2005,8 +2006,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
   const [downloading, setDownloading] = useState(false);
   const uploadInput = useRef<HTMLInputElement>(null);
   const evidenceInput = useRef<HTMLInputElement>(null);
-  const [uploadedId, setUploadedId] = useState<string | null>(null);
-  const uploadReference = useRef(crypto.randomUUID());
+  const completedUploads = useRef(new Map<string, string>());
   const qc = useQueryClient();
   const { toast } = useToast();
   const areas = useLov("Audit Area");
@@ -2017,24 +2017,22 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
   const importItems = useImportAuditChecklistItems();
   const intent = useCreateAuditEvidenceIntent();
   const confirm = useConfirmAuditEvidence();
-  const update = (key: keyof ReturnType<typeof empty>, value: string | File | null | string[]) => setDraft(current => ({ ...current, [key]: value }));
-  const removeSelectedEvidence = () => {
-    update("file", null);
-    setUploadedId(null);
-    uploadReference.current = crypto.randomUUID();
+  const update = (key: "clause" | "auditArea" | "question" | "description" | "auditFinding", value: string) => setDraft(current => ({ ...current, [key]: value }));
+  const removeSelectedEvidence = (clientReference: string) => {
+    setDraft(current => ({ ...current, files: current.files.filter(item => item.clientReference !== clientReference) }));
+    completedUploads.current.delete(clientReference);
     if (evidenceInput.current) evidenceInput.current.value = "";
   };
-  const reset = () => { setOpen(false); setEditing(null); setDraft(empty()); setUploadedId(null); uploadReference.current = crypto.randomUUID(); };
+  const reset = () => { setOpen(false); setEditing(null); setDraft(empty()); completedUploads.current.clear(); };
   const openEdit = (item: ChecklistItem) => {
     setEditing(item);
     setDraft({
       clause: item.clause ?? "", auditArea: item.auditArea ?? "", question: item.question,
       description: item.description ?? item.notes ?? "",
       auditFinding: item.auditFinding ?? (checklistFindings.find(value => value === item.result) ?? ""),
-      evidenceIds: item.evidenceIds ?? [], file: null,
+      evidenceIds: item.evidenceIds ?? [], files: [],
     });
-    setUploadedId(null);
-    uploadReference.current = crypto.randomUUID();
+    completedUploads.current.clear();
     setOpen(true);
   };
   const download = async () => {
@@ -2083,30 +2081,27 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
     }
     setSaving(true);
     try {
-      let fileId = uploadedId;
-      if (draft.file && !fileId) {
-        const type = draft.file.type || "application/octet-stream";
+      const fileIds = await uploadChecklistEvidence(draft.files, completedUploads.current, async ({ file, clientReference }) => {
+        const type = file.type || "application/octet-stream";
         const upload = await intent.mutateAsync({ data: {
           recordType: "audit", recordId: auditId, category: "checklist",
-          fileName: draft.file.name, mimeType: type, sizeBytes: draft.file.size,
-          clientReference: uploadReference.current,
+          fileName: file.name, mimeType: type, sizeBytes: file.size, clientReference,
         } });
-        await customFetch(upload.uploadUrl, { method: "PUT", body: draft.file, headers: { "Content-Type": type } });
+        await customFetch(upload.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": type } });
         await confirm.mutateAsync({ id: upload.id });
-        fileId = upload.id;
-        setUploadedId(fileId);
-      }
+        return upload.id;
+      });
       const data = {
         clause: draft.clause.trim(), auditArea: draft.auditArea, question: draft.question.trim(),
         description: draft.description.trim(), ...(draft.auditFinding ? { auditFinding: draft.auditFinding as "Minor NC" | "Moderate NC" | "Major NC" | "OFI" | "Not applicable" } : {}),
-        evidenceIds: [...new Set([...draft.evidenceIds, ...(fileId ? [fileId] : [])])],
+        evidenceIds: [...new Set([...draft.evidenceIds, ...fileIds])],
       };
       const saved = editing
         ? await editItem.mutateAsync({ id: auditId, itemId: editing.id, data })
         : await addItem.mutateAsync({ id: auditId, data });
       qc.setQueryData(getGetAuditQueryKey(auditId), saved);
       void qc.invalidateQueries({ queryKey: getGetAuditQueryKey(auditId) });
-      if (fileId) void qc.invalidateQueries({ queryKey: ["/api/audit/evidence"] });
+      if (fileIds.length) void qc.invalidateQueries({ queryKey: ["/api/audit/evidence"] });
       toast({ title: editing ? "Checklist item updated" : "Checklist item saved" });
       reset();
     } catch (error) {
@@ -2200,17 +2195,22 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
                 <XCircle className="mr-2 size-3"/>Remove
               </Button>
             </div>)}
-            <Input ref={evidenceInput} id="checklist-evidence" type="file" disabled={saving}
+            <Input ref={evidenceInput} id="checklist-evidence" type="file" multiple disabled={saving}
               accept="image/*,.xlsx,.xls,.doc,.docx,.pdf,.ppt,.pptx"
-              onChange={event => { update("file", event.target.files?.[0] ?? null); setUploadedId(null); uploadReference.current = crypto.randomUUID(); }}/>
-            <p className="text-xs text-muted-foreground">The selected file, including an Excel file, will be stored as evidence when you save this item. To import Checklist rows instead, use Upload Excel above.</p>
-            {draft.file && <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="min-w-0 break-all">{draft.file.name}</span>
+              onChange={event => {
+                const files = Array.from(event.target.files ?? []);
+                setDraft(current => ({ ...current, files: appendChecklistEvidence(current.files, files) }));
+                event.target.value = "";
+              }}/>
+            <p className="text-xs text-muted-foreground">Select multiple files at once, or choose more files to add to your selection. Files, including Excel files, will be stored as evidence when you save this item. To import Checklist rows instead, use Upload Excel above.</p>
+            {draft.files.length > 0 && <p className="text-sm font-medium">Selected files ({draft.files.length})</p>}
+            {draft.files.map(({ file, clientReference }) => <div key={clientReference} className="flex items-center justify-between gap-2 text-sm">
+              <span className="min-w-0 break-all">{file.name}</span>
               <Button type="button" size="sm" variant="outline" className="shrink-0 text-destructive" disabled={saving}
-                aria-label={`Remove selected evidence ${draft.file.name}`} onClick={removeSelectedEvidence}>
+                aria-label={`Remove selected evidence ${file.name}`} onClick={() => removeSelectedEvidence(clientReference)}>
                 <XCircle className="mr-2 size-3"/>Remove
               </Button>
-            </div>}
+            </div>)}
             <p className="text-xs text-muted-foreground">Removing an attached file takes effect when you save changes. Cancel keeps the existing attachments. The stored file itself is not deleted.</p>
           </div>
         </div>

@@ -34,3 +34,15 @@ Checklist Item popup to recover from selecting the wrong attachment.
 **How to apply:** Make removal available for both pending and saved files.
 Clearing a pending selection also clears any retained upload-retry identity,
 so a later save cannot relink the discarded file.
+
+Checklist evidence supports selecting several files at once and appending
+later selections without replacing the earlier pending files. Each file is
+independently removable.
+
+**Why:** On 2026-10-09 the user explicitly requested assigning multiple files
+at a time from the Edit Checklist Item popup.
+
+**How to apply:** Give each pending file its own stable upload identity and
+retain successful upload checkpoints across retries. Save the item's evidence
+links only after the full remaining selection is confirmed; a partial upload
+failure must not silently save a subset or duplicate successful files.
