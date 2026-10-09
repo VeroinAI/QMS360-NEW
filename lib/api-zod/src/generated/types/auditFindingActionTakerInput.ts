@@ -5,7 +5,10 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { FindingPriorityAction } from './findingPriorityAction';
 
 export interface AuditFindingActionTakerInput {
   actionTakerId: string;
+  /** Required if the finding has no existing priority action; saved together with the Action Taker */
+  recommendedPriorityAction?: FindingPriorityAction;
 }

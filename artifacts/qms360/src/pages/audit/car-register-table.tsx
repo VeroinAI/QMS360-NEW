@@ -16,6 +16,8 @@ const tone = (s: string) => s === "Closed" || s === "Accepted" ? "default" as co
 
 export interface CarRegisterTableProps {
   entries: CarRegisterEntry[];
+  auditAreaOptions?: ReadonlyArray<{ value: string; label: string }>;
+  auditAreasLoading?: boolean;
   page: number;
   limit: number;
   busy: boolean;
@@ -26,7 +28,7 @@ export interface CarRegisterTableProps {
   onLog: (entry: CarRegisterEntry) => void;
 }
 
-export function CarRegisterTable({ entries, page, limit, busy, renderEvidence, onEdit, onDisplay, onReview, onLog }: CarRegisterTableProps) {
+export function CarRegisterTable({ entries, auditAreaOptions = [], auditAreasLoading = false, page, limit, busy, renderEvidence, onEdit, onDisplay, onReview, onLog }: CarRegisterTableProps) {
   const cell = "border border-border px-2 py-1.5 align-top text-xs whitespace-normal break-words";
   return <div className="max-h-[70dvh] overflow-auto rounded-md border border-border" data-testid="table-car-register">
     <table className="w-full min-w-[1600px] border-collapse text-left">
@@ -47,7 +49,7 @@ export function CarRegisterTable({ entries, page, limit, busy, renderEvidence, o
             <td className={cell}>{e.auditTitle}</td>
             <td className={cell}>{e.auditTypes?.join(", ")}</td>
             <td className={cell}>{e.department || e.projectName}</td>
-            <td className={cell}>{e.auditArea}</td>
+            <td className={cell}>{auditAreasLoading && e.auditArea ? "Loading Audit Area…" : auditAreaOptions.find(option => option.value === e.auditArea)?.label ?? e.auditArea}</td>
             <td className={`${cell} min-w-[240px] whitespace-pre-wrap`}>{e.description}</td>
             <td className={cell}>
               <div className="mb-1 whitespace-pre-wrap">{e.classification}</div>

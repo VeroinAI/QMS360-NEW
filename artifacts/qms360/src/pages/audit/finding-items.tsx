@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { findingPriorityActions, type FindingPriorityAction } from "@workspace/field-controls";
 import { Download, FileText, Plus, Upload } from "lucide-react";
 import {
   customFetch,
@@ -34,10 +35,16 @@ const findingSchema = z.object({
   description: z.string(),
   auditFinding: z.enum(["Minor NC", "Moderate NC", "Major NC", "OFI"], { required_error: "Audit Findings is required" }),
   actionTakerId: z.string().min(1, "Action Taker is required"),
+  recommendedPriorityAction: z.enum(findingPriorityActions).or(z.literal("")),
+}).superRefine((value, ctx) => {
+  if (value.actionTakerId && !value.recommendedPriorityAction) ctx.addIssue({
+    code: z.ZodIssueCode.custom, path: ["recommendedPriorityAction"],
+    message: "Recommended priority actions is required when an Action Taker is selected.",
+  });
 });
 type FindingForm = z.infer<typeof findingSchema>;
 const emptyForm = (): FindingForm => ({
-  clause: "", auditArea: "", description: "", auditFinding: undefined as unknown as FindingForm["auditFinding"], actionTakerId: "",
+  clause: "", auditArea: "", description: "", auditFinding: undefined as unknown as FindingForm["auditFinding"], actionTakerId: "", recommendedPriorityAction: "",
 });
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Please try again.";
 const supportedFile = (file: File) =>
@@ -58,6 +65,7 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [assignmentDrafts, setAssignmentDrafts] = useState<Record<string, { actionTakerId: string; recommendedPriorityAction: FindingPriorityAction | "" }>>({});
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [uploadedId, setUploadedId] = useState<string | null>(null);
@@ -107,6 +115,10 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
     setFile(selected);
   };
   const save = form.handleSubmit(async values => {
+    if (!values.recommendedPriorityAction) {
+      form.setError("recommendedPriorityAction", { message: "Select Recommended priority actions." });
+      return;
+    }
     if (!areas.options.some(area => area.value === values.auditArea)) {
       form.setError("auditArea", { message: "Select an active Audit Area from master data." });
       return;
@@ -133,6 +145,7 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
       const payload: AuditFindingItemInput = {
         clause: values.clause, auditArea: values.auditArea, description: values.description.trim(),
         auditFinding: values.auditFinding, actionTakerId: values.actionTakerId,
+        recommendedPriorityAction: values.recommendedPriorityAction,
         evidenceIds: fileId ? [fileId] : [], clientReference: uploadReference.current,
       };
       const updated = await create.mutateAsync({ id: auditId, data: payload });
@@ -146,15 +159,26 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
       setSaving(false);
     }
   });
-  const assignUser = async (item: ChecklistItem, actionTakerId: string) => {
-    if (item.actionTakerId === actionTakerId || assigningId) return;
+  const assignUser = async (item: ChecklistItem, change: Partial<{ actionTakerId: string; recommendedPriorityAction: FindingPriorityAction }>) => {
+    if (assigningId) return;
+    const next: { actionTakerId: string; recommendedPriorityAction: FindingPriorityAction | "" } = {
+      ...(assignmentDrafts[item.id] ?? {
+        actionTakerId: item.actionTakerId ?? "",
+        recommendedPriorityAction: item.recommendedPriorityAction ?? "",
+      }),
+      ...change,
+    };
+    setAssignmentDrafts(current => ({ ...current, [item.id]: next }));
+    if (!next.actionTakerId || !next.recommendedPriorityAction) return;
+    const { actionTakerId, recommendedPriorityAction } = next;
     setAssigningId(item.id);
     try {
-      const updated = await assign.mutateAsync({ id: auditId, itemId: item.id, data: { actionTakerId } });
+      const updated = await assign.mutateAsync({ id: auditId, itemId: item.id, data: { actionTakerId, recommendedPriorityAction } });
       syncAudit(updated);
-      toast({ title: "Action Taker updated" });
+      setAssignmentDrafts(current => { const copy = { ...current }; delete copy[item.id]; return copy; });
+      toast({ title: "Finding assignment updated" });
     } catch (error) {
-      toast({ title: "Unable to assign Action Taker", description: errorText(error), variant: "destructive" });
+      toast({ title: "Unable to save finding assignment", description: errorText(error), variant: "destructive" });
     } finally {
       setAssigningId(null);
     }
@@ -182,7 +206,7 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
       <div className="overflow-x-auto rounded-md border" role="region" aria-label="Audit findings spreadsheet" tabIndex={0}>
         <Table className="min-w-[1080px] border-collapse text-sm">
           <TableHeader><TableRow className="bg-muted/50">
-            {["Clause", "Audit Area", "Description", "Audit Findings", "Evidence", "Action Taker"].map(column =>
+            {["Clause", "Audit Area", "Description", "Audit Findings", "Evidence", "Action Taker", "Recommended priority actions"].map(column =>
               <TableHead key={column} scope="col" className="h-10 border-r border-b border-border/60 px-3 text-xs font-semibold uppercase tracking-wide last:border-r-0">{column}</TableHead>)}
           </TableRow></TableHeader>
           <TableBody>
@@ -199,9 +223,9 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
                     : <span key={id} className="mb-1 block text-muted-foreground" data-testid={`text-unavailable-evidence-${item.id}-${id}`}>File unavailable ({id})</span>;
                 }) : "—"}
               </TableCell>
-              <TableCell className="w-64 border-b border-border/60 px-3 align-top">
-                <Select value={item.actionTakerId || undefined} onValueChange={value => void assignUser(item, value)} disabled={users.isLoading || !!users.error || !!assigningId || !eligibleUsers.length}>
-                  <SelectTrigger data-testid={`select-action-taker-${item.id}`} aria-label={`Action Taker for clause ${item.clause || item.id}`} className="h-9 w-full text-left"><SelectValue placeholder={users.isLoading ? "Loading users…" : "Assign a user"}>{item.actionTakerId ? userName(item.actionTakerId) : undefined}</SelectValue></SelectTrigger>
+              <TableCell className="w-64 border-r border-b border-border/60 px-3 align-top">
+                <Select value={assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId || ""} onValueChange={value => void assignUser(item, { actionTakerId: value })} disabled={users.isLoading || !!users.error || !!assigningId || !eligibleUsers.length}>
+                  <SelectTrigger data-testid={`select-action-taker-${item.id}`} aria-label={`Action Taker for clause ${item.clause || item.id}`} className="h-9 w-full text-left"><SelectValue placeholder={users.isLoading ? "Loading users…" : "Assign a user"}>{(assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId) ? userName(assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId!) : undefined}</SelectValue></SelectTrigger>
                   <SelectContent>
                     {item.actionTakerId && !eligibleUsers.some(user => user.id === item.actionTakerId) &&
                       <SelectItem value={item.actionTakerId} disabled>{userName(item.actionTakerId)}</SelectItem>}
@@ -210,8 +234,18 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
                 </Select>
                 {assigningId === item.id && <span role="status" className="mt-1 block text-xs text-muted-foreground">Saving assignment…</span>}
               </TableCell>
+              <TableCell className="min-w-64 border-b border-border/60 px-3 align-top">
+                <Select value={assignmentDrafts[item.id]?.recommendedPriorityAction || item.recommendedPriorityAction || ""}
+                  onValueChange={value => void assignUser(item, { recommendedPriorityAction: value as FindingPriorityAction })}
+                  disabled={!!assigningId || !(assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId) || users.isLoading || !!users.error}>
+                  <SelectTrigger data-testid={`select-priority-action-${item.id}`} aria-label={`Recommended priority actions for clause ${item.clause || item.id}`} className="h-9 w-full text-left"><SelectValue placeholder="Select priority action"/></SelectTrigger>
+                  <SelectContent>{findingPriorityActions.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+                </Select>
+                {assignmentDrafts[item.id] && !assignmentDrafts[item.id].recommendedPriorityAction && <p role="alert" className="mt-1 text-xs text-destructive">Select a priority action to save this assignment.</p>}
+                {assignmentDrafts[item.id]?.recommendedPriorityAction && assigningId !== item.id && <p className="mt-1 text-xs text-muted-foreground">Unsaved changes. <button type="button" className="underline" onClick={() => void assignUser(item, {})}>Retry save</button></p>}
+              </TableCell>
             </TableRow>)}
-            {!findings.length && <TableRow><TableCell colSpan={6} className="py-12 text-center">
+            {!findings.length && <TableRow><TableCell colSpan={7} className="py-12 text-center">
               <FileText className="mx-auto mb-3 size-7 text-muted-foreground" aria-hidden="true"/>
               <p data-testid="text-no-findings" className="font-medium">No findings recorded yet</p>
               <p className="mt-1 text-sm text-muted-foreground">Add a finding here, or record one while completing the checklist.</p>
@@ -234,6 +268,13 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
           <FormField control={form.control} name="description" render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} data-testid="input-finding-description" rows={3} placeholder="Describe what was observed"/></FormControl><FormMessage/></FormItem>}/>
           <FormField control={form.control} name="auditFinding" render={({ field, fieldState }) => <FormItem><FormLabel>Audit Findings *</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger data-testid="select-finding-classification" aria-invalid={!!fieldState.error}><SelectValue placeholder="Select a finding"/></SelectTrigger></FormControl><SelectContent>{findingOptions.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
           <FormField control={form.control} name="actionTakerId" render={({ field, fieldState }) => <FormItem><FormLabel>Action Taker *</FormLabel><Select value={field.value || undefined} onValueChange={field.onChange} disabled={users.isLoading || !!users.error || !eligibleUsers.length}><FormControl><SelectTrigger data-testid="select-finding-action-taker" aria-invalid={!!fieldState.error}><SelectValue placeholder={users.isLoading ? "Loading Audit users…" : "Select an Audit user"}/></SelectTrigger></FormControl><SelectContent>{eligibleUsers.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><FormMessage/>{users.error && <p className="text-sm text-destructive">Unable to load Audit users. <button type="button" data-testid="button-retry-audit-users" className="underline" onClick={() => void users.refetch()}>Retry</button></p>}{!users.isLoading && !users.error && !eligibleUsers.length && <p className="text-sm text-muted-foreground">No eligible Audit users are available.</p>}</FormItem>}/>
+          <FormField control={form.control} name="recommendedPriorityAction" render={({ field, fieldState }) => <FormItem>
+            <FormLabel>Recommended priority actions{form.watch("actionTakerId") ? " *" : ""}</FormLabel>
+            <Select value={field.value} onValueChange={field.onChange} disabled={!form.watch("actionTakerId") || saving}>
+              <FormControl><SelectTrigger data-testid="select-finding-priority-action" aria-invalid={!!fieldState.error}><SelectValue placeholder="Select priority action"/></SelectTrigger></FormControl>
+              <SelectContent>{findingPriorityActions.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+            </Select><FormMessage/>
+          </FormItem>}/>
           <div className="space-y-2"><label htmlFor="finding-evidence" className="text-sm font-medium">Evidence (optional)</label><Input ref={inputRef} id="finding-evidence" data-testid="input-finding-evidence" type="file" accept="image/*,.xlsx,.xls,.doc,.docx,.pdf,.ppt,.pptx" onChange={event => chooseFile(event.target.files?.[0] ?? null)} disabled={saving}/>{file && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Upload className="size-3.5" aria-hidden="true"/>{file.name}</p>}{fileError && <p role="alert" data-testid="status-finding-file-error" className="text-sm text-destructive">{fileError}</p>}</div>
           <DialogFooter><Button type="button" variant="outline" data-testid="button-cancel-finding" disabled={saving} onClick={reset}>Cancel</Button><Button type="submit" data-testid="button-save-finding" disabled={saving || areas.isLoading || !!areas.error || !areas.options.length || users.isLoading || !!users.error || !eligibleUsers.length || !!fileError}>{saving ? "Saving…" : "Save Finding"}</Button></DialogFooter>
         </form></Form>

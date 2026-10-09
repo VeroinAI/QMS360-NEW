@@ -274,6 +274,7 @@ export * from './fieldSettingsForm';
 export * from './fieldSettingsModule';
 export * from './fieldSettingsUpdate';
 export * from './findingCarInput';
+export * from './findingPriorityAction';
 export * from './fromParameter';
 export * from './generatedAuditReport';
 export * from './getAuditCapabilities200';

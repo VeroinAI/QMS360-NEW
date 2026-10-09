@@ -59,6 +59,7 @@ import { readAuditPlanSignature } from "../lib/audit-plan-signatures";
 import { ChecklistImportError, mergeAuditChecklistImport } from "../lib/audit-checklist-import";
 import { checklistDeletionBlockReason } from "@workspace/field-controls";
 import { normalizeProjectProgress, projectProgressVariance } from "@workspace/field-controls";
+import { requireFindingPriorityAction } from "@workspace/field-controls";
 import { auditIsComplete, buildConsolidatedAuditReport } from "../lib/audit-consolidated-report";
 import { AUDIT_PPTX_MIME, renderConsolidatedAuditPptx } from "../lib/audit-consolidated-pptx";
 import { renderConsolidatedAuditPdf } from "../lib/audit-consolidated-pdf";
@@ -2819,6 +2820,8 @@ router.post("/audits/:id/checklist/import", asyncHandler(async (req, res) => {
 
 router.post("/audits/:id/finding-items", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditFindingItemBody, req);
+  try { requireFindingPriorityAction(data.actionTakerId, data.recommendedPriorityAction); }
+  catch (error) { throw new HttpError(422, (error as Error).message); }
   const organizationId = actor(req).organizationId;
   const auditId = String(req.params.id);
   if (!data.clause.trim() || !data.auditArea.trim()) throw new HttpError(422, "Clause and Audit Area are required");
@@ -2837,6 +2840,7 @@ router.post("/audits/:id/finding-items", asyncHandler(async (req, res) => {
       id: randomUUID(), source: "finding", question: "", clause: data.clause.trim(),
       auditArea: data.auditArea.trim(), description: data.description?.trim() || null,
       auditFinding: data.auditFinding, evidenceIds, actionTakerId: data.actionTakerId,
+      recommendedPriorityAction: data.recommendedPriorityAction,
       ...(data.clientReference ? { clientReference: data.clientReference } : {}),
     };
     const [row] = await tx.update(audits).set({ checklistState: [...checklist, item] as any, updatedAt: new Date() })
@@ -2863,8 +2867,11 @@ router.patch("/audits/:id/finding-items/:itemId/action-taker", asyncHandler(asyn
     if (!item || typeof classification !== "string" || !classification.trim() || classification.trim().toLowerCase() === "not applicable") {
       throw new HttpError(404, "Finding not found");
     }
+    const recommendedPriorityAction = data.recommendedPriorityAction ?? item.recommendedPriorityAction;
+    try { requireFindingPriorityAction(data.actionTakerId, recommendedPriorityAction); }
+    catch (error) { throw new HttpError(422, (error as Error).message); }
     const [row] = await tx.update(audits).set({
-      checklistState: checklist.map(entry => entry.id === item.id ? { ...entry, actionTakerId: data.actionTakerId } : entry) as any,
+      checklistState: checklist.map(entry => entry.id === item.id ? { ...entry, actionTakerId: data.actionTakerId, recommendedPriorityAction } : entry) as any,
       updatedAt: new Date(),
     }).where(eq(audits.id, auditId)).returning();
     return { before, row };

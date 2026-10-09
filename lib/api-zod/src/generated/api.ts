@@ -8071,6 +8071,7 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -8224,6 +8225,7 @@ export const ListAuditsResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -8357,6 +8359,7 @@ export const CreateAuditBody = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -8495,6 +8498,7 @@ export const GetAuditResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -8631,6 +8635,7 @@ export const UpdateAuditBody = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -8794,6 +8799,7 @@ export const CompleteAuditResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -8943,6 +8949,7 @@ export const SaveAuditReportDetailsResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -9066,6 +9073,7 @@ export const UpdateAuditChecklistBodyItem = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })
 export const UpdateAuditChecklistBody = zod.array(UpdateAuditChecklistBodyItem)
@@ -9173,6 +9181,7 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -9324,6 +9333,7 @@ export const EditAuditChecklistItemResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -9464,6 +9474,7 @@ export const DeleteAuditChecklistItemResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -9616,6 +9627,7 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -9686,6 +9698,7 @@ export const CreateAuditFindingItemBody = zod.object({
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI']),
   "evidenceIds": zod.array(zod.string()).optional(),
   "actionTakerId": zod.string(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']),
   "clientReference": zod.string().min(1).max(createAuditFindingItemBodyClientReferenceMax).optional()
 })
 
@@ -9768,6 +9781,7 @@ export const CreateAuditFindingItemResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -9827,7 +9841,8 @@ export const AssignAuditFindingActionTakerParams = zod.object({
 })
 
 export const AssignAuditFindingActionTakerBody = zod.object({
-  "actionTakerId": zod.string()
+  "actionTakerId": zod.string(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional().describe('Required if the finding has no existing priority action; saved together with the Action Taker')
 })
 
 export const assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
@@ -9909,6 +9924,7 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -10053,6 +10069,7 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -10214,6 +10231,7 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -10378,6 +10396,7 @@ export const UpdateAuditOverallProjectProgressResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -10540,6 +10559,7 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({
@@ -11481,6 +11501,7 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "evidenceIds": zod.array(zod.string()).optional(),
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
   "clientReference": zod.string().optional()
 })).optional(),
   "additionalDocuments": zod.object({

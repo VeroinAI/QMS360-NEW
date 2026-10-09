@@ -3116,6 +3116,15 @@ export const ChecklistItemSource = {
   finding: 'finding',
 } as const;
 
+export type FindingPriorityAction = typeof FindingPriorityAction[keyof typeof FindingPriorityAction];
+
+
+export const FindingPriorityAction = {
+  Contain_the_risk_now: 'Contain the risk now',
+  Correct_and_close: 'Correct and close',
+  Prevent_recurrence: 'Prevent recurrence',
+} as const;
+
 export interface ChecklistItem {
   id: string;
   /** @nullable */
@@ -3133,6 +3142,7 @@ export interface ChecklistItem {
   /** Finding-only row, excluded from the Checklist tab */
   source?: ChecklistItemSource;
   actionTakerId?: string;
+  recommendedPriorityAction?: FindingPriorityAction;
   clientReference?: string;
 }
 
@@ -3155,6 +3165,7 @@ export interface AuditFindingItemInput {
   auditFinding: AuditFindingItemInputAuditFinding;
   evidenceIds?: string[];
   actionTakerId: string;
+  recommendedPriorityAction: FindingPriorityAction;
   /**
      * @minLength 1
      * @maxLength 100
@@ -3164,6 +3175,8 @@ export interface AuditFindingItemInput {
 
 export interface AuditFindingActionTakerInput {
   actionTakerId: string;
+  /** Required if the finding has no existing priority action; saved together with the Action Taker */
+  recommendedPriorityAction?: FindingPriorityAction;
 }
 
 export type AuditChecklistItemInputAuditFinding = typeof AuditChecklistItemInputAuditFinding[keyof typeof AuditChecklistItemInputAuditFinding];

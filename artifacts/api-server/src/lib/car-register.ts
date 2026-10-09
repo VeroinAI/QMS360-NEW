@@ -93,6 +93,8 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
     const plan = planRows.find(row => row.id === audit.auditPlanId);
     const schedule = scheduleRows.find(row => row.id === plan?.auditScheduleId);
     const pm = carJson(plan?.status), sm = carJson(schedule?.status);
+    // The Plan's Audit Schedule is the parent programme; its Audit Title is the child audit.
+    const programme = scheduleRows.find(row => row.id === sm.parentId);
     const process = sm.auditTypes?.includes("Quality Internal Process Audit");
     if (!scope.unrestricted && !(audit.projectId && scope.projectIds.includes(audit.projectId))
       && !(process && !audit.projectId && (scope.projectIds.length || scope.processAuditsAllowed))) continue;
@@ -119,10 +121,10 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
         const canReview = !inactiveSource && pm.leadAuditorId === userId && leadMarker;
         const response = car ? { ...dto(car), canRespond, canReview } : undefined;
         entries.push({ id: car?.id || `${audit.id}:${item.id}`, auditId: audit.id, itemId: item.id,
-          auditTitle: carJson(audit.status).title || audit.referenceNumber, scheduleId: schedule?.id || null,
+          auditTitle: schedule?.title || carJson(audit.status).title || audit.referenceNumber, scheduleId: programme?.id || null,
           auditTypes: Array.isArray(sm.auditTypes) ? sm.auditTypes.filter((type: unknown) => typeof type === "string" && type.trim()) : [],
           department: process && !audit.projectId ? sm.departmentProject || null : null,
-          scheduleName: schedule?.title || "No linked schedule", projectId: audit.projectId,
+          scheduleName: programme?.title || "No linked schedule", projectId: audit.projectId,
           projectName, clause: item.clause || "", auditArea: item.auditArea || source.finding?.responsibleDepartment || "",
           description: item.description || item.question || "", classification: item.auditFinding || item.result || "",
           actionTakerName: people.find(p => p.id === ownerId)?.name || "Not assigned",

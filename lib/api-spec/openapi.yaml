@@ -3713,10 +3713,13 @@ components:
     ChecklistItem:
       type: object
       required: [id, question]
-      properties: {id: {type: string}, clause: {type: [string, "null"]}, auditArea: {type: string}, question: {type: string}, description: {type: [string, "null"]}, auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}, result: {type: string, description: "Legacy values managed via /platform/master-data/lov/checklist_results"}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}, source: {type: string, enum: [finding], description: "Finding-only row, excluded from the Checklist tab"}, actionTakerId: {type: string}, clientReference: {type: string}}
+      properties: {id: {type: string}, clause: {type: [string, "null"]}, auditArea: {type: string}, question: {type: string}, description: {type: [string, "null"]}, auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}, result: {type: string, description: "Legacy values managed via /platform/master-data/lov/checklist_results"}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}, source: {type: string, enum: [finding], description: "Finding-only row, excluded from the Checklist tab"}, actionTakerId: {type: string}, recommendedPriorityAction: {$ref: "#/components/schemas/FindingPriorityAction"}, clientReference: {type: string}}
+    FindingPriorityAction:
+      type: string
+      enum: ["Contain the risk now", "Correct and close", "Prevent recurrence"]
     AuditFindingItemInput:
       type: object
-      required: [clause, auditArea, auditFinding, actionTakerId]
+      required: [clause, auditArea, auditFinding, actionTakerId, recommendedPriorityAction]
       properties:
         clause: {type: string, minLength: 1}
         auditArea: {type: string, minLength: 1}
@@ -3724,11 +3727,14 @@ components:
         auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI]}
         evidenceIds: {type: array, items: {type: string}}
         actionTakerId: {type: string}
+        recommendedPriorityAction: {$ref: "#/components/schemas/FindingPriorityAction"}
         clientReference: {type: string, minLength: 1, maxLength: 100}
     AuditFindingActionTakerInput:
       type: object
       required: [actionTakerId]
-      properties: {actionTakerId: {type: string}}
+      properties:
+        actionTakerId: {type: string}
+        recommendedPriorityAction: {$ref: "#/components/schemas/FindingPriorityAction", description: "Required if the finding has no existing priority action; saved together with the Action Taker"}
     AuditChecklistItemInput:
       type: object
       required: [clause, auditArea, question]

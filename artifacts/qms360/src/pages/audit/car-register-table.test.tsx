@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { CarRegisterEntry, CorrectiveActionReport } from "@workspace/api-client-react";
-import { CAR_REGISTER_COLUMNS, CarRegisterTable } from "./car-register-table";
+import { CAR_REGISTER_COLUMNS, CarRegisterTable, type CarRegisterTableProps } from "./car-register-table";
 
 const entry: CarRegisterEntry = {
   id: "finding-1", auditId: "audit-1", itemId: "item-1", auditTitle: "Audit title", scheduleName: "Schedule",
@@ -9,7 +9,8 @@ const entry: CarRegisterEntry = {
   clause: "1", auditArea: "Area", description: "Finding description", classification: "Minor NC",
   actionTakerName: "Assigned action taker", evidenceIds: [], status: "Open", canRespond: true, canReview: false,
 };
-const render = (entries: CarRegisterEntry[], busy = false) => renderToStaticMarkup(<CarRegisterTable
+const render = (entries: CarRegisterEntry[], busy = false, areaProps: Pick<CarRegisterTableProps, "auditAreaOptions" | "auditAreasLoading"> = {}) => renderToStaticMarkup(<CarRegisterTable
+  {...areaProps}
   entries={entries} page={1} limit={10} busy={busy} renderEvidence={() => <span>Evidence link</span>}
   onEdit={() => {}} onDisplay={() => {}} onReview={() => {}} onLog={() => {}} />);
 const button = (html: string, id: string) => html.match(new RegExp(`<button[^>]*data-testid="${id}"[^>]*>`))?.[0] ?? "";
@@ -18,6 +19,36 @@ const car = (status: CorrectiveActionReport["status"], correctiveAction?: string
 });
 
 describe("Excel-style CAR Register", () => {
+  it("renders the parent schedule and selected audit title in their respective columns", () => {
+    const html = render([{ ...entry, scheduleName: "Audit Schedule - 2026", auditTitle: "AM-1709-2106" }]);
+    const cells = [...html.matchAll(/<td\b[^>]*>(.*?)<\/td>/g)].map(match => match[1]);
+    expect(cells[0]).toBe("Audit Schedule - 2026");
+    expect(cells[1]).toBe("AM-1709-2106");
+  });
+  it("displays the corresponding master-data label instead of the Audit Area key", () => {
+    const original = { ...entry, auditArea: "design_engg" };
+    const html = render([original], false, { auditAreaOptions: [
+      { value: "pmo", label: "Project Management Office" },
+      { value: "design_engg", label: "Configured Design Label" },
+    ] });
+    expect(html).toContain(">Configured Design Label</td>");
+    expect(html).not.toContain(">design_engg</td>");
+    expect(original.auditArea).toBe("design_engg");
+    expect(button(html, "button-respond-finding-1")).not.toContain('disabled=""');
+  });
+  it("preserves legacy labels and unmapped values without inventing or rewriting data", () => {
+    expect(render([{ ...entry, auditArea: "Historical area" }], false, {
+      auditAreaOptions: [{ value: "pmo", label: "Project Management Office" }],
+    })).toContain(">Historical area</td>");
+    expect(render([{ ...entry, auditArea: "pmo" }], false, {
+      auditAreaOptions: [{ value: "pmo", label: "Project Management Office" }],
+    })).toContain(">Project Management Office</td>");
+  });
+  it("does not flash a key while master-data labels are loading", () => {
+    const html = render([{ ...entry, auditArea: "design_engg" }], false, { auditAreasLoading: true });
+    expect(html).toContain("Loading Audit Area");
+    expect(html).not.toContain(">design_engg</td>");
+  });
   it("keeps the recorded-action column and inserts Word Download immediately before Log", () => {
     expect(CAR_REGISTER_COLUMNS).toEqual([
       "Audit Schedule", "Audit Title", "Audit Type", "Project / Department", "Audit Area", "Description",

@@ -7,6 +7,7 @@
  */
 import type { ChecklistItemAuditFinding } from './checklistItemAuditFinding';
 import type { ChecklistItemSource } from './checklistItemSource';
+import type { FindingPriorityAction } from './findingPriorityAction';
 
 export interface ChecklistItem {
   id: string;
@@ -25,5 +26,6 @@ export interface ChecklistItem {
   /** Finding-only row, excluded from the Checklist tab */
   source?: ChecklistItemSource;
   actionTakerId?: string;
+  recommendedPriorityAction?: FindingPriorityAction;
   clientReference?: string;
 }

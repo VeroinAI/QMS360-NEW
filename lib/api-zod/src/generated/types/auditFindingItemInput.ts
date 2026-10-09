@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AuditFindingItemInputAuditFinding } from './auditFindingItemInputAuditFinding';
+import type { FindingPriorityAction } from './findingPriorityAction';
 
 export interface AuditFindingItemInput {
   /** @minLength 1 */
@@ -16,6 +17,7 @@ export interface AuditFindingItemInput {
   auditFinding: AuditFindingItemInputAuditFinding;
   evidenceIds?: string[];
   actionTakerId: string;
+  recommendedPriorityAction: FindingPriorityAction;
   /**
      * @minLength 1
      * @maxLength 100

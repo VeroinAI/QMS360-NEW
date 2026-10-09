@@ -59,12 +59,14 @@
 - [OpenAPI metadata validation](openapi-metadata-validation.md) — typed metadata validators must preserve unknown keys on request and response paths.
 - [Product / Process Owner marker](product-process-owner-marker.md) — assigned Audit users can be selected as Schedule owners; the marker alone grants no Audit actions.
 - [Audit Area master data reuse](audit-area-master-data.md) — Audit Checklist uses the existing shared “Audit Area” group; do not create a parallel audit_areas list.
+- [Audit reporting terminology](audit-reporting-terminology.md) — CAR Schedule means the parent schedule name; Audit Title means the individual audit selected in the Plan.
 - [Audit Schedule numbering policy](audit-schedule-numbering-policy.md) — QA/QC Reference uses each audit's From Date year; yearless Audit Numbers remain unique per project/department across years.
 - [Checklist evidence vs import](checklist-workbook-import-ux.md) — the Evidence picker always attaches its file, including Excel; Upload Excel alone imports rows.
 - [Checklist row deletion](checklist-row-deletion.md) — permit deletion only when Audit Findings and Evidence are both empty; protect legacy results and recheck at deletion time.
 - [Audit meeting attendee identity](opening-meeting-attendee-identity.md) — opening and closing selections use Audit user IDs; preserve old typed names and resolve IDs for display.
 - [Orval scalar format compatibility](orval-uuid-format.md) — UUID, email and integer schemas can generate unavailable Zod helpers; check generated-library compilation.
 - [Audit finding record coexistence](audit-finding-coexistence.md) — preserve older standalone findings and CAR links while the Findings workspace uses checklist-backed rows.
+- [Finding priority actions](finding-priority-action-policy.md) — single required choice with an Action Taker; remove the Report Details tile without deleting historical data.
 - [Audit document replacement safety](audit-document-replacement-safety.md) — unlink charts without deleting evidence cited elsewhere; merge audit metadata under a row lock.
 - [Audit attachment scopes](audit-attachment-scopes.md) — legacy uploads share MIME-based categories; exclude Checklist references, tag new Checklist and Attachment uploads separately.
 - [Audit approval level migration](audit-approval-level-migration.md) — preserve in-flight role snapshots and materialize legacy L-number levels once; new sequencing reads stored levels only.

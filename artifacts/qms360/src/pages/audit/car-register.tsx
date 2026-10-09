@@ -20,6 +20,7 @@ import { CarRegisterTable } from "./car-register-table";
 import { CarDisplayDialog, CarLogDialog } from "./car-register-details";
 import { useFieldControls } from "@/lib/field-controls";
 import { useFieldAccess } from "@/lib/use-field-access";
+import { useLov } from "@/lib/use-lov";
 
 const LIMIT = 10;
 const EDITABLE = ["Open", "Draft", "Rejected", "Returned for query", "Returned for rework"];
@@ -135,6 +136,7 @@ function Evidence({ entry }: { entry: CarRegisterEntry }) {
 
 export function CarRegister() {
   const { toast } = useToast();
+  const auditAreas = useLov("Audit Area");
   const refresh = useCarRefresh();
   const [page, setPage] = useState(1);
   const [projectId, setProjectId] = useState("all");
@@ -183,7 +185,8 @@ export function CarRegister() {
     </div>
     {query.isLoading && <Card><CardContent className="animate-pulse py-14 text-center text-muted-foreground">Loading…</CardContent></Card>}
     {query.error && <Card className="border-destructive"><CardContent className="py-8 text-center text-destructive">{errorText(query.error)} <Button size="sm" variant="outline" className="ml-2" onClick={() => void query.refetch()}>Retry</Button></CardContent></Card>}
-    {data && <CarRegisterTable entries={data.items} page={page} limit={LIMIT} busy={start.isPending || editSession.isPending}
+    {auditAreas.error && <p role="alert" className="text-sm text-destructive">Unable to load Audit Area labels. <button type="button" className="underline" onClick={() => void auditAreas.refetch()}>Retry</button></p>}
+    {data && <CarRegisterTable entries={data.items} auditAreaOptions={auditAreas.options} auditAreasLoading={auditAreas.isLoading} page={page} limit={LIMIT} busy={start.isPending || editSession.isPending}
       renderEvidence={entry => <Evidence entry={entry} />} onEdit={open} onDisplay={setDisplaying}
       onReview={entry => { if (entry.car) setReviewing(entry.car); }} onLog={setLogging} />}
     {data && data.items.length > 0 && <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground"><span>{data.total} total</span>

@@ -13,6 +13,7 @@ export * from "./email-templates";
 export * from "./audit-report-details";
 export * from "./audit-checklist-deletion";
 export * from "./audit-project-progress";
+export * from "./finding-priority-actions";
 export type FieldControlAppKey = "qaqc" | "lessons" | "audit";
 
 export type FieldDefinition = { key: string; label: string };
