@@ -56,6 +56,8 @@ import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-
 import { auditPlanReportData } from "../lib/audit-plan-report-data";
 import { renderAuditPlanPdf } from "../lib/audit-plan-pdf";
 import { readAuditPlanSignature } from "../lib/audit-plan-signatures";
+import { ChecklistImportError, mergeAuditChecklistImport } from "../lib/audit-checklist-import";
+import { checklistDeletionBlockReason } from "@workspace/field-controls";
 import { auditIsComplete, buildConsolidatedAuditReport } from "../lib/audit-consolidated-report";
 import { AUDIT_PPTX_MIME, renderConsolidatedAuditPptx } from "../lib/audit-consolidated-pptx";
 import { renderConsolidatedAuditPdf } from "../lib/audit-consolidated-pdf";
@@ -2750,28 +2752,51 @@ router.put("/audits/:id/checklist/items/:itemId", asyncHandler(async (req, res) 
   res.json(auditDto(row));
 }));
 
+router.delete("/audits/:id/checklist/items/:itemId", asyncHandler(async (req, res) => {
+  const { id: auditId, itemId } = Api.DeleteAuditChecklistItemParams.parse(req.params);
+  const organizationId = actor(req).organizationId;
+  const { before, row } = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(
+      active(audits, organizationId), eq(audits.id, auditId),
+    )).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    await assertAuditProject(req, before.projectId);
+    const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
+    const item = checklist.find(value => value.id === itemId && value.source !== "finding");
+    if (!item) throw new HttpError(404, "Checklist item not found");
+    const reason = checklistDeletionBlockReason(item);
+    if (reason) throw new HttpError(409, reason);
+    const [row] = await tx.update(audits).set({
+      checklistState: checklist.filter(value => value.id !== itemId) as any, updatedAt: new Date(),
+    }).where(eq(audits.id, auditId)).returning();
+    return { before, row };
+  });
+  await auditLog(req, "delete_checklist_item", "audit", row.id, before, row);
+  res.json(auditDto(row));
+}));
+
 router.post("/audits/:id/checklist/import", asyncHandler(async (req, res) => {
   const data = body<AnyRow[]>(Api.ImportAuditChecklistItemsBody, req);
   const organizationId = actor(req).organizationId;
   const auditId = String(req.params.id);
-  const referencedIds = new Set<string>();
   for (const [index, item] of data.entries()) {
     if (!item.clause.trim() || !item.auditArea.trim() || !item.question.trim()) {
       throw new HttpError(422, `Row ${index + 2}: Clause, Audit Area and Audit Question are required`);
     }
-    if (item.id && referencedIds.has(item.id)) throw new HttpError(422, `Row ${index + 2}: duplicate Checklist item ID`);
-    if (item.id) referencedIds.add(item.id);
   }
   const { before, row } = await db.transaction(async tx => {
     const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
     const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
-    const existing = new Map(checklist.map(item => [item.id, item]));
+    let merged: ReturnType<typeof mergeAuditChecklistImport>;
+    try {
+      merged = mergeAuditChecklistImport(checklist, data, checklistItemValues);
+    } catch (error) {
+      if (error instanceof ChecklistImportError) throw new HttpError(422, error.message);
+      throw error;
+    }
     const checkedAreas = new Set<string>();
-    for (const [index, item] of data.entries()) {
-      const previous = item.id ? existing.get(item.id) : undefined;
-      if (item.id && !previous) throw new HttpError(422, `Row ${index + 2}: Checklist item is not in this audit`);
-      if (previous?.source === "finding") throw new HttpError(422, `Row ${index + 2}: finding-only rows cannot be imported as checklist items`);
+    for (const { item, previous } of merged.matches) {
       const area = item.auditArea.trim();
       const checkKey = `${area}\0${previous?.auditArea === area ? "legacy" : "active"}`;
       if (!checkedAreas.has(checkKey)) {
@@ -2779,13 +2804,7 @@ router.post("/audits/:id/checklist/import", asyncHandler(async (req, res) => {
         checkedAreas.add(checkKey);
       }
     }
-    const updates = new Map(data.filter(item => item.id).map(item => [item.id, item]));
-    const updated = checklist.map(item => {
-      const changes = updates.get(item.id);
-      return changes ? { ...item, ...checklistItemValues(changes, item.evidenceIds ?? []) } : item;
-    });
-    const additions = data.filter(item => !item.id).map(item => ({ id: randomUUID(), ...checklistItemValues(item, []) }));
-    const [row] = await tx.update(audits).set({ checklistState: [...updated, ...additions] as any, updatedAt: new Date() }).where(eq(audits.id, auditId)).returning();
+    const [row] = await tx.update(audits).set({ checklistState: merged.checklist as any, updatedAt: new Date() }).where(eq(audits.id, auditId)).returning();
     return { before, row };
   });
   await auditLog(req, "import_checklist_items", "audit", row.id, before, row);

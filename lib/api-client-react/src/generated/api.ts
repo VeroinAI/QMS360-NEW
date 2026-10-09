@@ -21385,6 +21385,79 @@ export const useEditAuditChecklistItem = <TError = ErrorType<unknown>,
       return useMutation(getEditAuditChecklistItemMutationOptions(options));
     }
 
+export const getDeleteAuditChecklistItemUrl = (id: string,
+    itemId: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/checklist/items/${itemId}`
+}
+
+/**
+ * @summary Delete a checklist item only when both Audit Findings and Evidence are empty
+ */
+export const deleteAuditChecklistItem = async (id: string,
+    itemId: string, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getDeleteAuditChecklistItemUrl(id,itemId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAuditChecklistItemMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAuditChecklistItem>>, TError,{id: string;itemId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAuditChecklistItem>>, TError,{id: string;itemId: string}, TContext> => {
+
+const mutationKey = ['deleteAuditChecklistItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAuditChecklistItem>>, {id: string;itemId: string}> = (props) => {
+          const {id,itemId} = props ?? {};
+
+          return  deleteAuditChecklistItem(id,itemId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAuditChecklistItemMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAuditChecklistItem>>>
+
+    export type DeleteAuditChecklistItemMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a checklist item only when both Audit Findings and Evidence are empty
+ */
+export const useDeleteAuditChecklistItem = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAuditChecklistItem>>, TError,{id: string;itemId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAuditChecklistItem>>,
+        TError,
+        {id: string;itemId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteAuditChecklistItemMutationOptions(options));
+    }
+
 export const getImportAuditChecklistItemsUrl = (id: string,) => {
 
 

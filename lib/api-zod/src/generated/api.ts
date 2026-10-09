@@ -9168,6 +9168,123 @@ export const EditAuditChecklistItemResponse = zod.object({
 
 
 /**
+ * @summary Delete a checklist item only when both Audit Findings and Evidence are empty
+ */
+
+
+
+export const DeleteAuditChecklistItemParams = zod.object({
+  "id": zod.coerce.string(),
+  "itemId": zod.coerce.string().min(1)
+})
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
+export const deleteAuditChecklistItemResponseReportDetailsValuesMaxOne = 10000;
+
+export const deleteAuditChecklistItemResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const deleteAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
+
+
+
+export const DeleteAuditChecklistItemResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMin).max(deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "designRemarks": zod.string().optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional(),
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(deleteAuditChecklistItemResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(deleteAuditChecklistItemResponseReportDetailsRowsItemMaxOne))).max(deleteAuditChecklistItemResponseReportDetailsRowsMaxOne))
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
  * @summary Update existing checklist items and append new ones atomically from a spreadsheet
  */
 export const ImportAuditChecklistItemsParams = zod.object({

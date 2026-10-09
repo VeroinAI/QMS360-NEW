@@ -20,3 +20,15 @@ Do not rerun seeds, reset passwords or alter authentication merely to enable a f
 **Why:** Retained development accounts can have legitimately changed passwords; failed demo login is not evidence that the feature or authentication configuration is broken.
 
 **How to apply:** Verify the configured authentication mode and use isolated development test sessions without changing real accounts. Do not expose or retain session credentials in project files, memory or test reports.
+
+Do not assume the browser tester can reach a loopback-only helper started by
+the shell. Failure to transfer a signed test session is a test-harness
+limitation, not evidence of an application login bug.
+
+**Why:** A browser test was blocked by loopback token-transfer failures, while
+authenticated API requests from the same shell process worked normally.
+
+**How to apply:** Keep test credentials in memory and preserve production
+authentication boundaries. Do not add a public token bridge or change login
+configuration merely to enable a test; verify API guards independently and
+report any unverified signed-in UI behavior plainly.

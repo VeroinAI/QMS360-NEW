@@ -1644,6 +1644,15 @@ paths:
     post: {operationId: createAuditChecklistItem, tags: [audit], summary: Append a checklist item, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditChecklistItemInput"}}}}, responses: {"201": {description: Updated audit with new checklist item, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/audits/{id}/checklist/items/{itemId}:
     put: {operationId: editAuditChecklistItem, tags: [audit], summary: Edit a checklist item, parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string}}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditChecklistItemInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
+    delete:
+      operationId: deleteAuditChecklistItem
+      tags: [audit]
+      summary: Delete a checklist item only when both Audit Findings and Evidence are empty
+      parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string, minLength: 1}}]
+      responses:
+        "200": {description: Updated audit with the item removed, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
+        "404": {description: Audit or checklist item not found}
+        "409": {description: Audit Findings or Evidence prevents deletion}
   /audit/audits/{id}/checklist/import:
     post: {operationId: importAuditChecklistItems, tags: [audit], summary: Update existing checklist items and append new ones atomically from a spreadsheet, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {type: array, minItems: 1, maxItems: 500, items: {$ref: "#/components/schemas/AuditChecklistImportItem"}}}}}, responses: {"201": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/audits/{id}/finding-items:

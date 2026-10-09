@@ -61,6 +61,7 @@
 - [Audit Area master data reuse](audit-area-master-data.md) — Audit Checklist uses the existing shared “Audit Area” group; do not create a parallel audit_areas list.
 - [Audit Schedule numbering policy](audit-schedule-numbering-policy.md) — QA/QC Reference uses each audit's From Date year; yearless Audit Numbers remain unique per project/department across years.
 - [Checklist evidence vs import](checklist-workbook-import-ux.md) — the Evidence picker always attaches its file, including Excel; Upload Excel alone imports rows.
+- [Checklist row deletion](checklist-row-deletion.md) — permit deletion only when Audit Findings and Evidence are both empty; protect legacy results and recheck at deletion time.
 - [Audit meeting attendee identity](opening-meeting-attendee-identity.md) — opening and closing selections use Audit user IDs; preserve old typed names and resolve IDs for display.
 - [Orval scalar format compatibility](orval-uuid-format.md) — UUID, email and integer schemas can generate unavailable Zod helpers; check generated-library compilation.
 - [Audit finding record coexistence](audit-finding-coexistence.md) — preserve older standalone findings and CAR links while the Findings workspace uses checklist-backed rows.

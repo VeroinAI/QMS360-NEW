@@ -11,6 +11,7 @@ export * from "./audit-plan-dates";
 export * from "./qaqc-permissions";
 export * from "./email-templates";
 export * from "./audit-report-details";
+export * from "./audit-checklist-deletion";
 export type FieldControlAppKey = "qaqc" | "lessons" | "audit";
 
 export type FieldDefinition = { key: string; label: string };

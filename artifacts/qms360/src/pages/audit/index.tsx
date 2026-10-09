@@ -18,6 +18,7 @@ import {
   useCreateAuditEvidenceIntent,
   useCreateAuditChecklistItem,
   useEditAuditChecklistItem,
+  useDeleteAuditChecklistItem,
   useImportAuditChecklistItems,
   useCreateAuditPlan,
   useCreateAuditSchedule,
@@ -92,7 +93,7 @@ import { auditTeamWithoutLead } from "./audit-plan-team";
 import { useGetPlatformAuditMemoDefaults, getGetPlatformAuditMemoDefaultsQueryKey } from "@workspace/api-client-react";
 import { parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import { importDateOptions } from "@/lib/import-date-options";
-import { auditPlanDateErrors, datedActivities, plannedDate } from "@workspace/field-controls";
+import { auditPlanDateErrors, datedActivities, plannedDate, checklistDeletionBlockReason } from "@workspace/field-controls";
 import {
   AlertTriangle, ArrowLeft, BarChart3, CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck,
   Download, Eye, FileText, FolderOpen, Pencil, Plus, Search, Send, ShieldCheck,
@@ -1997,6 +1998,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
   const empty = () => ({ clause: "", auditArea: "", question: "", description: "", auditFinding: "", evidenceIds: [] as string[], file: null as File | null });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ChecklistItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ChecklistItem | null>(null);
   const [draft, setDraft] = useState(empty);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -2010,6 +2012,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
   const evidence = useListAuditEvidence({ recordType: "audit", recordId: auditId, page: 1, limit: 200 });
   const addItem = useCreateAuditChecklistItem();
   const editItem = useEditAuditChecklistItem();
+  const deleteItem = useDeleteAuditChecklistItem();
   const importItems = useImportAuditChecklistItems();
   const intent = useCreateAuditEvidenceIntent();
   const confirm = useConfirmAuditEvidence();
@@ -2041,9 +2044,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
       const saved = await importItems.mutateAsync({ id: auditId, data: rows });
       qc.setQueryData(getGetAuditQueryKey(auditId), saved);
       void qc.invalidateQueries({ queryKey: getGetAuditQueryKey(auditId) });
-      const updates = rows.filter(row => row.id).length;
-      const additions = rows.length - updates;
-      toast({ title: `Checklist loaded`, description: `${updates} updated, ${additions} added.` });
+      toast({ title: "Checklist loaded", description: "Matching Clause, Audit Area and Audit Question rows were updated; new rows were added." });
     } catch (error) {
       toast({ title: "Unable to import checklist", description: errorText(error), variant: "destructive" });
     } finally {
@@ -2109,6 +2110,21 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
   };
   const findings = checklistFindings;
   const filesById = new Map((evidence.data?.items ?? []).map(file => [file.id, file]));
+  const confirmDelete = () => {
+    if (!deleteTarget || checklistDeletionBlockReason(deleteTarget)) return;
+    deleteItem.mutate({ id: auditId, itemId: deleteTarget.id }, {
+      onSuccess: audit => {
+        qc.setQueryData(getGetAuditQueryKey(auditId), audit);
+        void qc.invalidateQueries({ queryKey: getGetAuditQueryKey(auditId) });
+        setDeleteTarget(null);
+        toast({ title: "Checklist item deleted" });
+      },
+      onError: error => {
+        void qc.invalidateQueries({ queryKey: getGetAuditQueryKey(auditId) });
+        toast({ title: "Unable to delete checklist item", description: errorText(error), variant: "destructive" });
+      },
+    });
+  };
   return <Card>
     <CardHeader className="flex-row flex-wrap items-center justify-between gap-3">
       <div><CardTitle>Checklist</CardTitle><CardDescription>Clause-level audit questions and findings</CardDescription></div>
@@ -2135,11 +2151,29 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
                 ? <button key={id} type="button" className="block text-left text-primary underline" onClick={() => void downloadEvidence(file.storageUrl!, file.fileName)}>{file.fileName}</button>
                 : <span key={id} className="block text-muted-foreground">File unavailable</span>;
             }) : "—"}</TableCell>
-            <TableCell className="align-top"><Button size="sm" variant="outline" onClick={() => openEdit(item)}><Pencil className="mr-2 size-3"/>Edit</Button></TableCell>
+            <TableCell className="align-top"><div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => openEdit(item)}><Pencil className="mr-2 size-3"/>Edit</Button>
+              <Button size="sm" variant="outline" className="text-destructive" aria-label={`Delete checklist item ${item.clause ?? ""}: ${item.question}`}
+                title={checklistDeletionBlockReason(item) ?? "Delete this checklist item"}
+                disabled={Boolean(checklistDeletionBlockReason(item)) || deleteItem.isPending || saving || importing}
+                onClick={() => setDeleteTarget(item)}><Trash2 className="mr-2 size-3"/>Delete</Button>
+            </div></TableCell>
           </TableRow>) : <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">No checklist items yet. Select New Item or upload an Excel template to add some.</TableCell></TableRow>}</TableBody>
         </Table>
       </div>
     </CardContent>
+    <Dialog open={!!deleteTarget} onOpenChange={value => { if (!value && !deleteItem.isPending) setDeleteTarget(null); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Delete this checklist item?</DialogTitle>
+          <DialogDescription>This will permanently remove the question from this audit’s checklist. This action cannot be undone. Only items with no Audit Findings and no Evidence can be deleted.</DialogDescription>
+        </DialogHeader>
+        <p className="text-sm">{deleteTarget?.clause} — {deleteTarget?.question}</p>
+        <DialogFooter>
+          <Button variant="outline" disabled={deleteItem.isPending} onClick={() => setDeleteTarget(null)}>Cancel</Button>
+          <Button variant="destructive" disabled={deleteItem.isPending} onClick={confirmDelete}>{deleteItem.isPending ? "Deleting…" : "Delete item"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     <Dialog open={open} onOpenChange={value => { if (!value && !saving) reset(); else if (value) setOpen(true); }}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader><DialogTitle>{editing ? "Edit Checklist Item" : "New Checklist Item"}</DialogTitle><DialogDescription>{editing ? "Update this question and its evidence." : "Add a question and optionally attach evidence. Nothing is saved until you select Save."}</DialogDescription></DialogHeader>

@@ -91,7 +91,6 @@ export function parseChecklistWorkbook(bytes: ArrayBuffer, areas: AuditAreaOptio
   if (!rows.length) throw new Error("The spreadsheet has no checklist items.");
   if (rows.length > MAX_ROWS) throw new Error(`Upload no more than ${MAX_ROWS} checklist items at once.`);
   const existingById = new Map(existing.map(item => [item.id, item]));
-  const seenIds = new Set<string>();
   const allowedFindings = new Set<string>(checklistFindings);
   const parsed = rows.map((row): ChecklistImportRow | null => {
     const line = ((row as Record<string, unknown>).__rowNum__ as number) + 1;
@@ -99,8 +98,6 @@ export function parseChecklistWorkbook(bytes: ArrayBuffer, areas: AuditAreaOptio
     const [clause, auditArea, question, description, finding] = values;
     const id = hasItemIds ? String(row["Item ID"] ?? "").trim() : "";
     if (id && !existingById.has(id)) throw new Error(`Row ${line}: Item ID is not in this audit. Download a fresh template.`);
-    if (id && seenIds.has(id)) throw new Error(`Row ${line}: duplicate Checklist item ID.`);
-    if (id) seenIds.add(id);
     const previous = id ? existingById.get(id) : undefined;
     if (!clause || !auditArea || !question) {
       const originalArea = areas.find(area => area.value === previous?.auditArea)?.label ?? previous?.auditArea ?? "";

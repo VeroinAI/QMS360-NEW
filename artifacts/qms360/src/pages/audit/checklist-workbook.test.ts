@@ -58,6 +58,29 @@ describe("Audit Checklist Excel template", () => {
     ]);
   });
 
+  it("imports an edited export even when the optional hidden Item ID is removed", async () => {
+    const existing: ChecklistItem[] = [{
+      id: "original-id", clause: "4.1", auditArea: "AREA-2", question: "Existing question",
+      description: "Original", auditFinding: "Minor NC", evidenceIds: ["stored-file"],
+    }];
+    const workbook = await createChecklistWorkbook(areas, existing);
+    const sheet = workbook.getWorksheet("Checklist")!;
+    sheet.getCell("F2").value = null;
+    sheet.getCell("D2").value = "Revised description";
+    sheet.getCell("E2").value = "OFI";
+    const bytes = await workbook.xlsx.writeBuffer();
+    expect(parseChecklistWorkbook(new Uint8Array(bytes).buffer as ArrayBuffer, areas, existing)).toEqual([{
+      clause: "4.1", auditArea: "AREA-2", question: "Existing question",
+      description: "Revised description", auditFinding: "OFI",
+    }]);
+    sheet.getCell("F2").value = "original-id";
+    sheet.getRow(3).values = ["4.1", "QMS", "Existing question", "Last revision", "OFI", "original-id"];
+    const repeated = parseChecklistWorkbook(new Uint8Array(await workbook.xlsx.writeBuffer()).buffer as ArrayBuffer, areas, existing);
+    expect(repeated).toHaveLength(2);
+    expect(repeated[0].id).toBe("original-id");
+    expect(repeated[1]).toMatchObject({ id: "original-id", description: "Last revision" });
+  });
+
   it("keeps unchanged incomplete historical rows in the export without blocking new rows", async () => {
     const legacy: ChecklistItem[] = [{
       id: "old-id", clause: "", question: "Old question", notes: "Earlier notes", result: "Observation",
