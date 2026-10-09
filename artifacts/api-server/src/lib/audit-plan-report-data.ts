@@ -77,7 +77,7 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
     ],
     activities: datedActivities<RecordData>(activityRows, meta.activityDateTime).map((row: RecordData) => {
       const start = date(row.plannedStartDateTime, true), end = date(row.plannedEndDateTime, true);
-      return { section: mapped(row.section), remarks: mapped(row.remarks), auditee: row.auditeeIds !== undefined ? names(row.auditeeIds, userNames) : name(row.auditeeId),
+      return { section: mapped(row.section), remarks: mapped(row.remarks), auditee: names(row.roleIds, roleNames),
         plannedStart: start, plannedEnd: end, legacyDateTimeDerived: row.legacyDateTimeDerived,
         dateTime: `Planned Start: ${start}\nPlanned End: ${end}${row.legacyDateTimeDerived ? "\nDerived from saved legacy date/time" : ""}` };
     }),

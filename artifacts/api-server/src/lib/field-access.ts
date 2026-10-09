@@ -99,7 +99,7 @@ export const FIELD_CATALOG: Record<AppKey, CatalogForm[]> = {
         f("activitySection", "Activities / section", ""),
         f("activityRemarks", "Activities / section remarks", ""),
         f("activityAuditeeId", "Auditee for the activity", ""),
-        f("activityRoleIds", "Roles for the activity", []),
+        f("activityRoleIds", "Auditee Role", []),
         f("activityDateTime", "Date / time of activity", ""),
         f("activityPlannedStartDateTime", "Activity Planned Start", []),
         f("activityPlannedEndDateTime", "Activity Planned End", []),

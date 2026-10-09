@@ -167,7 +167,7 @@ export const fieldControlRegistry: Record<FieldControlAppKey, FormDefinition[]> 
         { key: "activitySection", label: "Activities / Section" },
         { key: "activityRemarks", label: "Activity Remarks" },
         { key: "activityAuditeeId", label: "Activity Auditee" },
-        { key: "activityRoleIds", label: "Activity Roles" },
+        { key: "activityRoleIds", label: "Auditee Role" },
         { key: "activityPlannedStartDateTime", label: "Activity Planned Start" },
         { key: "activityPlannedEndDateTime", label: "Activity Planned End" },
         { key: "activityDateTime", label: "Legacy activity date/time lock (both dates)" },

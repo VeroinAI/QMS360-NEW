@@ -1,19 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import { readFile, writeFile } from "node:fs/promises";
 import { auditPlanReportData, TO_BE_MAPPED } from "./audit-plan-report-data";
 import { renderAuditPlanPdf } from "./audit-plan-pdf";
 import { auditPlanDateErrors } from "@workspace/field-controls";
+import { getDateFormat, setDateFormatResolver } from "@workspace/spreadsheet-dates";
+
+const previousDateFormat = getDateFormat();
+beforeAll(() => setDateFormatResolver(() => "DD-MM-YYYY"));
+afterAll(() => setDateFormatResolver(() => previousDateFormat));
 
 const people = new Map([["lead", "Test Lead Auditor"], ["team", "Test Team Member"], ["owner", "Test Activity Owner"]]);
-const roles = new Map([["role", "Project Team"]]);
+const roles = new Map([["role", "Project Team"], ["procurement", "Procurement Lead"], ["quality", "Quality Manager"]]);
 const meta = {
   leadAuditorId: "lead", auditeeRoleIds: ["role"], qaqcScope: "Project management and construction", auditTypes: ["Internal"],
   auditLanguage: "Verbal: English\nWriting: English", qaqcReference: "QAM-IA/26-007",
   startDateTime: "2026-01-26T03:30:00Z", endDateTime: "2026-01-27T11:00:00Z",
   openingMeetingDateTime: "2026-01-26T03:30:00Z", closingMeetingDateTime: "2026-01-27T11:00:00Z",
   activityDateTime: "2026-01-26T04:00:00Z",
-  activities: [{ section: "General Requirement", remarks: "Quality policy\nQuality records\nDocument controls", auditeeId: "owner" }],
+  activities: [{ section: "General Requirement", remarks: "Quality policy\nQuality records\nDocument controls", roleIds: ["procurement", "quality"], auditeeId: "owner" }],
 };
 const plan = { teamMemberIds: ["team"], createdAt: "2026-01-22T12:00:00Z" };
 const schedule = { auditNumber: "AGC-007", qaqcClauses: "ISO 9001:2015" };
@@ -36,14 +41,27 @@ describe("Audit Plan PDF mappings", () => {
     expect(unavailable.activities[0]?.plannedStart).toBe(TO_BE_MAPPED);
     expect(unavailable.activities[0]?.plannedEnd).toBe(TO_BE_MAPPED);
   });
-  it("resolves distinct lead, team, plan auditee roles, and activity auditee users", () => {
+  it("resolves distinct lead, team, plan auditee roles, and activity Auditee Roles", () => {
     const report = data();
     expect(report.lead).toBe("Test Lead Auditor");
     expect(report.team).toBe("Test Team Member");
     expect(report.auditee).toBe("Project Team");
-    expect(report.activities[0]?.auditee).toBe("Test Activity Owner");
+    expect(report.activities[0]?.auditee).toBe("Procurement Lead, Quality Manager");
     expect(report.sheqReference).toBe("QAM-IA/26-007");
     expect(report.standards).toBe("ISO 9001:2015");
+  });
+  it("uses each row's saved roles, not assigned people or the plan-level Auditee", () => {
+    const report = auditPlanReportData(plan, { ...meta, activities: [
+      { ...meta.activities[0], auditeeIds: ["owner", "team"] },
+      { ...meta.activities[0], section: "Design", roleIds: ["quality"], auditeeIds: ["owner"] },
+    ] }, schedule, project, people, roles, "UTC");
+    expect(report.activities.map(row => row.auditee)).toEqual(["Procurement Lead, Quality Manager", "Quality Manager"]);
+    expect(report.auditee).toBe("Project Team");
+  });
+  it.each([undefined, [], ["missing-role"]])("does not substitute user names when activity roles are unavailable (%s)", roleIds => {
+    const report = auditPlanReportData(plan, { ...meta, activities: [{ ...meta.activities[0], roleIds }] },
+      schedule, project, people, roles, "UTC");
+    expect(report.activities[0]?.auditee).toBe(TO_BE_MAPPED);
   });
   it("uses explicit project master fields, not project codes as contract numbers", () => {
     expect(data().project.find(([key]) => key === "Contract #")?.[1]).toBe("TEST-44001");
@@ -94,7 +112,7 @@ describe("Audit Plan PDF mappings", () => {
     const multiple = auditPlanReportData(plan, { ...meta, activities: [...meta.activities, { section: "Design", remarks: "Design records", auditeeId: "team" }] }, schedule, project, people, roles, "UTC");
     expect(multiple.activities.map(r => r.section)).toEqual(["General Requirement", "Design"]);
     const legacy = auditPlanReportData(plan, { activitySection: "Legacy section", activityRemarks: "Legacy notes", activityAuditeeId: "owner" }, schedule, project, people, roles, "UTC");
-    expect(legacy.activities[0]).toMatchObject({ section: "Legacy section", remarks: "Legacy notes", auditee: "Test Activity Owner" });
+    expect(legacy.activities[0]).toMatchObject({ section: "Legacy section", remarks: "Legacy notes", auditee: TO_BE_MAPPED });
   });
 });
 
@@ -110,7 +128,7 @@ describe("Audit Plan PDF rendering", () => {
   it("paginates long activities instead of dropping rows", async () => {
     const report = data();
     report.activities = Array.from({ length: 12 }, (_, i) => ({ section: `Section ${i + 1}`, remarks: "A long activity description with quality requirements. ".repeat(35),
-      auditee: "Test Activity Owner", dateTime: "26-01-2026\n09:30" }));
+       auditee: "Procurement Lead, Quality Manager", dateTime: "26-01-2026\n09:30" }));
     report.lead = "Long auditor name ".repeat(35);
     const bytes = await renderAuditPlanPdf(report);
     expect((await PDFDocument.load(bytes)).getPageCount()).toBeGreaterThan(4);

@@ -2220,7 +2220,10 @@ router.get("/plans/:id/report", asyncHandler(async (req, res) => {
   const uuid = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value);
   const userIds = [...new Set([meta.leadAuditorId, ...plan.teamMemberIds, meta.auditeeId,
     ...(meta.processOwnerIds ?? []), meta.activityAuditeeId, ...(meta.activities ?? []).flatMap(row => row.auditeeIds ?? [row.auditeeId])].filter(uuid))];
-  const roleIds = (meta.auditeeRoleIds ?? []).filter(uuid);
+  const roleIds = [...new Set([
+    ...(meta.auditeeRoleIds ?? []),
+    ...(meta.activities ?? []).flatMap(row => row.roleIds ?? []),
+  ].filter(uuid))];
   const [people, roles] = await Promise.all([
     userIds.length ? db.select({ id: users.id, name: users.fullName }).from(users).where(and(active(users, orgId), inArray(users.id, userIds))) : [],
     roleIds.length ? db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles)
