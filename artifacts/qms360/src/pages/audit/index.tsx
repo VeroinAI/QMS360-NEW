@@ -2004,6 +2004,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
   const [importing, setImporting] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const uploadInput = useRef<HTMLInputElement>(null);
+  const evidenceInput = useRef<HTMLInputElement>(null);
   const [uploadedId, setUploadedId] = useState<string | null>(null);
   const uploadReference = useRef(crypto.randomUUID());
   const qc = useQueryClient();
@@ -2017,6 +2018,12 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
   const intent = useCreateAuditEvidenceIntent();
   const confirm = useConfirmAuditEvidence();
   const update = (key: keyof ReturnType<typeof empty>, value: string | File | null | string[]) => setDraft(current => ({ ...current, [key]: value }));
+  const removeSelectedEvidence = () => {
+    update("file", null);
+    setUploadedId(null);
+    uploadReference.current = crypto.randomUUID();
+    if (evidenceInput.current) evidenceInput.current.value = "";
+  };
   const reset = () => { setOpen(false); setEditing(null); setDraft(empty()); setUploadedId(null); uploadReference.current = crypto.randomUUID(); };
   const openEdit = (item: ChecklistItem) => {
     setEditing(item);
@@ -2183,7 +2190,29 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
           <div><Label htmlFor="checklist-question">Audit Question *</Label><Input id="checklist-question" value={draft.question} onChange={event => update("question", event.target.value)} placeholder="Enter the audit question"/></div>
           <div><Label htmlFor="checklist-description">Description</Label><Textarea id="checklist-description" rows={4} value={draft.description} onChange={event => update("description", event.target.value)} placeholder="Description or findings"/></div>
           <div><Label>Audit Findings</Label><Select value={draft.auditFinding} onValueChange={value => update("auditFinding", value)}><SelectTrigger><SelectValue placeholder="Select a finding (optional)"/></SelectTrigger><SelectContent>{findings.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>{draft.auditFinding && <button type="button" className="mt-1 text-xs text-muted-foreground underline" onClick={() => update("auditFinding", "")}>Clear selection</button>}</div>
-          <div><Label htmlFor="checklist-evidence">Evidence (optional — attach to this item)</Label>{draft.evidenceIds.map(id => <div key={id} className="flex items-center justify-between gap-2 text-sm"><span>{filesById.get(id)?.fileName ?? "Attached file"}</span><button type="button" className="text-destructive underline" onClick={() => update("evidenceIds", draft.evidenceIds.filter(value => value !== id))}>Remove from item</button></div>)}<Input id="checklist-evidence" type="file" accept="image/*,.xlsx,.xls,.doc,.docx,.pdf,.ppt,.pptx" onChange={event => { update("file", event.target.files?.[0] ?? null); setUploadedId(null); uploadReference.current = crypto.randomUUID(); }}/><p className="mt-1 text-xs text-muted-foreground">The selected file, including an Excel file, will be stored as evidence when you save this item. To import Checklist rows instead, use Upload Excel above.</p>{draft.file && <p className="mt-1 text-sm">{draft.file.name}</p>}</div>
+          <div className="space-y-2">
+            <Label htmlFor="checklist-evidence">Evidence (optional — attach to this item)</Label>
+            {draft.evidenceIds.map(id => <div key={id} className="flex items-center justify-between gap-2 text-sm">
+              <span className="min-w-0 break-all">{filesById.get(id)?.fileName ?? "Attached file"}</span>
+              <Button type="button" size="sm" variant="outline" className="shrink-0 text-destructive" disabled={saving}
+                aria-label={`Remove attached evidence ${filesById.get(id)?.fileName ?? id}`}
+                onClick={() => setDraft(current => ({ ...current, evidenceIds: current.evidenceIds.filter(value => value !== id) }))}>
+                <XCircle className="mr-2 size-3"/>Remove
+              </Button>
+            </div>)}
+            <Input ref={evidenceInput} id="checklist-evidence" type="file" disabled={saving}
+              accept="image/*,.xlsx,.xls,.doc,.docx,.pdf,.ppt,.pptx"
+              onChange={event => { update("file", event.target.files?.[0] ?? null); setUploadedId(null); uploadReference.current = crypto.randomUUID(); }}/>
+            <p className="text-xs text-muted-foreground">The selected file, including an Excel file, will be stored as evidence when you save this item. To import Checklist rows instead, use Upload Excel above.</p>
+            {draft.file && <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="min-w-0 break-all">{draft.file.name}</span>
+              <Button type="button" size="sm" variant="outline" className="shrink-0 text-destructive" disabled={saving}
+                aria-label={`Remove selected evidence ${draft.file.name}`} onClick={removeSelectedEvidence}>
+                <XCircle className="mr-2 size-3"/>Remove
+              </Button>
+            </div>}
+            <p className="text-xs text-muted-foreground">Removing an attached file takes effect when you save changes. Cancel keeps the existing attachments. The stored file itself is not deleted.</p>
+          </div>
         </div>
         <DialogFooter><Button variant="outline" disabled={saving} onClick={reset}>Cancel</Button><Button disabled={saving || areas.isLoading || !!areas.error} onClick={save}>{saving ? "Saving…" : editing ? "Save Changes" : "Save"}</Button></DialogFooter>
       </DialogContent>

@@ -22,3 +22,15 @@ The Checklist item's Evidence picker always attaches the selected file to that i
 **Why:** The user explicitly clarified that clicking Evidence and attaching a file should store it as an attachment through QMS360's existing process; earlier attempts to redirect or offer workbook import from that picker did not match the requested behavior.
 
 **How to apply:** Keep the Evidence picker and workbook import separate. Evidence uses the authenticated QMS360 file-upload flow and is linked to its Checklist item; only Upload Excel parses worksheet rows. Make both controls' labels explain the distinction without blocking attachment of a workbook.
+
+Checklist evidence removal is item-local. Users can discard a newly selected
+file before saving or remove an existing attachment link on Save Changes.
+Cancel must preserve saved links; removing a link must not delete stored file
+bytes or another row's evidence.
+
+**Why:** On 2026-10-09 the user requested a button beside the file in the Edit
+Checklist Item popup to recover from selecting the wrong attachment.
+
+**How to apply:** Make removal available for both pending and saved files.
+Clearing a pending selection also clears any retained upload-retry identity,
+so a later save cannot relink the discarded file.
