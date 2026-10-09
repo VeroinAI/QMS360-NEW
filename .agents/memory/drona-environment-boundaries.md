@@ -120,3 +120,14 @@ For Drona sessions, membership also caps otherwise-global QMS project grants;
 keep own/full visibility distinctions within that intersection.
 Backend session verification remains unresolved, but no longer blocks the
 explicitly approved email-only implementation/handoff.
+
+The user confirmed on 2026-10-09 that the Drona integration worked, then asked
+for AWS production file-storage and SMTP setup.
+
+**Why:** A working identity/database integration does not establish that file
+uploads, attachment downloads or outbound email work in the external runtime.
+The confirmation does not establish a new verified-session contract.
+
+**How to apply:** Preserve the approved Drona integration while scoping storage
+and email as separate infrastructure and backend-adaptation work. Do not
+reopen authentication decisions or assume database migration copied file bytes.
