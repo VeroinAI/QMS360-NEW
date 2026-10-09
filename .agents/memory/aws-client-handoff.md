@@ -50,6 +50,20 @@ the external team supplies infrastructure, configuration and deployment support.
 **Why:** Asking that team to implement a storage adapter or application changes
 misstates the agreed responsibility and prevents an actionable handoff.
 
-**How to apply:** Request service endpoints, IAM/runtime access, secure secret
-provisioning, hosting constraints and deployment ownership. Implement required
-QMS adaptations here, then provide the external team deployment instructions.
+**How to apply:** Request only missing service details and secure access needed
+for the requested feature. Implement required QMS adaptations here, then
+provide deployment instructions through the existing handoff.
+
+The user confirmed that AWS Node.js hosting, HTTPS, GitHub delivery and the
+running application are already working. For this infrastructure discussion,
+they want only attachment-storage decisions and SMTP configuration instructions.
+
+**Why:** The user corrected repeated requests for settled hosting details,
+unnecessary existing-file transfers and database recovery planning.
+
+**How to apply:** Do not reopen hosting/deployment questions or add file-migration
+and database-recovery scope unless requested. Offer private S3 or explicit
+database attachment storage as a choice requiring QMS code adaptation. Direct
+SMTP setup to the existing Integration Cockpit; involve infrastructure support
+only for an observed connectivity/configuration problem. Supply SQL separately
+when the user requests a particular production data operation.
