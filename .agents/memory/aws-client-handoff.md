@@ -42,3 +42,14 @@ catalogue. Confusing the two leaves each application's role list unpopulated.
 source environment. Keep role definitions separate from optional current
 permission grants and user assignments; do not regenerate untouched factory
 defaults when the user requested persisted production data.
+
+The user clarified on 2026-10-09 that their AWS/Drona team has no frontend or
+backend development support. QMS360 application code changes are handled here;
+the external team supplies infrastructure, configuration and deployment support.
+
+**Why:** Asking that team to implement a storage adapter or application changes
+misstates the agreed responsibility and prevents an actionable handoff.
+
+**How to apply:** Request service endpoints, IAM/runtime access, secure secret
+provisioning, hosting constraints and deployment ownership. Implement required
+QMS adaptations here, then provide the external team deployment instructions.
