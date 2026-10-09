@@ -1663,6 +1663,16 @@ paths:
     put: {operationId: replaceAuditOrganizationChart, tags: [audit], summary: Attach or replace the single organization chart, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditOrganizationChartInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}, "409": {description: Organization chart changed since it was viewed}}}
   /audit/audits/{id}/additional-documents/good-practices:
     put: {operationId: updateAuditGoodPractices, tags: [audit], summary: Save Conforming and Good Practices rows and evidence references, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditGoodPracticesInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
+  /audit/audits/{id}/additional-documents/overall-project-progress:
+    put:
+      operationId: updateAuditOverallProjectProgress
+      tags: [audit]
+      summary: Save manually entered project progress with calculated variance and total Weight at most 100%
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProjectProgressInput"}}}}
+      responses:
+        "200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
+        "422": {description: Invalid phase data or total Weight exceeds 100%}
   /audit/audits/{id}/additional-documents/{section}:
     put: {operationId: updateAuditDocumentStatus, tags: [audit], summary: Save design or procurement status rows, parameters: [{$ref: "#/components/parameters/Id"}, {name: section, in: path, required: true, schema: {type: string, enum: [design-status, procurement-status]}}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditDocumentStatusInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/findings:
@@ -3778,6 +3788,29 @@ components:
       allOf:
         - {$ref: "#/components/schemas/AuditGoodPracticeInputRow"}
         - {type: object, properties: {evidenceFileName: {type: [string, "null"]}}}
+    AuditProjectProgressInputRow:
+      type: object
+      required: [id]
+      properties:
+        id: {type: string, enum: [project-preparation, engineering-design, equipment-material, construction, installation, testing-commissioning-energization, project-close-out]}
+        weight: {type: [number, "null"], minimum: 0, maximum: 100, description: Percentage weight}
+        plan: {type: [number, "null"], minimum: 0, maximum: 1000000000}
+        actual: {type: [number, "null"], minimum: 0, maximum: 1000000000}
+        priorPeriod: {type: [number, "null"], minimum: 0, maximum: 1000000000}
+        remarks: {type: [string, "null"]}
+    AuditProjectProgressRow:
+      allOf:
+        - {$ref: "#/components/schemas/AuditProjectProgressInputRow"}
+        - type: object
+          required: [phase, variance]
+          properties:
+            phase: {type: string, readOnly: true}
+            variance: {type: [number, "null"], readOnly: true, description: Actual minus Plan; blank if either is unavailable}
+    AuditProjectProgressInput:
+      type: object
+      required: [rows]
+      properties:
+        rows: {type: array, minItems: 7, maxItems: 7, items: {$ref: "#/components/schemas/AuditProjectProgressInputRow"}}
     AuditAdditionalDocuments:
       type: object
       properties:
@@ -3786,6 +3819,7 @@ components:
         designStatus: {type: array, items: {$ref: "#/components/schemas/AuditDocumentStatusRow"}}
         designRemarks: {type: string}
         procurementStatus: {type: array, items: {$ref: "#/components/schemas/AuditDocumentStatusRow"}}
+        overallProjectProgress: {type: array, items: {$ref: "#/components/schemas/AuditProjectProgressRow"}}
         procurementRemarks: {type: string}
         goodPractices: {type: array, items: {$ref: "#/components/schemas/AuditGoodPracticeRow"}}
     Audit:

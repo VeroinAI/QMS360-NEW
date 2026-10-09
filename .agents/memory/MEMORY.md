@@ -69,6 +69,7 @@
 - [Audit attachment scopes](audit-attachment-scopes.md) — legacy uploads share MIME-based categories; exclude Checklist references, tag new Checklist and Attachment uploads separately.
 - [Audit approval level migration](audit-approval-level-migration.md) — preserve in-flight role snapshots and materialize legacy L-number levels once; new sequencing reads stored levels only.
 - [Audit status remarks migration](audit-status-remarks-migration.md) — section-wide remarks replace row text; show legacy notes together rather than dropping them.
+- [Overall project progress scope](audit-project-progress-scope.md) — manual Additional Documents data; only Weight is explicitly a percentage, with no sample defaults or invented weighted totals.
 - [API runtime asset paths](api-runtime-asset-paths.md) — production may run from workspace root; package and resolve assets independently of the process working directory.
 - [QA/QC reporting semantics](qaqc-reporting-semantics.md) — carry forward submitted periods; daily data is snapshots; CSAT uses independent survey dates; QTBT uses participant-hours.
 - [QA/QC PDF template policy](qaqc-pdf-template-policy.md) — user chose exact uploaded PDFs with confirmed mappings and named versions, not AI-recreated layouts or altered business fields.

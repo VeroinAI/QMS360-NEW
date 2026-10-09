@@ -4,6 +4,7 @@ import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { calendarPickerValue, pickerTimeBounds } from '@/lib/date-picker-values';
 
 const base =
   'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm';
@@ -50,6 +51,7 @@ const DateInput = React.forwardRef<HTMLInputElement, Props>(({ className, type, 
   // A preference refresh must not reinterpret a valid, ambiguous date mid-edit.
   const activeFormat = editing || (text.trim() !== '' && !ISO_VALUE.test(current)) ? entryFormat : format;
   const [open, setOpen] = React.useState(false);
+  const timeId = React.useId();
   const inner = React.useRef<HTMLInputElement | null>(null);
   const lastEmitted = React.useRef(current);
   React.useEffect(() => {
@@ -66,21 +68,26 @@ const DateInput = React.forwardRef<HTMLInputElement, Props>(({ className, type, 
     inner.current = node;
     if (typeof ref === 'function') ref(node); else if (ref) (ref as React.MutableRefObject<HTMLInputElement | null>).current = node;
   };
+  const selectedIso = parse(text, withTime, activeFormat);
+  let validityMessage = '';
+  if (text.trim() && selectedIso === null) validityMessage = `Enter a valid date as ${activeFormat}${withTime ? ' HH:mm' : ''}.`;
+  else if (selectedIso && min && selectedIso < String(min)) validityMessage = `Date must be on or after ${display(String(min), withTime)}.`;
+  else if (selectedIso && max && selectedIso > String(max)) validityMessage = `Date must be on or before ${display(String(max), withTime)}.`;
   React.useEffect(() => {
-    const parsed = parse(text, withTime, activeFormat);
-    let message = '';
-    if (text.trim() && parsed === null) message = `Enter a valid date as ${activeFormat}${withTime ? ' HH:mm' : ''}.`;
-    else if (parsed && min && parsed < String(min)) message = `Date must be on or after ${display(String(min), withTime)}.`;
-    else if (parsed && max && parsed > String(max)) message = `Date must be on or before ${display(String(max), withTime)}.`;
-    inner.current?.setCustomValidity(message);
-  });
+    inner.current?.setCustomValidity(validityMessage);
+  }, [validityMessage]);
   const emit = (next: string) => {
     lastEmitted.current = next;
     if (value === undefined) setUncontrolledValue(next);
     onChange?.({ target: { value: next, name: props.name }, currentTarget: { value: next, name: props.name } } as unknown as React.ChangeEvent<HTMLInputElement>);
   };
-  const selectedIso = parse(text, withTime, activeFormat);
   const selected = selectedIso && ISO_DATE.test(selectedIso.slice(0, 10)) ? new Date(`${selectedIso.slice(0, 10)}T12:00:00`) : undefined;
+  const timeBounds = pickerTimeBounds(selectedIso?.slice(0, 10) ?? '', min, max);
+  const selectValue = (next: string) => {
+    setEntryFormat(format);
+    setText(display(next, withTime, format));
+    emit(next);
+  };
   return (
     <div className="relative w-full">
       <input type="hidden" name={props.name} value={current} disabled={disabled} />
@@ -126,7 +133,7 @@ const DateInput = React.forwardRef<HTMLInputElement, Props>(({ className, type, 
       />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button type="button" disabled={disabled || props.readOnly} aria-label="Open calendar" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"><CalendarIcon className="h-4 w-4" /></button>
+          <button type="button" disabled={disabled || props.readOnly} aria-label={withTime ? "Open date and time picker" : "Open calendar"} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"><CalendarIcon className="h-4 w-4" /></button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="end">
           <Calendar
@@ -139,14 +146,41 @@ const DateInput = React.forwardRef<HTMLInputElement, Props>(({ className, type, 
             }}
             onSelect={(day) => {
               if (!day || disabled || props.readOnly) return;
-              const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-              const time = withTime ? (selectedIso?.split('T')[1] ?? '00:00') : '';
-              const next = withTime ? `${iso}T${time}` : iso;
-              setText(display(next, withTime));
-              emit(next);
-              setOpen(false);
+              selectValue(calendarPickerValue(day, withTime, selectedIso, min, max));
+              // Keep the combined picker open so the user can choose the time.
+              if (!withTime) setOpen(false);
             }}
           />
+          {withTime && <div className="space-y-3 border-t p-3">
+            <div className="flex items-center gap-3">
+              <label htmlFor={timeId} className="text-sm font-medium">Time</label>
+              <input
+                id={timeId}
+                type="time"
+                step={60}
+                min={timeBounds.min}
+                max={timeBounds.max}
+                value={selectedIso?.split('T')[1]?.slice(0, 5) ?? ''}
+                disabled={disabled || props.readOnly || !selectedIso}
+                aria-label="Time"
+                aria-invalid={validityMessage ? true : undefined}
+                className={cn(base, 'min-w-0 flex-1')}
+                onChange={event => {
+                  const time = event.target.value;
+                  if (!selectedIso || !TIME.test(time) || disabled || props.readOnly) return;
+                  selectValue(`${selectedIso.slice(0, 10)}T${time}`);
+                }}
+              />
+            </div>
+            {!selectedIso && <p className="text-xs text-muted-foreground">Select a date to choose the time.</p>}
+            {validityMessage && <p role="alert" className="text-xs text-destructive">{validityMessage}</p>}
+            <button
+              type="button"
+              disabled={Boolean(validityMessage)}
+              onClick={() => setOpen(false)}
+              className="h-8 w-full rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >Done</button>
+          </div>}
         </PopoverContent>
       </Popover>
     </div>

@@ -8010,6 +8010,18 @@ export const sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStat
 
 export const sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
 
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
+
 export const sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
 export const sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
@@ -8077,6 +8089,17 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "value": zod.number().min(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemValueMin).max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(sendAuditPlanForExecutionResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(sendAuditPlanForExecutionResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(sendAuditPlanForExecutionResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -8134,6 +8157,18 @@ export const listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusI
 export const listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -8207,6 +8242,17 @@ export const ListAuditsResponse = zod.object({
   "value": zod.number().min(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMin).max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(listAuditsResponseTwoItemsItemAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(listAuditsResponseTwoItemsItemAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(listAuditsResponseTwoItemsItemAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -8249,6 +8295,18 @@ export const createAuditBodyAdditionalDocumentsProcurementStatusItemValueMin = 0
 export const createAuditBodyAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const createAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const createAuditBodyAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const createAuditBodyAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const createAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const createAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const createAuditBodyAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const createAuditBodyAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const createAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const createAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const createAuditBodyAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -8317,6 +8375,17 @@ export const CreateAuditBody = zod.object({
   "value": zod.number().min(createAuditBodyAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditBodyAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(createAuditBodyAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(createAuditBodyAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(createAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(createAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(createAuditBodyAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(createAuditBodyAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(createAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(createAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(createAuditBodyAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -8364,6 +8433,18 @@ export const getAuditResponseAdditionalDocumentsProcurementStatusItemValueMin = 
 export const getAuditResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const getAuditResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const getAuditResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const getAuditResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const getAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const getAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const getAuditResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const getAuditResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const getAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const getAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const getAuditResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -8432,6 +8513,17 @@ export const GetAuditResponse = zod.object({
   "value": zod.number().min(getAuditResponseAdditionalDocumentsProcurementStatusItemValueMin).max(getAuditResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(getAuditResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(getAuditResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(getAuditResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(getAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(getAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(getAuditResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(getAuditResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(getAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(getAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(getAuditResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -8477,6 +8569,18 @@ export const updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMin = 0
 export const updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const updateAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const updateAuditBodyAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -8545,6 +8649,17 @@ export const UpdateAuditBody = zod.object({
   "value": zod.number().min(updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditBodyAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(updateAuditBodyAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(updateAuditBodyAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(updateAuditBodyAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -8618,6 +8733,18 @@ export const completeAuditResponseAdditionalDocumentsProcurementStatusItemValueM
 
 export const completeAuditResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
 
+export const completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
+
 export const completeAuditResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
 export const completeAuditResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
@@ -8685,6 +8812,17 @@ export const CompleteAuditResponse = zod.object({
   "value": zod.number().min(completeAuditResponseAdditionalDocumentsProcurementStatusItemValueMin).max(completeAuditResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(completeAuditResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(completeAuditResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(completeAuditResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -8743,6 +8881,18 @@ export const saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusI
 export const saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -8811,6 +8961,17 @@ export const SaveAuditReportDetailsResponse = zod.object({
   "value": zod.number().min(saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemValueMin).max(saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(saveAuditReportDetailsResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(saveAuditReportDetailsResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(saveAuditReportDetailsResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -8951,6 +9112,18 @@ export const createAuditChecklistItemResponseAdditionalDocumentsProcurementStatu
 
 export const createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
 
+export const createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
+
 export const createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
 export const createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
@@ -9018,6 +9191,17 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "value": zod.number().min(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(createAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(createAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -9078,6 +9262,18 @@ export const editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusI
 export const editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -9146,6 +9342,17 @@ export const EditAuditChecklistItemResponse = zod.object({
   "value": zod.number().min(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(editAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(editAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(editAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -9195,6 +9402,18 @@ export const deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatu
 export const deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -9263,6 +9482,17 @@ export const DeleteAuditChecklistItemResponse = zod.object({
   "value": zod.number().min(deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(deleteAuditChecklistItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(deleteAuditChecklistItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(deleteAuditChecklistItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -9324,6 +9554,18 @@ export const importAuditChecklistItemsResponseAdditionalDocumentsProcurementStat
 export const importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -9392,6 +9634,17 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "value": zod.number().min(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMin).max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(importAuditChecklistItemsResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(importAuditChecklistItemsResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(importAuditChecklistItemsResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -9453,6 +9706,18 @@ export const createAuditFindingItemResponseAdditionalDocumentsProcurementStatusI
 export const createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -9521,6 +9786,17 @@ export const CreateAuditFindingItemResponse = zod.object({
   "value": zod.number().min(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMin).max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(createAuditFindingItemResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(createAuditFindingItemResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(createAuditFindingItemResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -9571,6 +9847,18 @@ export const assignAuditFindingActionTakerResponseAdditionalDocumentsProcurement
 export const assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -9639,6 +9927,17 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "value": zod.number().min(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMin).max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(assignAuditFindingActionTakerResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(assignAuditFindingActionTakerResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(assignAuditFindingActionTakerResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -9692,6 +9991,18 @@ export const replaceAuditOrganizationChartResponseAdditionalDocumentsProcurement
 export const replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -9760,6 +10071,17 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "value": zod.number().min(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMin).max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(replaceAuditOrganizationChartResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(replaceAuditOrganizationChartResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(replaceAuditOrganizationChartResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -9831,6 +10153,18 @@ export const updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatu
 
 export const updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
 
+export const updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
+
 export const updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
 export const updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
@@ -9898,6 +10232,17 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
   "value": zod.number().min(updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(updateAuditGoodPracticesResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(updateAuditGoodPracticesResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(updateAuditGoodPracticesResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -9913,6 +10258,170 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
   "reportDetails": zod.object({
   "values": zod.record(zod.string(), zod.string().max(updateAuditGoodPracticesResponseReportDetailsValuesMaxOne)),
   "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(updateAuditGoodPracticesResponseReportDetailsRowsItemMaxOne))).max(updateAuditGoodPracticesResponseReportDetailsRowsMaxOne))
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Save manually entered project progress with calculated variance and total Weight at most 100%
+ */
+export const UpdateAuditOverallProjectProgressParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateAuditOverallProjectProgressBodyRowsItemWeightMin = 0;
+export const updateAuditOverallProjectProgressBodyRowsItemWeightMax = 100;
+
+export const updateAuditOverallProjectProgressBodyRowsItemPlanMin = 0;
+export const updateAuditOverallProjectProgressBodyRowsItemPlanMax = 1000000000;
+
+export const updateAuditOverallProjectProgressBodyRowsItemActualMin = 0;
+export const updateAuditOverallProjectProgressBodyRowsItemActualMax = 1000000000;
+
+export const updateAuditOverallProjectProgressBodyRowsItemPriorPeriodMin = 0;
+export const updateAuditOverallProjectProgressBodyRowsItemPriorPeriodMax = 1000000000;
+
+export const updateAuditOverallProjectProgressBodyRowsMin = 7;
+export const updateAuditOverallProjectProgressBodyRowsMax = 7;
+
+
+
+export const UpdateAuditOverallProjectProgressBody = zod.object({
+  "rows": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(updateAuditOverallProjectProgressBodyRowsItemWeightMin).max(updateAuditOverallProjectProgressBodyRowsItemWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(updateAuditOverallProjectProgressBodyRowsItemPlanMin).max(updateAuditOverallProjectProgressBodyRowsItemPlanMax).nullish(),
+  "actual": zod.number().min(updateAuditOverallProjectProgressBodyRowsItemActualMin).max(updateAuditOverallProjectProgressBodyRowsItemActualMax).nullish(),
+  "priorPeriod": zod.number().min(updateAuditOverallProjectProgressBodyRowsItemPriorPeriodMin).max(updateAuditOverallProjectProgressBodyRowsItemPriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+})).min(updateAuditOverallProjectProgressBodyRowsMin).max(updateAuditOverallProjectProgressBodyRowsMax)
+})
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const updateAuditOverallProjectProgressResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
+export const updateAuditOverallProjectProgressResponseReportDetailsValuesMaxOne = 10000;
+
+export const updateAuditOverallProjectProgressResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const updateAuditOverallProjectProgressResponseReportDetailsRowsMaxOne = 200;
+
+
+
+export const UpdateAuditOverallProjectProgressResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "clientReference": zod.string().optional()
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemValueMin).max(updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "designRemarks": zod.string().optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditOverallProjectProgressResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditOverallProjectProgressResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(updateAuditOverallProjectProgressResponseAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditOverallProjectProgressResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditOverallProjectProgressResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(updateAuditOverallProjectProgressResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditOverallProjectProgressResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(updateAuditOverallProjectProgressResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(updateAuditOverallProjectProgressResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(updateAuditOverallProjectProgressResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(updateAuditOverallProjectProgressResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(updateAuditOverallProjectProgressResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(updateAuditOverallProjectProgressResponseReportDetailsRowsItemMaxOne))).max(updateAuditOverallProjectProgressResponseReportDetailsRowsMaxOne))
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -9969,6 +10478,18 @@ export const updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStat
 export const updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
 
 export const updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
 
 export const updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
@@ -10037,6 +10558,17 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "value": zod.number().min(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(updateAuditDocumentStatusResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(updateAuditDocumentStatusResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(updateAuditDocumentStatusResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
@@ -10887,6 +11419,18 @@ export const getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementS
 
 export const getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
 
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
+
 export const getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
 
 export const getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
@@ -10955,6 +11499,17 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "value": zod.number().min(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemValueMin).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
   "remarks": zod.string().max(getGeneratedAuditReportResponseAuditAdditionalDocumentsProcurementStatusItemRemarksMax)
 })).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
   "procurementRemarks": zod.string().optional(),
   "goodPractices": zod.array(zod.object({
   "id": zod.string().min(1).max(getGeneratedAuditReportResponseAuditAdditionalDocumentsGoodPracticesItemOneIdMax),

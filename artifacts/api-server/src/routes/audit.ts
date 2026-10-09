@@ -58,6 +58,7 @@ import { renderAuditPlanPdf } from "../lib/audit-plan-pdf";
 import { readAuditPlanSignature } from "../lib/audit-plan-signatures";
 import { ChecklistImportError, mergeAuditChecklistImport } from "../lib/audit-checklist-import";
 import { checklistDeletionBlockReason } from "@workspace/field-controls";
+import { normalizeProjectProgress, projectProgressVariance } from "@workspace/field-controls";
 import { auditIsComplete, buildConsolidatedAuditReport } from "../lib/audit-consolidated-report";
 import { AUDIT_PPTX_MIME, renderConsolidatedAuditPptx } from "../lib/audit-consolidated-pptx";
 import { renderConsolidatedAuditPdf } from "../lib/audit-consolidated-pdf";
@@ -2347,6 +2348,11 @@ const auditDto = (row: AnyRow, canEdit = false) => {
       designStatus: meta.additionalDocuments?.designStatus ?? [],
       designRemarks: documentRemarks(meta.additionalDocuments, "designStatus"),
       procurementStatus: meta.additionalDocuments?.procurementStatus ?? [],
+      overallProjectProgress: Array.isArray(meta.additionalDocuments?.overallProjectProgress)
+        ? meta.additionalDocuments.overallProjectProgress.map((entry: AnyRow) => ({
+          ...entry, variance: projectProgressVariance(entry.plan, entry.actual),
+        }))
+        : [],
       procurementRemarks: documentRemarks(meta.additionalDocuments, "procurementStatus"),
       goodPractices: Array.isArray(meta.additionalDocuments?.goodPractices) ? meta.additionalDocuments.goodPractices : [],
     },
@@ -2970,6 +2976,35 @@ router.put("/audits/:id/additional-documents/good-practices", asyncHandler(async
     return { before, row };
   });
   await auditLog(req, "update_good_practices", "audit", auditId, before, row);
+  res.json(auditDto(row));
+}));
+
+router.put("/audits/:id/additional-documents/overall-project-progress", asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.UpdateAuditOverallProjectProgressBody, req);
+  let rows: ReturnType<typeof normalizeProjectProgress>;
+  try {
+    rows = normalizeProjectProgress(data.rows);
+  } catch (error) {
+    throw new HttpError(422, error instanceof Error ? error.message : "Invalid project progress");
+  }
+  const auditId = String(req.params.id);
+  const organizationId = actor(req).organizationId;
+  const { before, row } = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(
+      active(audits, organizationId), eq(audits.id, auditId),
+    )).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    await assertAuditProject(req, before.projectId);
+    const meta = auditMeta(before);
+    const [row] = await tx.update(audits).set({
+      status: JSON.stringify({
+        ...meta, additionalDocuments: { ...meta.additionalDocuments, overallProjectProgress: rows },
+      }),
+      updatedAt: new Date(),
+    }).where(eq(audits.id, auditId)).returning();
+    return { before, row };
+  });
+  await auditLog(req, "update_overall_project_progress", "audit", auditId, before, row);
   res.json(auditDto(row));
 }));
 

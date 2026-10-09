@@ -7,6 +7,19 @@ QMS360 dates use the organization's configured format across platform, Lessons,
 QA/QC and Audit displays, date entry, PDF/Word reports and Excel/CSV boundaries.
 DD/MM/YYYY is the default, not a mandatory fixed policy.
 
+Date-only fields must use a date-only calendar picker. Fields requiring both
+date and time must show a combined calendar and time picker; displaying a time
+in the text box without offering a time selection control is not sufficient.
+
+**Why:** On 2026-10-09 the user explicitly required this distinction throughout
+QMS360 and for every future date field, reporting that the Captured at popup
+had regressed to a calendar-only picker.
+
+**How to apply:** Use the shared Input with type="date" for date-only values and
+type="datetime-local" for local date/time values. Preserve ISO callbacks,
+organization formatting, existing times on date changes, and min/max bounds.
+Do not automatically upgrade date-only fields to timestamps.
+
 **Why:** The user's organization-wide date-format request supersedes the earlier
 spreadsheet-only, fixed day-first requirement. Presentation must change without
 changing calendar dates, timestamps, workflow data or internal ISO contracts.

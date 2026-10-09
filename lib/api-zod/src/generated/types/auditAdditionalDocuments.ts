@@ -7,6 +7,7 @@
  */
 import type { AuditDocumentStatusRow } from './auditDocumentStatusRow';
 import type { AuditGoodPracticeRow } from './auditGoodPracticeRow';
+import type { AuditProjectProgressRow } from './auditProjectProgressRow';
 
 export interface AuditAdditionalDocuments {
   /** @nullable */
@@ -16,6 +17,7 @@ export interface AuditAdditionalDocuments {
   designStatus?: AuditDocumentStatusRow[];
   designRemarks?: string;
   procurementStatus?: AuditDocumentStatusRow[];
+  overallProjectProgress?: AuditProjectProgressRow[];
   procurementRemarks?: string;
   goodPractices?: AuditGoodPracticeRow[];
 }

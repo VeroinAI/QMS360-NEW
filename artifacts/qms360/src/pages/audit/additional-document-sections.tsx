@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { GoodPracticesEditor } from "./good-practices-editor";
+import { OverallProjectProgress } from "./overall-project-progress";
 
 const designLabels = [
   ["status-a", "Status A"], ["status-b", "Status B"], ["status-c", "Status C"],
@@ -273,6 +274,10 @@ export function AdditionalDocumentSections({ auditId, documents }: { auditId: st
     <AccordionItem value="procurement-status" className="rounded-lg border bg-card px-5 shadow-sm">
       <AccordionTrigger className="py-5 text-base hover:no-underline">Procurement Status</AccordionTrigger>
       <AccordionContent className="border-t pt-4"><StatusRows auditId={auditId} section="procurement-status" saved={documents?.procurementStatus} savedRemarks={documents?.procurementRemarks} onUpdated={onUpdated}/></AccordionContent>
+    </AccordionItem>
+    <AccordionItem value="overall-project-progress" className="rounded-lg border bg-card px-5 shadow-sm">
+      <AccordionTrigger className="py-5 text-base hover:no-underline">Overall project progress</AccordionTrigger>
+      <AccordionContent className="border-t pt-4"><OverallProjectProgress auditId={auditId} saved={documents?.overallProjectProgress} onUpdated={onUpdated}/></AccordionContent>
     </AccordionItem>
     <AccordionItem value="good-practices" className="rounded-lg border bg-card px-5 shadow-sm">
       <AccordionTrigger className="py-5 text-base hover:no-underline">Conforming and Good Practices</AccordionTrigger>

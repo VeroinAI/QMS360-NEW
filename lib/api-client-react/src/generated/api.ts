@@ -61,6 +61,7 @@ import type {
   AuditProgrammeSignatories,
   AuditProgrammeSubmissionBody,
   AuditProgrammeTeamLeadsBody,
+  AuditProjectProgressInput,
   AuditReportDetails,
   AuditSchedule,
   AuditScheduleActivityOptions,
@@ -21818,6 +21819,78 @@ export const useUpdateAuditGoodPractices = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateAuditGoodPracticesMutationOptions(options));
+    }
+
+export const getUpdateAuditOverallProjectProgressUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/additional-documents/overall-project-progress`
+}
+
+/**
+ * @summary Save manually entered project progress with calculated variance and total Weight at most 100%
+ */
+export const updateAuditOverallProjectProgress = async (id: string,
+    auditProjectProgressInput: AuditProjectProgressInput, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getUpdateAuditOverallProjectProgressUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditProjectProgressInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditOverallProjectProgressMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditOverallProjectProgress>>, TError,{id: string;data: BodyType<AuditProjectProgressInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditOverallProjectProgress>>, TError,{id: string;data: BodyType<AuditProjectProgressInput>}, TContext> => {
+
+const mutationKey = ['updateAuditOverallProjectProgress'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditOverallProjectProgress>>, {id: string;data: BodyType<AuditProjectProgressInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAuditOverallProjectProgress(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditOverallProjectProgressMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditOverallProjectProgress>>>
+    export type UpdateAuditOverallProjectProgressMutationBody = BodyType<AuditProjectProgressInput>
+    export type UpdateAuditOverallProjectProgressMutationError = ErrorType<void>
+
+    /**
+ * @summary Save manually entered project progress with calculated variance and total Weight at most 100%
+ */
+export const useUpdateAuditOverallProjectProgress = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditOverallProjectProgress>>, TError,{id: string;data: BodyType<AuditProjectProgressInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditOverallProjectProgress>>,
+        TError,
+        {id: string;data: BodyType<AuditProjectProgressInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditOverallProjectProgressMutationOptions(options));
     }
 
 export const getUpdateAuditDocumentStatusUrl = (id: string,

@@ -3285,6 +3285,67 @@ export type AuditGoodPracticeRow = AuditGoodPracticeInputRow & ({
   evidenceFileName?: string | null;
 });
 
+export type AuditProjectProgressInputRowId = typeof AuditProjectProgressInputRowId[keyof typeof AuditProjectProgressInputRowId];
+
+
+export const AuditProjectProgressInputRowId = {
+  'project-preparation': 'project-preparation',
+  'engineering-design': 'engineering-design',
+  'equipment-material': 'equipment-material',
+  construction: 'construction',
+  installation: 'installation',
+  'testing-commissioning-energization': 'testing-commissioning-energization',
+  'project-close-out': 'project-close-out',
+} as const;
+
+export interface AuditProjectProgressInputRow {
+  id: AuditProjectProgressInputRowId;
+  /**
+     * Percentage weight
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  weight?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     * @nullable
+     */
+  plan?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     * @nullable
+     */
+  actual?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     * @nullable
+     */
+  priorPeriod?: number | null;
+  /** @nullable */
+  remarks?: string | null;
+}
+
+export type AuditProjectProgressRow = AuditProjectProgressInputRow & ({
+  readonly phase: string;
+  /**
+     * Actual minus Plan; blank if either is unavailable
+     * @nullable
+     */
+  readonly variance: number | null;
+});
+
+export interface AuditProjectProgressInput {
+  /**
+     * @minItems 7
+     * @maxItems 7
+     */
+  rows: AuditProjectProgressInputRow[];
+}
+
 export interface AuditAdditionalDocuments {
   /** @nullable */
   organizationChartId?: string | null;
@@ -3293,6 +3354,7 @@ export interface AuditAdditionalDocuments {
   designStatus?: AuditDocumentStatusRow[];
   designRemarks?: string;
   procurementStatus?: AuditDocumentStatusRow[];
+  overallProjectProgress?: AuditProjectProgressRow[];
   procurementRemarks?: string;
   goodPractices?: AuditGoodPracticeRow[];
 }
