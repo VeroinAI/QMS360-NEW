@@ -21,3 +21,17 @@ names in this column and requested the activity-role label change everywhere.
 separate activity auditee user selections and plan-level Auditee roles; missing
 activity roles must read “To Be Mapped”, not fall back to people or live master
 defaults.
+
+Prepared By remains the selected Lead Auditor. The **Audit Program Manager**
+block names the person who originally created the Audit Plan, not the current
+downloader or the schedule owner. Each block uses that same user's master
+signature, centered above its Signature text.
+
+**Why:** On 2026-10-09 the user confirmed the Prepared By name was correct and
+requested both user-master signatures plus the creator in the renamed manager
+block.
+
+**How to apply:** Resolve the original creator from retained creation history;
+do not infer them from later edits or the selected lead. Preserve missing-data
+markers if no creator or signature is available, and never reuse sample
+signatures from the template.

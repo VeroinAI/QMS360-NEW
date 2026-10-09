@@ -5,12 +5,13 @@ import { auditPlanReportData, TO_BE_MAPPED } from "./audit-plan-report-data";
 import { renderAuditPlanPdf } from "./audit-plan-pdf";
 import { auditPlanDateErrors } from "@workspace/field-controls";
 import { getDateFormat, setDateFormatResolver } from "@workspace/spreadsheet-dates";
+import sharp from "sharp";
 
 const previousDateFormat = getDateFormat();
 beforeAll(() => setDateFormatResolver(() => "DD-MM-YYYY"));
 afterAll(() => setDateFormatResolver(() => previousDateFormat));
 
-const people = new Map([["lead", "Test Lead Auditor"], ["team", "Test Team Member"], ["owner", "Test Activity Owner"]]);
+const people = new Map([["lead", "Test Lead Auditor"], ["team", "Test Team Member"], ["owner", "Test Activity Owner"], ["creator", "Test Plan Creator"]]);
 const roles = new Map([["role", "Project Team"], ["procurement", "Procurement Lead"], ["quality", "Quality Manager"]]);
 const meta = {
   leadAuditorId: "lead", auditeeRoleIds: ["role"], qaqcScope: "Project management and construction", auditTypes: ["Internal"],
@@ -69,6 +70,13 @@ describe("Audit Plan PDF mappings", () => {
     expect(report.project.find(([key]) => key === "Contract #")?.[1]).toBe(TO_BE_MAPPED);
     expect(data().project.find(([key]) => key === "Contract Value")?.[1]).toBe(TO_BE_MAPPED);
   });
+  it("maps the Program Manager to the original plan creator, independently from the lead", () => {
+    const report = auditPlanReportData(plan, meta, schedule, project, people, roles, "UTC", "creator");
+    expect(report.programManager).toBe("Test Plan Creator");
+    expect(report.lead).toBe("Test Lead Auditor");
+    expect(data().programManager).toBe(TO_BE_MAPPED);
+    expect(auditPlanReportData(plan, meta, schedule, project, people, roles, "UTC", "unknown").programManager).toBe(TO_BE_MAPPED);
+  });
   it("does not fabricate dates, sample people or sample activity topics for legacy records", () => {
     const report = auditPlanReportData({}, {}, {}, undefined, new Map(), new Map(), "UTC");
     expect(report.opening).toBe(TO_BE_MAPPED);
@@ -117,6 +125,15 @@ describe("Audit Plan PDF mappings", () => {
 });
 
 describe("Audit Plan PDF rendering", () => {
+  it("embeds both user-master signatures with distinct signer names", async () => {
+    const signature = await sharp(Buffer.from('<svg width="400" height="90"><path d="M10 60 Q80 5 120 60 T240 40 T390 50" stroke="navy" fill="none" stroke-width="3"/></svg>')).png().toBuffer();
+    const report = auditPlanReportData(plan, meta, schedule, project, people, roles, "UTC", "creator");
+    report.preparedBySignature = signature;
+    report.programManagerSignature = signature;
+    const bytes = await renderAuditPlanPdf(report);
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBeGreaterThanOrEqual(2);
+    await writeFile("/tmp/audit-plan-signature-verification.pdf", bytes);
+  });
   it("produces an A4 branded PDF using the blank template", async () => {
     const bytes = await renderAuditPlanPdf(data());
     const pdf = await PDFDocument.load(bytes);

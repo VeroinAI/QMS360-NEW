@@ -5,6 +5,9 @@ type RecordData = Record<string, any>;
 export type AuditPlanReportData = {
   title: string; reference: string; auditNumber: string; preparedDate: string;
   lead: string; team: string; auditee: string; scope: string; types: string;
+  programManager: string;
+  preparedBySignature?: Uint8Array;
+  programManagerSignature?: Uint8Array;
   standards: string; language: string; sheqReference: string;
   start: string; end: string; opening: string; closing: string;
   project: Array<[string, string]>;
@@ -24,7 +27,7 @@ function custom(fields: RecordData, ...aliases: string[]) {
   return TO_BE_MAPPED;
 }
 export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule: RecordData, project: RecordData | undefined,
-  userNames: Map<string, string>, roleNames: Map<string, string>, timeZone: string): AuditPlanReportData {
+  userNames: Map<string, string>, roleNames: Map<string, string>, timeZone: string, creatorId?: string): AuditPlanReportData {
   const name = (id: unknown) => typeof id === "string" ? mapped(userNames.get(id)) : TO_BE_MAPPED;
   const names = (ids: unknown, source: Map<string, string>) => Array.isArray(ids) && ids.length
     ? ids.map(id => mapped(source.get(id))).join(", ") : TO_BE_MAPPED;
@@ -58,6 +61,7 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
     title: mapped(project?.name ?? meta.auditTitle ?? plan.scope),
     reference: number, auditNumber: number, preparedDate: instantDate(plan.createdAt),
     lead: name(meta.leadAuditorId ?? plan.teamMemberIds?.[0]), team: names(plan.teamMemberIds, userNames),
+    programManager: name(creatorId),
     auditee: meta.auditeeRoleIds?.length ? names(meta.auditeeRoleIds, roleNames) : name(meta.auditeeId ?? meta.processOwnerIds?.[0]),
     scope: mapped(meta.qaqcScope ?? plan.scope), types: Array.isArray(types) && types.length ? types.join(", ") : mapped(plan.criteria),
     standards: mapped(schedule.qaqcClauses), language: mapped(meta.auditLanguage),

@@ -140,14 +140,27 @@ export async function renderAuditPlanPdf(data: AuditPlanReportData): Promise<Uin
   // Fixed-size fields that exceed their template cell remain available in full.
   const continuations = overflow.splice(0);
   for (const [label, value] of continuations) await activity(`${label} (continuation)`, value, TO_BE_MAPPED, TO_BE_MAPPED);
-  if (y > 600) await newActivityPage(false);
-  const signatureTop = Math.max(y + 35, 560);
-  text(page, `Signature: ${TO_BE_MAPPED}`, 47, signatureTop, 220, 23, 10);
-  text(page, `Signature: ${TO_BE_MAPPED}`, 337, signatureTop, 217, 23, 10);
+  if (y + 250 > 806) await newActivityPage(false);
+  const signatureTop = Math.max(y + 90, 560);
+  const signature = async (bytes: Uint8Array | undefined, x: number, width: number) => {
+    if (bytes) {
+      const image = await pdf.embedPng(bytes);
+      const scale = Math.min(180 / image.width, 48 / image.height);
+      const imageWidth = image.width * scale, imageHeight = image.height * scale;
+      page.drawImage(image, {
+        x: x + (width - imageWidth) / 2,
+        y: page.getHeight() - signatureTop + 8,
+        width: imageWidth, height: imageHeight,
+      });
+    }
+    text(page, bytes ? "Signature" : `Signature: ${TO_BE_MAPPED}`, x, signatureTop, width, 23, 10, false, black, true);
+  };
+  await signature(data.preparedBySignature, 36, 235);
+  await signature(data.programManagerSignature, 330, 225);
   text(page, "Prepared By\nLead Auditor", 36, signatureTop + 44, 235, 42, 11, true);
   text(page, data.lead, 36, signatureTop + 90, 235, 65, 10, false, black, false, "Prepared by");
-  text(page, "QMS Audit Manager", 330, signatureTop + 44, 225, 24, 11, true, black, true);
-  text(page, TO_BE_MAPPED, 330, signatureTop + 90, 225, 30, 10, false, black, true);
+  text(page, "Audit Program Manager", 330, signatureTop + 44, 225, 24, 11, true, black, true);
+  text(page, data.programManager, 330, signatureTop + 90, 225, 65, 10, false, black, true, "Audit Program Manager");
   pdf.getPages().forEach((p, i) => { if (i) text(p, `Page ${i + 1} of ${pdf.getPageCount()}`, 180, 807, 235, 11, 8, false, black, true); });
   pdf.setTitle(`Audit Plan - ${data.title}`); pdf.setCreator("QMS360");
   return pdf.save();

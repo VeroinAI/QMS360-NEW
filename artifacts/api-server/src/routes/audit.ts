@@ -55,6 +55,7 @@ import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } fr
 import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-attachments";
 import { auditPlanReportData } from "../lib/audit-plan-report-data";
 import { renderAuditPlanPdf } from "../lib/audit-plan-pdf";
+import { readAuditPlanSignature } from "../lib/audit-plan-signatures";
 import { auditIsComplete, buildConsolidatedAuditReport } from "../lib/audit-consolidated-report";
 import { AUDIT_PPTX_MIME, renderConsolidatedAuditPptx } from "../lib/audit-consolidated-pptx";
 import { renderConsolidatedAuditPdf } from "../lib/audit-consolidated-pdf";
@@ -2218,19 +2219,35 @@ router.get("/plans/:id/report", asyncHandler(async (req, res) => {
   const [project] = plan.projectId ? await db.select().from(projects)
     .where(and(active(projects, orgId), eq(projects.id, plan.projectId))) : [];
   const uuid = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value);
-  const userIds = [...new Set([meta.leadAuditorId, ...plan.teamMemberIds, meta.auditeeId,
+  const [creation] = await db.select({ actorId: auditAuditLogEntries.actorId }).from(auditAuditLogEntries)
+    .where(and(eq(auditAuditLogEntries.organizationId, orgId), eq(auditAuditLogEntries.entityType, "audit_plan"),
+      eq(auditAuditLogEntries.entityId, plan.id), eq(auditAuditLogEntries.action, "create")))
+    .orderBy(asc(auditAuditLogEntries.createdAt), asc(auditAuditLogEntries.id)).limit(1);
+  const creatorId = creation?.actorId ?? undefined;
+  const preparedById = meta.leadAuditorId ?? plan.teamMemberIds[0];
+  const userIds = [...new Set([creatorId, preparedById, ...plan.teamMemberIds, meta.auditeeId,
     ...(meta.processOwnerIds ?? []), meta.activityAuditeeId, ...(meta.activities ?? []).flatMap(row => row.auditeeIds ?? [row.auditeeId])].filter(uuid))];
   const roleIds = [...new Set([
     ...(meta.auditeeRoleIds ?? []),
     ...(meta.activities ?? []).flatMap(row => row.roleIds ?? []),
   ].filter(uuid))];
   const [people, roles] = await Promise.all([
-    userIds.length ? db.select({ id: users.id, name: users.fullName }).from(users).where(and(active(users, orgId), inArray(users.id, userIds))) : [],
+    userIds.length ? db.select({ id: users.id, name: users.fullName, signaturePath: users.signaturePath }).from(users).where(and(active(users, orgId), inArray(users.id, userIds))) : [],
     roleIds.length ? db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles)
       .where(and(active(auditWorkspaceRoles, orgId), inArray(auditWorkspaceRoles.id, roleIds))) : [],
   ]);
   const data = auditPlanReportData(plan, meta, schedule ? scheduleMeta(schedule) : {}, project,
-    new Map(people.map(p => [p.id, p.name])), new Map(roles.map(r => [r.id, r.name])), timeZone);
+    new Map(people.map(p => [p.id, p.name])), new Map(roles.map(r => [r.id, r.name])), timeZone, creatorId);
+  const signaturePaths = new Map(people.map(person => [person.id, person.signaturePath]));
+  const signatureCache = new Map<string, Promise<Uint8Array | undefined>>();
+  const signature = (id: string | undefined) => {
+    if (!id) return Promise.resolve(undefined);
+    if (!signatureCache.has(id)) signatureCache.set(id, readAuditPlanSignature(signaturePaths.get(id)));
+    return signatureCache.get(id)!;
+  };
+  [data.preparedBySignature, data.programManagerSignature] = await Promise.all([
+    signature(preparedById), signature(creatorId),
+  ]);
   const bytes = await renderAuditPlanPdf(data);
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="audit-plan-${plan.id}.pdf"`);
