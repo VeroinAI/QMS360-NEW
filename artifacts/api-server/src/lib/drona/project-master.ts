@@ -11,6 +11,18 @@ export type ProjectMasterInput = {
   environment?: string;
 };
 
+/** Raw SQL timestamp values can be strings rather than driver-decoded Dates. */
+function timestampIso(value: Date | string, field: string): string {
+  if (!(value instanceof Date) && (typeof value !== "string" || !value.trim())) {
+    throw new Error(`Invalid Project Master timestamp: ${field}`);
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    throw new Error(`Invalid Project Master timestamp: ${field}`);
+  }
+  return date.toISOString();
+}
+
 /** Shared read/write boundary: only saved Drona projects inside current tenant/project access. */
 async function projectMasterWhere(input: ProjectMasterInput) {
   const metadata = await db.execute(sql`SELECT to_regclass('shared.drona_project_links') IS NOT NULL AS available`);
@@ -59,12 +71,12 @@ export async function readDronaProjectMaster(input: ProjectMasterInput) {
     db.execute(sql`SELECT count(*)::int AS total FROM shared.projects p WHERE ${where}`),
   ]);
   const items = (records.rows as Array<Omit<DronaProjectMasterRecord, "createdAt" | "updatedAt"> & {
-    createdAt: Date; updatedAt: Date;
+    createdAt: Date | string; updatedAt: Date | string;
   }>).map(row => ({
     ...row,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    dronaLinks: row.dronaLinks.map(link => ({ ...link, linkedAt: new Date(link.linkedAt).toISOString() })),
+    createdAt: timestampIso(row.createdAt, "createdAt"),
+    updatedAt: timestampIso(row.updatedAt, "updatedAt"),
+    dronaLinks: row.dronaLinks.map(link => ({ ...link, linkedAt: timestampIso(link.linkedAt, "linkedAt") })),
   }));
   return {
     items, total: Number((totals.rows[0] as { total: number }).total),
@@ -80,6 +92,6 @@ export async function saveDronaProjectCostCentre(input: ProjectMasterInput, proj
         updated_at = now()
     WHERE ${where} AND p.id = ${projectId}::uuid
     RETURNING p.id, p.custom_fields->>'costCentre' AS "costCentre", p.updated_at AS "updatedAt"`);
-  const record = result.rows[0] as { id: string; costCentre: string | null; updatedAt: Date } | undefined;
-  return record ? { ...record, updatedAt: record.updatedAt.toISOString() } : null;
+  const record = result.rows[0] as { id: string; costCentre: string | null; updatedAt: Date | string } | undefined;
+  return record ? { ...record, updatedAt: timestampIso(record.updatedAt, "updatedAt") } : null;
 }

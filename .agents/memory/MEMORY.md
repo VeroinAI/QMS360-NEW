@@ -6,6 +6,7 @@
 - [Drizzle insert compatibility](drizzle-insert-compatibility.md) — omitted values may still emit DEFAULT columns; check INSERT SQL when supporting an older production schema.
 - [Drizzle correlated selections](drizzle-correlated-selection-scoping.md) — selected scalar SQL can lose outer-column qualifiers; test correlations against real legacy rows.
 - [Drizzle SQL array binding](drizzle-sql-array-binding.md) — interpolated arrays can become SQL tuples; bind scoped UUID lists explicitly and make empty scope deny all.
+- [Drizzle raw timestamp decoding](drizzle-raw-timestamps.md) — raw execute results retain date/time strings; normalize at response boundaries instead of assuming Date objects.
 - [Optional UUID input normalization](optional-uuid-normalization.md) — normalize blank optional UUID form values to null at API boundaries before database writes.
 - [Password rotation policy](password-rotation-policy.md) — administrator-assigned passwords remain valid; do not add a forced password-change gate or session flag.
 - [RBAC setup for testing non-admin writes](demo-seed-users.md) — seeded workspace roles start with zero permission grants, so non-admin writes 403 until granted; never store credentials in memory.
