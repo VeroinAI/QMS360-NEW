@@ -102,7 +102,7 @@ describe("renderAuditScheduleApprovalPdf", () => {
     const memoStream = decodedStreams(pdf).find(stream => stream.includes("INTERNAL MEMO"));
     const chartStream = decodedStreams(pdf).find(stream => stream.includes("Business Category"));
     expect(memoStream).toContain("Date");
-    expect(memoStream).toContain("January 22, 2026");
+    expect(memoStream).toContain("22/01/2026");
     expect(memoStream).toContain("Ref#");
     expect(memoStream).toContain("Email: info@algihaz.com");
     expect(memoStream).not.toContain("Owies Alrababah");
@@ -135,7 +135,7 @@ describe("renderAuditScheduleApprovalPdf", () => {
         rows: [],
       });
       const memoStream = decodedStreams(pdf).find(stream => stream.includes("INTERNAL MEMO"));
-      expect(memoStream).toContain("October 1, 2026");
+      expect(memoStream).toContain("01/10/2026");
       expect((await PDFDocument.load(pdf)).getPageCount()).toBe(2);
     } finally {
       vi.useRealTimers();

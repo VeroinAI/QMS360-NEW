@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
-import { excelDateNumberFormat, excelDateValue, formatSpreadsheetDate, parseSpreadsheetDate, isSpreadsheetDateField } from "@workspace/spreadsheet-dates";
+import { getDateFormat, getExcelDateNumberFormat, detectSpreadsheetDateOptions, excelDateValue, formatSpreadsheetDate, parseSpreadsheetDate, isSpreadsheetDateField } from "@workspace/spreadsheet-dates";
+const dateOptionsCache = new WeakMap<XLSX.WorkBook, { organizationFormat: string; options: ReturnType<typeof detectSpreadsheetDateOptions> }>();
 
 const isDateHeading = (value: unknown) => typeof value === "string"
   && (isSpreadsheetDateField(value) || /\(DD\/MM\/YYYY\)/i.test(value));
@@ -8,8 +9,19 @@ const isDateHeading = (value: unknown) => typeof value === "string"
  * Supports date columns, Field/Value reports, and label/value overview sheets.
  */
 export function applyExcelDateFormats(workbook: XLSX.WorkBook): XLSX.WorkBook {
+  dateOptionsCache.delete(workbook);
   const date1904 = !!workbook.Workbook?.WBProps?.date1904;
   for (const name of workbook.SheetNames) {
+    const cells = workbook.Sheets[name];
+    if (cells?.["!ref"]) {
+      const bounds = XLSX.utils.decode_range(cells["!ref"]);
+      for (let row = bounds.s.r; row <= bounds.e.r; row++) for (let column = bounds.s.c; column <= bounds.e.c; column++) {
+        const cell = cells[XLSX.utils.encode_cell({ r: row, c: column })];
+        if (typeof cell?.v === "string" && (name === "Instructions" || row === bounds.s.r || isSpreadsheetDateField(cell.v))) {
+          cell.v = cell.v.replace(/DD\/MM\/YYYY|MM\/DD\/YYYY|YYYY-MM-DD|DD-MM-YYYY|MM-DD-YYYY/g, getDateFormat());
+        }
+      }
+    }
     if (name === "Instructions") continue;
     const sheet = workbook.Sheets[name];
     if (!sheet?.["!ref"]) continue;
@@ -25,7 +37,7 @@ export function applyExcelDateFormats(workbook: XLSX.WorkBook): XLSX.WorkBook {
       const address = XLSX.utils.encode_cell({ r: row, c: column });
       const cell = sheet[address];
       if (cell?.f) {
-        cell.z = excelDateNumberFormat;
+        cell.z = getExcelDateNumberFormat();
         return;
       }
       const raw = cell?.v;
@@ -34,13 +46,13 @@ export function applyExcelDateFormats(workbook: XLSX.WorkBook): XLSX.WorkBook {
       const value = excelDateValue(raw, { date1904 });
       if (!value) {
         // Real blank stubs retain the style without becoming fake dates or rows.
-        sheet[address] = { t: "z", z: excelDateNumberFormat };
+        sheet[address] = { t: "z", z: getExcelDateNumberFormat() };
         return;
       }
       const epoch = date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 31);
       const serial = (value.getTime() - epoch) / 86_400_000
         + (!date1904 && value.getTime() >= Date.UTC(1900, 2, 1) ? 1 : 0);
-      sheet[address] = { t: "n", v: serial, z: excelDateNumberFormat };
+      sheet[address] = { t: "n", v: serial, z: getExcelDateNumberFormat() };
     };
     // Include ready-to-use blank date cells, not just populated exports.
     const lastDateRow = dateColumns.length ? Math.max(range.e.r, 1000) : range.e.r;
@@ -54,4 +66,21 @@ export function applyExcelDateFormats(workbook: XLSX.WorkBook): XLSX.WorkBook {
     sheet["!ref"] = XLSX.utils.encode_range(range);
   }
   return workbook;
+}
+
+export function spreadsheetWorkbookDateOptions(workbook: XLSX.WorkBook) {
+  const cached = dateOptionsCache.get(workbook);
+  if (cached?.organizationFormat === getDateFormat()) return cached.options;
+  const declarations: unknown[] = [];
+  for (const name of workbook.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[name], { header: 1, defval: "" });
+    if (name === "Instructions") declarations.push(rows);
+    else {
+      declarations.push(rows[0] ?? []);
+      declarations.push(rows.flat().filter(value => typeof value === "string" && isSpreadsheetDateField(value)));
+    }
+  }
+  const options = detectSpreadsheetDateOptions(declarations, { date1904: !!workbook.Workbook?.WBProps?.date1904 });
+  dateOptionsCache.set(workbook, { organizationFormat: getDateFormat(), options });
+  return options;
 }

@@ -1,11 +1,12 @@
 import type { AuditSchedule } from "@workspace/api-client-react";
-import { excelDateValue, excelDateNumberFormat, formatSpreadsheetDate } from "@workspace/spreadsheet-dates";
+import { excelDateValue, getExcelDateNumberFormat, getDateFormat, DATE_FORMATS, formatSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import { categoryOptionsForAuditType, linkedAuditTypes } from "./audit-category-options";
 
-export const scheduleImportHeaders = [
+export const getScheduleImportHeaders = () => [
   "Audit Type", "Audit Category", "Department / Project", "Location", "Audit Title",
-  "Process / Product Owner", "From Date (DD/MM/YYYY)", "To Date (DD/MM/YYYY)", "Remarks",
+  "Process / Product Owner", `From Date (${getDateFormat()})`, `To Date (${getDateFormat()})`, "Remarks",
 ];
+export const scheduleImportHeaders = getScheduleImportHeaders();
 
 const scheduleHeaderAliases: Record<string, string> = {
   audittype: "auditTypes", audittypevalue: "auditTypes", auditcategory: "auditCategory",
@@ -16,8 +17,17 @@ const scheduleHeaderAliases: Record<string, string> = {
   remarks: "remarks",
 };
 
-export const scheduleFieldForHeader = (header: string) =>
-  scheduleHeaderAliases[header.trim().toLowerCase().replace(/[^a-z0-9]/g, "")];
+export const scheduleFieldForHeader = (header: string) => {
+  const key = header.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  const direct = scheduleHeaderAliases[key];
+  if (direct) return direct;
+  for (const format of DATE_FORMATS as readonly string[]) {
+    const suffix = format.toLowerCase().replace(/[^a-z]/g, "");
+    if (key === `fromdate${suffix}`) return "plannedStartDate";
+    if (key === `todate${suffix}`) return "plannedEndDate";
+  }
+  return undefined;
+};
 
 type Option = { value: string; label: string; metadata?: Record<string, unknown> };
 type Project = { id?: string; code?: string | null; name: string };
@@ -58,10 +68,10 @@ export async function createScheduleWorkbook(
   const { default: ExcelJS } = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Audit Schedules", { views: [{ state: "frozen", ySplit: 1 }] });
-  sheet.addRow(scheduleImportHeaders);
+  sheet.addRow(getScheduleImportHeaders());
   sheet.columns = [27, 24, 32, 25, 38, 30, 25, 25, 42].map(width => ({ width }));
-  sheet.getColumn(7).numFmt = excelDateNumberFormat;
-  sheet.getColumn(8).numFmt = excelDateNumberFormat;
+  sheet.getColumn(7).numFmt = getExcelDateNumberFormat();
+  sheet.getColumn(8).numFmt = getExcelDateNumberFormat();
   sheet.getRow(1).font = { bold: true };
   for (const item of schedules) {
     const project = item.auditTypes?.includes("Quality Internal Process Audit")
@@ -139,8 +149,8 @@ export async function createScheduleWorkbook(
   });
   const lastRow = Math.min(1_048_576, Math.max(1001, schedules.length + 501));
   for (let row = 2; row <= lastRow; row += 1) {
-    sheet.getCell(`G${row}`).numFmt = excelDateNumberFormat;
-    sheet.getCell(`H${row}`).numFmt = excelDateNumberFormat;
+    sheet.getCell(`G${row}`).numFmt = getExcelDateNumberFormat();
+    sheet.getCell(`H${row}`).numFmt = getExcelDateNumberFormat();
     sheet.getCell(`A${row}`).dataValidation = listValidation("AuditTypes");
     sheet.getCell(`B${row}`).dataValidation = listValidation(linkedCategories
       ? `INDIRECT(IFERROR(VLOOKUP($A${row},AuditCategoryMap,2,FALSE),"EmptyAuditCategories"))`
@@ -152,10 +162,10 @@ export async function createScheduleWorkbook(
   const instructions = workbook.addWorksheet("Instructions");
   [
     ["Audit Schedule Import Instructions"],
-    ["Template columns", scheduleImportHeaders.join(", ")],
-    ["Mandatory columns", "Audit Type, Audit Category, Department / Project, Audit Title, Process / Product Owner, From Date (DD/MM/YYYY), To Date (DD/MM/YYYY)"],
+    ["Template columns", getScheduleImportHeaders().join(", ")],
+    ["Mandatory columns", `Audit Type, Audit Category, Department / Project, Audit Title, Process / Product Owner, From Date (${getDateFormat()}), To Date (${getDateFormat()})`],
     ["Dropdown fields", "Audit Type, Audit Category, Department / Project, Process / Product Owner (active Audit users assigned the Product / Process Owner authorization). The Audit Category dropdown follows the Audit Type when links are configured in master data; reselect the category if you change the type. The Department / Project dropdown depends on Audit Type."],
-    ["Date format", "DD/MM/YYYY"],
+    ["Date format", getDateFormat()],
     ["Parent range", range ? `${formatSpreadsheetDate(range.fromDate)} through ${formatSpreadsheetDate(range.toDate)}` : "No parent range"],
   ].forEach(row => instructions.addRow(row));
   instructions.getColumn(1).width = 24;

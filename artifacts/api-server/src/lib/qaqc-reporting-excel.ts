@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
-import { applyExcelDateFormats } from "./excel-date-cells";
-import { parseSpreadsheetDate, parseSpreadsheetData, type SpreadsheetDateOptions } from "@workspace/spreadsheet-dates";
+import { applyExcelDateFormats, spreadsheetWorkbookDateOptions } from "./excel-date-cells";
+import { getDateFormat, normalizeSpreadsheetDateHeader, parseSpreadsheetDate, parseSpreadsheetData, type SpreadsheetDateOptions } from "@workspace/spreadsheet-dates";
 
 export type ReportingType = "monthly" | "daily" | "csat";
 export type ReportingProjectOption = { id: string; name: string; code: string; costCentre?: string | null };
@@ -74,7 +74,7 @@ function parseCell(raw: unknown, kind: string, dateOptions: SpreadsheetDateOptio
   }
   if (kind === "date") {
     const date = parseSpreadsheetDate(raw, dateOptions);
-    if (!date) throw new Error("Enter a valid date as DD/MM/YYYY");
+    if (!date) throw new Error(`Enter a valid date as ${dateOptions.dateFormat ?? getDateFormat()}`);
     return date;
   }
   return String(raw).trim();
@@ -99,7 +99,7 @@ function tableRows(
   const sheet = workbook.Sheets[sheetName];
   if (!sheet) return [];
   const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
-  const header = (rows[0] ?? []).map((value) => String(value).trim().replaceAll("YYYY-MM-DD", "DD/MM/YYYY"));
+  const header = (rows[0] ?? []).map((value) => normalizeSpreadsheetDateHeader(String(value).trim()));
   if (expectedHeaders.some((expected, index) => header[index] !== expected)) {
     errors.push({ sheet: sheetName, row: 1, field: "header", message: `Expected columns: ${expectedHeaders.join(", ")}` });
     return [];
@@ -140,7 +140,7 @@ function readDynamicSheets(
         errors.push({ sheet: "Meetings", row: rowNumber, field: "Type", message: "Select a supported meeting type" });
       }
       try {
-        const dateOptions = { date1904: !!workbook.Workbook?.WBProps?.date1904 };
+        const dateOptions = spreadsheetWorkbookDateOptions(workbook);
         const lastDate = parseCell(row[1], "date", dateOptions);
         const nextDate = parseCell(row[2], "date", dateOptions);
         if (!lastDate) throw new Error("Last meeting date is required");
@@ -317,7 +317,7 @@ export function parseQaqcReportingWorkbook(input: {
     seen.add(field);
     sourceRows.set(field.split(".")[0]!, { sheet: "Report Data", row: rowNumber });
     try {
-      const value = parseCell(rawValue, fieldSpec.kind, { date1904: !!workbook.Workbook?.WBProps?.date1904 });
+      const value = parseCell(rawValue, fieldSpec.kind, spreadsheetWorkbookDateOptions(workbook));
       if (value !== undefined) deepSet(data, field, value);
     } catch (error) {
       errors.push({ sheet: "Report Data", row: rowNumber, field, message: error instanceof Error ? error.message : "Invalid value" });

@@ -1,3 +1,4 @@
+import { formatDateTime } from '@workspace/spreadsheet-dates';
 import { useEffect, useState } from 'react';
 import { getListDronaProjectMasterQueryKey, useListDronaProjectMaster, useGetCurrentUser } from '@workspace/api-client-react';
 import type { DronaProjectMasterRecord, ListDronaProjectMaster200, ProjectCostCentreResult } from '@workspace/api-client-react';
@@ -20,7 +21,7 @@ const show = (v: string | null | undefined) => (v && String(v).trim() ? v : dash
 function fmt(v: string | Date | null | undefined) {
   if (!v) return dash;
   const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? dash : d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return Number.isNaN(d.getTime()) ? dash : formatDateTime(d);
 }
 function dronaIds(r: DronaProjectMasterRecord) {
   const ids = (r.dronaLinks ?? []).map((l) => l.externalProjectId);

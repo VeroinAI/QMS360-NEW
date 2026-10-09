@@ -1,3 +1,4 @@
+import { formatDate } from '@workspace/spreadsheet-dates';
 import { useMemo, useState } from "react";
 import { Link, Route, Switch } from "wouter";
 import { AlertTriangle, BookOpen, Download, Plus, Search, Trash2, ClipboardCheck, User } from "lucide-react";
@@ -118,7 +119,7 @@ function HomePage() {
 function LessonRow({ lesson, escalated, action, href }: { lesson: LessonLearnedForm; escalated: boolean; action?: string; href?: string }) {
   const linkHref = href || `/lessons/${lesson.id}`;
   return <Link href={linkHref} className="flex items-center justify-between gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-muted/50">
-    <div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate font-semibold">{lesson.title}</p>{lesson.version > 1 && <Badge variant="outline">v{lesson.version}</Badge>}</div><p className="text-sm text-muted-foreground">{lesson.referenceNumber} · {lesson.issueCategory} · {new Date(lesson.capturedAt).toLocaleDateString()}</p></div>
+    <div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate font-semibold">{lesson.title}</p>{lesson.version > 1 && <Badge variant="outline">v{lesson.version}</Badge>}</div><p className="text-sm text-muted-foreground">{lesson.referenceNumber} · {lesson.issueCategory} · {formatDate(lesson.capturedAt)}</p></div>
     <div className="flex items-center gap-3">{escalated && <Badge variant="destructive">Escalated</Badge>}<StateBadge state={lesson.workflowState} />{action && <Button size="sm" variant="secondary" className="border-accent text-accent">{action}</Button>}</div>
   </Link>;
 }
@@ -211,7 +212,7 @@ function ApprovalsPage() {
                <TableCell><Link href={`/lessons/${lesson.id}?from=approvals`} className="font-semibold text-primary hover:underline">{lesson.title}</Link><p className="text-xs text-muted-foreground">{lesson.referenceNumber}</p></TableCell>
                <TableCell>{projectNames.get(lesson.projectId) ?? "Unknown project"}</TableCell>
                {allPending && <><TableCell>{lesson.creatorId ? userNames.get(lesson.creatorId) ?? "Unknown user" : "Unknown user"}</TableCell><TableCell>{lesson.approverId ? userNames.get(lesson.approverId) ?? "Unknown user" : "Unassigned"}</TableCell></>}
-               <TableCell>{lesson.issueCategory}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{lesson.submittedAt ? new Date(lesson.submittedAt).toLocaleDateString() : "—"}</TableCell><TableCell className="text-right"><Button size="sm" asChild><Link href={`/lessons/${lesson.id}?from=approvals`}>{lesson.workflowState === "Sent Back" ? "Update" : "Review"}</Link></Button></TableCell>
+               <TableCell>{lesson.issueCategory}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{lesson.submittedAt ? formatDate(lesson.submittedAt) : "—"}</TableCell><TableCell className="text-right"><Button size="sm" asChild><Link href={`/lessons/${lesson.id}?from=approvals`}>{lesson.workflowState === "Sent Back" ? "Update" : "Review"}</Link></Button></TableCell>
              </TableRow>)}
           </TableBody></Table>
         )}
@@ -292,7 +293,7 @@ function LogPage() {
         {log.data?.items.map((lesson) => {
           const isActionable = lesson.workflowState === "Submitted" && lesson.approverId === user.data?.id;
           const canDelete = isAdmin || lesson.creatorId === user.data?.id;
-          return <TableRow key={lesson.id} className={isActionable ? "bg-accent/5" : ""}><TableCell><Link href={`/lessons/${lesson.id}`} className="font-semibold text-primary hover:underline">{lesson.title}</Link><p className="text-xs text-muted-foreground">{lesson.referenceNumber}{activeIds.has(lesson.id) && <Badge variant="destructive" className="ml-2">Escalated</Badge>}{isActionable && <Badge variant="secondary" className="ml-2 border-accent text-accent">Assigned to you</Badge>}</p></TableCell><TableCell>{projectNames.get(lesson.projectId) ?? "Unknown project"}</TableCell><TableCell>{lesson.disciplineId || "—"}</TableCell><TableCell>{lesson.issueCategory}</TableCell><TableCell>{lesson.impact}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{new Date(lesson.capturedAt).toLocaleDateString()}</TableCell><TableCell><div className="flex justify-end">
+          return <TableRow key={lesson.id} className={isActionable ? "bg-accent/5" : ""}><TableCell><Link href={`/lessons/${lesson.id}`} className="font-semibold text-primary hover:underline">{lesson.title}</Link><p className="text-xs text-muted-foreground">{lesson.referenceNumber}{activeIds.has(lesson.id) && <Badge variant="destructive" className="ml-2">Escalated</Badge>}{isActionable && <Badge variant="secondary" className="ml-2 border-accent text-accent">Assigned to you</Badge>}</p></TableCell><TableCell>{projectNames.get(lesson.projectId) ?? "Unknown project"}</TableCell><TableCell>{lesson.disciplineId || "—"}</TableCell><TableCell>{lesson.issueCategory}</TableCell><TableCell>{lesson.impact}</TableCell><TableCell><StateBadge state={lesson.workflowState} /></TableCell><TableCell>{formatDate(lesson.capturedAt)}</TableCell><TableCell><div className="flex justify-end">
           <Button variant="ghost" size="icon" aria-label={`Download ${lesson.referenceNumber} as PDF`} title="Download PDF" onClick={() => downloadPdf(lesson.id)}><Download /></Button>
           {canDelete && <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" aria-label="Delete lesson"><Trash2 /></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this lesson?</AlertDialogTitle><AlertDialogDescription>This soft-deletes the lesson and removes it from active lists.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => remove.mutate({ id: lesson.id })}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}
           </div>

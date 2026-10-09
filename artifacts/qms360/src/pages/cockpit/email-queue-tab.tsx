@@ -1,3 +1,4 @@
+import { formatDateTime } from '@workspace/spreadsheet-dates';
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -95,13 +96,13 @@ export function EmailQueueTab() {
         {!loading && !error && (queue.data?.items.length ? <>
           <div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>Created</TableHead><TableHead>Application / event</TableHead><TableHead>Recipient</TableHead><TableHead>Subject</TableHead><TableHead>Status</TableHead><TableHead>Attempts</TableHead><TableHead>Next attempt / error</TableHead><TableHead /></TableRow></TableHeader><TableBody>
             {queue.data.items.map(email => <TableRow key={email.id}>
-              <TableCell className="whitespace-nowrap">{new Date(email.createdAt).toLocaleString()}</TableCell>
+              <TableCell className="whitespace-nowrap">{formatDateTime(email.createdAt)}</TableCell>
               <TableCell><p className="font-medium uppercase">{email.app}</p><p className="max-w-56 truncate text-xs text-muted-foreground">{email.eventType ?? 'Direct notification'}</p>{email.senderEmail && <p className="mt-1 max-w-56 truncate text-xs text-muted-foreground">Reply-To: {email.senderName || email.senderEmail}{email.senderName ? ` <${email.senderEmail}>` : ''}</p>}</TableCell>
               <TableCell><p className="font-medium">{email.recipientName || email.recipientEmail}</p>{email.recipientName && <p className="text-xs text-muted-foreground">{email.recipientEmail}</p>}</TableCell>
               <TableCell className="max-w-64 truncate">{email.subject}</TableCell>
               <TableCell><Badge variant={statusVariant(email.status)}>{statusLabels[email.status]}</Badge></TableCell>
               <TableCell>{email.attemptCount} / {email.maxAttempts}</TableCell>
-              <TableCell className="max-w-72">{email.status === 'retrying' || email.status === 'queued' ? <span className="flex items-center gap-1 text-xs"><Clock3 className="size-3" />{new Date(email.nextAttemptAt).toLocaleString()}</span> : email.sentAt ? <span className="text-xs">{new Date(email.sentAt).toLocaleString()}</span> : '—'}{email.lastError && <p className="mt-1 line-clamp-2 text-xs text-destructive" title={email.lastError}>{email.lastError}</p>}</TableCell>
+              <TableCell className="max-w-72">{email.status === 'retrying' || email.status === 'queued' ? <span className="flex items-center gap-1 text-xs"><Clock3 className="size-3" />{formatDateTime(email.nextAttemptAt)}</span> : email.sentAt ? <span className="text-xs">{formatDateTime(email.sentAt)}</span> : '—'}{email.lastError && <p className="mt-1 line-clamp-2 text-xs text-destructive" title={email.lastError}>{email.lastError}</p>}</TableCell>
               <TableCell>{email.status === 'failed' && <Button size="sm" variant="outline" disabled={retry.isPending} onClick={() => retryEmail(email.id)}><RefreshCw className="mr-2 size-4" />Retry</Button>}</TableCell>
             </TableRow>)}
           </TableBody></Table></div>

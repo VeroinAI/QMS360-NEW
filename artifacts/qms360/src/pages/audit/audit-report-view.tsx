@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from '@workspace/spreadsheet-dates';
 import { useEffect, useState } from "react";
 import { responseFieldLabel } from "@/lib/response-field-labels";
 import { Link, useParams } from "wouter";
@@ -73,7 +74,7 @@ export function AuditReportPage() {
     {report.isLoading ? <div className="space-y-3" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-64 w-full" /></div>
       : report.error || !report.data ? <Card><CardContent className="py-10 text-center"><AlertTriangle className="mx-auto mb-3 size-8 text-muted-foreground" /><p className="font-semibold">Unable to load report</p><p className="text-sm text-muted-foreground">{msg(report.error)}</p><Button className="mt-4" variant="outline" onClick={() => void report.refetch()}>Retry</Button></CardContent></Card>
       : <Card><CardHeader className="border-b"><div className="flex flex-wrap items-start justify-between gap-2"><CardTitle className="text-2xl">{report.data.audit.title}</CardTitle><Badge>{report.data.audit.status}</Badge></div>
-          <p className="text-sm text-muted-foreground">Consolidated audit report · Completed {report.data.audit.closedAt ? new Date(report.data.audit.closedAt).toLocaleDateString() : "—"} · Generated {new Date(report.data.generatedAt).toLocaleString()}</p></CardHeader>
+          <p className="text-sm text-muted-foreground">Consolidated audit report · Completed {report.data.audit.closedAt ? formatDate(report.data.audit.closedAt) : "—"} · Generated {formatDateTime(report.data.generatedAt)}</p></CardHeader>
         <CardContent className="space-y-8 pt-6">{sections.length ? sections.map((s, i) => <Section key={s.key} section={s} index={i} />) : <p className="text-sm text-muted-foreground">The report returned no sections.</p>}</CardContent></Card>}
   </div>;
 }

@@ -1,3 +1,4 @@
+import { formatDateTime as sharedFormatDateTime } from '@workspace/spreadsheet-dates';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
@@ -58,7 +59,7 @@ const resolutionOptions: Array<{ value: SelectableResolution; label: string; des
 ];
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return sharedFormatDateTime(value);
 }
 
 export function FeedbackPage() {

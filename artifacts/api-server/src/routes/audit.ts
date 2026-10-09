@@ -1,3 +1,4 @@
+import { formatDateInTimeZone, formatPresentationData } from "@workspace/spreadsheet-dates";
 import { visibleAdminUsers } from "../lib/admin-user-discovery";
 import { Router, type Request, type Response } from "express";
 import { randomUUID } from "node:crypto";
@@ -255,8 +256,10 @@ const csv = (res: Response, name: string, rows: AnyRow[]) => {
   const escape = (value: unknown) => `"${String(value ?? "").replaceAll("\"", "\"\"")}"`;
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${name}.csv"`);
-  res.send([keys.map(escape).join(","), ...rows.map((row) => keys.map((key) =>
-    escape(typeof row[key] === "object" ? JSON.stringify(row[key]) : row[key])).join(","))].join("\n"));
+  res.send([keys.map(escape).join(","), ...rows.map((row) => {
+    const formatted = formatPresentationData(row);
+    return keys.map((key) => escape(typeof formatted[key] === "object" ? JSON.stringify(formatted[key]) : formatted[key])).join(",");
+  })].join("\n"));
 };
 const maybeCsv = (req: Request, res: Response, name: string, rows: AnyRow[]) => {
   if (String(req.query.format ?? "").toLowerCase() === "csv" || req.accepts(["json", "text/csv"]) === "text/csv") {
@@ -3779,7 +3782,7 @@ router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
   const reviewers = [...new Set(report.cars.map(car => carMeta(car).reviewedBy).filter((id): id is string => !!id))];
   const reviewerRows = reviewers.length ? await db.select({ id: users.id, name: users.fullName }).from(users).where(and(
     eq(users.organizationId, actor(req).organizationId), inArray(users.id, reviewers), isNull(users.deletedAt))) : [];
-  const date = (value?: string | Date | null) => value ? new Date(value).toLocaleDateString("en-GB", { timeZone: "Asia/Riyadh" }) : "To be mapped";
+  const date = (value?: string | Date | null) => value ? formatDateInTimeZone(value, "Asia/Riyadh") : "To be mapped";
   tracker?.rows.forEach((row, i) => {
     const car = report.cars[i]!;
     const meta = carMeta(car);

@@ -429,6 +429,34 @@ paths:
       summary: Reset a module numbering pattern to the default (admin)
       parameters: [{name: module, in: path, required: true, schema: {type: string, enum: [qaqc, lessons, audit]}}]
       responses: {"200": {description: Reset pattern, content: {application/json: {schema: {$ref: "#/components/schemas/NumberingModuleConfig"}}}}}
+  /platform/audit-memo-defaults:
+    get:
+      operationId: getPlatformAuditMemoDefaults
+      tags: [platform]
+      summary: Get organization defaults for Audit Schedule memo headings
+      responses:
+        "200": {description: Memo defaults, content: {application/json: {schema: {$ref: "#/components/schemas/AuditMemoDefaults"}}}}
+    put:
+      operationId: updatePlatformAuditMemoDefaults
+      tags: [platform]
+      summary: Set Audit Schedule memo headings (administrator only)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditMemoDefaults"}}}}
+      responses:
+        "200": {description: Saved memo defaults, content: {application/json: {schema: {$ref: "#/components/schemas/AuditMemoDefaults"}}}}
+  /platform/date-format:
+    get:
+      operationId: getPlatformDateFormat
+      tags: [platform]
+      summary: Get the organization-wide date display and file format
+      responses:
+        "200": {description: Date format, content: {application/json: {schema: {$ref: "#/components/schemas/PlatformDateFormat"}}}}
+    put:
+      operationId: updatePlatformDateFormat
+      tags: [platform]
+      summary: Set the organization-wide date format (administrator only)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/PlatformDateFormat"}}}}
+      responses:
+        "200": {description: Saved date format, content: {application/json: {schema: {$ref: "#/components/schemas/PlatformDateFormat"}}}}
   /platform/organization-settings:
     get:
       operationId: getOrganizationSettings
@@ -1981,6 +2009,19 @@ components:
     FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    AuditMemoDefaults:
+      type: object
+      required: [from, to]
+      properties:
+        from: {type: string, maxLength: 500, description: "Default free-text From heading, not an email address"}
+        to: {type: string, maxLength: 500, description: "Default free-text To heading, not email recipients"}
+    PlatformDateFormat:
+      type: object
+      required: [dateFormat]
+      properties:
+        dateFormat:
+          type: string
+          enum: [DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, DD-MM-YYYY, MM-DD-YYYY]
     AuthenticationConfiguration:
       type: object
       required: [mode, localLoginAllowed, dronaReady, blockers]

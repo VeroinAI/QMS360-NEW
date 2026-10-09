@@ -663,6 +663,67 @@ export const ResetNumberingPatternResponse = zod.object({
 
 
 /**
+ * @summary Get organization defaults for Audit Schedule memo headings
+ */
+export const getPlatformAuditMemoDefaultsResponseFromMax = 500;
+
+export const getPlatformAuditMemoDefaultsResponseToMax = 500;
+
+
+
+export const GetPlatformAuditMemoDefaultsResponse = zod.object({
+  "from": zod.string().max(getPlatformAuditMemoDefaultsResponseFromMax).describe('Default free-text From heading, not an email address'),
+  "to": zod.string().max(getPlatformAuditMemoDefaultsResponseToMax).describe('Default free-text To heading, not email recipients')
+})
+
+
+/**
+ * @summary Set Audit Schedule memo headings (administrator only)
+ */
+export const updatePlatformAuditMemoDefaultsBodyFromMax = 500;
+
+export const updatePlatformAuditMemoDefaultsBodyToMax = 500;
+
+
+
+export const UpdatePlatformAuditMemoDefaultsBody = zod.object({
+  "from": zod.string().max(updatePlatformAuditMemoDefaultsBodyFromMax).describe('Default free-text From heading, not an email address'),
+  "to": zod.string().max(updatePlatformAuditMemoDefaultsBodyToMax).describe('Default free-text To heading, not email recipients')
+})
+
+export const updatePlatformAuditMemoDefaultsResponseFromMax = 500;
+
+export const updatePlatformAuditMemoDefaultsResponseToMax = 500;
+
+
+
+export const UpdatePlatformAuditMemoDefaultsResponse = zod.object({
+  "from": zod.string().max(updatePlatformAuditMemoDefaultsResponseFromMax).describe('Default free-text From heading, not an email address'),
+  "to": zod.string().max(updatePlatformAuditMemoDefaultsResponseToMax).describe('Default free-text To heading, not email recipients')
+})
+
+
+/**
+ * @summary Get the organization-wide date display and file format
+ */
+export const GetPlatformDateFormatResponse = zod.object({
+  "dateFormat": zod.enum(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY', 'MM-DD-YYYY'])
+})
+
+
+/**
+ * @summary Set the organization-wide date format (administrator only)
+ */
+export const UpdatePlatformDateFormatBody = zod.object({
+  "dateFormat": zod.enum(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY', 'MM-DD-YYYY'])
+})
+
+export const UpdatePlatformDateFormatResponse = zod.object({
+  "dateFormat": zod.enum(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY', 'MM-DD-YYYY'])
+})
+
+
+/**
  * @summary Get organization settings
  */
 export const getOrganizationSettingsResponseWorkingCalendarWorkingDaysItemMin = 0;

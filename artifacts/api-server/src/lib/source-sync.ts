@@ -3,8 +3,8 @@ import http from "node:http";
 import https from "node:https";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import * as XLSX from "xlsx";
-import { applyExcelDateFormats } from "./excel-date-cells";
-import { isSpreadsheetDateField, parseSpreadsheetData, parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
+import { applyExcelDateFormats, spreadsheetWorkbookDateOptions } from "./excel-date-cells";
+import { getDateFormat, isSpreadsheetDateField, parseSpreadsheetData, parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import {
   connectorFieldMappings, db, importTemplates, integrationConnectors, projects, syncJobs, users,
 } from "@workspace/db";
@@ -533,7 +533,13 @@ export function parseImportFile(buffer: Buffer, template: { columns: TemplateCol
   const sheet = sheetName ? workbook.Sheets[sheetName] : undefined;
   if (!sheet) throw new HttpError(422, "The workbook has no sheets");
   const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
-  const normalizeHeader = (value: unknown) => String(value ?? "").trim().replace(/\s*\((?:DD\/MM\/YYYY|YYYY-MM-DD)\)/gi, "").replace(/YYYY-MM-DD/gi, "DD/MM/YYYY").toLowerCase();
+  let dateOptions: ReturnType<typeof spreadsheetWorkbookDateOptions>;
+  try {
+    dateOptions = spreadsheetWorkbookDateOptions(workbook);
+  } catch (error) {
+    throw new HttpError(422, error instanceof Error ? error.message : "The workbook has invalid date-format declarations");
+  }
+  const normalizeHeader = (value: unknown) => String(value ?? "").trim().replace(/\s*\((?:DD\/MM\/YYYY|MM\/DD\/YYYY|YYYY-MM-DD|DD-MM-YYYY|MM-DD-YYYY)\)/gi, "").replace(/YYYY-MM-DD/gi, "DD/MM/YYYY").toLowerCase();
   const headerRow = (grid[0] ?? []).map(normalizeHeader);
   const positions = template.columns.map((column) => ({ column, index: headerRow.indexOf(normalizeHeader(column.header)) }));
   const missing = positions.filter((position) => position.column.required && position.index === -1);
@@ -550,8 +556,8 @@ export function parseImportFile(buffer: Buffer, template: { columns: TemplateCol
       if (value != null && String(value).trim() !== "") hasValue = true;
       if (value != null && String(value).trim() !== "" && (isSpreadsheetDateField(column.field)
         || isSpreadsheetDateField(column.header) || /DD\/MM\/YYYY|YYYY-MM-DD/i.test(column.header))) {
-        const date = parseSpreadsheetDate(value, { date1904: !!workbook.Workbook?.WBProps?.date1904 });
-        if (!date) throw new HttpError(422, `Row ${rowIndex + 2}: ${column.field}: enter a valid date as DD/MM/YYYY`);
+        const date = parseSpreadsheetDate(value, dateOptions);
+        if (!date) throw new HttpError(422, `Row ${rowIndex + 2}: ${column.field}: enter a valid date as ${getDateFormat()}`);
         keyed[column.field] = date;
       } else {
         keyed[column.field] = typeof value === "string" ? value.trim() : value;
@@ -559,9 +565,9 @@ export function parseImportFile(buffer: Buffer, template: { columns: TemplateCol
     }
     if (hasValue) {
       try {
-        rows.push(parseSpreadsheetData(keyed, { date1904: !!workbook.Workbook?.WBProps?.date1904 }));
+        rows.push(parseSpreadsheetData(keyed, dateOptions));
       } catch (error) {
-        throw new HttpError(422, `Row ${rowIndex + 2}: ${error instanceof Error ? error.message : "Dates must use DD/MM/YYYY"}`);
+        throw new HttpError(422, `Row ${rowIndex + 2}: ${error instanceof Error ? error.message : `Dates must use ${getDateFormat()}`}`);
       }
     }
   }

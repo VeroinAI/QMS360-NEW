@@ -5,6 +5,34 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export interface AuditMemoDefaults {
+  /**
+     * Default free-text From heading, not an email address
+     * @maxLength 500
+     */
+  from: string;
+  /**
+     * Default free-text To heading, not email recipients
+     * @maxLength 500
+     */
+  to: string;
+}
+
+export type PlatformDateFormatDateFormat = typeof PlatformDateFormatDateFormat[keyof typeof PlatformDateFormatDateFormat];
+
+
+export const PlatformDateFormatDateFormat = {
+  'DD/MM/YYYY': 'DD/MM/YYYY',
+  'MM/DD/YYYY': 'MM/DD/YYYY',
+  'YYYY-MM-DD': 'YYYY-MM-DD',
+  'DD-MM-YYYY': 'DD-MM-YYYY',
+  'MM-DD-YYYY': 'MM-DD-YYYY',
+} as const;
+
+export interface PlatformDateFormat {
+  dateFormat: PlatformDateFormatDateFormat;
+}
+
 export type AuthenticationConfigurationMode = typeof AuthenticationConfigurationMode[keyof typeof AuthenticationConfigurationMode];
 
 

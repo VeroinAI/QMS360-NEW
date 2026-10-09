@@ -1,3 +1,4 @@
+import { formatDate } from "@workspace/spreadsheet-dates";
 import { datedActivities, plannedDate } from "@workspace/field-controls";
 export const TO_BE_MAPPED = "To Be Mapped";
 type RecordData = Record<string, any>;
@@ -33,14 +34,14 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
     if (!Number.isFinite(d.getTime())) return TO_BE_MAPPED;
     const parts = new Intl.DateTimeFormat("en-GB", { timeZone, day: "2-digit", month: "2-digit", year: "numeric" }).formatToParts(d);
     const part = (key: string) => parts.find(p => p.type === key)?.value ?? "";
-    return `${part("day")}-${part("month")}-${part("year")}`;
+    return formatDate(`${part("year")}-${part("month")}-${part("day")}`);
   };
   const date = (value: unknown, withTime = false) => {
     // Planned values are calendar/wall-clock inputs, even if a historical client added an offset.
     // Actual instants (for example preparation time) use instantDate instead.
     const saved = value instanceof Date && Number.isFinite(value.getTime()) ? value.toISOString() : value;
     if (typeof saved !== "string" || !plannedDate(saved) || (withTime && !saved.includes("T"))) return TO_BE_MAPPED;
-    return `${saved.slice(0, 10).split("-").reverse().join("-")}${withTime ? `\n${saved.slice(11, 16)}` : ""}`;
+    return `${formatDate(saved.slice(0, 10))}${withTime ? `\n${saved.slice(11, 16)}` : ""}`;
   };
   const fields = project?.customFields ?? {};
   const activityRows = Array.isArray(meta.activities) && meta.activities.length ? meta.activities : [{

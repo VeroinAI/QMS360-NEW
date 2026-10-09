@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { getUserContext, verifyToken, type AuthToken } from "../lib/auth";
 import { authenticationConfiguration, authenticationUnavailableMessage } from "../lib/drona/activation";
 import { DronaAccessError, dronaSessionProjects } from "../lib/drona/session";
+import { withOrganizationDateFormat } from "../lib/date-format";
 
 declare global {
   namespace Express {
@@ -55,7 +56,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
     req.auth = token;
     req.currentUser = user;
-    next();
+    try {
+      await withOrganizationDateFormat(user.organizationId, () => next());
+    } catch (error) {
+      req.log?.error({ error }, "Organization date-format settings unavailable");
+      res.status(503).json({ error: "Organization date-format settings are currently unavailable" });
+    }
   } catch (error) {
     req.log?.warn({ error }, "Rejected invalid authentication token");
     if (error instanceof DronaAccessError) res.status(error.status).json({ error: error.message });

@@ -1,3 +1,4 @@
+import { formatDateTime } from '@workspace/spreadsheet-dates';
 import { workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useLocation } from 'wouter';
@@ -184,7 +185,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
       actions={<><Link href={metricsEntry ? '/qaqc/metrics' : `/qaqc/${reportType}`}><Button variant="secondary"><ArrowLeft className="mr-2 size-4" />{metricsEntry ? 'Back to QA/QC Metrics' : 'All reports'}</Button></Link>
         {report && canExport && <><Button variant="secondary" disabled={busy} onClick={() => run(async () => { try { saveFile(await exportQaqcSowReport(report.id, undefined, { headers: { Accept: XLSX_MIME } }), `${reportType}-${per}.xlsx`); } catch (e) { fail('Export failed')(e); } })}><FileSpreadsheet className="mr-2 size-4" />XLSX</Button>
           <Button variant="secondary" disabled={busy} onClick={() => run(async () => { try { saveFile(await exportQaqcSowReport(report.id, { templateId: pdfTemplate }, { headers: { Accept: 'application/pdf' } }), `${reportType}-${per}.pdf`); } catch (e) { fail('Export failed')(e); } })}><FileText className="mr-2 size-4" />PDF</Button></>}</>}>
-      {report && <div className="flex flex-wrap items-center gap-3"><StateBadge state={report.state} />{report.submittedAt && <span className="text-sm text-muted-foreground">Submitted {new Date(report.submittedAt).toLocaleString()}</span>}{frozen && <span className="text-sm text-muted-foreground">Read-only after submission</span>}</div>}
+      {report && <div className="flex flex-wrap items-center gap-3"><StateBadge state={report.state} />{report.submittedAt && <span className="text-sm text-muted-foreground">Submitted {formatDateTime(report.submittedAt)}</span>}{frozen && <span className="text-sm text-muted-foreground">Read-only after submission</span>}</div>}
       {report && <PdfTemplatePicker reportType={reportType} kind="report" value={pdfTemplate} onChange={setPdfTemplate} />}
       {report?.state === 'sent_back' && <Alert variant="destructive"><AlertTitle>Sent back for correction</AlertTitle><AlertDescription>{report.reviewComments}</AlertDescription></Alert>}
       <Wrap>

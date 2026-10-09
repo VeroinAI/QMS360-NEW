@@ -9,6 +9,19 @@ Audit Plan field 5, Auditee, is a required multi-select of active Audit workspac
 
 **How to apply:** Persist canonical Auditee role IDs with the plan, resolve role users on the server where notifications or ownership need users, and keep activity auditee selections independent. Preserve legacy scalar auditee data only for compatibility with existing records and integrations.
 
+## Lead and Audit Team separation
+
+The selected Lead / Internal Auditor must not appear in the Audit Team dropdown.
+Selecting an existing team member as lead removes that person from the team.
+Changing lead does not automatically restore a previously removed team member.
+
+**Why:** The user explicitly requires these participant selections to be mutually
+exclusive, regardless of which field is selected first.
+
+**How to apply:** Compare user IDs, not display names. Keep removal and lead selection
+atomic, preserve other team members, and retain the required-team validation if the
+removal leaves no team members. Do not modify historical read-only records.
+
 ## Circulation
 
 Audit Plan Circulation is an independently selected set of Audit workspace roles during creation and editing. Changing auditors, team members or Auditees must not silently rewrite these selections.

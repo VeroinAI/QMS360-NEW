@@ -1,3 +1,4 @@
+import { formatDateTime } from '@workspace/spreadsheet-dates';
 import { responseFieldLabel } from "@/lib/response-field-labels";
 import { useState } from "react";
 import type { ReactNode } from "react";
@@ -43,7 +44,7 @@ function RecordedCarLog({ carId }: { carId: string }) {
       <thead className="bg-muted"><tr>{["Date / Time", "Action", "User", "Status", "Comments"].map(label => <th scope="col" key={label} className="border p-2">{label}</th>)}</tr></thead>
       <tbody>{query.data.items.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">No recorded CAR actions.</td></tr>}
         {query.data.items.map(event => <tr key={event.id}>
-          <td className="whitespace-nowrap border p-2">{new Date(event.createdAt).toLocaleString()}</td>
+          <td className="whitespace-nowrap border p-2">{formatDateTime(event.createdAt)}</td>
           <td className="border p-2">{LABELS[event.action] || event.action}</td><td className="border p-2">{event.actorName}</td>
           <td className="border p-2">{event.status || "—"}</td><td className="whitespace-pre-wrap border p-2">{event.comments || "—"}</td>
         </tr>)}</tbody>

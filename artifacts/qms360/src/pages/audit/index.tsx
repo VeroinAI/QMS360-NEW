@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from '@workspace/spreadsheet-dates';
 import { confirmedWorkflowMutation, workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { responseFieldLabels } from "@/lib/response-field-labels";
 import { newPlanActivity, selectPlanActivity } from "@/lib/audit-plan-activities";
@@ -85,7 +86,12 @@ import type {
   MeetingMinutes,
 } from "@workspace/api-client-react";
 import { eligiblePlanAudits, loadPlanOptionPages } from "./plan-schedule-options";
+import { refreshAuditScheduleQueries } from "./schedule-query-refresh";
+import { submissionMemoDefaults } from "./submission-memo-defaults";
+import { auditTeamWithoutLead } from "./audit-plan-team";
+import { useGetPlatformAuditMemoDefaults, getGetPlatformAuditMemoDefaultsQueryKey } from "@workspace/api-client-react";
 import { parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
+import { importDateOptions } from "@/lib/import-date-options";
 import { auditPlanDateErrors, datedActivities, plannedDate } from "@workspace/field-controls";
 import {
   AlertTriangle, ArrowLeft, BarChart3, CalendarDays, CheckCircle2, ChevronDown, ClipboardCheck,
@@ -136,7 +142,7 @@ import {
 } from "@/lib/pwa";
 
 const PAGE_SIZE = 10;
-const date = (value?: string | null) => value ? new Date(value).toLocaleDateString() : "—";
+const date = (value?: string | null) => value ? formatDate(value) : "—";
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Something went wrong.";
 type ProgrammeRange = { fromDate: string; toDate: string };
 const PROCESS_AUDIT_TYPE = "Quality Internal Process Audit";
@@ -764,8 +770,7 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
         savedScheduleId = form.id;
         setCreatedScheduleId(savedScheduleId);
       }
-      qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
-      qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] });
+      void refreshAuditScheduleQueries(qc, form.parentId);
       toast({ title: initial ? "Schedule updated" : "Schedule created" });
       onClose();
     } catch (e) {
@@ -1005,6 +1010,19 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
   const [reference, setReference] = useState(item.submissionReference ?? "");
   const [from, setFrom] = useState(item.submissionFrom ?? "");
   const [to, setTo] = useState(item.submissionTo ?? "");
+  const [defaultsKey] = useState(() => crypto.randomUUID());
+  const memoDefaults = useGetPlatformAuditMemoDefaults({ query: {
+    queryKey: [...getGetPlatformAuditMemoDefaultsQueryKey(), "submission", defaultsKey],
+    staleTime: 0, refetchOnWindowFocus: false, retry: 1,
+  } });
+  const [defaultsLoaded, setDefaultsLoaded] = useState(false);
+  useEffect(() => {
+    if (!memoDefaults.data || defaultsLoaded) return;
+    const headings = submissionMemoDefaults(memoDefaults.data, item);
+    setFrom(headings.from);
+    setTo(headings.to);
+    setDefaultsLoaded(true);
+  }, [memoDefaults.data, defaultsLoaded, item]);
   const [subject, setSubject] = useState(item.title);
   const [mailBody, setMailBody] = useState("");
   const submitMutation = useSubmitAuditProgramme();
@@ -1015,7 +1033,7 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
   const confirmation = workflowConfirmationMessage(item.workflowState === "Sent Back" ? "resubmit" : "submit", `"${item.title}"`);
   const { toast } = useToast();
   const submitProgramme = () => {
-    if (!subject.trim() || !mailBody.trim()) return;
+    if (!defaultsLoaded || !subject.trim() || !mailBody.trim()) return;
     submit.mutate({ id: item.id, data: {
       reference: reference.trim(), from: from.trim(), to: to.trim(),
       subject: subject.trim(), mailBody: mailBody.trim(),
@@ -1028,16 +1046,19 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
     <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col">
       <DialogHeader>
         <DialogTitle>{confirmation.title}</DialogTitle>
-        <DialogDescription>{confirmation.description} Enter the reference, memo From and To lines, email subject, and memo for this approval submission. From and To are free-text memo headings, not email sender or recipient addresses. Submit and Resubmit email the first approval level through the configured SMTP connector unless an email rule disables it.</DialogDescription>
+        <DialogDescription>{confirmation.description} Enter the reference, email subject, and memo for this approval submission. From and To are read-only memo headings managed in Quality Audit Settings → Audit memo, not email sender or recipient addresses. Submit and Resubmit email the first approval level through the configured SMTP connector unless an email rule disables it.</DialogDescription>
       </DialogHeader>
       <div className="grid min-h-0 gap-4 overflow-y-auto py-2 pr-1">
+        {!defaultsLoaded && (memoDefaults.isError
+          ? <p role="alert" className="text-sm text-destructive">Memo defaults could not be loaded. <Button variant="link" onClick={() => void memoDefaults.refetch()}>Retry</Button></p>
+          : <p role="status" className="text-sm text-muted-foreground">Loading memo defaults…</p>)}
         <div className="grid gap-2"><Label htmlFor="schedule-submission-reference">Reference</Label><Input id="schedule-submission-reference" value={reference} onChange={event => setReference(event.target.value)} maxLength={500}/></div>
-        <div className="grid gap-2"><Label htmlFor="schedule-submission-from">From</Label><Input id="schedule-submission-from" value={from} onChange={event => setFrom(event.target.value)} maxLength={500}/></div>
-        <div className="grid gap-2"><Label htmlFor="schedule-submission-to">To</Label><Input id="schedule-submission-to" value={to} onChange={event => setTo(event.target.value)} maxLength={500}/></div>
+        <div className="grid gap-2"><Label htmlFor="schedule-submission-from">From</Label><Input id="schedule-submission-from" value={from} readOnly placeholder="Memo From heading" maxLength={500} disabled={!defaultsLoaded} className="bg-muted/40"/></div>
+        <div className="grid gap-2"><Label htmlFor="schedule-submission-to">To</Label><Input id="schedule-submission-to" value={to} readOnly placeholder="Memo To heading" maxLength={500} disabled={!defaultsLoaded} className="bg-muted/40"/></div>
         <div className="grid gap-2"><Label htmlFor="schedule-submission-subject">Subject</Label><Input id="schedule-submission-subject" value={subject} onChange={event => setSubject(event.target.value)} maxLength={200}/></div>
         <div className="grid gap-2"><Label htmlFor="schedule-submission-body">Memo</Label><Textarea id="schedule-submission-body" value={mailBody} onChange={event => setMailBody(event.target.value)} rows={6} maxLength={10000}/></div>
       </div>
-      <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={submitProgramme} disabled={submit.isPending || !subject.trim() || !mailBody.trim()}>{confirmation.confirmLabel}</Button></DialogFooter>
+      <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={submitProgramme} disabled={!defaultsLoaded || submit.isPending || !subject.trim() || !mailBody.trim()}>{confirmation.confirmLabel}</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
 }
@@ -1200,7 +1221,7 @@ function Schedules() {
   const items = (query.data?.items ?? [])
     .map(schedule => occupiedScheduleIds.has(schedule.id) ? { ...schedule, hasPlan: true } : schedule)
     .filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
-  const done = (message: string) => { qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] }); qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] }); qc.invalidateQueries({ queryKey: ["/api/audit/my-actions"] }); toast({ title: message }); };
+  const done = (message: string) => { void refreshAuditScheduleQueries(qc, parentId); qc.invalidateQueries({ queryKey: ["/api/audit/my-actions"] }); toast({ title: message }); };
   const parentSubmitted = programme.data?.workflowState === "Submitted";
   const programmeSubmitted = (updated: AuditProgramme) => {
     qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated);
@@ -1280,7 +1301,7 @@ function Schedules() {
         const department = isImportedProcessAudit
           ? departments.options.find(item => item.value === departmentProjectText || item.label === departmentProjectText)
           : undefined;
-        const dateOptions = { date1904: !!workbook.Workbook?.WBProps?.date1904 };
+        const dateOptions = importDateOptions(Object.keys(rows[0] ?? {}), { date1904: !!workbook.Workbook?.WBProps?.date1904 });
         const start = parseSpreadsheetDate(mapped.plannedStartDate, dateOptions); const end = parseSpreadsheetDate(mapped.plannedEndDate, dateOptions);
         const required = ["auditTypes", "auditCategory", "departmentProject", "title", "processProductOwner", "plannedStartDate", "plannedEndDate"];
         const missing = required.filter(key => !String(mapped[key] ?? "").trim());
@@ -1288,7 +1309,7 @@ function Schedules() {
         const categoryError = scheduleCategoryLinkError(auditCategories.values, importedAuditTypes, String(mapped.auditCategory).trim());
         if (categoryError) { failures.push(`row ${index + 2}: ${categoryError}`); continue; }
         if (!eligibleOwners.has(String(mapped.processProductOwner).trim())) { failures.push(`row ${index + 2}: Process / Product Owner must be an active Audit user with Product / Process Owner authorization`); continue; }
-        if (!start || !end) { failures.push(`row ${index + 2}: From Date and To Date must be valid calendar dates in DD/MM/YYYY format`); continue; }
+        if (!start || !end) { failures.push(`row ${index + 2}: From Date and To Date must be valid calendar dates in ${dateOptions.dateFormat} format`); continue; }
         if (isImportedProcessAudit && !department) { failures.push(`row ${index + 2}: Department / Project must be an active department value or exact name`); continue; }
         if (!isImportedProcessAudit && !project) { failures.push(`row ${index + 2}: Department / Project must be an active project choice, code, or exact name`); continue; }
         if (end < start) { failures.push(`row ${index + 2}: To Date must be on or after From Date`); continue; }
@@ -1314,8 +1335,7 @@ function Schedules() {
         } as AuditSchedule;
         try { await create.mutateAsync({ data }); created += 1; } catch (error) { failures.push(`row ${index + 2}: ${errorText(error)}`); }
       }
-      qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
-      qc.invalidateQueries({ queryKey: ["/api/audit/programmes"] });
+      void refreshAuditScheduleQueries(qc, parentId);
       toast({
         title: `Loaded ${created} audit${created === 1 ? "" : "s"}${failures.length ? `; ${failures.length} failed` : ""}`,
         description: failures.length ? failures.join("; ") : "Every data row was created successfully.",
@@ -1342,7 +1362,7 @@ function Schedules() {
         </div>
       </> : <p className="text-muted-foreground">This action item is no longer available in this schedule.</p>}
     </CardContent></Card>}
-    {submitting && <ProgrammeSubmitDialog key={submitting.id} item={submitting} onClose={() => setSubmitting(undefined)} onSubmitted={programmeSubmitted}/>}
+    {submitting && <ProgrammeSubmitDialog key={submitting.id} item={programme.data ? { ...programme.data, ...submitting } : submitting} onClose={() => setSubmitting(undefined)} onSubmitted={programmeSubmitted}/>}
     {sendingProgrammeBack && <ProgrammeSendBackDialog key={sendingProgrammeBack.id} item={sendingProgrammeBack} onClose={() => setSendingProgrammeBack(undefined)} onSentBack={updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule sent back"); }}/>}
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
@@ -1372,9 +1392,8 @@ function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClo
   const Field = ({ label, value }: { label: string; value?: string | null }) => <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-1 whitespace-pre-wrap text-sm">{value?.trim() || "—"}</p></div>;
   return <><DialogHeader><DialogTitle>Audit Schedule</DialogTitle><p className="text-sm text-muted-foreground">Read-only audit details.</p></DialogHeader>
     <div className="space-y-6 py-2"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">{schedule.title}</h2><p className="mt-1 text-sm text-muted-foreground">Schedule year {schedule.year}</p></div><Badge variant={workflowTone(schedule.workflowState)}>{schedule.workflowState}</Badge></div>
-      {schedule.feasibilityFeedback && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4"><h3 className="font-medium text-amber-950">Audit feasibility feedback</h3><div className="mt-3 grid gap-3 sm:grid-cols-2"><Field label="Decision" value={schedule.feasibilityDecision === "cancelled" ? "Audit cancelled" : "Audit to be rescheduled"}/><Field label="Recorded at" value={schedule.feasibilityRecordedAt ? new Date(schedule.feasibilityRecordedAt).toLocaleString() : null}/><div className="sm:col-span-2"><Field label="Remarks / Feedback" value={schedule.feasibilityFeedback}/></div></div></div>}
-      <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2"><Field label="Audit type" value={schedule.auditTypes?.join(", ")}/><Field label="Audit category" value={schedule.auditCategory}/><Field label="Department / project" value={schedule.departmentProject}/><Field label="Process / product owner" value={schedule.processProductOwner}/><Field label="Planned dates" value={`${date(schedule.plannedStartDate)} – ${date(schedule.plannedEndDate)}`}/><Field label="Location" value={schedule.location}/><Field label="QA/QC reference" value={schedule.qaqcReference}/><Field label="Audit number / site visit no." value={schedule.auditNumber}/><Field label="QA/QC scope" value={schedule.qaqcScope}/><Field label="QA/QC clauses" value={schedule.qaqcClauses}/><Field label="Remarks" value={schedule.remarks}/><Field label="Memo circulation" value={schedule.memoCirculation}/></div>
-      <Field label="Memo description" value={schedule.memoDescription}/>
+      {schedule.feasibilityFeedback && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4"><h3 className="font-medium text-amber-950">Audit feasibility feedback</h3><div className="mt-3 grid gap-3 sm:grid-cols-2"><Field label="Decision" value={schedule.feasibilityDecision === "cancelled" ? "Audit cancelled" : "Audit to be rescheduled"}/><Field label="Recorded at" value={schedule.feasibilityRecordedAt ? formatDateTime(schedule.feasibilityRecordedAt) : null}/><div className="sm:col-span-2"><Field label="Remarks / Feedback" value={schedule.feasibilityFeedback}/></div></div></div>}
+      <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2"><Field label="Audit type" value={schedule.auditTypes?.join(", ")}/><Field label="Audit category" value={schedule.auditCategory}/><Field label="Department / project" value={schedule.departmentProject}/><Field label="Process / product owner" value={schedule.processProductOwner}/><Field label="Planned dates" value={`${date(schedule.plannedStartDate)} – ${date(schedule.plannedEndDate)}`}/><Field label="Location" value={schedule.location}/><Field label="QA/QC reference" value={schedule.qaqcReference}/><Field label="Audit number / site visit no." value={schedule.auditNumber}/><Field label="QA/QC scope" value={schedule.qaqcScope}/><Field label="QA/QC clauses" value={schedule.qaqcClauses}/><Field label="Remarks" value={schedule.remarks}/></div>
     </div>
     <DialogFooter><Button onClick={onClose}>Close</Button></DialogFooter></>;
 }
@@ -1392,7 +1411,8 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     enabled: !initial && !readOnly && !!programmeId && navigator.onLine,
   });
   const [form, setForm] = useState<AuditPlan>(initial ? {
-    ...initial, activities: datedActivities(initial.activities ?? [{
+    ...initial, teamMemberIds: readOnly ? initial.teamMemberIds : auditTeamWithoutLead(initial.teamMemberIds, initial.leadAuditorId),
+    activities: datedActivities(initial.activities ?? [{
       id: `legacy-${initial.id}`, section: initial.activitySection, remarks: initial.activityRemarks, auditeeId: initial.activityAuditeeId,
     }], initial.activityDateTime),
   } : {
@@ -1456,14 +1476,20 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   const leadUsers = selectedSchedule?.teamLeadIds == null
     ? users
     : users.filter(user => selectedSchedule.teamLeadIds?.includes(user.id));
+  const teamUsers = users.filter(user => user.id !== form.leadAuditorId);
   const clearError = (...keys: string[]) => setErrors(current => {
     const next = { ...current };
     keys.forEach(key => delete next[key]);
     return next;
   });
   const set = (key: keyof AuditPlan, value: unknown) => {
-    setForm(v => ({ ...v, [key]: value }));
-    clearError(String(key));
+    setForm(current => {
+      const next = { ...current, [key]: value };
+      return key === "leadAuditorId" || key === "teamMemberIds"
+        ? { ...next, teamMemberIds: auditTeamWithoutLead(next.teamMemberIds, next.leadAuditorId) }
+        : next;
+    });
+    clearError(String(key), ...(key === "leadAuditorId" ? ["teamMemberIds"] : []));
   };
   const selectSchedule = (scheduleId: string) => {
     if (presetSchedule) return;
@@ -1496,7 +1522,16 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     set("circulationRoleIds", checked ? [...new Set([...selectedCirculationRoleIds, id])] : selectedCirculationRoleIds.filter(item => item !== id));
     clearError("circulation");
   };
-  const toggleTeamMember = (id: string, checked: boolean) => set("teamMemberIds", checked ? [...form.teamMemberIds, id] : form.teamMemberIds.filter(item => item !== id));
+  const toggleTeamMember = (id: string, checked: boolean) => {
+    setForm(current => ({
+      ...current,
+      teamMemberIds: auditTeamWithoutLead(
+        checked ? [...new Set([...current.teamMemberIds, id])] : current.teamMemberIds.filter(item => item !== id),
+        current.leadAuditorId,
+      ),
+    }));
+    clearError("teamMemberIds");
+  };
   const toggleAuditeeRole = (id: string, checked: boolean) => set("auditeeRoleIds", checked ? [...new Set([...selectedAuditeeRoleIds, id])] : selectedAuditeeRoleIds.filter(item => item !== id));
   const activityRows: AuditPlanActivity[] = form.activities !== undefined ? form.activities : [{
     id: `legacy-${form.id}`, section: form.activitySection, remarks: form.activityRemarks, auditeeId: form.activityAuditeeId,
@@ -1745,7 +1780,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     <fieldset disabled={!form.auditFeasible} className={`grid gap-4 ${!form.auditFeasible ? "opacity-50" : ""}`}>
     <div><Label>2. Audit Title *</Label><Input className="mt-2" readOnly disabled={readOnly} value={form.auditTitle} {...invalid("auditTitle")} placeholder="Generated from Audit Schedule"/><ErrorText name="auditTitle"/></div>
     <div><Label>3. Lead / Internal Auditor *</Label><Select value={form.leadAuditorId} disabled={disabled("leadAuditorId") || !form.scheduleId} onValueChange={value => set("leadAuditorId", value)}><SelectTrigger className="mt-2" {...invalid("leadAuditorId")}><SelectValue placeholder="Select lead auditor"/></SelectTrigger><SelectContent>{leadUsers.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><ErrorText name="leadAuditorId"/>{form.scheduleId && selectedSchedule?.teamLeadIds != null && !leadUsers.length && <p className="mt-1 text-xs text-muted-foreground">No selected Audit Team Leads currently have active Audit access.</p>}</div>
-    <div><Label>4. Audit Team *</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal" disabled={disabled("teamMemberIds")} {...invalid("teamMemberIds")}><span className="truncate">{selectedTeamNames.length ? selectedTeamNames.join(", ") : "Select Audit Team"}</span><ChevronDown className="ml-2 size-4 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">{users.map(user => <DropdownMenuCheckboxItem key={user.id} checked={form.teamMemberIds.includes(user.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => toggleTeamMember(user.id, checked === true)}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu><ErrorText name="teamMemberIds"/></div>
+    <div><Label>4. Audit Team *</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal" disabled={disabled("teamMemberIds")} {...invalid("teamMemberIds")}><span className="truncate">{selectedTeamNames.length ? selectedTeamNames.join(", ") : "Select Audit Team"}</span><ChevronDown className="ml-2 size-4 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">{teamUsers.map(user => <DropdownMenuCheckboxItem key={user.id} checked={form.teamMemberIds.includes(user.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => toggleTeamMember(user.id, checked === true)}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu><ErrorText name="teamMemberIds"/><p className="mt-1 text-xs text-muted-foreground">The selected Lead / Internal Auditor is excluded from the Audit Team.</p></div>
     <div><Label>5. Auditee Roles *</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal" disabled={disabled("auditeeId") || auditeeRoles.isLoading} {...invalid("auditeeRoleIds")}><span className="truncate">{selectedAuditeeRoleNames.length ? selectedAuditeeRoleNames.join(", ") : auditeeRoles.isLoading ? "Loading roles…" : "Select auditee roles"}</span><ChevronDown className="ml-2 size-4 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">{(auditeeRoles.data ?? []).map(role => <DropdownMenuCheckboxItem key={role.id} checked={selectedAuditeeRoleIds.includes(role.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => toggleAuditeeRole(role.id, checked === true)}>{role.name}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu><ErrorText name="auditeeRoleIds"/></div>
     <div><Label>6. QA/QC Scope *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={form.qaqcScope} {...invalid("qaqcScope")} placeholder="Prefilled from Audit Schedule"/><ErrorText name="qaqcScope"/></div>
     <div><Label>7. Audit Type *</Label><Input className="mt-2" readOnly disabled={readOnly} value={form.auditTypes.join(", ")} {...invalid("auditTypes")} placeholder="Prefilled from Audit Schedule"/><ErrorText name="auditTypes"/></div>

@@ -1,3 +1,4 @@
+import { formatDateTime } from '@workspace/spreadsheet-dates';
 import { useEffect, useRef, useState } from 'react';
 import { useGetQaqcSowContext, useGetQaqcSowDistributionStatus, useUpdateQaqcSowProjectSettings } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,6 @@ function DistStatus({ d }: { d: Obj }) {
       {projs.map(p => <tr key={p.projectId} className="border-t align-top"><td className="py-2 font-medium">{p.projectName}</td><td>{p.configured ? 'Configured' : 'Incomplete'}</td><td>{p.distributionMemberCount}</td><td>{p.monthlyDistributionDay ?? '-'}</td><td>{(p.dailyDistributionDays ?? []).join(', ') || '-'}</td><td className="text-destructive">{(p.missingConfiguration ?? []).join('; ') || '-'}</td></tr>)}
       {!projs.length && <tr><td colSpan={6} className="py-4 text-center text-muted-foreground">No projects in scope.</td></tr>}
     </tbody></table></div>
-    <div><p className="mb-2 font-medium">Recent delivery runs</p>{runs.length ? <table className="w-full"><thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1">Kind</th><th>Status</th><th>Project</th><th>Updated</th></tr></thead><tbody>{runs.map((r, i) => <tr key={i} className="border-t"><td className="py-1 capitalize">{nice(r.kind)}</td><td>{r.status}</td><td>{projs.find(p => p.projectId === r.projectId)?.projectName ?? r.projectId}</td><td>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</td></tr>)}</tbody></table> : <p className="text-muted-foreground">No delivery has run yet.</p>}</div>
+    <div><p className="mb-2 font-medium">Recent delivery runs</p>{runs.length ? <table className="w-full"><thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1">Kind</th><th>Status</th><th>Project</th><th>Updated</th></tr></thead><tbody>{runs.map((r, i) => <tr key={i} className="border-t"><td className="py-1 capitalize">{nice(r.kind)}</td><td>{r.status}</td><td>{projs.find(p => p.projectId === r.projectId)?.projectName ?? r.projectId}</td><td>{r.updatedAt ? formatDateTime(r.updatedAt) : '-'}</td></tr>)}</tbody></table> : <p className="text-muted-foreground">No delivery has run yet.</p>}</div>
   </div>;
 }

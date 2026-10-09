@@ -34,7 +34,7 @@
 - [Audit Plan date boundaries](audit-plan-date-boundaries.md) — every Plan date/time must fit the child audit's actual From/To dates, with an explicit allowed-range error.
 - [Audit Plan calendar dates](audit-plan-calendar-dates.md) — preserve wall-clock report dates, derived legacy values and recoverable offline corrections.
 - [One Plan per Audit Schedule](one-plan-per-audit-schedule.md) — active Audit Plans are one-to-one with schedules; enforce atomically and expose occupancy on schedule responses.
-- [Spreadsheet date policy](spreadsheet-date-policy.md) — Excel/CSV dates are DD/MM/YYYY; preserve internal ISO contracts and support older ISO/native Excel workbooks.
+- [Organization date formats](spreadsheet-date-policy.md) — tenant-selected dates across displays, entry and exports; preserve ISO contracts and explicit legacy workbook formats.
 - [Audit feasibility decisions](audit-feasibility-decisions.md) — Cancel blocks future plans permanently; Reschedule records mandatory feedback but keeps the schedule eligible.
 - [Audit Plan execution handoff](audit-plan-execution-handoff.md) — sending a plan creates or reuses one linked Audit Execution; repeated handoff/open actions must remain idempotent.
 - [Audit Plan role selections](audit-plan-auditee-roles.md) — Auditee and Circulation are independent multi-role fields; activity-level auditees remain users.
@@ -79,3 +79,4 @@
 - [Drona environment boundaries](drona-environment-boundaries.md) — AWS owns public masters; preserve DEV/QA and QMS approvals; email-only login is an explicit unverified exception.
 - [Drona automatic setup](drona-automatic-setup-policy.md) — source-owned signup needs no routine manual linking; preserve QMS permissions/history and keep removed links revoked.
 - [CAR Word template policy](car-word-template-policy.md) — row downloads retain the supplied Word format; unavailable values read exactly “To be mapped”; never fabricate signatures or record data.
+- [Audit memo defaults](audit-memo-defaults.md) — reusable headings prefill submit/resubmit; keep saved approval memos and email audiences independent of live defaults.

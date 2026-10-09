@@ -46,6 +46,7 @@ import type {
   AuditFindingPageResponse,
   AuditGoodPracticesInput,
   AuditLogPageResponse,
+  AuditMemoDefaults,
   AuditMyActionsPage,
   AuditOrganizationChartInput,
   AuditPageResponse,
@@ -267,6 +268,7 @@ import type {
   PQIResult,
   PasswordChangeInput,
   PlatformContext,
+  PlatformDateFormat,
   PlatformRole,
   PlatformRoleUpdate,
   PlatformRoleUpdateResult,
@@ -2427,6 +2429,302 @@ export const useResetNumberingPattern = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getResetNumberingPatternMutationOptions(options));
+    }
+
+export const getGetPlatformAuditMemoDefaultsUrl = () => {
+
+
+
+
+  return `/api/platform/audit-memo-defaults`
+}
+
+/**
+ * @summary Get organization defaults for Audit Schedule memo headings
+ */
+export const getPlatformAuditMemoDefaults = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditMemoDefaults> => {
+
+  return customFetch<AuditMemoDefaults>(getGetPlatformAuditMemoDefaultsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformAuditMemoDefaultsQueryKey = () => {
+    return [
+    `/api/platform/audit-memo-defaults`
+    ] as const;
+    }
+
+
+export const getGetPlatformAuditMemoDefaultsQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformAuditMemoDefaults>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformAuditMemoDefaults>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformAuditMemoDefaultsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformAuditMemoDefaults>>> = ({ signal }) => getPlatformAuditMemoDefaults({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformAuditMemoDefaults>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformAuditMemoDefaultsQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformAuditMemoDefaults>>>
+export type GetPlatformAuditMemoDefaultsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get organization defaults for Audit Schedule memo headings
+ */
+
+export function useGetPlatformAuditMemoDefaults<TData = Awaited<ReturnType<typeof getPlatformAuditMemoDefaults>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformAuditMemoDefaults>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformAuditMemoDefaultsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePlatformAuditMemoDefaultsUrl = () => {
+
+
+
+
+  return `/api/platform/audit-memo-defaults`
+}
+
+/**
+ * @summary Set Audit Schedule memo headings (administrator only)
+ */
+export const updatePlatformAuditMemoDefaults = async (auditMemoDefaults: AuditMemoDefaults, options?: Parameters<typeof customFetch>[1]): Promise<AuditMemoDefaults> => {
+
+  return customFetch<AuditMemoDefaults>(getUpdatePlatformAuditMemoDefaultsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditMemoDefaults)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlatformAuditMemoDefaultsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformAuditMemoDefaults>>, TError,{data: BodyType<AuditMemoDefaults>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlatformAuditMemoDefaults>>, TError,{data: BodyType<AuditMemoDefaults>}, TContext> => {
+
+const mutationKey = ['updatePlatformAuditMemoDefaults'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlatformAuditMemoDefaults>>, {data: BodyType<AuditMemoDefaults>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updatePlatformAuditMemoDefaults(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlatformAuditMemoDefaultsMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlatformAuditMemoDefaults>>>
+    export type UpdatePlatformAuditMemoDefaultsMutationBody = BodyType<AuditMemoDefaults>
+    export type UpdatePlatformAuditMemoDefaultsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Set Audit Schedule memo headings (administrator only)
+ */
+export const useUpdatePlatformAuditMemoDefaults = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformAuditMemoDefaults>>, TError,{data: BodyType<AuditMemoDefaults>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlatformAuditMemoDefaults>>,
+        TError,
+        {data: BodyType<AuditMemoDefaults>},
+        TContext
+      > => {
+      return useMutation(getUpdatePlatformAuditMemoDefaultsMutationOptions(options));
+    }
+
+export const getGetPlatformDateFormatUrl = () => {
+
+
+
+
+  return `/api/platform/date-format`
+}
+
+/**
+ * @summary Get the organization-wide date display and file format
+ */
+export const getPlatformDateFormat = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlatformDateFormat> => {
+
+  return customFetch<PlatformDateFormat>(getGetPlatformDateFormatUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformDateFormatQueryKey = () => {
+    return [
+    `/api/platform/date-format`
+    ] as const;
+    }
+
+
+export const getGetPlatformDateFormatQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformDateFormat>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformDateFormat>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformDateFormatQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformDateFormat>>> = ({ signal }) => getPlatformDateFormat({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformDateFormat>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformDateFormatQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformDateFormat>>>
+export type GetPlatformDateFormatQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the organization-wide date display and file format
+ */
+
+export function useGetPlatformDateFormat<TData = Awaited<ReturnType<typeof getPlatformDateFormat>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformDateFormat>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformDateFormatQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePlatformDateFormatUrl = () => {
+
+
+
+
+  return `/api/platform/date-format`
+}
+
+/**
+ * @summary Set the organization-wide date format (administrator only)
+ */
+export const updatePlatformDateFormat = async (platformDateFormat: PlatformDateFormat, options?: Parameters<typeof customFetch>[1]): Promise<PlatformDateFormat> => {
+
+  return customFetch<PlatformDateFormat>(getUpdatePlatformDateFormatUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(platformDateFormat)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlatformDateFormatMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformDateFormat>>, TError,{data: BodyType<PlatformDateFormat>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlatformDateFormat>>, TError,{data: BodyType<PlatformDateFormat>}, TContext> => {
+
+const mutationKey = ['updatePlatformDateFormat'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlatformDateFormat>>, {data: BodyType<PlatformDateFormat>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updatePlatformDateFormat(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlatformDateFormatMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlatformDateFormat>>>
+    export type UpdatePlatformDateFormatMutationBody = BodyType<PlatformDateFormat>
+    export type UpdatePlatformDateFormatMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Set the organization-wide date format (administrator only)
+ */
+export const useUpdatePlatformDateFormat = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformDateFormat>>, TError,{data: BodyType<PlatformDateFormat>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlatformDateFormat>>,
+        TError,
+        {data: BodyType<PlatformDateFormat>},
+        TContext
+      > => {
+      return useMutation(getUpdatePlatformDateFormatMutationOptions(options));
     }
 
 export const getGetOrganizationSettingsUrl = () => {

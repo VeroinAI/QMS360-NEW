@@ -1,3 +1,5 @@
+import { organizationDateFormat } from "./date-format";
+import { formatDate } from "@workspace/spreadsheet-dates";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import {
@@ -162,7 +164,8 @@ export async function runLessonsEscalationDigest(organizationId?: string, force 
       const [to, cc] = await Promise.all([recipientsForRoles(setting.organizationId, toRoles, false), recipientsForRoles(setting.organizationId, ccRoles, true)]);
       const ccRecipients = cc.filter((value) => !to.some((target) => target.email.toLowerCase() === value.email.toLowerCase())).map((value) => ({ email: value.email, name: value.name }));
       const headers = ["Reference", "Title", "Project", "Submitter", "Approver", "Submitted", "Working days", "Level", "Threshold"];
-      const cells = rows.map((row) => [row.form.referenceNumber, row.form.title, row.projectName, peopleById.get(row.form.submittedById ?? row.form.creatorId) ?? "Unknown", peopleById.get(row.form.approverId) ?? "Unassigned", row.form.submittedAt.toISOString().slice(0, 10), row.age, level, rule.slaWorkingDays]);
+      const dateFormat = await organizationDateFormat(setting.organizationId);
+      const cells = rows.map((row) => [row.form.referenceNumber, row.form.title, row.projectName, peopleById.get(row.form.submittedById ?? row.form.creatorId) ?? "Unknown", peopleById.get(row.form.approverId) ?? "Unassigned", formatDate(row.form.submittedAt, dateFormat), row.age, level, rule.slaWorkingDays]);
       const text = [headers.join(" | "), ...cells.map((row) => row.map(String).join(" | "))].join("\n");
       const html = `<p>Pending Lessons Learned forms requiring approval at <strong>${escapeHtml(level)}</strong>:</p><table border="1" cellpadding="6" cellspacing="0"><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${cells.map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
       queuedInputs.push({ organizationId: setting.organizationId, recipientIds: to.map((v) => v.id), ccRecipients, subject: `Pending Lessons Learned approvals — ${level}`, text, html, context: { app: "lessons", eventType: "lessons.pending_approval_digest", reportKey: LESSONS_DIGEST_REPORT, ruleId: rule.id, level } });

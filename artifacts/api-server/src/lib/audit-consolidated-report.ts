@@ -1,3 +1,4 @@
+import { formatDate, formatDateInTimeZone } from "@workspace/spreadsheet-dates";
 import { auditReportDetailGroups, datedActivities, plannedDate, type AuditReportDetailsData } from "@workspace/field-controls";
 
 type Row = Record<string, any>;
@@ -19,11 +20,9 @@ export function buildConsolidatedAuditReport(input: {
   const recorded = (key: string, fallback?: unknown) => value(details.values[key]?.trim() || fallback);
   const date = (v: unknown) => {
     if (!v) return missing;
-    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return formatDate(v);
     const d = new Date(v as string);
-    return Number.isFinite(d.getTime()) ? new Intl.DateTimeFormat("en-GB", {
-      timeZone: input.timeZone ?? "Asia/Riyadh", dateStyle: "medium",
-    }).format(d) : missing;
+    return Number.isFinite(d.getTime()) ? formatDateInTimeZone(d, input.timeZone ?? "Asia/Riyadh") : missing;
   };
   const name = (id?: string) => value(id ? names.get(id) ?? (/^[0-9a-f-]{36}$/i.test(id) ? undefined : id) : undefined);
   const namesOf = (ids: string[] = []) => ids.length ? ids.map(name).join(", ") : missing;

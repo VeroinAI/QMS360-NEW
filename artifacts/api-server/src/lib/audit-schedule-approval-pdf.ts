@@ -1,3 +1,4 @@
+import { formatDateInTimeZone } from "@workspace/spreadsheet-dates";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { readMemoLetterheadLogo } from "../assets/memo-letterhead-logo";
 
@@ -199,7 +200,7 @@ function memoDate(value?: string | null) {
   const parsed = value ? new Date(value) : new Date();
   return Number.isNaN(parsed.valueOf())
     ? ""
-    : new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", day: "numeric", year: "numeric" }).format(parsed);
+    : formatDateInTimeZone(parsed, "UTC");
 }
 
 export async function renderAuditScheduleApprovalPdf(input: AuditScheduleApprovalPdfInput): Promise<Buffer> {

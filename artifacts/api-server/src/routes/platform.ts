@@ -21,6 +21,11 @@ import {
   resetNumberingPattern, saveNumberingPattern, type NumberingModule,
 } from "../lib/numbering";
 import { getPlatformEffectiveProjectScope, getRoleAssignmentProjectScope } from "../middlewares/rbac";
+import { getDateFormat } from "@workspace/spreadsheet-dates";
+import { UpdatePlatformDateFormatBody, GetPlatformDateFormatResponse } from "@workspace/api-zod";
+import { GetPlatformAuditMemoDefaultsResponse, UpdatePlatformAuditMemoDefaultsBody } from "@workspace/api-zod";
+import { invalidateOrganizationDateFormat } from "../lib/date-format";
+import { asyncHandler } from "../lib/workspace";
 import { restrictDronaProjects } from "../lib/drona/session";
 
 const router: IRouter = Router();
@@ -470,6 +475,52 @@ router.post("/platform/escalations/sweep", requireAuth, requireAdmin, async (req
   res.json({ ranAt: new Date(), created });
 });
 
+router.get("/platform/audit-memo-defaults", requireAuth, asyncHandler(async (req, res) => {
+  const [settings] = await db.select({ branding: organizationSettings.branding }).from(organizationSettings)
+    .where(and(eq(organizationSettings.organizationId, req.currentUser!.organizationId), isNull(organizationSettings.deletedAt))).limit(1);
+  res.json(GetPlatformAuditMemoDefaultsResponse.parse(settings?.branding?.auditMemoDefaults ?? { from: "", to: "" }));
+}));
+
+router.put("/platform/audit-memo-defaults", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const parsed = UpdatePlatformAuditMemoDefaultsBody.safeParse(req.body);
+  if (!parsed.success) { res.status(422).json({ error: "Provide From and To text, each at most 500 characters" }); return; }
+  const defaults = { from: parsed.data.from.trim(), to: parsed.data.to.trim() };
+  const organizationId = req.currentUser!.organizationId;
+  await db.transaction(async tx => {
+    await tx.execute(sql`SELECT id FROM shared.organizations WHERE id = ${organizationId}::uuid FOR UPDATE`);
+    const [existing] = await tx.select({ id: organizationSettings.id }).from(organizationSettings)
+      .where(and(eq(organizationSettings.organizationId, organizationId), isNull(organizationSettings.deletedAt))).limit(1);
+    if (existing) await tx.update(organizationSettings).set({
+      branding: sql`${organizationSettings.branding} || jsonb_build_object('auditMemoDefaults', ${JSON.stringify(defaults)}::jsonb)`,
+      updatedAt: new Date(),
+    }).where(and(eq(organizationSettings.id, existing.id), eq(organizationSettings.organizationId, organizationId)));
+    else await tx.insert(organizationSettings).values({ organizationId, branding: { auditMemoDefaults: defaults } });
+  });
+  res.json(GetPlatformAuditMemoDefaultsResponse.parse(defaults));
+}));
+
+router.get("/platform/date-format", requireAuth, asyncHandler(async (_req, res) => {
+  res.json(GetPlatformDateFormatResponse.parse({ dateFormat: getDateFormat() }));
+}));
+
+router.put("/platform/date-format", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const parsed = UpdatePlatformDateFormatBody.safeParse(req.body);
+  if (!parsed.success) { res.status(422).json({ error: "Choose a supported date format" }); return; }
+  const organizationId = req.currentUser!.organizationId;
+  await db.transaction(async tx => {
+    await tx.execute(sql`SELECT id FROM shared.organizations WHERE id = ${organizationId}::uuid FOR UPDATE`);
+    const [existing] = await tx.select({ id: organizationSettings.id }).from(organizationSettings)
+      .where(and(eq(organizationSettings.organizationId, organizationId), isNull(organizationSettings.deletedAt))).limit(1);
+    if (existing) await tx.update(organizationSettings).set({
+      branding: sql`${organizationSettings.branding} || jsonb_build_object('dateFormat', ${parsed.data.dateFormat}::text)`,
+      updatedAt: new Date(),
+    }).where(and(eq(organizationSettings.id, existing.id), eq(organizationSettings.organizationId, organizationId)));
+    else await tx.insert(organizationSettings).values({ organizationId, branding: { dateFormat: parsed.data.dateFormat } });
+  });
+  invalidateOrganizationDateFormat(organizationId);
+  res.json(parsed.data);
+}));
+
 router.get("/platform/organization-settings", requireAuth, async (req, res): Promise<void> => {
   const user = req.currentUser!;
   const [org] = await db.select().from(organizations).where(eq(organizations.id, user.organizationId)).limit(1);
@@ -511,7 +562,9 @@ router.put("/platform/organization-settings", requireAuth, requireAdmin, async (
   };
   const [existing] = await db.select({ id: organizationSettings.id }).from(organizationSettings)
     .where(and(eq(organizationSettings.organizationId, user.organizationId), isNull(organizationSettings.deletedAt))).limit(1);
-  if (existing) await db.update(organizationSettings).set(values).where(eq(organizationSettings.id, existing.id));
+  if (existing) await db.update(organizationSettings).set({
+    ...values, branding: sql`(${organizationSettings.branding} - 'logoUrl' - 'primaryColor') || ${JSON.stringify(values.branding)}::jsonb`,
+  }).where(eq(organizationSettings.id, existing.id));
   else await db.insert(organizationSettings).values(values);
   const [org] = await db.select().from(organizations).where(eq(organizations.id, user.organizationId)).limit(1);
   const [settings] = await db.select().from(organizationSettings).where(and(

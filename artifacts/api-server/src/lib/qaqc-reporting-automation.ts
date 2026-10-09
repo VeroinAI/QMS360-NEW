@@ -1,3 +1,4 @@
+import { withOrganizationDateFormat } from "./date-format";
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { EmailPdfAttachment } from "./email-attachments";
 import {
@@ -309,8 +310,8 @@ async function dispatchApprovedPdf(input: {
       claim: () => claimRun(input.organizationId, input.projectId, runKey, input.kind,
         { reportId: input.report.id, recipientId: user.id }, input.now),
       hasQueuedEmail: () => emailAlreadyQueued(input.organizationId, runKey),
-      renderReport: () => exportQaqcReportPdf(report),
-      renderDashboard: () => exportQaqcDashboardPdf(reportDashboard(report, input.projectName)),
+      renderReport: () => withOrganizationDateFormat(input.organizationId, () => exportQaqcReportPdf(report)),
+      renderDashboard: () => withOrganizationDateFormat(input.organizationId, () => exportQaqcDashboardPdf(reportDashboard(report, input.projectName))),
       storeAttachment: async (layout, bytes) => {
         const attachment = await storeEmailPdfAttachment(input.organizationId, `${input.report.id}-${layout}`, bytes);
         return { ...attachment, filename: `qaqc-${layout}-${input.report.reportType}-${input.report.period}.pdf` };

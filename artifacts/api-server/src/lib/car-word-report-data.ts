@@ -1,4 +1,5 @@
 import type { Request } from "express";
+import { formatDate } from "@workspace/spreadsheet-dates";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { auditAuditLogEntries, auditFindings, audits, db, users } from "@workspace/db";
 import { getAuthorizedFullProjectScope } from "../middlewares/rbac";
@@ -34,7 +35,7 @@ export function carReportDate(value?: string | Date | null): string | null {
   if (!(value instanceof Date) && typeof value !== "string") return null;
   const iso = value instanceof Date ? value.toISOString().slice(0, 10) : value.slice(0, 10);
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  return match ? `${match[3]}/${match[2]}/${match[1]}` : null;
+  return match ? formatDate(iso) : null;
 }
 
 /** A read-only export: never start a CAR or alter response/review history. */

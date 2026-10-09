@@ -1,3 +1,4 @@
+import { formatDateInTimeZone } from "@workspace/spreadsheet-dates";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 
 type PdfLesson = Record<string, unknown>;
@@ -29,9 +30,7 @@ function valueText(value: unknown) {
 function dateText(value: unknown) {
   if (!value) return "—";
   const date = new Date(String(value));
-  return Number.isNaN(date.getTime()) ? valueText(value) : date.toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric", timeZone: "UTC",
-  });
+  return Number.isNaN(date.getTime()) ? valueText(value) : formatDateInTimeZone(date, "UTC");
 }
 
 function wrapText(text: string, font: PDFFont, size: number, width: number, maxLines: number) {

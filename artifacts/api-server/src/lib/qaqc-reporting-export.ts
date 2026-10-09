@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import * as XLSX from "xlsx";
 import { applyExcelDateFormats } from "./excel-date-cells";
-import { formatSpreadsheetData } from "@workspace/spreadsheet-dates";
+import { formatSpreadsheetData, formatPresentationData } from "@workspace/spreadsheet-dates";
 import type { ReportingType } from "./qaqc-reporting-excel";
 
 export type QaqcReportExport = {
@@ -184,6 +184,7 @@ async function makePdf(title: string, sections: Array<[string, unknown]>) {
 }
 
 export async function exportQaqcReportPdf(report: QaqcReportExport, options: { templateId?: string } = {}): Promise<Buffer> {
+  report = formatPresentationData(report);
   const title = `${report.reportType.toUpperCase()} QA/QC Report`;
   const metadata = {
     project: report.projectName ?? report.projectId,
@@ -212,6 +213,7 @@ export async function exportQaqcReportPdf(report: QaqcReportExport, options: { t
 }
 
 export async function exportQaqcDashboardPdf(dashboard: QaqcDashboardExport, options: { templateId?: string } = {}): Promise<Buffer> {
+  dashboard = formatPresentationData(dashboard);
   const rows = dashboard.rows.map((row, index) => ({ index: index + 1, ...row }));
   const detailSections: Array<[string, unknown]> = (dashboard.reports ?? []).flatMap((report) => [
     [`${report.reportType.toUpperCase()} - ${report.projectName ?? report.projectId} - ${report.period} - Workflow`, {
