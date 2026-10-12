@@ -1993,7 +1993,7 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   }
   const required = [
     "auditTitle", "leadAuditorId", "qaqcScope", "auditLanguage", "qaqcReference",
-    "startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime",
+    "startDateTime", "endDateTime",
     "auditPlanCirculation",
   ];
   const auditeeRoleIds = [...new Set((data.auditeeRoleIds ?? []).filter(Boolean))] as string[];

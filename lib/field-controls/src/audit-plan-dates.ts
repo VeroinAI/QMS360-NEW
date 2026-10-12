@@ -130,7 +130,12 @@ export function auditPlanDateErrors(
   for (const [key, label] of [
     ["startDateTime", "Plan Start"], ["endDateTime", "Plan End"],
     ["openingMeetingDateTime", "Opening Meeting"], ["closingMeetingDateTime", "Closing Meeting"],
-  ]) check(key, label, plan[key]);
+  ]) {
+    // Meeting timestamps are not collected by New Plan; validate saved ones when present.
+    if (["openingMeetingDateTime", "closingMeetingDateTime"].includes(key)
+      && !String(plan[key] ?? "").trim()) continue;
+    check(key, label, plan[key]);
+  }
   order("endDateTime", "Plan End", plan.startDateTime, plan.endDateTime);
   order("closingMeetingDateTime", "Closing Meeting", plan.openingMeetingDateTime, plan.closingMeetingDateTime);
   if (!rows.length) errors.activities = "Add at least one activity with Planned Start and Planned End.";
