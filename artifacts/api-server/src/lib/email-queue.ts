@@ -4,6 +4,7 @@ import { deliverEmail, type EmailDeliveryInput, type EmailPdfAttachment } from "
 import { removeEmailPdfAttachment } from "./email-attachments";
 import { logger } from "./logger";
 import { renderEmailRuleTemplate, type EmailRuleTemplate } from "@workspace/field-controls";
+import { prepareCustomPlaceholderValues, type PlaceholderEventContext } from "./email-placeholder-values";
 
 type Database = typeof db;
 export type EmailDeliveryPolicy = {
@@ -33,7 +34,7 @@ function applicationFromContext(context?: Record<string, unknown>): "qaqc" | "le
 }
 
 export async function enqueueEmail(database: Database, input: EmailDeliveryInput & {
-  ruleTemplate?: EmailRuleTemplate; templateValues?: Record<string, unknown>;
+  ruleTemplate?: EmailRuleTemplate; templateValues?: Record<string, unknown>; placeholderEvent?: PlaceholderEventContext;
 }): Promise<{ queued: number }> {
   const recipientIds = [...new Set(input.recipientIds)].filter(Boolean);
   const internal = recipientIds.length ? await database.select({ email: users.email, name: users.fullName })
@@ -60,10 +61,16 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
   const eventType = typeof context.eventType === "string" ? context.eventType : null;
   const ruleId = context.kind === "email_event_rule" && typeof context.ruleId === "string" ? context.ruleId : null;
   const entityId = typeof context.entityId === "string" ? context.entityId : null;
+  const customValues = input.ruleTemplate && eventType
+    ? await prepareCustomPlaceholderValues(database, input.organizationId, input.placeholderEvent ?? {
+      eventType, entityId, actorId: typeof context.actorId === "string" ? context.actorId : null,
+    }, input.ruleTemplate)
+    : () => ({});
   await database.insert(outboundEmails).values(recipients.map((recipient, index) => {
     const message = renderEmailRuleTemplate(input.ruleTemplate, input, {
       system_name: "QMS360", ...input.templateValues,
       recipient_name: recipient.name ?? recipient.email, recipient_email: recipient.email,
+      ...customValues(recipient),
     });
     return ({
     organizationId: input.organizationId,

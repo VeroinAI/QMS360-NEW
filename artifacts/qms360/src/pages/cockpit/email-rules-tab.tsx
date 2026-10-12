@@ -7,7 +7,8 @@ import {
   useListPlatformProjects,
   useSimulateEmailRule,
   useCreateIntegrationConnector,
-  useSendConnectorTestEmail
+  useSendConnectorTestEmail,
+  useListEmailPlaceholders, getListEmailPlaceholdersQueryKey, useGetCurrentUser
 } from '@workspace/api-client-react';
 import type { IntegrationConnector, EmailEventRule, EmailRuleSimulationResult } from '@workspace/api-client-react';
 import { Plus, Settings2, Mail, Save, Trash2, MoveUp, MoveDown, Search, ArrowRight, Bot, MailCheck } from 'lucide-react';
@@ -22,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { unknownEmailTemplateFields } from '@workspace/field-controls';
-import { EmailRuleTemplateEditor } from './email-rule-template-editor';
+import { EmailRuleTemplateEditor, compatibleDefinitions } from './email-rule-template-editor';
 
 function message(error: unknown) {
   return error instanceof Error ? error.message : 'An error occurred';
@@ -290,6 +291,8 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
   const eventsQuery = useEmailRuleEventCatalog();
   const usersQuery = useEmailRuleUserOptions();
   const projectsQuery = useListPlatformProjects({ page: 1, limit: 200 });
+  const placeholderIdentity = useGetCurrentUser();
+  const placeholdersQuery = useListEmailPlaceholders({ query: { queryKey: [...getListEmailPlaceholdersQueryKey(), placeholderIdentity.data?.id], enabled: !!placeholderIdentity.data?.id, refetchOnMount: 'always', refetchInterval: 30_000 } });
   
   const [draft, setDraft] = useState({
     name: rule?.name ?? '',
@@ -366,7 +369,13 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
       return;
     }
 
-    const unknown = unknownEmailTemplateFields(`${draft.subjectTemplate}\n${draft.bodyTemplate}`);
+    if (placeholdersQuery.isLoading) {
+      toast({ title: 'Custom placeholders still loading', description: 'Try again in a moment.', variant: 'destructive' });
+      return;
+    }
+    // Active and inactive compatible names are both valid; inactive ones resolve to their fallback.
+    const allowedNames = compatibleDefinitions(placeholdersQuery.data ?? [], draft.eventType).map(d => d.name);
+    const unknown = unknownEmailTemplateFields(`${draft.subjectTemplate}\n${draft.bodyTemplate}`, allowedNames);
     if (unknown.length) {
       toast({ title: 'Unsupported placeholders', description: unknown.join(', '), variant: 'destructive' });
       return;
@@ -563,7 +572,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
               )}
             </div>
           </div>
-          <EmailRuleTemplateEditor template={draft} onChange={set} />
+          <EmailRuleTemplateEditor template={draft} onChange={set} eventType={draft.eventType} definitions={placeholdersQuery.data ?? []} definitionsLoading={placeholdersQuery.isLoading} definitionsError={!!placeholdersQuery.error} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>

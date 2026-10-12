@@ -1897,6 +1897,64 @@ paths:
       tags: [integrations]
       requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/EmailRuleOrderInput"}}}}
       responses: {"200": {description: Reordered, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/EmailEventRule"}}}}}}
+  /email-placeholders:
+    get:
+      operationId: listEmailPlaceholders
+      responses:
+        "200":
+          description: Organization-scoped placeholder definitions
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: "#/components/schemas/EmailPlaceholderDefinition"}}
+    post:
+      operationId: createEmailPlaceholder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/EmailPlaceholderInput"}
+      responses:
+        "201":
+          description: Saved inactive definition, or identical existing definition on import retry
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/EmailPlaceholderDefinition"}
+  /email-placeholders/{id}:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string}}
+    put:
+      operationId: updateEmailPlaceholder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/EmailPlaceholderInput"}
+      responses:
+        "200":
+          description: Updated definition
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/EmailPlaceholderDefinition"}
+    delete:
+      operationId: deleteEmailPlaceholder
+      responses:
+        "204": {description: Unreferenced definition deleted}
+  /email-placeholders/{id}/activation:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string}}
+    patch:
+      operationId: setEmailPlaceholderActivation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/EmailPlaceholderActivation"}
+      responses:
+        "200":
+          description: Activation updated for future queued emails
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/EmailPlaceholderDefinition"}
   /email-rules/catalog:
     get:
       operationId: emailRuleEventCatalog
@@ -2290,6 +2348,33 @@ components:
       properties:
         eventType: {type: string}
         createdByUserId: {type: string}
+    EmailPlaceholderInput:
+      type: object
+      required: [workspace, sourceKey, applicability, eventIds, format, fallback, description]
+      properties:
+        workspace: {type: string, enum: [lessons, audit, qaqc, docgov]}
+        sourceKey: {type: string, minLength: 1, maxLength: 100}
+        applicability: {type: string, enum: [all, selected]}
+        eventIds: {type: array, maxItems: 200, items: {type: string}}
+        format: {type: string, enum: [plain, date_dmy, date_iso, date_long, datetime, decimal_0, decimal_2, number_grouped]}
+        fallback: {type: string, minLength: 1, maxLength: 120}
+        description: {type: string, maxLength: 300}
+    EmailPlaceholderActivation:
+      type: object
+      required: [active]
+      properties:
+        active: {type: boolean}
+    EmailPlaceholderDefinition:
+      allOf:
+        - {$ref: "#/components/schemas/EmailPlaceholderInput"}
+        - type: object
+          required: [id, name, active, createdAt, updatedAt]
+          properties:
+            id: {type: string}
+            name: {type: string}
+            active: {type: boolean}
+            createdAt: {type: string}
+            updatedAt: {type: string}
     EmailRuleEventOption:
       type: object
       required: [value, label]

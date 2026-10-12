@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useEmailRuleEventCatalog } from '@workspace/api-client-react';
-import { AlertTriangle, ArrowLeft, ArrowRight, Braces, Check, HardDrive, Info, Lock, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  getListEmailPlaceholdersQueryKey, useCreateEmailPlaceholder, useDeleteEmailPlaceholder, useEmailRuleEventCatalog,
+  useListEmailPlaceholders, useSetEmailPlaceholderActivation, useUpdateEmailPlaceholder,
+} from '@workspace/api-client-react';
+import type { EmailPlaceholderDefinition, EmailPlaceholderInput } from '@workspace/api-client-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Braces, Check, CloudUpload, HardDrive, Info, Lock, Pencil, Plus, Power, PowerOff, RefreshCw, Search, Server, Trash2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +27,11 @@ import type { EventOption, PlaceholderDraft, WizardState, WorkspaceKey } from '.
 function newId() {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `d_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
+function errMsg(e: unknown) { return e instanceof Error ? e.message : 'Request failed'; }
+function isConflict(e: unknown) { return !!e && typeof e === 'object' && 'status' in e && (e as { status?: number }).status === 409; }
+function toInput(d: PlaceholderDraft): EmailPlaceholderInput {
+  return { workspace: d.workspace, sourceKey: d.sourceKey, applicability: d.applicability, eventIds: d.eventIds, format: d.format, fallback: d.fallback, description: d.description };
+}
 
 // Access the localStorage getter inside model try/catch, including restricted browsers.
 const browserStorage = {
@@ -29,87 +39,170 @@ const browserStorage = {
   setItem: (key: string, value: string) => window.localStorage.setItem(key, value),
 };
 
+type Editing = { kind: 'new' } | { kind: 'server'; def: EmailPlaceholderDefinition } | { kind: 'local'; draft: PlaceholderDraft };
+
 export function EmailPlaceholdersTab({ userId, organizationName }: { userId?: string; organizationName?: string }) {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const eventsQuery = useEmailRuleEventCatalog();
   const allEvents: EventOption[] = useMemo(() => eventsQuery.data ?? [], [eventsQuery.data]);
+  // Separate client caches by identity as well as server-side organization scoping.
+  const registry = useListEmailPlaceholders({ query: { queryKey: [...getListEmailPlaceholdersQueryKey(), userId], refetchOnMount: 'always', refetchInterval: 30_000, enabled: !!userId } });
+  const defs = useMemo(() => registry.data ?? [], [registry.data]);
+  const createM = useCreateEmailPlaceholder();
+  const updateM = useUpdateEmailPlaceholder();
+  const deleteM = useDeleteEmailPlaceholder();
+  const activationM = useSetEmailPlaceholderActivation();
+  const invalidate = () => qc.invalidateQueries({ queryKey: getListEmailPlaceholdersQueryKey() });
+
   const key = userId ? storageKey(userId) : null;
   const [loaded, setLoaded] = useState<{ key: string; drafts: PlaceholderDraft[]; error: string | null } | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceKey>('lessons');
-  const [editing, setEditing] = useState<PlaceholderDraft | 'new' | null>(null);
-  const [deleting, setDeleting] = useState<PlaceholderDraft | null>(null);
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const [deleting, setDeleting] = useState<EmailPlaceholderDefinition | null>(null);
+  const [deletingLocal, setDeletingLocal] = useState<PlaceholderDraft | null>(null);
+  const [toggling, setToggling] = useState<EmailPlaceholderDefinition | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importReport, setImportReport] = useState<{ created: number; skipped: number; failed: Array<{ name: string; error: string }> } | null>(null);
 
   useEffect(() => {
     if (!key) { setLoaded(null); return; }
-    setEditing(null);
-    setDeleting(null);
+    setEditing(null); setDeleting(null); setDeletingLocal(null); setToggling(null); setImportReport(null);
     const r = loadDrafts(browserStorage, key);
     setLoaded({ key, drafts: r.drafts, error: r.error });
   }, [key]);
 
-  // Only expose drafts that belong to the current identity key (avoids cross-user flash).
   const ready = !!key && loaded?.key === key;
   const drafts = ready ? loaded.drafts : [];
+  const wsDefs = defs.filter((d) => d.workspace === workspace);
   const wsDrafts = drafts.filter((d) => d.workspace === workspace);
   const wsEvents = eventsForWorkspace(allEvents, workspace);
+  const serverNames = new Set(defs.map((d) => `${d.workspace}:${d.name}`));
+  const pendingImport = drafts.filter((d) => !serverNames.has(`${d.workspace}:${d.name}`));
+  const catalogBlocked = eventsQuery.isLoading || !!eventsQuery.error;
 
-  const persist = (next: PlaceholderDraft[], success: string) => {
+  const persistLocal = (next: PlaceholderDraft[], success: string) => {
     if (!key || !ready || loaded.error) return false;
     const err = saveDrafts(browserStorage, key, next);
-    if (err) { toast({ title: 'Draft not saved', description: err, variant: 'destructive' }); return false; }
+    if (err) { toast({ title: 'Browser draft not saved', description: err, variant: 'destructive' }); return false; }
     setLoaded({ key, drafts: next, error: loaded?.error ?? null });
-    toast({ title: success, description: 'Stored in this browser only. Not active in email rules.' });
+    toast({ title: success, description: 'Kept in this browser only.' });
     return true;
   };
 
-  return <div className="space-y-6">
-    <Alert className="border-amber-500/40 bg-amber-50/60 dark:bg-amber-950/20" data-testid="alert-draft-phase">
-      <HardDrive className="h-4 w-4" />
-      <AlertTitle>Draft phase: administrator-local, browser-only</AlertTitle>
-      <AlertDescription>Placeholder definitions here are saved only in this browser for your administrator account in {organizationName || 'your organization'}. They are not shared with other administrators, not stored on the server, and cannot be used or activated in email rules yet. Live emails continue to use the built-in placeholders only.</AlertDescription>
+  const saveServer = async (d: PlaceholderDraft) => {
+    try {
+      if (editing?.kind === 'server') {
+        await updateM.mutateAsync({ id: editing.def.id, data: toInput(d) });
+        toast({ title: 'Placeholder updated', description: editing.def.active ? 'Changes apply to future emails.' : 'Still inactive.' });
+      } else {
+        await createM.mutateAsync({ data: toInput(d) });
+        toast({ title: 'Placeholder saved as inactive', description: 'Activate it when you want email rules to offer it.' });
+      }
+      await invalidate();
+      setWorkspace(d.workspace); setEditing(null);
+    } catch (e) {
+      toast({ title: 'Placeholder not saved', description: isConflict(e) ? `${errMsg(e)} Active or referenced placeholders cannot be renamed or narrowed in scope where rules still use them.` : errMsg(e), variant: 'destructive' });
+    }
+  };
+
+  const runImport = async () => {
+    setImporting(true);
+    const report = { created: 0, skipped: drafts.length - pendingImport.length, failed: [] as Array<{ name: string; error: string }> };
+    // Sequential on purpose: clear per-item results, and a re-run skips names already on the server.
+    for (const d of pendingImport) {
+      try { await createM.mutateAsync({ data: toInput(d) }); report.created++; }
+      catch (e) { report.failed.push({ name: d.name, error: isConflict(e) ? 'A different definition with this name already exists on the server.' : errMsg(e) }); }
+    }
+    await invalidate();
+    setImporting(false); setImportReport(report);
+    toast({ title: report.failed.length ? 'Import finished with problems' : 'Import complete', description: `${report.created} imported (new ones inactive), ${report.skipped} already on server, ${report.failed.length} failed. Browser copies kept.`, variant: report.failed.length ? 'destructive' : undefined });
+  };
+
+  const confirmToggle = () => {
+    if (!toggling) return;
+    const next = !toggling.active;
+    activationM.mutate({ id: toggling.id, data: { active: next } }, {
+      onSuccess: () => { invalidate(); toast({ title: next ? 'Placeholder activated' : 'Placeholder deactivated' }); },
+      onError: (e) => toast({ title: next ? 'Could not activate' : 'Could not deactivate', description: errMsg(e), variant: 'destructive' }),
+    });
+    setToggling(null);
+  };
+
+  const confirmDelete = () => {
+    if (!deleting) return;
+    deleteM.mutate({ id: deleting.id }, {
+      onSuccess: () => { invalidate(); toast({ title: 'Placeholder deleted' }); },
+      onError: (e) => toast({
+        title: 'Placeholder not deleted',
+        description: isConflict(e) ? 'One or more email rules still reference this placeholder. Remove it from those templates first, or deactivate it instead.' : errMsg(e),
+        variant: 'destructive',
+      }),
+    });
+    setDeleting(null);
+  };
+
+  const editingExisting = editing?.kind === 'server' ? editing.def : editing?.kind === 'local' ? editing.draft : null;
+
+  return <div className="min-w-0 max-w-full space-y-6 [overflow-wrap:anywhere]">
+    <Alert className="border-primary/30 bg-primary/5" data-testid="alert-registry">
+      <Server className="h-4 w-4" />
+      <AlertTitle>Shared registry for {organizationName || 'your organization'}</AlertTitle>
+      <AlertDescription>Definitions saved here are shared with every administrator in your organization. New and imported placeholders start <strong>inactive</strong>; only active ones are offered in email rules. Deactivating makes future emails use the fallback; emails already queued are unchanged.</AlertDescription>
     </Alert>
 
     <div role="radiogroup" aria-label="Workspace" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
       {WORKSPACES.map((w) => {
         const count = eventsForWorkspace(allEvents, w.key).length;
-        const active = w.key === workspace;
-        return <button key={w.key} type="button" role="radio" aria-checked={active} data-testid={`button-workspace-${w.key}`} onClick={() => setWorkspace(w.key)}
-          className={`rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-muted/50'}`}>
+        const activeWs = w.key === workspace;
+        const nActive = defs.filter((d) => d.workspace === w.key && d.active).length;
+        return <button key={w.key} type="button" role="radio" aria-checked={activeWs} data-testid={`button-workspace-${w.key}`} onClick={() => setWorkspace(w.key)}
+          className={`rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeWs ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-muted/50'}`}>
           <div className="flex items-center justify-between gap-2"><span className="font-semibold">{w.label}</span><span className="font-mono text-xs text-muted-foreground">{w.tokenPrefix}_</span></div>
-          <p className="mt-1 text-xs text-muted-foreground">{eventsQuery.isLoading ? 'Loading events...' : `${count} registered event${count === 1 ? '' : 's'}`}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{eventsQuery.isLoading ? 'Loading events...' : `${count} event${count === 1 ? '' : 's'} · ${nActive} active`}</p>
         </button>;
       })}
     </div>
 
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div><CardTitle>{workspaceDef(workspace).label} placeholder drafts</CardTitle><CardDescription>{workspaceDef(workspace).blurb}</CardDescription></div>
-        <Button data-testid="button-new-placeholder" disabled={!ready || !!loaded?.error || eventsQuery.isLoading || !!eventsQuery.error || wsEvents.length === 0} onClick={() => setEditing('new')}><Plus className="mr-2 h-4 w-4" />New draft placeholder</Button>
+        <div><CardTitle className="flex items-center gap-2"><Server className="h-4 w-4 text-primary" />{workspaceDef(workspace).label} placeholders</CardTitle><CardDescription>{workspaceDef(workspace).blurb}</CardDescription></div>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="icon" aria-label="Refresh registry" data-testid="button-refresh-registry" onClick={() => registry.refetch()}><RefreshCw className={`h-4 w-4 ${registry.isFetching ? 'animate-spin' : ''}`} /></Button>
+          <Button data-testid="button-new-placeholder" disabled={!registry.data || catalogBlocked || wsEvents.length === 0} onClick={() => setEditing({ kind: 'new' })}><Plus className="mr-2 h-4 w-4" />New placeholder</Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!key && <p className="text-sm text-muted-foreground">Waiting for your administrator identity before reading local drafts...</p>}
-        {loaded?.error && ready && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Storage problem</AlertTitle><AlertDescription>{loaded.error} Existing stored data will not be overwritten. <Button size="sm" variant="outline" className="ml-2" onClick={() => { if (key) { const r = loadDrafts(browserStorage, key); setLoaded({ key, drafts: r.drafts, error: r.error }); } }}>Retry storage</Button></AlertDescription></Alert>}
         {eventsQuery.error && <div className="flex items-center justify-between rounded-lg border border-destructive/40 p-3 text-sm"><span className="text-destructive">Event catalog could not be loaded.</span><Button size="sm" variant="outline" onClick={() => eventsQuery.refetch()}>Retry</Button></div>}
-        {eventsQuery.isLoading && <div className="space-y-2">{[0, 1].map((i) => <div key={i} className="h-14 animate-pulse rounded-lg bg-muted" />)}</div>}
+        {registry.error && <div className="flex items-center justify-between rounded-lg border border-destructive/40 p-3 text-sm" data-testid="status-registry-error"><span className="text-destructive">Placeholder registry could not be loaded: {errMsg(registry.error)}</span><Button size="sm" variant="outline" onClick={() => registry.refetch()}>Retry</Button></div>}
+        {(registry.isLoading || eventsQuery.isLoading) && <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />)}</div>}
         {!eventsQuery.isLoading && !eventsQuery.error && wsEvents.length === 0 && <div className="rounded-lg border border-dashed p-6 text-center text-sm" data-testid="status-no-events">
           <Lock className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
           <p className="font-medium">Unavailable for this workspace</p>
-          <p className="text-muted-foreground">No email events are registered for {workspaceDef(workspace).label}. Source fields are not offered until the platform registers events here.</p>
+          <p className="text-muted-foreground">No email events are registered for {workspaceDef(workspace).label}.</p>
         </div>}
-        {ready && wsDrafts.length === 0 && wsEvents.length > 0 && <div className="rounded-lg border border-dashed p-8 text-center"><Braces className="mx-auto mb-2 h-6 w-6 text-muted-foreground" /><p className="font-medium">No drafts yet</p><p className="text-sm text-muted-foreground">Sketch a placeholder from an approved field. It stays a draft in this browser.</p></div>}
-        {wsDrafts.length > 0 && <ul className="divide-y rounded-lg border">
-          {wsDrafts.map((d) => {
+        {registry.data && wsDefs.length === 0 && wsEvents.length > 0 && <div className="rounded-lg border border-dashed p-8 text-center"><Braces className="mx-auto mb-2 h-6 w-6 text-muted-foreground" /><p className="font-medium">No placeholders in this workspace</p><p className="text-sm text-muted-foreground">Create one from an approved field, or import your browser drafts below.</p></div>}
+        {wsDefs.length > 0 && <ul className="divide-y rounded-lg border">
+          {wsDefs.map((d) => {
             const src = findSource(d.workspace, d.sourceKey);
             const stale = d.applicability === 'selected' && src ? d.eventIds.filter((id) => !eventsForSource(src, wsEvents).some((e) => e.value === id)) : [];
-            return <li key={d.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center" data-testid={`row-draft-${d.id}`}>
+            return <li key={d.id} className={`flex flex-col gap-3 p-4 sm:flex-row sm:items-center ${d.active ? '' : 'bg-muted/20'}`} data-testid={`row-placeholder-${d.id}`}>
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2"><code className="rounded bg-muted px-2 py-0.5 text-sm">{formatToken(d.name)}</code><Badge variant="outline">Draft</Badge><Badge variant="secondary">Not active</Badge>{stale.length > 0 && <Badge variant="destructive">{stale.length} stale event{stale.length === 1 ? '' : 's'}</Badge>}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${d.active ? 'bg-emerald-600' : 'bg-muted-foreground/40'}`} aria-hidden />
+                  <code className="max-w-full rounded bg-muted px-2 py-0.5 text-sm">{formatToken(d.name)}</code>
+                  <Badge data-testid={`status-placeholder-${d.id}`} variant={d.active ? 'default' : 'secondary'}>{d.active ? 'Active' : 'Inactive'}</Badge>
+                  {stale.length > 0 && <Badge variant="destructive">{stale.length} stale event{stale.length === 1 ? '' : 's'}</Badge>}
+                </div>
                 <p className="mt-1 text-sm text-muted-foreground">{src ? `${src.entityLabel} / ${src.fieldLabel}` : d.sourceKey} · {FORMAT_LABELS[d.format]} · {d.applicability === 'all' ? 'All compatible events' : `${d.eventIds.length} selected event(s)`} · fallback "{d.fallback}"</p>
                 {d.description && <p className="mt-1 text-xs text-muted-foreground">{d.description}</p>}
               </div>
-              <div className="flex gap-1">
-                <Button disabled={!!loaded?.error || eventsQuery.isLoading || !!eventsQuery.error} variant="ghost" size="sm" data-testid={`button-edit-${d.id}`} onClick={() => setEditing(d)}><Pencil className="mr-1 h-4 w-4" />Edit</Button>
-                <Button disabled={!!loaded?.error} variant="ghost" size="sm" className="text-destructive hover:text-destructive" data-testid={`button-delete-${d.id}`} onClick={() => setDeleting(d)}><Trash2 className="mr-1 h-4 w-4" />Delete</Button>
+              <div className="flex flex-wrap gap-1">
+                <Button variant="outline" size="sm" disabled={activationM.isPending} data-testid={`button-toggle-${d.id}`} onClick={() => setToggling(d)}>
+                  {d.active ? <><PowerOff className="mr-1 h-4 w-4" />Deactivate</> : <><Power className="mr-1 h-4 w-4" />Activate</>}
+                </Button>
+                <Button disabled={catalogBlocked} variant="ghost" size="sm" data-testid={`button-edit-${d.id}`} onClick={() => setEditing({ kind: 'server', def: d })}><Pencil className="mr-1 h-4 w-4" />Edit</Button>
+                <Button variant="ghost" size="sm" disabled={deleteM.isPending} className="text-destructive hover:text-destructive" data-testid={`button-delete-${d.id}`} onClick={() => setDeleting(d)}><Trash2 className="mr-1 h-4 w-4" />Delete</Button>
               </div>
             </li>;
           })}
@@ -118,24 +211,81 @@ export function EmailPlaceholdersTab({ userId, organizationName }: { userId?: st
       </CardContent>
     </Card>
 
-    {editing && ready && <PlaceholderWizard key={`${key}:${editing === 'new' ? 'new' : editing.id}`} initialWorkspace={workspace} draft={editing === 'new' ? null : editing} allEvents={allEvents} drafts={drafts}
+    <Card className="border-dashed border-amber-500/50 bg-amber-50/30 dark:bg-amber-950/10" data-testid="panel-browser-drafts">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2 text-base"><HardDrive className="h-4 w-4 text-amber-700" />Browser drafts (this browser only)</CardTitle>
+          <CardDescription>Older drafts kept in this browser for your account. They are never active and never used by email. Import copies them to the shared registry as inactive; the browser copies stay here.</CardDescription>
+        </div>
+        <Button variant="outline" data-testid="button-import-drafts" disabled={!ready || !!loaded?.error || !registry.data || importing || pendingImport.length === 0} onClick={runImport}>
+          <CloudUpload className="mr-2 h-4 w-4" />{importing ? 'Importing...' : `Import browser drafts${pendingImport.length ? ` (${pendingImport.length})` : ''}`}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {!key && <p className="text-sm text-muted-foreground">Waiting for your administrator identity before reading local drafts...</p>}
+        {loaded?.error && ready && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Storage problem</AlertTitle><AlertDescription>{loaded.error} Existing stored data will not be overwritten. <Button size="sm" variant="outline" className="ml-2" onClick={() => { if (key) { const r = loadDrafts(browserStorage, key); setLoaded({ key, drafts: r.drafts, error: r.error }); } }}>Retry storage</Button></AlertDescription></Alert>}
+        {importReport && <div className="rounded-lg border bg-background p-3 text-sm" data-testid="status-import-report" role="status">
+          <p className="font-medium">Last import: {importReport.created} imported (new entries inactive, existing statuses unchanged), {importReport.skipped} already on server, {importReport.failed.length} failed.</p>
+          {importReport.failed.length > 0 && <ul className="mt-1 list-disc pl-5 text-xs text-destructive">{importReport.failed.map((f) => <li key={f.name}><code>{formatToken(f.name)}</code>: {f.error}</li>)}</ul>}
+        </div>}
+        {ready && wsDrafts.length === 0 && <p className="text-sm text-muted-foreground">No browser drafts for {workspaceDef(workspace).label}.</p>}
+        {wsDrafts.length > 0 && <ul className="divide-y rounded-lg border bg-background">
+          {wsDrafts.map((d) => {
+            const onServer = serverNames.has(`${d.workspace}:${d.name}`);
+            return <li key={d.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center" data-testid={`row-draft-${d.id}`}>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2"><code className="text-sm">{formatToken(d.name)}</code><Badge variant="outline">Browser draft</Badge>{onServer ? <Badge variant="secondary">On server</Badge> : <Badge variant="outline" className="border-amber-500/60 text-amber-800 dark:text-amber-300">Not imported</Badge>}</div>
+                <p className="mt-0.5 text-xs text-muted-foreground">{FORMAT_LABELS[d.format]} · fallback "{d.fallback}"</p>
+              </div>
+              <div className="flex gap-1">
+                <Button disabled={!!loaded?.error || catalogBlocked} variant="ghost" size="sm" data-testid={`button-edit-draft-${d.id}`} onClick={() => setEditing({ kind: 'local', draft: d })}><Pencil className="mr-1 h-4 w-4" />Edit</Button>
+                <Button disabled={!!loaded?.error} variant="ghost" size="sm" className="text-destructive hover:text-destructive" data-testid={`button-delete-draft-${d.id}`} onClick={() => setDeletingLocal(d)}><Trash2 className="mr-1 h-4 w-4" />Delete</Button>
+              </div>
+            </li>;
+          })}
+        </ul>}
+      </CardContent>
+    </Card>
+
+    {editing && <PlaceholderWizard key={`${key}:${editing.kind}:${editingExisting?.id ?? 'new'}`} initialWorkspace={workspace} draft={editingExisting} allEvents={allEvents}
+      drafts={editing.kind === 'local' ? drafts : defs} local={editing.kind === 'local'} busy={createM.isPending || updateM.isPending}
       onClose={() => setEditing(null)}
       onSave={(d) => {
-        const next = drafts.some((x) => x.id === d.id) ? drafts.map((x) => (x.id === d.id ? d : x)) : [...drafts, d];
-        if (persist(next, editing === 'new' ? 'Draft placeholder saved' : 'Draft placeholder updated')) { setWorkspace(d.workspace); setEditing(null); }
+        if (editing.kind === 'local') {
+          if (persistLocal(drafts.map((x) => (x.id === d.id ? d : x)), 'Browser draft updated')) { setWorkspace(d.workspace); setEditing(null); }
+        } else void saveServer(d);
       }} />}
 
+    <AlertDialog open={!!toggling} onOpenChange={(o) => { if (!o) setToggling(null); }}>
+      <AlertDialogContent className="w-[calc(100vw_-_2rem)] max-h-[90dvh] overflow-y-auto [overflow-wrap:anywhere] [&>*]:min-w-0">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{toggling?.active ? 'Deactivate' : 'Activate'} {toggling ? formatToken(toggling.name) : ''}?</AlertDialogTitle>
+          <AlertDialogDescription>{toggling?.active
+            ? `Email rules will stop offering it for new insertion. Only future emails are affected: templates that reference it will show the fallback "${toggling.fallback}". Emails already queued keep their content.`
+            : 'Email rules for compatible events will offer this placeholder, and future emails will resolve its value instead of the fallback. Emails already queued are unchanged. Applies for all administrators.'}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction data-testid="button-confirm-toggle" onClick={confirmToggle}>{toggling?.active ? 'Deactivate' : 'Activate'}</AlertDialogAction></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
-      <AlertDialogContent>
-        <AlertDialogHeader><AlertDialogTitle>Delete draft {deleting ? formatToken(deleting.name) : ''}?</AlertDialogTitle><AlertDialogDescription>This removes the draft from this browser. It was never active, so no email is affected.</AlertDialogDescription></AlertDialogHeader>
-        <AlertDialogFooter><AlertDialogCancel>Keep</AlertDialogCancel><AlertDialogAction data-testid="button-confirm-delete" className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (deleting) persist(drafts.filter((d) => d.id !== deleting.id), 'Draft deleted'); setDeleting(null); }}>Delete draft</AlertDialogAction></AlertDialogFooter>
+      <AlertDialogContent className="w-[calc(100vw_-_2rem)] max-h-[90dvh] overflow-y-auto [overflow-wrap:anywhere] [&>*]:min-w-0">
+        <AlertDialogHeader><AlertDialogTitle>Delete {deleting ? formatToken(deleting.name) : ''}?</AlertDialogTitle><AlertDialogDescription>This removes the definition for all administrators. If an email rule still references it, the server will refuse; deactivate it instead.</AlertDialogDescription></AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel>Keep</AlertDialogCancel><AlertDialogAction data-testid="button-confirm-delete" className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={confirmDelete}>Delete</AlertDialogAction></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={!!deletingLocal} onOpenChange={(o) => { if (!o) setDeletingLocal(null); }}>
+      <AlertDialogContent className="w-[calc(100vw_-_2rem)] max-h-[90dvh] overflow-y-auto [overflow-wrap:anywhere] [&>*]:min-w-0">
+        <AlertDialogHeader><AlertDialogTitle>Delete browser draft {deletingLocal ? formatToken(deletingLocal.name) : ''}?</AlertDialogTitle><AlertDialogDescription>Removes only the copy in this browser. Server definitions are not affected.</AlertDialogDescription></AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel>Keep</AlertDialogCancel><AlertDialogAction data-testid="button-confirm-delete-draft" className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (deletingLocal) persistLocal(drafts.filter((d) => d.id !== deletingLocal.id), 'Browser draft deleted'); setDeletingLocal(null); }}>Delete draft</AlertDialogAction></AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   </div>;
 }
 
-function PlaceholderWizard({ initialWorkspace, draft, allEvents, drafts, onClose, onSave }: {
-  initialWorkspace: WorkspaceKey; draft: PlaceholderDraft | null; allEvents: EventOption[]; drafts: PlaceholderDraft[];
+function PlaceholderWizard({ initialWorkspace, draft, allEvents, drafts, local, busy, onClose, onSave }: {
+  initialWorkspace: WorkspaceKey; draft: PlaceholderDraft | null; allEvents: EventOption[]; drafts: PlaceholderDraft[]; local: boolean; busy: boolean;
   onClose: () => void; onSave: (d: PlaceholderDraft) => void;
 }) {
   const initial = useMemo<WizardState>(() => {
@@ -175,10 +325,10 @@ function PlaceholderWizard({ initialWorkspace, draft, allEvents, drafts, onClose
 
   return <>
     <Dialog open onOpenChange={(o) => { if (!o) requestClose(); }}>
-      <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 p-0">
+      <DialogContent className="flex max-h-[92dvh] w-[calc(100vw_-_1.5rem)] max-w-3xl flex-col gap-0 overflow-x-hidden p-0 [overflow-wrap:anywhere] [&>*]:min-w-0">
         <DialogHeader className="border-b p-5">
-          <DialogTitle>{draft ? 'Edit draft placeholder' : 'New draft placeholder'}</DialogTitle>
-          <DialogDescription>Browser-local draft. Not shared and not active in email rules.</DialogDescription>
+          <DialogTitle>{local ? 'Edit browser draft' : draft ? 'Edit placeholder' : 'New placeholder'}</DialogTitle>
+          <DialogDescription>{local ? 'Browser-only copy. Not shared and never active.' : 'Saved to the shared registry. New placeholders start inactive.'}</DialogDescription>
           <ol className="mt-3 flex flex-wrap gap-1.5" aria-label="Wizard progress">
             {WIZARD_STEPS.map((label, i) => <li key={label} aria-current={i === step ? 'step' : undefined}
               className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${i === step ? 'border-primary bg-primary text-primary-foreground' : i < step ? 'border-primary/40 text-primary' : 'text-muted-foreground'}`}>
@@ -187,7 +337,7 @@ function PlaceholderWizard({ initialWorkspace, draft, allEvents, drafts, onClose
           </ol>
         </DialogHeader>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-5">
+        <div className="min-w-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto p-5">
           {step === 0 && <fieldset className="space-y-3">
             <legend className="text-sm text-muted-foreground">Which application will this placeholder belong to? Changing workspace clears the source, events and formatting.</legend>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -224,7 +374,7 @@ function PlaceholderWizard({ initialWorkspace, draft, allEvents, drafts, onClose
           </div>}
 
           {step === 2 && src && <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">{src.origin === 'system' ? 'This draft can apply to registered events in this workspace. Actual system values depend on the event; missing values will use the fallback once email integration is implemented.' : `${src.entityLabel} fields are scoped to events for that entity; configuration events are excluded. Live value resolution will be implemented after the wizard is finalized.`}</p>
+            <p className="text-sm text-muted-foreground">{src.origin === 'system' ? 'This draft can apply to registered events in this workspace. Actual system values depend on the event; missing values use the fallback.' : `${src.entityLabel} fields are scoped to events for that entity; configuration events are excluded.`}</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {(['all', 'selected'] as const).map((mode) => <label key={mode} className={`flex cursor-pointer gap-3 rounded-lg border p-3 ${state.applicability === mode ? 'border-primary bg-primary/5' : ''}`}>
                 <input type="radio" name="app" className="mt-1" checked={state.applicability === mode} data-testid={`radio-applicability-${mode}`} onChange={() => set({ applicability: mode })} />
@@ -248,7 +398,7 @@ function PlaceholderWizard({ initialWorkspace, draft, allEvents, drafts, onClose
           </div>}
 
           {step === 4 && src && <div className="space-y-4">
-            <dl className="grid gap-x-6 gap-y-2 rounded-lg border p-4 text-sm sm:grid-cols-[auto_1fr]">
+            <dl className="grid min-w-0 gap-x-6 gap-y-2 rounded-lg border p-4 text-sm sm:grid-cols-[auto_minmax(0,1fr)] [&_dd]:min-w-0">
               <dt className="text-muted-foreground">Token</dt><dd><code>{formatToken(tokenName)}</code></dd>
               <dt className="text-muted-foreground">Workspace</dt><dd>{workspaceDef(state.workspace as WorkspaceKey).label}</dd>
               <dt className="text-muted-foreground">Source</dt><dd>{src.entityLabel} / {src.fieldLabel} <span className="font-mono text-xs text-muted-foreground">({src.schemaRef})</span></dd>
@@ -261,19 +411,19 @@ function PlaceholderWizard({ initialWorkspace, draft, allEvents, drafts, onClose
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Info className="h-3.5 w-3.5" />Illustrative sample, not a live preview</p>
               <p className="text-sm">With value: <span className="rounded bg-primary/10 px-1.5 font-medium">{sampleValue(src, state.format)}</span></p>
               <p className="mt-1 text-sm">When empty: <span className="rounded bg-muted px-1.5">{state.fallback}</span></p>
-              <p className="mt-2 text-xs text-muted-foreground">Fixed sample values only. No records are read, and this token is not validated by the email engine.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Fixed sample values only. No records are read. While inactive, emails show the fallback.</p>
             </div>
           </div>}
 
           {showErrors && errors.length > 0 && <Alert variant="destructive" role="alert"><AlertTriangle className="h-4 w-4" /><AlertTitle>Fix before continuing</AlertTitle><AlertDescription><ul className="list-disc pl-4">{errors.map((e) => <li key={e}>{e}</li>)}</ul></AlertDescription></Alert>}
         </div>
 
-        <DialogFooter className="flex-row justify-between gap-2 border-t p-4 sm:justify-between">
+        <DialogFooter className="flex-col gap-2 border-t p-4 sm:flex-row sm:justify-between">
           <Button variant="ghost" data-testid="button-wizard-cancel" onClick={requestClose}>Cancel</Button>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             {step > 0 && <Button variant="outline" data-testid="button-wizard-back" onClick={() => { setShowErrors(false); setStep(step - 1); }}><ArrowLeft className="mr-1 h-4 w-4" />Back</Button>}
             {step < WIZARD_STEPS.length - 1 ? <Button data-testid="button-wizard-next" onClick={next}>Next<ArrowRight className="ml-1 h-4 w-4" /></Button>
-              : <Button data-testid="button-wizard-save" onClick={finish}><Check className="mr-1 h-4 w-4" />Save draft</Button>}
+              : <Button data-testid="button-wizard-save" disabled={busy} onClick={finish}><Check className="mr-1 h-4 w-4" />{busy ? 'Saving...' : local ? 'Save browser draft' : 'Save placeholder'}</Button>}
           </div>
         </DialogFooter>
       </DialogContent>

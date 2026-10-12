@@ -187,6 +187,7 @@ export async function dispatchEmailRule(event: AuditEvent, options: {
       ...(attachments.length ? { attachments } : {}),
       sender: result.sender ?? undefined,
       ruleTemplate: result.rule.recipientConfig,
+      placeholderEvent: { eventType: result.rule.eventType, entityId: event.entityId, actorId: event.actorId, record: event.record },
       templateValues: result.rule.recipientConfig?.subjectTemplate || result.rule.recipientConfig?.bodyTemplate
         ? await emailTemplateContext(db, event) : undefined,
       subject: `QMS360: ${event.entityType.replaceAll("_", " ")} ${event.action.replaceAll("_", " ")}`,
@@ -265,6 +266,7 @@ export async function queueAuditApprovalEmail(
     subject: input.subject,
     text: input.text,
     ruleTemplate: rule?.recipientConfig,
+    placeholderEvent: { eventType, entityId: input.entityId, actorId: input.actorId, record: input.record },
     templateValues: rule?.recipientConfig?.subjectTemplate || rule?.recipientConfig?.bodyTemplate
       ? await emailTemplateContext(database, { ...input, values: input.templateValues }) : undefined,
     attachments: input.attachments,

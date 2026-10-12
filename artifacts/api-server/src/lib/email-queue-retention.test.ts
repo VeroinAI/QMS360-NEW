@@ -23,6 +23,8 @@ vi.mock("drizzle-orm", () => ({
   sql: vi.fn(),
 }));
 vi.mock("./email", () => ({ deliverEmail: vi.fn() }));
+// Retention does not render templates or access the placeholder registry.
+vi.mock("./email-placeholder-values", () => ({ prepareCustomPlaceholderValues: vi.fn() }));
 vi.mock("./email-attachments", () => ({ removeEmailPdfAttachment }));
 vi.mock("./logger", () => ({ logger: { warn: (message: string) => warn(message), error: vi.fn() } }));
 

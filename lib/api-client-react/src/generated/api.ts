@@ -107,6 +107,9 @@ import type {
   EmailDeliverySettings,
   EmailEventRule,
   EmailEventRuleInput,
+  EmailPlaceholderActivation,
+  EmailPlaceholderDefinition,
+  EmailPlaceholderInput,
   EmailRuleEventOption,
   EmailRuleOrderInput,
   EmailRuleRoleOption,
@@ -26713,6 +26716,339 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getReorderEmailRulesMutationOptions(options));
+    }
+
+export const getListEmailPlaceholdersUrl = () => {
+
+
+
+
+  return `/api/email-placeholders`
+}
+
+export const listEmailPlaceholders = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailPlaceholderDefinition[]> => {
+
+  return customFetch<EmailPlaceholderDefinition[]>(getListEmailPlaceholdersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEmailPlaceholdersQueryKey = () => {
+    return [
+    `/api/email-placeholders`
+    ] as const;
+    }
+
+
+export const getListEmailPlaceholdersQueryOptions = <TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEmailPlaceholdersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmailPlaceholders>>> = ({ signal }) => listEmailPlaceholders({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEmailPlaceholdersQueryResult = NonNullable<Awaited<ReturnType<typeof listEmailPlaceholders>>>
+export type ListEmailPlaceholdersQueryError = ErrorType<unknown>
+
+
+
+export function useListEmailPlaceholders<TData = Awaited<ReturnType<typeof listEmailPlaceholders>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEmailPlaceholders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEmailPlaceholdersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateEmailPlaceholderUrl = () => {
+
+
+
+
+  return `/api/email-placeholders`
+}
+
+export const createEmailPlaceholder = async (emailPlaceholderInput: EmailPlaceholderInput, options?: Parameters<typeof customFetch>[1]): Promise<EmailPlaceholderDefinition> => {
+
+  return customFetch<EmailPlaceholderDefinition>(getCreateEmailPlaceholderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(emailPlaceholderInput)
+  }
+);}
+
+
+
+
+
+export const getCreateEmailPlaceholderMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEmailPlaceholder>>, TError,{data: BodyType<EmailPlaceholderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEmailPlaceholder>>, TError,{data: BodyType<EmailPlaceholderInput>}, TContext> => {
+
+const mutationKey = ['createEmailPlaceholder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEmailPlaceholder>>, {data: BodyType<EmailPlaceholderInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createEmailPlaceholder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEmailPlaceholderMutationResult = NonNullable<Awaited<ReturnType<typeof createEmailPlaceholder>>>
+    export type CreateEmailPlaceholderMutationBody = BodyType<EmailPlaceholderInput>
+    export type CreateEmailPlaceholderMutationError = ErrorType<unknown>
+
+    export const useCreateEmailPlaceholder = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEmailPlaceholder>>, TError,{data: BodyType<EmailPlaceholderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createEmailPlaceholder>>,
+        TError,
+        {data: BodyType<EmailPlaceholderInput>},
+        TContext
+      > => {
+      return useMutation(getCreateEmailPlaceholderMutationOptions(options));
+    }
+
+export const getUpdateEmailPlaceholderUrl = (id: string,) => {
+
+
+
+
+  return `/api/email-placeholders/${id}`
+}
+
+export const updateEmailPlaceholder = async (id: string,
+    emailPlaceholderInput: EmailPlaceholderInput, options?: Parameters<typeof customFetch>[1]): Promise<EmailPlaceholderDefinition> => {
+
+  return customFetch<EmailPlaceholderDefinition>(getUpdateEmailPlaceholderUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(emailPlaceholderInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateEmailPlaceholderMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEmailPlaceholder>>, TError,{id: string;data: BodyType<EmailPlaceholderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEmailPlaceholder>>, TError,{id: string;data: BodyType<EmailPlaceholderInput>}, TContext> => {
+
+const mutationKey = ['updateEmailPlaceholder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEmailPlaceholder>>, {id: string;data: BodyType<EmailPlaceholderInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateEmailPlaceholder(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEmailPlaceholderMutationResult = NonNullable<Awaited<ReturnType<typeof updateEmailPlaceholder>>>
+    export type UpdateEmailPlaceholderMutationBody = BodyType<EmailPlaceholderInput>
+    export type UpdateEmailPlaceholderMutationError = ErrorType<unknown>
+
+    export const useUpdateEmailPlaceholder = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEmailPlaceholder>>, TError,{id: string;data: BodyType<EmailPlaceholderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateEmailPlaceholder>>,
+        TError,
+        {id: string;data: BodyType<EmailPlaceholderInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateEmailPlaceholderMutationOptions(options));
+    }
+
+export const getDeleteEmailPlaceholderUrl = (id: string,) => {
+
+
+
+
+  return `/api/email-placeholders/${id}`
+}
+
+export const deleteEmailPlaceholder = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteEmailPlaceholderUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteEmailPlaceholderMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEmailPlaceholder>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteEmailPlaceholder>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteEmailPlaceholder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteEmailPlaceholder>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteEmailPlaceholder(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteEmailPlaceholderMutationResult = NonNullable<Awaited<ReturnType<typeof deleteEmailPlaceholder>>>
+
+    export type DeleteEmailPlaceholderMutationError = ErrorType<unknown>
+
+    export const useDeleteEmailPlaceholder = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEmailPlaceholder>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteEmailPlaceholder>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteEmailPlaceholderMutationOptions(options));
+    }
+
+export const getSetEmailPlaceholderActivationUrl = (id: string,) => {
+
+
+
+
+  return `/api/email-placeholders/${id}/activation`
+}
+
+export const setEmailPlaceholderActivation = async (id: string,
+    emailPlaceholderActivation: EmailPlaceholderActivation, options?: Parameters<typeof customFetch>[1]): Promise<EmailPlaceholderDefinition> => {
+
+  return customFetch<EmailPlaceholderDefinition>(getSetEmailPlaceholderActivationUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(emailPlaceholderActivation)
+  }
+);}
+
+
+
+
+
+export const getSetEmailPlaceholderActivationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setEmailPlaceholderActivation>>, TError,{id: string;data: BodyType<EmailPlaceholderActivation>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setEmailPlaceholderActivation>>, TError,{id: string;data: BodyType<EmailPlaceholderActivation>}, TContext> => {
+
+const mutationKey = ['setEmailPlaceholderActivation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setEmailPlaceholderActivation>>, {id: string;data: BodyType<EmailPlaceholderActivation>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setEmailPlaceholderActivation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetEmailPlaceholderActivationMutationResult = NonNullable<Awaited<ReturnType<typeof setEmailPlaceholderActivation>>>
+    export type SetEmailPlaceholderActivationMutationBody = BodyType<EmailPlaceholderActivation>
+    export type SetEmailPlaceholderActivationMutationError = ErrorType<unknown>
+
+    export const useSetEmailPlaceholderActivation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setEmailPlaceholderActivation>>, TError,{id: string;data: BodyType<EmailPlaceholderActivation>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setEmailPlaceholderActivation>>,
+        TError,
+        {id: string;data: BodyType<EmailPlaceholderActivation>},
+        TContext
+      > => {
+      return useMutation(getSetEmailPlaceholderActivationMutationOptions(options));
     }
 
 export const getEmailRuleEventCatalogUrl = () => {

@@ -12686,6 +12686,174 @@ export const ReorderEmailRulesResponseItem = zod.object({
 export const ReorderEmailRulesResponse = zod.array(ReorderEmailRulesResponseItem)
 
 
+export const listEmailPlaceholdersResponseOneSourceKeyMax = 100;
+
+export const listEmailPlaceholdersResponseOneEventIdsMax = 200;
+
+export const listEmailPlaceholdersResponseOneFallbackMax = 120;
+
+export const listEmailPlaceholdersResponseOneDescriptionMax = 300;
+
+
+
+export const ListEmailPlaceholdersResponseItem = zod.object({
+  "workspace": zod.enum(['lessons', 'audit', 'qaqc', 'docgov']),
+  "sourceKey": zod.string().min(1).max(listEmailPlaceholdersResponseOneSourceKeyMax),
+  "applicability": zod.enum(['all', 'selected']),
+  "eventIds": zod.array(zod.string()).max(listEmailPlaceholdersResponseOneEventIdsMax),
+  "format": zod.enum(['plain', 'date_dmy', 'date_iso', 'date_long', 'datetime', 'decimal_0', 'decimal_2', 'number_grouped']),
+  "fallback": zod.string().min(1).max(listEmailPlaceholdersResponseOneFallbackMax),
+  "description": zod.string().max(listEmailPlaceholdersResponseOneDescriptionMax)
+}).and(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+export const ListEmailPlaceholdersResponse = zod.array(ListEmailPlaceholdersResponseItem)
+
+
+export const createEmailPlaceholderBodySourceKeyMax = 100;
+
+export const createEmailPlaceholderBodyEventIdsMax = 200;
+
+export const createEmailPlaceholderBodyFallbackMax = 120;
+
+export const createEmailPlaceholderBodyDescriptionMax = 300;
+
+
+
+export const CreateEmailPlaceholderBody = zod.object({
+  "workspace": zod.enum(['lessons', 'audit', 'qaqc', 'docgov']),
+  "sourceKey": zod.string().min(1).max(createEmailPlaceholderBodySourceKeyMax),
+  "applicability": zod.enum(['all', 'selected']),
+  "eventIds": zod.array(zod.string()).max(createEmailPlaceholderBodyEventIdsMax),
+  "format": zod.enum(['plain', 'date_dmy', 'date_iso', 'date_long', 'datetime', 'decimal_0', 'decimal_2', 'number_grouped']),
+  "fallback": zod.string().min(1).max(createEmailPlaceholderBodyFallbackMax),
+  "description": zod.string().max(createEmailPlaceholderBodyDescriptionMax)
+})
+
+export const createEmailPlaceholderResponseOneSourceKeyMax = 100;
+
+export const createEmailPlaceholderResponseOneEventIdsMax = 200;
+
+export const createEmailPlaceholderResponseOneFallbackMax = 120;
+
+export const createEmailPlaceholderResponseOneDescriptionMax = 300;
+
+
+
+export const CreateEmailPlaceholderResponse = zod.object({
+  "workspace": zod.enum(['lessons', 'audit', 'qaqc', 'docgov']),
+  "sourceKey": zod.string().min(1).max(createEmailPlaceholderResponseOneSourceKeyMax),
+  "applicability": zod.enum(['all', 'selected']),
+  "eventIds": zod.array(zod.string()).max(createEmailPlaceholderResponseOneEventIdsMax),
+  "format": zod.enum(['plain', 'date_dmy', 'date_iso', 'date_long', 'datetime', 'decimal_0', 'decimal_2', 'number_grouped']),
+  "fallback": zod.string().min(1).max(createEmailPlaceholderResponseOneFallbackMax),
+  "description": zod.string().max(createEmailPlaceholderResponseOneDescriptionMax)
+}).and(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+
+
+export const UpdateEmailPlaceholderParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateEmailPlaceholderBodySourceKeyMax = 100;
+
+export const updateEmailPlaceholderBodyEventIdsMax = 200;
+
+export const updateEmailPlaceholderBodyFallbackMax = 120;
+
+export const updateEmailPlaceholderBodyDescriptionMax = 300;
+
+
+
+export const UpdateEmailPlaceholderBody = zod.object({
+  "workspace": zod.enum(['lessons', 'audit', 'qaqc', 'docgov']),
+  "sourceKey": zod.string().min(1).max(updateEmailPlaceholderBodySourceKeyMax),
+  "applicability": zod.enum(['all', 'selected']),
+  "eventIds": zod.array(zod.string()).max(updateEmailPlaceholderBodyEventIdsMax),
+  "format": zod.enum(['plain', 'date_dmy', 'date_iso', 'date_long', 'datetime', 'decimal_0', 'decimal_2', 'number_grouped']),
+  "fallback": zod.string().min(1).max(updateEmailPlaceholderBodyFallbackMax),
+  "description": zod.string().max(updateEmailPlaceholderBodyDescriptionMax)
+})
+
+export const updateEmailPlaceholderResponseOneSourceKeyMax = 100;
+
+export const updateEmailPlaceholderResponseOneEventIdsMax = 200;
+
+export const updateEmailPlaceholderResponseOneFallbackMax = 120;
+
+export const updateEmailPlaceholderResponseOneDescriptionMax = 300;
+
+
+
+export const UpdateEmailPlaceholderResponse = zod.object({
+  "workspace": zod.enum(['lessons', 'audit', 'qaqc', 'docgov']),
+  "sourceKey": zod.string().min(1).max(updateEmailPlaceholderResponseOneSourceKeyMax),
+  "applicability": zod.enum(['all', 'selected']),
+  "eventIds": zod.array(zod.string()).max(updateEmailPlaceholderResponseOneEventIdsMax),
+  "format": zod.enum(['plain', 'date_dmy', 'date_iso', 'date_long', 'datetime', 'decimal_0', 'decimal_2', 'number_grouped']),
+  "fallback": zod.string().min(1).max(updateEmailPlaceholderResponseOneFallbackMax),
+  "description": zod.string().max(updateEmailPlaceholderResponseOneDescriptionMax)
+}).and(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+
+
+export const DeleteEmailPlaceholderParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteEmailPlaceholderResponse = zod.void()
+
+
+export const SetEmailPlaceholderActivationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SetEmailPlaceholderActivationBody = zod.object({
+  "active": zod.boolean()
+})
+
+export const setEmailPlaceholderActivationResponseOneSourceKeyMax = 100;
+
+export const setEmailPlaceholderActivationResponseOneEventIdsMax = 200;
+
+export const setEmailPlaceholderActivationResponseOneFallbackMax = 120;
+
+export const setEmailPlaceholderActivationResponseOneDescriptionMax = 300;
+
+
+
+export const SetEmailPlaceholderActivationResponse = zod.object({
+  "workspace": zod.enum(['lessons', 'audit', 'qaqc', 'docgov']),
+  "sourceKey": zod.string().min(1).max(setEmailPlaceholderActivationResponseOneSourceKeyMax),
+  "applicability": zod.enum(['all', 'selected']),
+  "eventIds": zod.array(zod.string()).max(setEmailPlaceholderActivationResponseOneEventIdsMax),
+  "format": zod.enum(['plain', 'date_dmy', 'date_iso', 'date_long', 'datetime', 'decimal_0', 'decimal_2', 'number_grouped']),
+  "fallback": zod.string().min(1).max(setEmailPlaceholderActivationResponseOneFallbackMax),
+  "description": zod.string().max(setEmailPlaceholderActivationResponseOneDescriptionMax)
+}).and(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}))
+
+
 export const EmailRuleEventCatalogResponseItem = zod.object({
   "value": zod.string(),
   "label": zod.string()

@@ -8,7 +8,8 @@ import { CreateEmailRuleBody, ReorderEmailRulesBody, SimulateEmailRuleBody, Upda
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { asyncHandler, HttpError, writeAuditLog } from "../lib/workspace";
 import { resolveEmailRule } from "../lib/email-rules";
-import { unknownEmailTemplateFields } from "@workspace/field-controls";
+import { listPlaceholderDefinitions, mutatePlaceholderRegistry, validateCustomRuleTemplate } from "../lib/email-placeholder-registry";
+import { CreateEmailPlaceholderBody, UpdateEmailPlaceholderBody, SetEmailPlaceholderActivationBody } from "@workspace/api-zod";
 
 const router = Router();
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,11 +45,10 @@ const knownEvents = [
   "qaqc.user_workspace_role.assign_role", "qaqc.user_workspace_role.remove_role", "qaqc.workspace_role.create", "qaqc.workspace_role.update",
 ];
 function bodyValue(value: unknown): string | null { return typeof value === "string" ? value.trim() || null : null; }
-function validate(input: any) {
+async function validate(input: any, organizationId: string) {
   const template = input.recipientConfig ?? {};
   if (/[\r\n]/.test(template.subjectTemplate ?? "")) throw new HttpError(422, "Email subject must be a single line");
-  const unknown = unknownEmailTemplateFields(`${template.subjectTemplate ?? ""}\n${template.bodyTemplate ?? ""}`);
-  if (unknown.length) throw new HttpError(422, `Unsupported email template placeholders: ${unknown.join(", ")}`);
+  await validateCustomRuleTemplate(db, organizationId, input.eventType, template);
   if (!input || typeof input.name !== "string" || !input.name.trim() || typeof input.eventType !== "string" || !/^[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+$/.test(input.eventType)) throw new HttpError(422, "Invalid rule name or canonical eventType");
   if (!Number.isInteger(input.priority) || input.priority < 0) throw new HttpError(422, "Rule priority must be a non-negative whole number");
   if (!["all_users", "internal_user", "external_email", "workspace_role", "project_members", "project_role", "linked_approver", "linked_creator"].includes(input.recipientMode)) throw new HttpError(422, "Select a recipient mode");
@@ -92,7 +92,7 @@ router.get("/email-rules", requireAuth, requireAdmin, asyncHandler(async (req, r
 router.post("/email-rules", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const parsed = CreateEmailRuleBody.safeParse(req.body);
   if (!parsed.success) throw new HttpError(422, "Invalid email rule");
-  validate(parsed.data);
+  await validate(parsed.data, req.currentUser!.organizationId);
   await ensureUsers(req.currentUser!.organizationId, [parsed.data.createdByUserId, parsed.data.receiverUserId]);
   if (parsed.data.recipientMode === "workspace_role") {
     await ensureWorkspaceRoles(req.currentUser!.organizationId, parsed.data.eventType.split(".")[0]!, [
@@ -101,6 +101,8 @@ router.post("/email-rules", requireAuth, requireAdmin, asyncHandler(async (req, 
     ]);
   }
   const row = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`email-placeholders:${req.currentUser!.organizationId}`}))`);
+    await validateCustomRuleTemplate(tx as unknown as typeof db, req.currentUser!.organizationId, parsed.data.eventType, parsed.data.recipientConfig ?? {});
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`email-rules:${req.currentUser!.organizationId}`}))`);
     const [maximum] = await tx.select({ value: sql<number>`coalesce(max(${emailEventRules.priority}), -1)` })
       .from(emailEventRules).where(and(
@@ -124,7 +126,7 @@ router.patch("/email-rules/:id", requireAuth, requireAdmin, asyncHandler(async (
   if (!existing) throw new HttpError(404, "Email rule not found");
   const parsed = UpdateEmailRuleBody.safeParse(req.body);
   if (!parsed.success) throw new HttpError(422, "Invalid email rule");
-  validate(parsed.data);
+  await validate(parsed.data, req.currentUser!.organizationId);
   await ensureUsers(req.currentUser!.organizationId, [parsed.data.createdByUserId, parsed.data.receiverUserId]);
   if (parsed.data.recipientMode === "workspace_role") {
     await ensureWorkspaceRoles(req.currentUser!.organizationId, parsed.data.eventType.split(".")[0]!, [
@@ -132,13 +134,19 @@ router.patch("/email-rules/:id", requireAuth, requireAdmin, asyncHandler(async (
       ...(parsed.data.recipientConfig?.roleName ? [parsed.data.recipientConfig.roleName] : []),
     ]);
   }
-  const [row] = await db.update(emailEventRules).set({
+  const row = await db.transaction(async tx => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`email-placeholders:${req.currentUser!.organizationId}`}))`);
+    await validateCustomRuleTemplate(tx as unknown as typeof db, req.currentUser!.organizationId, parsed.data.eventType, parsed.data.recipientConfig ?? {});
+    const [updated] = await tx.update(emailEventRules).set({
     name: parsed.data.name.trim(), enabled: parsed.data.enabled, priority: parsed.data.priority,
     eventType: parsed.data.eventType, createdByUserId: bodyValue(parsed.data.createdByUserId),
     recipientMode: parsed.data.recipientMode, receiverUserId: bodyValue(parsed.data.receiverUserId), receiverName: bodyValue(parsed.data.receiverName),
     receiverEmail: bodyValue(parsed.data.receiverEmail), updatedAt: new Date(),
     recipientConfig: parsed.data.recipientConfig ?? {},
-  }).where(eq(emailEventRules.id, existing.id)).returning();
+    }).where(and(eq(emailEventRules.id, existing.id), eq(emailEventRules.organizationId, req.currentUser!.organizationId), isNull(emailEventRules.deletedAt))).returning();
+    if (!updated) throw new HttpError(404, "Email rule not found");
+    return updated;
+  });
   await writeAuditLog(db, "audit", { organizationId: req.currentUser!.organizationId, actorId: req.currentUser!.id, action: "update", entityType: "email_event_rule", entityId: existing.id, before: existing as any, after: row as any });
   res.json(row);
 }));
@@ -183,18 +191,46 @@ router.get("/email-rules/options/roles", requireAuth, requireAdmin, asyncHandler
   )).orderBy(asc(roles.name));
   res.json(rows);
 }));
-router.get("/email-rules/catalog", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+async function registeredEmailEvents(organizationId: string) {
   const values = new Set(knownEvents);
   for (const [app, table] of [["qaqc", auditLogEntries], ["lessons", lessonsAuditLogEntries], ["audit", auditAuditLogEntries] ] as const) {
-    const rows = await db.select({ entityType: table.entityType, action: table.action }).from(table).where(eq(table.organizationId, req.currentUser!.organizationId)).groupBy(table.entityType, table.action);
+    const rows = await db.select({ entityType: table.entityType, action: table.action }).from(table).where(eq(table.organizationId, organizationId)).groupBy(table.entityType, table.action);
     rows.forEach((r) => values.add(`${app}.${r.entityType}.${r.action}`));
   }
-  res.json([...values].sort().map((value) => ({
+  return [...values].sort().map((value) => ({
     value,
     label: value === "audit.audit_programme.submit"
       ? "Audit · Audit Schedule · Submit / Resubmit"
       : value.split(".").map((part) => part.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())).join(" · "),
-  })));
+  }));
+}
+router.get("/email-rules/catalog", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  res.json(await registeredEmailEvents(req.currentUser!.organizationId));
+}));
+router.get("/email-placeholders", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  res.json(await listPlaceholderDefinitions(db, req.currentUser!.organizationId));
+}));
+router.post("/email-placeholders", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const body = CreateEmailPlaceholderBody.safeParse(req.body);
+  if (!body.success) throw new HttpError(422, "Invalid placeholder definition.");
+  res.status(201).json(await mutatePlaceholderRegistry(req.currentUser!.organizationId, req.currentUser!.id,
+    { kind: "create", input: body.data }, await registeredEmailEvents(req.currentUser!.organizationId)));
+}));
+router.put("/email-placeholders/:id", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const body = UpdateEmailPlaceholderBody.safeParse(req.body);
+  if (!body.success) throw new HttpError(422, "Invalid placeholder definition.");
+  res.json(await mutatePlaceholderRegistry(req.currentUser!.organizationId, req.currentUser!.id,
+    { kind: "update", id: String(req.params.id), input: body.data }, await registeredEmailEvents(req.currentUser!.organizationId)));
+}));
+router.patch("/email-placeholders/:id/activation", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const body = SetEmailPlaceholderActivationBody.safeParse(req.body);
+  if (!body.success) throw new HttpError(422, "Choose activate or deactivate.");
+  res.json(await mutatePlaceholderRegistry(req.currentUser!.organizationId, req.currentUser!.id,
+    { kind: "activation", id: String(req.params.id), active: body.data.active }, await registeredEmailEvents(req.currentUser!.organizationId)));
+}));
+router.delete("/email-placeholders/:id", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  await mutatePlaceholderRegistry(req.currentUser!.organizationId, req.currentUser!.id, { kind: "delete", id: String(req.params.id) }, []);
+  res.status(204).end();
 }));
 router.post("/email-rules/simulate", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const parsed = SimulateEmailRuleBody.safeParse(req.body);

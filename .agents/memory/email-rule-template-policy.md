@@ -14,11 +14,11 @@ Custom placeholder creation is administrator-only and workspace-specific. A Less
 
 **How to apply:** Carry workspace scope into any future registry and template editor integration. Keep Document governance separate at the user-facing scope even though its current events are recorded under QA/QC.
 
-The placeholder wizard must be finalized before enabling custom placeholders in live email triggering.
+The user initially limited the placeholder work to a draft-only wizard, then explicitly authorized activation/deactivation and email integration on 2026-10-12.
 
-**Why:** The user requested only the wizard and its Integration Cockpit access initially, with further development deferred until wizard finalization.
+**Why:** The earlier draft-only restriction no longer applies; do not treat it as a standing prohibition on functional activation.
 
-**How to apply:** Do not automatically wire draft definitions into live email templates or delivery. Seek explicit approval for the later integration phase.
+**How to apply:** Preserve workspace isolation when extending the now-authorized functionality. Do not activate imported browser drafts without the administrator choosing activation.
 
 Protected Audit approval emails must use the workflow queue only, not a second generic rule dispatch.
 

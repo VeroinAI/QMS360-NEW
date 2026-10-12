@@ -10,6 +10,7 @@ export * from "./audit-plan-dates";
 
 export * from "./qaqc-permissions";
 export * from "./email-templates";
+export * from "./email-placeholder-model";
 export * from "./audit-report-details";
 export * from "./audit-checklist-deletion";
 export * from "./audit-project-progress";

@@ -440,6 +440,70 @@ export interface EmailRuleSimulationInput {
   createdByUserId?: string;
 }
 
+export type EmailPlaceholderInputWorkspace = typeof EmailPlaceholderInputWorkspace[keyof typeof EmailPlaceholderInputWorkspace];
+
+
+export const EmailPlaceholderInputWorkspace = {
+  lessons: 'lessons',
+  audit: 'audit',
+  qaqc: 'qaqc',
+  docgov: 'docgov',
+} as const;
+
+export type EmailPlaceholderInputApplicability = typeof EmailPlaceholderInputApplicability[keyof typeof EmailPlaceholderInputApplicability];
+
+
+export const EmailPlaceholderInputApplicability = {
+  all: 'all',
+  selected: 'selected',
+} as const;
+
+export type EmailPlaceholderInputFormat = typeof EmailPlaceholderInputFormat[keyof typeof EmailPlaceholderInputFormat];
+
+
+export const EmailPlaceholderInputFormat = {
+  plain: 'plain',
+  date_dmy: 'date_dmy',
+  date_iso: 'date_iso',
+  date_long: 'date_long',
+  datetime: 'datetime',
+  decimal_0: 'decimal_0',
+  decimal_2: 'decimal_2',
+  number_grouped: 'number_grouped',
+} as const;
+
+export interface EmailPlaceholderInput {
+  workspace: EmailPlaceholderInputWorkspace;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  sourceKey: string;
+  applicability: EmailPlaceholderInputApplicability;
+  /** @maxItems 200 */
+  eventIds: string[];
+  format: EmailPlaceholderInputFormat;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  fallback: string;
+  /** @maxLength 300 */
+  description: string;
+}
+
+export interface EmailPlaceholderActivation {
+  active: boolean;
+}
+
+export type EmailPlaceholderDefinition = EmailPlaceholderInput & {
+  id: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export interface EmailRuleEventOption {
   value: string;
   label: string;

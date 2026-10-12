@@ -16,9 +16,9 @@ function fieldKey(value: string) {
   const key = value.trim().toLowerCase().replace(/[\s/]+/g, "_");
   return aliases[key] ?? key;
 }
-export function unknownEmailTemplateFields(template: string) {
+export function unknownEmailTemplateFields(template: string, allowedNames: readonly string[] = []) {
   return [...new Set([...template.matchAll(tokenPattern)].map(match => fieldKey(match[1]))
-    .filter(key => !(emailTemplateFields as readonly string[]).includes(key)))];
+    .filter(key => !(emailTemplateFields as readonly string[]).includes(key) && !allowedNames.includes(key)))];
 }
 export function renderEmailRuleTemplate(
   template: EmailRuleTemplate | undefined,
