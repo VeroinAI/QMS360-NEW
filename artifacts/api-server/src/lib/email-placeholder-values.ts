@@ -66,6 +66,8 @@ export async function prepareCustomPlaceholderValues(database: typeof db, organi
   const table = ENTITY_TABLES[event.eventType.split('.').slice(0, 2).join('.')];
   const needsApprover = table === lessonLearnedForms && active.some(d => d.sourceKey === 'approver_full_name');
   const needsApprovalDate = table === lessonLearnedForms && active.some(d => d.sourceKey === 'lesson_form_approved_at');
+  const needsReviewRemarks = table === lessonLearnedForms && active.some(d =>
+    d.sourceKey === 'lesson_form_approval_remarks' || d.sourceKey === 'lesson_form_send_back_remarks');
   let record: Record<string, any> = {};
   const snapshot = event.record;
   const trustedSnapshot = snapshot?.id === event.entityId && snapshot?.organizationId === organizationId;
@@ -84,9 +86,12 @@ export async function prepareCustomPlaceholderValues(database: typeof db, organi
     )).limit(1);
     record = { ...record, approverId: form?.approverId };
   }
-  if (needsApprovalDate && trustedSnapshot && (record.reviewedAt === undefined || record.reviewDecision === undefined) && event.entityId && /^[0-9a-f-]{36}$/i.test(event.entityId)) {
+  const missingReviewDetails = (needsApprovalDate && (record.reviewedAt === undefined || record.reviewDecision === undefined))
+    || (needsReviewRemarks && (record.reviewComments === undefined || record.reviewDecision === undefined));
+  if (missingReviewDetails && trustedSnapshot && event.entityId && /^[0-9a-f-]{36}$/i.test(event.entityId)) {
     const [form] = await database.select({
       reviewedAt: lessonLearnedForms.reviewedAt, reviewDecision: lessonLearnedForms.reviewDecision,
+      reviewComments: lessonLearnedForms.reviewComments,
     }).from(lessonLearnedForms).where(and(
       eq(lessonLearnedForms.id, event.entityId), eq(lessonLearnedForms.organizationId, organizationId),
     )).limit(1);
@@ -94,6 +99,7 @@ export async function prepareCustomPlaceholderValues(database: typeof db, organi
       ...record,
       reviewedAt: record.reviewedAt === undefined ? form?.reviewedAt : record.reviewedAt,
       reviewDecision: record.reviewDecision === undefined ? form?.reviewDecision : record.reviewDecision,
+      reviewComments: record.reviewComments === undefined ? form?.reviewComments : record.reviewComments,
     };
   }
   const nameOf = async (id: unknown) => {
@@ -129,6 +135,8 @@ export async function prepareCustomPlaceholderValues(database: typeof db, organi
     if (sourceTable !== table) return undefined;
     // reviewedAt also records send-backs; only a recorded approval is an approval date.
     if (source.key === 'lesson_form_approved_at' && record.reviewDecision !== 'approve') return undefined;
+    if (source.key === 'lesson_form_approval_remarks' && record.reviewDecision !== 'approve') return undefined;
+    if (source.key === 'lesson_form_send_back_remarks' && record.reviewDecision !== 'send_back') return undefined;
     const key = Object.entries(getTableColumns(sourceTable)).find(([, column]) => column.name === parts.at(-1))?.[0];
     return key ? record[key] : undefined;
   });

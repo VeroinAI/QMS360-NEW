@@ -64,6 +64,18 @@ export const SOURCE_CATALOG: SourceDef[] = [
     ['submitted_at', 'Submitted at', 'timestamp'], ['reviewed_at', 'Reviewed at', 'timestamp'],
     ['review_comments', 'Review comments'], ['repeat_count', 'Repeat count', 'integer'],
   ]),
+  {
+    key: 'lesson_form_approval_remarks', workspace: 'lessons', origin: 'record', entityLabel: 'Lesson learned form',
+    fieldLabel: 'Approval remarks', schemaRef: 'app2_lessons.lesson_learned_forms.review_comments',
+    type: 'text', eventEntities: ['lesson_form'],
+    description: 'Comments saved by the reviewer when approving this lesson learned form. Empty remarks, pending reviews and send-back decisions use the configured fallback.',
+  },
+  {
+    key: 'lesson_form_send_back_remarks', workspace: 'lessons', origin: 'record', entityLabel: 'Lesson learned form',
+    fieldLabel: 'Send-back remarks', schemaRef: 'app2_lessons.lesson_learned_forms.review_comments',
+    type: 'text', eventEntities: ['lesson_form'],
+    description: 'Comments saved by the reviewer when sending this lesson learned form back for rework. Empty remarks, pending reviews and approval decisions use the configured fallback.',
+  },
   ...systemSources('audit'),
   ...recordSources('audit', 'audit_schedule', 'Audit programme / schedule', 'app3_audit.audit_schedules', ['audit_programme', 'audit_schedule'], [
     ['title', 'Title'], ['year', 'Year', 'integer'], ['workflow_state', 'Workflow state'],

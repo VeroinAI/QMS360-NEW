@@ -325,6 +325,110 @@ describe('Lessons approval date placeholder', () => {
   });
 });
 
+describe('Lessons decision-specific remarks placeholders', () => {
+  const approvalKey = 'lesson_form_approval_remarks';
+  const sendBackKey = 'lesson_form_send_back_remarks';
+  it('offers separate text sources with generated tokens only in Lessons form events', () => {
+    for (const [key, label] of [[approvalKey, 'Approval remarks'], [sendBackKey, 'Send-back remarks']]) {
+      const source = findSource('lessons', key)!;
+      const d = definition(key);
+      expect(source.fieldLabel).toBe(label);
+      expect(source.type).toBe('text');
+      expect(sourcesForWorkspace('lessons')).toContain(source);
+      expect(d.name).toBe(`lessons_${key}`);
+      expect(definitionMatchesEvent(d, 'lessons.lesson_form.approve')).toBe(true);
+      expect(definitionMatchesEvent(d, 'lessons.lesson_form.send_back')).toBe(true);
+      expect(definitionMatchesEvent(d, 'lessons.user_profile.update')).toBe(false);
+      for (const workspace of ['audit', 'qaqc', 'docgov'] as const) {
+        expect(findSource(workspace, key)).toBeUndefined();
+      }
+    }
+  });
+  it.each(['approve', 'send_back'])('resolves only the %s remarks from a tenant-scoped form', async (decision) => {
+    const approval = definition(approvalKey);
+    const sendBack = definition(sendBackKey);
+    const review = definition('lesson_form_review_comments');
+    const comments = 'First line\nSecond line with <literal text>';
+    const { fake, sqlQueries } = fixture([approval, sendBack, review], new Map<any, any[]>([
+      [lessonLearnedForms, [{ id: entityId, organizationId: org, reviewDecision: decision, reviewComments: comments }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType: `lessons.lesson_form.${decision}`, entityId,
+    }, { bodyTemplate: `{${approval.name}} {${sendBack.name}} {${review.name}}` });
+    const values = render({ email: 'recipient@example.test' });
+    expect(values[approval.name]).toBe(decision === 'approve' ? comments : 'Not available');
+    expect(values[sendBack.name]).toBe(decision === 'send_back' ? comments : 'Not available');
+    expect(values[review.name]).toBe(comments);
+    expect(sqlQueries[1].params).toContain(org);
+    expect(sqlQueries[1].params).toContain(entityId);
+  });
+  it.each([approvalKey, sendBackKey])('uses complete snapshots without extra queries for %s', async (key) => {
+    const d = definition(key);
+    const { fake, sqlQueries } = fixture([d]);
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, record: {
+        id: entityId, organizationId: org, reviewDecision: key === approvalKey ? 'approve' : 'send_back',
+        reviewComments: 'Snapshot remarks',
+      },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Snapshot remarks');
+    expect(sqlQueries).toHaveLength(1);
+  });
+  it.each([approvalKey, sendBackKey])('loads omitted decision and remarks from a partial snapshot for %s', async (key) => {
+    const d = definition(key);
+    const { fake } = fixture([d], new Map<any, any[]>([
+      [lessonLearnedForms, [{
+        id: entityId, organizationId: org, reviewDecision: key === approvalKey ? 'approve' : 'send_back',
+        reviewComments: 'Saved remarks',
+      }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, record: { id: entityId, organizationId: org },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Saved remarks');
+  });
+  it.each([null, ''])('uses the configured fallback for empty remarks (%s)', async (comments) => {
+    const d = { ...definition(approvalKey), fallback: 'No remarks provided' };
+    const { fake } = fixture([d]);
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, record: {
+        id: entityId, organizationId: org, reviewDecision: 'approve', reviewComments: comments,
+      },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('No remarks provided');
+  });
+  it('preserves an explicit null comment when loading an omitted decision', async () => {
+    const d = definition(approvalKey);
+    const { fake } = fixture([d], new Map<any, any[]>([
+      [lessonLearnedForms, [{ id: entityId, organizationId: org, reviewDecision: 'approve', reviewComments: 'Later remarks' }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, record: { id: entityId, organizationId: org, reviewComments: null },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Not available');
+  });
+  it('does not expose remarks from another organization', async () => {
+    const d = definition(sendBackKey);
+    const { fake } = fixture([d], new Map<any, any[]>([
+      [lessonLearnedForms, [{ id: entityId, organizationId: otherOrg, reviewDecision: 'send_back', reviewComments: 'Foreign remarks' }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId,
+      record: { id: entityId, organizationId: otherOrg, reviewDecision: 'send_back', reviewComments: 'Foreign snapshot' },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Not available');
+  });
+  it('does not query review details for inactive placeholders', async () => {
+    const d = definition(sendBackKey, false);
+    const { fake, sqlQueries } = fixture([d]);
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, record: { id: entityId, organizationId: org },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Not available');
+    expect(sqlQueries).toHaveLength(1);
+  });
+});
+
 describe('Lessons assigned approver placeholder', () => {
   it('is selectable and previewable only for Lessons form events', () => {
     const source = findSource('lessons', 'approver_full_name')!;
