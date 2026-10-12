@@ -37,3 +37,9 @@ not fulfill this requirement.
 Keep a private submitted-report snapshot available for queued delivery retries;
 do not add PDFs to Lessons review emails or other application events as a side
 effect.
+
+Lessons Learned “Reject” is a legacy email-event label for the Send back review outcome, not a separate permanent rejection state. Existing rules and selected-event placeholders must continue to recognize both names.
+
+**Why:** Administrators configured a Reject template while the review workflow emitted Send back; the unmatched rule caused a remarks-only fallback email instead of the saved template.
+
+**How to apply:** Keep this compatibility specific to Lessons Learned. Preserve rule priority, actor filters and recipients; do not treat Audit rejection and send-back events as equivalent. Approval dates remain approval-only; use Reviewed at for send-back dates.

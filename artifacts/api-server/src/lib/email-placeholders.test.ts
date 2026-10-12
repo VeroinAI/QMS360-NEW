@@ -328,6 +328,15 @@ describe('Lessons approval date placeholder', () => {
 describe('Lessons decision-specific remarks placeholders', () => {
   const approvalKey = 'lesson_form_approval_remarks';
   const sendBackKey = 'lesson_form_send_back_remarks';
+  it('treats legacy Reject and Send back as the same selected Lessons event, without including approvals', () => {
+    for (const selectedEvent of ['lessons.lesson_form.reject', 'lessons.lesson_form.send_back']) {
+      const d = { ...definition(sendBackKey), applicability: 'selected' as const, eventIds: [selectedEvent] };
+      expect(definitionMatchesEvent(d, 'lessons.lesson_form.reject')).toBe(true);
+      expect(definitionMatchesEvent(d, 'lessons.lesson_form.send_back')).toBe(true);
+      expect(definitionMatchesEvent(d, 'lessons.lesson_form.approve')).toBe(false);
+      expect(definitionMatchesEvent(d, 'audit.audit_schedule.send_back')).toBe(false);
+    }
+  });
   it('offers separate text sources with generated tokens only in Lessons form events', () => {
     for (const [key, label] of [[approvalKey, 'Approval remarks'], [sendBackKey, 'Send-back remarks']]) {
       const source = findSource('lessons', key)!;

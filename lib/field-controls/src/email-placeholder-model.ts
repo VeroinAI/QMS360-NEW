@@ -15,6 +15,10 @@ export function parseEvent(value: string) {
   const parts = value.split('.');
   return parts.length < 3 || parts.some(p => !p) ? null : { app: parts[0], entity: parts[1], action: parts.slice(2).join('.') };
 }
+/** Lessons review has one negative outcome: send back, historically catalogued as reject. */
+export function canonicalEmailEventType(value: string) {
+  return value === 'lessons.lesson_form.reject' ? 'lessons.lesson_form.send_back' : value;
+}
 export function eventsForWorkspace(events: EventOption[], workspace: WorkspaceKey) {
   return events.filter(e => {
     const p = parseEvent(e.value);
@@ -190,7 +194,8 @@ export const draftToState = (d: PlaceholderDraft): WizardState => ({ workspace: 
 export function definitionMatchesEvent(d: PlaceholderDraft, eventType: string) {
   const source = findSource(d.workspace, d.sourceKey);
   const scoped = eventsForWorkspace([{ value: eventType, label: eventType }], d.workspace);
-  return !!source && eventsForSource(source, scoped).length > 0 && (d.applicability === 'all' || d.eventIds.includes(eventType));
+  return !!source && eventsForSource(source, scoped).length > 0 && (d.applicability === 'all'
+    || d.eventIds.some(id => canonicalEmailEventType(id) === canonicalEmailEventType(eventType)));
 }
 export const STORAGE_VERSION = 1;
 export const storageKey = (userId: string) => `qms360.emailPlaceholderDrafts.v${STORAGE_VERSION}:${encodeURIComponent(userId)}`;

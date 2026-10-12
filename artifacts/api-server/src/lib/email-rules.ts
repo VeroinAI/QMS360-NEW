@@ -4,6 +4,7 @@ import {
   lessonLearnedForms, lessonsUserWorkspaceRoles, lessonsWorkspaceRoles, userWorkspaceRoles, users, workspaceRoles,
 } from "@workspace/db";
 import { enqueueEmail } from "./email-queue";
+import { canonicalEmailEventType } from "@workspace/field-controls";
 import { removeEmailPdfAttachment, type EmailPdfAttachment } from "./email-attachments";
 import { logger } from "./logger";
 import { emailTemplateContext } from "./email-template-context";
@@ -62,7 +63,7 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
     eq(emailEventRules.enabled, true), isNull(emailEventRules.deletedAt),
   )).orderBy(asc(emailEventRules.priority), asc(emailEventRules.createdAt));
   const rule = rules.find((candidate) =>
-    candidate.eventType === `${event.app}.${event.entityType}.${event.action}` &&
+    canonicalEmailEventType(candidate.eventType) === canonicalEmailEventType(`${event.app}.${event.entityType}.${event.action}`) &&
     (!candidate.createdByUserId || candidate.createdByUserId === event.actorId));
   if (!rule) return { rule: null, recipients: [] as Array<{ email: string; name?: string | null }>, sender: null as { email: string; name?: string | null } | null };
   let recipients: Array<{ email: string; name?: string | null }> = [];
