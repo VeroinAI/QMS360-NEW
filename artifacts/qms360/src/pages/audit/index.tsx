@@ -1619,7 +1619,9 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     activityRows.forEach(row => {
       if (!row.section.trim()) nextErrors[`activity-${row.id}-section`] = "Select an activity.";
       if (!row.remarks.trim()) nextErrors[`activity-${row.id}-remarks`] = "Enter activity remarks.";
-      if (!activityAuditeeIds(row).length) nextErrors[`activity-${row.id}-auditeeId`] = "Select one or more auditees.";
+      if (!activityAuditeeIds(row).length) nextErrors[`activity-${row.id}-auditeeId`] = initial
+        ? "Select one or more auditees."
+        : "Select an Auditee Role with users assigned in the linked schedule, or update the schedule’s role assignments.";
     });
     activityRows.forEach((row, index) => {
       const section = row.section.trim().toLocaleLowerCase();
@@ -1797,9 +1799,11 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     <PlanDateTimeField number={13} label="Opening Meeting" remark={form.openingMeetingDateTimeRemark} onRemarkChange={value => set("openingMeetingDateTimeRemark", value)} remarkReadOnly={readOnly || ro("openingMeetingDateTimeRemark")} error={errors.openingMeetingDateTime} inputProps={{ ...dateBounds, value: form.openingMeetingDateTime.slice(0,16), disabled: disabled("openingMeetingDateTime"), ...invalid("openingMeetingDateTime"), onChange: event => set("openingMeetingDateTime", event.target.value) }}/>
     <PlanDateTimeField number={14} label="Closing Meeting" remark={form.closingMeetingDateTimeRemark} onRemarkChange={value => set("closingMeetingDateTimeRemark", value)} remarkReadOnly={readOnly || ro("closingMeetingDateTimeRemark")} error={errors.closingMeetingDateTime} inputProps={{ ...dateBounds, value: form.closingMeetingDateTime.slice(0,16), disabled: disabled("closingMeetingDateTime"), ...invalid("closingMeetingDateTime"), onChange: event => set("closingMeetingDateTime", event.target.value) }}/>
     <div className="min-w-0 max-w-full space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><Label>15. Activity Details *</Label><p className="mt-1 text-xs text-muted-foreground">Add one row for each Activities master-data value. Planned dates must fall within the linked Audit, including its first and last day.</p></div>{!readOnly && <Button type="button" variant="outline" size="sm" onClick={addActivity} disabled={activityStructureLocked}><Plus className="mr-2 size-4"/>Add row</Button>}</div>
-      <p className="text-sm text-muted-foreground">Activity roles default from the Activities master. Auditees default from the selected schedule’s role assignments. You can change either selection; saved choices are not overwritten when defaults change.</p>
+      <p className="text-sm text-muted-foreground">{initial
+        ? "Activity roles default from the Activities master. Auditees default from the selected schedule’s role assignments. You can change either selection; saved choices are not overwritten when defaults change."
+        : "Activity roles default from the Activities master. Auditees are assigned automatically from the selected schedule’s role assignments for the chosen roles."}</p>
       {auditeeRoles.isError && <p role="alert" className="text-sm text-destructive">Unable to load activity roles. <Button type="button" variant="link" onClick={() => void auditeeRoles.refetch()}>Retry</Button></p>}
-      <div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead className="min-w-56">Activities / Section</TableHead><TableHead className="min-w-72">Remarks</TableHead><TableHead className="min-w-56">Auditee Role</TableHead><TableHead className="min-w-56">Auditees for the Activity</TableHead><TableHead className="min-w-56">Planned Start *</TableHead><TableHead className="min-w-56">Planned End *</TableHead>{!readOnly && <TableHead className="w-16 text-right">Action</TableHead>}</TableRow></TableHeader><TableBody>
+      <div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead className="min-w-56">Activities / Section</TableHead><TableHead className="min-w-72">Remarks</TableHead><TableHead className="min-w-56">Auditee Role</TableHead>{initial && <TableHead className="min-w-56">Auditees for the Activity</TableHead>}<TableHead className="min-w-56">Planned Start *</TableHead><TableHead className="min-w-56">Planned End *</TableHead>{!readOnly && <TableHead className="w-16 text-right">Action</TableHead>}</TableRow></TableHeader><TableBody>
         {activityRows.map(row => <TableRow key={row.id}><TableCell className="align-top"><Select value={row.section} disabled={disabled("activitySection") || activityMaster.isLoading} onValueChange={value => selectActivity(row.id, value)}><SelectTrigger {...invalid(`activity-${row.id}-section`)}><SelectValue placeholder={activityMaster.isLoading ? "Loading activities…" : "Select activity"}/></SelectTrigger><SelectContent>{activityMaster.options.map(activity => <SelectItem key={activity.value} value={activity.value} disabled={activity.value !== row.section && activityRows.some(candidate => candidate.section === activity.value)}>{activity.label}</SelectItem>)}</SelectContent></Select><ErrorText name={`activity-${row.id}-section`}/></TableCell>
           <TableCell className="align-top"><Textarea rows={3} value={row.remarks} disabled={disabled("activityRemarks")} {...invalid(`activity-${row.id}-remarks`)} onChange={event => setActivity(row.id, "remarks", event.target.value)} placeholder="Enter remarks"/><ErrorText name={`activity-${row.id}-remarks`}/></TableCell>
           <TableCell className="align-top">
@@ -1809,8 +1813,9 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
               onChange={ids => setActivityRoles(row.id, ids)}/>
             {!readOnly && <Button type="button" variant="link" size="sm" disabled={disabled("activityRoleIds") || !row.section || activityMaster.isLoading || !!activityMaster.error || linkedSchedule.isFetching}
               onClick={() => setActivityRoles(row.id, activityRoleDefaults(activityMaster.options.find(option => option.value === row.section)?.metadata))}>Use activity master roles</Button>}
+            {!initial && <ErrorText name={`activity-${row.id}-auditeeId`}/>}
           </TableCell>
-          <TableCell className="align-top">
+          {initial && <TableCell className="align-top">
             <ActivityMultiSelect label={`Select auditees for ${row.section || "activity"}`} options={users.map(user => ({ id: user.id, name: user.fullName }))}
               value={activityAuditeeIds(row)} disabled={disabled("activityAuditeeId")} onChange={ids => setActivityAuditees(row.id, ids)}/>
             {!readOnly && <Button type="button" variant="link" size="sm" disabled={disabled("activityAuditeeId") || !selectedSchedule || linkedSchedule.isFetching || !activityAuditeeDefaults(row.roleIds ?? [], selectedSchedule?.activityRoleAssignments).length}
@@ -1818,11 +1823,11 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
             <ErrorText name={`activity-${row.id}-auditeeId`}/>
             {!!row.roleIds?.length && !activityAuditeeDefaults(row.roleIds, selectedSchedule?.activityRoleAssignments).length &&
               <p className="mt-1 text-xs text-muted-foreground">No users are assigned to these roles in this schedule. Select auditees manually or update the schedule.</p>}
-          </TableCell>
+          </TableCell>}
           <TableCell className="align-top"><Input aria-label={`Planned Start for ${row.section || "activity"}`} type="datetime-local" {...dateBounds} value={(row.plannedStartDateTime ?? "").slice(0,16)} disabled={disabled("activityPlannedStartDateTime")} {...invalid(`activity-${row.id}-plannedStartDateTime`)} onChange={event => setActivity(row.id, "plannedStartDateTime", event.target.value)}/><ErrorText name={`activity-${row.id}-plannedStartDateTime`}/>{row.legacyDateTimeDerived && <p className="mt-1 text-xs text-muted-foreground">Derived from saved legacy date/time. Confirm or correct before saving.</p>}</TableCell>
           <TableCell className="align-top"><Input aria-label={`Planned End for ${row.section || "activity"}`} type="datetime-local" {...dateBounds} value={(row.plannedEndDateTime ?? "").slice(0,16)} disabled={disabled("activityPlannedEndDateTime")} {...invalid(`activity-${row.id}-plannedEndDateTime`)} onChange={event => setActivity(row.id, "plannedEndDateTime", event.target.value)}/><ErrorText name={`activity-${row.id}-plannedEndDateTime`}/></TableCell>
           {!readOnly && <TableCell className="align-top text-right"><Button type="button" size="icon" variant="ghost" aria-label="Delete activity row" onClick={() => deleteActivity(row.id)} disabled={activityStructureLocked}><Trash2 className="size-4"/></Button></TableCell>}</TableRow>)}
-        {!activityRows.length && <TableRow><TableCell colSpan={readOnly ? 6 : 7} className="py-8 text-center text-sm text-muted-foreground">No activity rows. Add the first activity.</TableCell></TableRow>}
+        {!activityRows.length && <TableRow><TableCell colSpan={5 + (initial ? 1 : 0) + (readOnly ? 0 : 1)} className="py-8 text-center text-sm text-muted-foreground">No activity rows. Add the first activity.</TableCell></TableRow>}
       </TableBody></Table></div><ErrorText name="activities"/></div>
     <div>
       <Label>16. Audit Plan Circulation *</Label>
