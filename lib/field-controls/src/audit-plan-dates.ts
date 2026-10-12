@@ -131,9 +131,6 @@ export function auditPlanDateErrors(
     ["startDateTime", "Plan Start"], ["endDateTime", "Plan End"],
     ["openingMeetingDateTime", "Opening Meeting"], ["closingMeetingDateTime", "Closing Meeting"],
   ]) {
-    // Meeting timestamps are not collected by New Plan; validate saved ones when present.
-    if (["openingMeetingDateTime", "closingMeetingDateTime"].includes(key)
-      && !String(plan[key] ?? "").trim()) continue;
     check(key, label, plan[key]);
   }
   order("endDateTime", "Plan End", plan.startDateTime, plan.endDateTime);

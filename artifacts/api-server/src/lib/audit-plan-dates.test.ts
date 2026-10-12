@@ -11,16 +11,22 @@ const rows = [
   { id: "two", plannedStartDateTime: "2026-01-02T22:00", plannedEndDateTime: "2026-01-02T23:59:59" },
 ];
 describe("Audit Plan calendar-date invariants", () => {
-  it.each([undefined, null, "", " "])("allows new plans without meeting timestamps (%s) without relaxing plan or activity dates", value => {
+  it.each([undefined, null, "", " "])("requires both meeting timestamps (%s) without relaxing plan or activity dates", value => {
     const input = { ...plan, openingMeetingDateTime: value, closingMeetingDateTime: value };
-    expect(auditPlanDateErrors(input, bounds, rows)).toEqual({});
+    expect(auditPlanDateErrors(input, bounds, rows)).toMatchObject({
+      openingMeetingDateTime: expect.stringContaining("valid date and time"),
+      closingMeetingDateTime: expect.stringContaining("valid date and time"),
+    });
     expect(auditPlanDateErrors({ ...input, startDateTime: "" }, bounds, rows)).toHaveProperty("startDateTime");
     expect(auditPlanDateErrors(input, bounds, [{ ...rows[0], plannedEndDateTime: "" }]))
       .toHaveProperty("activity-one-plannedEndDateTime");
   });
-  it("still validates a saved meeting timestamp when the other meeting is absent", () => {
+  it("validates a provided meeting timestamp and requires the other meeting", () => {
     expect(auditPlanDateErrors({ ...plan, closingMeetingDateTime: "", openingMeetingDateTime: "2025-12-31T09:00" }, bounds, rows))
-      .toHaveProperty("openingMeetingDateTime", expect.stringContaining("inclusive"));
+      .toMatchObject({
+        openingMeetingDateTime: expect.stringContaining("inclusive"),
+        closingMeetingDateTime: expect.stringContaining("valid date and time"),
+      });
   });
   it("accepts distinct ranges on both inclusive boundary days and end-of-day times", () => {
     expect(auditPlanDateErrors(plan, bounds, rows)).toEqual({});
