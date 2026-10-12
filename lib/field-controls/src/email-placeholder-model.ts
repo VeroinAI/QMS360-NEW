@@ -45,6 +45,12 @@ function systemSources(workspace: WorkspaceKey): SourceDef[] {
 // Fixed approved catalog shared by the API, wizard and email editor. No user-supplied paths.
 export const SOURCE_CATALOG: SourceDef[] = [
   ...systemSources('lessons'),
+  {
+    key: 'approver_full_name', workspace: 'lessons', origin: 'system', entityLabel: 'System context',
+    fieldLabel: 'Approver full name', schemaRef: 'shared.users.full_name', type: 'text',
+    description: 'Full name of the approver assigned to this lesson learned form. This is independent of the email recipient and the person triggering the event. An unassigned or unavailable approver uses the configured fallback.',
+    eventEntities: ['lesson_form'],
+  },
   ...recordSources('lessons', 'lesson_form', 'Lesson learned form', 'app2_lessons.lesson_learned_forms', ['lesson_form'], [
     ['reference_number', 'Reference number'], ['title', 'Title'], ['categorisation', 'Categorisation'],
     ['issue_category', 'Issue category'], ['impact', 'Impact'], ['description', 'Description'], ['root_cause', 'Root cause'],
@@ -111,7 +117,7 @@ export function formatsForType(type: FieldType): FormatKey[] {
   return ['plain'];
 }
 export function sampleValue(source: SourceDef, format: FormatKey) {
-  if (source.origin === 'system') return ({ recipient_full_name: 'Sample Recipient', recipient_email: 'recipient@example.test', actor_full_name: 'Sample Actor', creator_full_name: 'Sample Creator', system_name: 'QMS360' } as Record<string, string>)[source.key] ?? 'Sample value';
+  if (source.origin === 'system') return ({ recipient_full_name: 'Sample Recipient', recipient_email: 'recipient@example.test', actor_full_name: 'Sample Actor', creator_full_name: 'Sample Creator', approver_full_name: 'Sample Approver', system_name: 'QMS360' } as Record<string, string>)[source.key] ?? 'Sample value';
   return ({ date_dmy: '14/03/2025', date_iso: '2025-03-14', date_long: '14 March 2025', datetime: '14/03/2025 09:30', decimal_0: '13', decimal_2: '12.75', number_grouped: '1,284' } as Record<string, string>)[format] ?? (source.type === 'integer' ? '1284' : `Sample ${source.fieldLabel.toLowerCase()}`);
 }
 export type PlaceholderDraft = {

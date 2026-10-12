@@ -64,14 +64,24 @@ export async function prepareCustomPlaceholderValues(database: typeof db, organi
   if (!definitions.length) return (_recipient: { name?: string | null; email: string }): Record<string, string> => ({});
   const active = definitions.filter(d => d.active);
   const table = ENTITY_TABLES[event.eventType.split('.').slice(0, 2).join('.')];
+  const needsApprover = table === lessonLearnedForms && active.some(d => d.sourceKey === 'approver_full_name');
   let record: Record<string, any> = {};
   const snapshot = event.record;
-  if (snapshot?.id === event.entityId && snapshot?.organizationId === organizationId) {
+  const trustedSnapshot = snapshot?.id === event.entityId && snapshot?.organizationId === organizationId;
+  if (trustedSnapshot && snapshot) {
     record = snapshot;
-  } else if (table && event.entityId && /^[0-9a-f-]{36}$/i.test(event.entityId) && active.some(d => findSource(d.workspace, d.sourceKey)?.origin === 'record' || d.sourceKey === 'creator_full_name')) {
+  } else if (table && event.entityId && /^[0-9a-f-]{36}$/i.test(event.entityId) && (needsApprover || active.some(d => findSource(d.workspace, d.sourceKey)?.origin === 'record' || d.sourceKey === 'creator_full_name'))) {
     const columns = getTableColumns(table);
     [record] = await database.select().from(table).where(and(eq(columns.id, event.entityId), eq(columns.organizationId, organizationId))).limit(1) as Record<string, any>[];
     record ??= {};
+  }
+  // Some events carry a partial record snapshot. Load the assignment only when
+  // omitted; an explicit null means unassigned and must not use a later value.
+  if (needsApprover && trustedSnapshot && record.approverId === undefined && event.entityId && /^[0-9a-f-]{36}$/i.test(event.entityId)) {
+    const [form] = await database.select({ approverId: lessonLearnedForms.approverId }).from(lessonLearnedForms).where(and(
+      eq(lessonLearnedForms.id, event.entityId), eq(lessonLearnedForms.organizationId, organizationId),
+    )).limit(1);
+    record = { ...record, approverId: form?.approverId };
   }
   const nameOf = async (id: unknown) => {
     if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)) return undefined;
@@ -90,14 +100,15 @@ export async function prepareCustomPlaceholderValues(database: typeof db, organi
     )).orderBy(asc(logs.createdAt)).limit(1);
     creatorId = created?.actorId;
   }
-  const [actorName, creatorName] = await Promise.all([
+  const [actorName, creatorName, approverName] = await Promise.all([
     active.some(d => d.sourceKey === 'actor_full_name') ? nameOf(event.actorId) : undefined,
     active.some(d => d.sourceKey === 'creator_full_name') ? nameOf(creatorId) : undefined,
+    needsApprover ? nameOf(record.approverId) : undefined,
   ]);
   return (recipient: { name?: string | null; email: string }) => renderCustomPlaceholderValues(definitions, event.eventType, d => {
     const source = findSource(d.workspace, d.sourceKey)!;
     if (source.origin === 'system') {
-      return ({ recipient_full_name: recipient.name ?? recipient.email, recipient_email: recipient.email, actor_full_name: actorName, creator_full_name: creatorName, system_name: 'QMS360' } as Record<string, unknown>)[source.key];
+      return ({ recipient_full_name: recipient.name ?? recipient.email, recipient_email: recipient.email, actor_full_name: actorName, creator_full_name: creatorName, approver_full_name: approverName, system_name: 'QMS360' } as Record<string, unknown>)[source.key];
     }
     const parts = source.schemaRef.split('.');
     const sourceTable = EMAIL_PLACEHOLDER_TABLES[parts.slice(0, -1).join('.')];

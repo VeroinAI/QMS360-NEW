@@ -5,6 +5,7 @@ import {
 } from '@workspace/db';
 import {
   SOURCE_CATALOG, blankWizardState, buildDraft, definitionMatchesEvent, unknownEmailTemplateFields,
+  findSource, sampleValue, sourcesForWorkspace,
   type PlaceholderDefinition,
 } from '@workspace/field-controls';
 import {
@@ -221,5 +222,89 @@ describe('Registry and email rule safety', () => {
     expect(query.sql).toContain('|| jsonb_build_object');
     expect(query.sql).toContain("'emailPlaceholders'");
     expect(query.params).toContain(JSON.stringify([definition()]));
+  });
+});
+
+describe('Lessons assigned approver placeholder', () => {
+  it('is selectable and previewable only for Lessons form events', () => {
+    const source = findSource('lessons', 'approver_full_name')!;
+    const d = definition('approver_full_name');
+    expect(source.fieldLabel).toBe('Approver full name');
+    expect(sourcesForWorkspace('lessons')).toContain(source);
+    expect(sampleValue(source, 'plain')).toBe('Sample Approver');
+    expect(d.name).toBe('lessons_approver_full_name');
+    for (const workspace of ['audit', 'qaqc', 'docgov'] as const) {
+      expect(findSource(workspace, 'approver_full_name')).toBeUndefined();
+    }
+    expect(definitionMatchesEvent(d, eventType)).toBe(true);
+    expect(definitionMatchesEvent(d, 'lessons.lesson_form.approve')).toBe(true);
+    expect(definitionMatchesEvent(d, 'lessons.lesson_form.transfer')).toBe(true);
+    expect(definitionMatchesEvent(d, 'lessons.user_profile.update')).toBe(false);
+    expect(definitionMatchesEvent(d, 'audit.audit_schedule.approve')).toBe(false);
+  });
+  it('loads the assigned approver, not the actor or recipient, with organization-scoped lookups', async () => {
+    const d = definition('approver_full_name');
+    const { fake, sqlQueries } = fixture([d], new Map<any, any[]>([
+      [lessonLearnedForms, [{ id: entityId, organizationId: org, approverId: userId }]],
+      [users, [{ id: userId, organizationId: org, fullName: 'Assigned Approver' }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, { eventType, entityId, actorId: '55555555-5555-4555-8555-555555555555' }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ name: 'Different Recipient', email: 'recipient@example.test' })[d.name]).toBe('Assigned Approver');
+    expect(sqlQueries[1].params).toContain(org);
+    expect(sqlQueries[1].params).toContain(entityId);
+    expect(sqlQueries[2].params).toContain(org);
+    expect(sqlQueries[2].params).toContain(userId);
+  });
+  it('uses the assigned identity from a trusted event snapshot without reloading the form', async () => {
+    const d = definition('approver_full_name');
+    const { fake, sqlQueries } = fixture([d], new Map<any, any[]>([
+      [users, [{ id: userId, organizationId: org, fullName: 'Snapshot Approver' }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, record: { id: entityId, organizationId: org, approverId: userId },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Snapshot Approver');
+    expect(sqlQueries).toHaveLength(2);
+  });
+  it('retrieves an omitted assignment when the event snapshot is partial', async () => {
+    const d = definition('approver_full_name');
+    const { fake } = fixture([d], new Map<any, any[]>([
+      [lessonLearnedForms, [{ id: entityId, organizationId: org, approverId: userId }]],
+      [users, [{ id: userId, organizationId: org, fullName: 'Assigned Approver' }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, record: { id: entityId, organizationId: org, title: 'Partial record' },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Assigned Approver');
+  });
+  it('keeps an explicit unassigned snapshot unassigned and uses its configured fallback', async () => {
+    const d = { ...definition('approver_full_name'), fallback: 'No approver assigned' };
+    const { fake, sqlQueries } = fixture([d], new Map<any, any[]>([
+      [lessonLearnedForms, [{ id: entityId, organizationId: org, approverId: userId }]],
+      [users, [{ id: userId, organizationId: org, fullName: 'Later assignment' }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, actorId: userId, record: { id: entityId, organizationId: org, approverId: null },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ name: 'Recipient', email: 'recipient@example.test' })[d.name]).toBe('No approver assigned');
+    expect(sqlQueries).toHaveLength(1);
+  });
+  it('does not expose a foreign-organization user name or trust a foreign snapshot', async () => {
+    const d = definition('approver_full_name');
+    const { fake } = fixture([d], new Map<any, any[]>([
+      [lessonLearnedForms, [{ id: entityId, organizationId: org, approverId: userId }]],
+      [users, [{ id: userId, organizationId: otherOrg, fullName: 'Foreign Approver' }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, record: { id: entityId, organizationId: otherOrg, approverId: userId },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Not available');
+  });
+  it('uses fallback for inactive definitions without querying assignment or users', async () => {
+    const d = { ...definition('approver_full_name', false), fallback: 'Review pending' };
+    const { fake, sqlQueries } = fixture([d]);
+    const render = await prepareCustomPlaceholderValues(fake, org, { eventType, entityId }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Review pending');
+    expect(sqlQueries).toHaveLength(1);
   });
 });

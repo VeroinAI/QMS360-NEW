@@ -374,7 +374,11 @@ function PlaceholderWizard({ initialWorkspace, draft, allEvents, drafts, local, 
           </div>}
 
           {step === 2 && src && <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">{src.origin === 'system' ? 'This draft can apply to registered events in this workspace. Actual system values depend on the event; missing values use the fallback.' : `${src.entityLabel} fields are scoped to events for that entity; configuration events are excluded.`}</p>
+            <p className="text-sm text-muted-foreground">{src.origin === 'system'
+              ? src.eventEntities === 'all'
+                ? 'This draft can apply to registered events in this workspace. Actual system values depend on the event; missing values use the fallback.'
+                : 'This source applies only to events for its associated record in this workspace. Unassigned or unavailable values use the configured fallback.'
+              : `${src.entityLabel} fields are scoped to events for that entity; configuration events are excluded.`}</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {(['all', 'selected'] as const).map((mode) => <label key={mode} className={`flex cursor-pointer gap-3 rounded-lg border p-3 ${state.applicability === mode ? 'border-primary bg-primary/5' : ''}`}>
                 <input type="radio" name="app" className="mt-1" checked={state.applicability === mode} data-testid={`radio-applicability-${mode}`} onChange={() => set({ applicability: mode })} />
