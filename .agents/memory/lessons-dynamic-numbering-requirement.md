@@ -7,4 +7,10 @@ Lessons Learned reference-number prefixes should support administrator-selected 
 
 **Why:** Business numbering requirements vary; a fixed text prefix cannot express the requested project and discipline values.
 
-**How to apply:** Treat this as a requested capability, not an implemented feature or an approved detailed design. Resolve fields against the project and discipline selected on the individual Lesson, not an arbitrary master-data row.
+**How to apply:** The user approved an Insert field picker with a master-record preview, initially for those two fields. Resolve fields against the project and discipline selected on the individual Lesson, not an arbitrary master-data row.
+
+Changing a prefix or its master values must not renumber existing Lessons. Keep the existing shared Lessons counter across projects and disciplines; do not introduce per-project counters implicitly. Discipline numbering uses the selected master Value, not its display label or an internal discipline identifier.
+
+**Why:** The user approved the proposed solution with existing-reference preservation, continuous numbering and explicit errors for missing required source values.
+
+**How to apply:** Preview must not allocate a number. Missing required master values must block issuance instead of silently dropping a segment. A change to the counter scope or existing-reference policy needs a separate user decision.

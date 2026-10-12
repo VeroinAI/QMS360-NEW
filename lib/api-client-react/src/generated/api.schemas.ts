@@ -1556,7 +1556,7 @@ export const NumberingPatternInputPosition = {
 } as const;
 
 export interface NumberingPatternInput {
-  /** @maxLength 20 */
+  /** @maxLength 200 */
   prefix: string;
   /** @maxLength 20 */
   suffix: string;
@@ -1573,6 +1573,18 @@ export interface NumberingPatternInput {
      * @maximum 1000000000000
      */
   startingNumber: number;
+}
+
+export interface LessonsNumberingPreviewInput {
+  pattern: NumberingPatternInput;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  projectId?: string;
+  disciplineValue?: string;
+}
+
+export interface LessonsNumberingPreview {
+  preview: string;
+  nextNumber: number;
 }
 
 export interface NumberingModuleConfig {

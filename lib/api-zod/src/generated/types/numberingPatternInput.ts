@@ -8,7 +8,7 @@
 import type { NumberingPatternInputPosition } from './numberingPatternInputPosition';
 
 export interface NumberingPatternInput {
-  /** @maxLength 20 */
+  /** @maxLength 200 */
   prefix: string;
   /** @maxLength 20 */
   suffix: string;

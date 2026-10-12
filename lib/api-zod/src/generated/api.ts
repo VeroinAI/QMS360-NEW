@@ -596,13 +596,50 @@ export const GetNumberingConfigResponse = zod.object({
 
 
 /**
+ * @summary Preview a Lessons reference using selected master records without issuing a number (admin)
+ */
+export const previewLessonsNumberingBodyPatternPrefixMax = 200;
+
+export const previewLessonsNumberingBodyPatternSuffixMax = 20;
+
+export const previewLessonsNumberingBodyPatternSeparatorMax = 3;
+
+export const previewLessonsNumberingBodyPatternPaddingMin = 0;
+export const previewLessonsNumberingBodyPatternPaddingMax = 12;
+
+export const previewLessonsNumberingBodyPatternStartingNumberMin = 0;
+export const previewLessonsNumberingBodyPatternStartingNumberMax = 1000000000000;
+
+export const previewLessonsNumberingBodyProjectIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const PreviewLessonsNumberingBody = zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string().max(previewLessonsNumberingBodyPatternPrefixMax),
+  "suffix": zod.string().max(previewLessonsNumberingBodyPatternSuffixMax),
+  "separator": zod.string().max(previewLessonsNumberingBodyPatternSeparatorMax),
+  "position": zod.enum(['after_prefix', 'after_suffix', 'before_prefix']),
+  "padding": zod.number().min(previewLessonsNumberingBodyPatternPaddingMin).max(previewLessonsNumberingBodyPatternPaddingMax),
+  "startingNumber": zod.number().min(previewLessonsNumberingBodyPatternStartingNumberMin).max(previewLessonsNumberingBodyPatternStartingNumberMax)
+}),
+  "projectId": zod.string().regex(previewLessonsNumberingBodyProjectIdRegExp).optional(),
+  "disciplineValue": zod.string().optional()
+})
+
+export const PreviewLessonsNumberingResponse = zod.object({
+  "preview": zod.string(),
+  "nextNumber": zod.number()
+})
+
+
+/**
  * @summary Save a module reference numbering pattern (admin)
  */
 export const UpdateNumberingPatternParams = zod.object({
   "module": zod.enum(['qaqc', 'lessons', 'audit'])
 })
 
-export const updateNumberingPatternBodyPrefixMax = 20;
+export const updateNumberingPatternBodyPrefixMax = 200;
 
 export const updateNumberingPatternBodySuffixMax = 20;
 

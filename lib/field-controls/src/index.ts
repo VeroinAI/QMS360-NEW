@@ -1,5 +1,6 @@
 export { plannedDate, datedActivities, auditPlanDateErrors, planActivityFieldValues, auditPlanReplayMatches, type DatedActivity } from "./audit-plan-dates";
 export * from "./audit-permissions";
+export * from "./reference-number-fields";
 export * from "./audit-plan-dates";
 // Shared registry of admin-controllable forms and fields per application.
 // This is the single source of truth for which form/field keys are valid in

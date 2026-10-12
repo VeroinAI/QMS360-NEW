@@ -8,6 +8,7 @@ import {
   UpdateUserEmailBody, UpdateUserEmailResponse,
   UpdateFieldSettingsBody, UpdateFieldSettingsResponse, UpdateNumberingPatternBody, UpdateNumberingPatternResponse, UpdateOrganizationSettingsBody,
   UpdateOrganizationSettingsResponse,
+  PreviewLessonsNumberingBody, PreviewLessonsNumberingResponse,
 } from "@workspace/api-zod";
 import { applicationAccess, businessUnits, db, moduleFieldSettings, organizations, organizationSettings, platformRoles, projects, users } from "@workspace/db";
 import { requireAdmin, requireAuth, requirePlatformRole } from "../middlewares/auth";
@@ -20,7 +21,9 @@ import {
   effectivePattern, formatReferenceNumber, getNumberingMap, isConfigured, NUMBERING_MODULES,
   resetNumberingPattern, saveNumberingPattern, type NumberingModule,
 } from "../lib/numbering";
-import { getPlatformEffectiveProjectScope, getRoleAssignmentProjectScope } from "../middlewares/rbac";
+import { getAuthorizedProjectScope, getPlatformEffectiveProjectScope, getRoleAssignmentProjectScope } from "../middlewares/rbac";
+import { projectNumberContext, referencePrefixError, ReferencePrefixError, resolveReferencePrefix } from "@workspace/field-controls";
+import { assertLovValue } from "../lib/lov";
 import { getDateFormat } from "@workspace/spreadsheet-dates";
 import { UpdatePlatformDateFormatBody, GetPlatformDateFormatResponse } from "@workspace/api-zod";
 import { GetPlatformAuditMemoDefaultsResponse, UpdatePlatformAuditMemoDefaultsBody } from "@workspace/api-zod";
@@ -584,6 +587,39 @@ router.get("/platform/numbering", requireAuth, async (req, res): Promise<void> =
   res.json(GetNumberingConfigResponse.parse({ modules }));
 });
 
+router.post("/platform/numbering/lessons/preview", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const parsed = PreviewLessonsNumberingBody.safeParse(req.body);
+  if (!parsed.success) { res.status(422).json({ error: parsed.error.issues[0]?.message ?? "Invalid preview" }); return; }
+  const { pattern, projectId, disciplineValue } = parsed.data;
+  if (!Number.isInteger(pattern.padding) || !Number.isInteger(pattern.startingNumber)) {
+    res.status(422).json({ error: "Padding and starting number must be whole numbers" }); return;
+  }
+  const organizationId = req.currentUser!.organizationId;
+  let customFields: Record<string, unknown> = {};
+  if (projectId) {
+    const scope = await getAuthorizedProjectScope(req, "lessons");
+    const [project] = await db.select().from(projects).where(and(
+      eq(projects.organizationId, organizationId), eq(projects.id, projectId),
+      isNull(projects.deletedAt), scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds),
+    )).limit(1);
+    if (!project) { res.status(404).json({ error: "Project not found in your Lessons project scope" }); return; }
+    customFields = project.customFields;
+  }
+  if (disciplineValue) await assertLovValue(db, organizationId, "disciplines", disciplineValue);
+  try {
+    const prefix = resolveReferencePrefix(pattern.prefix, projectNumberContext(customFields, disciplineValue));
+    const map = await getNumberingMap(organizationId);
+    const stored = map.lessons;
+    const nextNumber = stored && stored.nextNumber > stored.startingNumber ? stored.nextNumber : pattern.startingNumber;
+    res.json(PreviewLessonsNumberingResponse.parse({
+      nextNumber, preview: formatReferenceNumber({ ...pattern, prefix }, nextNumber),
+    }));
+  } catch (error) {
+    if (!(error instanceof ReferencePrefixError)) throw error;
+    res.status(422).json({ error: error.message });
+  }
+}));
+
 router.put("/platform/numbering/:module", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const module = String(req.params.module) as NumberingModule;
   if (!NUMBERING_MODULES.includes(module)) { res.status(404).json({ error: "Unknown module" }); return; }
@@ -594,6 +630,9 @@ router.put("/platform/numbering/:module", requireAuth, requireAdmin, async (req,
     res.status(422).json({ error: "Padding and starting number must be whole numbers" });
     return;
   }
+  const prefixError = module === "lessons" ? referencePrefixError(parsed.data.prefix)
+    : parsed.data.prefix.length > 20 ? "Prefix must be no longer than 20 characters" : null;
+  if (prefixError) { res.status(422).json({ error: prefixError }); return; }
   const pattern = await saveNumberingPattern(req.currentUser!.organizationId, module, parsed.data);
   res.json(UpdateNumberingPatternResponse.parse({
     pattern, configured: true, preview: formatReferenceNumber(pattern, pattern.nextNumber),

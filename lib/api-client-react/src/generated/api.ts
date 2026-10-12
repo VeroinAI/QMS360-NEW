@@ -185,6 +185,8 @@ import type {
   LessonPhotoIntentBody,
   LessonsEscalationReportJob,
   LessonsEscalationReportJobUpdate,
+  LessonsNumberingPreview,
+  LessonsNumberingPreviewInput,
   LessonsReferenceData,
   ListAuditAccessQueueParams,
   ListAuditDelegationsParams,
@@ -2291,6 +2293,77 @@ export function useGetNumberingConfig<TData = Awaited<ReturnType<typeof getNumbe
 
 
 
+
+export const getPreviewLessonsNumberingUrl = () => {
+
+
+
+
+  return `/api/platform/numbering/lessons/preview`
+}
+
+/**
+ * @summary Preview a Lessons reference using selected master records without issuing a number (admin)
+ */
+export const previewLessonsNumbering = async (lessonsNumberingPreviewInput: LessonsNumberingPreviewInput, options?: Parameters<typeof customFetch>[1]): Promise<LessonsNumberingPreview> => {
+
+  return customFetch<LessonsNumberingPreview>(getPreviewLessonsNumberingUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(lessonsNumberingPreviewInput)
+  }
+);}
+
+
+
+
+
+export const getPreviewLessonsNumberingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewLessonsNumbering>>, TError,{data: BodyType<LessonsNumberingPreviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewLessonsNumbering>>, TError,{data: BodyType<LessonsNumberingPreviewInput>}, TContext> => {
+
+const mutationKey = ['previewLessonsNumbering'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewLessonsNumbering>>, {data: BodyType<LessonsNumberingPreviewInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewLessonsNumbering(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewLessonsNumberingMutationResult = NonNullable<Awaited<ReturnType<typeof previewLessonsNumbering>>>
+    export type PreviewLessonsNumberingMutationBody = BodyType<LessonsNumberingPreviewInput>
+    export type PreviewLessonsNumberingMutationError = ErrorType<void>
+
+    /**
+ * @summary Preview a Lessons reference using selected master records without issuing a number (admin)
+ */
+export const usePreviewLessonsNumbering = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewLessonsNumbering>>, TError,{data: BodyType<LessonsNumberingPreviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewLessonsNumbering>>,
+        TError,
+        {data: BodyType<LessonsNumberingPreviewInput>},
+        TContext
+      > => {
+      return useMutation(getPreviewLessonsNumberingMutationOptions(options));
+    }
 
 export const getUpdateNumberingPatternUrl = (module: 'qaqc' | 'lessons' | 'audit',) => {
 

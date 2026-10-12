@@ -59,6 +59,7 @@ import {
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { allocateReferenceNumber } from "../lib/numbering";
+import { projectNumberContext, ReferencePrefixError } from "@workspace/field-controls";
 import { assertCanManageAssignmentScope, assertOwnerOrFull, assertProjectAccess, canManageAssignmentScope, getAppAdminScope, getAuthorizedFullProjectScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
@@ -654,7 +655,16 @@ router.post("/forms", asyncHandler(async (req, res) => {
   let created: typeof lessonLearnedForms.$inferSelect | undefined;
   for (let attempt = 0; attempt < 5 && !created; attempt++) {
     // Reference numbers come from the org's lessons numbering pattern (Admin Settings → Numbering).
-    const referenceNumber = await allocateReferenceNumber(user.organizationId, "lessons");
+    let referenceNumber: string;
+    try {
+      referenceNumber = await allocateReferenceNumber(user.organizationId, "lessons", projectNumberContext(project.customFields, body.disciplineId));
+    } catch (error) {
+      // Only master-field validation is a user error; infrastructure failures remain server errors.
+      if (error instanceof ReferencePrefixError) {
+        throw new HttpError(422, error.message);
+      }
+      throw error;
+    }
     try {
       [created] = await db.insert(lessonLearnedForms).values({
         organizationId: user.organizationId, projectId: body.projectId,

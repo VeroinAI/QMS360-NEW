@@ -342,6 +342,8 @@ export * from './lessonsEscalationReportJobReportKey';
 export * from './lessonsEscalationReportJobUpdate';
 export * from './lessonsEscalationReportJobUpdateFrequency';
 export * from './lessonsEscalationReportJobUpdateReportKey';
+export * from './lessonsNumberingPreview';
+export * from './lessonsNumberingPreviewInput';
 export * from './lessonsReferenceData';
 export * from './limitParameter';
 export * from './listAuditAccessQueueParams';

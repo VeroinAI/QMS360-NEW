@@ -1,5 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db, organizationSettings } from "@workspace/db";
+import { resolveReferencePrefix, type LessonNumberContext } from "@workspace/field-controls";
 
 /**
  * Per-module reference numbering. Patterns live in
@@ -102,18 +103,20 @@ async function ensureSettingsRow(tx: Tx, organizationId: string) {
  * Atomically allocates and returns the next reference number for the module,
  * advancing the stored counter. Creates the org settings row when missing.
  */
-export async function allocateReferenceNumber(organizationId: string, module: NumberingModule): Promise<string> {
+export async function allocateReferenceNumber(organizationId: string, module: NumberingModule, context?: LessonNumberContext): Promise<string> {
   return db.transaction(async (tx) => {
     const row = await ensureSettingsRow(tx, organizationId);
     const map = { ...((row.documentNumbering ?? {}) as NumberingMap) };
     const existing = map[module];
     const pattern = effectivePattern(map, module);
+    // Resolve before incrementing: missing master values never consume a number.
+    const resolved = module === "lessons" ? { ...pattern, prefix: resolveReferencePrefix(pattern.prefix, context) } : pattern;
     const issued = pattern.nextNumber;
     map[module] = { ...pattern, custom: existing?.custom, nextNumber: issued + 1 };
     await tx.update(organizationSettings)
       .set({ documentNumbering: map, updatedAt: new Date() })
       .where(eq(organizationSettings.id, row.id));
-    return formatReferenceNumber(pattern, issued);
+    return formatReferenceNumber(resolved, issued);
   });
 }
 
@@ -129,7 +132,9 @@ export async function saveNumberingPattern(
     // startingNumber only seeds a pattern that has never been used.
     const issuedBefore = existing && existing.nextNumber > existing.startingNumber;
     const nextNumber = issuedBefore ? existing.nextNumber : input.startingNumber;
-    const pattern: NumberingPattern = { ...input, nextNumber };
+    // Keep the original seed after issuance, otherwise increasing startingNumber
+    // can make a used counter look unused on a later edit.
+    const pattern: NumberingPattern = { ...input, startingNumber: issuedBefore ? existing.startingNumber : input.startingNumber, nextNumber };
     map[module] = { ...pattern, custom: true };
     await tx.update(organizationSettings)
       .set({ documentNumbering: map, updatedAt: new Date() })

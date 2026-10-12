@@ -3,6 +3,7 @@ import { getListRoleAssignmentProjectsQueryKey, useListRoleAssignmentProjects } 
 import { responseFieldLabel } from "@/lib/response-field-labels";
 import { useQueryClient } from '@tanstack/react-query';
 import { matchesWorkspaceUserSearch } from './workspace-user-search';
+import { NumberingForm } from './numbering-form';
 import { useLov } from '@/lib/use-lov';
 import { Link, Route, Switch, useLocation, useParams } from 'wouter';
 import {
@@ -16,11 +17,11 @@ import {
   useListAuditAccessQueue, useListAuditDelegations, useListAuditEscalationRules, useListAuditNotificationTemplates, useListAuditRoles, useListAuditUsers, useListAuditWorkspaceAuditLog,
   useListLessonsAccessQueue, useListLessonsAuditLog, useListLessonsDelegations, useListLessonsEscalationRules, useListLessonsNotificationTemplates, useListLessonsRoles, useListLessonsUsers,
   useListQaqcAccessQueue, useListQaqcAuditLog, useListQaqcDelegations, useListQaqcEscalationRules, useListQaqcNotificationTemplates, useListQaqcRoles, useListQaqcUsers,
-  useResetNumberingPattern, useRevokeAuditDelegation, useRevokeLessonsDelegation, useRevokeQaqcDelegation,
+  useRevokeAuditDelegation, useRevokeLessonsDelegation, useRevokeQaqcDelegation,
   useRemoveAuditUserRole, useRemoveLessonsUserRole, useRemoveQaqcUserRole,
   useSetUserTemporaryPassword,
   getListPlatformRolesQueryKey, useListPlatformRoles, useUpdateUserEmail, useUpdateUserPlatformRole,
-  useUpdateAuditEscalationRules, useUpdateAuditNotificationTemplate, useUpdateAuditRole, useUpdateNumberingPattern,
+  useUpdateAuditEscalationRules, useUpdateAuditNotificationTemplate, useUpdateAuditRole,
   useUpdateAuditAdminFieldControls, useUpdateAuditScheduleNumbering, useUpdateLessonsAdminFieldControls, useUpdateLessonsAiSettings, useUpdateLessonsEscalationRules, useUpdateLessonsNotificationTemplate, useUpdateLessonsRole,
   useUpdateQaqcAdminFieldControls, useUpdateQaqcAiSettings, useUpdateQaqcEscalationRules, useUpdateQaqcNotificationTemplate, useUpdateQaqcRole,
   useGetLessonsEscalationReportJob, useUpdateLessonsEscalationReportJob, useRunLessonsEscalationReportJob,
@@ -42,7 +43,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { CockpitPage } from '../cockpit';
-import type { AISettings, AuditScheduleNumbering, EscalationRule, FieldControlSetting, NotificationTemplate, NumberingModuleConfig, Permission, Role, RoleAssignment } from '@workspace/api-client-react';
+import type { AISettings, AuditScheduleNumbering, EscalationRule, FieldControlSetting, NotificationTemplate, Permission, Role, RoleAssignment } from '@workspace/api-client-react';
 import { AlertCircle, ArrowLeft, Bell, Sparkles, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Plus, Save, Search, Settings2, ShieldCheck, SlidersHorizontal, Trash2, Users } from 'lucide-react';
 import { fieldControlRegistry } from '@/lib/field-controls';
 import { userFacingApiError } from '@/lib/api-error';
@@ -552,43 +553,6 @@ function AuditLog({ app }: { app: AppKey }) {
   return <><Card className="mb-5"><CardHeader><CardTitle>Audit log filters</CardTitle><CardDescription>Read-only, immutable administrative history.</CardDescription></CardHeader><CardContent className="grid gap-3 md:grid-cols-5"><Input type="date" value={draft.from} onChange={e => setDraft({ ...draft, from: e.target.value })} /><Input type="date" value={draft.to} onChange={e => setDraft({ ...draft, to: e.target.value })} /><Input placeholder="Actor ID" value={draft.actorId} onChange={e => setDraft({ ...draft, actorId: e.target.value })} /><Input placeholder="Action" value={draft.action} onChange={e => setDraft({ ...draft, action: e.target.value })} /><Button onClick={() => { setPage(1); setFilters(Object.fromEntries(Object.entries(draft).filter(([,v]) => v))); }}><Search className="mr-2 h-4 w-4" />Apply</Button></CardContent></Card><PageState loading={api.log.isLoading} error={api.log.error} empty={!entries.length} onRetry={api.log.refetch}><Card><CardContent className="pt-6"><Table><TableHeader><TableRow><TableHead>Date & time</TableHead><TableHead>Actor</TableHead><TableHead>Action</TableHead><TableHead>Entity</TableHead><TableHead>IP address</TableHead></TableRow></TableHeader><TableBody>{entries.map(e => <TableRow key={e.id}><TableCell>{formatDateTime(e.occurredAt)}</TableCell><TableCell>{e.actorId}</TableCell><TableCell><Badge variant="outline">{e.action}</Badge></TableCell><TableCell>{e.entityType} · {e.entityId}</TableCell><TableCell>{e.ipAddress ?? '—'}</TableCell></TableRow>)}</TableBody></Table><div className="mt-5 flex items-center justify-between"><p className="text-sm text-muted-foreground">Page {page} · {api.log.data?.total ?? 0} entries</p><div className="flex gap-2"><Button size="icon" variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)}><ChevronLeft /></Button><Button size="icon" variant="outline" disabled={page * 20 >= (api.log.data?.total ?? 0)} onClick={() => setPage(p => p + 1)}><ChevronRight /></Button></div></div></CardContent></Card></PageState></>;
 }
 
-type NumberingPosition = 'after_prefix' | 'after_suffix' | 'before_prefix';
-interface NumberingFormState { prefix: string; suffix: string; separator: string; position: NumberingPosition; padding: number; startingNumber: number; }
-
-// Mirrors the server formatter in api-server/src/lib/numbering.ts — keep in sync.
-function formatNumberPreview(p: NumberingFormState, n: number) {
-  const running = String(n).padStart(p.padding, '0');
-  const parts = p.position === 'before_prefix' ? [running, p.prefix, p.suffix]
-    : p.position === 'after_suffix' ? [p.prefix, p.suffix, running]
-    : [p.prefix, running, p.suffix];
-  return parts.filter(part => part !== '').join(p.separator);
-}
-
-function NumberingForm({ app, module, onSaved }: { app: AppKey; module: NumberingModuleConfig; onSaved: (title: string) => void }) {
-  const [form, setForm] = useState<NumberingFormState>({
-    prefix: module.pattern.prefix, suffix: module.pattern.suffix, separator: module.pattern.separator,
-    position: module.pattern.position, padding: module.pattern.padding, startingNumber: module.pattern.startingNumber,
-  });
-  const update = useUpdateNumberingPattern(); const reset = useResetNumberingPattern();
-  const set = <K extends keyof NumberingFormState>(key: K, value: NumberingFormState[K]) => setForm(f => ({ ...f, [key]: value }));
-  const busy = update.isPending || reset.isPending;
-  const fail = (error: unknown) => onSaved(`Could not save: ${error instanceof Error ? error.message : 'unknown error'}`);
-  return <Card><CardHeader><div className="flex items-center justify-between"><div><CardTitle>Reference numbers</CardTitle><CardDescription>Pattern used when new {names[app]} records are created. Existing records keep their numbers.</CardDescription></div><Badge variant={module.configured ? 'default' : 'secondary'}>{module.configured ? 'Custom' : 'Default'}</Badge></div></CardHeader><CardContent className="space-y-4">
-    <div className="grid gap-3 sm:grid-cols-3">
-      <div><Label>Prefix</Label><Input maxLength={20} value={form.prefix} onChange={e => set('prefix', e.target.value)} /></div>
-      <div><Label>Suffix</Label><Input maxLength={20} value={form.suffix} onChange={e => set('suffix', e.target.value)} /></div>
-      <div><Label>Separator</Label><Input maxLength={3} value={form.separator} onChange={e => set('separator', e.target.value)} /></div>
-    </div>
-    <div className="grid gap-3 sm:grid-cols-3">
-      <div><Label>Running number position</Label><Select value={form.position} onValueChange={v => set('position', v as NumberingPosition)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="after_prefix">After prefix</SelectItem><SelectItem value="after_suffix">After suffix</SelectItem><SelectItem value="before_prefix">Before prefix</SelectItem></SelectContent></Select></div>
-      <div><Label>Padding (digits)</Label><Input type="number" min={0} max={12} value={form.padding} onChange={e => set('padding', Math.max(0, Math.min(12, Number(e.target.value) || 0)))} /></div>
-      <div><Label>Starting number</Label><Input type="number" min={0} value={form.startingNumber} onChange={e => set('startingNumber', Math.max(0, Number(e.target.value) || 0))} /></div>
-    </div>
-    <div className="rounded-lg border bg-muted/40 px-4 py-3"><p className="text-xs uppercase tracking-widest text-muted-foreground">Next reference number</p><p className="mt-1 font-mono text-lg font-semibold">{formatNumberPreview(form, Math.max(module.pattern.nextNumber, form.startingNumber))}</p><p className="mt-1 text-xs text-muted-foreground">The counter continues from {module.pattern.nextNumber}; the starting number applies only before the first number is issued.</p></div>
-    <div className="flex gap-2"><Button disabled={busy} onClick={() => update.mutate({ module: app, data: form }, { onSuccess: () => onSaved('Numbering pattern saved'), onError: fail })}><Save className="mr-2 h-4 w-4" />Save pattern</Button>{module.configured && <Button variant="outline" disabled={busy} onClick={() => reset.mutate({ module: app }, { onSuccess: () => onSaved('Numbering reset to default'), onError: fail })}>Reset to default</Button>}</div>
-  </CardContent></Card>;
-}
-
 function NumberingTab({ app }: { app: AppKey }) {
   const config = useGetNumberingConfig();
   const { toast } = useToast();
@@ -596,7 +560,7 @@ function NumberingTab({ app }: { app: AppKey }) {
   if (config.isLoading) return <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Loading numbering settings…</CardContent></Card>;
   const module = config.data?.modules?.[app];
   if (!module) return <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Numbering settings unavailable.</CardContent></Card>;
-  return <div className="space-y-5"><NumberingForm key={`${app}-${config.dataUpdatedAt}`} app={app} module={module} onSaved={notify} />
+  return <div className="space-y-5"><NumberingForm key={`${app}-${config.dataUpdatedAt}`} app={app} displayName={names[app]} module={module} onSaved={notify} />
     {app === 'audit' && <AuditScheduleNumberingSettings />}
   </div>;
 }

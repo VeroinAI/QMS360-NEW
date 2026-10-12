@@ -415,6 +415,15 @@ paths:
         "200": {description: Reference data snapshot, content: {application/json: {schema: {$ref: "#/components/schemas/ReferenceDataSnapshot"}}}}
   /platform/numbering:
     get: {operationId: getNumberingConfig, tags: [platform], summary: Get per-module reference numbering patterns with next-number previews, responses: {"200": {description: Numbering config, content: {application/json: {schema: {$ref: "#/components/schemas/NumberingConfig"}}}}}}
+  /platform/numbering/lessons/preview:
+    post:
+      operationId: previewLessonsNumbering
+      tags: [platform]
+      summary: Preview a Lessons reference using selected master records without issuing a number (admin)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsNumberingPreviewInput"}}}}
+      responses:
+        "200": {description: Resolved preview, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsNumberingPreview"}}}}
+        "422": {description: Invalid pattern or missing source value}
   /platform/numbering/{module}:
     put:
       operationId: updateNumberingPattern
@@ -3104,12 +3113,25 @@ components:
       type: object
       required: [prefix, suffix, separator, position, padding, startingNumber]
       properties:
-        prefix: {type: string, maxLength: 20}
+        prefix: {type: string, maxLength: 200}
         suffix: {type: string, maxLength: 20}
         separator: {type: string, maxLength: 3}
         position: {type: string, enum: [after_prefix, after_suffix, before_prefix]}
         padding: {type: number, minimum: 0, maximum: 12}
         startingNumber: {type: number, minimum: 0, maximum: 1000000000000}
+    LessonsNumberingPreviewInput:
+      type: object
+      required: [pattern]
+      properties:
+        pattern: {$ref: "#/components/schemas/NumberingPatternInput"}
+        projectId: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+        disciplineValue: {type: string}
+    LessonsNumberingPreview:
+      type: object
+      required: [preview, nextNumber]
+      properties:
+        preview: {type: string}
+        nextNumber: {type: number}
     NumberingModuleConfig:
       type: object
       required: [pattern, configured, preview]
