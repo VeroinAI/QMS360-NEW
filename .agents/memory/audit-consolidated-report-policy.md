@@ -38,3 +38,18 @@ Do not rely on PowerPoint's automatic text fitting to contain dynamic programme 
 **Why:** A downloaded report showed ISO timestamps and multiline activity details overlapping adjacent rows despite automatic fitting being enabled; template boxes were designed for short time ranges.
 
 **How to apply:** Budget explicit lines and font sizes within each box, display readable saved wall-clock dates, and paginate excess text without dropping recorded information.
+
+The supplied Audit Report Conditions workbook governs missing PPTX mappings
+only. Preserve already populated report values and keep PDF/JSON exports,
+workspace forms, stored records and authorization unchanged.
+
+**Why:** On 2026-10-12 the user requested mapping the remaining “To be mapped”
+values using the workbook, explicitly allowing unresolved values to remain and
+requiring nothing else to change.
+
+**How to apply:** Use selected owners/leads, actual project master values,
+attachments, checklist records and saved Additional Documents progress.
+Role grants do not identify a specific reviewer/approver; do not infer names or
+signatures. Keep the template's grading slide (14) unchanged and omit its
+priority-actions slide (16) for the time being, as instructed in the workbook.
+Do not invent weighted progress totals or treat Plan/Actual as percentages.

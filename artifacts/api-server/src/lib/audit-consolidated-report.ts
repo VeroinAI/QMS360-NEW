@@ -1,5 +1,6 @@
 import { formatDate, formatDateInTimeZone } from "@workspace/spreadsheet-dates";
 import { auditReportDetailGroups, datedActivities, plannedDate, type AuditReportDetailsData } from "@workspace/field-controls";
+import { fillAuditPptxWorkbookFields } from "./audit-pptx-workbook-fields";
 
 type Row = Record<string, any>;
 export type ReportSectionData = {
@@ -13,6 +14,7 @@ export function buildConsolidatedAuditReport(input: {
   audit: Row; plan?: Row | null; schedule?: Row | null; project?: Row | null;
   legacyFindings: Row[]; cars: Row[]; evidence: Row[]; names: Map<string, string>;
   roleNames: Map<string, string>; timeZone?: string;
+  pptxWorkbookMappings?: boolean;
 }): ReportSectionData[] {
   const { audit, plan, project, names, roleNames, evidence, legacyFindings, cars } = input;
   const details: AuditReportDetailsData = audit.reportDetails ?? { values: {}, rows: {} };
@@ -216,5 +218,14 @@ export function buildConsolidatedAuditReport(input: {
       ...evidence.map(file => ["Evidence", value(file.fileName), "Retained in Audit workspace"]),
       ...cars.map(car => ["Non-conformity / CAPA response", value(findings.find(f => f.id === car.findingId)?.reference), "Linked in CAR register"])] });
   attachments.notes.push("Photographs are embedded in the PDF when available. Other supporting files remain linked in the Audit workspace; listing a document is not a claim that it has been signed or approved.");
+  if (input.pptxWorkbookMappings) {
+    const findingReferences = new Map<string, { reference: string; grade: string }>();
+    for (const finding of findings) {
+      const reference = { reference: finding.reference, grade: finding.grade };
+      if (finding.id) findingReferences.set(finding.id, reference);
+      if (finding.findingId) findingReferences.set(finding.findingId, reference);
+    }
+    fillAuditPptxWorkbookFields(sections, { ...input, findingReferences });
+  }
   return sections;
 }

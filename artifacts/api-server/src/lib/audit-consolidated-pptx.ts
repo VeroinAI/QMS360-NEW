@@ -111,6 +111,7 @@ async function template() {
 /** Edit only slide data in the original package; retain masters, branding and geometry. */
 export async function renderConsolidatedAuditPptx(input: {
   sections: ReportSectionData[]; photos?: Map<string, Uint8Array>;
+  skipPriorityActions?: boolean;
 }): Promise<Buffer> {
   const files = unzipSync(await template());
   const mappings = auditPptxMappings(input.sections);
@@ -132,6 +133,7 @@ export async function renderConsolidatedAuditPptx(input: {
   const tableStarts: Record<number, number> = { 11: 2, 12: 2 };
   const section = (key: string) => input.sections.find(s => s.key === key);
   for (let slideNumber = 1; slideNumber <= 18; slideNumber++) {
+    if (slideNumber === 16 && input.skipPriorityActions) continue;
     const path = `ppt/slides/slide${slideNumber}.xml`;
     const base = parse(files[path]!);
     const tables = elements(base, A, "tbl");

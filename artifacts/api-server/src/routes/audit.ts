@@ -3800,7 +3800,7 @@ router.get("/reports/schedule", asyncHandler(async (req, res) => {
   const rows = scoped.map(row => scheduleDto(row));
   if (!maybeCsv(req, res, "annual-audit-schedule", rows)) res.json(paginated(rows, rows.length, 1, Math.max(1, rows.length)));
 }));
-async function consolidatedReport(req: Request) {
+async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
   const [audit] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!audit) throw new HttpError(404, "Audit not found");
   if (!auditIsComplete(audit.workflowState)) throw new HttpError(409, "Mark the audit Complete before viewing or downloading its report.");
@@ -3817,11 +3817,19 @@ async function consolidatedReport(req: Request) {
     active(auditEvidenceFiles, actor(req).organizationId), inArray(auditEvidenceFiles.recordType, ["audit", "audit_execution"]),
     eq(auditEvidenceFiles.recordId, audit.id), eq(auditEvidenceFiles.status, "stored")));
   const mappedAudit = auditDto(audit);
+  if (pptxWorkbookMappings) {
+    mappedAudit.checklist = mappedAudit.checklist.map((item: AnyRow) => ({
+      ...item, findingId: item.findingId ?? findings.find(finding =>
+        (finding.evidence as AnyRow)?.sourceChecklistItemId === item.id)?.id,
+    }));
+  }
   const meta = plan ? planMeta(plan) : null;
   // The generic Plan DTO uses epoch placeholders for missing dates and aliases
   // Audit Types as legacy criteria. Neither is factual consolidated report data.
   const mappedPlan = plan ? {
     ...planDto(plan),
+    // Do not turn the DTO's legacy first-team-member fallback into a report preparer.
+    ...(pptxWorkbookMappings ? { pptxPreparedById: meta?.leadAuditorId ?? null } : {}),
     startDateTime: meta?.startDateTime || plan.auditDate || null,
     endDateTime: meta?.endDateTime || plan.auditDate || null,
     activities: planDto(plan).activities,
@@ -3829,6 +3837,7 @@ async function consolidatedReport(req: Request) {
       : !meta?.auditTypes ? parseJson(plan.criteria, plan.criteria ? [plan.criteria] : []) : [],
   } : null;
   const userIds = [...new Set([
+    ...(pptxWorkbookMappings && schedule?.ownerId ? [schedule.ownerId] : []),
     mappedPlan?.leadAuditorId, ...(mappedPlan?.teamMemberIds ?? []), ...(mappedPlan?.processOwnerIds ?? []),
     ...(mappedPlan?.activities ?? []).flatMap(row => row.auditeeIds ?? [row.auditeeId]),
     ...(auditMeta(audit).openingMeeting?.attendees ?? []), ...(auditMeta(audit).closingMeeting?.attendees ?? []), ...cars.map(c => c.ownerId),
@@ -3839,8 +3848,9 @@ async function consolidatedReport(req: Request) {
   const roleRows = roleIds.length ? await db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles).where(and(
     active(auditWorkspaceRoles, actor(req).organizationId), inArray(auditWorkspaceRoles.id, roleIds))) : [];
   const sections = buildConsolidatedAuditReport({
+    pptxWorkbookMappings,
     audit: { ...mappedAudit, referenceNumber: audit.referenceNumber }, plan: mappedPlan, project,
-    schedule: schedule ? { ...scheduleMeta(schedule), department: scheduleMeta(schedule).departmentProject } : null,
+    schedule: schedule ? { ...scheduleMeta(schedule), department: scheduleMeta(schedule).departmentProject, ownerId: schedule.ownerId } : null,
     legacyFindings: findings.filter(row => !(row.evidence as AnyRow)?.sourceChecklistItemId).map(findingDto), cars: cars.map(carDto), evidence,
     names: new Map(nameRows.map(u => [u.id, [u.name, u.designation].filter(Boolean).join(" / ")])),
     roleNames: new Map(roleRows.map(r => [r.id, r.name])),
@@ -3856,7 +3866,7 @@ router.get("/audits/:id/report", asyncHandler(async (req, res) => {
   ]))) res.json({ ...payload, sections });
 }));
 router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
-  const report = await consolidatedReport(req);
+  const report = await consolidatedReport(req, true);
   // The legacy DTO defaults a missing due date to creation time. That is not
   // a real deadline; this export must use the stored date/approved extension.
   const tracker = report.sections.find(s => s.key === "corrective-actions")?.tables[0];
@@ -3894,7 +3904,7 @@ router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
       throw new HttpError(502, `Could not load photograph "${photo.fileName}". Please retry the PowerPoint download.`);
     }
   }
-  const bytes = await renderConsolidatedAuditPptx({ sections: report.sections, photos: images });
+  const bytes = await renderConsolidatedAuditPptx({ sections: report.sections, photos: images, skipPriorityActions: true });
   res.setHeader("Content-Type", AUDIT_PPTX_MIME);
   res.setHeader("Cache-Control", "private, no-store");
   res.setHeader("Content-Disposition", `attachment; filename="audit-report-${report.audit.id}.pptx"`);
