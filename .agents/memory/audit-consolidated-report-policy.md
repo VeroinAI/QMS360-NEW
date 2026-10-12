@@ -53,3 +53,13 @@ Role grants do not identify a specific reviewer/approver; do not infer names or
 signatures. Keep the template's grading slide (14) unchanged and omit its
 priority-actions slide (16) for the time being, as instructed in the workbook.
 Do not invent weighted progress totals or treat Plan/Actual as percentages.
+
+When inspecting report mappings outside the HTTP endpoint, resolve identity
+references inside serialized workflow metadata as well as UUID columns.
+
+**Why:** A raw-column-only inspection can falsely report a selected lead or
+participant as unmapped even when the production user record exists.
+
+**How to apply:** Reuse the report DTOs and tenant-scoped identity resolution.
+Distinguish genuinely missing values from empty template rows and continuation
+slots when giving a user a mapping inventory.

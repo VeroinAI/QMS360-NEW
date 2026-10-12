@@ -106,3 +106,17 @@ mtime_ms = 1791466895548
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/25b33d1b-ba29-4656-83f4-4d8e7bafa914/effca9ba-1f5f-46f6-acbb-89dba13901c6"
 storage_version_token = "1791466905548677"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "kTNfTwk46g4SeosQZmbaV"
+uri = "file://.local/exports/QMS360_Audit_PPT_Remaining_Mappings.xlsx"
+type = "table"
+title = "QMS360 Audit PPT — Remaining Field Mappings"
+description = "62 fields to review, with slide numbers and a blank mapping column. Unused template rows and photo slots are listed separately."
+logical_id = "4e2a36d1-e470-45f7-a089-93cf333582b4"
+content_hash = "sha256:25cbe32e3ce3e597576ffc13d45053ac3cdd42d99218d75f478beed33856f5c5"
+size = 12792
+mtime_ms = 1791786804767
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/4e2a36d1-e470-45f7-a089-93cf333582b4/6e144c57-5703-4702-97bf-0677dc0326b9"
+storage_version_token = "1791786813236453"
+content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
