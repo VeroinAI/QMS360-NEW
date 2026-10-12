@@ -16,3 +16,16 @@ The user subsequently explicitly requested Audit activity roles to default from 
 **Why:** This is a deliberate extension of the earlier “save only” choice, limited to Audit Plan point 15; it is not authorization to change role grants or dropdown visibility.
 
 **How to apply:** Use Audit role references as editable activity defaults. Schedule assignments do not assign organization roles to their users. Preserve saved Plan overrides on reload and background changes; allow explicit reapplication of current master or schedule defaults.
+
+## Activities application ownership
+
+The Activities master previously mapped to QA/QC belongs to QMS Audit. Move
+the existing group, rather than duplicating or renaming its values. Leave
+unrelated masters and intentionally global groups unchanged.
+
+**Why:** On 2026-10-12 the user reported that the QA/QC mapping made the
+Activities editor offer QA/QC roles instead of QMS Audit roles.
+
+**How to apply:** Keep group IDs, keys, labels, remarks and existing plan
+references. Preserve old QA/QC assignments for explicit administrator
+replacement; do not guess equivalent Audit roles or alter permission grants.

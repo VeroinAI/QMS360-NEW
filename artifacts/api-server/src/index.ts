@@ -5,6 +5,7 @@ import { startEscalationScheduler } from "./lib/escalation";
 import { startEmailQueueScheduler } from "./lib/email-queue";
 import { runLessonsEscalationDigest } from "./lib/lessons-escalation-digest";
 import { runQaqcReportingAutomation } from "./lib/qaqc-reporting-automation";
+import { moveAuditActivitiesMaster } from "./lib/audit-activities-master-scope";
 
 const rawPort = process.env["PORT"];
 
@@ -18,6 +19,12 @@ const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+// Apply the scoped, idempotent correction in both preview and published environments.
+const movedActivityGroups = await moveAuditActivitiesMaster();
+if (movedActivityGroups.length) {
+  logger.info({ groupsUpdated: movedActivityGroups.length }, "Activities master moved from QA/QC to Audit");
 }
 
 app.listen(port, (err) => {
