@@ -85,7 +85,7 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
     senderName: input.sender?.name ?? null,
     subject: message.subject,
     bodyText: message.text,
-    bodyHtml: input.ruleTemplate?.bodyTemplate?.trim() ? null : input.html ?? null,
+    bodyHtml: message.html ?? (input.ruleTemplate?.bodyTemplate?.trim() ? null : input.html ?? null),
     context,
     deliveryStatus: "queued",
     attemptCount: 0,

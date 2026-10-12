@@ -12511,7 +12511,8 @@ export const ListEmailRulesResponseItem = zod.object({
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(listEmailRulesResponseRecipientConfigSubjectTemplateMax).optional(),
-  "bodyTemplate": zod.string().max(listEmailRulesResponseRecipientConfigBodyTemplateMax).optional()
+  "bodyTemplate": zod.string().max(listEmailRulesResponseRecipientConfigBodyTemplateMax).optional(),
+  "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -12543,7 +12544,8 @@ export const CreateEmailRuleBody = zod.object({
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(createEmailRuleBodyRecipientConfigSubjectTemplateMax).optional(),
-  "bodyTemplate": zod.string().max(createEmailRuleBodyRecipientConfigBodyTemplateMax).optional()
+  "bodyTemplate": zod.string().max(createEmailRuleBodyRecipientConfigBodyTemplateMax).optional(),
+  "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -12572,7 +12574,8 @@ export const CreateEmailRuleResponse = zod.object({
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(createEmailRuleResponseRecipientConfigSubjectTemplateMax).optional(),
-  "bodyTemplate": zod.string().max(createEmailRuleResponseRecipientConfigBodyTemplateMax).optional()
+  "bodyTemplate": zod.string().max(createEmailRuleResponseRecipientConfigBodyTemplateMax).optional(),
+  "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -12607,7 +12610,8 @@ export const UpdateEmailRuleBody = zod.object({
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(updateEmailRuleBodyRecipientConfigSubjectTemplateMax).optional(),
-  "bodyTemplate": zod.string().max(updateEmailRuleBodyRecipientConfigBodyTemplateMax).optional()
+  "bodyTemplate": zod.string().max(updateEmailRuleBodyRecipientConfigBodyTemplateMax).optional(),
+  "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -12636,7 +12640,8 @@ export const UpdateEmailRuleResponse = zod.object({
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(updateEmailRuleResponseRecipientConfigSubjectTemplateMax).optional(),
-  "bodyTemplate": zod.string().max(updateEmailRuleResponseRecipientConfigBodyTemplateMax).optional()
+  "bodyTemplate": zod.string().max(updateEmailRuleResponseRecipientConfigBodyTemplateMax).optional(),
+  "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -12677,7 +12682,8 @@ export const ReorderEmailRulesResponseItem = zod.object({
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(reorderEmailRulesResponseRecipientConfigSubjectTemplateMax).optional(),
-  "bodyTemplate": zod.string().max(reorderEmailRulesResponseRecipientConfigBodyTemplateMax).optional()
+  "bodyTemplate": zod.string().max(reorderEmailRulesResponseRecipientConfigBodyTemplateMax).optional(),
+  "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),
@@ -12909,7 +12915,8 @@ export const SimulateEmailRuleResponse = zod.object({
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigSubjectTemplateMax).optional(),
-  "bodyTemplate": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigBodyTemplateMax).optional()
+  "bodyTemplate": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigBodyTemplateMax).optional(),
+  "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
   "receiverName": zod.string().nullish(),

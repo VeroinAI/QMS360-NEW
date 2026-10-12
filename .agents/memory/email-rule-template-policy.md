@@ -2,9 +2,9 @@
 name: Email Rule template policy
 description: Per-rule content customization and approval-recipient boundaries
 ---
-Email Rule create/edit must allow administrators to save a subject and plain-text body template separately for each rule. Use the supplied Audit email document as editable examples, not automatic replacement of existing rules.
+Email Rule create/edit must allow administrators to save a subject and body template separately for each rule. The user explicitly extended the original plain-text body requirement on 2026-10-12 to allow selected text to be bold, italic, underlined and colored, with formatting preserved in sent emails. Use the supplied Audit email document as editable examples, not automatic replacement of existing rules.
 
-**Why:** The user asked for per-rule email body details using their Audit email examples; they did not request changes to workflow recipients or approval sequencing.
+**Why:** The user asked for per-rule email body details and subsequently authorized rich body formatting; they did not request changes to workflow recipients or approval sequencing.
 
 **How to apply:** Blank template fields retain default content. Personalize supported placeholders from the event and recipient; explicitly mark unavailable values. Preserve the existing SMTP From, queue/retry behavior and workflow attachments.
 

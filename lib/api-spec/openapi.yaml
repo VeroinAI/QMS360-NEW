@@ -2331,6 +2331,10 @@ components:
         senderMode: {type: string, enum: [form_creator, approving_user]}
         subjectTemplate: {type: string, maxLength: 250}
         bodyTemplate: {type: string, maxLength: 20000}
+        bodyRichText:
+          type: [object, "null"]
+          additionalProperties: true
+          description: Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
     EmailRuleRoleOption:
       type: object
       required: [id, name]

@@ -1,13 +1,13 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { EmailPlaceholderDefinition } from '@workspace/api-client-react';
-import { auditEmailTemplateExamples, emailTemplateFields, renderEmailRuleTemplate, type EmailRuleTemplate } from '@workspace/field-controls';
+import { auditEmailTemplateExamples, emailTemplateFields, renderEmailRuleTemplate, type EmailRuleTemplate, type EmailRichDocument } from '@workspace/field-controls';
 import { AlertTriangle, Braces } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { definitionMatchesEvent, findSource, formatToken, sampleValue } from './email-placeholder-model';
 import { insertEmailPlaceholder } from './insert-email-placeholder';
+import { EmailRichBodyEditor, type EmailRichBodyEditorHandle } from './email-rich-body-editor';
 
 /** Saved definitions (active or inactive) that can resolve on this exact event. */
 export function compatibleDefinitions(defs: EmailPlaceholderDefinition[], eventType: string) {
@@ -26,7 +26,7 @@ export function EmailRuleTemplateEditor({ template, onChange, eventType = '', de
   const [example, setExample] = useState<keyof typeof auditEmailTemplateExamples>('request');
   type TemplateField = 'subjectTemplate' | 'bodyTemplate';
   const subjectRef = useRef<HTMLInputElement>(null);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const bodyRef = useRef<EmailRichBodyEditorHandle>(null);
   const lastFocusedField = useRef<TemplateField | null>(null);
   const pendingInsertion = useRef<{ field: TemplateField; value: string; caret: number; scrollTop: number } | null>(null);
   const [insertionError, setInsertionError] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export function EmailRuleTemplateEditor({ template, onChange, eventType = '', de
   useLayoutEffect(() => {
     const pending = pendingInsertion.current;
     if (!pending || template[pending.field] !== pending.value) return;
-    const element = pending.field === 'subjectTemplate' ? subjectRef.current : bodyRef.current;
+    const element = subjectRef.current;
     pendingInsertion.current = null;
     if (!element) return;
     element.focus({ preventScroll: true });
@@ -45,7 +45,13 @@ export function EmailRuleTemplateEditor({ template, onChange, eventType = '', de
 
   const insertPlaceholder = (token: string) => {
     const field = lastFocusedField.current ?? 'bodyTemplate';
-    const element = field === 'subjectTemplate' ? subjectRef.current : bodyRef.current;
+    if (field === 'bodyTemplate') {
+      const result = bodyRef.current?.insertPlaceholder(token) ?? { ok: false as const, error: 'The body editor is still loading.' };
+      setInsertionError(result.ok ? null : result.error);
+      lastFocusedField.current = 'bodyTemplate';
+      return;
+    }
+    const element = subjectRef.current;
     const text = template[field] ?? '';
     const start = lastFocusedField.current ? element?.selectionStart ?? text.length : text.length;
     const end = lastFocusedField.current ? element?.selectionEnd ?? start : start;
@@ -86,7 +92,7 @@ export function EmailRuleTemplateEditor({ template, onChange, eventType = '', de
         lastFocusedField.current = null;
         pendingInsertion.current = null;
         setInsertionError(null);
-        onChange({ subjectTemplate: selected.subjectTemplate, bodyTemplate: selected.bodyTemplate });
+        onChange({ subjectTemplate: selected.subjectTemplate, bodyTemplate: selected.bodyTemplate, bodyRichText: null });
       }}>Use example</Button>
     </div>
     <p className="text-xs text-muted-foreground">Examples are adapted from the supplied Audit email document. “Use example” replaces the draft subject and body; you can edit them before saving.</p>
@@ -97,11 +103,12 @@ export function EmailRuleTemplateEditor({ template, onChange, eventType = '', de
         onChange={event => { setInsertionError(null); onChange({ subjectTemplate: event.target.value }); }} placeholder="{audit_schedule_name} – Approval Required" />
     </div>
     <div className="space-y-2">
-      <Label htmlFor="rule-email-body">Email body</Label>
-      <Textarea ref={bodyRef} id="rule-email-body" rows={10} maxLength={20000} value={template.bodyTemplate ?? ''}
+      <Label htmlFor="rule-email-body" onClick={() => bodyRef.current?.focus()}>Email body</Label>
+      <EmailRichBodyEditor ref={bodyRef} value={template.bodyRichText as EmailRichDocument | null | undefined} plain={template.bodyTemplate ?? ''}
         onFocus={() => { lastFocusedField.current = 'bodyTemplate'; }}
-        onChange={event => { setInsertionError(null); onChange({ bodyTemplate: event.target.value }); }} placeholder="Dear {recipient_name},&#10;&#10;Enter the email body for this rule…" />
-      <p className="text-xs text-muted-foreground">Plain text; line breaks are preserved. Missing record values appear as “Not available”. Click in the subject or body, then choose a placeholder to insert at the cursor or replace selected text.</p>
+        onError={setInsertionError}
+        onChange={next => onChange(next)} placeholder={'Dear {recipient_name},\n\nEnter the email body for this rule…'} />
+      <p className="text-xs text-muted-foreground">Select text and use the toolbar for bold, italic, underline or color; formatting is kept in the sent email. Line breaks are preserved. Missing record values appear as “Not available”. Click in the subject or body, then choose a placeholder to insert at the cursor or replace selected text.</p>
     </div>
     {inactiveReferenced.length > 0 && <div role="alert" data-testid="alert-inactive-placeholders" className="rounded-md border border-amber-500/50 bg-amber-50/70 p-3 text-sm dark:bg-amber-950/20">
       <p className="flex items-center gap-1.5 font-medium"><AlertTriangle className="h-4 w-4" />Inactive custom placeholders in this template</p>
@@ -129,7 +136,9 @@ export function EmailRuleTemplateEditor({ template, onChange, eventType = '', de
       <summary className="cursor-pointer font-medium">Preview with sample values</summary>
       <p className="my-2 text-xs text-muted-foreground">Illustration only. Actual values come from the recipient and event record, where available. Inactive custom placeholders show their fallback.</p>
       <p className="break-words font-semibold">{preview.subject}</p>
-      <p className="mt-3 whitespace-pre-wrap break-words">{preview.text}</p>
+      {preview.html
+        ? <div className="email-rich-preview mt-3 break-words" data-testid="text-preview-body" dangerouslySetInnerHTML={{ __html: preview.html }} />
+        : <p className="mt-3 whitespace-pre-wrap break-words" data-testid="text-preview-body">{preview.text}</p>}
     </details>
   </section>;
 }

@@ -57,7 +57,9 @@ export default defineConfig({
         'attached_assets',
       ),
     },
-    dedupe: ['react', 'react-dom'],
+    // ProseMirror checks node/Fragment identity with instanceof. Other artifacts
+    // pin older model versions, so all QMS360 editor imports must use its copy.
+    dedupe: ['react', 'react-dom', 'prosemirror-model'],
   },
   root: path.resolve(import.meta.dirname),
   build: {

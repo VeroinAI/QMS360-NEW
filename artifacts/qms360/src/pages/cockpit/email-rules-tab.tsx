@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { unknownEmailTemplateFields } from '@workspace/field-controls';
+import { unknownEmailTemplateFields, type EmailRichDocument } from '@workspace/field-controls';
 import { EmailRuleTemplateEditor, compatibleDefinitions } from './email-rule-template-editor';
 
 function message(error: unknown) {
@@ -313,6 +313,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
     projectId: rule?.recipientConfig?.projectIds?.[0] ?? '',
     subjectTemplate: rule?.recipientConfig?.subjectTemplate ?? '',
     bodyTemplate: rule?.recipientConfig?.bodyTemplate ?? '',
+    bodyRichText: (rule?.recipientConfig?.bodyRichText ?? null) as EmailRichDocument | null,
   });
 
   const set = (patch: Partial<typeof draft>) => setDraft(d => ({ ...d, ...patch }));
@@ -343,6 +344,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
       recipientConfig: {
         subjectTemplate: draft.subjectTemplate,
         bodyTemplate: draft.bodyTemplate,
+        bodyRichText: draft.bodyRichText,
         ...(draft.receiverMode === 'linked_approver' ? { senderMode: 'form_creator' as const } : {}),
         ...(draft.receiverMode === 'linked_creator' ? { senderMode: 'approving_user' as const } : {}),
         ...(draft.receiverMode === 'role' ? { roleNames: [...new Set(draft.roleNames)] } : {}),

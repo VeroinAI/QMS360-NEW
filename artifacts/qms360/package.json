@@ -78,8 +78,12 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@tiptap/extension-text-style": "^3.31.4",
+    "@tiptap/react": "^3.31.4",
+    "@tiptap/starter-kit": "^3.31.4",
     "@workspace/field-controls": "workspace:*",
     "exceljs": "^4.4.0",
+    "prosemirror-model": "1.25.12",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

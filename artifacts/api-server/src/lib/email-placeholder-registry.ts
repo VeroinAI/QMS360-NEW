@@ -3,7 +3,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db, emailEventRules, organizationSettings } from '@workspace/db';
 import {
   buildDraft, definitionMatchesEvent, draftToState, eventsForWorkspace, isValidDraft,
-  unknownEmailTemplateFields, validateStep, type EventOption, type PlaceholderDefinition, type WizardState,
+  unknownEmailTemplateFields, emailRuleBodyText, validateStep, type EventOption, type PlaceholderDefinition, type WizardState,
 } from '@workspace/field-controls';
 import { HttpError, writeAuditLog } from './workspace';
 
@@ -24,8 +24,8 @@ export function compatiblePlaceholderNames(definitions: PlaceholderDefinition[],
   // Inactive references remain valid in saved rules; delivery uses their explicit fallback.
   return definitions.filter(d => definitionMatchesEvent(d, eventType)).map(d => d.name);
 }
-export async function validateCustomRuleTemplate(database: typeof db, org: string, eventType: string, template: { subjectTemplate?: string; bodyTemplate?: string }) {
-  const content = `${template.subjectTemplate ?? ''}\n${template.bodyTemplate ?? ''}`;
+export async function validateCustomRuleTemplate(database: typeof db, org: string, eventType: string, template: { subjectTemplate?: string; bodyTemplate?: string; bodyRichText?: Record<string, unknown> | null }) {
+  const content = `${template.subjectTemplate ?? ''}\n${emailRuleBodyText(template)}`;
   if (!unknownEmailTemplateFields(content).length) return;
   const definitions = await listPlaceholderDefinitions(database, org);
   const unknown = unknownEmailTemplateFields(content, compatiblePlaceholderNames(definitions, eventType));
@@ -43,8 +43,8 @@ export function definitionInput(d: PlaceholderDefinition) {
 export function registryBrandingUpdate(definitions: PlaceholderDefinition[]) {
   return sql`${organizationSettings.branding} || jsonb_build_object('emailPlaceholders', ${JSON.stringify(definitions)}::jsonb)`;
 }
-export function ruleReferencesPlaceholder(rule: { recipientConfig: { subjectTemplate?: string; bodyTemplate?: string } | null }, name: string) {
-  const tokens = [...`${rule.recipientConfig?.subjectTemplate ?? ''}\n${rule.recipientConfig?.bodyTemplate ?? ''}`.matchAll(/\{\{?\s*([^{}]+?)\s*\}?\}/g)];
+export function ruleReferencesPlaceholder(rule: { recipientConfig: { subjectTemplate?: string; bodyTemplate?: string; bodyRichText?: Record<string, unknown> | null } | null }, name: string) {
+  const tokens = [...`${rule.recipientConfig?.subjectTemplate ?? ''}\n${rule.recipientConfig ? emailRuleBodyText(rule.recipientConfig) : ''}`.matchAll(/\{\{?\s*([^{}]+?)\s*\}?\}/g)];
   return tokens.some(match => match[1].trim().toLowerCase().replace(/[\s/]+/g, '_') === name);
 }
 export async function mutatePlaceholderRegistry(org: string, actorId: string, mutation: RegistryMutation, events: EventOption[]) {

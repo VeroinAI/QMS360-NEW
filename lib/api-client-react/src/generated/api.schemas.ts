@@ -361,6 +361,12 @@ export const EmailRecipientConfigSenderMode = {
   approving_user: 'approving_user',
 } as const;
 
+/**
+ * Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
+ * @nullable
+ */
+export type EmailRecipientConfigBodyRichText = { [key: string]: unknown } | null;
+
 export interface EmailRecipientConfig {
   roleName?: string;
   roleNames?: string[];
@@ -370,6 +376,11 @@ export interface EmailRecipientConfig {
   subjectTemplate?: string;
   /** @maxLength 20000 */
   bodyTemplate?: string;
+  /**
+     * Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
+     * @nullable
+     */
+  bodyRichText?: EmailRecipientConfigBodyRichText;
 }
 
 export interface EmailEventRule {

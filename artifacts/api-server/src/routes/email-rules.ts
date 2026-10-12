@@ -10,6 +10,7 @@ import { asyncHandler, HttpError, writeAuditLog } from "../lib/workspace";
 import { resolveEmailRule } from "../lib/email-rules";
 import { listPlaceholderDefinitions, mutatePlaceholderRegistry, validateCustomRuleTemplate } from "../lib/email-placeholder-registry";
 import { CreateEmailPlaceholderBody, UpdateEmailPlaceholderBody, SetEmailPlaceholderActivationBody } from "@workspace/api-zod";
+import { emailRichTextToPlain } from "@workspace/field-controls";
 
 const router = Router();
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,6 +48,15 @@ const knownEvents = [
 function bodyValue(value: unknown): string | null { return typeof value === "string" ? value.trim() || null : null; }
 async function validate(input: any, organizationId: string) {
   const template = input.recipientConfig ?? {};
+  if (template.bodyRichText != null) {
+    try {
+      // Derive plain text server-side so placeholder validation cannot be bypassed
+      // by submitting inconsistent plain and formatted bodies.
+      template.bodyTemplate = emailRichTextToPlain(template.bodyRichText);
+    } catch (error) {
+      throw new HttpError(422, error instanceof Error ? error.message : "Invalid email body formatting");
+    }
+  }
   if (/[\r\n]/.test(template.subjectTemplate ?? "")) throw new HttpError(422, "Email subject must be a single line");
   await validateCustomRuleTemplate(db, organizationId, input.eventType, template);
   if (!input || typeof input.name !== "string" || !input.name.trim() || typeof input.eventType !== "string" || !/^[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+$/.test(input.eventType)) throw new HttpError(422, "Invalid rule name or canonical eventType");

@@ -6,7 +6,7 @@ import {
   qualityAssessmentBriefs, documentGovernanceLogEntries, users,
   auditLogEntries, lessonsAuditLogEntries, auditAuditLogEntries,
 } from '@workspace/db';
-import { definitionMatchesEvent, findSource, unknownEmailTemplateFields, type FormatKey, type PlaceholderDefinition } from '@workspace/field-controls';
+import { definitionMatchesEvent, findSource, unknownEmailTemplateFields, emailRuleBodyText, type FormatKey, type PlaceholderDefinition } from '@workspace/field-controls';
 import { listPlaceholderDefinitions, ruleReferencesPlaceholder } from './email-placeholder-registry';
 
 export const EMAIL_PLACEHOLDER_TABLES: Record<string, PgTable> = {
@@ -55,8 +55,8 @@ export function renderCustomPlaceholderValues(definitions: PlaceholderDefinition
     d.name, d.active ? formatPlaceholderValue(getValue(d), d.format, d.fallback) : d.fallback,
   ]));
 }
-export async function prepareCustomPlaceholderValues(database: typeof db, organizationId: string, event: PlaceholderEventContext, template: { subjectTemplate?: string; bodyTemplate?: string }) {
-  if (!unknownEmailTemplateFields(`${template.subjectTemplate ?? ''}\n${template.bodyTemplate ?? ''}`).length) {
+export async function prepareCustomPlaceholderValues(database: typeof db, organizationId: string, event: PlaceholderEventContext, template: { subjectTemplate?: string; bodyTemplate?: string; bodyRichText?: Record<string, unknown> | null }) {
+  if (!unknownEmailTemplateFields(`${template.subjectTemplate ?? ''}\n${emailRuleBodyText(template)}`).length) {
     return (_recipient: { name?: string | null; email: string }): Record<string, string> => ({});
   }
   const definitions = (await listPlaceholderDefinitions(database, organizationId))

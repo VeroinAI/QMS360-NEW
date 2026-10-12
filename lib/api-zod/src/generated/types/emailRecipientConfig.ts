@@ -5,6 +5,7 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { EmailRecipientConfigBodyRichText } from './emailRecipientConfigBodyRichText';
 import type { EmailRecipientConfigSenderMode } from './emailRecipientConfigSenderMode';
 
 export interface EmailRecipientConfig {
@@ -16,4 +17,9 @@ export interface EmailRecipientConfig {
   subjectTemplate?: string;
   /** @maxLength 20000 */
   bodyTemplate?: string;
+  /**
+     * Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
+     * @nullable
+     */
+  bodyRichText?: EmailRecipientConfigBodyRichText;
 }

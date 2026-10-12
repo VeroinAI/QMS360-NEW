@@ -1,4 +1,9 @@
-export type EmailRuleTemplate = { subjectTemplate?: string; bodyTemplate?: string };
+import { emailRichTextToPlain, renderEmailRichText, type EmailRichDocument } from "./email-rich-text";
+export type EmailRuleTemplate = { subjectTemplate?: string; bodyTemplate?: string; bodyRichText?: EmailRichDocument | Record<string, unknown> | null };
+/** JSON from API/storage is validated before being used as a document. */
+export function emailRuleBodyText(template: Pick<EmailRuleTemplate, "bodyTemplate" | "bodyRichText">) {
+  return template.bodyRichText != null ? emailRichTextToPlain(template.bodyRichText) : template.bodyTemplate ?? "";
+}
 export const emailTemplateFields = [
   "recipient_name", "recipient_email", "actor_name", "creator_name", "system_name",
   "record_reference", "record_name", "audit_name", "audit_schedule_name",
@@ -25,13 +30,18 @@ export function renderEmailRuleTemplate(
   defaults: { subject: string; text: string },
   values: Record<string, unknown>,
 ) {
-  const render = (value: string) => value.replace(tokenPattern, (_match, token: string) => {
+  const resolve = (token: string) => {
     const replacement = values[fieldKey(token)];
     return replacement == null || replacement === "" ? "Not available" : String(replacement);
-  });
+  };
+  const render = (value: string) => value.replace(tokenPattern, (_match, token: string) => resolve(token));
+  const body = template ? emailRuleBodyText(template) : "";
+  const rich = template?.bodyRichText && body.trim()
+    ? renderEmailRichText(template.bodyRichText, resolve) : undefined;
   return {
     subject: template?.subjectTemplate?.trim() ? render(template.subjectTemplate).replace(/[\r\n]+/g, " ") : defaults.subject,
-    text: template?.bodyTemplate?.trim() ? render(template.bodyTemplate) : defaults.text,
+    text: rich?.text ?? (body.trim() ? render(body) : defaults.text),
+    ...(rich ? { html: rich.html } : {}),
   };
 }
 export const auditEmailTemplateExamples = {

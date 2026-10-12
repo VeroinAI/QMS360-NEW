@@ -188,7 +188,7 @@ export async function dispatchEmailRule(event: AuditEvent, options: {
       sender: result.sender ?? undefined,
       ruleTemplate: result.rule.recipientConfig,
       placeholderEvent: { eventType: result.rule.eventType, entityId: event.entityId, actorId: event.actorId, record: event.record },
-      templateValues: result.rule.recipientConfig?.subjectTemplate || result.rule.recipientConfig?.bodyTemplate
+      templateValues: result.rule.recipientConfig?.subjectTemplate || result.rule.recipientConfig?.bodyTemplate || result.rule.recipientConfig?.bodyRichText
         ? await emailTemplateContext(db, event) : undefined,
       subject: `QMS360: ${event.entityType.replaceAll("_", " ")} ${event.action.replaceAll("_", " ")}`,
       text: `A ${event.entityType.replaceAll("_", " ")} record was ${event.action.replaceAll("_", " ")} in QMS360.${event.entityId ? `\n\nRecord reference: ${event.entityId}` : ""}`,
@@ -267,7 +267,7 @@ export async function queueAuditApprovalEmail(
     text: input.text,
     ruleTemplate: rule?.recipientConfig,
     placeholderEvent: { eventType, entityId: input.entityId, actorId: input.actorId, record: input.record },
-    templateValues: rule?.recipientConfig?.subjectTemplate || rule?.recipientConfig?.bodyTemplate
+    templateValues: rule?.recipientConfig?.subjectTemplate || rule?.recipientConfig?.bodyTemplate || rule?.recipientConfig?.bodyRichText
       ? await emailTemplateContext(database, { ...input, values: input.templateValues }) : undefined,
     attachments: input.attachments,
     context: {
