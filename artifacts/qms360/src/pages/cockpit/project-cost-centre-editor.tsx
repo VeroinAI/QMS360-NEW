@@ -28,7 +28,7 @@ export function ProjectCostCentreEditor({ record, onSaved, onPendingChange }: {
       <Input id="project-cost-centre" value={value} maxLength={100} disabled={update.isPending}
         onChange={event => { setValue(event.target.value); update.reset(); }}
         placeholder="Enter the project's cost center" data-testid="input-project-cost-centre" />
-      <p className="mt-2 text-xs text-muted-foreground">QMS360-managed cost center for Lessons Learned numbering. Leave blank and save to clear. Other project details remain maintained in Drona.</p>
+      <p className="mt-2 text-xs text-muted-foreground">QMS360-managed cost center for Lessons Learned numbering. Leave blank and save to clear. Other project details and their source ownership remain unchanged.</p>
     </div>
     {update.isError && <p role="alert" className="text-sm text-destructive">{update.error instanceof Error ? update.error.message : 'Cost center could not be saved. Your entry has been retained; try again.'}</p>}
     <Button type="submit" disabled={!changed || update.isPending} data-testid="button-save-project-cost-centre">

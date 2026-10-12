@@ -23,15 +23,12 @@ function timestampIso(value: Date | string, field: string): string {
   return date.toISOString();
 }
 
-/** Shared read/write boundary: only saved Drona projects inside current tenant/project access. */
+/** Shared read/write boundary: all saved projects inside current tenant/project access. */
 async function projectMasterWhere(input: ProjectMasterInput) {
   const metadata = await db.execute(sql`SELECT to_regclass('shared.drona_project_links') IS NOT NULL AS available`);
   const linkMetadataAvailable = (metadata.rows[0] as { available: boolean }).available;
   const linkWhere = sql`l.organization_id = p.organization_id AND l.project_id = p.id
     ${input.environment ? sql`AND l.environment_key = ${input.environment}` : sql``}`;
-  const transferred = linkMetadataAvailable
-    ? sql`(p.source = 'drona' OR EXISTS (SELECT 1 FROM shared.drona_project_links l WHERE ${linkWhere}))`
-    : sql`p.source = 'drona'`;
   const search = input.search?.trim().toLowerCase() ?? "";
   const matches = search
     ? sql`AND (strpos(lower(concat_ws(' ', p.code, p.name, p.location,
@@ -40,7 +37,6 @@ async function projectMasterWhere(input: ProjectMasterInput) {
           WHERE ${linkWhere} AND strpos(l.external_project_id::text, ${search}) > 0)` : sql``})`
     : sql``;
   const where = sql`p.organization_id = ${input.organizationId}::uuid AND p.deleted_at IS NULL
-    AND ${transferred}
     ${input.scope.unrestricted ? sql`` : input.scope.projectIds.length
       ? sql`AND p.id IN (${sql.join(input.scope.projectIds.map(id => sql`${id}::uuid`), sql`, `)})`
       : sql`AND false`}

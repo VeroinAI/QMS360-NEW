@@ -14,3 +14,9 @@ Changing a prefix or its master values must not renumber existing Lessons. Keep 
 **Why:** The user approved the proposed solution with existing-reference preservation, continuous numbering and explicit errors for missing required source values.
 
 **How to apply:** Preview must not allocate a number. Missing required master values must block issuance instead of silently dropping a segment. A change to the counter scope or existing-reference policy needs a separate user decision.
+
+Project Master must include authorized local projects as well as Drona projects. Only the QMS360-owned Cost Center may be edited from this screen; other master fields and source ownership stay unchanged.
+
+**Why:** The user approved including local projects because legitimate Lessons projects otherwise had no place to maintain the Cost Center needed for numbering.
+
+**How to apply:** Drona link metadata is optional display context, not a prerequisite for listing projects or editing Cost Center. Preserve tenant boundaries and existing project-access restrictions on both reads and writes.

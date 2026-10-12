@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ListDronaProjectMasterResponse, UpdateDronaProjectCostCentreResponse } from "@workspace/api-zod";
+import { PgDialect } from "drizzle-orm/pg-core";
 
 const { execute } = vi.hoisted(() => ({ execute: vi.fn() }));
 vi.mock("@workspace/db", () => ({ db: { execute } }));
@@ -14,11 +15,11 @@ const input: ProjectMasterInput = {
 const projectId = "00000000-0000-4000-8000-000000000002";
 const iso = "2026-10-09T06:30:00.000Z";
 
-function mockList(createdAt: unknown, updatedAt: unknown, linkedAt: unknown = iso, available = true) {
+function mockList(createdAt: unknown, updatedAt: unknown, linkedAt: unknown = iso, available = true, source = "drona") {
   execute.mockResolvedValueOnce({ rows: [{ available }] })
     .mockResolvedValueOnce({ rows: [{
       id: projectId, code: "P001", name: "Project", location: null, status: "active",
-      costCentre: "CC01", recordSource: "drona", externalId: "123", businessUnit: null,
+      costCentre: "CC01", recordSource: source, externalId: source === "drona" ? "123" : null, businessUnit: null,
       createdAt, updatedAt,
       dronaLinks: available ? [{ externalProjectId: "123", environment: "test", linkedAt }] : [],
     }] })
@@ -80,5 +81,71 @@ describe("Project Master timestamp serialization", () => {
     execute.mockResolvedValueOnce({ rows: [{ available: true }] })
       .mockResolvedValueOnce({ rows: [] });
     expect(await saveDronaProjectCostCentre(input, projectId, null)).toBeNull();
+  });
+});
+
+describe("local and Drona Project Master access", () => {
+  const dialect = new PgDialect();
+  const statements = () => execute.mock.calls.map(([query]) => dialect.sqlToQuery(query));
+
+  it.each([false, true])("includes local projects regardless of Drona metadata availability (%s)", async available => {
+    mockList(iso, iso, iso, available, "local");
+    const result = await readDronaProjectMaster({ ...input, search: "Alpha" });
+    expect(result.items[0].recordSource).toBe("local");
+    expect(result.linkMetadataAvailable).toBe(available);
+    expect(ListDronaProjectMasterResponse.safeParse(result).success).toBe(true);
+    for (const query of statements().slice(1)) {
+      const where = query.sql.slice(query.sql.lastIndexOf("WHERE p.organization_id"));
+      expect(where).not.toMatch(/AND\s*\(?p\.source\s*=\s*'drona'/);
+      expect(query.params).toContain(input.organizationId);
+      expect(query.params).toContain("alpha");
+      expect(where).toContain("p.deleted_at IS NULL");
+    }
+  });
+
+  it("retains restricted project IDs for list and count queries", async () => {
+    mockList(iso, iso, iso, false, "local");
+    await readDronaProjectMaster({ ...input, scope: { unrestricted: false, projectIds: [projectId] } });
+    for (const query of statements().slice(1)) {
+      expect(query.sql).toContain("AND p.id IN");
+      expect(query.params).toContain(projectId);
+      expect(query.params).toContain(input.organizationId);
+    }
+  });
+
+  it("empty project scope denies all instead of broadening access", async () => {
+    execute.mockResolvedValueOnce({ rows: [{ available: false }] })
+      .mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ total: 0 }] });
+    await readDronaProjectMaster({ ...input, scope: { unrestricted: false, projectIds: [] } });
+    for (const query of statements().slice(1)) expect(query.sql).toContain("AND false");
+  });
+
+  it("writes Cost Center for local records without touching their source or unrelated metadata", async () => {
+    execute.mockResolvedValueOnce({ rows: [{ available: false }] })
+      .mockResolvedValueOnce({ rows: [{ id: projectId, costCentre: "CC-LOCAL", updatedAt: iso }] });
+    expect(await saveDronaProjectCostCentre({ ...input, scope: { unrestricted: false, projectIds: [projectId] } }, projectId, "CC-LOCAL"))
+      .toMatchObject({ id: projectId, costCentre: "CC-LOCAL" });
+    const query = statements()[1];
+    expect(query.sql).not.toContain("p.source = 'drona'");
+    expect(query.sql).toContain("(p.custom_fields - 'cost_centre') || jsonb_build_object");
+    expect(query.sql).toContain("AND p.id IN");
+    expect(query.sql).toContain("p.deleted_at IS NULL");
+    expect(query.sql).not.toMatch(/SET\s+(?:source|name|code)\s*=/);
+    expect(query.params).toEqual(expect.arrayContaining([input.organizationId, projectId, "CC-LOCAL"]));
+  });
+
+  it("Cost Center writes remain denied for empty scopes", async () => {
+    execute.mockResolvedValueOnce({ rows: [{ available: false }] }).mockResolvedValueOnce({ rows: [] });
+    expect(await saveDronaProjectCostCentre({ ...input, scope: { unrestricted: false, projectIds: [] } }, projectId, null)).toBeNull();
+    expect(statements()[1].sql).toContain("AND false");
+  });
+
+  it("Drona link display still uses the selected environment without filtering out local projects", async () => {
+    mockList(iso, iso);
+    await readDronaProjectMaster({ ...input, environment: "dev" });
+    const query = statements()[1];
+    expect(query.sql).toContain("l.environment_key =");
+    expect(query.params).toContain("dev");
+    expect(query.sql.slice(query.sql.lastIndexOf("WHERE p.organization_id"))).not.toContain("p.source = 'drona'");
   });
 });

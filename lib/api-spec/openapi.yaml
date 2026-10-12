@@ -243,7 +243,7 @@ paths:
     get:
       operationId: listDronaProjectMaster
       tags: [integrations]
-      summary: Read transferred Drona projects within existing administrator project scope
+      summary: Read local and Drona projects within existing administrator project scope
       security: [{bearerAuth: []}]
       parameters:
         - {$ref: "#/components/parameters/Page"}
@@ -270,7 +270,7 @@ paths:
     patch:
       operationId: updateDronaProjectCostCentre
       tags: [integrations]
-      summary: Set or clear only the QMS cost center of a saved Drona project
+      summary: Set or clear only the QMS cost center of an authorized saved project
       security: [{bearerAuth: []}]
       parameters:
         - name: projectId

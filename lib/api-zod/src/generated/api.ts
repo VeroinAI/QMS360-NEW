@@ -310,7 +310,7 @@ export const ListBusinessUnitsResponse = zod.object({
 
 
 /**
- * @summary Read transferred Drona projects within existing administrator project scope
+ * @summary Read local and Drona projects within existing administrator project scope
  */
 export const listDronaProjectMasterQueryPageDefault = 1;
 
@@ -354,7 +354,7 @@ export const ListDronaProjectMasterResponse = zod.object({
 
 
 /**
- * @summary Set or clear only the QMS cost center of a saved Drona project
+ * @summary Set or clear only the QMS cost center of an authorized saved project
  */
 export const updateDronaProjectCostCentrePathProjectIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
 

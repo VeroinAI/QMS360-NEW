@@ -1391,7 +1391,7 @@ export const getListDronaProjectMasterUrl = (params?: ListDronaProjectMasterPara
 }
 
 /**
- * @summary Read transferred Drona projects within existing administrator project scope
+ * @summary Read local and Drona projects within existing administrator project scope
  */
 export const listDronaProjectMaster = async (params?: ListDronaProjectMasterParams, options?: Parameters<typeof customFetch>[1]): Promise<ListDronaProjectMaster200> => {
 
@@ -1438,7 +1438,7 @@ export type ListDronaProjectMasterQueryError = ErrorType<void>
 
 
 /**
- * @summary Read transferred Drona projects within existing administrator project scope
+ * @summary Read local and Drona projects within existing administrator project scope
  */
 
 export function useListDronaProjectMaster<TData = Awaited<ReturnType<typeof listDronaProjectMaster>>, TError = ErrorType<void>>(
@@ -1468,7 +1468,7 @@ export const getUpdateDronaProjectCostCentreUrl = (projectId: string,) => {
 }
 
 /**
- * @summary Set or clear only the QMS cost center of a saved Drona project
+ * @summary Set or clear only the QMS cost center of an authorized saved project
  */
 export const updateDronaProjectCostCentre = async (projectId: string,
     projectCostCentreInput: ProjectCostCentreInput, options?: Parameters<typeof customFetch>[1]): Promise<ProjectCostCentreResult> => {
@@ -1518,7 +1518,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateDronaProjectCostCentreMutationError = ErrorType<void>
 
     /**
- * @summary Set or clear only the QMS cost center of a saved Drona project
+ * @summary Set or clear only the QMS cost center of an authorized saved project
  */
 export const useUpdateDronaProjectCostCentre = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDronaProjectCostCentre>>, TError,{projectId: string;data: BodyType<ProjectCostCentreInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
