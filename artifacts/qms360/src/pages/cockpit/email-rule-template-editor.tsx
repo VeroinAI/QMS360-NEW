@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { EmailPlaceholderDefinition } from '@workspace/api-client-react';
 import { auditEmailTemplateExamples, emailTemplateFields, renderEmailRuleTemplate, type EmailRuleTemplate } from '@workspace/field-controls';
 import { AlertTriangle, Braces } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { definitionMatchesEvent, findSource, formatToken, sampleValue } from './email-placeholder-model';
+import { insertEmailPlaceholder } from './insert-email-placeholder';
 
 /** Saved definitions (active or inactive) that can resolve on this exact event. */
 export function compatibleDefinitions(defs: EmailPlaceholderDefinition[], eventType: string) {
@@ -23,6 +24,42 @@ export function EmailRuleTemplateEditor({ template, onChange, eventType = '', de
   eventType?: string; definitions?: EmailPlaceholderDefinition[]; definitionsLoading?: boolean; definitionsError?: boolean;
 }) {
   const [example, setExample] = useState<keyof typeof auditEmailTemplateExamples>('request');
+  type TemplateField = 'subjectTemplate' | 'bodyTemplate';
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const lastFocusedField = useRef<TemplateField | null>(null);
+  const pendingInsertion = useRef<{ field: TemplateField; value: string; caret: number; scrollTop: number } | null>(null);
+  const [insertionError, setInsertionError] = useState<string | null>(null);
+
+  // Restore focus and caret only after React has applied the controlled value.
+  useLayoutEffect(() => {
+    const pending = pendingInsertion.current;
+    if (!pending || template[pending.field] !== pending.value) return;
+    const element = pending.field === 'subjectTemplate' ? subjectRef.current : bodyRef.current;
+    pendingInsertion.current = null;
+    if (!element) return;
+    element.focus({ preventScroll: true });
+    element.setSelectionRange(pending.caret, pending.caret);
+    element.scrollTop = pending.scrollTop;
+  });
+
+  const insertPlaceholder = (token: string) => {
+    const field = lastFocusedField.current ?? 'bodyTemplate';
+    const element = field === 'subjectTemplate' ? subjectRef.current : bodyRef.current;
+    const text = template[field] ?? '';
+    const start = lastFocusedField.current ? element?.selectionStart ?? text.length : text.length;
+    const end = lastFocusedField.current ? element?.selectionEnd ?? start : start;
+    const maxLength = field === 'subjectTemplate' ? 250 : 20000;
+    const inserted = insertEmailPlaceholder(text, token, start, end, maxLength);
+    if (!inserted) {
+      setInsertionError(`The email ${field === 'subjectTemplate' ? 'subject' : 'body'} cannot exceed ${maxLength.toLocaleString()} characters. Shorten it or select text to replace.`);
+      return;
+    }
+    setInsertionError(null);
+    pendingInsertion.current = { field, ...inserted, scrollTop: element?.scrollTop ?? 0 };
+    lastFocusedField.current = field;
+    onChange({ [field]: inserted.value });
+  };
   const compatible = compatibleDefinitions(definitions, eventType);
   const active = compatible.filter((d) => d.active);
   const refs = referencedNames(`${template.subjectTemplate ?? ''}\n${template.bodyTemplate ?? ''}`);
@@ -46,30 +83,35 @@ export function EmailRuleTemplateEditor({ template, onChange, eventType = '', de
       </select>
       <Button type="button" size="sm" variant="outline" onClick={() => {
         const selected = auditEmailTemplateExamples[example];
+        lastFocusedField.current = null;
+        pendingInsertion.current = null;
+        setInsertionError(null);
         onChange({ subjectTemplate: selected.subjectTemplate, bodyTemplate: selected.bodyTemplate });
       }}>Use example</Button>
     </div>
     <p className="text-xs text-muted-foreground">Examples are adapted from the supplied Audit email document. “Use example” replaces the draft subject and body; you can edit them before saving.</p>
     <div className="space-y-2">
       <Label htmlFor="rule-email-subject">Email subject</Label>
-      <Input id="rule-email-subject" maxLength={250} value={template.subjectTemplate ?? ''}
-        onChange={event => onChange({ subjectTemplate: event.target.value })} placeholder="{audit_schedule_name} – Approval Required" />
+      <Input ref={subjectRef} id="rule-email-subject" maxLength={250} value={template.subjectTemplate ?? ''}
+        onFocus={() => { lastFocusedField.current = 'subjectTemplate'; }}
+        onChange={event => { setInsertionError(null); onChange({ subjectTemplate: event.target.value }); }} placeholder="{audit_schedule_name} – Approval Required" />
     </div>
     <div className="space-y-2">
       <Label htmlFor="rule-email-body">Email body</Label>
-      <Textarea id="rule-email-body" rows={10} maxLength={20000} value={template.bodyTemplate ?? ''}
-        onChange={event => onChange({ bodyTemplate: event.target.value })} placeholder="Dear {recipient_name},&#10;&#10;Enter the email body for this rule…" />
-      <p className="text-xs text-muted-foreground">Plain text; line breaks are preserved. Missing record values appear as “Not available”. Placeholders can be typed into the subject too.</p>
+      <Textarea ref={bodyRef} id="rule-email-body" rows={10} maxLength={20000} value={template.bodyTemplate ?? ''}
+        onFocus={() => { lastFocusedField.current = 'bodyTemplate'; }}
+        onChange={event => { setInsertionError(null); onChange({ bodyTemplate: event.target.value }); }} placeholder="Dear {recipient_name},&#10;&#10;Enter the email body for this rule…" />
+      <p className="text-xs text-muted-foreground">Plain text; line breaks are preserved. Missing record values appear as “Not available”. Click in the subject or body, then choose a placeholder to insert at the cursor or replace selected text.</p>
     </div>
     {inactiveReferenced.length > 0 && <div role="alert" data-testid="alert-inactive-placeholders" className="rounded-md border border-amber-500/50 bg-amber-50/70 p-3 text-sm dark:bg-amber-950/20">
       <p className="flex items-center gap-1.5 font-medium"><AlertTriangle className="h-4 w-4" />Inactive custom placeholders in this template</p>
       <ul className="mt-1 space-y-0.5 text-xs">{inactiveReferenced.map((d) => <li key={d.id}><code>{formatToken(d.name)}</code> is inactive. Future emails will show its fallback “{d.fallback}”. Already queued emails are unchanged.</li>)}</ul>
     </div>}
     <details className="text-sm">
-      <summary className="cursor-pointer font-medium">Insert a body placeholder</summary>
+      <summary className="cursor-pointer font-medium">Insert a placeholder at the cursor</summary>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {emailTemplateFields.map(key => <Button type="button" key={key} variant="outline" size="sm"
-          className="h-7 font-mono text-xs" onClick={() => onChange({ bodyTemplate: `${template.bodyTemplate ?? ''}{${key}}` })}>{`{${key}}`}</Button>)}
+          className="h-7 font-mono text-xs" onClick={() => insertPlaceholder(`{${key}}`)}>{`{${key}}`}</Button>)}
       </div>
       <div className="mt-3 rounded-md border border-dashed p-2.5" data-testid="section-custom-placeholders">
         <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Braces className="h-3.5 w-3.5" />Custom placeholders for this event</p>
@@ -79,8 +121,9 @@ export function EmailRuleTemplateEditor({ template, onChange, eventType = '', de
           : active.length === 0 ? <p className="text-xs text-muted-foreground">No active custom placeholders match this event.</p>
           : <div className="flex flex-wrap gap-1.5">{active.map((d) => <Button type="button" key={d.id} variant="outline" size="sm" title={d.description || undefined}
               data-testid={`button-insert-custom-${d.name}`} className="h-7 border-primary/40 font-mono text-xs"
-              onClick={() => onChange({ bodyTemplate: `${template.bodyTemplate ?? ''}${formatToken(d.name)}` })}>{formatToken(d.name)}</Button>)}</div>}
+              onClick={() => insertPlaceholder(formatToken(d.name))}>{formatToken(d.name)}</Button>)}</div>}
       </div>
+      {insertionError && <p role="alert" className="mt-2 text-sm text-destructive">{insertionError}</p>}
     </details>
     <details className="rounded-md border bg-background p-3 text-sm">
       <summary className="cursor-pointer font-medium">Preview with sample values</summary>
