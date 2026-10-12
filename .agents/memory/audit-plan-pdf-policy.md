@@ -19,6 +19,17 @@ Audit Plan report and requested its Master Data label, with no unrelated changes
 **How to apply:** Resolve labels only for reporting; do not rename saved keys,
 rewrite plans, or change the Activities master to fix a display problem.
 
+Master group codes can retain title case (`Activities`) in both development
+and production. Reporting lookups must match group codes case-insensitively,
+as the form's master lookup does.
+
+**Why:** A case-sensitive lowercase report lookup returned no labels despite
+the master entry existing, so mapper-only tests passed while downloads still
+printed keys.
+
+**How to apply:** Test the database lookup as well as the value-to-label mapper;
+retain organization boundaries and historical inactive labels.
+
 The activity table column is **Auditee Role**, populated from each saved
 activity's selected roles, not its assigned auditee users or the plan-level
 Auditee selection. Use the same label for that activity field in forms,

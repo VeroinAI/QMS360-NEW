@@ -54,6 +54,7 @@ import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprov
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
 import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-attachments";
 import { auditPlanReportData } from "../lib/audit-plan-report-data";
+import { auditPlanActivityLabelsQuery } from "../lib/audit-plan-activity-labels";
 import { renderAuditPlanPdf } from "../lib/audit-plan-pdf";
 import { readAuditPlanSignature } from "../lib/audit-plan-signatures";
 import { ChecklistImportError, mergeAuditChecklistImport } from "../lib/audit-checklist-import";
@@ -2245,11 +2246,7 @@ router.get("/plans/:id/report", asyncHandler(async (req, res) => {
     userIds.length ? db.select({ id: users.id, name: users.fullName, signaturePath: users.signaturePath }).from(users).where(and(active(users, orgId), inArray(users.id, userIds))) : [],
     roleIds.length ? db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles)
       .where(and(active(auditWorkspaceRoles, orgId), inArray(auditWorkspaceRoles.id, roleIds))) : [],
-    // Include inactive values so saved plans still resolve historical activity labels.
-    db.select({ value: masterDataValues.value, label: masterDataValues.label }).from(masterDataValues)
-      .innerJoin(masterDataGroups, eq(masterDataGroups.id, masterDataValues.groupId))
-      .where(and(eq(masterDataGroups.organizationId, orgId), eq(masterDataGroups.code, "activities"),
-        isNull(masterDataGroups.deletedAt), eq(masterDataValues.organizationId, orgId), isNull(masterDataValues.deletedAt))),
+    auditPlanActivityLabelsQuery(db, orgId),
   ]);
   const data = auditPlanReportData(plan, meta, schedule ? scheduleMeta(schedule) : {}, project,
     new Map(people.map(p => [p.id, p.name])), new Map(roles.map(r => [r.id, r.name])), timeZone, creatorId,
