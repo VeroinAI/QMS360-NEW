@@ -1,3 +1,4 @@
+import "./lib/database-pool-errors";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startEscalationScheduler } from "./lib/escalation";

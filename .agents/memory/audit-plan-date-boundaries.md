@@ -9,13 +9,12 @@ Every entered Audit Plan date/time must fall within the selected child audit's F
 
 **How to apply:** Enforce the rule both in the form and on create/update APIs using the authoritative source audit dates. Preserve existing time-order checks and date/time storage conventions. Missing or invalid source dates need a clear corrective error, not an invented range. Apply the same boundary policy to any additional activity-row dates introduced later.
 
-New Plan creation does not collect Opening Meeting or Closing Meeting timestamps.
-Missing meeting timestamps must not block creating, sending or executing these
-plans. Existing saved meeting details remain available on existing plans.
+Opening Meeting and Closing Meeting are required on Create Audit Plan at
+sequence numbers 13 and 14 respectively.
 
-**Why:** On 2026-10-12 the user explicitly removed both meeting fields from
-Create Audit Plan, without asking to delete saved meeting data.
+**Why:** On 2026-10-12 the user reversed the earlier removal request and
+explicitly requested both required fields back at their original sequence numbers.
 
-**How to apply:** Keep Start/End and activity dates mandatory; validate meeting
-timestamps only when provided. Never invent meeting dates from Plan dates to
-satisfy validation. Keep existing-plan editing and execution meeting forms intact.
+**How to apply:** Follow this latest requirement rather than the superseded
+removal request. Never invent meeting dates from Plan dates to satisfy validation.
+Preserve existing meeting data and the linked Audit date boundaries.
