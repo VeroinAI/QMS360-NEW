@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 
 import { EmailRulesTab } from './email-rules-tab';
+import { EmailPlaceholdersTab } from './email-placeholders-tab';
 import { EmailQueueTab } from './email-queue-tab';
 import { ProjectMasterTab } from './project-master-tab';
 import { DateFormatTab } from './date-format-tab';
@@ -406,6 +407,7 @@ export function CockpitPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const connectors = useListIntegrationConnectors({ page: 1, limit: 50 });
   const currentUser = useGetCurrentUser();
+  const isPlaceholderAdmin = currentUser.data?.platformRole === 'Super Admin' || currentUser.data?.platformRole === 'Org Admin';
   const health = useGetIntegrationsHealth();
   const jobs = useListSyncJobs({ page, limit: 10 });
   const update = useUpdateIntegrationConnector();
@@ -446,9 +448,10 @@ export function CockpitPage() {
       {loading && <Card><CardContent className="space-y-3 py-12"><div className="h-6 w-1/3 animate-pulse rounded bg-muted" /><div className="h-28 animate-pulse rounded bg-muted" /><p className="text-sm text-muted-foreground">Checking connector health…</p></CardContent></Card>}
       {error && <Card className="border-destructive"><CardContent className="flex items-center gap-4 py-8"><ServerCog className="text-destructive" /><div className="flex-1"><p className="font-semibold">Cockpit data unavailable</p><p className="text-sm text-muted-foreground">{message(error)}</p></div><Button variant="outline" onClick={() => { connectors.refetch(); health.refetch(); jobs.refetch(); }}>Retry</Button></CardContent></Card>}
       {!loading && !error && <Tabs defaultValue="connections" className="space-y-6">
-        <TabsList>
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="connections">Connections</TabsTrigger>
           <TabsTrigger value="email">Email rules</TabsTrigger>
+          {isPlaceholderAdmin && <TabsTrigger value="email-placeholders" data-testid="tab-email-placeholders">Email placeholders</TabsTrigger>}
           {currentUser.data?.platformRole === 'Super Admin' && <TabsTrigger value="email-queue">Email queue</TabsTrigger>}
           <TabsTrigger value="import">Data import</TabsTrigger>
           <TabsTrigger value="project-master">Project master</TabsTrigger>
@@ -479,6 +482,7 @@ export function CockpitPage() {
         <TabsContent value="email">
           <EmailRulesTab connectors={connectors.data?.items ?? []} onEditConnector={(c) => { setPassword(''); setEditing(c); }} />
         </TabsContent>
+        {isPlaceholderAdmin && <TabsContent value="email-placeholders"><EmailPlaceholdersTab userId={currentUser.data?.id} organizationName={currentUser.data?.organizationName} /></TabsContent>}
         {currentUser.data?.platformRole === 'Super Admin' && <TabsContent value="email-queue"><EmailQueueTab /></TabsContent>}
 
         <TabsContent value="import"><ImportTab /></TabsContent>
