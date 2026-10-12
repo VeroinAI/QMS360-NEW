@@ -75,10 +75,10 @@ export function EmailPlaceholdersTab({ userId, organizationName }: { userId?: st
   const ready = !!key && loaded?.key === key;
   const drafts = ready ? loaded.drafts : [];
   const wsDefs = defs.filter((d) => d.workspace === workspace);
-  const wsDrafts = drafts.filter((d) => d.workspace === workspace);
   const wsEvents = eventsForWorkspace(allEvents, workspace);
   const serverNames = new Set(defs.map((d) => `${d.workspace}:${d.name}`));
   const pendingImport = drafts.filter((d) => !serverNames.has(`${d.workspace}:${d.name}`));
+  const wsDrafts = pendingImport.filter((d) => d.workspace === workspace);
   const catalogBlocked = eventsQuery.isLoading || !!eventsQuery.error;
 
   const persistLocal = (next: PlaceholderDraft[], success: string) => {
@@ -211,7 +211,7 @@ export function EmailPlaceholdersTab({ userId, organizationName }: { userId?: st
       </CardContent>
     </Card>
 
-    <Card className="border-dashed border-amber-500/50 bg-amber-50/30 dark:bg-amber-950/10" data-testid="panel-browser-drafts">
+    {registry.data && ready && (wsDrafts.length > 0 || !!loaded?.error) && <Card className="border-dashed border-amber-500/50 bg-amber-50/30 dark:bg-amber-950/10" data-testid="panel-browser-drafts">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2 text-base"><HardDrive className="h-4 w-4 text-amber-700" />Browser drafts (this browser only)</CardTitle>
@@ -245,7 +245,7 @@ export function EmailPlaceholdersTab({ userId, organizationName }: { userId?: st
           })}
         </ul>}
       </CardContent>
-    </Card>
+    </Card>}
 
     {editing && <PlaceholderWizard key={`${key}:${editing.kind}:${editingExisting?.id ?? 'new'}`} initialWorkspace={workspace} draft={editingExisting} allEvents={allEvents}
       drafts={editing.kind === 'local' ? drafts : defs} local={editing.kind === 'local'} busy={createM.isPending || updateM.isPending}
