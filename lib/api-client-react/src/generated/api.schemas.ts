@@ -3056,6 +3056,26 @@ export interface AuditPlan {
   openingMeetingDateTime: string;
   /** Saved closing meeting date/time. */
   closingMeetingDateTime: string;
+  /**
+     * Optional remark for Start Date & Time; empty string clears it.
+     * @maxLength 4000
+     */
+  startDateTimeRemark?: string;
+  /**
+     * Optional remark for End Date & Time; empty string clears it.
+     * @maxLength 4000
+     */
+  endDateTimeRemark?: string;
+  /**
+     * Optional remark for Opening Meeting; empty string clears it.
+     * @maxLength 4000
+     */
+  openingMeetingDateTimeRemark?: string;
+  /**
+     * Optional remark for Closing Meeting; empty string clears it.
+     * @maxLength 4000
+     */
+  closingMeetingDateTimeRemark?: string;
   /** Legacy first-row compatibility field; values come from Activities master data */
   activitySection: string;
   activityRemarks: string;

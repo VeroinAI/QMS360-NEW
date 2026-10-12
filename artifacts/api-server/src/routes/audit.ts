@@ -1882,6 +1882,8 @@ type PlanMeta = {
   activityRemarks?: string; activityAuditeeId?: string; activityDateTime?: string; auditPlanCirculation?: string;
   activities?: PlanActivity[];
   circulationRoleIds?: string[];
+  startDateTimeRemark?: string; endDateTimeRemark?: string;
+  openingMeetingDateTimeRemark?: string; closingMeetingDateTimeRemark?: string;
 };
 const planMeta = (row: AnyRow): PlanMeta => parseJson(row.status, {});
 function assertPlanDates(data: AnyRow, schedule: AnyRow, activities: DatedActivity[] = data.activities ?? []) {
@@ -1916,6 +1918,8 @@ const planDto = (row: AnyRow) => {
     qaqcReference: meta.qaqcReference ?? "", description: meta.description ?? meta.objectives ?? null,
     startDateTime: meta.startDateTime ?? fallbackDateTime, endDateTime: meta.endDateTime ?? fallbackDateTime,
     openingMeetingDateTime: meta.openingMeetingDateTime ?? fallbackDateTime, closingMeetingDateTime: meta.closingMeetingDateTime ?? fallbackDateTime,
+    startDateTimeRemark: meta.startDateTimeRemark ?? "", endDateTimeRemark: meta.endDateTimeRemark ?? "",
+    openingMeetingDateTimeRemark: meta.openingMeetingDateTimeRemark ?? "", closingMeetingDateTimeRemark: meta.closingMeetingDateTimeRemark ?? "",
     activitySection: meta.activitySection ?? row.location ?? "General Requirement",
     activityRemarks: meta.activityRemarks ?? meta.feasibilityNotes ?? "", activityAuditeeId: meta.activityAuditeeId ?? meta.auditeeId ?? meta.processOwnerIds?.[0] ?? "",
     activities: datedActivities(meta.activities?.length ? meta.activities : [{
@@ -1944,6 +1948,8 @@ const planValues = (data: AnyRow) => ({
     qaqcReference: data.qaqcReference, description: data.description ?? null, startDateTime: data.startDateTime,
     endDateTime: data.endDateTime, openingMeetingDateTime: data.openingMeetingDateTime,
     closingMeetingDateTime: data.closingMeetingDateTime, activitySection: data.activitySection,
+    startDateTimeRemark: data.startDateTimeRemark ?? "", endDateTimeRemark: data.endDateTimeRemark ?? "",
+    openingMeetingDateTimeRemark: data.openingMeetingDateTimeRemark ?? "", closingMeetingDateTimeRemark: data.closingMeetingDateTimeRemark ?? "",
     activityRemarks: data.activityRemarks, activityAuditeeId: data.activityAuditeeId,
     activities: data.activities,
     activityDateTime: data.activities?.[0]?.plannedStartDateTime, auditPlanCirculation: data.auditPlanCirculation,
@@ -2263,6 +2269,11 @@ router.put("/plans/:id", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "Audit plan not found");
   if (before.workflowState !== "draft") throw new HttpError(409, "Only draft plans can be edited");
+  // Older clients do not send remarks. Omission preserves them; "" explicitly clears.
+  const savedPlanMeta = planMeta(before);
+  for (const key of ["startDateTimeRemark", "endDateTimeRemark", "openingMeetingDateTimeRemark", "closingMeetingDateTimeRemark"] as const) {
+    if (data[key] === undefined) data = { ...data, [key]: savedPlanMeta[key] ?? "" };
+  }
   if (data.circulationRoleIds === undefined && planMeta(before).circulationRoleIds !== undefined) {
     data = { ...data, circulationRoleIds: planMeta(before).circulationRoleIds };
   }

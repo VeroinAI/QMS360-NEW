@@ -87,6 +87,7 @@ export function auditPlanReplayMatches(incoming: Record<string, unknown>, saved:
     id: plan.id,
     scheduleId: plan.scheduleId,
     dates: ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime"].map(key => plan[key] ?? ""),
+    dateRemarks: ["startDateTimeRemark", "endDateTimeRemark", "openingMeetingDateTimeRemark", "closingMeetingDateTimeRemark"].map(key => plan[key] ?? ""),
     activities: (Array.isArray(plan.activities) ? plan.activities as DatedActivity[] : []).map(row => ({
       id: row.id, section: row.section, remarks: row.remarks, auditeeId: row.auditeeId,
       plannedStartDateTime: row.plannedStartDateTime ?? "", plannedEndDateTime: row.plannedEndDateTime ?? "",

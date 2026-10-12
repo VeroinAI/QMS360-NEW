@@ -3675,6 +3675,10 @@ components:
         endDateTime: {type: string, description: "Saved planned date/time, retaining its calendar day and wall-clock time."}
         openingMeetingDateTime: {type: string, description: "Saved opening meeting date/time."}
         closingMeetingDateTime: {type: string, description: "Saved closing meeting date/time."}
+        startDateTimeRemark: {type: string, maxLength: 4000, description: "Optional remark for Start Date & Time; empty string clears it."}
+        endDateTimeRemark: {type: string, maxLength: 4000, description: "Optional remark for End Date & Time; empty string clears it."}
+        openingMeetingDateTimeRemark: {type: string, maxLength: 4000, description: "Optional remark for Opening Meeting; empty string clears it."}
+        closingMeetingDateTimeRemark: {type: string, maxLength: 4000, description: "Optional remark for Closing Meeting; empty string clears it."}
         activitySection: {type: string, description: Legacy first-row compatibility field; values come from Activities master data}
         activityRemarks: {type: string}
         activityAuditeeId: {type: string}

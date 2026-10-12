@@ -7590,6 +7590,14 @@ export const listAuditPlansResponseOneTotalMin = 0;
 
 
 
+export const listAuditPlansResponseTwoItemsItemStartDateTimeRemarkMax = 4000;
+
+export const listAuditPlansResponseTwoItemsItemEndDateTimeRemarkMax = 4000;
+
+export const listAuditPlansResponseTwoItemsItemOpeningMeetingDateTimeRemarkMax = 4000;
+
+export const listAuditPlansResponseTwoItemsItemClosingMeetingDateTimeRemarkMax = 4000;
+
 
 export const listAuditPlansResponseTwoItemsItemActivitiesItemRoleIdsMax = 200;
 
@@ -7623,6 +7631,10 @@ export const ListAuditPlansResponse = zod.object({
   "endDateTime": zod.string().describe('Saved planned date\/time, retaining its calendar day and wall-clock time.'),
   "openingMeetingDateTime": zod.string().describe('Saved opening meeting date\/time.'),
   "closingMeetingDateTime": zod.string().describe('Saved closing meeting date\/time.'),
+  "startDateTimeRemark": zod.string().max(listAuditPlansResponseTwoItemsItemStartDateTimeRemarkMax).optional().describe('Optional remark for Start Date & Time; empty string clears it.'),
+  "endDateTimeRemark": zod.string().max(listAuditPlansResponseTwoItemsItemEndDateTimeRemarkMax).optional().describe('Optional remark for End Date & Time; empty string clears it.'),
+  "openingMeetingDateTimeRemark": zod.string().max(listAuditPlansResponseTwoItemsItemOpeningMeetingDateTimeRemarkMax).optional().describe('Optional remark for Opening Meeting; empty string clears it.'),
+  "closingMeetingDateTimeRemark": zod.string().max(listAuditPlansResponseTwoItemsItemClosingMeetingDateTimeRemarkMax).optional().describe('Optional remark for Closing Meeting; empty string clears it.'),
   "activitySection": zod.string().describe('Legacy first-row compatibility field; values come from Activities master data'),
   "activityRemarks": zod.string(),
   "activityAuditeeId": zod.string(),
@@ -7656,6 +7668,14 @@ export const ListAuditPlansResponse = zod.object({
  */
 
 
+export const createAuditPlanBodyStartDateTimeRemarkMax = 4000;
+
+export const createAuditPlanBodyEndDateTimeRemarkMax = 4000;
+
+export const createAuditPlanBodyOpeningMeetingDateTimeRemarkMax = 4000;
+
+export const createAuditPlanBodyClosingMeetingDateTimeRemarkMax = 4000;
+
 
 export const createAuditPlanBodyActivitiesItemRoleIdsMax = 200;
 
@@ -7684,6 +7704,10 @@ export const CreateAuditPlanBody = zod.object({
   "endDateTime": zod.string().describe('Saved planned date\/time, retaining its calendar day and wall-clock time.'),
   "openingMeetingDateTime": zod.string().describe('Saved opening meeting date\/time.'),
   "closingMeetingDateTime": zod.string().describe('Saved closing meeting date\/time.'),
+  "startDateTimeRemark": zod.string().max(createAuditPlanBodyStartDateTimeRemarkMax).optional().describe('Optional remark for Start Date & Time; empty string clears it.'),
+  "endDateTimeRemark": zod.string().max(createAuditPlanBodyEndDateTimeRemarkMax).optional().describe('Optional remark for End Date & Time; empty string clears it.'),
+  "openingMeetingDateTimeRemark": zod.string().max(createAuditPlanBodyOpeningMeetingDateTimeRemarkMax).optional().describe('Optional remark for Opening Meeting; empty string clears it.'),
+  "closingMeetingDateTimeRemark": zod.string().max(createAuditPlanBodyClosingMeetingDateTimeRemarkMax).optional().describe('Optional remark for Closing Meeting; empty string clears it.'),
   "activitySection": zod.string().describe('Legacy first-row compatibility field; values come from Activities master data'),
   "activityRemarks": zod.string(),
   "activityAuditeeId": zod.string(),
@@ -7772,6 +7796,14 @@ export const GetAuditPlanParams = zod.object({
 
 
 
+export const getAuditPlanResponseStartDateTimeRemarkMax = 4000;
+
+export const getAuditPlanResponseEndDateTimeRemarkMax = 4000;
+
+export const getAuditPlanResponseOpeningMeetingDateTimeRemarkMax = 4000;
+
+export const getAuditPlanResponseClosingMeetingDateTimeRemarkMax = 4000;
+
 
 export const getAuditPlanResponseActivitiesItemRoleIdsMax = 200;
 
@@ -7800,6 +7832,10 @@ export const GetAuditPlanResponse = zod.object({
   "endDateTime": zod.string().describe('Saved planned date\/time, retaining its calendar day and wall-clock time.'),
   "openingMeetingDateTime": zod.string().describe('Saved opening meeting date\/time.'),
   "closingMeetingDateTime": zod.string().describe('Saved closing meeting date\/time.'),
+  "startDateTimeRemark": zod.string().max(getAuditPlanResponseStartDateTimeRemarkMax).optional().describe('Optional remark for Start Date & Time; empty string clears it.'),
+  "endDateTimeRemark": zod.string().max(getAuditPlanResponseEndDateTimeRemarkMax).optional().describe('Optional remark for End Date & Time; empty string clears it.'),
+  "openingMeetingDateTimeRemark": zod.string().max(getAuditPlanResponseOpeningMeetingDateTimeRemarkMax).optional().describe('Optional remark for Opening Meeting; empty string clears it.'),
+  "closingMeetingDateTimeRemark": zod.string().max(getAuditPlanResponseClosingMeetingDateTimeRemarkMax).optional().describe('Optional remark for Closing Meeting; empty string clears it.'),
   "activitySection": zod.string().describe('Legacy first-row compatibility field; values come from Activities master data'),
   "activityRemarks": zod.string(),
   "activityAuditeeId": zod.string(),
@@ -7836,6 +7872,14 @@ export const UpdateAuditPlanParams = zod.object({
 
 
 
+export const updateAuditPlanBodyStartDateTimeRemarkMax = 4000;
+
+export const updateAuditPlanBodyEndDateTimeRemarkMax = 4000;
+
+export const updateAuditPlanBodyOpeningMeetingDateTimeRemarkMax = 4000;
+
+export const updateAuditPlanBodyClosingMeetingDateTimeRemarkMax = 4000;
+
 
 export const updateAuditPlanBodyActivitiesItemRoleIdsMax = 200;
 
@@ -7864,6 +7908,10 @@ export const UpdateAuditPlanBody = zod.object({
   "endDateTime": zod.string().describe('Saved planned date\/time, retaining its calendar day and wall-clock time.'),
   "openingMeetingDateTime": zod.string().describe('Saved opening meeting date\/time.'),
   "closingMeetingDateTime": zod.string().describe('Saved closing meeting date\/time.'),
+  "startDateTimeRemark": zod.string().max(updateAuditPlanBodyStartDateTimeRemarkMax).optional().describe('Optional remark for Start Date & Time; empty string clears it.'),
+  "endDateTimeRemark": zod.string().max(updateAuditPlanBodyEndDateTimeRemarkMax).optional().describe('Optional remark for End Date & Time; empty string clears it.'),
+  "openingMeetingDateTimeRemark": zod.string().max(updateAuditPlanBodyOpeningMeetingDateTimeRemarkMax).optional().describe('Optional remark for Opening Meeting; empty string clears it.'),
+  "closingMeetingDateTimeRemark": zod.string().max(updateAuditPlanBodyClosingMeetingDateTimeRemarkMax).optional().describe('Optional remark for Closing Meeting; empty string clears it.'),
   "activitySection": zod.string().describe('Legacy first-row compatibility field; values come from Activities master data'),
   "activityRemarks": zod.string(),
   "activityAuditeeId": zod.string(),
@@ -7891,6 +7939,14 @@ export const UpdateAuditPlanBody = zod.object({
 })
 
 
+
+export const updateAuditPlanResponseStartDateTimeRemarkMax = 4000;
+
+export const updateAuditPlanResponseEndDateTimeRemarkMax = 4000;
+
+export const updateAuditPlanResponseOpeningMeetingDateTimeRemarkMax = 4000;
+
+export const updateAuditPlanResponseClosingMeetingDateTimeRemarkMax = 4000;
 
 
 export const updateAuditPlanResponseActivitiesItemRoleIdsMax = 200;
@@ -7920,6 +7976,10 @@ export const UpdateAuditPlanResponse = zod.object({
   "endDateTime": zod.string().describe('Saved planned date\/time, retaining its calendar day and wall-clock time.'),
   "openingMeetingDateTime": zod.string().describe('Saved opening meeting date\/time.'),
   "closingMeetingDateTime": zod.string().describe('Saved closing meeting date\/time.'),
+  "startDateTimeRemark": zod.string().max(updateAuditPlanResponseStartDateTimeRemarkMax).optional().describe('Optional remark for Start Date & Time; empty string clears it.'),
+  "endDateTimeRemark": zod.string().max(updateAuditPlanResponseEndDateTimeRemarkMax).optional().describe('Optional remark for End Date & Time; empty string clears it.'),
+  "openingMeetingDateTimeRemark": zod.string().max(updateAuditPlanResponseOpeningMeetingDateTimeRemarkMax).optional().describe('Optional remark for Opening Meeting; empty string clears it.'),
+  "closingMeetingDateTimeRemark": zod.string().max(updateAuditPlanResponseClosingMeetingDateTimeRemarkMax).optional().describe('Optional remark for Closing Meeting; empty string clears it.'),
   "activitySection": zod.string().describe('Legacy first-row compatibility field; values come from Activities master data'),
   "activityRemarks": zod.string(),
   "activityAuditeeId": zod.string(),

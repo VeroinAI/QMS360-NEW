@@ -167,6 +167,10 @@ export const fieldControlRegistry: Record<FieldControlAppKey, FormDefinition[]> 
       key: "plan",
       label: "Audit Plan",
       fields: [
+        { key: "startDateTimeRemark", label: "Start Date & Time Remark" },
+        { key: "endDateTimeRemark", label: "End Date & Time Remark" },
+        { key: "openingMeetingDateTimeRemark", label: "Opening Meeting Remark" },
+        { key: "closingMeetingDateTimeRemark", label: "Closing Meeting Remark" },
         { key: "activitySection", label: "Activities / Section" },
         { key: "activityRemarks", label: "Activity Remarks" },
         { key: "activityAuditeeId", label: "Activity Auditee" },
