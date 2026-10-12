@@ -225,6 +225,106 @@ describe('Registry and email rule safety', () => {
   });
 });
 
+describe('Lessons approval date placeholder', () => {
+  const approvalDate = (active = true): PlaceholderDefinition => ({
+    ...definition('lesson_form_approved_at', active), format: 'datetime',
+  });
+  const approvedAt = new Date('2026-10-12T13:30:00Z');
+  it('offers a timestamp source with date-only and date-time previews, scoped to Lessons form events', () => {
+    const source = findSource('lessons', 'lesson_form_approved_at')!;
+    const d = approvalDate();
+    expect(source.fieldLabel).toBe('Approval date and time');
+    expect(source.type).toBe('timestamp');
+    expect(sourcesForWorkspace('lessons')).toContain(source);
+    expect(sampleValue(source, 'datetime')).toBe('14/03/2025 09:30');
+    expect(sampleValue(source, 'date_dmy')).toBe('14/03/2025');
+    expect(d.name).toBe('lessons_lesson_form_approved_at');
+    expect(definitionMatchesEvent(d, 'lessons.lesson_form.approve')).toBe(true);
+    expect(definitionMatchesEvent(d, 'lessons.user_profile.update')).toBe(false);
+    for (const workspace of ['audit', 'qaqc', 'docgov'] as const) {
+      expect(findSource(workspace, 'lesson_form_approved_at')).toBeUndefined();
+    }
+  });
+  it('loads the recorded approval timestamp with organization scope and supports date-only formatting', async () => {
+    for (const format of ['datetime', 'date_dmy'] as const) {
+      const d = { ...approvalDate(), format };
+      const { fake, sqlQueries } = fixture([d], new Map<any, any[]>([
+        [lessonLearnedForms, [{ id: entityId, organizationId: org, reviewedAt: approvedAt, reviewDecision: 'approve' }]],
+      ]));
+      const render = await prepareCustomPlaceholderValues(fake, org, {
+        eventType: 'lessons.lesson_form.approve', entityId,
+      }, { bodyTemplate: `{${d.name}}` });
+      expect(render({ email: 'recipient@example.test' })[d.name]).toBe(format === 'datetime' ? '12/10/2026 13:30' : '12/10/2026');
+      expect(sqlQueries[1].params).toContain(org);
+      expect(sqlQueries[1].params).toContain(entityId);
+    }
+  });
+  it('uses a complete trusted approval snapshot without querying the form', async () => {
+    const d = approvalDate();
+    const { fake, sqlQueries } = fixture([d]);
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType: 'lessons.lesson_form.approve', entityId,
+      record: { id: entityId, organizationId: org, reviewedAt: approvedAt.toISOString(), reviewDecision: 'approve' },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('12/10/2026 13:30');
+    expect(sqlQueries).toHaveLength(1);
+  });
+  it('loads omitted approval fields from a partial snapshot', async () => {
+    const d = approvalDate();
+    const { fake } = fixture([d], new Map<any, any[]>([
+      [lessonLearnedForms, [{ id: entityId, organizationId: org, reviewedAt: approvedAt, reviewDecision: 'approve' }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType: 'lessons.lesson_form.approve', entityId,
+      record: { id: entityId, organizationId: org, title: 'Partial record' },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('12/10/2026 13:30');
+  });
+  it.each([
+    { reviewedAt: approvedAt, reviewDecision: 'send_back' },
+    { reviewedAt: null, reviewDecision: null },
+    { reviewedAt: null, reviewDecision: 'approve' },
+  ])('uses fallback instead of reporting an approval for $reviewDecision / $reviewedAt', async (review) => {
+    const d = { ...approvalDate(), fallback: 'Not yet approved' };
+    const { fake, sqlQueries } = fixture([d]);
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, record: { id: entityId, organizationId: org, ...review },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Not yet approved');
+    expect(sqlQueries).toHaveLength(1);
+  });
+  it('preserves an explicit null approval time when retrieving an omitted decision', async () => {
+    const d = approvalDate();
+    const { fake } = fixture([d], new Map<any, any[]>([
+      [lessonLearnedForms, [{ id: entityId, organizationId: org, reviewedAt: approvedAt, reviewDecision: 'approve' }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, record: { id: entityId, organizationId: org, reviewedAt: null },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Not available');
+  });
+  it('does not use a foreign organization approval record or snapshot', async () => {
+    const d = approvalDate();
+    const { fake } = fixture([d], new Map<any, any[]>([
+      [lessonLearnedForms, [{ id: entityId, organizationId: otherOrg, reviewedAt: approvedAt, reviewDecision: 'approve' }]],
+    ]));
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId,
+      record: { id: entityId, organizationId: otherOrg, reviewedAt: approvedAt, reviewDecision: 'approve' },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Not available');
+  });
+  it('does not retrieve approval details for an inactive placeholder', async () => {
+    const d = approvalDate(false);
+    const { fake, sqlQueries } = fixture([d]);
+    const render = await prepareCustomPlaceholderValues(fake, org, {
+      eventType, entityId, record: { id: entityId, organizationId: org },
+    }, { bodyTemplate: `{${d.name}}` });
+    expect(render({ email: 'recipient@example.test' })[d.name]).toBe('Not available');
+    expect(sqlQueries).toHaveLength(1);
+  });
+});
+
 describe('Lessons assigned approver placeholder', () => {
   it('is selectable and previewable only for Lessons form events', () => {
     const source = findSource('lessons', 'approver_full_name')!;

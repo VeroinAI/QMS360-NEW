@@ -65,6 +65,7 @@ export async function prepareCustomPlaceholderValues(database: typeof db, organi
   const active = definitions.filter(d => d.active);
   const table = ENTITY_TABLES[event.eventType.split('.').slice(0, 2).join('.')];
   const needsApprover = table === lessonLearnedForms && active.some(d => d.sourceKey === 'approver_full_name');
+  const needsApprovalDate = table === lessonLearnedForms && active.some(d => d.sourceKey === 'lesson_form_approved_at');
   let record: Record<string, any> = {};
   const snapshot = event.record;
   const trustedSnapshot = snapshot?.id === event.entityId && snapshot?.organizationId === organizationId;
@@ -82,6 +83,18 @@ export async function prepareCustomPlaceholderValues(database: typeof db, organi
       eq(lessonLearnedForms.id, event.entityId), eq(lessonLearnedForms.organizationId, organizationId),
     )).limit(1);
     record = { ...record, approverId: form?.approverId };
+  }
+  if (needsApprovalDate && trustedSnapshot && (record.reviewedAt === undefined || record.reviewDecision === undefined) && event.entityId && /^[0-9a-f-]{36}$/i.test(event.entityId)) {
+    const [form] = await database.select({
+      reviewedAt: lessonLearnedForms.reviewedAt, reviewDecision: lessonLearnedForms.reviewDecision,
+    }).from(lessonLearnedForms).where(and(
+      eq(lessonLearnedForms.id, event.entityId), eq(lessonLearnedForms.organizationId, organizationId),
+    )).limit(1);
+    record = {
+      ...record,
+      reviewedAt: record.reviewedAt === undefined ? form?.reviewedAt : record.reviewedAt,
+      reviewDecision: record.reviewDecision === undefined ? form?.reviewDecision : record.reviewDecision,
+    };
   }
   const nameOf = async (id: unknown) => {
     if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)) return undefined;
@@ -114,6 +127,8 @@ export async function prepareCustomPlaceholderValues(database: typeof db, organi
     const sourceTable = EMAIL_PLACEHOLDER_TABLES[parts.slice(0, -1).join('.')];
     // Also assert source table equals event table; no cross-entity field resolution.
     if (sourceTable !== table) return undefined;
+    // reviewedAt also records send-backs; only a recorded approval is an approval date.
+    if (source.key === 'lesson_form_approved_at' && record.reviewDecision !== 'approve') return undefined;
     const key = Object.entries(getTableColumns(sourceTable)).find(([, column]) => column.name === parts.at(-1))?.[0];
     return key ? record[key] : undefined;
   });

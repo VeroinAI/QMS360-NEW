@@ -51,6 +51,12 @@ export const SOURCE_CATALOG: SourceDef[] = [
     description: 'Full name of the approver assigned to this lesson learned form. This is independent of the email recipient and the person triggering the event. An unassigned or unavailable approver uses the configured fallback.',
     eventEntities: ['lesson_form'],
   },
+  {
+    key: 'lesson_form_approved_at', workspace: 'lessons', origin: 'record', entityLabel: 'Lesson learned form',
+    fieldLabel: 'Approval date and time', schemaRef: 'app2_lessons.lesson_learned_forms.reviewed_at',
+    type: 'timestamp', eventEntities: ['lesson_form'],
+    description: 'Recorded date and time when the approver approved this lesson learned form. Pending approvals and send-back decisions use the configured fallback. Choose a date-only or date-and-time format.',
+  },
   ...recordSources('lessons', 'lesson_form', 'Lesson learned form', 'app2_lessons.lesson_learned_forms', ['lesson_form'], [
     ['reference_number', 'Reference number'], ['title', 'Title'], ['categorisation', 'Categorisation'],
     ['issue_category', 'Issue category'], ['impact', 'Impact'], ['description', 'Description'], ['root_cause', 'Root cause'],
