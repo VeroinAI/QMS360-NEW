@@ -27,7 +27,8 @@ function custom(fields: RecordData, ...aliases: string[]) {
   return TO_BE_MAPPED;
 }
 export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule: RecordData, project: RecordData | undefined,
-  userNames: Map<string, string>, roleNames: Map<string, string>, timeZone: string, creatorId?: string): AuditPlanReportData {
+  userNames: Map<string, string>, roleNames: Map<string, string>, timeZone: string, creatorId?: string,
+  activityLabels: ReadonlyMap<string, string> = new Map()): AuditPlanReportData {
   const name = (id: unknown) => typeof id === "string" ? mapped(userNames.get(id)) : TO_BE_MAPPED;
   const names = (ids: unknown, source: Map<string, string>) => Array.isArray(ids) && ids.length
     ? ids.map(id => mapped(source.get(id))).join(", ") : TO_BE_MAPPED;
@@ -81,7 +82,7 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
     ],
     activities: datedActivities<RecordData>(activityRows, meta.activityDateTime).map((row: RecordData) => {
       const start = date(row.plannedStartDateTime, true), end = date(row.plannedEndDateTime, true);
-      return { section: mapped(row.section), remarks: mapped(row.remarks), auditee: names(row.roleIds, roleNames),
+      return { section: mapped(activityLabels.get(row.section) || row.section), remarks: mapped(row.remarks), auditee: names(row.roleIds, roleNames),
         plannedStart: start, plannedEnd: end, legacyDateTimeDerived: row.legacyDateTimeDerived,
         dateTime: `Planned Start: ${start}\nPlanned End: ${end}${row.legacyDateTimeDerived ? "\nDerived from saved legacy date/time" : ""}` };
     }),

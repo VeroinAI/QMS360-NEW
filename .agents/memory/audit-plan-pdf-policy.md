@@ -9,6 +9,16 @@ Treat the supplied Audit Plan PDF as the authoritative branding and layout refer
 
 **How to apply:** Keep report generation read-only and independent from schedule approval, plan submission and execution. Do not fabricate missing dates from UI defaults or infer contract numbers from project codes. The user specified that no other development should be impacted.
 
+The **Section/Activities to be Accessed** column must display the organization's
+Activities master label, not its stored key. Preserve historical free-text
+sections when no master mapping exists.
+
+**Why:** On 2026-10-12 the user reported `opening_meeting` in the downloaded
+Audit Plan report and requested its Master Data label, with no unrelated changes.
+
+**How to apply:** Resolve labels only for reporting; do not rename saved keys,
+rewrite plans, or change the Activities master to fix a display problem.
+
 The activity table column is **Auditee Role**, populated from each saved
 activity's selected roles, not its assigned auditee users or the plan-level
 Auditee selection. Use the same label for that activity field in forms,

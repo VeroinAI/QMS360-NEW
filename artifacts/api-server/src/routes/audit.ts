@@ -2241,13 +2241,19 @@ router.get("/plans/:id/report", asyncHandler(async (req, res) => {
     ...(meta.auditeeRoleIds ?? []),
     ...(meta.activities ?? []).flatMap(row => row.roleIds ?? []),
   ].filter(uuid))];
-  const [people, roles] = await Promise.all([
+  const [people, roles, activityMasters] = await Promise.all([
     userIds.length ? db.select({ id: users.id, name: users.fullName, signaturePath: users.signaturePath }).from(users).where(and(active(users, orgId), inArray(users.id, userIds))) : [],
     roleIds.length ? db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles)
       .where(and(active(auditWorkspaceRoles, orgId), inArray(auditWorkspaceRoles.id, roleIds))) : [],
+    // Include inactive values so saved plans still resolve historical activity labels.
+    db.select({ value: masterDataValues.value, label: masterDataValues.label }).from(masterDataValues)
+      .innerJoin(masterDataGroups, eq(masterDataGroups.id, masterDataValues.groupId))
+      .where(and(eq(masterDataGroups.organizationId, orgId), eq(masterDataGroups.code, "activities"),
+        isNull(masterDataGroups.deletedAt), eq(masterDataValues.organizationId, orgId), isNull(masterDataValues.deletedAt))),
   ]);
   const data = auditPlanReportData(plan, meta, schedule ? scheduleMeta(schedule) : {}, project,
-    new Map(people.map(p => [p.id, p.name])), new Map(roles.map(r => [r.id, r.name])), timeZone, creatorId);
+    new Map(people.map(p => [p.id, p.name])), new Map(roles.map(r => [r.id, r.name])), timeZone, creatorId,
+    new Map(activityMasters.map(activity => [activity.value, activity.label])));
   const signaturePaths = new Map(people.map(person => [person.id, person.signaturePath]));
   const signatureCache = new Map<string, Promise<Uint8Array | undefined>>();
   const signature = (id: string | undefined) => {

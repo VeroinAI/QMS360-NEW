@@ -29,6 +29,27 @@ const project = { name: "TEST PROJECT FOR AUDIT PLAN", code: "Not a contract num
 const data = () => auditPlanReportData(plan, meta, schedule, project, people, roles, "Asia/Kolkata");
 
 describe("Audit Plan PDF mappings", () => {
+  it("resolves saved activity keys to master labels without changing the saved plan", () => {
+    const activities = [
+      { ...meta.activities[0], section: "opening_meeting" },
+      { ...meta.activities[0], section: "quality_records" },
+    ];
+    const report = auditPlanReportData(plan, { ...meta, activities }, schedule, project, people, roles, "UTC", undefined,
+      new Map([["opening_meeting", "Opening Meeting"], ["quality_records", "Quality Records"]]));
+    expect(report.activities.map(row => row.section)).toEqual(["Opening Meeting", "Quality Records"]);
+    expect(activities.map(row => row.section)).toEqual(["opening_meeting", "quality_records"]);
+    expect(report.activities[0].remarks).toBe(meta.activities[0].remarks);
+    expect(report.activities[0].auditee).toBe("Procurement Lead, Quality Manager");
+  });
+  it("resolves legacy single-activity keys and preserves historical free-text sections", () => {
+    const labels = new Map([["opening_meeting", "Opening Meeting"]]);
+    const legacy = auditPlanReportData(plan, { activitySection: "opening_meeting" }, schedule, project, people, roles, "UTC", undefined, labels);
+    expect(legacy.activities[0].section).toBe("Opening Meeting");
+    const historical = auditPlanReportData(plan, { activitySection: "Historical section" }, schedule, project, people, roles, "UTC", undefined, labels);
+    expect(historical.activities[0].section).toBe("Historical section");
+    const missing = auditPlanReportData(plan, {}, schedule, project, people, roles, "UTC", undefined, labels);
+    expect(missing.activities[0].section).toBe(TO_BE_MAPPED);
+  });
   it("maps each activity range independently, preserves local times and marks legacy derivation", () => {
     const report = auditPlanReportData(plan, { ...meta, activities: [
       { ...meta.activities[0], plannedStartDateTime: "2026-01-26T09:00", plannedEndDateTime: "2026-01-26T10:00" },
