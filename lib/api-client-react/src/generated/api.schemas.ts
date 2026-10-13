@@ -3155,6 +3155,57 @@ export interface AuditPlanOptions {
   users: AuditPlanUserOption[];
 }
 
+export interface AuditPlanNumberingPattern {
+  /** @maxLength 80 */
+  prefix: string;
+  /** @maxLength 80 */
+  middle: string;
+  /** @maxLength 80 */
+  separator: string;
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  padding: number;
+}
+
+export interface AuditPlanNumberRangeInput {
+  scope: string;
+  /**
+     * @minimum 1900
+     * @maximum 9999
+     */
+  year: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999998
+     */
+  lastNumber: number;
+}
+
+export type AuditPlanNumberingSettingsRanges = {[key: string]: {[key: string]: number}};
+
+export type AuditPlanNumberingSettingsSourcesItemKind = typeof AuditPlanNumberingSettingsSourcesItemKind[keyof typeof AuditPlanNumberingSettingsSourcesItemKind];
+
+
+export const AuditPlanNumberingSettingsSourcesItemKind = {
+  project: 'project',
+  department: 'department',
+} as const;
+
+export type AuditPlanNumberingSettingsSourcesItem = {
+  key: string;
+  kind: AuditPlanNumberingSettingsSourcesItemKind;
+  label: string;
+  sourceValue: string;
+};
+
+export interface AuditPlanNumberingSettings {
+  pattern: AuditPlanNumberingPattern;
+  ranges: AuditPlanNumberingSettingsRanges;
+  sources: AuditPlanNumberingSettingsSourcesItem[];
+}
+
 export type AuditPlanStatus = typeof AuditPlanStatus[keyof typeof AuditPlanStatus];
 
 
@@ -3195,6 +3246,7 @@ export interface AuditPlanActivity {
 export interface AuditPlan {
   id: string;
   scheduleId: string;
+  readonly planNumber?: string;
   auditFeasible: boolean;
   auditTitle: string;
   leadAuditorId: string;

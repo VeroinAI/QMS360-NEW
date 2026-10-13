@@ -11,6 +11,7 @@ import type { AuditPlanStatus } from './auditPlanStatus';
 export interface AuditPlan {
   id: string;
   scheduleId: string;
+  readonly planNumber?: string;
   auditFeasible: boolean;
   auditTitle: string;
   leadAuditorId: string;

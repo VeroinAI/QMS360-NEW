@@ -52,6 +52,9 @@ import type {
   AuditPageResponse,
   AuditPlan,
   AuditPlanBody,
+  AuditPlanNumberRangeInput,
+  AuditPlanNumberingPattern,
+  AuditPlanNumberingSettings,
   AuditPlanOptions,
   AuditPlanPageResponse,
   AuditPlanUserOption,
@@ -25546,6 +25549,225 @@ export function useListAuditAccessQueue<TData = Awaited<ReturnType<typeof listAu
 
 
 
+
+export const getGetAuditPlanNumberingUrl = () => {
+
+
+
+
+  return `/api/audit/admin/plan-numbering`
+}
+
+/**
+ * @summary Read Audit Plan yearly project and department numbering
+ */
+export const getAuditPlanNumbering = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanNumberingSettings> => {
+
+  return customFetch<AuditPlanNumberingSettings>(getGetAuditPlanNumberingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditPlanNumberingQueryKey = () => {
+    return [
+    `/api/audit/admin/plan-numbering`
+    ] as const;
+    }
+
+
+export const getGetAuditPlanNumberingQueryOptions = <TData = Awaited<ReturnType<typeof getAuditPlanNumbering>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditPlanNumberingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditPlanNumbering>>> = ({ signal }) => getAuditPlanNumbering({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanNumbering>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditPlanNumberingQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditPlanNumbering>>>
+export type GetAuditPlanNumberingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read Audit Plan yearly project and department numbering
+ */
+
+export function useGetAuditPlanNumbering<TData = Awaited<ReturnType<typeof getAuditPlanNumbering>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditPlanNumberingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAuditPlanNumberingUrl = () => {
+
+
+
+
+  return `/api/audit/admin/plan-numbering`
+}
+
+/**
+ * @summary Save Audit Plan number format without resetting counters
+ */
+export const updateAuditPlanNumbering = async (auditPlanNumberingPattern: AuditPlanNumberingPattern, options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanNumberingPattern> => {
+
+  return customFetch<AuditPlanNumberingPattern>(getUpdateAuditPlanNumberingUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditPlanNumberingPattern)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditPlanNumberingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditPlanNumbering>>, TError,{data: BodyType<AuditPlanNumberingPattern>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditPlanNumbering>>, TError,{data: BodyType<AuditPlanNumberingPattern>}, TContext> => {
+
+const mutationKey = ['updateAuditPlanNumbering'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditPlanNumbering>>, {data: BodyType<AuditPlanNumberingPattern>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAuditPlanNumbering(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditPlanNumberingMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditPlanNumbering>>>
+    export type UpdateAuditPlanNumberingMutationBody = BodyType<AuditPlanNumberingPattern>
+    export type UpdateAuditPlanNumberingMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save Audit Plan number format without resetting counters
+ */
+export const useUpdateAuditPlanNumbering = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditPlanNumbering>>, TError,{data: BodyType<AuditPlanNumberingPattern>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditPlanNumbering>>,
+        TError,
+        {data: BodyType<AuditPlanNumberingPattern>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditPlanNumberingMutationOptions(options));
+    }
+
+export const getUpdateAuditPlanNumberRangeUrl = () => {
+
+
+
+
+  return `/api/audit/admin/plan-numbering/ranges`
+}
+
+/**
+ * @summary Maintain last-used Audit Plan number for go-live
+ */
+export const updateAuditPlanNumberRange = async (auditPlanNumberRangeInput: AuditPlanNumberRangeInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getUpdateAuditPlanNumberRangeUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditPlanNumberRangeInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditPlanNumberRangeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditPlanNumberRange>>, TError,{data: BodyType<AuditPlanNumberRangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditPlanNumberRange>>, TError,{data: BodyType<AuditPlanNumberRangeInput>}, TContext> => {
+
+const mutationKey = ['updateAuditPlanNumberRange'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditPlanNumberRange>>, {data: BodyType<AuditPlanNumberRangeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAuditPlanNumberRange(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditPlanNumberRangeMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditPlanNumberRange>>>
+    export type UpdateAuditPlanNumberRangeMutationBody = BodyType<AuditPlanNumberRangeInput>
+    export type UpdateAuditPlanNumberRangeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Maintain last-used Audit Plan number for go-live
+ */
+export const useUpdateAuditPlanNumberRange = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditPlanNumberRange>>, TError,{data: BodyType<AuditPlanNumberRangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditPlanNumberRange>>,
+        TError,
+        {data: BodyType<AuditPlanNumberRangeInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditPlanNumberRangeMutationOptions(options));
+    }
 
 export const getGetAuditScheduleNumberingUrl = () => {
 

@@ -7802,6 +7802,7 @@ export const ListAuditPlansResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "scheduleId": zod.string(),
+  "planNumber": zod.string().optional(),
   "auditFeasible": zod.boolean(),
   "auditTitle": zod.string(),
   "leadAuditorId": zod.string(),
@@ -8003,6 +8004,7 @@ export const getAuditPlanResponseActivitiesItemAuditeeIdsMax = 200;
 export const GetAuditPlanResponse = zod.object({
   "id": zod.string(),
   "scheduleId": zod.string(),
+  "planNumber": zod.string().optional(),
   "auditFeasible": zod.boolean(),
   "auditTitle": zod.string(),
   "leadAuditorId": zod.string(),
@@ -8147,6 +8149,7 @@ export const updateAuditPlanResponseActivitiesItemAuditeeIdsMax = 200;
 export const UpdateAuditPlanResponse = zod.object({
   "id": zod.string(),
   "scheduleId": zod.string(),
+  "planNumber": zod.string().optional(),
   "auditFeasible": zod.boolean(),
   "auditTitle": zod.string(),
   "leadAuditorId": zod.string(),
@@ -12249,6 +12252,94 @@ export const ListAuditAccessQueueResponse = zod.object({
   "requestedAt": zod.coerce.date()
 }))
 }))
+
+
+/**
+ * @summary Read Audit Plan yearly project and department numbering
+ */
+export const getAuditPlanNumberingResponsePatternPrefixMax = 80;
+
+export const getAuditPlanNumberingResponsePatternMiddleMax = 80;
+
+export const getAuditPlanNumberingResponsePatternSeparatorMax = 80;
+
+export const getAuditPlanNumberingResponsePatternPaddingMax = 12;
+
+
+
+export const GetAuditPlanNumberingResponse = zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string().max(getAuditPlanNumberingResponsePatternPrefixMax),
+  "middle": zod.string().max(getAuditPlanNumberingResponsePatternMiddleMax),
+  "separator": zod.string().max(getAuditPlanNumberingResponsePatternSeparatorMax),
+  "padding": zod.number().min(1).max(getAuditPlanNumberingResponsePatternPaddingMax)
+}),
+  "ranges": zod.record(zod.string(), zod.record(zod.string(), zod.number())),
+  "sources": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.enum(['project', 'department']),
+  "label": zod.string(),
+  "sourceValue": zod.string()
+}))
+})
+
+
+/**
+ * @summary Save Audit Plan number format without resetting counters
+ */
+export const updateAuditPlanNumberingBodyPrefixMax = 80;
+
+export const updateAuditPlanNumberingBodyMiddleMax = 80;
+
+export const updateAuditPlanNumberingBodySeparatorMax = 80;
+
+export const updateAuditPlanNumberingBodyPaddingMax = 12;
+
+
+
+export const UpdateAuditPlanNumberingBody = zod.object({
+  "prefix": zod.string().max(updateAuditPlanNumberingBodyPrefixMax),
+  "middle": zod.string().max(updateAuditPlanNumberingBodyMiddleMax),
+  "separator": zod.string().max(updateAuditPlanNumberingBodySeparatorMax),
+  "padding": zod.number().min(1).max(updateAuditPlanNumberingBodyPaddingMax)
+})
+
+export const updateAuditPlanNumberingResponsePrefixMax = 80;
+
+export const updateAuditPlanNumberingResponseMiddleMax = 80;
+
+export const updateAuditPlanNumberingResponseSeparatorMax = 80;
+
+export const updateAuditPlanNumberingResponsePaddingMax = 12;
+
+
+
+export const UpdateAuditPlanNumberingResponse = zod.object({
+  "prefix": zod.string().max(updateAuditPlanNumberingResponsePrefixMax),
+  "middle": zod.string().max(updateAuditPlanNumberingResponseMiddleMax),
+  "separator": zod.string().max(updateAuditPlanNumberingResponseSeparatorMax),
+  "padding": zod.number().min(1).max(updateAuditPlanNumberingResponsePaddingMax)
+})
+
+
+/**
+ * @summary Maintain last-used Audit Plan number for go-live
+ */
+export const updateAuditPlanNumberRangeBodyYearMin = 1900;
+export const updateAuditPlanNumberRangeBodyYearMax = 9999;
+
+export const updateAuditPlanNumberRangeBodyLastNumberMin = 0;
+export const updateAuditPlanNumberRangeBodyLastNumberMax = 999999999998;
+
+
+
+export const UpdateAuditPlanNumberRangeBody = zod.object({
+  "scope": zod.string(),
+  "year": zod.number().min(updateAuditPlanNumberRangeBodyYearMin).max(updateAuditPlanNumberRangeBodyYearMax),
+  "lastNumber": zod.number().min(updateAuditPlanNumberRangeBodyLastNumberMin).max(updateAuditPlanNumberRangeBodyLastNumberMax)
+})
+
+export const UpdateAuditPlanNumberRangeResponse = zod.unknown()
 
 
 /**

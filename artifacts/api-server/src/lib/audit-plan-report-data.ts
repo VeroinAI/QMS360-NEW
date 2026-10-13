@@ -60,7 +60,7 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
   }
   return {
     title: mapped(project?.name ?? meta.auditTitle ?? plan.scope),
-    reference: number, auditNumber: number, preparedDate: instantDate(plan.createdAt),
+    reference: mapped(meta.planNumber ?? schedule.auditNumber), auditNumber: number, preparedDate: instantDate(plan.createdAt),
     lead: name(meta.leadAuditorId ?? plan.teamMemberIds?.[0]), team: names(plan.teamMemberIds, userNames),
     programManager: name(creatorId),
     auditee: meta.auditeeRoleIds?.length ? names(meta.auditeeRoleIds, roleNames) : name(meta.auditeeId ?? meta.processOwnerIds?.[0]),
