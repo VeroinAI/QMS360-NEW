@@ -3,6 +3,7 @@ import { unzipSync, strFromU8 } from "fflate";
 import { buildConsolidatedAuditReport } from "../src/lib/audit-consolidated-report";
 import { auditPptxMappings, PPTX_UNMAPPED } from "../src/lib/audit-pptx-mapping";
 import { renderConsolidatedAuditPptx } from "../src/lib/audit-consolidated-pptx";
+import { formatDate } from "@workspace/spreadsheet-dates";
 
 const fixture = () => ({
   audit: {
@@ -18,7 +19,8 @@ const fixture = () => ({
   },
   plan: { leadAuditorId: "lead", description: "Recorded audit description", auditeeRoleIds: ["role"], activities: [{ section: "Design" }] },
   schedule: { qaqcReference: "QAM-IA/26-001", ownerId: "owner" },
-  project: { name: "Selected project", code: "P001", customFields: { Client: "Recorded client", Contractor: "Recorded contractor", Contract: "Contract details", "Contract Period": "24 months" } },
+  project: { name: "Selected project", code: "P001", customFields: { Client: "Recorded client", Contractor: "Recorded contractor", Contract: "Contract details", "Contract Period": "24 months",
+    qmsAdditionalData: { client: "Recorded client", contractor: "Recorded contractor", contractPeriod: "24 months" } } },
   names: new Map([["lead", "Selected lead"], ["owner", "Selected owner"]]),
   roleNames: new Map([["role", "Selected auditee role"]]),
   legacyFindings: [],
@@ -56,9 +58,46 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     expect(field(sections, "audit-overview", "Contract period")).toBe("24 months");
     expect(auditPptxMappings(sections).get(3)!.shapes[35]).toBe(PPTX_UNMAPPED);
   });
+  it("maps all eight Slide 3 profile fields only from the audit project's Additional Data", async () => {
+    const data = fixture();
+    const profile = {
+      client: "Additional Client", contractor: "Additional Contractor", contractProjectNumber: "AD-CT-007",
+      contractSigned: "2026-10-13", contractPeriod: "36 months", tcc: "TCC entered", pac: "PAC entered", fac: "FAC entered",
+    };
+    (data.project.customFields as Record<string, unknown>).qmsAdditionalData = profile;
+    const enriched = {
+      ...data,
+      audit: { ...data.audit, reportDetails: { values: { client: "Old report client", contractNumber: "Old report contract" }, rows: {} } },
+    };
+    const original = JSON.stringify(enriched);
+    const sections = build(enriched);
+    const shapes = auditPptxMappings(sections).get(3)!.shapes;
+    expect([25, 27, 29, 31, 33, 35, 37, 41].map(id => shapes[id])).toEqual([
+      profile.client, profile.contractor, profile.contractProjectNumber, formatDate(profile.contractSigned),
+      profile.contractPeriod, profile.tcc, profile.pac, profile.fac,
+    ]);
+    // No change to the Audit details, cover or non-PPTX export mapping.
+    const otherExport = buildConsolidatedAuditReport(enriched);
+    expect(field(otherExport, "audit-overview", "Client")).toBe("Old report client");
+    expect(sections.find(section => section.key === "cover")).toEqual(otherExport.find(section => section.key === "cover"));
+    const output = unzipSync(await renderConsolidatedAuditPptx({ sections }));
+    const slide = strFromU8(output["ppt/slides/slide3.xml"]!);
+    for (const value of Object.values(shapes)) expect(slide).toContain(String(value).replaceAll("&", "&amp;"));
+    expect(slide).not.toContain("Old report client");
+    expect(JSON.stringify(enriched)).toBe(original);
+  });
+  it.each([undefined, {}, { client: null, contractor: "  ", contractProjectNumber: "" }])(
+    "keeps empty Additional Data unmapped without falling back to legacy project/report values (%j)", profile => {
+      const data = fixture();
+      (data.project.customFields as Record<string, unknown>).qmsAdditionalData = profile;
+      const shapes = auditPptxMappings(build(data)).get(3)!.shapes;
+      for (const id of [25, 27, 29, 31, 33, 35, 37, 41]) expect(shapes[id]).toBe(PPTX_UNMAPPED);
+      const projectless = build({ ...data, project: undefined } as unknown as ReturnType<typeof fixture>);
+      expect(auditPptxMappings(projectless).get(3)!.shapes[25]).toBe(PPTX_UNMAPPED);
+    });
   it("does not guess a contractor from contract details or a report approver from unrelated users", () => {
     const data = fixture();
-    delete (data.project.customFields as Record<string, string>).Contractor;
+    delete (data.project.customFields.qmsAdditionalData as Record<string, unknown>).contractor;
     const sections = build(data);
     expect(auditPptxMappings(sections).get(3)!.shapes[27]).toBe(PPTX_UNMAPPED);
     expect(auditPptxMappings(sections).get(2)!.tables[0]![2]![1]).toBe(PPTX_UNMAPPED);

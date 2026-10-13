@@ -77,3 +77,16 @@ keep empty source data distinct from unused template slots in the review workboo
 Requested NCR/OFI/CAR business reference numbers marked “to be added” remain
 “To be mapped”; internal B.x links and client idempotency keys are not substitutes.
 A mapping to the classification field cannot supply a photograph capture date.
+
+Slide 3 Project Profile must use the selected audit project's Project Master
+Additional Data for Client, Contractor, Contract / project no., Contract signed,
+Contract period, TCC, PAC and FAC.
+
+**Why:** The user explicitly chose this maintained project-level source after
+requesting the Additional Data popup. Old report-entry or source-master values
+must not reappear when an administrator clears the supplementary value.
+
+**How to apply:** Apply this source override only to the PPTX Slide 3 profile.
+Keep missing supplementary values exactly “To be mapped”; preserve the cover,
+other export formats and department-based audits without a project. Format
+Contract signed as a calendar date using the organization's date format.

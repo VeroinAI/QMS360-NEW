@@ -1,4 +1,5 @@
 import { projectProgressPhases } from "@workspace/field-controls";
+import { formatDate } from "@workspace/spreadsheet-dates";
 import type { ReportSectionData } from "./audit-consolidated-report";
 import { mappedText, PPTX_UNMAPPED } from "./audit-pptx-mapping";
 
@@ -50,14 +51,19 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
       }
     }
   }
-  for (const [label, aliases] of [
-    ["Client", ["client", "clientName"]],
-    ["Contractor", ["contractor", "contractorName"]],
-    ["Contract / project number", ["contractNumber", "projectNumber", "contractProjectNo", "contractProjectNumber", "projectNo", "code"]],
-    ["Contract signed", ["contractSigned", "contractSignedDate"]],
-    ["Contract period", ["contractPeriod"]],
-    ["TCC", ["tcc"]], ["PAC", ["pac"]], ["FAC", ["fac"]],
-  ] as const) fill("audit-overview", label, projectField(...aliases));
+  // Slide 3's profile explicitly uses this audit project's QMS Additional Data.
+  // A cleared value must stay unmapped, not revert to old report or source-master text.
+  const additional = project?.customFields?.qmsAdditionalData ?? {};
+  for (const [label, key] of [
+    ["Client", "client"], ["Contractor", "contractor"],
+    ["Contract / project number", "contractProjectNumber"], ["Contract signed", "contractSigned"],
+    ["Contract period", "contractPeriod"], ["TCC", "tcc"], ["PAC", "pac"], ["FAC", "fac"],
+  ] as const) {
+    const target = field("audit-overview", label);
+    if (!target) continue;
+    const saved = typeof additional[key] === "string" ? additional[key].trim() : "";
+    target.value = saved ? (key === "contractSigned" ? formatDate(saved) : saved) : PPTX_UNMAPPED;
+  }
   fill("cover", "Contract / project number", projectField("contractNumber", "projectNumber", "contractProjectNo", "projectNo", "code"));
   fill("scope", "Objective", plan?.description);
   fill("scope", "In scope", list((plan?.activities ?? []).map((row: Row) => row.section)));
