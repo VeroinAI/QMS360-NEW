@@ -162,7 +162,14 @@ export async function renderConsolidatedAuditPptx(input: {
     }
     const activities = chunks(programmeEntries(activityRows), 5);
     const participation = [28, 33, 38].map(id => chunks(programmeLines(mapping?.shapes[id] ?? PPTX_UNMAPPED, 26), id === 33 ? 5 : 4));
-    const photos = chunks(section("photographs")?.photos ?? [], 2);
+    // Each NC/OFI has its own photographic slide(s), with no mixed findings.
+    const photoGroups = new Map<string, ReportSectionData["photos"]>();
+    for (const photo of section("photographs")?.photos ?? []) {
+      const key = photo.reference === PPTX_UNMAPPED || photo.reference === "Not recorded" ? photo.id : photo.reference;
+      const group = photoGroups.get(key) ?? [];
+      group.push(photo); photoGroups.set(key, group);
+    }
+    const photos = [...photoGroups.values()].flatMap(group => chunks(group, 2));
     const themeRows = section("findings-summary")?.tables[1]?.rows ?? [];
     const themes = chunks(themeRows, 3);
     const count = Math.max(1, ...pages.map(p => p.length), slideNumber === 5 ? activities.length : 1,

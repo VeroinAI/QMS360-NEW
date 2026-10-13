@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, writeFile, unlink } from "node:fs/promises";
 import { eq } from "drizzle-orm";
 import { PDFDocument } from "pdf-lib";
+import { formatDate } from "@workspace/spreadsheet-dates";
 import {
   db, organizations, projects, platformRoles, users, applicationAccess,
   auditPlans, audits, auditFindings, correctiveActionReports, auditAuditLogEntries,
@@ -201,7 +202,7 @@ describe.skipIf(process.env.QMS_AUDIT_REPORT_CLEANUP === "1")("Audit completion 
     const detailed = { ...input, audit: { ...input.audit, reportDetails: { values: {}, rows: {
       photographs: [{ fileName: "inspection.png", date: "2026-10-02", location: "Actual site" }],
     } } } };
-    expect(photo(detailed).description).toContain("Date captured: 2026-10-02");
+    expect(photo(detailed).description).toContain(`Date captured: ${formatDate("2026-10-02")}`);
     expect(photo(detailed).description).toContain("Location: Actual site");
   });
 });

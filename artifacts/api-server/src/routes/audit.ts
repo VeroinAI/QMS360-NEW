@@ -54,7 +54,7 @@ import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprov
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
 import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-attachments";
 import { auditPlanReportData } from "../lib/audit-plan-report-data";
-import { auditPlanActivityLabelsQuery } from "../lib/audit-plan-activity-labels";
+import { auditAreaLabelsQuery, auditPlanActivityLabelsQuery } from "../lib/audit-plan-activity-labels";
 import { renderAuditPlanPdf } from "../lib/audit-plan-pdf";
 import { readAuditPlanSignature } from "../lib/audit-plan-signatures";
 import { ChecklistImportError, mergeAuditChecklistImport } from "../lib/audit-checklist-import";
@@ -3850,6 +3850,16 @@ async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
     criteria: scheduleMeta(schedule ?? {}).qaqcClauses ? [scheduleMeta(schedule ?? {}).qaqcClauses]
       : !meta?.auditTypes ? parseJson(plan.criteria, plan.criteria ? [plan.criteria] : []) : [],
   } : null;
+  if (pptxWorkbookMappings && mappedPlan) {
+    const [activityMasters, areaMasters] = await Promise.all([
+      auditPlanActivityLabelsQuery(db, actor(req).organizationId),
+      auditAreaLabelsQuery(db, actor(req).organizationId),
+    ]);
+    const activityLabels = new Map(activityMasters.map(row => [row.value, row.label]));
+    mappedPlan.activities = mappedPlan.activities.map(row => ({ ...row, section: activityLabels.get(row.section) || row.section }));
+    const areaLabels = new Map(areaMasters.map(row => [row.value, row.label]));
+    mappedAudit.checklist = mappedAudit.checklist.map((row: AnyRow) => ({ ...row, auditArea: areaLabels.get(row.auditArea) || row.auditArea }));
+  }
   const userIds = [...new Set([
     ...(pptxWorkbookMappings && schedule?.ownerId ? [schedule.ownerId] : []),
     mappedPlan?.leadAuditorId, ...(mappedPlan?.teamMemberIds ?? []), ...(mappedPlan?.processOwnerIds ?? []),
@@ -3892,6 +3902,7 @@ router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
     const car = report.cars[i]!;
     const meta = carMeta(car);
     row[5] = date(car.extensionStatus === "approved" && car.extensionDueDate ? car.extensionDueDate : car.dueDate);
+    row[6] = ["closed", "accepted"].includes(car.workflowState.toLowerCase()) ? "Closed" : "Open";
     row[7] = meta.reviewedAt && (meta.reviewOutcome === "accept" || car.workflowState === "closed" || car.workflowState === "accepted")
       ? `${reviewerRows.find(u => u.id === meta.reviewedBy)?.name || "To be mapped"} / ${date(meta.reviewedAt)}`
       : "To be mapped";

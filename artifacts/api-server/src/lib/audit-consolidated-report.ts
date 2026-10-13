@@ -134,7 +134,10 @@ export function buildConsolidatedAuditReport(input: {
     ["Overall conclusion", recorded("overallConclusion")], ["Key messages", recorded("keyMessages")],
   ]);
   const area = section("findings-summary", "Findings summary by audit area");
-  const areaRows = [...areaNumbers.keys()].map(a => {
+  const summaryAreas = input.pptxWorkbookMappings
+    ? [...new Set([...checklist.map(row => value(row.auditArea)), ...areaNumbers.keys()])]
+    : [...areaNumbers.keys()];
+  const areaRows = summaryAreas.map(a => {
     const items = findings.filter(f => f.area === a);
     return [a, ...["Major", "Moderate", "Minor", "OFI", "Unclassified NC"].map(grade => String(items.filter(f => f.grade === grade).length)), String(items.length)];
   });
@@ -171,19 +174,23 @@ export function buildConsolidatedAuditReport(input: {
   const register = (key: string, title: string, items: Row[]) => {
     const s = section(key, title);
     s.tables.push({ title, columns: ["Ref", "Audit area", "Finding", "Objective evidence", "Requirement", "Grade"],
-      rows: items.map(row => [row.reference, row.area, value(row.description ?? row.question ?? row.title),
+      // NCR/OFI numbers requested in the workbook are not captured yet.
+      // Internal B.x references and client idempotency keys are not those numbers.
+      rows: items.map(row => [input.pptxWorkbookMappings ? missing : row.reference, row.area, value(input.pptxWorkbookMappings && !row.legacy ? row.description : row.description ?? row.question ?? row.title),
         (row.evidenceIds ?? []).map((id: string) => value(evidence.find(e => e.id === id)?.fileName)).join(", ") || value(row.notes),
-        value(row.clause), row.grade]) });
+        value(input.pptxWorkbookMappings ? row.area : row.clause), row.grade]) });
   };
   register("non-conformities", "Non-conformity register", findings.filter(row => row.grade !== "OFI"));
   register("ofi", "Opportunities for improvement", findings.filter(row => row.grade === "OFI"));
   const photographs = section("photographs", "Photographic evidence");
   for (const file of evidence.filter(file => /^image\/(png|jpeg|webp|gif)$/i.test(file.mimeType) && file.id !== documents.organizationChartId)) {
     const row = findings.find(f => f.evidenceIds?.includes(file.id));
+    // The workbook requests images attached to NC/OFI findings, not unrelated uploads.
+    if (input.pptxWorkbookMappings && !row) continue;
     const caption = details.rows.photographs?.find(c => c.fileName?.trim() === file.fileName && (!c.reference?.trim() || c.reference.trim() === row?.reference))
       ?? details.rows.photographs?.find(c => c.fileName?.trim() === file.fileName);
     photographs.photos.push({ id: file.id, fileName: file.fileName, reference: row?.reference || caption?.reference || missing,
-      description: `Grade: ${value(row?.grade || caption?.grade)}\nDate captured: ${date(caption?.date)}\nDate uploaded: ${date(file.createdAt)}\nLocation: ${value(caption?.location || details.values.location || plan?.location || row?.area)}\nDescription: ${value(caption?.description || row?.description || row?.question || file.fileName)}\nRequirement: ${value(row?.clause || caption?.requirement)}` });
+      description: `Grade: ${value(row?.grade || caption?.grade)}\nDate captured: ${date(caption?.date)}\nDate uploaded: ${date(file.createdAt)}\nLocation: ${value(caption?.location || details.values.location || plan?.location || row?.area)}\nDescription: ${value(caption?.description || row?.description || (input.pptxWorkbookMappings ? undefined : row?.question || file.fileName))}\nRequirement: ${value(row?.clause || caption?.requirement)}` });
   }
   const grading = section("grading", "Finding grades and response requirements");
   grading.tables.push({ title: "Client template grading guidance", columns: ["Grade", "Definition", "Response requirement"],

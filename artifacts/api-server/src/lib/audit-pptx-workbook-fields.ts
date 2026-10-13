@@ -4,7 +4,7 @@ import { mappedText, PPTX_UNMAPPED } from "./audit-pptx-mapping";
 
 type Row = Record<string, any>;
 
-/** Workbook-driven enrichment is exclusive to PPTX. Never overwrite a mapped value. */
+/** Workbook-driven enrichment is exclusive to PPTX. Preserve recorded values except explicit workbook source changes. */
 export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input: {
   audit: Row; plan?: Row | null; schedule?: Row | null; project?: Row | null;
   evidence: Row[]; names: Map<string, string>; roleNames: Map<string, string>;
@@ -64,7 +64,10 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
   fill("scope", "Period and sample covered", list(evidence.map(file => file.fileName)));
   fill("scope", "Project phases covered", list((audit.checklist ?? []).map((row: Row) => row.auditArea)));
   fill("scope", "Method", plan?.auditMethod || plan?.method);
-  fill("programme", "Auditees present", list((plan?.auditeeRoleIds ?? []).map((id: string) => roleNames.get(id))));
+  // This workbook explicitly maps participation to the Plan's Auditee Roles,
+  // independently of the meeting's attendee user selection.
+  const auditees = field("programme", "Auditees present");
+  if (auditees) auditees.value = list((plan?.auditeeRoleIds ?? []).map((id: string) => roleNames.get(id))) || "Not recorded";
 
   const documents = audit.additionalDocuments ?? {};
   const progress = sections.find(section => section.key === "project-progress")?.tables[0];
@@ -83,15 +86,19 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
     }
   }
   const conforming = sections.find(section => section.key === "conforming")?.tables[0];
-  if (conforming && !conforming.rows.length) {
-    conforming.rows = (documents.goodPractices ?? []).map((row: Row) => [
+  if (conforming) {
+    const practices = (documents.goodPractices ?? []).map((row: Row) => [
       row.areaProcess, row.verifiedConforming, row.evidenceReference,
     ].map(value => empty(value) ? "Not recorded" : String(value)));
+    for (const row of practices) {
+      if (!conforming.rows.some(existing => existing.join("\0") === row.join("\0"))) conforming.rows.push(row);
+    }
   }
   const tracker = sections.find(section => section.key === "corrective-actions")?.tables[0];
   tracker?.rows.forEach((row, index) => {
     const finding = input.findingReferences.get(input.cars[index]?.findingId);
-    if (finding && empty(row[0])) row[0] = finding.reference;
+    // The workbook requests CAR Register Ref no (to be added), not a generated finding reference.
+    row[0] = "Not recorded";
     if (finding && empty(row[1])) row[1] = finding.grade;
   });
 }

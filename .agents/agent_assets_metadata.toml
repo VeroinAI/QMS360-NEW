@@ -120,3 +120,31 @@ mtime_ms = 1791786804767
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/4e2a36d1-e470-45f7-a089-93cf333582b4/6e144c57-5703-4702-97bf-0677dc0326b9"
 storage_version_token = "1791786813236453"
 content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+[[outputs]]
+id = "veBomiMq89CApBLc5M1IO"
+uri = "file://generated-artifacts/audit-mappings/QMS360_Audit_Report_Mapped.pptx"
+type = "slides"
+title = "Updated Audit Report"
+description = "Audit PowerPoint populated using your supplied source mappings and actual saved production records. Unavailable values remain “To be mapped”. Original branding and finding image preserved."
+logical_id = "ab95727f-9229-4dd1-ae95-4071246e3fcb"
+content_hash = "sha256:2f8cae805f48180f55350d7dd0725b20a409ae2da44ad58cc65c92bbee0e997a"
+size = 262294
+mtime_ms = 1791873351668
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/ab95727f-9229-4dd1-ae95-4071246e3fcb/fa849961-d11e-4d7e-b32f-8daaf285f1db"
+storage_version_token = "1791873547436968"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+[[outputs]]
+id = "GtpAndOtFtUREyAk-Bxjz"
+uri = "file://generated-artifacts/audit-mappings/QMS360_Audit_PPT_Remaining_Mappings_Review.xlsx"
+type = "table"
+title = "Remaining Audit Report Mappings — Excel Review"
+description = "Missing fields, unused template slots, applied mappings and 10 source decisions requiring clarification. Fill the yellow mapping cells for your next review."
+logical_id = "21878163-d0f1-4cfc-b4bc-da1ca021032b"
+content_hash = "sha256:a2256a60e8c60f9d736407454ba7d44740f372fb7d1ec7fca1702f7f33d37246"
+size = 27467
+mtime_ms = 1791873352052
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/21878163-d0f1-4cfc-b4bc-da1ca021032b/32137197-4d31-42eb-bdd1-015f1c448d1f"
+storage_version_token = "1791873548767116"
+content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

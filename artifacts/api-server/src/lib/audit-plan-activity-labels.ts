@@ -12,3 +12,12 @@ export function auditPlanActivityLabelsQuery(db: Db, organizationId: string) {
       isNull(masterDataGroups.deletedAt), eq(masterDataValues.organizationId, organizationId),
       isNull(masterDataValues.deletedAt)));
 }
+
+export function auditAreaLabelsQuery(db: Db, organizationId: string) {
+  return db.select({ value: masterDataValues.value, label: masterDataValues.label }).from(masterDataValues)
+    .innerJoin(masterDataGroups, eq(masterDataGroups.id, masterDataValues.groupId))
+    .where(and(eq(masterDataGroups.organizationId, organizationId),
+      eq(sql<string>`regexp_replace(lower(${masterDataGroups.code}), '[^a-z]', '', 'g')`, "auditarea"),
+      isNull(masterDataGroups.deletedAt), eq(masterDataValues.organizationId, organizationId),
+      isNull(masterDataValues.deletedAt)));
+}

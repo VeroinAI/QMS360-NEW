@@ -63,3 +63,17 @@ participant as unmapped even when the production user record exists.
 **How to apply:** Reuse the report DTOs and tenant-scoped identity resolution.
 Distinguish genuinely missing values from empty template rows and continuation
 slots when giving a user a mapping inventory.
+
+Explicit later workbook mappings override an older source choice in the PPTX
+only: programme participation uses Plan Auditee Roles, finding requirements use
+Audit Area, and finding descriptions come from Findings Description rather than
+a checklist question. Group NC/OFI photographs by finding on separate slides.
+
+**Why:** The user supplied these source choices in the remaining-mappings workbook,
+including instructions in its “Unused slots” sheet.
+
+**How to apply:** Check every worksheet for instructions. Read saved values only;
+keep empty source data distinct from unused template slots in the review workbook.
+Requested NCR/OFI/CAR business reference numbers marked “to be added” remain
+“To be mapped”; internal B.x links and client idempotency keys are not substitutes.
+A mapping to the classification field cannot supply a photograph capture date.

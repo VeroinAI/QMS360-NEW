@@ -79,8 +79,8 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
   it("maps conforming records and resolves CAR references and grades through linked checklist findings", () => {
     const mapped = auditPptxMappings(build());
     expect(mapped.get(10)!.tables[0]).toEqual([["Design", "Actual verified practice", "Record X"]]);
-    expect(mapped.get(15)!.tables[0]![0]!.slice(0, 3)).toEqual(["B.1.1", "Moderate", "Actual root cause"]);
-    expect(mapped.get(11)!.tables[0]![0]![0]).toBe("B.1.1");
+    expect(mapped.get(15)!.tables[0]![0]!.slice(0, 3)).toEqual([PPTX_UNMAPPED, "Moderate", "Actual root cause"]);
+    expect(mapped.get(11)!.tables[0]![0]![0]).toBe(PPTX_UNMAPPED);
   });
   it("does not overwrite existing report values or mutate the source audit, plan or other export sections", () => {
     const data = {
@@ -100,10 +100,62 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     const unchanged = buildConsolidatedAuditReport(data);
     const optedOut = buildConsolidatedAuditReport({ ...data, pptxWorkbookMappings: false });
     expect(optedOut).toEqual(unchanged);
-    for (const key of ["executive-summary", "findings-summary", "non-conformities", "ofi", "photographs", "grading", "conclusion"]) {
+    for (const key of ["executive-summary", "findings-summary", "ofi", "photographs", "grading", "conclusion"]) {
       expect(sections.find(row => row.key === key)).toEqual(unchanged.find(row => row.key === key));
     }
     expect(JSON.stringify(data)).toBe(before);
+  });
+  it("maps Requirements to Audit Area and keeps an empty Findings Description unavailable instead of substituting a checklist question", () => {
+    const data = fixture();
+    data.audit.checklist[0] = { ...data.audit.checklist[0]!, description: "", question: "A checklist question" } as typeof data.audit.checklist[0];
+    const mapped = auditPptxMappings(build(data)).get(11)!.tables[0]![0]!;
+    expect(mapped[1]).toContain(PPTX_UNMAPPED);
+    expect(mapped[1]).not.toContain("A checklist question");
+    expect(mapped[3]).toBe("Construction");
+    expect(mapped[2]).toBe(PPTX_UNMAPPED);
+    expect(auditPptxMappings(buildConsolidatedAuditReport(data)).get(11)!.tables[0]![0]![3]).toBe("8");
+  });
+  it("uses Plan Auditee Roles even when meeting attendee names have been saved", () => {
+    const data = { ...fixture(), audit: { ...fixture().audit, openingMeeting: { attendees: ["lead"] } } };
+    expect(field(build(data), "programme", "Auditees present")).toBe("Selected auditee role");
+    expect(field(buildConsolidatedAuditReport(data), "programme", "Auditees present")).toBe("Selected lead");
+  });
+  it("includes checklist areas with zero findings without counting Not applicable as a finding", () => {
+    const data = fixture();
+    data.audit.checklist.push({ id: "unclassified", findingId: "", auditArea: "Design", auditFinding: "Not applicable", description: "Not a finding", clause: "9" });
+    expect(auditPptxMappings(build(data)).get(7)!.tables[0]).toContainEqual(["Design", "0", "0", "0", "0", "0"]);
+  });
+  it("includes only NC/OFI image evidence in PPTX and never treats upload time or classification as capture date", () => {
+    const data = { ...fixture(), audit: { ...fixture().audit, checklist: [{ ...fixture().audit.checklist[0], evidenceIds: ["linked"] }] },
+      evidence: [
+        { id: "linked", fileName: "finding.png", mimeType: "image/png", createdAt: "2026-10-12" },
+        { id: "unlinked", fileName: "unrelated.png", mimeType: "image/png" },
+      ] };
+    const photos = build(data).find(section => section.key === "photographs")!.photos;
+    expect(photos.map(photo => photo.fileName)).toEqual(["finding.png"]);
+    expect(photos[0]!.description).toContain("Date captured: Not recorded");
+    expect(buildConsolidatedAuditReport(data).find(section => section.key === "photographs")!.photos).toHaveLength(2);
+    expect(auditPptxMappings(build(data)).get(11)!.tables[0]![0]![2]).toBe("finding.png");
+  });
+  it("keeps different findings on separate photographic slides and continues all images for one finding", async () => {
+    const sections = build();
+    sections.find(section => section.key === "photographs")!.photos = [
+      { id: "one", fileName: "one.png", reference: "B.1.1", description: "Grade: Major" },
+      { id: "two", fileName: "two.png", reference: "B.2.1", description: "Grade: OFI" },
+      { id: "three", fileName: "three.png", reference: "B.1.1", description: "Grade: Major" },
+      { id: "four", fileName: "four.png", reference: "B.1.1", description: "Grade: Major" },
+    ];
+    // A real PNG is necessary to exercise OOXML image embedding and continuation.
+    const sharp = (await import("sharp")).default;
+    const png = await sharp({ create: { width: 2, height: 2, channels: 3, background: "#ffffff" } }).png().toBuffer();
+    const photos = new Map(["one", "two", "three", "four"].map(id => [id, png]));
+    const output = unzipSync(await renderConsolidatedAuditPptx({ sections, photos }));
+    const pages = Object.entries(output).filter(([name]) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+      .map(([, xml]) => strFromU8(xml)).filter(xml => /one\.png|two\.png|three\.png|four\.png/.test(xml));
+    expect(pages).toHaveLength(3);
+    expect(pages.some(page => page.includes("one.png") && page.includes("three.png"))).toBe(true);
+    expect(pages.some(page => page.includes("two.png") && /one\.png|three\.png|four\.png/.test(page))).toBe(false);
+    expect(pages.some(page => page.includes("four.png"))).toBe(true);
   });
   it("writes the filled fields to the real PPTX, omits only slide 16 and preserves grading and template styles", async () => {
     const sections = build();
@@ -114,7 +166,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     expect(xml("ppt/slides/slide2.xml")).toContain("Selected lead");
     expect(xml("ppt/slides/slide2.xml")).toContain("QAM-IA/26-001");
     expect(xml("ppt/slides/slide8.xml")).toContain("Engineering");
-    expect(xml("ppt/slides/slide15.xml")).toContain("B.1.1");
+    expect(xml("ppt/slides/slide15.xml")).toContain("Actual root cause");
     const presentation = xml("ppt/presentation.xml");
     const oldPresentation = strFromU8(original["ppt/presentation.xml"]!);
     expect((presentation.match(/<p:sldId /g) ?? []).length).toBe((oldPresentation.match(/<p:sldId /g) ?? []).length - 1);
