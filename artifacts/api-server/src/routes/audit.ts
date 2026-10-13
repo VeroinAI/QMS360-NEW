@@ -52,6 +52,7 @@ import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../l
 import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
 import { allocatePlanNumber, getPlanNumberDepartments, previewPlanNumber, readPlanNumberState, savePlanNumbering, type PlanNumberPattern } from "../lib/audit-plan-numbering";
 import { allocateReportNumber, readReportNumberState, saveReportNumbering } from "../lib/audit-report-numbering";
+import { allocateFindingNumber, numberedFindingTypes, readFindingNumberState, saveFindingNumbering, type FindingNumberPattern } from "../lib/audit-finding-numbering";
 import { projectNumberContext } from "@workspace/field-controls";
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
@@ -2402,9 +2403,13 @@ const auditDto = (row: AnyRow, canEdit = false) => {
     startedAt: meta.startedAt ? new Date(meta.startedAt) : null, closedAt: meta.closedAt ? new Date(meta.closedAt) : null,
   };
 };
+function withoutFindingNumber(item: AnyRow) {
+  const { findingNumber, findingNumberScope, findingNumberYear, findingNumberSequence, findingNumberType, ...values } = item;
+  return values;
+}
 const auditValues = (data: AnyRow) => ({
   id: data.id, auditPlanId: data.planId, projectId: data.projectId, referenceNumber: data.title,
-  workflowState: String(data.status).toLowerCase(), checklistState: data.checklist ?? [],
+  workflowState: String(data.status).toLowerCase(), checklistState: (data.checklist ?? []).map(withoutFindingNumber),
   openingMeetingMinutes: data.openingMeeting?.minutes, closingMeetingMinutes: data.closingMeeting?.minutes,
   status: JSON.stringify({
     title: data.title, openingMeeting: data.openingMeeting, closingMeeting: data.closingMeeting,
@@ -2674,9 +2679,16 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
   const { locked, row } = await db.transaction(async tx => {
     const [locked] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, before.id))).for("update");
     if (!locked) throw new HttpError(404, "Audit not found");
-    if (auditMeta(locked).reportNumber && locked.auditPlanId !== plan.id) {
-      throw new HttpError(409, "An audit with an issued Report Number cannot be moved to a different Audit Plan.");
+    const currentChecklist = Array.isArray(locked.checklistState) ? locked.checklistState as AnyRow[] : [];
+    if ((auditMeta(locked).reportNumber || currentChecklist.some(item => item.findingNumber)) && locked.auditPlanId !== plan.id) {
+      throw new HttpError(409, "An audit with an issued Report or Finding Number cannot be moved to a different Audit Plan.");
     }
+    const findingRows = currentChecklist.filter(item => item.source === "finding");
+    const findingIds = new Set(findingRows.map(item => item.id));
+    values.checklistState = data.checklist ? [
+      ...data.checklist.filter((item: AnyRow) => item.source !== "finding" && !findingIds.has(item.id)).map(withoutFindingNumber),
+      ...findingRows,
+    ] : currentChecklist;
     if (auditIsComplete(data.status) !== auditIsComplete(locked.workflowState)) {
       throw new HttpError(409, "The audit completion status changed. Reload before editing.");
     }
@@ -2737,7 +2749,8 @@ router.put("/audits/:id/opening-meeting", asyncHandler(async (req, res) => res.j
 router.put("/audits/:id/closing-meeting", asyncHandler(async (req, res) => res.json(auditDto(await updateMeeting(req, "closing", Api.UpdateAuditClosingMeetingBody)))));
 router.put("/audits/:id/checklist", asyncHandler(async (req, res) => {
   const data = body<AnyRow[]>(Api.UpdateAuditChecklistBody, req);
-  const [before] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
+  const { before, row } = await db.transaction(async tx => {
+  const [before] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id)))).for("update");
   if (!before) throw new HttpError(404, "Audit not found");
   const legacyResults = (Array.isArray(before.checklistState) ? before.checklistState : [])
     .map((item: AnyRow) => item.result).filter((value: unknown): value is string => typeof value === "string");
@@ -2751,12 +2764,14 @@ router.put("/audits/:id/checklist", asyncHandler(async (req, res) => {
     if (item.result) await assertLovValue(db, actor(req).organizationId, "checklist_results", item.result, { allowLegacy: legacyResults });
     if (item.auditArea) await assertLovValue(db, actor(req).organizationId, "Audit Area", item.auditArea, { allowLegacy: previous?.auditArea });
   }));
-  const merged = data.filter(item => item.source !== "finding").map(item => {
+  const merged = data.filter(item => item.source !== "finding" && existingItems.get(item.id)?.source !== "finding").map(item => {
     const previous = existingItems.get(item.id);
-    return previous ? { ...item, source: previous.source, actionTakerId: previous.actionTakerId } : item;
+    return previous ? { ...withoutFindingNumber(item), source: previous.source, actionTakerId: previous.actionTakerId } : withoutFindingNumber(item);
   });
   merged.push(...[...existingItems.values()].filter(item => item.source === "finding"));
-  const [row] = await db.update(audits).set({ checklistState: merged as any, updatedAt: new Date() }).where(eq(audits.id, before.id)).returning();
+  const [row] = await tx.update(audits).set({ checklistState: merged as any, updatedAt: new Date() }).where(eq(audits.id, before.id)).returning();
+  return { before, row };
+  });
   await auditLog(req, "update_checklist", "audit", row.id, before, row); res.json(auditDto(row));
 }));
 
@@ -2899,13 +2914,25 @@ router.post("/audits/:id/finding-items", asyncHandler(async (req, res) => {
   if (!eligible.some(user => user.id === data.actionTakerId)) throw new HttpError(422, "Select an active QMS Audit user as Action Taker");
   const evidenceIds = await checklistEvidenceIds(organizationId, auditId, data.evidenceIds ?? []);
   const { before, row, created } = await db.transaction(async tx => {
+    const { settings } = await lockScheduleNumbering(tx, organizationId);
     const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
     const checklist = Array.isArray(before.checklistState) ? before.checklistState : [];
     if (data.clientReference && checklist.some((entry: AnyRow) => entry.source === "finding" && entry.clientReference === data.clientReference)) {
       return { before, row: before, created: false };
     }
+    const [plan] = before.auditPlanId ? await tx.select().from(auditPlans).where(and(
+      active(auditPlans, organizationId), eq(auditPlans.id, before.auditPlanId))) : [];
+    if (!plan?.auditScheduleId) throw new HttpError(422, "A linked Audit Plan and Audit Schedule are required to generate the Audit Finding Number.");
+    const [schedule] = await tx.select().from(auditSchedules).where(and(
+      active(auditSchedules, organizationId), eq(auditSchedules.id, plan.auditScheduleId)));
+    await assertChildSchedule(schedule);
+    const meta = scheduleMeta(schedule);
+    const numbering = await allocateFindingNumber(tx, settings, data.auditFinding,
+      isProcessAuditSchedule(schedule) ? null : plan.projectId,
+      meta.departmentProject, meta.plannedStartDate);
     const item = {
+      ...numbering,
       id: randomUUID(), source: "finding", question: "", clause: data.clause.trim(),
       auditArea: data.auditArea.trim(), description: data.description?.trim() || null,
       auditFinding: data.auditFinding, evidenceIds, actionTakerId: data.actionTakerId,
@@ -4068,6 +4095,24 @@ router.get("/admin/report-numbering", asyncHandler(async (req, res) => {
   const state = await readReportNumberState(actor(req).organizationId);
   res.json(Api.GetAuditReportNumberingResponse.parse({ ...state, sources,
     ranges: Object.fromEntries(sources.filter(source => state.ranges[source.key]).map(source => [source.key, state.ranges[source.key]])) }));
+}));
+router.get("/admin/finding-numbering", asyncHandler(async (req, res) => {
+  const sources = await auditPlanNumberSources(req);
+  const state = await readFindingNumberState(actor(req).organizationId);
+  const allowed = new Set(sources.map(source => source.key));
+  res.json(Api.GetAuditFindingNumberingResponse.parse({
+    ...state, findingTypes: numberedFindingTypes, sources,
+    ranges: Object.fromEntries(Object.entries(state.ranges).map(([type, ranges]) => [
+      type, Object.fromEntries(Object.entries(ranges).filter(([scope]) => allowed.has(scope))),
+    ])),
+  }));
+}));
+router.put("/admin/finding-numbering", asyncHandler(async (req, res) => {
+  const pattern = body<FindingNumberPattern>(Api.UpdateAuditFindingNumberingBody, req);
+  const before = await readFindingNumberState(actor(req).organizationId);
+  const saved = await saveFindingNumbering(actor(req).organizationId, pattern);
+  await auditLog(req, "update_finding_numbering", "audit_finding_numbering", actor(req).organizationId, before.pattern, saved.pattern);
+  res.json(Api.UpdateAuditFindingNumberingResponse.parse(saved.pattern));
 }));
 router.put("/admin/report-numbering", asyncHandler(async (req, res) => {
   const pattern = body<PlanNumberPattern>(Api.UpdateAuditReportNumberingBody, req);

@@ -3169,6 +3169,55 @@ export interface AuditPlanNumberingPattern {
   padding: number;
 }
 
+export type AuditFindingNumberingPatternCodes = {[key: string]: string};
+
+export interface AuditFindingNumberingPattern {
+  /** @maxLength 80 */
+  prefix: string;
+  /** @maxLength 80 */
+  separator: string;
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  padding: number;
+  codes: AuditFindingNumberingPatternCodes;
+}
+
+export type AuditFindingNumberingSettingsFindingTypesItem = typeof AuditFindingNumberingSettingsFindingTypesItem[keyof typeof AuditFindingNumberingSettingsFindingTypesItem];
+
+
+export const AuditFindingNumberingSettingsFindingTypesItem = {
+  Minor_NC: 'Minor NC',
+  Moderate_NC: 'Moderate NC',
+  Major_NC: 'Major NC',
+  OFI: 'OFI',
+} as const;
+
+export type AuditFindingNumberingSettingsRanges = {[key: string]: {[key: string]: {[key: string]: number}}};
+
+export type AuditNumberingSourceKind = typeof AuditNumberingSourceKind[keyof typeof AuditNumberingSourceKind];
+
+
+export const AuditNumberingSourceKind = {
+  project: 'project',
+  department: 'department',
+} as const;
+
+export interface AuditNumberingSource {
+  key: string;
+  kind: AuditNumberingSourceKind;
+  label: string;
+  sourceValue: string;
+}
+
+export interface AuditFindingNumberingSettings {
+  pattern: AuditFindingNumberingPattern;
+  findingTypes: AuditFindingNumberingSettingsFindingTypesItem[];
+  sources: AuditNumberingSource[];
+  ranges: AuditFindingNumberingSettingsRanges;
+}
+
 export interface AuditPlanNumberRangeInput {
   scope: string;
   /**
@@ -3380,6 +3429,8 @@ export interface ChecklistItem {
   actionTakerId?: string;
   recommendedPriorityAction?: FindingPriorityAction;
   clientReference?: string;
+  /** Server-issued number assigned on Save Finding; distinct from clientReference */
+  readonly findingNumber?: string;
 }
 
 export type AuditFindingItemInputAuditFinding = typeof AuditFindingItemInputAuditFinding[keyof typeof AuditFindingItemInputAuditFinding];

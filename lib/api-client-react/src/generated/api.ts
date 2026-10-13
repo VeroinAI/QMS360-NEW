@@ -43,6 +43,8 @@ import type {
   AuditFindingActionTakerInput,
   AuditFindingBody,
   AuditFindingItemInput,
+  AuditFindingNumberingPattern,
+  AuditFindingNumberingSettings,
   AuditFindingPageResponse,
   AuditGoodPracticesInput,
   AuditLogPageResponse,
@@ -25996,6 +25998,154 @@ export const useUpdateAuditReportNumbering = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateAuditReportNumberingMutationOptions(options));
+    }
+
+export const getGetAuditFindingNumberingUrl = () => {
+
+
+
+
+  return `/api/audit/admin/finding-numbering`
+}
+
+/**
+ * @summary Read independent finding-type yearly numbering
+ */
+export const getAuditFindingNumbering = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditFindingNumberingSettings> => {
+
+  return customFetch<AuditFindingNumberingSettings>(getGetAuditFindingNumberingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditFindingNumberingQueryKey = () => {
+    return [
+    `/api/audit/admin/finding-numbering`
+    ] as const;
+    }
+
+
+export const getGetAuditFindingNumberingQueryOptions = <TData = Awaited<ReturnType<typeof getAuditFindingNumbering>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditFindingNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditFindingNumberingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditFindingNumbering>>> = ({ signal }) => getAuditFindingNumbering({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditFindingNumbering>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditFindingNumberingQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditFindingNumbering>>>
+export type GetAuditFindingNumberingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read independent finding-type yearly numbering
+ */
+
+export function useGetAuditFindingNumbering<TData = Awaited<ReturnType<typeof getAuditFindingNumbering>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditFindingNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditFindingNumberingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAuditFindingNumberingUrl = () => {
+
+
+
+
+  return `/api/audit/admin/finding-numbering`
+}
+
+/**
+ * @summary Save finding number format and per-type middle codes without resetting counters
+ */
+export const updateAuditFindingNumbering = async (auditFindingNumberingPattern: AuditFindingNumberingPattern, options?: Parameters<typeof customFetch>[1]): Promise<AuditFindingNumberingPattern> => {
+
+  return customFetch<AuditFindingNumberingPattern>(getUpdateAuditFindingNumberingUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditFindingNumberingPattern)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditFindingNumberingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditFindingNumbering>>, TError,{data: BodyType<AuditFindingNumberingPattern>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditFindingNumbering>>, TError,{data: BodyType<AuditFindingNumberingPattern>}, TContext> => {
+
+const mutationKey = ['updateAuditFindingNumbering'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditFindingNumbering>>, {data: BodyType<AuditFindingNumberingPattern>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAuditFindingNumbering(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditFindingNumberingMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditFindingNumbering>>>
+    export type UpdateAuditFindingNumberingMutationBody = BodyType<AuditFindingNumberingPattern>
+    export type UpdateAuditFindingNumberingMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save finding number format and per-type middle codes without resetting counters
+ */
+export const useUpdateAuditFindingNumbering = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditFindingNumbering>>, TError,{data: BodyType<AuditFindingNumberingPattern>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditFindingNumbering>>,
+        TError,
+        {data: BodyType<AuditFindingNumberingPattern>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditFindingNumberingMutationOptions(options));
     }
 
 export const getUpdateAuditReportNumberRangeUrl = () => {

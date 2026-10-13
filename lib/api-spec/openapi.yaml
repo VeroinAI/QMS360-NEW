@@ -1924,6 +1924,9 @@ paths:
   /audit/admin/report-numbering:
     get: {operationId: getAuditReportNumbering, tags: [audit-admin], summary: Read independent Audit Report yearly project and department numbering, responses: {"200": {description: Audit Report numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingSettings"}}}}}}
     put: {operationId: updateAuditReportNumbering, tags: [audit-admin], summary: Save Audit Report prefix and middle text without resetting counters, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}, responses: {"200": {description: Saved Audit Report pattern, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}}}
+  /audit/admin/finding-numbering:
+    get: {operationId: getAuditFindingNumbering, tags: [audit-admin], summary: Read independent finding-type yearly numbering, responses: {"200": {description: Finding numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingNumberingSettings"}}}}}}
+    put: {operationId: updateAuditFindingNumbering, tags: [audit-admin], summary: Save finding number format and per-type middle codes without resetting counters, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingNumberingPattern"}}}}, responses: {"200": {description: Saved format, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingNumberingPattern"}}}}}}
   /audit/admin/report-numbering/ranges:
     put:
       operationId: updateAuditReportNumberRange
@@ -3908,6 +3911,30 @@ components:
         middle: {type: string, maxLength: 80}
         separator: {type: string, maxLength: 80}
         padding: {type: number, minimum: 1, maximum: 12}
+    AuditFindingNumberingPattern:
+      type: object
+      required: [prefix, separator, padding, codes]
+      properties:
+        prefix: {type: string, maxLength: 80}
+        separator: {type: string, maxLength: 80}
+        padding: {type: number, minimum: 1, maximum: 12}
+        codes: {type: object, additionalProperties: {type: string, minLength: 1, maxLength: 80}}
+    AuditFindingNumberingSettings:
+      type: object
+      required: [pattern, findingTypes, sources, ranges]
+      properties:
+        pattern: {$ref: "#/components/schemas/AuditFindingNumberingPattern"}
+        findingTypes: {type: array, items: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI]}}
+        sources: {type: array, items: {$ref: "#/components/schemas/AuditNumberingSource"}}
+        ranges: {type: object, additionalProperties: {type: object, additionalProperties: {type: object, additionalProperties: {type: number}}}}
+    AuditNumberingSource:
+      type: object
+      required: [key, kind, label, sourceValue]
+      properties:
+        key: {type: string}
+        kind: {type: string, enum: [project, department]}
+        label: {type: string}
+        sourceValue: {type: string}
     AuditPlanNumberRangeInput:
       type: object
       required: [scope, year, lastNumber]
@@ -3996,7 +4023,7 @@ components:
     ChecklistItem:
       type: object
       required: [id, question]
-      properties: {id: {type: string}, clause: {type: [string, "null"]}, auditArea: {type: string}, question: {type: string}, description: {type: [string, "null"]}, auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}, result: {type: string, description: "Legacy values managed via /platform/master-data/lov/checklist_results"}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}, source: {type: string, enum: [finding], description: "Finding-only row, excluded from the Checklist tab"}, actionTakerId: {type: string}, recommendedPriorityAction: {$ref: "#/components/schemas/FindingPriorityAction"}, clientReference: {type: string}}
+      properties: {id: {type: string}, clause: {type: [string, "null"]}, auditArea: {type: string}, question: {type: string}, description: {type: [string, "null"]}, auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}, result: {type: string, description: "Legacy values managed via /platform/master-data/lov/checklist_results"}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}, source: {type: string, enum: [finding], description: "Finding-only row, excluded from the Checklist tab"}, actionTakerId: {type: string}, recommendedPriorityAction: {$ref: "#/components/schemas/FindingPriorityAction"}, clientReference: {type: string}, findingNumber: {type: string, readOnly: true, description: "Server-issued number assigned on Save Finding; distinct from clientReference"}}
     FindingPriorityAction:
       type: string
       enum: ["Contain the risk now", "Correct and close", "Prevent recurrence"]

@@ -8336,7 +8336,8 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -8492,7 +8493,8 @@ export const ListAuditsResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -8626,7 +8628,8 @@ export const CreateAuditBody = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -8767,7 +8770,8 @@ export const GetAuditResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -8904,7 +8908,8 @@ export const UpdateAuditBody = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -9070,7 +9075,8 @@ export const CompleteAuditResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -9222,7 +9228,8 @@ export const SaveAuditReportDetailsResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -9456,7 +9463,8 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -9610,7 +9618,8 @@ export const EditAuditChecklistItemResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -9753,7 +9762,8 @@ export const DeleteAuditChecklistItemResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -9908,7 +9918,8 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -10064,7 +10075,8 @@ export const CreateAuditFindingItemResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -10209,7 +10221,8 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -10356,7 +10369,8 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -10520,7 +10534,8 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -10687,7 +10702,8 @@ export const UpdateAuditOverallProjectProgressResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -10852,7 +10868,8 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -11796,7 +11813,8 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
   "actionTakerId": zod.string().optional(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
-  "clientReference": zod.string().optional()
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
 })).optional(),
   "additionalDocuments": zod.object({
   "organizationChartId": zod.string().nullish(),
@@ -12451,6 +12469,75 @@ export const UpdateAuditReportNumberingResponse = zod.object({
   "middle": zod.string().max(updateAuditReportNumberingResponseMiddleMax),
   "separator": zod.string().max(updateAuditReportNumberingResponseSeparatorMax),
   "padding": zod.number().min(1).max(updateAuditReportNumberingResponsePaddingMax)
+})
+
+
+/**
+ * @summary Read independent finding-type yearly numbering
+ */
+export const getAuditFindingNumberingResponsePatternPrefixMax = 80;
+
+export const getAuditFindingNumberingResponsePatternSeparatorMax = 80;
+
+export const getAuditFindingNumberingResponsePatternPaddingMax = 12;
+
+export const getAuditFindingNumberingResponsePatternCodesMaxOne = 80;
+
+
+
+export const GetAuditFindingNumberingResponse = zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string().max(getAuditFindingNumberingResponsePatternPrefixMax),
+  "separator": zod.string().max(getAuditFindingNumberingResponsePatternSeparatorMax),
+  "padding": zod.number().min(1).max(getAuditFindingNumberingResponsePatternPaddingMax),
+  "codes": zod.record(zod.string(), zod.string().min(1).max(getAuditFindingNumberingResponsePatternCodesMaxOne))
+}),
+  "findingTypes": zod.array(zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI'])),
+  "sources": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.enum(['project', 'department']),
+  "label": zod.string(),
+  "sourceValue": zod.string()
+})),
+  "ranges": zod.record(zod.string(), zod.record(zod.string(), zod.record(zod.string(), zod.number())))
+})
+
+
+/**
+ * @summary Save finding number format and per-type middle codes without resetting counters
+ */
+export const updateAuditFindingNumberingBodyPrefixMax = 80;
+
+export const updateAuditFindingNumberingBodySeparatorMax = 80;
+
+export const updateAuditFindingNumberingBodyPaddingMax = 12;
+
+export const updateAuditFindingNumberingBodyCodesMaxOne = 80;
+
+
+
+export const UpdateAuditFindingNumberingBody = zod.object({
+  "prefix": zod.string().max(updateAuditFindingNumberingBodyPrefixMax),
+  "separator": zod.string().max(updateAuditFindingNumberingBodySeparatorMax),
+  "padding": zod.number().min(1).max(updateAuditFindingNumberingBodyPaddingMax),
+  "codes": zod.record(zod.string(), zod.string().min(1).max(updateAuditFindingNumberingBodyCodesMaxOne))
+})
+
+export const updateAuditFindingNumberingResponsePrefixMax = 80;
+
+export const updateAuditFindingNumberingResponseSeparatorMax = 80;
+
+export const updateAuditFindingNumberingResponsePaddingMax = 12;
+
+export const updateAuditFindingNumberingResponseCodesMaxOne = 80;
+
+
+
+export const UpdateAuditFindingNumberingResponse = zod.object({
+  "prefix": zod.string().max(updateAuditFindingNumberingResponsePrefixMax),
+  "separator": zod.string().max(updateAuditFindingNumberingResponseSeparatorMax),
+  "padding": zod.number().min(1).max(updateAuditFindingNumberingResponsePaddingMax),
+  "codes": zod.record(zod.string(), zod.string().min(1).max(updateAuditFindingNumberingResponseCodesMaxOne))
 })
 
 

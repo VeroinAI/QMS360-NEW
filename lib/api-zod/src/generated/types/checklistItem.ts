@@ -28,4 +28,6 @@ export interface ChecklistItem {
   actionTakerId?: string;
   recommendedPriorityAction?: FindingPriorityAction;
   clientReference?: string;
+  /** Server-issued number assigned on Save Finding; distinct from clientReference */
+  readonly findingNumber?: string;
 }
