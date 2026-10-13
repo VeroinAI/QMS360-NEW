@@ -148,3 +148,17 @@ mtime_ms = 1791873352052
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/21878163-d0f1-4cfc-b4bc-da1ca021032b/32137197-4d31-42eb-bdd1-015f1c448d1f"
 storage_version_token = "1791873548767116"
 content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+[[outputs]]
+id = "3j81OgcIFG_VYtbQiIC8I"
+uri = "file://generated-artifacts/audit-mappings/QMS360_Audit_Report_Missing_Fields.xlsx"
+type = "table"
+title = "Audit Report — Missing Fields"
+description = "Missing “To be mapped” fields in your attached Excel format: 75 field entries to review, 239 unused template slots listed separately, and 10 source decisions. Yellow cells are available for your mapping instructions."
+logical_id = "d2dbd4ba-e99a-48df-b7b4-93bc2085de15"
+content_hash = "sha256:fe9dcaef07e6834d671ca1bf414ac835725380277c1b3b30e748a2f4cac3bdb2"
+size = 27952
+mtime_ms = 1791877997434
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/d2dbd4ba-e99a-48df-b7b4-93bc2085de15/461ee95e-eac5-4b0e-9307-e1952eb8b2a2"
+storage_version_token = "1791878012834165"
+content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
