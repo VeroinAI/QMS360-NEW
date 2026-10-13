@@ -68,6 +68,7 @@ import { auditReportDetailsErrors, type AuditReportDetailsData } from "@workspac
 import { auditModulePermissionCatalog, datedActivities, auditPlanDateErrors, plannedDate, auditPlanReplayMatches, type DatedActivity } from "@workspace/field-controls";
 import { activeAuditCapabilities } from "../lib/audit-capabilities";
 import { normalizeActivityAssignments, type ActivityRoleAssignment } from "../lib/audit-activity-assignments";
+import { auditActivityAuditeeIds, hasAuditActivityAuditeeSelection } from "@workspace/field-controls";
 import { auditModuleReadMatches, auditModulePermissionMatches } from "@workspace/field-controls";
 import { actionableFinding, carAuditContext, carContext, carJson, carRegister, carLeadMarker } from "../lib/car-register";
 import { carWordReportData } from "../lib/car-word-report-data";
@@ -2007,8 +2008,8 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   if (typeof data.auditFeasible !== "boolean" || required.some((key) => !String(data[key] ?? "").trim()) || !data.teamMemberIds?.length || !data.auditTypes?.length || !auditeeRoleIds.length) {
     throw new HttpError(422, "Complete all mandatory Audit Plan fields");
   }
-  if (activities.some(activity => !activity.id || !activity.section?.trim() || !activity.remarks?.trim() || !activity.auditeeId)) {
-    throw new HttpError(422, "Complete Activities / Section, Remarks and Auditee for every activity row");
+  if (activities.some(activity => !activity.id || !activity.section?.trim() || !activity.remarks?.trim() || !hasAuditActivityAuditeeSelection(activity))) {
+    throw new HttpError(422, "Complete Activities / Section, Remarks and select an Auditee Role or auditee for every activity row");
   }
   const normalizedActivitySections = activities.map(activity => activity.section.trim().toLocaleLowerCase());
   if (new Set(normalizedActivitySections).size !== normalizedActivitySections.length) {
@@ -2019,7 +2020,7 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   assertPlanDates(data, schedule, activities);
   const options = await auditPlanUsers(actor(req).organizationId);
   const usersById = new Map(options.map((option) => [option.id, option]));
-  const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, ...activities.flatMap(activity => activity.auditeeIds ?? [activity.auditeeId])])];
+  const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, ...activities.flatMap(auditActivityAuditeeIds)])];
   if (participantIds.some((id) => !usersById.has(id))) throw new HttpError(422, "Select active QMS Audit users for all Master fields");
   const parentId = scheduleMeta(schedule).parentId;
   if (parentId) {

@@ -22,7 +22,21 @@ exclusive, regardless of which field is selected first.
 atomic, preserve other team members, and retain the required-team validation if the
 removal leaves no team members. Do not modify historical read-only records.
 
-## Circulation
+## Activity-level role-only selections
+
+Create Audit Plan no longer displays the individual “Auditees for the Activity”
+column. A selected active Audit role satisfies activity auditee validation even
+when that schedule has no users mapped to the role.
+
+**Why:** Retaining the old required-user validation blocked creation despite
+visible role selections and offered no way to fill the hidden required field.
+
+**How to apply:** Keep form and API validation consistent. Retain schedule-derived
+users when available and legacy/manual auditee selections on existing plans.
+Do not insert an empty user ID into participant eligibility checks, assign users
+to roles, or alter schedule mappings merely to make a plan save.
+
+## Circulation selection policy
 
 Audit Plan Circulation is an independently selected set of Audit workspace roles during creation and editing. Changing auditors, team members or Auditees must not silently rewrite these selections.
 

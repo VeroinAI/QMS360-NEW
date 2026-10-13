@@ -6,7 +6,7 @@ import { activityRoleDefaults, activityAuditeeDefaults, activityAuditeeIds, with
 import { ActivityMultiSelect, ScheduleActivityRoleFields } from "./activity-role-fields";
 import { auditTeamLeadLabel } from "./team-lead-label";
 import { ScheduleActivityButton } from "./schedule-activity";
-import { getAuditPlanDateRange } from "@workspace/field-controls";
+import { getAuditPlanDateRange, hasAuditActivityAuditeeSelection } from "@workspace/field-controls";
 import { appendChecklistEvidence, uploadChecklistEvidence, type PendingChecklistEvidence } from "./checklist-evidence-uploads";
 import { CarRegister, CarResponseDialog, CarReviewDialog } from "./car-register";
 import { PlanDateTimeField } from "./plan-date-time-field";
@@ -1619,9 +1619,9 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     activityRows.forEach(row => {
       if (!row.section.trim()) nextErrors[`activity-${row.id}-section`] = "Select an activity.";
       if (!row.remarks.trim()) nextErrors[`activity-${row.id}-remarks`] = "Enter activity remarks.";
-      if (!activityAuditeeIds(row).length) nextErrors[`activity-${row.id}-auditeeId`] = initial
-        ? "Select one or more auditees."
-        : "Select an Auditee Role with users assigned in the linked schedule, or update the schedule’s role assignments.";
+      if (!hasAuditActivityAuditeeSelection(row)) nextErrors[`activity-${row.id}-auditeeId`] = initial
+        ? "Select an Auditee Role or one or more auditees."
+        : "Select an Auditee Role for this activity.";
     });
     activityRows.forEach((row, index) => {
       const section = row.section.trim().toLocaleLowerCase();
@@ -1801,7 +1801,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     <div className="min-w-0 max-w-full space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><Label>15. Activity Details *</Label><p className="mt-1 text-xs text-muted-foreground">Add one row for each Activities master-data value. Planned dates must fall within the linked Audit, including its first and last day.</p></div>{!readOnly && <Button type="button" variant="outline" size="sm" onClick={addActivity} disabled={activityStructureLocked}><Plus className="mr-2 size-4"/>Add row</Button>}</div>
       <p className="text-sm text-muted-foreground">{initial
         ? "Activity roles default from the Activities master. Auditees default from the selected schedule’s role assignments. You can change either selection; saved choices are not overwritten when defaults change."
-        : "Activity roles default from the Activities master. Auditees are assigned automatically from the selected schedule’s role assignments for the chosen roles."}</p>
+        : "Activity roles default from the Activities master. Schedule-assigned auditees are included when available; selecting an Auditee Role is sufficient when no users are assigned."}</p>
       {auditeeRoles.isError && <p role="alert" className="text-sm text-destructive">Unable to load activity roles. <Button type="button" variant="link" onClick={() => void auditeeRoles.refetch()}>Retry</Button></p>}
       <div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead className="min-w-56">Activities / Section</TableHead><TableHead className="min-w-72">Remarks</TableHead><TableHead className="min-w-56">Auditee Role</TableHead>{initial && <TableHead className="min-w-56">Auditees for the Activity</TableHead>}<TableHead className="min-w-56">Planned Start *</TableHead><TableHead className="min-w-56">Planned End *</TableHead>{!readOnly && <TableHead className="w-16 text-right">Action</TableHead>}</TableRow></TableHeader><TableBody>
         {activityRows.map(row => <TableRow key={row.id}><TableCell className="align-top"><Select value={row.section} disabled={disabled("activitySection") || activityMaster.isLoading} onValueChange={value => selectActivity(row.id, value)}><SelectTrigger {...invalid(`activity-${row.id}-section`)}><SelectValue placeholder={activityMaster.isLoading ? "Loading activities…" : "Select activity"}/></SelectTrigger><SelectContent>{activityMaster.options.map(activity => <SelectItem key={activity.value} value={activity.value} disabled={activity.value !== row.section && activityRows.some(candidate => candidate.section === activity.value)}>{activity.label}</SelectItem>)}</SelectContent></Select><ErrorText name={`activity-${row.id}-section`}/></TableCell>
