@@ -1603,6 +1603,26 @@ paths:
     post: {operationId: reviewAuditSchedule, tags: [audit], summary: Approve or send back schedule, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed}}}
   /audit/schedules/{id}/feasibility:
     post: {operationId: recordAuditScheduleFeasibility, tags: [audit], summary: Record an infeasible audit decision, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditScheduleFeasibility"}, responses: {"200": {description: Feasibility decision recorded, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}, "409": {description: An Audit Plan already exists}}}
+  /audit/plan-number-preview:
+    get:
+      operationId: getAuditPlanNumberPreview
+      parameters:
+        - name: scheduleId
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+      responses:
+        "200":
+          description: Read-only next Audit Plan number; the final number is allocated on save.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [planNumber]
+                properties:
+                  planNumber: {type: string}
   /audit/plans:
     get: {operationId: listAuditPlans, tags: [audit], summary: List audit plans, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditPlanPage"}}}
     post: {operationId: createAuditPlan, tags: [audit], summary: Create plan linked to schedule, requestBody: {$ref: "#/components/requestBodies/AuditPlan"}, responses: {"201": {description: Created}}}

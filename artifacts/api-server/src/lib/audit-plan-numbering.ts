@@ -52,15 +52,24 @@ export function planNumberYear(fromDate: unknown): number {
   }
   return year;
 }
+/** Read-only calculation shared by preview and allocation. Never reserves a number. */
+export function nextPlanNumber(state: PlanNumberState, source: { key: string; sourceValue: string }, year: number) {
+  const last = state.ranges[source.key]?.[String(year)] ?? 0;
+  if (!Number.isSafeInteger(last) || last < 0 || last >= 999_999_999_999) throw new HttpError(409, "Audit Plan number range is exhausted or invalid.");
+  const sequence = last + 1;
+  return { sequence, number: formatPlanNumber(state.pattern, source.sourceValue, year, sequence) };
+}
+export async function previewPlanNumber(organizationId: string, projectId: string | null, department: string | undefined, fromDate: unknown) {
+  const source = await planNumberSource(db, organizationId, projectId, department);
+  const year = planNumberYear(fromDate);
+  return { planNumber: nextPlanNumber(await readPlanNumberState(organizationId), source, year).number };
+}
 /** Caller must lock numbering BEFORE the schedule, matching schedule creation/edit lock order. */
 export async function allocatePlanNumber(tx: Tx, settings: typeof organizationSettings.$inferSelect, projectId: string | null, department: string | undefined, fromDate: unknown) {
   const source = await planNumberSource(tx, settings.organizationId, projectId, department);
   const year = planNumberYear(fromDate);
   const state = planNumberState(settings.documentNumbering);
-  const last = state.ranges[source.key]?.[String(year)] ?? 0;
-  if (!Number.isSafeInteger(last) || last < 0 || last >= 999_999_999_999) throw new HttpError(409, "Audit Plan number range is exhausted or invalid.");
-  const sequence = last + 1;
-  const number = formatPlanNumber(state.pattern, source.sourceValue, year, sequence);
+  const { sequence, number } = nextPlanNumber(state, source, year);
   state.ranges = { ...state.ranges, [source.key]: { ...state.ranges[source.key], [String(year)]: sequence } };
   await tx.update(organizationSettings).set({
     documentNumbering: { ...settings.documentNumbering, audit_plan_numbering: state } as any, updatedAt: new Date(),

@@ -50,7 +50,7 @@ import { asyncHandler, HttpError, listNotifications, notify, paginated, paginati
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../lib/application-access-requests";
 import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
-import { allocatePlanNumber, readPlanNumberState, savePlanNumbering, type PlanNumberPattern } from "../lib/audit-plan-numbering";
+import { allocatePlanNumber, previewPlanNumber, readPlanNumberState, savePlanNumbering, type PlanNumberPattern } from "../lib/audit-plan-numbering";
 import { projectNumberContext } from "@workspace/field-controls";
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
@@ -2143,6 +2143,18 @@ router.post("/schedules/:id/feasibility", asyncHandler(async (req, res) => {
   });
   await auditLog(req, data.decision === "cancelled" ? "cancel_audit" : "reschedule_audit", "audit_schedule", updated.id, undefined, updated);
   res.json(await scheduleResponse(req, updated, false));
+}));
+router.get("/plan-number-preview", requirePermission("audit", "plans", "select"), asyncHandler(async (req, res) => {
+  const query = Api.GetAuditPlanNumberPreviewQueryParams.safeParse(req.query);
+  if (!query.success) throw new HttpError(422, "Select a valid Audit Title to preview its Audit Plan number.");
+  const [schedule] = await db.select().from(auditSchedules).where(and(
+    active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, query.data.scheduleId),
+  ));
+  await assertChildSchedule(schedule);
+  if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
+  const meta = scheduleMeta(schedule);
+  res.json(Api.GetAuditPlanNumberPreviewResponse.parse(await previewPlanNumber(actor(req).organizationId,
+    isProcessAuditSchedule(schedule) ? null : schedule.projectId, meta.departmentProject, meta.plannedStartDate)));
 }));
 router.get("/plans", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const scope = await getAuthorizedProjectScope(req, "audit");

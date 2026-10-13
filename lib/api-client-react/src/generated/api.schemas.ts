@@ -5358,6 +5358,17 @@ page?: PageParameter;
 limit?: LimitParameter;
 };
 
+export type GetAuditPlanNumberPreviewParams = {
+/**
+ * @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+ */
+scheduleId: string;
+};
+
+export type GetAuditPlanNumberPreview200 = {
+  planNumber: string;
+};
+
 export type ListAuditPlansParams = {
 /**
  * @minimum 1

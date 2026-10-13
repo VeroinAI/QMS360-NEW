@@ -14,6 +14,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Route, Switch, useLocation, useParams } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  useGetAuditPlanNumberPreview,
+  getGetAuditPlanNumberPreviewQueryKey,
   customFetch,
   useCloseCorrectiveActionReport,
   useConfirmAuditEvidence,
@@ -1441,6 +1443,17 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   const [feasibilityToDate, setFeasibilityToDate] = useState("");
   const [feasibilityDateError, setFeasibilityDateError] = useState("");
   const [offlineContext, setOfflineContext] = useState<AuditPlanOfflineContext | null>(null);
+  const numberPreviewParams = { scheduleId: form.scheduleId };
+  const numberPreview = useGetAuditPlanNumberPreview(numberPreviewParams, {
+    query: {
+      queryKey: getGetAuditPlanNumberPreviewQueryKey(numberPreviewParams),
+      enabled: !!form.scheduleId && !readOnly && (!initial || (queued && queuedOperation === "create")) && navigator.onLine,
+      retry: false,
+      staleTime: 0,
+      refetchOnMount: "always",
+      refetchOnWindowFocus: true,
+    },
+  });
   const fc = useFieldControls("audit", "plan");
   const fa = useFieldAccess("audit");
   const ro = (key: string) => fc.fieldProps(key).disabled || fa.readOnly("plan", key)
@@ -1767,8 +1780,15 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
         {!programmes.isFetching && !programmes.error && !programmeOptions.length && <p className="mt-2 text-xs text-muted-foreground">No New Schedules are available for planning.</p>}
       </div>}
       <div>
+        <div className="mb-4">
+          <Label htmlFor="audit-plan-number">Audit Plan Number</Label>
+          <Input id="audit-plan-number" className="mt-2 font-mono" readOnly
+            value={initial?.planNumber || (navigator.onLine && !numberPreview.isError ? numberPreview.data?.planNumber ?? "" : "")}
+            placeholder={initial && !queued ? "Not assigned (existing plan)" : !form.scheduleId ? "Select an Audit Title to generate the number" : !navigator.onLine ? "Generated when saved online" : numberPreview.isFetching ? "Generating…" : numberPreview.isError ? "Unable to generate—see details below" : "Automatically generated"} />
+          {!initial?.planNumber && (!initial || (queued && queuedOperation === "create")) && <p className="mt-2 text-xs text-muted-foreground">Uses the saved Audit Plan number range. The displayed next number is confirmed on save and may change if another plan is saved first.</p>}
+          {numberPreview.error && !initial?.planNumber && <p role="alert" className="mt-2 text-xs text-destructive">{errorText(numberPreview.error)} <Button type="button" size="sm" variant="link" onClick={() => void numberPreview.refetch()}>Retry</Button></p>}
+        </div>
         <Label htmlFor="plan-source-audit">Audit Title *</Label>
-        <p className="mt-2 break-all text-sm text-muted-foreground"><strong>Audit Plan number:</strong> {initial?.planNumber || (initial && !queued ? "Existing plan—original identifiers retained" : "Assigned automatically when saved on the server, using the department/project, Schedule From Date year and yearly running number.")}</p>
         {presetSchedule ? <Input
           id="plan-source-audit" className="mt-2" readOnly disabled={disabled("scheduleId")}
           value={presetSchedule.title} {...invalid("scheduleId")}

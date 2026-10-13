@@ -3,7 +3,7 @@ import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, organizations, organizationSettings, projects, masterDataGroups, masterDataValues, auditAuditLogEntries } from "@workspace/db";
 import { lockScheduleNumbering } from "../src/lib/audit-schedule-numbering";
-import { allocatePlanNumber, readPlanNumberState, savePlanNumbering } from "../src/lib/audit-plan-numbering";
+import { allocatePlanNumber, previewPlanNumber, readPlanNumberState, savePlanNumbering } from "../src/lib/audit-plan-numbering";
 import { writeAuditLog } from "../src/lib/workspace";
 const org = randomUUID(), a = randomUUID(), b = randomUUID(), noCost = randomUUID(), group = randomUUID(), department = randomUUID();
 const issue = (project: string | null, date: string, dept?: string) => db.transaction(async tx => {
@@ -31,12 +31,18 @@ describe("Audit Plan yearly range allocation in PostgreSQL", () => {
     await db.delete(organizations).where(eq(organizations.id, org));
   });
   it("starts separate projects and years at1 using Schedule From Date", async () => {
+    const before = await readPlanNumberState(org);
+    expect(await previewPlanNumber(org, a, undefined, "2027-06-15")).toEqual({ planNumber: "AGH-CC100-AP-27-0001" });
+    expect(await previewPlanNumber(org, a, undefined, "2027-06-15")).toEqual({ planNumber: "AGH-CC100-AP-27-0001" });
+    expect(await readPlanNumberState(org)).toEqual(before);
     expect((await issue(a, "2027-06-15")).planNumber).toBe("AGH-CC100-AP-27-0001");
     expect((await issue(b, "2027-06-15")).planNumber).toBe("AGH-CC200-AP-27-0001");
     expect((await issue(a, "2028-01-01")).planNumber).toBe("AGH-CC100-AP-28-0001");
     expect((await issue(a, "2027-06-16")).planNumberSequence).toBe(2);
+    expect((await previewPlanNumber(org, a, undefined, "2027-06-16")).planNumber).toBe("AGH-CC100-AP-27-0003");
   });
   it("uses Department master Value, not its label, with a department-specific yearly range", async () => {
+    expect((await previewPlanNumber(org, null, "Engineering label", "2027-06-15")).planNumber).toBe("AGH-ENG-AP-27-0001");
     const first = await issue(null, "2027-06-15", "ENG");
     expect(first.planNumber).toBe("AGH-ENG-AP-27-0001");
     expect(first.planNumberScope).toBe(`department:${department}`);

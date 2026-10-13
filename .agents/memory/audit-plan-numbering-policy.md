@@ -10,3 +10,9 @@ The running sequence starts at 1 per **project or department and full four-digit
 **Why:** The user requested continuity for a mid-year rollout and wanted source selection to follow the Audit Plan's linked project or department, not require typing an identifier into each form.
 
 **How to apply:** Validate the source master value and schedule From Date before allocating; serialize counter maintenance with plan creation, keep an issued number on subsequent edits, and avoid renumbering existing plans when a format or schedule changes. Keep the other Audit numbering systems independent.
+
+The Create Audit Plan screen must include a read-only **Audit Plan Number** field, not just instructional text. Before save, display the calculated next number without reserving or consuming the sequence; the actual number is assigned atomically on save.
+
+**Why:** The user explicitly requested the field. Reserving numbers merely by opening or changing a form would consume unused numbers, and concurrent plan creators can change the next available number before save.
+
+**How to apply:** Reuse the same source, From Date year, counter and format logic for display and allocation. Explain that the displayed next number is confirmed on save; keep existing saved plan numbers unchanged.

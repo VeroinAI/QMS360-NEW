@@ -7756,6 +7756,18 @@ export const RecordAuditScheduleFeasibilityResponse = zod.object({
 })
 
 
+export const getAuditPlanNumberPreviewQueryScheduleIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const GetAuditPlanNumberPreviewQueryParams = zod.object({
+  "scheduleId": zod.coerce.string().regex(getAuditPlanNumberPreviewQueryScheduleIdRegExp)
+})
+
+export const GetAuditPlanNumberPreviewResponse = zod.object({
+  "planNumber": zod.string()
+})
+
+
 /**
  * @summary List audit plans
  */

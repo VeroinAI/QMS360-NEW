@@ -295,6 +295,8 @@ export * from './getAuditDashboardParams';
 export * from './getAuditEscalationsParams';
 export * from './getAuditFindingsLogReportParams';
 export * from './getAuditOpenVsClosedReportParams';
+export * from './getAuditPlanNumberPreview200';
+export * from './getAuditPlanNumberPreviewParams';
 export * from './getLessonsEscalationsParams';
 export * from './getLessonsReferenceDataParams';
 export * from './getPlatformReferenceDataParams';

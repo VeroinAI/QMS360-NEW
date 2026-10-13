@@ -156,6 +156,8 @@ import type {
   GetAuditEscalationsParams,
   GetAuditFindingsLogReportParams,
   GetAuditOpenVsClosedReportParams,
+  GetAuditPlanNumberPreview200,
+  GetAuditPlanNumberPreviewParams,
   GetLessonsEscalationsParams,
   GetLessonsReferenceDataParams,
   GetPlatformReferenceDataParams,
@@ -19758,6 +19760,84 @@ export const useRecordAuditScheduleFeasibility = <TError = ErrorType<void>,
       > => {
       return useMutation(getRecordAuditScheduleFeasibilityMutationOptions(options));
     }
+
+export const getGetAuditPlanNumberPreviewUrl = (params: GetAuditPlanNumberPreviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/plan-number-preview?${stringifiedParams}` : `/api/audit/plan-number-preview`
+}
+
+export const getAuditPlanNumberPreview = async (params: GetAuditPlanNumberPreviewParams, options?: Parameters<typeof customFetch>[1]): Promise<GetAuditPlanNumberPreview200> => {
+
+  return customFetch<GetAuditPlanNumberPreview200>(getGetAuditPlanNumberPreviewUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditPlanNumberPreviewQueryKey = (params?: GetAuditPlanNumberPreviewParams,) => {
+    return [
+    `/api/audit/plan-number-preview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAuditPlanNumberPreviewQueryOptions = <TData = Awaited<ReturnType<typeof getAuditPlanNumberPreview>>, TError = ErrorType<unknown>>(params: GetAuditPlanNumberPreviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanNumberPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditPlanNumberPreviewQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditPlanNumberPreview>>> = ({ signal }) => getAuditPlanNumberPreview(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanNumberPreview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditPlanNumberPreviewQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditPlanNumberPreview>>>
+export type GetAuditPlanNumberPreviewQueryError = ErrorType<unknown>
+
+
+
+export function useGetAuditPlanNumberPreview<TData = Awaited<ReturnType<typeof getAuditPlanNumberPreview>>, TError = ErrorType<unknown>>(
+ params: GetAuditPlanNumberPreviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanNumberPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditPlanNumberPreviewQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListAuditPlansUrl = (params?: ListAuditPlansParams,) => {
   const normalizedParams = new URLSearchParams();
