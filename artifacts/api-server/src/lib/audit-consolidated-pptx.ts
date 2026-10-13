@@ -114,6 +114,26 @@ export async function renderConsolidatedAuditPptx(input: {
   skipPriorityActions?: boolean;
 }): Promise<Buffer> {
   const files = unzipSync(await template());
+  const cover = input.sections.find(section => section.key === "cover");
+  const reportNumber = cover?.fields.find(field => field.label === "Audit Report Number")?.value;
+  if (reportNumber && !["Not recorded", PPTX_UNMAPPED].includes(reportNumber)) {
+    // The supplied template inherits this footer from its layout. Preserve
+    // branding and the separate Audit reference; only add the issued report ID.
+    const auditReference = mappedText(cover?.fields.find(field => field.label === "Audit reference")?.value);
+    for (const [layoutPath, bytes] of Object.entries(files)) {
+      if (!/^ppt\/slideLayouts\/.*\.xml$/.test(layoutPath)) continue;
+      const layout = parse(bytes);
+      let changed = false;
+      for (const container of elements(layout, P, "sp")) {
+        const text = elements(container, A, "t").map(run => run.textContent ?? "").join("");
+        if (text.includes("Quality Internal Audit Report") && text.includes("[Audit Ref]")) {
+          setText(container, `Report No: ${reportNumber}  |  Audit Ref: ${auditReference}`);
+          changed = true;
+        }
+      }
+      if (changed) files[layoutPath] = xml(layout);
+    }
+  }
   const mappings = auditPptxMappings(input.sections);
   const presentation = parse(files["ppt/presentation.xml"]!);
   const presentationRels = parse(files["ppt/_rels/presentation.xml.rels"]!);

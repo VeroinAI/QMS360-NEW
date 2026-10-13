@@ -8306,6 +8306,7 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -8461,6 +8462,7 @@ export const ListAuditsResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -8735,6 +8737,7 @@ export const GetAuditResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9037,6 +9040,7 @@ export const CompleteAuditResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9188,6 +9192,7 @@ export const SaveAuditReportDetailsResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9421,6 +9426,7 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9574,6 +9580,7 @@ export const EditAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9716,6 +9723,7 @@ export const DeleteAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9870,6 +9878,7 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10025,6 +10034,7 @@ export const CreateAuditFindingItemResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10169,6 +10179,7 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10315,6 +10326,7 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10478,6 +10490,7 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10644,6 +10657,7 @@ export const UpdateAuditOverallProjectProgressResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10808,6 +10822,7 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -11751,6 +11766,7 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -12368,6 +12384,96 @@ export const UpdateAuditPlanNumberRangeBody = zod.object({
 })
 
 export const UpdateAuditPlanNumberRangeResponse = zod.unknown()
+
+
+/**
+ * @summary Read independent Audit Report yearly project and department numbering
+ */
+export const getAuditReportNumberingResponsePatternPrefixMax = 80;
+
+export const getAuditReportNumberingResponsePatternMiddleMax = 80;
+
+export const getAuditReportNumberingResponsePatternSeparatorMax = 80;
+
+export const getAuditReportNumberingResponsePatternPaddingMax = 12;
+
+
+
+export const GetAuditReportNumberingResponse = zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string().max(getAuditReportNumberingResponsePatternPrefixMax),
+  "middle": zod.string().max(getAuditReportNumberingResponsePatternMiddleMax),
+  "separator": zod.string().max(getAuditReportNumberingResponsePatternSeparatorMax),
+  "padding": zod.number().min(1).max(getAuditReportNumberingResponsePatternPaddingMax)
+}),
+  "ranges": zod.record(zod.string(), zod.record(zod.string(), zod.number())),
+  "sources": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.enum(['project', 'department']),
+  "label": zod.string(),
+  "sourceValue": zod.string()
+}))
+})
+
+
+/**
+ * @summary Save Audit Report prefix and middle text without resetting counters
+ */
+export const updateAuditReportNumberingBodyPrefixMax = 80;
+
+export const updateAuditReportNumberingBodyMiddleMax = 80;
+
+export const updateAuditReportNumberingBodySeparatorMax = 80;
+
+export const updateAuditReportNumberingBodyPaddingMax = 12;
+
+
+
+export const UpdateAuditReportNumberingBody = zod.object({
+  "prefix": zod.string().max(updateAuditReportNumberingBodyPrefixMax),
+  "middle": zod.string().max(updateAuditReportNumberingBodyMiddleMax),
+  "separator": zod.string().max(updateAuditReportNumberingBodySeparatorMax),
+  "padding": zod.number().min(1).max(updateAuditReportNumberingBodyPaddingMax)
+})
+
+export const updateAuditReportNumberingResponsePrefixMax = 80;
+
+export const updateAuditReportNumberingResponseMiddleMax = 80;
+
+export const updateAuditReportNumberingResponseSeparatorMax = 80;
+
+export const updateAuditReportNumberingResponsePaddingMax = 12;
+
+
+
+export const UpdateAuditReportNumberingResponse = zod.object({
+  "prefix": zod.string().max(updateAuditReportNumberingResponsePrefixMax),
+  "middle": zod.string().max(updateAuditReportNumberingResponseMiddleMax),
+  "separator": zod.string().max(updateAuditReportNumberingResponseSeparatorMax),
+  "padding": zod.number().min(1).max(updateAuditReportNumberingResponsePaddingMax)
+})
+
+
+/**
+ * @summary Maintain the last used Audit Report number for a project or department and year
+ */
+export const updateAuditReportNumberRangeBodyYearMin = 1900;
+export const updateAuditReportNumberRangeBodyYearMax = 9999;
+
+export const updateAuditReportNumberRangeBodyLastNumberMin = 0;
+export const updateAuditReportNumberRangeBodyLastNumberMax = 999999999998;
+
+
+
+export const UpdateAuditReportNumberRangeBody = zod.object({
+  "scope": zod.string(),
+  "year": zod.number().min(updateAuditReportNumberRangeBodyYearMin).max(updateAuditReportNumberRangeBodyYearMax),
+  "lastNumber": zod.number().min(updateAuditReportNumberRangeBodyLastNumberMin).max(updateAuditReportNumberRangeBodyLastNumberMax)
+})
+
+export const UpdateAuditReportNumberRangeResponse = zod.object({
+  "saved": zod.boolean()
+})
 
 
 /**

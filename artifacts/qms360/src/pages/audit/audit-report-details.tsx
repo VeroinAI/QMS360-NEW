@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSaveAuditReportDetails } from "@workspace/api-client-react";
+import { getGetAuditQueryKey, getGetAuditReportNumberingQueryKey, useSaveAuditReportDetails } from "@workspace/api-client-react";
 import type { Audit } from "@workspace/api-client-react";
 import { auditReportDetailGroups, auditReportDetailsErrors, type AuditReportDetailsData } from "@workspace/field-controls";
 import { Plus, Trash2 } from "lucide-react";
@@ -45,12 +45,15 @@ export function AuditReportDetailsEditor({ audit }: { audit: Audit }) {
     const errors = auditReportDetailsErrors(data);
     if (errors.length) { toast({ title: "Check report details", description: errors.join("; "), variant: "destructive" }); return; }
     save.mutate({ id: audit.id, data }, {
-      onSuccess: () => {
+      onSuccess: (result: unknown) => {
         dirty.current = false;
+        const issued = (result as { reportNumber?: string | null } | undefined)?.reportNumber ?? audit.reportNumber;
+        if (result) qc.setQueryData(getGetAuditQueryKey(audit.id), result);
         void qc.invalidateQueries({ queryKey: [`/api/audit/audits/${audit.id}`] });
         void qc.invalidateQueries({ queryKey: ["/api/audit/audits"] });
         void qc.invalidateQueries({ queryKey: [`/api/audit/audits/${audit.id}/report`] });
-        toast({ title: "Report details saved" });
+        void qc.invalidateQueries({ queryKey: getGetAuditReportNumberingQueryKey() });
+        toast({ title: "Report details saved", description: issued ? `Report Number: ${issued}` : undefined });
       },
       onError: e => toast({ title: "Unable to save report details", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" }),
     });
@@ -58,6 +61,11 @@ export function AuditReportDetailsEditor({ audit }: { audit: Audit }) {
   const disabled = !canEdit || save.isPending;
   return <div className="space-y-4">
     <p className="text-sm text-muted-foreground">These fields appear only in the consolidated audit report. They can be completed before or after the audit is marked Complete.</p>
+    <Card><CardContent className="space-y-1.5 pt-6">
+      <Label htmlFor="rd-report-number">Report Number</Label>
+      <Input id="rd-report-number" readOnly disabled className="font-mono" value={audit.reportNumber ?? ""} placeholder="Not yet issued" data-testid="text-report-number" />
+      <p className="text-xs text-muted-foreground">{audit.reportNumber ? "Issued from the Audit Report number range and retained on later saves." : "Issued automatically from the Audit Report number range on the first successful Save report details. Required before the audit can be marked Complete."}</p>
+    </CardContent></Card>
     {editorGroups.map(group => <Card key={group.key}>
       <CardHeader><CardTitle className="text-base">{group.label}</CardTitle></CardHeader>
       <CardContent className="space-y-6">

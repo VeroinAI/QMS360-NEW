@@ -32,11 +32,11 @@ export async function getPlanNumberDepartments(reader: Reader, organizationId: s
       eq(masterDataValues.organizationId, organizationId), eq(masterDataValues.groupId, groupId),
       isNull(masterDataValues.deletedAt), eq(masterDataValues.active, true), eq(masterDataValues.status, "active")));
 }
-export async function planNumberSource(reader: Reader, organizationId: string, projectId: string | null, department?: string) {
+export async function planNumberSource(reader: Reader, organizationId: string, projectId: string | null, department?: string, document = "Audit Plan") {
   if (projectId) {
     const [project] = await reader.select().from(projects).where(and(eq(projects.organizationId, organizationId), eq(projects.id, projectId), isNull(projects.deletedAt))).limit(1);
     const sourceValue = projectNumberContext(project?.customFields ?? {}).costCentre;
-    if (typeof sourceValue !== "string" || !sourceValue.trim()) throw new HttpError(422, "Maintain the project's Cost Center in Integration Cockpit → Project Master → Additional Data before creating this Audit Plan.");
+    if (typeof sourceValue !== "string" || !sourceValue.trim()) throw new HttpError(422, `Maintain the project's Cost Center in Integration Cockpit → Project Master → Additional Data before generating this ${document} number.`);
     return { key: `project:${projectId}`, kind: "project" as const, label: project!.name, sourceValue: sourceValue.trim() };
   }
   const selected = department?.trim();
@@ -49,8 +49,8 @@ export async function planNumberSource(reader: Reader, organizationId: string, p
   if (!value?.value.trim()) throw new HttpError(422, "The department selected in the Audit Schedule must match an active Department master Value.");
   return { key: `department:${value.id}`, kind: "department" as const, label: value.label, sourceValue: value.value };
 }
-export function planNumberYear(fromDate: unknown): number {
-  if (typeof fromDate !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(fromDate)) throw new HttpError(422, "A valid From Date is required on the linked Audit Schedule for Audit Plan numbering.");
+export function planNumberYear(fromDate: unknown, document = "Audit Plan"): number {
+  if (typeof fromDate !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(fromDate)) throw new HttpError(422, `A valid From Date is required on the linked Audit Schedule for ${document} numbering.`);
   const year = Number(fromDate.slice(0, 4));
   const date = new Date(`${fromDate.slice(0, 10)}T00:00:00Z`);
   if (year < 1900 || year > 9999 || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== fromDate.slice(0, 10)) {
@@ -59,9 +59,9 @@ export function planNumberYear(fromDate: unknown): number {
   return year;
 }
 /** Read-only calculation shared by preview and allocation. Never reserves a number. */
-export function nextPlanNumber(state: PlanNumberState, source: { key: string; sourceValue: string }, year: number) {
+export function nextPlanNumber(state: PlanNumberState, source: { key: string; sourceValue: string }, year: number, document = "Audit Plan") {
   const last = state.ranges[source.key]?.[String(year)] ?? 0;
-  if (!Number.isSafeInteger(last) || last < 0 || last >= 999_999_999_999) throw new HttpError(409, "Audit Plan number range is exhausted or invalid.");
+  if (!Number.isSafeInteger(last) || last < 0 || last >= 999_999_999_999) throw new HttpError(409, `${document} number range is exhausted or invalid.`);
   const sequence = last + 1;
   return { sequence, number: formatPlanNumber(state.pattern, source.sourceValue, year, sequence) };
 }

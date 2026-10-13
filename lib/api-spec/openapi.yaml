@@ -1921,6 +1921,29 @@ paths:
     put: {operationId: updateAuditPlanNumbering, tags: [audit-admin], summary: Save Audit Plan number format without resetting counters, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}, responses: {"200": {description: Saved pattern, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}}}
   /audit/admin/plan-numbering/ranges:
     put: {operationId: updateAuditPlanNumberRange, tags: [audit-admin], summary: Maintain last-used Audit Plan number for go-live, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberRangeInput"}}}}, responses: {"200": {description: Saved range}}}
+  /audit/admin/report-numbering:
+    get: {operationId: getAuditReportNumbering, tags: [audit-admin], summary: Read independent Audit Report yearly project and department numbering, responses: {"200": {description: Audit Report numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingSettings"}}}}}}
+    put: {operationId: updateAuditReportNumbering, tags: [audit-admin], summary: Save Audit Report prefix and middle text without resetting counters, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}, responses: {"200": {description: Saved Audit Report pattern, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}}}
+  /audit/admin/report-numbering/ranges:
+    put:
+      operationId: updateAuditReportNumberRange
+      tags: [audit-admin]
+      summary: Maintain the last used Audit Report number for a project or department and year
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AuditPlanNumberRangeInput"}
+      responses:
+        "200":
+          description: Audit Report range saved; the next first report-details save uses lastNumber plus one
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [saved]
+                properties:
+                  saved: {type: boolean}
   /audit/admin/schedule-numbering:
     get: {operationId: getAuditScheduleNumbering, tags: [audit-admin], summary: Get separate Audit Schedule field numbering settings, responses: {"200": {description: Schedule numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}}}
     put: {operationId: updateAuditScheduleNumbering, tags: [audit-admin], summary: Set Audit Schedule field prefixes and ranges, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}, responses: {"200": {description: Saved settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}}}
@@ -4091,7 +4114,7 @@ components:
     Audit:
       type: object
       required: [id, planId, projectId, title, status]
-      properties: {id: {type: string}, planId: {type: string}, planNumber: {type: [string, "null"], readOnly: true, description: Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable}, projectId: {type: string}, title: {type: string}, status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Complete, Closed, Deleted]}, canEdit: {type: boolean, description: Whether the current user has Audit edit access in this record scope}, openingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, checklist: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}, additionalDocuments: {$ref: "#/components/schemas/AuditAdditionalDocuments"}, reportDetails: {$ref: "#/components/schemas/AuditReportDetails"}, startedAt: {type: [string, "null"], format: date-time}, closedAt: {type: [string, "null"], format: date-time}}
+      properties: {id: {type: string}, planId: {type: string}, planNumber: {type: [string, "null"], readOnly: true, description: Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable}, reportNumber: {type: [string, "null"], readOnly: true, description: Immutable server-generated Audit Report number issued on first successful report-details save}, projectId: {type: string}, title: {type: string}, status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Complete, Closed, Deleted]}, canEdit: {type: boolean, description: Whether the current user has Audit edit access in this record scope}, openingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, checklist: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}, additionalDocuments: {$ref: "#/components/schemas/AuditAdditionalDocuments"}, reportDetails: {$ref: "#/components/schemas/AuditReportDetails"}, startedAt: {type: [string, "null"], format: date-time}, closedAt: {type: [string, "null"], format: date-time}}
     AuditReportDetails:
       type: object
       required: [values, rows]

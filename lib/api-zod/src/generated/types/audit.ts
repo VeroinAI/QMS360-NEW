@@ -19,6 +19,11 @@ export interface Audit {
      * @nullable
      */
   readonly planNumber?: string | null;
+  /**
+     * Immutable server-generated Audit Report number issued on first successful report-details save
+     * @nullable
+     */
+  readonly reportNumber?: string | null;
   projectId: string;
   title: string;
   status: AuditStatus;

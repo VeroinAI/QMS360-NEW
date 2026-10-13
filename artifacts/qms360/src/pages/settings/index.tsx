@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { matchesWorkspaceUserSearch } from './workspace-user-search';
 import { NumberingForm } from './numbering-form';
 import { AuditPlanNumberingSettings } from './audit-plan-numbering';
+import { AuditReportNumberingSettings } from './audit-report-numbering';
 import { useLov } from '@/lib/use-lov';
 import { Link, Route, Switch, useLocation, useParams } from 'wouter';
 import {
@@ -562,7 +563,7 @@ function NumberingTab({ app }: { app: AppKey }) {
   const module = config.data?.modules?.[app];
   if (!module) return <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Numbering settings unavailable.</CardContent></Card>;
   return <div className="space-y-5"><NumberingForm key={`${app}-${config.dataUpdatedAt}`} app={app} displayName={names[app]} module={module} onSaved={notify} />
-    {app === 'audit' && <><AuditPlanNumberingSettings /><AuditScheduleNumberingSettings /></>}
+    {app === 'audit' && <><AuditPlanNumberingSettings /><AuditScheduleNumberingSettings /><AuditReportNumberingSettings /></>}
   </div>;
 }
 

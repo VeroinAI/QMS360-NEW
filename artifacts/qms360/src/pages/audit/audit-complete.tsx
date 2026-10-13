@@ -40,7 +40,7 @@ export function ReportButton({ audit, size }: { audit: { id: string; status: str
     data-testid={`button-report-${audit.id}`}><Download className="mr-2 size-4"/>{busy ? "Preparing…" : "Report"}</Button>;
 }
 
-export function MarkCompleteButton({ audit, size }: { audit: { id: string; title: string; status: string; canEdit?: boolean }; size?: "sm" }) {
+export function MarkCompleteButton({ audit, size }: { audit: { id: string; title: string; status: string; canEdit?: boolean; reportNumber?: string | null }; size?: "sm" }) {
   const [open, setOpen] = useState(false);
   const canEdit = useAuditEditAccess(audit, "status");
   const qc = useQueryClient(); const { toast } = useToast();
@@ -55,13 +55,16 @@ export function MarkCompleteButton({ audit, size }: { audit: { id: string; title
     },
     onError: e => toast({ title: "Unable to mark audit Complete", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" }),
   });
+  const missingNumber = !audit.reportNumber;
+  const hint = "Save report details first to issue the Report Number, then mark the audit Complete.";
   return <>
-    <Button size={size} onClick={() => setOpen(true)} data-testid={`button-complete-${audit.id}`}><CheckCircle2 className="mr-2 size-4"/>Mark Complete</Button>
+    <Button size={size} disabled={missingNumber} title={missingNumber ? hint : undefined} aria-description={missingNumber ? hint : undefined} onClick={() => setOpen(true)} data-testid={`button-complete-${audit.id}`}><CheckCircle2 className="mr-2 size-4"/>Mark Complete</Button>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent>
       <DialogHeader><DialogTitle>Mark this audit Complete?</DialogTitle>
         <DialogDescription>{audit.title}. Completing the audit enables the consolidated audit report and its PowerPoint download. It does not close any Corrective Action Reports; those continue to be tracked separately.</DialogDescription></DialogHeader>
+      {missingNumber && <p role="alert" className="text-sm text-destructive">{hint}</p>}
       <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-        <Button disabled={complete.isPending} onClick={confirm} data-testid="button-confirm-complete">{complete.isPending ? "Completing…" : "Mark Complete"}</Button></DialogFooter>
+        <Button disabled={complete.isPending || missingNumber} onClick={confirm} data-testid="button-confirm-complete">{complete.isPending ? "Completing…" : "Mark Complete"}</Button></DialogFooter>
     </DialogContent></Dialog>
   </>;
 }

@@ -1995,6 +1995,10 @@ function Audits() {
           <span className="text-muted-foreground">Audit Plan Number: </span>
           <span className="break-all font-mono">{a.planNumber || "Not assigned"}</span>
         </p>
+        <p className="text-sm" data-testid={`execution-audit-report-number-${a.id}`}>
+          <span className="text-muted-foreground">Report Number: </span>
+          <span className="break-all font-mono">{a.reportNumber || "Issued on first report details save"}</span>
+        </p>
         <CardDescription>Started {date(a.startedAt)}{a.closedAt ? ` · Completed ${date(a.closedAt)}` : ""}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap justify-end gap-2"><MarkCompleteButton audit={a}/><ReportButton audit={a}/><Button asChild><Link href={`/audit/audits/${a.id}`}>Open workspace</Link></Button></CardContent>

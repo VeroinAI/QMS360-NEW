@@ -51,6 +51,7 @@ import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/acce
 import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../lib/application-access-requests";
 import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
 import { allocatePlanNumber, getPlanNumberDepartments, previewPlanNumber, readPlanNumberState, savePlanNumbering, type PlanNumberPattern } from "../lib/audit-plan-numbering";
+import { allocateReportNumber, readReportNumberState, saveReportNumbering } from "../lib/audit-report-numbering";
 import { projectNumberContext } from "@workspace/field-controls";
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
@@ -2364,7 +2365,7 @@ router.post("/plans/:id/share", asyncHandler(async (req, res) => {
   await auditLog(req, "share", "audit_plan", row.id, before, row); res.status(202).json(planDto(row));
 }));
 
-type AuditMeta = { title?: string; openingMeeting?: AnyRow; closingMeeting?: AnyRow; startedAt?: string | null; closedAt?: string | null; additionalDocuments?: AnyRow; reportDetails?: AuditReportDetailsData; completedById?: string };
+type AuditMeta = { title?: string; openingMeeting?: AnyRow; closingMeeting?: AnyRow; startedAt?: string | null; closedAt?: string | null; additionalDocuments?: AnyRow; reportDetails?: AuditReportDetailsData; completedById?: string; reportNumber?: string; reportNumberScope?: string; reportNumberYear?: number; reportNumberSequence?: number };
 const auditMeta = (row: AnyRow): AuditMeta => parseJson(row.status, {});
 const legacyDocumentRemarks = (rows: unknown): string => Array.isArray(rows)
   ? rows.filter((entry: AnyRow) => typeof entry.remarks === "string" && entry.remarks.trim())
@@ -2378,7 +2379,7 @@ const auditDto = (row: AnyRow, canEdit = false) => {
   const meta = auditMeta(row);
   return {
     id: row.id, planId: row.auditPlanId!, projectId: row.projectId!, title: meta.title ?? row.referenceNumber,
-    canEdit,
+    canEdit, reportNumber: meta.reportNumber ?? null,
     status: auditIsComplete(row.workflowState) ? "Complete" : ({ planned: "Planned", "in progress": "In Progress", "report draft": "Report Draft", "car follow-up": "CAR Follow-up", scheduled: "Planned" } as AnyRow)[row.workflowState.toLowerCase()] ?? "Planned",
     reportDetails: meta.reportDetails ?? { values: {}, rows: {} },
     openingMeeting: meta.openingMeeting ? { ...meta.openingMeeting, heldAt: new Date(meta.openingMeeting.heldAt) } : undefined,
@@ -2582,6 +2583,9 @@ router.post("/audits/:id/complete", asyncHandler(async (req, res) => {
     const [before] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId),
       eq(audits.id, String(req.params.id)))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    if (!String(auditMeta(before).reportNumber ?? "").trim()) {
+      throw new HttpError(409, "Save Report Details to generate the Audit Report Number before marking the audit Complete.");
+    }
     if (auditIsComplete(before.workflowState)) return { before, row: before, changed: false };
     await assertFieldAccess(req, "audit", "audit-execution", {
       mode: "update", current: auditDto(before), body: { status: "Complete" },
@@ -2601,6 +2605,8 @@ router.put("/audits/:id/report-details", asyncHandler(async (req, res) => {
   const errors = auditReportDetailsErrors(data);
   if (errors.length) throw new HttpError(422, errors.join("; "));
   const { before, row } = await db.transaction(async tx => {
+    // Match numbering lock order; retries and concurrent saves consume at most one number.
+    const { settings } = await lockScheduleNumbering(tx, actor(req).organizationId);
     const [before] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId),
       eq(audits.id, String(req.params.id)))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
@@ -2620,8 +2626,22 @@ router.put("/audits/:id/report-details", asyncHandler(async (req, res) => {
       mode: "update", current: auditDto(before), body: { reportDetails: data },
     });
     await assertFieldControls(req, "audit", "audit-execution", { mode: "update", current: auditDto(before), body: { reportDetails: data } });
+    const meta = auditMeta(before);
+    let numbering = {};
+    if (!String(meta.reportNumber ?? "").trim()) {
+      const [plan] = await tx.select().from(auditPlans).where(and(
+        active(auditPlans, actor(req).organizationId), eq(auditPlans.id, before.auditPlanId!)));
+      if (!plan?.auditScheduleId) throw new HttpError(422, "A linked Audit Plan and Audit Schedule are required to generate the Audit Report Number.");
+      const [schedule] = await tx.select().from(auditSchedules).where(and(
+        active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, plan.auditScheduleId)));
+      await assertChildSchedule(schedule);
+      const scheduleDetails = scheduleMeta(schedule);
+      numbering = await allocateReportNumber(tx, settings,
+        isProcessAuditSchedule(schedule) ? null : plan.projectId,
+        scheduleDetails.departmentProject, scheduleDetails.plannedStartDate);
+    }
     const [row] = await tx.update(audits).set({
-      status: JSON.stringify({ ...auditMeta(before), reportDetails: data }), updatedAt: new Date(),
+      status: JSON.stringify({ ...meta, ...numbering, reportDetails: data }), updatedAt: new Date(),
     }).where(eq(audits.id, before.id)).returning();
     return { before, row };
   });
@@ -2654,6 +2674,9 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
   const { locked, row } = await db.transaction(async tx => {
     const [locked] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, before.id))).for("update");
     if (!locked) throw new HttpError(404, "Audit not found");
+    if (auditMeta(locked).reportNumber && locked.auditPlanId !== plan.id) {
+      throw new HttpError(409, "An audit with an issued Report Number cannot be moved to a different Audit Plan.");
+    }
     if (auditIsComplete(data.status) !== auditIsComplete(locked.workflowState)) {
       throw new HttpError(409, "The audit completion status changed. Reload before editing.");
     }
@@ -3991,7 +4014,7 @@ router.get("/audits/:id/report/pdf", asyncHandler(async (req, res) => {
     }
   }
   const bytes = await renderConsolidatedAuditPdf({
-    title: report.mappedAudit.title, reference: report.audit.referenceNumber, sections: report.sections, photos: images,
+    title: report.mappedAudit.title, reference: report.mappedAudit.reportNumber || report.audit.referenceNumber, sections: report.sections, photos: images,
   });
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Cache-Control", "private, no-store");
@@ -4036,6 +4059,29 @@ router.put("/admin/plan-numbering/ranges", asyncHandler(async (req, res) => {
   const before = await readPlanNumberState(actor(req).organizationId);
   const saved = await savePlanNumbering(actor(req).organizationId, undefined, range);
   await auditLog(req, "maintain_plan_number_range", "audit_plan_numbering", range.scope.split(":")[1],
+    { scope: range.scope, year: range.year, lastNumber: before.ranges[range.scope]?.[String(range.year)] ?? 0 },
+    { scope: range.scope, year: range.year, lastNumber: saved.ranges[range.scope]?.[String(range.year)] });
+  res.json({ saved: true });
+}));
+router.get("/admin/report-numbering", asyncHandler(async (req, res) => {
+  const sources = await auditPlanNumberSources(req);
+  const state = await readReportNumberState(actor(req).organizationId);
+  res.json(Api.GetAuditReportNumberingResponse.parse({ ...state, sources,
+    ranges: Object.fromEntries(sources.filter(source => state.ranges[source.key]).map(source => [source.key, state.ranges[source.key]])) }));
+}));
+router.put("/admin/report-numbering", asyncHandler(async (req, res) => {
+  const pattern = body<PlanNumberPattern>(Api.UpdateAuditReportNumberingBody, req);
+  const before = await readReportNumberState(actor(req).organizationId);
+  const saved = await saveReportNumbering(actor(req).organizationId, pattern);
+  await auditLog(req, "update_report_numbering", "audit_report_numbering", actor(req).organizationId, before.pattern, saved.pattern);
+  res.json(Api.UpdateAuditReportNumberingResponse.parse(saved.pattern));
+}));
+router.put("/admin/report-numbering/ranges", asyncHandler(async (req, res) => {
+  const range = body<{ scope: string; year: number; lastNumber: number }>(Api.UpdateAuditReportNumberRangeBody, req);
+  if (!(await auditPlanNumberSources(req)).some(source => source.key === range.scope)) throw new HttpError(404, "Project or department is not available in your Audit administration scope");
+  const before = await readReportNumberState(actor(req).organizationId);
+  const saved = await saveReportNumbering(actor(req).organizationId, undefined, range);
+  await auditLog(req, "maintain_report_number_range", "audit_report_numbering", range.scope.split(":")[1],
     { scope: range.scope, year: range.year, lastNumber: before.ranges[range.scope]?.[String(range.year)] ?? 0 },
     { scope: range.scope, year: range.year, lastNumber: saved.ranges[range.scope]?.[String(range.year)] });
   res.json({ saved: true });

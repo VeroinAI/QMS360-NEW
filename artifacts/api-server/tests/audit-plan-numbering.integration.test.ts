@@ -5,6 +5,7 @@ import { db, organizations, organizationSettings, projects, masterDataGroups, ma
 import { lockScheduleNumbering } from "../src/lib/audit-schedule-numbering";
 import { allocatePlanNumber, getPlanNumberDepartments, previewPlanNumber, readPlanNumberState, savePlanNumbering } from "../src/lib/audit-plan-numbering";
 import { writeAuditLog } from "../src/lib/workspace";
+import { allocateReportNumber, readReportNumberState, saveReportNumbering } from "../src/lib/audit-report-numbering";
 const org = randomUUID(), a = randomUUID(), b = randomUUID(), noCost = randomUUID(), group = randomUUID(), department = randomUUID();
 const issue = (project: string | null, date: string, dept?: string) => db.transaction(async tx => {
   const { settings } = await lockScheduleNumbering(tx, org);
@@ -129,5 +130,46 @@ describe("Audit Plan yearly range allocation in PostgreSQL", () => {
     const [log] = await db.select().from(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, org));
     expect(log.entityId).toBe(a);
     expect(log.after).toMatchObject({ scope, year: 2027, lastNumber: 101 });
+  });
+  it("keeps Report ranges separate from Plan ranges and starts each source/year at one", async () => {
+    const planBefore = await readPlanNumberState(org);
+    await saveReportNumbering(org, { prefix: "AGH", middle: "AR", separator: "-", padding: 4 });
+    const reportIssue = (project: string | null, date: string, dept?: string) => db.transaction(async tx => {
+      const { settings } = await lockScheduleNumbering(tx, org);
+      return allocateReportNumber(tx, settings, project, dept, date);
+    });
+    expect((await reportIssue(a, "2027-03-01")).reportNumber).toBe("AGH-CC100-AR-27-0001");
+    expect((await reportIssue(a, "2028-03-01")).reportNumberSequence).toBe(1);
+    expect((await reportIssue(null, "2027-03-01", "Engineering label")).reportNumber).toBe("AGH-ENG-AR-27-0001");
+    const reports = await Promise.all(Array.from({ length: 4 }, () => reportIssue(b, "2027-03-01")));
+    expect(reports.map(result => result.reportNumberSequence).sort()).toEqual([1, 2, 3, 4]);
+    expect(await readPlanNumberState(org)).toEqual(planBefore);
+  });
+  it("supports independent Report last-used go-live numbers and format changes without rewind", async () => {
+    const planBefore = await readPlanNumberState(org);
+    await saveReportNumbering(org, undefined, { scope: `project:${a}`, year: 2027, lastNumber: 50 });
+    const issued = await db.transaction(async tx => {
+      const { settings } = await lockScheduleNumbering(tx, org);
+      return allocateReportNumber(tx, settings, a, undefined, "2027-12-31");
+    });
+    expect(issued.reportNumber).toBe("AGH-CC100-AR-27-0051");
+    await expect(saveReportNumbering(org, undefined, { scope: `project:${a}`, year: 2027, lastNumber: 50 })).rejects.toThrow(/cannot be below 51/);
+    const before = await readReportNumberState(org);
+    await saveReportNumbering(org, { prefix: "REPORT", middle: "", separator: "/", padding: 3 });
+    expect((await readReportNumberState(org)).ranges).toEqual(before.ranges);
+    expect(await readPlanNumberState(org)).toEqual(planBefore);
+  });
+  it("rolls back Report counter changes on failed saves and missing source data", async () => {
+    const before = await readReportNumberState(org);
+    await expect(db.transaction(async tx => {
+      const { settings } = await lockScheduleNumbering(tx, org);
+      await allocateReportNumber(tx, settings, a, undefined, "2027-12-31");
+      throw new Error("Failed details save");
+    })).rejects.toThrow(/Failed details save/);
+    await expect(db.transaction(async tx => {
+      const { settings } = await lockScheduleNumbering(tx, org);
+      return allocateReportNumber(tx, settings, noCost, undefined, "2027-12-31");
+    })).rejects.toThrow(/Cost Center/);
+    expect(await readReportNumberState(org)).toEqual(before);
   });
 });

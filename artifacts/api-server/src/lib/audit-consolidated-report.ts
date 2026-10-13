@@ -53,6 +53,7 @@ export function buildConsolidatedAuditReport(input: {
   const cover = section("cover", "Quality Internal Audit Report");
   fields(cover, [
     ["Project / process / site", project?.name ?? audit.title], ["Audit title", audit.title],
+    ["Audit Report Number", audit.reportNumber],
     ["Scope", recorded("inScope", plan?.qaqcScope ?? plan?.scope)],
     ["Audit reference", input.schedule?.qaqcReference || plan?.qaqcReference || audit.referenceNumber || audit.title],
     ["Audit dates", `${date(plan?.startDateTime ?? audit.startedAt)} – ${date(plan?.endDateTime ?? audit.closedAt)}`],

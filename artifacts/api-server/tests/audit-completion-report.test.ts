@@ -7,13 +7,15 @@ import { PDFDocument } from "pdf-lib";
 import { formatDate } from "@workspace/spreadsheet-dates";
 import {
   db, organizations, projects, platformRoles, users, applicationAccess,
-  auditPlans, audits, auditFindings, correctiveActionReports, auditAuditLogEntries,
+  auditPlans, auditSchedules, audits, auditFindings, correctiveActionReports, auditAuditLogEntries, organizationSettings,
   auditPermissions, auditWorkspaceRoles, auditWorkspaceRolePermissions, auditUserWorkspaceRoles,
 } from "@workspace/db";
 import app from "../src/app";
 import { issueToken } from "../src/lib/auth";
 import { buildConsolidatedAuditReport, auditIsComplete } from "../src/lib/audit-consolidated-report";
 import { auditReportDetailsErrors } from "@workspace/field-controls";
+import { readReportNumberState } from "../src/lib/audit-report-numbering";
+import { readPlanNumberState } from "../src/lib/audit-plan-numbering";
 
 const suffix = randomUUID().slice(0, 8);
 let server: Server, base: string, orgId: string, token: string, viewerToken: string;
@@ -31,6 +33,8 @@ async function cleanup(id: string) {
   await db.delete(auditFindings).where(eq(auditFindings.organizationId, id));
   await db.delete(audits).where(eq(audits.organizationId, id));
   await db.delete(auditPlans).where(eq(auditPlans.organizationId, id));
+  await db.delete(auditSchedules).where(eq(auditSchedules.organizationId, id));
+  await db.delete(organizationSettings).where(eq(organizationSettings.organizationId, id));
   await db.delete(auditUserWorkspaceRoles).where(eq(auditUserWorkspaceRoles.organizationId, id));
   await db.delete(auditWorkspaceRolePermissions).where(eq(auditWorkspaceRolePermissions.organizationId, id));
   await db.delete(auditWorkspaceRoles).where(eq(auditWorkspaceRoles.organizationId, id));
@@ -53,7 +57,7 @@ beforeAll(async () => {
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   const [org] = await db.insert(organizations).values({ name: `Report regression ${suffix}`, code: `RR${suffix}` }).returning();
   orgId = org!.id;
-  const [project] = await db.insert(projects).values({ organizationId: orgId, name: "Regression project", code: `P${suffix}` }).returning();
+  const [project] = await db.insert(projects).values({ organizationId: orgId, name: "Regression project", code: `P${suffix}`, customFields: { costCentre: "RP100" } }).returning();
   projectId = project!.id;
   const roles = await db.insert(platformRoles).values([
     { organizationId: orgId, name: "Org Admin", isSystem: true }, { organizationId: orgId, name: "Employee", isSystem: true },
@@ -68,7 +72,11 @@ beforeAll(async () => {
   await db.insert(auditWorkspaceRolePermissions).values({ organizationId: orgId, workspaceRoleId: role!.id, permissionId: permission!.id, grant: "select" });
   await db.insert(auditUserWorkspaceRoles).values({ organizationId: orgId, userId: people[1]!.id, workspaceRoleId: role!.id, projectIds: [projectId] });
   await db.insert(applicationAccess).values({ organizationId: orgId, username: people[1]!.username, projectId, canOpenAudit: true, status: "active" });
-  const [plan] = await db.insert(auditPlans).values({ organizationId: orgId, projectId, scope: "Actual scope", location: "Actual site" }).returning();
+  const [schedule] = await db.insert(auditSchedules).values({
+    organizationId: orgId, projectId, title: "Report fixture schedule", year: 2027,
+    status: JSON.stringify({ plannedStartDate: "2027-03-01", plannedEndDate: "2027-03-05", auditTypes: ["Quality Internal Product Audit"] }),
+  }).returning();
+  const [plan] = await db.insert(auditPlans).values({ organizationId: orgId, projectId, auditScheduleId: schedule.id, scope: "Actual scope", location: "Actual site" }).returning();
   planId = plan!.id;
   const rows = await db.insert(audits).values(["API report", "Browser completion"].map(title => ({
     organizationId: orgId, projectId, auditPlanId: planId, referenceNumber: `${title} ${suffix}`, workflowState: "planned",
@@ -90,12 +98,22 @@ afterAll(async () => {
   if (process.env.QMS_AUDIT_REPORT_CLEANUP === "1") return;
   await new Promise<void>(resolve => server.close(() => resolve()));
   if (process.env.QMS_AUDIT_REPORT_BROWSER === "1" && browserAuditId) {
-    await writeFile("/tmp/qms-audit-report-fixture.json", JSON.stringify({ orgId, token, viewerToken, auditId: browserAuditId, apiAuditId: auditId }), { mode: 0o600 });
+    await writeFile("/tmp/qms-audit-report-fixture.json", JSON.stringify({ orgId, token, viewerToken, auditId: browserAuditId, apiAuditId: auditId, projectId, year: 2027 }), { mode: 0o600 });
     return;
   }
   if (orgId) await cleanup(orgId);
 });
 describe.skipIf(process.env.QMS_AUDIT_REPORT_CLEANUP === "1")("Audit completion and client report", () => {
+  it("blocks completion until Save Report Details issues a number and rejects non-admin numbering maintenance", async () => {
+    const before = await readReportNumberState(orgId);
+    const complete = await api("POST", `/audits/${auditId}/complete`);
+    expect(complete.status).toBe(409);
+    expect(complete.body.error).toMatch(/Save Report Details/);
+    expect((await api("GET", `/audits/${auditId}`)).body.reportNumber).toBeNull();
+    expect(await readReportNumberState(orgId)).toEqual(before);
+    expect((await api("GET", "/admin/report-numbering", undefined, viewerToken)).status).toBe(403);
+    expect((await api("PUT", "/admin/report-numbering", { prefix: "NO", middle: "", separator: "-", padding: 4 }, viewerToken)).status).toBe(403);
+  });
   it("blocks unfinished reports, including CSV and PDF", async () => {
     expect((await api("GET", `/audits/${auditId}/report`)).status).toBe(409);
     expect((await api("GET", `/audits/${auditId}/report?format=csv`)).status).toBe(409);
@@ -109,18 +127,43 @@ describe.skipIf(process.env.QMS_AUDIT_REPORT_CLEANUP === "1")("Audit completion 
     expect((await api("GET", `/audits/${auditId}`)).body.canEdit).toBe(true);
   });
   it("rejects invalid report fields, dates, grades and phase weights", async () => {
+    const before = await readReportNumberState(orgId);
     for (const values of [{ unknown: "x" }, { reportIssueDate: "2026-02-30" }, { overallRating: "Assumed effective" }]) {
       expect((await api("PUT", `/audits/${auditId}/report-details`, { values, rows: {} })).status).toBe(422);
     }
     expect(auditReportDetailsErrors({ values: {}, rows: { progress: [{ phase: "Build", weight: "70", plan: "101" }] } }).length).toBeGreaterThan(0);
     expect((await api("PUT", `/audits/${auditId}/report-details`, { values: {}, rows: { photographs: [{ fileName: "not-uploaded.png", date: "2026-10-04" }] } })).status).toBe(422);
+    expect(await readReportNumberState(orgId)).toEqual(before);
   });
   it("saves report details without replacing other audit data", async () => {
+    const planState = await readPlanNumberState(orgId);
     const result = await api("PUT", `/audits/${auditId}/report-details`, { values: { client: "Actual client", overallRating: "Effective", reportIssueDate: "2026-10-04" },
       rows: { recurringThemes: [{ theme: "Actual theme", indication: "Needs review", references: "B.1.1" }] } });
     expect(result.status).toBe(200); expect(result.body.reportDetails.values.client).toBe("Actual client");
     expect(result.body.additionalDocuments.goodPractices[0].verifiedConforming).toBe("Controlled revision");
     expect(result.body.checklist[0].clientReference).toBe("B.1.1");
+    expect(result.body.reportNumber).toBe("AR-RP100-27-0001");
+    expect((await readReportNumberState(orgId)).ranges[`project:${projectId}`]["2027"]).toBe(1);
+    expect(await readPlanNumberState(orgId)).toEqual(planState);
+    const before = await readReportNumberState(orgId);
+    const again = await api("PUT", `/audits/${auditId}/report-details`, result.body.reportDetails);
+    expect(again.body.reportNumber).toBe(result.body.reportNumber);
+    expect(await readReportNumberState(orgId)).toEqual(before);
+  });
+  it("serializes concurrent first saves of the same audit and preserves numbers on later general edits", async () => {
+    const [fresh] = await db.insert(audits).values({
+      organizationId: orgId, projectId, auditPlanId: planId,
+      referenceNumber: `Concurrent number ${suffix}`, workflowState: "planned", status: "{}",
+    }).returning();
+    const before = await readReportNumberState(orgId);
+    const results = await Promise.all([1, 2].map(i => api("PUT", `/audits/${fresh.id}/report-details`, { values: { client: `Concurrent ${i}` }, rows: {} })));
+    expect(results.map(result => result.status)).toEqual([200, 200]);
+    expect(results[0].body.reportNumber).toBe(results[1].body.reportNumber);
+    expect((await readReportNumberState(orgId)).ranges[`project:${projectId}`]["2027"])
+      .toBe(before.ranges[`project:${projectId}`]["2027"] + 1);
+    const edited = await api("PUT", `/audits/${fresh.id}`, { ...results[0].body, title: "Edited title", reportNumber: "FORGED-NUMBER" });
+    expect(edited.status).toBe(200);
+    expect(edited.body.reportNumber).toBe(results[0].body.reportNumber);
   });
   it("completes idempotently, preserves metadata, and leaves CARs open", async () => {
     const first = await api("POST", `/audits/${auditId}/complete`);
@@ -137,6 +180,7 @@ describe.skipIf(process.env.QMS_AUDIT_REPORT_CLEANUP === "1")("Audit completion 
     expect(sections).toHaveLength(18);
     expect(sections.find((s: any) => s.key === "cover").fields.find((f: any) => f.label === "Audit dates").value).not.toContain("1970");
     expect(sections.find((s: any) => s.key === "cover").fields.find((f: any) => f.label === "Audit reference").value).toContain("API report");
+    expect(sections.find((s: any) => s.key === "cover").fields.find((f: any) => f.label === "Audit Report Number").value).toBe("AR-RP100-27-0001");
     const summary = sections.find((s: any) => s.key === "executive-summary");
     expect(summary.fields.find((f: any) => f.label === "Non-conformities").value).toBe("2");
     expect(sections.find((s: any) => s.key === "non-conformities").tables[0].rows).toHaveLength(2);
