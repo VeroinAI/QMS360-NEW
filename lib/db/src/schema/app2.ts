@@ -112,7 +112,7 @@ export const lessonLearnedForms = app2LessonsSchema.table("lesson_learned_forms"
   reviewComments: text("review_comments"),
   ...auditColumns,
 }, (table) => [
-  uniqueIndex("lesson_reference_active_idx").on(table.organizationId, table.referenceNumber).where(sql`${table.deletedAt} IS NULL`),
+  uniqueIndex("lesson_project_reference_active_idx").on(table.organizationId, table.projectId, table.referenceNumber).where(sql`${table.deletedAt} IS NULL`),
   uniqueIndex("lesson_client_reference_active_idx").on(table.organizationId, table.clientReference).where(sql`${table.deletedAt} IS NULL AND ${table.clientReference} IS NOT NULL`),
 ]);
 

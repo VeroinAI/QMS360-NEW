@@ -1588,6 +1588,22 @@ export interface SubmitForReview {
   approverId?: string;
 }
 
+export interface LessonsProjectNumberInput {
+  /**
+     * @minimum 1
+     * @maximum 999999999999
+     */
+  nextNumber: number;
+}
+
+export interface LessonsProjectNumbering {
+  projectId: string;
+  startingNumber: number;
+  nextNumber: number;
+  lastIssued: number | null;
+  configured: boolean;
+}
+
 export type NumberingPatternPosition = typeof NumberingPatternPosition[keyof typeof NumberingPatternPosition];
 
 

@@ -3,6 +3,7 @@ import {
   useGetLessonsReferenceData, useGetMasterDataLov, usePreviewLessonsNumbering,
   getGetLessonsReferenceDataQueryKey, getGetMasterDataLovQueryKey,
   useResetNumberingPattern, useUpdateNumberingPattern,
+  useGetLessonsProjectNumbering, getGetLessonsProjectNumberingQueryKey,
   type NumberingModuleConfig, type NumberingPatternInput,
 } from '@workspace/api-client-react';
 import { LESSON_NUMBER_FIELDS, referencePrefixError } from '@workspace/field-controls';
@@ -13,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save } from 'lucide-react';
+import { LessonsProjectRange } from './lessons-project-range';
 
 function formatNumberPreview(p: NumberingPatternInput, n: number) {
   const running = String(n).padStart(p.padding, '0');
@@ -42,13 +44,13 @@ export function NumberingForm({ app, displayName, module, onSaved }: {
   const update = useUpdateNumberingPattern();
   const reset = useResetNumberingPattern();
   const check = usePreviewLessonsNumbering();
+  const projectCounter = useGetLessonsProjectNumbering(projectId, { query: { queryKey: getGetLessonsProjectNumberingQueryKey(projectId), enabled: app === 'lessons' && !!projectId, staleTime: 0 } });
   const busy = update.isPending || reset.isPending;
   const hasFields = app === 'lessons' && /[{}]/.test(form.prefix);
   const prefixError = app === 'lessons' ? referencePrefixError(form.prefix) : null;
-  const needsProject = form.prefix.includes(LESSON_NUMBER_FIELDS[0].token);
   const needsDiscipline = form.prefix.includes(LESSON_NUMBER_FIELDS[1].token);
-  const previewKey = JSON.stringify({ form, projectId, disciplineValue });
-  const nextNumber = module.pattern.nextNumber > module.pattern.startingNumber
+  const previewKey = JSON.stringify({ form, projectId, disciplineValue, next: projectCounter.data?.nextNumber });
+  const nextNumber = app === 'lessons' ? projectCounter.data?.nextNumber ?? 1 : module.pattern.nextNumber > module.pattern.startingNumber
     ? module.pattern.nextNumber : form.startingNumber;
   const set = <K extends keyof NumberingPatternInput>(key: K, value: NumberingPatternInput[K]) => {
     setForm(f => ({ ...f, [key]: value })); setSaveError('');
@@ -98,12 +100,12 @@ export function NumberingForm({ app, displayName, module, onSaved }: {
       <div className="grid gap-3 sm:grid-cols-3">
         <div><Label>Running number position</Label><Select value={form.position} onValueChange={v => set('position', v as NumberingPatternInput['position'])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="after_prefix">After prefix</SelectItem><SelectItem value="after_suffix">After suffix</SelectItem><SelectItem value="before_prefix">Before prefix</SelectItem></SelectContent></Select></div>
         <div><Label htmlFor="numbering-padding">Padding (digits)</Label><Input id="numbering-padding" type="number" min={0} max={12} value={form.padding} onChange={e => set('padding', Math.max(0, Math.min(12, Number(e.target.value) || 0)))} /></div>
-        <div><Label htmlFor="numbering-start">Starting number</Label><Input id="numbering-start" type="number" min={0} max={1000000000000} disabled={module.pattern.nextNumber > module.pattern.startingNumber} value={form.startingNumber} onChange={e => set('startingNumber', Math.max(0, Number(e.target.value) || 0))} /></div>
+        {app !== 'lessons' && <div><Label htmlFor="numbering-start">Starting number</Label><Input id="numbering-start" type="number" min={0} max={1000000000000} disabled={module.pattern.nextNumber > module.pattern.startingNumber} value={form.startingNumber} onChange={e => set('startingNumber', Math.max(0, Number(e.target.value) || 0))} /></div>}
       </div>
-      {hasFields && <div className="space-y-3 rounded-lg border p-4">
-        <div><p className="text-sm font-medium">Preview with master data</p><p className="text-xs text-muted-foreground">Preview selections are for checking only. Each new Lesson uses its own selections. Preview does not issue a number.</p></div>
+      {app === 'lessons' && <div className="space-y-3 rounded-lg border p-4">
+        <div><p className="text-sm font-medium">Project range and reference preview</p><p className="text-xs text-muted-foreground">Choose a project to maintain its range or check its next reference. Each new Lesson uses its own project and discipline. Preview does not issue a number.</p></div>
         <div className="grid gap-3 sm:grid-cols-2">
-          {needsProject && <div><Label>Preview project</Label><Select value={projectId} onValueChange={setProjectId}><SelectTrigger aria-label="Preview project"><SelectValue placeholder="Select a project" /></SelectTrigger><SelectContent>{projects.data?.projects.map(project => <SelectItem key={project.id} value={project.id}>{project.code} — {project.name}</SelectItem>)}</SelectContent></Select>
+          {<div><Label>Project for number range and preview</Label><Select value={projectId} onValueChange={setProjectId}><SelectTrigger aria-label="Preview project"><SelectValue placeholder="Select a project" /></SelectTrigger><SelectContent>{projects.data?.projects.map(project => <SelectItem key={project.id} value={project.id}>{project.code} — {project.name}</SelectItem>)}</SelectContent></Select>
             {projects.isLoading && <p className="text-xs">Loading projects…</p>}
             {projects.error && <p role="alert" className="text-sm text-destructive">Could not load projects. <button type="button" className="underline" onClick={() => projects.refetch()}>Retry</button></p>}
             {projects.data && !projects.data.projects.length && <p className="text-xs">No projects are available in your Lessons scope.</p>}
@@ -114,15 +116,19 @@ export function NumberingForm({ app, displayName, module, onSaved }: {
             {disciplines.data && !disciplines.data.values.length && <p className="text-xs">No active disciplines are available.</p>}
           </div>}
         </div>
-        <Button variant="outline" onClick={checkPreview} disabled={check.isPending || !!prefixError || (needsProject && !projectId) || (needsDiscipline && !disciplineValue)}>{check.isPending ? 'Checking…' : 'Generate preview'}</Button>
+        <LessonsProjectRange key={projectId} projectId={projectId} counter={projectCounter.data} loading={projectCounter.isFetching}
+          error={projectCounter.error} onRetry={() => void projectCounter.refetch()} />
+        <Button variant="outline" onClick={checkPreview} disabled={check.isPending || projectCounter.isFetching || !!prefixError || !projectId || (needsDiscipline && !disciplineValue)}>{check.isPending ? 'Checking…' : 'Generate preview'}</Button>
       </div>}
       <div className="rounded-lg border bg-muted/40 px-4 py-3">
         <p className="text-xs uppercase tracking-widest text-muted-foreground">Next reference number</p>
-        <p className="mt-1 break-all font-mono text-lg font-semibold" data-testid="numbering-preview">{hasFields
+        <p className="mt-1 break-all font-mono text-lg font-semibold" data-testid="numbering-preview">{app === 'lessons'
           ? preview?.key === previewKey ? preview.text : 'Select master records and generate a preview.'
           : formatNumberPreview(form, nextNumber)}</p>
         {previewError?.key === previewKey && <p role="alert" className="mt-2 text-sm text-destructive">{previewError.text}</p>}
-        <p className="mt-1 text-xs text-muted-foreground">The counter continues from {module.pattern.nextNumber}; the starting number applies only before the first number is issued. {hasFields && 'Missing required master values will block creation, not produce an incomplete reference.'}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{app === 'lessons'
+          ? 'Lessons counters are independent per project. Saving or resetting the shared pattern does not reset project ranges. Missing required master values block creation without consuming a number.'
+          : `The counter continues from ${module.pattern.nextNumber}; the starting number applies only before the first number is issued.`}</p>
       </div>
       {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
       <div className="flex flex-wrap gap-2"><Button disabled={busy || !!prefixError} onClick={() => update.mutate({ module: app, data: form }, { onSuccess: () => onSaved('Numbering pattern saved'), onError: fail })}><Save className="mr-2 h-4 w-4" />Save pattern</Button>{module.configured && <Button variant="outline" disabled={busy} onClick={() => reset.mutate({ module: app }, { onSuccess: () => onSaved('Numbering reset to default'), onError: fail })}>Reset to default</Button>}</div>

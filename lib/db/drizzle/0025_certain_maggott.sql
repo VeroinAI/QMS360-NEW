@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX IF NOT EXISTS "lesson_project_reference_active_idx" ON "app2_lessons"."lesson_learned_forms" USING btree ("organization_id","project_id","reference_number") WHERE "app2_lessons"."lesson_learned_forms"."deleted_at" IS NULL;--> statement-breakpoint
+DROP INDEX IF EXISTS "app2_lessons"."lesson_reference_active_idx";

@@ -187,6 +187,8 @@ import type {
   LessonsEscalationReportJobUpdate,
   LessonsNumberingPreview,
   LessonsNumberingPreviewInput,
+  LessonsProjectNumberInput,
+  LessonsProjectNumbering,
   LessonsReferenceData,
   ListAuditAccessQueueParams,
   ListAuditDelegationsParams,
@@ -2367,6 +2369,155 @@ export function useGetNumberingConfig<TData = Awaited<ReturnType<typeof getNumbe
 
 
 
+
+export const getGetLessonsProjectNumberingUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/platform/numbering/lessons/projects/${projectId}`
+}
+
+/**
+ * @summary Read the authorized project's independent Lessons counter
+ */
+export const getLessonsProjectNumbering = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<LessonsProjectNumbering> => {
+
+  return customFetch<LessonsProjectNumbering>(getGetLessonsProjectNumberingUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLessonsProjectNumberingQueryKey = (projectId: string,) => {
+    return [
+    `/api/platform/numbering/lessons/projects/${projectId}`
+    ] as const;
+    }
+
+
+export const getGetLessonsProjectNumberingQueryOptions = <TData = Awaited<ReturnType<typeof getLessonsProjectNumbering>>, TError = ErrorType<void>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsProjectNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLessonsProjectNumberingQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLessonsProjectNumbering>>> = ({ signal }) => getLessonsProjectNumbering(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLessonsProjectNumbering>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLessonsProjectNumberingQueryResult = NonNullable<Awaited<ReturnType<typeof getLessonsProjectNumbering>>>
+export type GetLessonsProjectNumberingQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read the authorized project's independent Lessons counter
+ */
+
+export function useGetLessonsProjectNumbering<TData = Awaited<ReturnType<typeof getLessonsProjectNumbering>>, TError = ErrorType<void>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsProjectNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLessonsProjectNumberingQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateLessonsProjectNumberingUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/platform/numbering/lessons/projects/${projectId}`
+}
+
+/**
+ * @summary Maintain a project's next Lessons running number without reusing issued numbers
+ */
+export const updateLessonsProjectNumbering = async (projectId: string,
+    lessonsProjectNumberInput: LessonsProjectNumberInput, options?: Parameters<typeof customFetch>[1]): Promise<LessonsProjectNumbering> => {
+
+  return customFetch<LessonsProjectNumbering>(getUpdateLessonsProjectNumberingUrl(projectId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(lessonsProjectNumberInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateLessonsProjectNumberingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLessonsProjectNumbering>>, TError,{projectId: string;data: BodyType<LessonsProjectNumberInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLessonsProjectNumbering>>, TError,{projectId: string;data: BodyType<LessonsProjectNumberInput>}, TContext> => {
+
+const mutationKey = ['updateLessonsProjectNumbering'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLessonsProjectNumbering>>, {projectId: string;data: BodyType<LessonsProjectNumberInput>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  updateLessonsProjectNumbering(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLessonsProjectNumberingMutationResult = NonNullable<Awaited<ReturnType<typeof updateLessonsProjectNumbering>>>
+    export type UpdateLessonsProjectNumberingMutationBody = BodyType<LessonsProjectNumberInput>
+    export type UpdateLessonsProjectNumberingMutationError = ErrorType<void>
+
+    /**
+ * @summary Maintain a project's next Lessons running number without reusing issued numbers
+ */
+export const useUpdateLessonsProjectNumbering = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLessonsProjectNumbering>>, TError,{projectId: string;data: BodyType<LessonsProjectNumberInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLessonsProjectNumbering>>,
+        TError,
+        {projectId: string;data: BodyType<LessonsProjectNumberInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateLessonsProjectNumberingMutationOptions(options));
+    }
 
 export const getPreviewLessonsNumberingUrl = () => {
 

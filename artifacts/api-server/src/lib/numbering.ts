@@ -1,14 +1,16 @@
-import { and, eq, isNull } from "drizzle-orm";
-import { db, organizationSettings } from "@workspace/db";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { db, organizationSettings, lessonLearnedForms } from "@workspace/db";
 import { resolveReferencePrefix, type LessonNumberContext } from "@workspace/field-controls";
 
 /**
- * Per-module reference numbering. Patterns live in
+ * Per-module reference numbering. Lessons share a pattern but use independent
+ * projectCounters; legacy Lessons nextNumber is retained but no longer allocated.
+ * QA/QC and Audit retain organization-level counters. Patterns live in
  * shared.organization_settings.document_numbering keyed by module ("qaqc",
  * "lessons", "audit"). Allocation is serialized by a SELECT ... FOR UPDATE on
  * the org's settings row inside a transaction, so concurrent creators can never
  * receive the same running number; call sites additionally retry on the
- * per-module unique index to stay safe against legacy/manual duplicates.
+ * applicable unique index to stay safe against legacy/manual duplicates.
  *
  * Stored entries carry a `custom` flag distinguishing an admin-configured
  * pattern from one the allocator persisted only to keep the counter running.
@@ -33,7 +35,8 @@ export interface NumberingPattern {
 }
 
 export type NumberingPatternInput = Omit<NumberingPattern, "nextNumber">;
-type StoredNumbering = NumberingPattern & { custom?: boolean };
+export type LessonProjectCounter = { startingNumber: number; nextNumber: number; lastIssued: number | null; configured: boolean };
+type StoredNumbering = NumberingPattern & { custom?: boolean; projectCounters?: Record<string, LessonProjectCounter> };
 export type NumberingMap = Record<string, StoredNumbering>;
 
 export const NUMBERING_MODULES: NumberingModule[] = ["qaqc", "lessons", "audit"];
@@ -103,7 +106,8 @@ async function ensureSettingsRow(tx: Tx, organizationId: string) {
  * Atomically allocates and returns the next reference number for the module,
  * advancing the stored counter. Creates the org settings row when missing.
  */
-export async function allocateReferenceNumber(organizationId: string, module: NumberingModule, context?: LessonNumberContext): Promise<string> {
+export async function allocateReferenceNumber(organizationId: string, module: NumberingModule, context?: LessonNumberContext, projectId?: string): Promise<string> {
+  if (module === "lessons" && !projectId) throw new LessonProjectNumberingError("A project is required for Lessons Learned numbering.");
   return db.transaction(async (tx) => {
     const row = await ensureSettingsRow(tx, organizationId);
     const map = { ...((row.documentNumbering ?? {}) as NumberingMap) };
@@ -111,12 +115,67 @@ export async function allocateReferenceNumber(organizationId: string, module: Nu
     const pattern = effectivePattern(map, module);
     // Resolve before incrementing: missing master values never consume a number.
     const resolved = module === "lessons" ? { ...pattern, prefix: resolveReferencePrefix(pattern.prefix, context) } : pattern;
-    const issued = pattern.nextNumber;
-    map[module] = { ...pattern, custom: existing?.custom, nextNumber: issued + 1 };
+    const counter = module === "lessons" ? lessonProjectCounter(map, projectId!) : undefined;
+    const issued = counter
+      ? await availableLessonNumber(tx, organizationId, projectId!, resolved, counter.nextNumber)
+      : pattern.nextNumber;
+    if (counter && (!Number.isSafeInteger(issued + 1) || issued >= MAX_LESSON_NUMBER)) throw new LessonProjectNumberingError("The project number range is exhausted.");
+    map[module] = counter
+      ? { ...pattern, custom: existing?.custom, projectCounters: {
+        ...existing?.projectCounters, [projectId!]: { ...counter, nextNumber: issued + 1, lastIssued: issued },
+      } }
+      : { ...pattern, custom: existing?.custom, nextNumber: issued + 1 };
     await tx.update(organizationSettings)
       .set({ documentNumbering: map, updatedAt: new Date() })
       .where(eq(organizationSettings.id, row.id));
     return formatReferenceNumber(resolved, issued);
+  });
+}
+
+export const MAX_LESSON_NUMBER = 1_000_000_000_000;
+export class LessonProjectNumberingError extends Error {}
+
+export function lessonProjectCounter(map: NumberingMap, projectId: string): LessonProjectCounter {
+  return map.lessons?.projectCounters?.[projectId] ?? { startingNumber: 1, nextNumber: 1, lastIssued: null, configured: false };
+}
+
+/** Read-only collision protection preserves historical references, including deleted forms. */
+export async function availableLessonNumber(query: Pick<Tx, "select" | "execute">, organizationId: string, projectId: string, pattern: NumberingPatternInput, next: number): Promise<number> {
+  const [collision] = await query.select({ id: lessonLearnedForms.id }).from(lessonLearnedForms).where(and(
+    eq(lessonLearnedForms.organizationId, organizationId), eq(lessonLearnedForms.projectId, projectId),
+    eq(lessonLearnedForms.referenceNumber, formatReferenceNumber(pattern, next)),
+  )).limit(1);
+  if (!collision) return next;
+  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const running = "([0-9]+)";
+  const parts = pattern.position === "before_prefix" ? [running, escape(pattern.prefix), escape(pattern.suffix)]
+    : pattern.position === "after_suffix" ? [escape(pattern.prefix), escape(pattern.suffix), running]
+    : [escape(pattern.prefix), running, escape(pattern.suffix)];
+  const regex = `^${parts.filter(Boolean).join(escape(pattern.separator))}$`;
+  const result = await query.execute(sql`SELECT MAX((substring(reference_number FROM ${regex}))::numeric) AS highest
+    FROM app2_lessons.lesson_learned_forms WHERE organization_id = ${organizationId}::uuid AND project_id = ${projectId}::uuid
+    AND reference_number ~ ${regex}`);
+  const highest = Number(result.rows[0]?.highest ?? 0);
+  if (!Number.isSafeInteger(highest) || highest >= MAX_LESSON_NUMBER) throw new LessonProjectNumberingError("The project number range is exhausted.");
+  return Math.max(next, highest + 1);
+}
+
+export async function saveLessonProjectCounter(organizationId: string, projectId: string, nextNumber: number): Promise<LessonProjectCounter> {
+  if (!Number.isSafeInteger(nextNumber) || nextNumber < 1 || nextNumber >= MAX_LESSON_NUMBER) {
+    throw new LessonProjectNumberingError("Enter a whole next number between 1 and 999999999999.");
+  }
+  return db.transaction(async tx => {
+    const row = await ensureSettingsRow(tx, organizationId);
+    const map = { ...((row.documentNumbering ?? {}) as NumberingMap) };
+    const current = lessonProjectCounter(map, projectId);
+    if (current.lastIssued !== null && nextNumber <= current.lastIssued) {
+      throw new LessonProjectNumberingError(`The next number must be greater than the last issued number (${current.lastIssued}). Existing references cannot be reused.`);
+    }
+    const counter = { ...current, startingNumber: current.lastIssued === null ? nextNumber : current.startingNumber, nextNumber, configured: true };
+    map.lessons = { ...effectivePattern(map, "lessons"), custom: map.lessons?.custom,
+      projectCounters: { ...map.lessons?.projectCounters, [projectId]: counter } };
+    await tx.update(organizationSettings).set({ documentNumbering: map, updatedAt: new Date() }).where(eq(organizationSettings.id, row.id));
+    return counter;
   });
 }
 
@@ -135,7 +194,7 @@ export async function saveNumberingPattern(
     // Keep the original seed after issuance, otherwise increasing startingNumber
     // can make a used counter look unused on a later edit.
     const pattern: NumberingPattern = { ...input, startingNumber: issuedBefore ? existing.startingNumber : input.startingNumber, nextNumber };
-    map[module] = { ...pattern, custom: true };
+    map[module] = { ...pattern, custom: true, ...(module === "lessons" ? { projectCounters: existing?.projectCounters } : {}) };
     await tx.update(organizationSettings)
       .set({ documentNumbering: map, updatedAt: new Date() })
       .where(eq(organizationSettings.id, row.id));
@@ -157,7 +216,8 @@ export async function resetNumberingPattern(organizationId: string, module: Numb
     const existing = map[module];
     if (!existing?.custom) return;
     const fallback = DEFAULT_PATTERNS[module];
-    map[module] = { ...fallback, custom: false, nextNumber: Math.max(existing.nextNumber, fallback.startingNumber) };
+    map[module] = { ...fallback, custom: false, nextNumber: Math.max(existing.nextNumber, fallback.startingNumber),
+      ...(module === "lessons" ? { projectCounters: existing.projectCounters } : {}) };
     await tx.update(organizationSettings)
       .set({ documentNumbering: map, updatedAt: new Date() })
       .where(eq(organizationSettings.id, row.id));

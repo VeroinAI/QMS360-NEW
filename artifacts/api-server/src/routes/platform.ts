@@ -8,7 +8,7 @@ import {
   UpdateUserEmailBody, UpdateUserEmailResponse,
   UpdateFieldSettingsBody, UpdateFieldSettingsResponse, UpdateNumberingPatternBody, UpdateNumberingPatternResponse, UpdateOrganizationSettingsBody,
   UpdateOrganizationSettingsResponse,
-  PreviewLessonsNumberingBody, PreviewLessonsNumberingResponse,
+  PreviewLessonsNumberingBody, PreviewLessonsNumberingResponse, UpdateLessonsProjectNumberingBody,
 } from "@workspace/api-zod";
 import { applicationAccess, businessUnits, db, moduleFieldSettings, organizations, organizationSettings, platformRoles, projects, users } from "@workspace/db";
 import { requireAdmin, requireAuth, requirePlatformRole } from "../middlewares/auth";
@@ -19,6 +19,7 @@ import { paginated, pagination, writeAuditLog, type AppKey } from "../lib/worksp
 import { catalogKeys, FIELD_CATALOG } from "../lib/field-access";
 import {
   effectivePattern, formatReferenceNumber, getNumberingMap, isConfigured, NUMBERING_MODULES,
+  lessonProjectCounter, saveLessonProjectCounter, LessonProjectNumberingError, availableLessonNumber,
   resetNumberingPattern, saveNumberingPattern, type NumberingModule,
 } from "../lib/numbering";
 import { getAuthorizedProjectScope, getPlatformEffectiveProjectScope, getRoleAssignmentProjectScope } from "../middlewares/rbac";
@@ -578,8 +579,40 @@ router.put("/platform/organization-settings", requireAuth, requireAdmin, async (
 
 const moduleConfigDto = (map: Awaited<ReturnType<typeof getNumberingMap>>, module: NumberingModule) => {
   const pattern = effectivePattern(map, module);
-  return { pattern, configured: isConfigured(map, module), preview: formatReferenceNumber(pattern, pattern.nextNumber) };
+  const displayed = module === "lessons" ? { ...pattern, startingNumber: 1, nextNumber: 1 } : pattern;
+  return { pattern: displayed, configured: isConfigured(map, module), preview: formatReferenceNumber(displayed, displayed.nextNumber) };
 };
+
+async function requireLessonsNumberingProject(req: import("express").Request, projectId: string) {
+  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(projectId)) return null;
+  const scope = await getAuthorizedProjectScope(req, "lessons");
+  const [project] = await db.select().from(projects).where(and(
+    eq(projects.organizationId, req.currentUser!.organizationId), eq(projects.id, projectId), isNull(projects.deletedAt),
+    scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds),
+  )).limit(1);
+  return project ?? null;
+}
+
+router.get("/platform/numbering/lessons/projects/:projectId", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const projectId = String(req.params.projectId);
+  if (!await requireLessonsNumberingProject(req, projectId)) { res.status(404).json({ error: "Project not found in your Lessons project scope" }); return; }
+  res.json({ projectId, ...lessonProjectCounter(await getNumberingMap(req.currentUser!.organizationId), projectId) });
+}));
+
+router.put("/platform/numbering/lessons/projects/:projectId", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const projectId = String(req.params.projectId);
+  if (!await requireLessonsNumberingProject(req, projectId)) { res.status(404).json({ error: "Project not found in your Lessons project scope" }); return; }
+  const parsed = UpdateLessonsProjectNumberingBody.safeParse(req.body);
+  if (!parsed.success || Object.keys(req.body ?? {}).some(key => key !== "nextNumber")) {
+    res.status(422).json({ error: "Enter a valid project next number." }); return;
+  }
+  try {
+    res.json({ projectId, ...await saveLessonProjectCounter(req.currentUser!.organizationId, projectId, parsed.data.nextNumber) });
+  } catch (error) {
+    if (!(error instanceof LessonProjectNumberingError)) throw error;
+    res.status(422).json({ error: error.message });
+  }
+}));
 
 router.get("/platform/numbering", requireAuth, async (req, res): Promise<void> => {
   const map = await getNumberingMap(req.currentUser!.organizationId);
@@ -591,6 +624,7 @@ router.post("/platform/numbering/lessons/preview", requireAuth, requireAdmin, as
   const parsed = PreviewLessonsNumberingBody.safeParse(req.body);
   if (!parsed.success) { res.status(422).json({ error: parsed.error.issues[0]?.message ?? "Invalid preview" }); return; }
   const { pattern, projectId, disciplineValue } = parsed.data;
+  if (!projectId) { res.status(422).json({ error: "Select a project to preview its Lessons number range." }); return; }
   if (!Number.isInteger(pattern.padding) || !Number.isInteger(pattern.startingNumber)) {
     res.status(422).json({ error: "Padding and starting number must be whole numbers" }); return;
   }
@@ -609,13 +643,13 @@ router.post("/platform/numbering/lessons/preview", requireAuth, requireAdmin, as
   try {
     const prefix = resolveReferencePrefix(pattern.prefix, projectNumberContext(customFields, disciplineValue));
     const map = await getNumberingMap(organizationId);
-    const stored = map.lessons;
-    const nextNumber = stored && stored.nextNumber > stored.startingNumber ? stored.nextNumber : pattern.startingNumber;
+    const nextNumber = await availableLessonNumber(db, organizationId, projectId,
+      { ...pattern, prefix }, lessonProjectCounter(map, projectId).nextNumber);
     res.json(PreviewLessonsNumberingResponse.parse({
       nextNumber, preview: formatReferenceNumber({ ...pattern, prefix }, nextNumber),
     }));
   } catch (error) {
-    if (!(error instanceof ReferencePrefixError)) throw error;
+    if (!(error instanceof ReferencePrefixError || error instanceof LessonProjectNumberingError)) throw error;
     res.status(422).json({ error: error.message });
   }
 }));

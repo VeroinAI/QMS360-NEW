@@ -700,6 +700,52 @@ export const GetNumberingConfigResponse = zod.object({
 
 
 /**
+ * @summary Read the authorized project's independent Lessons counter
+ */
+export const getLessonsProjectNumberingPathProjectIdRegExp = new RegExp('^[0-9a-fA-F-]{36}$');
+
+
+export const GetLessonsProjectNumberingParams = zod.object({
+  "projectId": zod.coerce.string().regex(getLessonsProjectNumberingPathProjectIdRegExp)
+})
+
+export const GetLessonsProjectNumberingResponse = zod.object({
+  "projectId": zod.string(),
+  "startingNumber": zod.number(),
+  "nextNumber": zod.number(),
+  "lastIssued": zod.number().nullable(),
+  "configured": zod.boolean()
+})
+
+
+/**
+ * @summary Maintain a project's next Lessons running number without reusing issued numbers
+ */
+export const updateLessonsProjectNumberingPathProjectIdRegExp = new RegExp('^[0-9a-fA-F-]{36}$');
+
+
+export const UpdateLessonsProjectNumberingParams = zod.object({
+  "projectId": zod.coerce.string().regex(updateLessonsProjectNumberingPathProjectIdRegExp)
+})
+
+export const updateLessonsProjectNumberingBodyNextNumberMax = 999999999999;
+
+
+
+export const UpdateLessonsProjectNumberingBody = zod.object({
+  "nextNumber": zod.number().min(1).max(updateLessonsProjectNumberingBodyNextNumberMax)
+})
+
+export const UpdateLessonsProjectNumberingResponse = zod.object({
+  "projectId": zod.string(),
+  "startingNumber": zod.number(),
+  "nextNumber": zod.number(),
+  "lastIssued": zod.number().nullable(),
+  "configured": zod.boolean()
+})
+
+
+/**
  * @summary Preview a Lessons reference using selected master records without issuing a number (admin)
  */
 export const previewLessonsNumberingBodyPatternPrefixMax = 200;

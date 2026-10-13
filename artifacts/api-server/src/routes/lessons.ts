@@ -58,7 +58,7 @@ import {
   users,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
-import { allocateReferenceNumber } from "../lib/numbering";
+import { allocateReferenceNumber, LessonProjectNumberingError } from "../lib/numbering";
 import { projectNumberContext, ReferencePrefixError } from "@workspace/field-controls";
 import { assertCanManageAssignmentScope, assertOwnerOrFull, assertProjectAccess, canManageAssignmentScope, getAppAdminScope, getAuthorizedFullProjectScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
 import { assertLovValue } from "../lib/lov";
@@ -657,10 +657,10 @@ router.post("/forms", asyncHandler(async (req, res) => {
     // Reference numbers come from the org's lessons numbering pattern (Admin Settings → Numbering).
     let referenceNumber: string;
     try {
-      referenceNumber = await allocateReferenceNumber(user.organizationId, "lessons", projectNumberContext(project.customFields, body.disciplineId));
+      referenceNumber = await allocateReferenceNumber(user.organizationId, "lessons", projectNumberContext(project.customFields, body.disciplineId), body.projectId);
     } catch (error) {
       // Only master-field validation is a user error; infrastructure failures remain server errors.
-      if (error instanceof ReferencePrefixError) {
+      if (error instanceof ReferencePrefixError || error instanceof LessonProjectNumberingError) {
         throw new HttpError(422, error.message);
       }
       throw error;
@@ -679,7 +679,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
         approverId: body.approverId,
       }).returning();
     } catch (error) {
-      if (!(error instanceof Error) || !/unique|duplicate/i.test(error.message)) throw error;
+      if (!(error instanceof Error) || (!/unique|duplicate/i.test(error.message) && (error.cause as { code?: string } | undefined)?.code !== "23505")) throw error;
     }
   }
   if (!created) throw new HttpError(409, "Unable to allocate a unique reference number");

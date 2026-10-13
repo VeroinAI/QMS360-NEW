@@ -441,6 +441,24 @@ paths:
         "200": {description: Reference data snapshot, content: {application/json: {schema: {$ref: "#/components/schemas/ReferenceDataSnapshot"}}}}
   /platform/numbering:
     get: {operationId: getNumberingConfig, tags: [platform], summary: Get per-module reference numbering patterns with next-number previews, responses: {"200": {description: Numbering config, content: {application/json: {schema: {$ref: "#/components/schemas/NumberingConfig"}}}}}}
+  /platform/numbering/lessons/projects/{projectId}:
+    get:
+      operationId: getLessonsProjectNumbering
+      tags: [platform]
+      summary: Read the authorized project's independent Lessons counter
+      parameters: [{name: projectId, in: path, required: true, schema: {type: string, pattern: "^[0-9a-fA-F-]{36}$"}}]
+      responses:
+        "200": {description: Project counter, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsProjectNumbering"}}}}
+        "404": {description: Project not found}
+    put:
+      operationId: updateLessonsProjectNumbering
+      tags: [platform]
+      summary: Maintain a project's next Lessons running number without reusing issued numbers
+      parameters: [{name: projectId, in: path, required: true, schema: {type: string, pattern: "^[0-9a-fA-F-]{36}$"}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsProjectNumberInput"}}}}
+      responses:
+        "200": {description: Saved project counter, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsProjectNumbering"}}}}
+        "404": {description: Project not found}
   /platform/numbering/lessons/preview:
     post:
       operationId: previewLessonsNumbering
@@ -3153,6 +3171,21 @@ components:
     SubmitForReview:
       type: object
       properties: {approverId: {type: string, description: Designated approver; defaults to the approver already stored on the record}}
+    LessonsProjectNumberInput:
+      type: object
+      additionalProperties: false
+      required: [nextNumber]
+      properties:
+        nextNumber: {type: number, minimum: 1, maximum: 999999999999}
+    LessonsProjectNumbering:
+      type: object
+      required: [projectId, startingNumber, nextNumber, lastIssued, configured]
+      properties:
+        projectId: {type: string}
+        startingNumber: {type: number}
+        nextNumber: {type: number}
+        lastIssued: {type: number, nullable: true}
+        configured: {type: boolean}
     NumberingPattern:
       type: object
       required: [prefix, suffix, separator, position, padding, startingNumber, nextNumber]

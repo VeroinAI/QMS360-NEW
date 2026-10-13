@@ -182,6 +182,7 @@ export const organizationSettings = sharedSchema.table("organization_settings", 
     padding: number;
     startingNumber: number;
     nextNumber: number;
+    projectCounters?: Record<string, { startingNumber: number; nextNumber: number; lastIssued: number | null; configured: boolean }>;
   }>>().notNull().default({}),
   emailDeliveryPolicy: jsonb("email_delivery_policy").$type<{
     retentionDays: number;
