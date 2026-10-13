@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DronaProjectMasterRecordDronaLinksItem } from './dronaProjectMasterRecordDronaLinksItem';
+import type { ProjectAdditionalData } from './projectAdditionalData';
 
 export interface DronaProjectMasterRecord {
   id: string;
@@ -15,6 +16,7 @@ export interface DronaProjectMasterRecord {
   businessUnit: string | null;
   /** @nullable */
   costCentre: string | null;
+  additionalData?: ProjectAdditionalData;
   /** @nullable */
   location: string | null;
   status: string;

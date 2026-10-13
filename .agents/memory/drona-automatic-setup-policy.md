@@ -99,11 +99,14 @@ opening the view into a new import, migration or master-maintenance process.
 
 The user subsequently authorized Super Admin / administrator users to select a
 project in this register and maintain its QMS cost center for Lessons Learned
-numbering. This is a narrow exception to the read-only register, not permission
-to edit Drona-owned master fields.
+numbering. The user later expanded this exception to Client, Contractor,
+Contract / project no., Contract signed, Contract period, TCC, PAC and FAC in
+an Additional Data popup, moving Cost Center into the same popup.
+These are QMS supplementary values, not permission to edit Drona-owned master fields.
 
-**Why:** Cost centers are QMS-managed numbering inputs; the user explicitly
-requested this correction without affecting other development.
+**Why:** Cost centers and the explicitly requested supplementary fields are
+QMS-managed inputs; the user asked for project-level maintenance while preserving
+source ownership and other development.
 
 **How to apply:** Reuse existing project extra fields and preserve unrelated
 metadata, project identity, links and scope. Do not renumber historical Lessons

@@ -876,6 +876,49 @@ export type DronaProjectMasterRecordDronaLinksItem = {
   linkedAt: string;
 };
 
+export interface ProjectAdditionalData {
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  client: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  contractor: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  contractProjectNumber: string | null;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  contractSigned: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  contractPeriod: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  tcc: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  pac: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  fac: string | null;
+}
+
 export interface DronaProjectMasterRecord {
   id: string;
   code: string;
@@ -884,6 +927,7 @@ export interface DronaProjectMasterRecord {
   businessUnit: string | null;
   /** @nullable */
   costCentre: string | null;
+  additionalData?: ProjectAdditionalData;
   /** @nullable */
   location: string | null;
   status: string;
@@ -893,6 +937,23 @@ export interface DronaProjectMasterRecord {
   createdAt: string;
   updatedAt: string;
   dronaLinks: DronaProjectMasterRecordDronaLinksItem[];
+}
+
+export interface ProjectAdditionalDataInput {
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  costCentre: string | null;
+  additionalData: ProjectAdditionalData;
+}
+
+export interface ProjectAdditionalDataResult {
+  id: string;
+  /** @nullable */
+  costCentre: string | null;
+  additionalData: ProjectAdditionalData;
+  updatedAt: string;
 }
 
 export interface ProjectCostCentreInput {

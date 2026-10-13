@@ -292,6 +292,32 @@ paths:
         "401": {description: Authentication required}
         "403": {description: Administrator access required}
         "404": {description: Project not available within current project access}
+  /integrations/project-master/{projectId}/additional-data:
+    patch:
+      operationId: updateProjectAdditionalData
+      tags: [integrations]
+      summary: Save QMS-managed additional project data within administrator project scope
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ProjectAdditionalDataInput"}
+      responses:
+        "200":
+          description: Saved additional project data
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ProjectAdditionalDataResult"}
+        "400": {description: Invalid additional data}
+        "401": {description: Authentication required}
+        "403": {description: Administrator access required}
+        "404": {description: Project not available within current project access}
   /platform/role-assignment-projects:
     get:
       operationId: listRoleAssignmentProjects
@@ -2719,6 +2745,7 @@ components:
         name: {type: string}
         businessUnit: {type: ["string", "null"]}
         costCentre: {type: ["string", "null"]}
+        additionalData: {$ref: "#/components/schemas/ProjectAdditionalData"}
         location: {type: ["string", "null"]}
         status: {type: string}
         recordSource: {type: string}
@@ -2734,6 +2761,34 @@ components:
               externalProjectId: {type: string}
               environment: {type: string}
               linkedAt: {type: string, format: date-time}
+    ProjectAdditionalData:
+      type: object
+      additionalProperties: false
+      required: [client, contractor, contractProjectNumber, contractSigned, contractPeriod, tcc, pac, fac]
+      properties:
+        client: {type: ["string", "null"], maxLength: 500}
+        contractor: {type: ["string", "null"], maxLength: 500}
+        contractProjectNumber: {type: ["string", "null"], maxLength: 500}
+        contractSigned: {type: ["string", "null"], pattern: '^\d{4}-\d{2}-\d{2}$'}
+        contractPeriod: {type: ["string", "null"], maxLength: 500}
+        tcc: {type: ["string", "null"], maxLength: 500}
+        pac: {type: ["string", "null"], maxLength: 500}
+        fac: {type: ["string", "null"], maxLength: 500}
+    ProjectAdditionalDataInput:
+      type: object
+      additionalProperties: false
+      required: [costCentre, additionalData]
+      properties:
+        costCentre: {type: ["string", "null"], maxLength: 100}
+        additionalData: {$ref: "#/components/schemas/ProjectAdditionalData"}
+    ProjectAdditionalDataResult:
+      type: object
+      required: [id, costCentre, additionalData, updatedAt]
+      properties:
+        id: {type: string}
+        costCentre: {type: ["string", "null"]}
+        additionalData: {$ref: "#/components/schemas/ProjectAdditionalData"}
+        updatedAt: {type: string, format: date-time}
     ProjectCostCentreInput:
       type: object
       additionalProperties: false

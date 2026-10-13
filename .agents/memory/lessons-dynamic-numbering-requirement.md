@@ -15,8 +15,8 @@ Changing a prefix or its master values must not renumber existing Lessons. Keep 
 
 **How to apply:** Preview must not allocate a number. Missing required master values must block issuance instead of silently dropping a segment. A change to the counter scope or existing-reference policy needs a separate user decision.
 
-Project Master must include authorized local projects as well as Drona projects. Only the QMS360-owned Cost Center may be edited from this screen; other master fields and source ownership stay unchanged.
+Project Master must include authorized local projects as well as Drona projects. QMS360-owned Cost Center is maintained in each project's Additional Data popup, alongside Client, Contractor, Contract / project no., Contract signed, Contract period, TCC, PAC and FAC. Source-owned project fields remain read-only.
 
-**Why:** The user approved including local projects because legitimate Lessons projects otherwise had no place to maintain the Cost Center needed for numbering.
+**Why:** The user approved including local projects because legitimate Lessons projects otherwise had no place to maintain the Cost Center needed for numbering, and subsequently requested the per-project Additional Data popup with these eight supplementary fields.
 
-**How to apply:** Drona link metadata is optional display context, not a prerequisite for listing projects or editing Cost Center. Preserve tenant boundaries and existing project-access restrictions on both reads and writes.
+**How to apply:** Drona link metadata is optional display context, not a prerequisite for listing projects or editing additional data. Preserve tenant boundaries, administrator permissions, existing project-access restrictions and issued Lesson numbers.

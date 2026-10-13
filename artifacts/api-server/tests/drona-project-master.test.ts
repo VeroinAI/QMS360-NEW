@@ -237,3 +237,97 @@ describe("administrator-only QMS project cost centers", () => {
     expect((await get()).body.total).toBe(2);
   });
 });
+
+const additionalValues = {
+  client: "Client A", contractor: "Contractor B", contractProjectNumber: "CT-001",
+  contractSigned: "2026-10-13", contractPeriod: "24 months", tcc: "TCC-1", pac: "PAC-1", fac: "FAC-1",
+};
+async function patchAdditional(projectId: string, body: unknown, role = "Org Admin") {
+  const response = await fetch(`${base}/api/integrations/project-master/${projectId}/additional-data`, {
+    method: "PATCH", headers: { "content-type": "application/json", ...(role ? { "x-test-role": role } : {}) },
+    body: JSON.stringify(body),
+  });
+  return { status: response.status, body: await response.json() as Record<string, any> };
+}
+describe("QMS project additional data", () => {
+  it.each(["Org Admin", "Super Admin"])("persists all fields for %s without modifying source-owned master values", async role => {
+    await query("UPDATE shared.projects SET custom_fields=$2 WHERE id=$1", [drona, {
+      unrelated: { retained: true }, cost_centre: "OLD",
+      qmsAdditionalData: { futureField: "retain" },
+    }]);
+    const before = (await query("SELECT * FROM shared.projects WHERE id=$1", [drona])).rows[0];
+    const result = await patchAdditional(drona, {
+      costCentre: " CC-001 ", additionalData: { ...additionalValues, client: " Client A " },
+    }, role);
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({ id: drona, costCentre: "CC-001", additionalData: additionalValues });
+    const after = (await query("SELECT * FROM shared.projects WHERE id=$1", [drona])).rows[0];
+    expect(after.custom_fields).toEqual({
+      unrelated: { retained: true }, costCentre: "CC-001",
+      qmsAdditionalData: { futureField: "retain", ...additionalValues },
+    });
+    const { custom_fields: _b, updated_at: _bt, ...beforeMaster } = before;
+    const { custom_fields: _a, updated_at: _at, ...afterMaster } = after;
+    expect(afterMaster).toEqual(beforeMaster);
+    expect((await get()).body.items.find(item => item.id === drona)).toMatchObject(result.body);
+  });
+  it("supports local projects and clears optional values without deleting unrelated fields", async () => {
+    expect((await patchAdditional(ordinary, { costCentre: "LOCAL-CC", additionalData: additionalValues })).status).toBe(200);
+    const empty = Object.fromEntries(Object.keys(additionalValues).map(key => [key, null]));
+    expect((await patchAdditional(ordinary, { costCentre: null, additionalData: empty })).body).toMatchObject({ costCentre: null, additionalData: empty });
+    expect((await get()).body.items.find(item => item.id === ordinary)).toMatchObject({ costCentre: null, additionalData: empty });
+  });
+  it("defaults unsaved fields to null and preserves an existing legacy cost center", async () => {
+    await query("UPDATE shared.projects SET custom_fields=$2 WHERE id=$1", [legacy, { cost_centre: "LEGACY-CC" }]);
+    const record = (await get()).body.items.find(item => item.id === legacy) as any;
+    expect(record.costCentre).toBe("LEGACY-CC");
+    expect(Object.values(record.additionalData)).toEqual(Array(8).fill(null));
+    expect((await patchAdditional(legacy, { costCentre: record.costCentre, additionalData: additionalValues })).body.costCentre).toBe("LEGACY-CC");
+  });
+  it("does not require Drona link metadata", async () => {
+    await query("DROP TABLE shared.drona_project_links");
+    expect((await patchAdditional(ordinary, { costCentre: null, additionalData: additionalValues })).status).toBe(200);
+    expect((await get()).body.items.find(item => item.id === ordinary)).toMatchObject({ additionalData: additionalValues });
+  });
+  it("handles an explicitly null additional-data container", async () => {
+    await query("UPDATE shared.projects SET custom_fields=$2 WHERE id=$1", [ordinary, { qmsAdditionalData: null, retained: true }]);
+    expect((await patchAdditional(ordinary, { costCentre: null, additionalData: additionalValues })).body.additionalData).toEqual(additionalValues);
+    expect((await query("SELECT custom_fields FROM shared.projects WHERE id=$1", [ordinary])).rows[0].custom_fields).toEqual({
+      retained: true, costCentre: null, qmsAdditionalData: additionalValues,
+    });
+  });
+  it("denies unauthorized roles before issuing SQL", async () => {
+    expect((await patchAdditional(drona, { costCentre: null, additionalData: additionalValues }, "Employee")).status).toBe(403);
+    expect((await patchAdditional(drona, { costCentre: null, additionalData: additionalValues }, "")).status).toBe(401);
+    expect(statements).toEqual([]);
+  });
+  it("denies foreign, deleted, missing and out-of-scope projects", async () => {
+    const foreign = (await query("SELECT id FROM shared.projects WHERE organization_id=$1", [otherOrg])).rows[0].id;
+    for (const id of [foreign, randomUUID()]) expect((await patchAdditional(id, { costCentre: null, additionalData: additionalValues })).status).toBe(404);
+    await query("UPDATE shared.projects SET deleted_at=now() WHERE id=$1", [drona]);
+    expect((await patchAdditional(drona, { costCentre: null, additionalData: additionalValues })).status).toBe(404);
+    state.allowed = [legacy];
+    expect((await patchAdditional(ordinary, { costCentre: null, additionalData: additionalValues })).status).toBe(404);
+    expect((await patchAdditional(legacy, { costCentre: null, additionalData: additionalValues })).status).toBe(200);
+    state.allowed = [];
+    expect((await patchAdditional(legacy, { costCentre: null, additionalData: additionalValues })).status).toBe(404);
+  });
+  it.each([
+    {}, { costCentre: null, additionalData: {} },
+    { costCentre: "x".repeat(101), additionalData: additionalValues },
+    { costCentre: null, additionalData: { ...additionalValues, client: "x".repeat(501) } },
+    { costCentre: null, additionalData: { ...additionalValues, contractor: "bad\nvalue" } },
+    { costCentre: null, additionalData: { ...additionalValues, contractSigned: "2026-02-30" } },
+    { costCentre: null, additionalData: { ...additionalValues, contractSigned: "13-10-2026" } },
+    { costCentre: null, additionalData: { ...additionalValues, unknownField: "extra" } },
+    { costCentre: null, additionalData: additionalValues, name: "Do not change" },
+  ])("rejects invalid/extra additional data before SQL (%j)", async body => {
+    expect((await patchAdditional(drona, body)).status).toBe(400);
+    expect(statements).toEqual([]);
+  });
+  it("accepts leap days and binds injection-like text as data", async () => {
+    const values = { ...additionalValues, contractSigned: "2024-02-29", contractor: "'); DELETE FROM shared.projects; --" };
+    expect((await patchAdditional(drona, { costCentre: null, additionalData: values })).body.additionalData).toEqual(values);
+    expect((await query("SELECT count(*)::int AS total FROM shared.projects")).rows[0].total).toBe(4);
+  });
+});

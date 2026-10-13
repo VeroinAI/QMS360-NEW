@@ -279,6 +279,8 @@ import type {
   PlatformRoleUpdate,
   PlatformRoleUpdateResult,
   Project,
+  ProjectAdditionalDataInput,
+  ProjectAdditionalDataResult,
   ProjectCostCentreInput,
   ProjectCostCentreResult,
   ProjectPageResponse,
@@ -1529,6 +1531,78 @@ export const useUpdateDronaProjectCostCentre = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateDronaProjectCostCentreMutationOptions(options));
+    }
+
+export const getUpdateProjectAdditionalDataUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/integrations/project-master/${projectId}/additional-data`
+}
+
+/**
+ * @summary Save QMS-managed additional project data within administrator project scope
+ */
+export const updateProjectAdditionalData = async (projectId: string,
+    projectAdditionalDataInput: ProjectAdditionalDataInput, options?: Parameters<typeof customFetch>[1]): Promise<ProjectAdditionalDataResult> => {
+
+  return customFetch<ProjectAdditionalDataResult>(getUpdateProjectAdditionalDataUrl(projectId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(projectAdditionalDataInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateProjectAdditionalDataMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProjectAdditionalData>>, TError,{projectId: string;data: BodyType<ProjectAdditionalDataInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProjectAdditionalData>>, TError,{projectId: string;data: BodyType<ProjectAdditionalDataInput>}, TContext> => {
+
+const mutationKey = ['updateProjectAdditionalData'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProjectAdditionalData>>, {projectId: string;data: BodyType<ProjectAdditionalDataInput>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  updateProjectAdditionalData(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProjectAdditionalDataMutationResult = NonNullable<Awaited<ReturnType<typeof updateProjectAdditionalData>>>
+    export type UpdateProjectAdditionalDataMutationBody = BodyType<ProjectAdditionalDataInput>
+    export type UpdateProjectAdditionalDataMutationError = ErrorType<void>
+
+    /**
+ * @summary Save QMS-managed additional project data within administrator project scope
+ */
+export const useUpdateProjectAdditionalData = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProjectAdditionalData>>, TError,{projectId: string;data: BodyType<ProjectAdditionalDataInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProjectAdditionalData>>,
+        TError,
+        {projectId: string;data: BodyType<ProjectAdditionalDataInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateProjectAdditionalDataMutationOptions(options));
     }
 
 export const getListRoleAssignmentProjectsUrl = (params: ListRoleAssignmentProjectsParams,) => {

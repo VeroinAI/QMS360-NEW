@@ -327,6 +327,23 @@ export const ListDronaProjectMasterQueryParams = zod.object({
   "search": zod.coerce.string().max(listDronaProjectMasterQuerySearchMax).optional()
 })
 
+export const listDronaProjectMasterResponseItemsItemAdditionalDataClientMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataContractorMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataContractProjectNumberMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataContractSignedRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const listDronaProjectMasterResponseItemsItemAdditionalDataContractPeriodMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataTccMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataPacMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataFacMax = 500;
+
+
+
 export const ListDronaProjectMasterResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
@@ -334,6 +351,16 @@ export const ListDronaProjectMasterResponse = zod.object({
   "name": zod.string(),
   "businessUnit": zod.string().nullable(),
   "costCentre": zod.string().nullable(),
+  "additionalData": zod.object({
+  "client": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataClientMax).nullable(),
+  "contractor": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataContractorMax).nullable(),
+  "contractProjectNumber": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataContractProjectNumberMax).nullable(),
+  "contractSigned": zod.string().regex(listDronaProjectMasterResponseItemsItemAdditionalDataContractSignedRegExp).nullable(),
+  "contractPeriod": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataContractPeriodMax).nullable(),
+  "tcc": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataTccMax).nullable(),
+  "pac": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataPacMax).nullable(),
+  "fac": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataFacMax).nullable()
+}).optional(),
   "location": zod.string().nullable(),
   "status": zod.string(),
   "recordSource": zod.string(),
@@ -374,6 +401,83 @@ export const UpdateDronaProjectCostCentreBody = zod.object({
 export const UpdateDronaProjectCostCentreResponse = zod.object({
   "id": zod.string(),
   "costCentre": zod.string().nullable(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Save QMS-managed additional project data within administrator project scope
+ */
+export const updateProjectAdditionalDataPathProjectIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const UpdateProjectAdditionalDataParams = zod.object({
+  "projectId": zod.coerce.string().regex(updateProjectAdditionalDataPathProjectIdRegExp)
+})
+
+export const updateProjectAdditionalDataBodyCostCentreMax = 100;
+
+export const updateProjectAdditionalDataBodyAdditionalDataClientMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataContractorMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataContractProjectNumberMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataContractSignedRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateProjectAdditionalDataBodyAdditionalDataContractPeriodMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataTccMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataPacMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataFacMax = 500;
+
+
+
+export const UpdateProjectAdditionalDataBody = zod.object({
+  "costCentre": zod.string().max(updateProjectAdditionalDataBodyCostCentreMax).nullable(),
+  "additionalData": zod.object({
+  "client": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataClientMax).nullable(),
+  "contractor": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataContractorMax).nullable(),
+  "contractProjectNumber": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataContractProjectNumberMax).nullable(),
+  "contractSigned": zod.string().regex(updateProjectAdditionalDataBodyAdditionalDataContractSignedRegExp).nullable(),
+  "contractPeriod": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataContractPeriodMax).nullable(),
+  "tcc": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataTccMax).nullable(),
+  "pac": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataPacMax).nullable(),
+  "fac": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataFacMax).nullable()
+})
+})
+
+export const updateProjectAdditionalDataResponseAdditionalDataClientMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataContractorMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataContractProjectNumberMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataContractSignedRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateProjectAdditionalDataResponseAdditionalDataContractPeriodMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataTccMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataPacMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataFacMax = 500;
+
+
+
+export const UpdateProjectAdditionalDataResponse = zod.object({
+  "id": zod.string(),
+  "costCentre": zod.string().nullable(),
+  "additionalData": zod.object({
+  "client": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataClientMax).nullable(),
+  "contractor": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataContractorMax).nullable(),
+  "contractProjectNumber": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataContractProjectNumberMax).nullable(),
+  "contractSigned": zod.string().regex(updateProjectAdditionalDataResponseAdditionalDataContractSignedRegExp).nullable(),
+  "contractPeriod": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataContractPeriodMax).nullable(),
+  "tcc": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataTccMax).nullable(),
+  "pac": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataPacMax).nullable(),
+  "fac": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataFacMax).nullable()
+}),
   "updatedAt": zod.coerce.date()
 })
 

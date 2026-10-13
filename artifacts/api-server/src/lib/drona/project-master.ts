@@ -1,6 +1,20 @@
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import type { DronaProjectMasterRecord } from "@workspace/api-zod";
+import type { DronaProjectMasterRecord, ProjectAdditionalData, ProjectAdditionalDataInput } from "@workspace/api-zod";
+
+const additionalDataKeys = ["client", "contractor", "contractProjectNumber", "contractSigned", "contractPeriod", "tcc", "pac", "fac"] as const;
+function additionalData(value: unknown): ProjectAdditionalData {
+  const fields = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const result: ProjectAdditionalData = {
+    client: null, contractor: null, contractProjectNumber: null, contractSigned: null,
+    contractPeriod: null, tcc: null, pac: null, fac: null,
+  };
+  for (const key of additionalDataKeys) {
+    const field = fields[key];
+    result[key] = typeof field === "string" ? field : null;
+  }
+  return result;
+}
 
 export type ProjectMasterInput = {
   organizationId: string;
@@ -57,6 +71,7 @@ export async function readDronaProjectMaster(input: ProjectMasterInput) {
   const [records, totals] = await Promise.all([
     db.execute(sql`SELECT p.id, p.code, p.name, p.location, p.status,
         COALESCE(p.custom_fields->>'costCentre', p.custom_fields->>'cost_centre') AS "costCentre",
+        p.custom_fields->'qmsAdditionalData' AS "additionalData",
         p.source AS "recordSource", p.external_id AS "externalId",
         p.created_at AS "createdAt", p.updated_at AS "updatedAt",
         b.name AS "businessUnit", ${links} AS "dronaLinks"
@@ -70,6 +85,7 @@ export async function readDronaProjectMaster(input: ProjectMasterInput) {
     createdAt: Date | string; updatedAt: Date | string;
   }>).map(row => ({
     ...row,
+    additionalData: additionalData(row.additionalData),
     createdAt: timestampIso(row.createdAt, "createdAt"),
     updatedAt: timestampIso(row.updatedAt, "updatedAt"),
     dronaLinks: row.dronaLinks.map(link => ({ ...link, linkedAt: timestampIso(link.linkedAt, "linkedAt") })),
@@ -90,4 +106,20 @@ export async function saveDronaProjectCostCentre(input: ProjectMasterInput, proj
     RETURNING p.id, p.custom_fields->>'costCentre' AS "costCentre", p.updated_at AS "updatedAt"`);
   const record = result.rows[0] as { id: string; costCentre: string | null; updatedAt: Date | string } | undefined;
   return record ? { ...record, updatedAt: timestampIso(record.updatedAt, "updatedAt") } : null;
+}
+
+/** QMS-owned data only; one atomic merge preserves source fields and unrelated JSON metadata. */
+export async function saveProjectAdditionalData(input: ProjectMasterInput, projectId: string, data: ProjectAdditionalDataInput) {
+  const { where } = await projectMasterWhere(input);
+  const result = await db.execute(sql`UPDATE shared.projects p
+    SET custom_fields = (COALESCE(p.custom_fields, '{}'::jsonb) - 'cost_centre')
+      || jsonb_build_object('costCentre', ${data.costCentre}::text,
+        'qmsAdditionalData', (CASE WHEN jsonb_typeof(p.custom_fields->'qmsAdditionalData') = 'object'
+          THEN p.custom_fields->'qmsAdditionalData' ELSE '{}'::jsonb END) || ${JSON.stringify(data.additionalData)}::jsonb),
+      updated_at = now()
+    WHERE ${where} AND p.id = ${projectId}::uuid
+    RETURNING p.id, p.custom_fields->>'costCentre' AS "costCentre",
+      p.custom_fields->'qmsAdditionalData' AS "additionalData", p.updated_at AS "updatedAt"`);
+  const record = result.rows[0] as { id: string; costCentre: string | null; additionalData: unknown; updatedAt: Date | string } | undefined;
+  return record ? { ...record, additionalData: additionalData(record.additionalData), updatedAt: timestampIso(record.updatedAt, "updatedAt") } : null;
 }
