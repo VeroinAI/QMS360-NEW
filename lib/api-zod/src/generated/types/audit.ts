@@ -14,6 +14,11 @@ import type { MeetingMinutes } from './meetingMinutes';
 export interface Audit {
   id: string;
   planId: string;
+  /**
+     * Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable
+     * @nullable
+     */
+  readonly planNumber?: string | null;
   projectId: string;
   title: string;
   status: AuditStatus;

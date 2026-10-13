@@ -8305,6 +8305,7 @@ export const sendAuditPlanForExecutionResponseReportDetailsRowsMaxOne = 200;
 export const SendAuditPlanForExecutionResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -8459,6 +8460,7 @@ export const ListAuditsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -8732,6 +8734,7 @@ export const getAuditResponseReportDetailsRowsMaxOne = 200;
 export const GetAuditResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9033,6 +9036,7 @@ export const completeAuditResponseReportDetailsRowsMaxOne = 200;
 export const CompleteAuditResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9183,6 +9187,7 @@ export const saveAuditReportDetailsResponseReportDetailsRowsMaxOne = 200;
 export const SaveAuditReportDetailsResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9415,6 +9420,7 @@ export const createAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
 export const CreateAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9567,6 +9573,7 @@ export const editAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
 export const EditAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9708,6 +9715,7 @@ export const deleteAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
 export const DeleteAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9861,6 +9869,7 @@ export const importAuditChecklistItemsResponseReportDetailsRowsMaxOne = 200;
 export const ImportAuditChecklistItemsResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10015,6 +10024,7 @@ export const createAuditFindingItemResponseReportDetailsRowsMaxOne = 200;
 export const CreateAuditFindingItemResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10158,6 +10168,7 @@ export const assignAuditFindingActionTakerResponseReportDetailsRowsMaxOne = 200;
 export const AssignAuditFindingActionTakerResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10303,6 +10314,7 @@ export const replaceAuditOrganizationChartResponseReportDetailsRowsMaxOne = 200;
 export const ReplaceAuditOrganizationChartResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10465,6 +10477,7 @@ export const updateAuditGoodPracticesResponseReportDetailsRowsMaxOne = 200;
 export const UpdateAuditGoodPracticesResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10630,6 +10643,7 @@ export const updateAuditOverallProjectProgressResponseReportDetailsRowsMaxOne = 
 export const UpdateAuditOverallProjectProgressResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10793,6 +10807,7 @@ export const updateAuditDocumentStatusResponseReportDetailsRowsMaxOne = 200;
 export const UpdateAuditDocumentStatusResponse = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -11735,6 +11750,7 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "audit": zod.object({
   "id": zod.string(),
   "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),

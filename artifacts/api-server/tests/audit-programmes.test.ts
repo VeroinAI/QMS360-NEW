@@ -171,6 +171,39 @@ afterAll(async () => {
 });
 
 describe("audit programme parent/child workflow", () => {
+  it("lists the corresponding saved Audit Plan number on execution tiles without inventing legacy numbers", async () => {
+    const [project] = await db.insert(projects).values({
+      organizationId: orgId, name: "Execution tile project", code: `TILE-${crypto.randomUUID()}`,
+    }).returning();
+    try {
+      const createExecution = async (title: string, planNumber?: string, deleted = false) => {
+        const [plan] = await db.insert(auditPlans).values({
+          organizationId: orgId, projectId: project.id,
+          status: JSON.stringify({ planNumber }),
+          deletedAt: deleted ? new Date() : null,
+        }).returning();
+        const [execution] = await db.insert(audits).values({
+          organizationId: orgId, projectId: project.id, auditPlanId: plan.id,
+          referenceNumber: title, workflowState: "planned",
+          status: JSON.stringify({ title, planNumber: "STALE-EXECUTION-COPY" }),
+        }).returning();
+        return execution.id;
+      };
+      const numbered = await createExecution("Numbered audit", "QAM-IA-Civil-PLAN-27-0001");
+      const legacy = await createExecution("Legacy audit");
+      const removed = await createExecution("Removed-plan audit", "REMOVED-PLAN-NUMBER", true);
+      const result = await api("GET", "/audits?limit=100", admin.token);
+      expect(result.status).toBe(200);
+      const item = (id: string) => result.json.items.find((entry: any) => entry.id === id);
+      expect(item(numbered)).toMatchObject({ title: "Numbered audit", planNumber: "QAM-IA-Civil-PLAN-27-0001", status: "Planned" });
+      expect(item(legacy)).toMatchObject({ title: "Legacy audit", planNumber: null });
+      expect(item(removed)).toMatchObject({ title: "Removed-plan audit", planNumber: null });
+    } finally {
+      await db.delete(audits).where(eq(audits.projectId, project.id));
+      await db.delete(auditPlans).where(eq(auditPlans.projectId, project.id));
+      await db.delete(projects).where(eq(projects.id, project.id));
+    }
+  });
   it("filters CAR findings by title, type, department and combined columns before pagination", async () => {
     const productType = "Quality Internal Product Audit";
     const processType = "Quality Internal Process Audit";

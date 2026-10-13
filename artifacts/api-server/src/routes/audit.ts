@@ -2520,11 +2520,16 @@ router.get("/audits", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const scope = await getAuthorizedProjectScope(req, "audit");
   const where = and(active(audits, actor(req).organizationId), await auditProjectCondition(req, scope));
   const [rows, [{ count }]] = await Promise.all([
-    db.select().from(audits).where(where).orderBy(desc(audits.updatedAt)).limit(limit).offset(offset),
+    db.select({ audit: audits, planStatus: auditPlans.status }).from(audits)
+      .leftJoin(auditPlans, and(eq(auditPlans.id, audits.auditPlanId), active(auditPlans, actor(req).organizationId)))
+      .where(where).orderBy(desc(audits.updatedAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(audits).where(where),
   ]);
   const editScope = await getAuthorizedProjectScope(req, "audit", { module: "audits", action: "full" });
-  res.json(paginated(rows.map(row => auditDto(row, editScope.unrestricted || (row.projectId ? editScope.projectIds.includes(row.projectId) : editScope.projectIds.length > 0 || editScope.processAuditsAllowed === true))), Number(count), page, limit));
+  res.json(paginated(rows.map(({ audit, planStatus }) => ({
+    ...auditDto(audit, editScope.unrestricted || (audit.projectId ? editScope.projectIds.includes(audit.projectId) : editScope.projectIds.length > 0 || editScope.processAuditsAllowed === true)),
+    planNumber: planStatus ? planMeta({ status: planStatus }).planNumber ?? null : null,
+  })), Number(count), page, limit));
 }));
 router.post("/audits", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditBody, req);

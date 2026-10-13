@@ -1984,7 +1984,23 @@ function PlanDetail() {
 function Audits() {
   const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const query = useListAudits({ page, limit: PAGE_SIZE });
   const items = (query.data?.items ?? []).filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
-  return <div className="space-y-5"><PageHeader title="Audit execution" description="Open an audit to run meetings, checklist, findings and evidence"/><div className="relative max-w-sm"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground"/><Input className="pl-9" placeholder="Search audits…" value={search} onChange={e=>setSearch(e.target.value)}/></div><State loading={query.isLoading} error={query.error} empty={!items.length}/><div className="grid gap-4 md:grid-cols-2">{items.map(a => <Card key={a.id}><CardHeader><div className="flex justify-between"><CardTitle className="text-base">{a.title}</CardTitle><Badge variant={workflowTone(a.status)}>{a.status}</Badge></div><CardDescription>Started {date(a.startedAt)}{a.closedAt ? ` · Completed ${date(a.closedAt)}` : ""}</CardDescription></CardHeader><CardContent className="flex flex-wrap justify-end gap-2"><MarkCompleteButton audit={a}/><ReportButton audit={a}/><Button asChild><Link href={`/audit/audits/${a.id}`}>Open workspace</Link></Button></CardContent></Card>)}</div>{items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}</div>;
+  return <div className="space-y-5">
+    <PageHeader title="Audit execution" description="Open an audit to run meetings, checklist, findings and evidence"/>
+    <div className="relative max-w-sm"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground"/><Input className="pl-9" placeholder="Search audits…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+    <State loading={query.isLoading} error={query.error} empty={!items.length}/>
+    <div className="grid gap-4 md:grid-cols-2">{items.map(a => <Card key={a.id}>
+      <CardHeader>
+        <div className="flex justify-between gap-3"><CardTitle className="text-base">{a.title}</CardTitle><Badge variant={workflowTone(a.status)}>{a.status}</Badge></div>
+        <p className="text-sm" data-testid="execution-audit-plan-number">
+          <span className="text-muted-foreground">Audit Plan Number: </span>
+          <span className="break-all font-mono">{a.planNumber || "Not assigned"}</span>
+        </p>
+        <CardDescription>Started {date(a.startedAt)}{a.closedAt ? ` · Completed ${date(a.closedAt)}` : ""}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap justify-end gap-2"><MarkCompleteButton audit={a}/><ReportButton audit={a}/><Button asChild><Link href={`/audit/audits/${a.id}`}>Open workspace</Link></Button></CardContent>
+    </Card>)}</div>
+    {items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}
+  </div>;
 }
 
 function MeetingEditor({ auditId, kind, value, openingAttendees }: { auditId: string; kind: "opening" | "closing"; value?: MeetingMinutes; openingAttendees?: readonly string[] }) {
