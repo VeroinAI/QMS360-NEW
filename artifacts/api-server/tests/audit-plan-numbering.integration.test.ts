@@ -3,7 +3,7 @@ import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, organizations, organizationSettings, projects, masterDataGroups, masterDataValues, auditAuditLogEntries } from "@workspace/db";
 import { lockScheduleNumbering } from "../src/lib/audit-schedule-numbering";
-import { allocatePlanNumber, previewPlanNumber, readPlanNumberState, savePlanNumbering } from "../src/lib/audit-plan-numbering";
+import { allocatePlanNumber, getPlanNumberDepartments, previewPlanNumber, readPlanNumberState, savePlanNumbering } from "../src/lib/audit-plan-numbering";
 import { writeAuditLog } from "../src/lib/workspace";
 const org = randomUUID(), a = randomUUID(), b = randomUUID(), noCost = randomUUID(), group = randomUUID(), department = randomUUID();
 const issue = (project: string | null, date: string, dept?: string) => db.transaction(async tx => {
@@ -54,6 +54,50 @@ describe("Audit Plan yearly range allocation in PostgreSQL", () => {
     expect((await issue(a, "2027-09-01")).planNumberSequence).toBe(101);
     await expect(savePlanNumbering(org, undefined, { scope: `project:${a}`, year: 2027, lastNumber: 99 })).rejects.toThrow(/cannot be below/);
     expect((await issue(a, "2028-02-01")).planNumberSequence).toBe(2);
+  });
+  it.each(["Department", "Department Master", "DePaRtMeNtS"])("recognises %s in previews, allocation and numbering settings without resetting ranges", async (code) => {
+    const before = await readPlanNumberState(org);
+    await db.update(masterDataGroups).set({ code }).where(eq(masterDataGroups.id, group));
+    try {
+      expect(await getPlanNumberDepartments(db, org)).toEqual([{ id: department, value: "ENG", label: "Engineering label" }]);
+      expect((await previewPlanNumber(org, null, "Engineering label", "2027-06-15")).planNumber).toBe("AGH-ENG-AP-27-0003");
+      expect(await readPlanNumberState(org)).toEqual(before);
+      const allocated = await issue(null, "2029-06-15", "ENG");
+      expect(allocated.planNumberScope).toBe(`department:${department}`);
+      expect(allocated.planNumberSequence).toBe((before.ranges[`department:${department}`]?.["2029"] ?? 0) + 1);
+    } finally {
+      await db.update(masterDataGroups).set({ code: "departments" }).where(eq(masterDataGroups.id, group));
+    }
+  });
+  it("uses the dropdown's alias priority rather than merging different Department groups", async () => {
+    const alternateGroup = randomUUID();
+    await db.insert(masterDataGroups).values({ id: alternateGroup, organizationId: org, name: "Legacy Department", code: "Department" });
+    await db.insert(masterDataValues).values({ organizationId: org, groupId: alternateGroup, value: "OTHER", label: "Other" });
+    try {
+      expect(await getPlanNumberDepartments(db, org)).toEqual([{ id: department, value: "ENG", label: "Engineering label" }]);
+      await expect(previewPlanNumber(org, null, "OTHER", "2027-06-15")).rejects.toThrow(/Department master Value/);
+    } finally {
+      await db.delete(masterDataValues).where(eq(masterDataValues.groupId, alternateGroup));
+      await db.delete(masterDataGroups).where(eq(masterDataGroups.id, alternateGroup));
+    }
+  });
+  it("excludes inactive Department groups and values without consuming a number", async () => {
+    const before = await readPlanNumberState(org);
+    await db.update(masterDataValues).set({ active: false }).where(eq(masterDataValues.id, department));
+    try {
+      expect(await getPlanNumberDepartments(db, org)).toEqual([]);
+      await expect(issue(null, "2027-06-15", "ENG")).rejects.toThrow(/Department master Value/);
+    } finally {
+      await db.update(masterDataValues).set({ active: true }).where(eq(masterDataValues.id, department));
+    }
+    await db.update(masterDataGroups).set({ status: "inactive" }).where(eq(masterDataGroups.id, group));
+    try {
+      expect(await getPlanNumberDepartments(db, org)).toEqual([]);
+      await expect(previewPlanNumber(org, null, "ENG", "2027-06-15")).rejects.toThrow(/Department master Value/);
+    } finally {
+      await db.update(masterDataGroups).set({ status: "active" }).where(eq(masterDataGroups.id, group));
+    }
+    expect(await readPlanNumberState(org)).toEqual(before);
   });
   it("serializes concurrent allocations without duplicate project/year sequences", async () => {
     const allocated = await Promise.all(Array.from({ length: 5 }, () => issue(b, "2027-08-01")));

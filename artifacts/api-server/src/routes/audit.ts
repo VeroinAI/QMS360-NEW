@@ -50,7 +50,7 @@ import { asyncHandler, HttpError, listNotifications, notify, paginated, paginati
 import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../lib/application-access-requests";
 import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
-import { allocatePlanNumber, previewPlanNumber, readPlanNumberState, savePlanNumbering, type PlanNumberPattern } from "../lib/audit-plan-numbering";
+import { allocatePlanNumber, getPlanNumberDepartments, previewPlanNumber, readPlanNumberState, savePlanNumbering, type PlanNumberPattern } from "../lib/audit-plan-numbering";
 import { projectNumberContext } from "@workspace/field-controls";
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
@@ -4005,10 +4005,7 @@ async function auditPlanNumberSources(req: Request) {
   const org = actor(req).organizationId;
   const projectRows = await db.select().from(projects).where(and(active(projects, org),
     scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds)));
-  const departmentRows = scope.unrestricted ? await db.select({ id: masterDataValues.id, value: masterDataValues.value, label: masterDataValues.label })
-    .from(masterDataValues).innerJoin(masterDataGroups, eq(masterDataGroups.id, masterDataValues.groupId)).where(and(
-      active(masterDataGroups, org), eq(masterDataGroups.code, "departments"),
-      active(masterDataValues, org), eq(masterDataValues.active, true))) : [];
+  const departmentRows = scope.unrestricted ? await getPlanNumberDepartments(db, org) : [];
   return [
     ...projectRows.map(project => ({ key: `project:${project.id}`, kind: "project" as const, label: project.name,
       sourceValue: String(projectNumberContext(project.customFields).costCentre ?? "") })),

@@ -16,3 +16,9 @@ The Create Audit Plan screen must include a read-only **Audit Plan Number** fiel
 **Why:** The user explicitly requested the field. Reserving numbers merely by opening or changing a form would consume unused numbers, and concurrent plan creators can change the next available number before save.
 
 **How to apply:** Reuse the same source, From Date year, counter and format logic for display and allocation. Explain that the displayed next number is confirmed on save; keep existing saved plan numbers unchanged.
+
+Dependent numbering lookups must follow the same Department master alias priority as the schedule dropdown; do not merge all alias-matching groups into one list.
+
+**Why:** Existing tenant masters may use singular or differently cased group codes. A separate exact-code lookup rejected valid Civil selections; merging groups could instead select a different master UUID and split the department's counter.
+
+**How to apply:** Use one consistent group resolution for schedule selections, number preview/allocation and go-live department lists. Retain master-value UUIDs as counter scope identities.

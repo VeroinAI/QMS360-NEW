@@ -1,8 +1,9 @@
-import { and, eq, isNull, or, sql } from "drizzle-orm";
-import { db, organizationSettings, projects, masterDataGroups, masterDataValues } from "@workspace/db";
+import { and, eq, isNull } from "drizzle-orm";
+import { db, organizationSettings, projects, masterDataValues } from "@workspace/db";
 import { HttpError } from "./workspace";
 import { lockScheduleNumbering } from "./audit-schedule-numbering";
 import { projectNumberContext } from "@workspace/field-controls";
+import { resolveMasterDataGroupId } from "./lov";
 
 export type PlanNumberPattern = { prefix: string; middle: string; separator: string; padding: number };
 export type PlanNumberState = { pattern: PlanNumberPattern; ranges: Record<string, Record<string, number>> };
@@ -23,6 +24,14 @@ export function validatePlanNumberPattern(pattern: PlanNumberPattern) {
     throw new HttpError(422, "Use literal prefix/middle text, a separator and 1–12 padding digits. The source and year are inserted automatically.");
   }
 }
+export async function getPlanNumberDepartments(reader: Reader, organizationId: string) {
+  const groupId = await resolveMasterDataGroupId(reader, organizationId, "departments");
+  if (!groupId) return [];
+  return reader.select({ id: masterDataValues.id, value: masterDataValues.value, label: masterDataValues.label })
+    .from(masterDataValues).where(and(
+      eq(masterDataValues.organizationId, organizationId), eq(masterDataValues.groupId, groupId),
+      isNull(masterDataValues.deletedAt), eq(masterDataValues.active, true), eq(masterDataValues.status, "active")));
+}
 export async function planNumberSource(reader: Reader, organizationId: string, projectId: string | null, department?: string) {
   if (projectId) {
     const [project] = await reader.select().from(projects).where(and(eq(projects.organizationId, organizationId), eq(projects.id, projectId), isNull(projects.deletedAt))).limit(1);
@@ -32,11 +41,8 @@ export async function planNumberSource(reader: Reader, organizationId: string, p
   }
   const selected = department?.trim();
   if (!selected) throw new HttpError(422, "The linked Audit Schedule must identify a department or project.");
-  const matches = await reader.select({ id: masterDataValues.id, value: masterDataValues.value, label: masterDataValues.label })
-    .from(masterDataValues).innerJoin(masterDataGroups, eq(masterDataGroups.id, masterDataValues.groupId))
-    .where(and(eq(masterDataGroups.organizationId, organizationId), eq(masterDataGroups.code, "departments"), isNull(masterDataGroups.deletedAt),
-      eq(masterDataValues.organizationId, organizationId), isNull(masterDataValues.deletedAt), eq(masterDataValues.active, true),
-      or(eq(masterDataValues.value, selected), eq(masterDataValues.label, selected), sql`${masterDataValues.id}::text = ${selected}`)));
+  const matches = (await getPlanNumberDepartments(reader, organizationId))
+    .filter(value => value.value === selected || value.label === selected || value.id === selected);
   const exact = matches.find(value => value.value === selected) ?? matches.find(value => value.id === selected);
   if (!exact && matches.length > 1) throw new HttpError(422, "The department label is ambiguous. Select its Department master Value in the Audit Schedule.");
   const value = exact ?? matches[0];

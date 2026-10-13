@@ -3,6 +3,7 @@ import { masterDataGroups, masterDataValues } from "@workspace/db";
 import { HttpError } from "./workspace";
 
 type Db = typeof import("@workspace/db").db;
+type Reader = Pick<Db, "select">;
 
 type LovOptions = {
   allowLegacy?: string | string[] | null;
@@ -15,7 +16,8 @@ export function masterDataGroupCodeAliases(groupCode: string): string[] {
     : [normalized];
 }
 
-export async function getLovValues(db: Db, organizationId: string, groupCode: string) {
+/** Use the same alias priority for dropdowns and dependent business logic. */
+export async function resolveMasterDataGroupId(db: Reader, organizationId: string, groupCode: string) {
   const aliases = masterDataGroupCodeAliases(groupCode);
   const groups = await db.select({ id: masterDataGroups.id, code: masterDataGroups.code }).from(masterDataGroups).where(and(
     eq(masterDataGroups.organizationId, organizationId),
@@ -24,12 +26,17 @@ export async function getLovValues(db: Db, organizationId: string, groupCode: st
     isNull(masterDataGroups.deletedAt),
   ));
   const group = aliases.map((alias) => groups.find((candidate) => candidate.code.toLowerCase() === alias)).find(Boolean);
-  if (!group) return [];
+  return group?.id;
+}
+
+export async function getLovValues(db: Db, organizationId: string, groupCode: string) {
+  const groupId = await resolveMasterDataGroupId(db, organizationId, groupCode);
+  if (!groupId) return [];
   return db.select({
     value: masterDataValues.value, label: masterDataValues.label,
     sortOrder: masterDataValues.sortOrder, metadata: masterDataValues.metadata,
   }).from(masterDataValues).where(and(
-    eq(masterDataValues.organizationId, organizationId), eq(masterDataValues.groupId, group.id),
+    eq(masterDataValues.organizationId, organizationId), eq(masterDataValues.groupId, groupId),
     eq(masterDataValues.active, true), eq(masterDataValues.status, "active"), isNull(masterDataValues.deletedAt),
   )).orderBy(asc(masterDataValues.sortOrder), asc(masterDataValues.label));
 }
@@ -44,21 +51,11 @@ export async function assertLovValue(
   const legacyValues = Array.isArray(allowLegacy) ? allowLegacy : allowLegacy == null ? [] : [allowLegacy];
   if (legacyValues.includes(value)) return;
 
-  const aliases = masterDataGroupCodeAliases(groupCode);
-  const groups = await db.select({ id: masterDataGroups.id, code: masterDataGroups.code }).from(masterDataGroups).where(and(
-    eq(masterDataGroups.organizationId, organizationId),
-    inArray(sql<string>`lower(${masterDataGroups.code})`, aliases),
-    eq(masterDataGroups.status, "active"),
-    isNull(masterDataGroups.deletedAt),
-  ));
-  const group = aliases
-    .map((alias) => groups.find((candidate) => candidate.code.toLowerCase() === alias))
-    .find(Boolean);
-
-  const validValues = group
+  const groupId = await resolveMasterDataGroupId(db, organizationId, groupCode);
+  const validValues = groupId
     ? await db.select({ value: masterDataValues.value }).from(masterDataValues).where(and(
       eq(masterDataValues.organizationId, organizationId),
-      eq(masterDataValues.groupId, group.id),
+      eq(masterDataValues.groupId, groupId),
       eq(masterDataValues.active, true),
       eq(masterDataValues.status, "active"),
       isNull(masterDataValues.deletedAt),
