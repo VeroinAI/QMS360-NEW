@@ -108,11 +108,10 @@ describe.skipIf(process.env.QMS_AUDIT_FINDING_CLEANUP === "1")("Audit Finding nu
     expect((await api("GET", "/admin/finding-numbering", undefined, viewerToken)).status).toBe(403);
     expect((await api("PUT", "/admin/finding-numbering", pattern, viewerToken)).status).toBe(403);
   });
-  it("validates distinct codes, the allowed types and literal number formatting", async () => {
+  it("validates nonempty codes, the allowed types and literal number formatting", async () => {
     for (const invalid of [
       { ...pattern, padding: 1.5 }, { ...pattern, prefix: "{source}" },
       { ...pattern, codes: { ...pattern.codes, "Minor NC": "" } },
-      { ...pattern, codes: { ...pattern.codes, "Minor NC": "mnc" } },
       { ...pattern, codes: { ...pattern.codes, "Not applicable": "NA" } },
     ]) expect((await api("PUT", "/admin/finding-numbering", invalid)).status).toBe(422);
     expect((await api("PUT", "/admin/finding-numbering", pattern)).status).toBe(200);
@@ -212,9 +211,44 @@ describe.skipIf(process.env.QMS_AUDIT_FINDING_CLEANUP === "1")("Audit Finding nu
     expect((await api("GET", `/audits/${auditId}`)).body.checklist.some((entry: any) => entry.findingNumber === "AGH-FP100-MNC-27-0001")).toBe(true);
     const changed = { ...pattern, codes: { ...pattern.codes, "Major NC": "NEW", "Moderate NC": "MNC" } };
     await saveFindingNumbering(orgId, changed);
-    await expect(issue("Moderate NC", projectId, "2027-03-01")).rejects.toThrow(/already exists/);
-    expect((await readFindingNumberState(orgId)).ranges["Moderate NC"]?.[`project:${projectId}`]).toBeUndefined();
+    expect((await issue("Moderate NC", projectId, "2027-03-01")).findingNumber).toBe("AGH-FP100-MNC-27-0001");
     await saveFindingNumbering(orgId, pattern);
+    await db.update(projects).set({ customFields: { costCentre: "FP100" } }).where(eq(projects.id, missingProjectId));
+    await expect(issue("Major NC", missingProjectId, "2027-03-01")).rejects.toThrow(/already exists for this finding type/);
+    expect((await readFindingNumberState(orgId)).ranges["Major NC"]?.[`project:${missingProjectId}`]).toBeUndefined();
+  });
+  it("saves shared codes and issues overlapping numbers across types with independent counters and retries", async () => {
+    const [audit] = await db.select().from(audits).where(eq(audits.id, auditId));
+    const [plan] = await db.select().from(auditPlans).where(eq(auditPlans.id, audit!.auditPlanId!));
+    const [schedule] = await db.select().from(auditSchedules).where(eq(auditSchedules.id, plan!.auditScheduleId!));
+    const shared = { ...pattern, codes: { ...pattern.codes, "Minor NC": "NCR", "Moderate NC": "NCR", "Major NC": "NCR" } };
+    try {
+      const saved = await api("PUT", "/admin/finding-numbering", shared);
+      expect(saved.status).toBe(200);
+      expect((await api("GET", "/admin/finding-numbering")).body.pattern.codes).toEqual(shared.codes);
+      await db.update(auditSchedules).set({
+        status: JSON.stringify({ ...JSON.parse(schedule!.status!), plannedStartDate: "2031-03-01", plannedEndDate: "2031-03-05" }),
+      }).where(eq(auditSchedules.id, schedule!.id));
+      const requests = ["Minor NC", "Moderate NC", "Major NC"].map(type => payload(type));
+      for (const input of requests) {
+        const savedFinding = await api("POST", `/audits/${auditId}/finding-items`, input);
+        expect(savedFinding.status).toBe(201);
+        expect(savedFinding.body.checklist.find((item: any) => item.clientReference === input.clientReference).findingNumber).toBe("AGH-FP100-NCR-31-0001");
+      }
+      const retry = await api("POST", `/audits/${auditId}/finding-items`, requests[2]);
+      expect(retry.body.checklist.filter((item: any) => item.clientReference === requests[2]!.clientReference)).toHaveLength(1);
+      const secondMajor = await api("POST", `/audits/${auditId}/finding-items`, payload("Major NC"));
+      expect(secondMajor.body.checklist.at(-1).findingNumber).toBe("AGH-FP100-NCR-31-0002");
+      const state = await readFindingNumberState(orgId);
+      expect(state.ranges["Minor NC"]?.[`project:${projectId}`]?.["2031"]).toBe(1);
+      expect(state.ranges["Moderate NC"]?.[`project:${projectId}`]?.["2031"]).toBe(1);
+      expect(state.ranges["Major NC"]?.[`project:${projectId}`]?.["2031"]).toBe(2);
+      const reloaded = await api("GET", `/audits/${auditId}`);
+      expect(reloaded.body.checklist.filter((item: any) => item.findingNumber === "AGH-FP100-NCR-31-0001")).toHaveLength(3);
+    } finally {
+      await db.update(auditSchedules).set({ status: schedule!.status }).where(eq(auditSchedules.id, schedule!.id));
+      await saveFindingNumbering(orgId, pattern);
+    }
   });
 });
 

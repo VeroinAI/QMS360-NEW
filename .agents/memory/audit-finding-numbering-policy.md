@@ -9,6 +9,12 @@ Audit Finding numbering uses an administrator-configured middle code for each fi
 
 **How to apply:** Keep type identity independent of editable codes. Changing a code or number format must not restart counters or rewrite numbers already issued.
 
+The same middle code may be used for multiple finding types. Keep separate type/source/year counters even when codes match; identical displayed numbers across different types are allowed.
+
+**Why:** The user explicitly corrected the initial distinct-code restriction and requested code reuse across Audit Finding types.
+
+**How to apply:** Do not reject duplicate codes in settings or treat another finding type's issued number as a collision. Preserve collision protection within the same issued finding type.
+
 Issue the number on successful Save Finding. Derive the source from the linked Plan: Department master Value for department/process audits, Project Cost Center for project audits. Derive the two-digit displayed year from the linked child Audit Schedule From Date, not the current date.
 
 **Why:** The user specified the source/date linkage and Save Finding as the issuance action. Finding, Plan and Report numbering are independent business ranges.

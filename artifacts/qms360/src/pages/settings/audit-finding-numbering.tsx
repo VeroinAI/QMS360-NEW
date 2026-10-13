@@ -31,7 +31,7 @@ export function AuditFindingNumberingSettings() {
   const validYear = Number.isInteger(yearNumber) && yearNumber >= 1900 && yearNumber <= 9999;
   const lastUsed = scope && validYear ? query.data.ranges[type]?.[scope]?.[year] ?? 0 : 0;
   const codes = types.map(t => (pattern.codes[t] ?? "").trim());
-  const codesValid = codes.every(c => c && !invalidText(c)) && new Set(codes.map(c => c.toUpperCase())).size === codes.length;
+  const codesValid = codes.every(c => c && !invalidText(c));
   const validPattern = codesValid && Number.isInteger(pattern.padding) && pattern.padding >= 1 && pattern.padding <= 12 && !invalidText(pattern.prefix) && !invalidText(pattern.separator);
   const preview = [saved.prefix, source?.sourceValue || "[Department Value / Project Cost Center]", saved.codes[type] || "[code]",
     validYear ? String(yearNumber).slice(-2) : "YY", String(lastUsed + 1).padStart(Math.max(1, Math.min(12, saved.padding || 1)), "0")].filter(Boolean).join(saved.separator);
@@ -54,7 +54,8 @@ export function AuditFindingNumberingSettings() {
           <SelectContent>{types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div>
       </div>
       <div className="max-w-sm"><Label htmlFor="finding-number-code">Middle code for {type}</Label><Input id="finding-number-code" maxLength={80} value={pattern.codes[type] ?? ""} onChange={e => changeCode(e.target.value)} /></div>
-      {!codesValid && <p role="alert" className="text-sm text-destructive">Every finding type needs a distinct, nonempty code without braces or line breaks (maximum 80 characters).</p>}
+      <p className="text-sm text-muted-foreground">The same middle code can be used for multiple finding types. Their counters remain separate, so displayed numbers may match across types.</p>
+      {!codesValid && <p role="alert" className="text-sm text-destructive">Every finding type needs a nonempty code without braces or line breaks (maximum 80 characters).</p>}
       {savePattern.isError && <p role="alert" className="text-sm text-destructive">{savePattern.error.message}</p>}
       <Button type="button" disabled={!validPattern || savePattern.isPending} onClick={() => savePattern.mutate({ data: { ...pattern, codes: Object.fromEntries(types.map(t => [t, (pattern.codes[t] ?? "").trim()])) } }, {
         onSuccess: () => { toast({ title: "Audit Finding format saved; counters retained" }); void qc.invalidateQueries({ queryKey: getGetAuditFindingNumberingQueryKey() }); void query.refetch(); },

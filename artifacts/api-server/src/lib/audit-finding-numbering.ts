@@ -35,9 +35,6 @@ export function validateFindingNumberPattern(pattern: FindingNumberPattern) {
         codes[type].length > 80 || /[{}\r\n]/.test(codes[type]))) {
     throw new HttpError(422, "Maintain a nonempty middle code for Minor NC, Moderate NC, Major NC and OFI only. Use up to 80 literal characters; Not applicable cannot be numbered.");
   }
-  if (new Set(numberedFindingTypes.map(type => codes[type].trim().toLowerCase())).size !== numberedFindingTypes.length) {
-    throw new HttpError(422, "Each Audit Finding type must have a different middle code because its yearly sequence is separate.");
-  }
 }
 export async function readFindingNumberState(organizationId: string) {
   const [settings] = await db.select().from(organizationSettings).where(and(
@@ -74,14 +71,16 @@ export async function allocateFindingNumber(
     pattern: { ...state.pattern, middle: state.pattern.codes[type] },
     ranges: state.ranges[type] ?? {},
   }, source, year, "Audit Finding");
-  // Separate ranges can otherwise collide when Cost Centers or codes change. Retain deleted-audit history too.
+  // Codes may be shared across types. Protect against collisions within the issued type,
+  // including deleted-audit history and older rows without explicit numbering type metadata.
   const [duplicate] = await tx.select({ id: audits.id }).from(audits).where(and(
     eq(audits.organizationId, settings.organizationId),
     sql`exists (select 1 from jsonb_array_elements(
       case when jsonb_typeof(${audits.checklistState}) = 'array' then ${audits.checklistState} else '[]'::jsonb end
-    ) item where item->>'findingNumber' = ${number})`,
+    ) item where item->>'findingNumber' = ${number}
+      and coalesce(item->>'findingNumberType', item->>'auditFinding') = ${type})`,
   )).limit(1);
-  if (duplicate) throw new HttpError(409, "This Audit Finding Number already exists. Maintain distinct Cost Centers and finding codes, or correct the numbering format; existing numbers will not be overwritten.");
+  if (duplicate) throw new HttpError(409, "This Audit Finding Number already exists for this finding type. Maintain distinct Cost Centers or correct the numbering format; existing numbers will not be overwritten.");
   state.ranges = { ...state.ranges, [type]: {
     ...state.ranges[type], [source.key]: { ...state.ranges[type]?.[source.key], [String(year)]: sequence },
   } };
