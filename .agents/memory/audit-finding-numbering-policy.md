@@ -15,6 +15,12 @@ The same middle code may be used for multiple finding types. Keep separate type/
 
 **How to apply:** Do not reject duplicate codes in settings or treat another finding type's issued number as a collision. Preserve collision protection within the same issued finding type.
 
+Administrators maintain the **next running number** for a selected finding type, project/department and full year. Entering 126 means the next saved finding receives sequence 126, not 127. Unmaintained ranges start at 1.
+
+**Why:** The user requested an entry field for the next number after the initial counter section was read-only.
+
+**How to apply:** Store next minus one as the last-used counter, never move a counter backwards, and do not rewrite existing findings or affect other type/source/year ranges.
+
 Issue the number on successful Save Finding. Derive the source from the linked Plan: Department master Value for department/process audits, Project Cost Center for project audits. Derive the two-digit displayed year from the linked child Audit Schedule From Date, not the current date.
 
 **Why:** The user specified the source/date linkage and Save Finding as the issuance action. Finding, Plan and Report numbering are independent business ranges.

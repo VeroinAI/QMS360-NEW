@@ -43,6 +43,7 @@ import type {
   AuditFindingActionTakerInput,
   AuditFindingBody,
   AuditFindingItemInput,
+  AuditFindingNumberRangeInput,
   AuditFindingNumberingPattern,
   AuditFindingNumberingSettings,
   AuditFindingPageResponse,
@@ -341,6 +342,7 @@ import type {
   SyncJob,
   SyncJobPageResponse,
   TemporaryPasswordInput,
+  UpdateAuditFindingNumberRange200,
   UpdateAuditReportNumberRange200,
   UpdateMasterDataGroupInput,
   UpdateMasterDataValueInput,
@@ -26146,6 +26148,77 @@ export const useUpdateAuditFindingNumbering = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateAuditFindingNumberingMutationOptions(options));
+    }
+
+export const getUpdateAuditFindingNumberRangeUrl = () => {
+
+
+
+
+  return `/api/audit/admin/finding-numbering/ranges`
+}
+
+/**
+ * @summary Set the next Audit Finding running number for a finding type, project or department and year
+ */
+export const updateAuditFindingNumberRange = async (auditFindingNumberRangeInput: AuditFindingNumberRangeInput, options?: Parameters<typeof customFetch>[1]): Promise<UpdateAuditFindingNumberRange200> => {
+
+  return customFetch<UpdateAuditFindingNumberRange200>(getUpdateAuditFindingNumberRangeUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditFindingNumberRangeInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditFindingNumberRangeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditFindingNumberRange>>, TError,{data: BodyType<AuditFindingNumberRangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditFindingNumberRange>>, TError,{data: BodyType<AuditFindingNumberRangeInput>}, TContext> => {
+
+const mutationKey = ['updateAuditFindingNumberRange'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditFindingNumberRange>>, {data: BodyType<AuditFindingNumberRangeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAuditFindingNumberRange(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditFindingNumberRangeMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditFindingNumberRange>>>
+    export type UpdateAuditFindingNumberRangeMutationBody = BodyType<AuditFindingNumberRangeInput>
+    export type UpdateAuditFindingNumberRangeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Set the next Audit Finding running number for a finding type, project or department and year
+ */
+export const useUpdateAuditFindingNumberRange = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditFindingNumberRange>>, TError,{data: BodyType<AuditFindingNumberRangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditFindingNumberRange>>,
+        TError,
+        {data: BodyType<AuditFindingNumberRangeInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditFindingNumberRangeMutationOptions(options));
     }
 
 export const getUpdateAuditReportNumberRangeUrl = () => {

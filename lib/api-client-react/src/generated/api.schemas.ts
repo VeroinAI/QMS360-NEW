@@ -3184,6 +3184,32 @@ export interface AuditFindingNumberingPattern {
   codes: AuditFindingNumberingPatternCodes;
 }
 
+export type AuditFindingNumberRangeInputFindingType = typeof AuditFindingNumberRangeInputFindingType[keyof typeof AuditFindingNumberRangeInputFindingType];
+
+
+export const AuditFindingNumberRangeInputFindingType = {
+  Minor_NC: 'Minor NC',
+  Moderate_NC: 'Moderate NC',
+  Major_NC: 'Major NC',
+  OFI: 'OFI',
+} as const;
+
+export interface AuditFindingNumberRangeInput {
+  findingType: AuditFindingNumberRangeInputFindingType;
+  /** @minLength 1 */
+  scope: string;
+  /**
+     * @minimum 1900
+     * @maximum 9999
+     */
+  year: number;
+  /**
+     * @minimum 1
+     * @maximum 999999999999
+     */
+  nextNumber: number;
+}
+
 export type AuditFindingNumberingSettingsFindingTypesItem = typeof AuditFindingNumberingSettingsFindingTypesItem[keyof typeof AuditFindingNumberingSettingsFindingTypesItem];
 
 
@@ -5625,6 +5651,10 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+};
+
+export type UpdateAuditFindingNumberRange200 = {
+  saved: boolean;
 };
 
 export type UpdateAuditReportNumberRange200 = {

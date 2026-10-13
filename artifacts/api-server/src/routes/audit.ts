@@ -52,7 +52,7 @@ import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../l
 import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
 import { allocatePlanNumber, getPlanNumberDepartments, previewPlanNumber, readPlanNumberState, savePlanNumbering, type PlanNumberPattern } from "../lib/audit-plan-numbering";
 import { allocateReportNumber, readReportNumberState, saveReportNumbering } from "../lib/audit-report-numbering";
-import { allocateFindingNumber, numberedFindingTypes, readFindingNumberState, saveFindingNumbering, type FindingNumberPattern } from "../lib/audit-finding-numbering";
+import { allocateFindingNumber, numberedFindingTypes, readFindingNumberState, saveFindingNumbering, type FindingNumberPattern, type FindingNumberRange } from "../lib/audit-finding-numbering";
 import { projectNumberContext } from "@workspace/field-controls";
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
@@ -4113,6 +4113,16 @@ router.put("/admin/finding-numbering", asyncHandler(async (req, res) => {
   const saved = await saveFindingNumbering(actor(req).organizationId, pattern);
   await auditLog(req, "update_finding_numbering", "audit_finding_numbering", actor(req).organizationId, before.pattern, saved.pattern);
   res.json(Api.UpdateAuditFindingNumberingResponse.parse(saved.pattern));
+}));
+router.put("/admin/finding-numbering/ranges", asyncHandler(async (req, res) => {
+  const range = body<FindingNumberRange>(Api.UpdateAuditFindingNumberRangeBody, req);
+  if (!(await auditPlanNumberSources(req)).some(source => source.key === range.scope)) throw new HttpError(404, "Project or department is not available in your Audit administration scope");
+  const before = await readFindingNumberState(actor(req).organizationId);
+  const saved = await saveFindingNumbering(actor(req).organizationId, undefined, range);
+  await auditLog(req, "maintain_finding_number_range", "audit_finding_numbering", range.scope.split(":")[1],
+    { ...range, nextNumber: (before.ranges[range.findingType]?.[range.scope]?.[String(range.year)] ?? 0) + 1 },
+    { ...range, nextNumber: (saved.ranges[range.findingType]?.[range.scope]?.[String(range.year)] ?? 0) + 1 });
+  res.json(Api.UpdateAuditFindingNumberRangeResponse.parse({ saved: true }));
 }));
 router.put("/admin/report-numbering", asyncHandler(async (req, res) => {
   const pattern = body<PlanNumberPattern>(Api.UpdateAuditReportNumberingBody, req);

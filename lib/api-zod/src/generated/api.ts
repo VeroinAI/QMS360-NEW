@@ -12542,6 +12542,29 @@ export const UpdateAuditFindingNumberingResponse = zod.object({
 
 
 /**
+ * @summary Set the next Audit Finding running number for a finding type, project or department and year
+ */
+
+export const updateAuditFindingNumberRangeBodyYearMin = 1900;
+export const updateAuditFindingNumberRangeBodyYearMax = 9999;
+
+export const updateAuditFindingNumberRangeBodyNextNumberMax = 999999999999;
+
+
+
+export const UpdateAuditFindingNumberRangeBody = zod.object({
+  "findingType": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI']),
+  "scope": zod.string().min(1),
+  "year": zod.number().min(updateAuditFindingNumberRangeBodyYearMin).max(updateAuditFindingNumberRangeBodyYearMax),
+  "nextNumber": zod.number().min(1).max(updateAuditFindingNumberRangeBodyNextNumberMax)
+})
+
+export const UpdateAuditFindingNumberRangeResponse = zod.object({
+  "saved": zod.boolean()
+})
+
+
+/**
  * @summary Maintain the last used Audit Report number for a project or department and year
  */
 export const updateAuditReportNumberRangeBodyYearMin = 1900;

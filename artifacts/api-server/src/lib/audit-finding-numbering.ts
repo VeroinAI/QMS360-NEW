@@ -41,13 +41,26 @@ export async function readFindingNumberState(organizationId: string) {
     eq(organizationSettings.organizationId, organizationId), isNull(organizationSettings.deletedAt)));
   return findingNumberState(settings?.documentNumbering);
 }
-export async function saveFindingNumbering(organizationId: string, input: FindingNumberPattern) {
-  validateFindingNumberPattern(input);
-  const pattern = { ...input, codes: Object.fromEntries(numberedFindingTypes.map(type => [type, input.codes[type].trim()])) };
+export type FindingNumberRange = { findingType: string; scope: string; year: number; nextNumber: number };
+export async function saveFindingNumbering(organizationId: string, input?: FindingNumberPattern, range?: FindingNumberRange) {
+  if (input) validateFindingNumberPattern(input);
   return db.transaction(async tx => {
     const { settings } = await lockScheduleNumbering(tx, organizationId);
     const state = findingNumberState(settings.documentNumbering);
-    state.pattern = pattern;
+    if (input) state.pattern = { ...input, codes: Object.fromEntries(numberedFindingTypes.map(type => [type, input.codes[type].trim()])) };
+    if (range) {
+      if (!numberedFindingTypes.includes(range.findingType as NumberedFindingType) ||
+          !Number.isInteger(range.year) || range.year < 1900 || range.year > 9999 ||
+          !Number.isSafeInteger(range.nextNumber) || range.nextNumber < 1 || range.nextNumber > 999_999_999_999) {
+        throw new HttpError(422, "Select a numbered finding type, a four-digit year and a whole next running number from 1 to 999999999999.");
+      }
+      const current = state.ranges[range.findingType]?.[range.scope]?.[String(range.year)] ?? 0;
+      if (range.nextNumber <= current) throw new HttpError(409, `The next running number must be at least ${current + 1}; the counter cannot move backwards.`);
+      state.ranges = { ...state.ranges, [range.findingType]: {
+        ...state.ranges[range.findingType],
+        [range.scope]: { ...state.ranges[range.findingType]?.[range.scope], [String(range.year)]: range.nextNumber - 1 },
+      } };
+    }
     await tx.update(organizationSettings).set({
       documentNumbering: { ...settings.documentNumbering, audit_finding_numbering: state } as any,
       updatedAt: new Date(),

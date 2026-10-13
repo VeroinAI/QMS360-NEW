@@ -1927,6 +1927,26 @@ paths:
   /audit/admin/finding-numbering:
     get: {operationId: getAuditFindingNumbering, tags: [audit-admin], summary: Read independent finding-type yearly numbering, responses: {"200": {description: Finding numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingNumberingSettings"}}}}}}
     put: {operationId: updateAuditFindingNumbering, tags: [audit-admin], summary: Save finding number format and per-type middle codes without resetting counters, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingNumberingPattern"}}}}, responses: {"200": {description: Saved format, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingNumberingPattern"}}}}}}
+  /audit/admin/finding-numbering/ranges:
+    put:
+      operationId: updateAuditFindingNumberRange
+      tags: [audit-admin]
+      summary: Set the next Audit Finding running number for a finding type, project or department and year
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AuditFindingNumberRangeInput"}
+      responses:
+        "200":
+          description: Next running number saved without issuing a finding or changing existing numbers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [saved]
+                properties:
+                  saved: {type: boolean}
   /audit/admin/report-numbering/ranges:
     put:
       operationId: updateAuditReportNumberRange
@@ -3919,6 +3939,14 @@ components:
         separator: {type: string, maxLength: 80}
         padding: {type: number, minimum: 1, maximum: 12}
         codes: {type: object, additionalProperties: {type: string, minLength: 1, maxLength: 80}}
+    AuditFindingNumberRangeInput:
+      type: object
+      required: [findingType, scope, year, nextNumber]
+      properties:
+        findingType: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", "OFI"]}
+        scope: {type: string, minLength: 1}
+        year: {type: number, minimum: 1900, maximum: 9999}
+        nextNumber: {type: number, minimum: 1, maximum: 999999999999}
     AuditFindingNumberingSettings:
       type: object
       required: [pattern, findingTypes, sources, ranges]

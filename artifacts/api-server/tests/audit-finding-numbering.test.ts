@@ -250,6 +250,54 @@ describe.skipIf(process.env.QMS_AUDIT_FINDING_CLEANUP === "1")("Audit Finding nu
       await saveFindingNumbering(orgId, pattern);
     }
   });
+  it("maintains next finding numbers per type/source/year and rejects invalid or backward ranges", async () => {
+    const range = { findingType: "Major NC", scope: `project:${projectId}`, year: 2032, nextNumber: 126 };
+    const before = await readFindingNumberState(orgId);
+    const planState = await readPlanNumberState(orgId), reportState = await readReportNumberState(orgId);
+    expect((await api("PUT", "/admin/finding-numbering/ranges", range, viewerToken)).status).toBe(403);
+    expect((await api("PUT", "/admin/finding-numbering/ranges", { ...range, scope: `project:${randomUUID()}` })).status).toBe(404);
+    for (const invalid of [
+      { ...range, findingType: "Not applicable" }, { ...range, nextNumber: 0 },
+      { ...range, nextNumber: 1.5 }, { ...range, nextNumber: 1000000000000 },
+      { ...range, year: 2032.5 }, { ...range, year: 1899 },
+    ]) expect((await api("PUT", "/admin/finding-numbering/ranges", invalid)).status).toBe(422);
+    expect(await readFindingNumberState(orgId)).toEqual(before);
+    expect((await api("PUT", "/admin/finding-numbering/ranges", range)).status).toBe(200);
+    const saved = await api("GET", "/admin/finding-numbering");
+    expect(saved.body.ranges["Major NC"][range.scope]["2032"]).toBe(125);
+    expect(saved.body.pattern).toEqual(before.pattern);
+    expect(saved.body.ranges["Minor NC"]).toEqual(before.ranges["Minor NC"]);
+    expect((await api("PUT", "/admin/finding-numbering/ranges", { ...range, nextNumber: 125 })).status).toBe(409);
+    const [audit] = await db.select().from(audits).where(eq(audits.id, auditId));
+    const [plan] = await db.select().from(auditPlans).where(eq(auditPlans.id, audit!.auditPlanId!));
+    const [schedule] = await db.select().from(auditSchedules).where(eq(auditSchedules.id, plan!.auditScheduleId!));
+    const checklistBefore = (await api("GET", `/audits/${auditId}`)).body.checklist;
+    try {
+      await db.update(auditSchedules).set({
+        status: JSON.stringify({ ...JSON.parse(schedule!.status!), plannedStartDate: "2032-03-01", plannedEndDate: "2032-03-05" }),
+      }).where(eq(auditSchedules.id, schedule!.id));
+      const input = payload();
+      const created = await api("POST", `/audits/${auditId}/finding-items`, input);
+      expect(created.status).toBe(201);
+      expect(created.body.checklist.at(-1).findingNumber).toBe("AGH-FP100-MNC-32-0126");
+      expect(created.body.checklist.slice(0, checklistBefore.length)).toEqual(checklistBefore);
+      await api("POST", `/audits/${auditId}/finding-items`, input);
+      expect((await readFindingNumberState(orgId)).ranges["Major NC"]?.[range.scope]?.["2032"]).toBe(126);
+      expect((await api("PUT", "/admin/finding-numbering/ranges", range)).status).toBe(409);
+      expect((await api("PUT", "/admin/finding-numbering/ranges", { ...range, nextNumber: 127 })).status).toBe(200);
+      const minor = await api("POST", `/audits/${auditId}/finding-items`, payload("Minor NC"));
+      expect(minor.body.checklist.at(-1).findingNumber).toBe("AGH-FP100-MIN-32-0001");
+      const departmentRange = { ...range, scope: `department:${departmentId}`, nextNumber: 12 };
+      expect((await api("PUT", "/admin/finding-numbering/ranges", departmentRange)).status).toBe(200);
+      expect((await issue("Major NC", null, "2032-03-01", "ENG")).findingNumber).toBe("AGH-ENG-MNC-32-0012");
+      expect((await api("PUT", "/admin/finding-numbering/ranges", { ...range, year: 2033, nextNumber: 1 })).status).toBe(200);
+      expect((await issue("Major NC", projectId, "2033-03-01")).findingNumberSequence).toBe(1);
+      expect(await readPlanNumberState(orgId)).toEqual(planState);
+      expect(await readReportNumberState(orgId)).toEqual(reportState);
+    } finally {
+      await db.update(auditSchedules).set({ status: schedule!.status }).where(eq(auditSchedules.id, schedule!.id));
+    }
+  });
 });
 
 it.skipIf(process.env.QMS_AUDIT_FINDING_CLEANUP !== "1")("removes only the isolated browser fixture", async () => {
