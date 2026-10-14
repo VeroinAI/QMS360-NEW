@@ -11,6 +11,8 @@ Treat the Audit role's legacy “Create / edit” selection as permission to cre
 
 Programme creation has a separate capability for the top-level Programme creation request. It does not grant child Schedule edits or other Programme mutations, and a role carrying it must be assigned organization-wide because a new Programme has no project scope.
 
+The later explicit “Schedules / Programme → Create / edit” module grant also permits top-level creation for organization-wide assignments; generic `data_entry` alone still does not.
+
 **Why:** The user needs to grant an Employee the ability to start Programmes without making all Schedule editors Programme creators or elevating them to Audit administrators. A project-limited creation grant would create a projectless parent outside that assignment's scope.
 
 **How to apply:** Preserve separate Programme-create and Schedule-edit checks when extending Audit authorization. If Programme creation becomes project-scoped in the future, revisit the organization-wide condition alongside the new parent data model.

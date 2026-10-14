@@ -78,8 +78,9 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
       return projectIds.length ? { projectId: projectIds[0]!, projectIds, module: "schedules" } : null;
     }
     if (["audit", "audit_execution"].includes(row.recordType)) {
+      const module = row.category === "finding_evidence" ? "findings" : "audits";
       const [parent] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(audits).where(and(eq(audits.id, row.recordId), eq(audits.organizationId, organizationId), isNull(audits.deletedAt)));
-      if (parent?.projectId) return { projectId: parent.projectId, module: "audits" };
+      if (parent?.projectId) return { projectId: parent.projectId, module };
       if (!parent?.planId) return null;
       const [schedule] = await db.select({ status: auditSchedules.status }).from(auditPlans)
         .innerJoin(auditSchedules, eq(auditPlans.auditScheduleId, auditSchedules.id))
@@ -90,7 +91,7 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
       try {
         const types = JSON.parse(schedule?.status ?? "{}")?.auditTypes;
         if (Array.isArray(types) && types.includes("Quality Internal Process Audit")) {
-          return { projectId: null, module: "audits", allowProjectless: true };
+          return { projectId: null, module, allowProjectless: true };
         }
       } catch { /* Invalid or legacy status is not evidence of a Process audit. */ }
       return null;

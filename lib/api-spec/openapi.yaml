@@ -1563,7 +1563,7 @@ paths:
   /lessons/evidence/{id}:
     delete: {operationId: deleteLessonsEvidence, tags: [lessons], summary: Soft-delete evidence, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"204": {description: Soft-deleted}}}
   /audit/schedules:
-    get: {operationId: listAuditSchedules, tags: [audit], summary: List audit schedules, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: parentId, in: query, schema: {type: string}}], responses: {"200": {$ref: "#/components/responses/AuditSchedulePage"}}}
+    get: {operationId: listAuditSchedules, tags: [audit], summary: List audit schedules, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: parentId, in: query, schema: {type: string}}, {name: context, in: query, description: Plan source selection uses Audit Plan view scope without granting Schedule actions, schema: {type: string, enum: [plan]}}], responses: {"200": {$ref: "#/components/responses/AuditSchedulePage"}}}
     post: {operationId: createAuditSchedule, tags: [audit], summary: Create audit schedule, requestBody: {$ref: "#/components/requestBodies/AuditSchedule"}, responses: {"201": {description: Created}}}
   /audit/my-actions:
     get:
@@ -1576,7 +1576,7 @@ paths:
         "401": {description: Authentication required}
         "403": {description: Audit select access required}
   /audit/programmes:
-    get: {operationId: listAuditProgrammes, tags: [audit], summary: List annual audit programmes, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {description: Programmes, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammePage"}}}}}}
+    get: {operationId: listAuditProgrammes, tags: [audit], summary: List annual audit programmes, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: context, in: query, description: Plan source selection uses Audit Plan view scope, schema: {type: string, enum: [plan]}}], responses: {"200": {description: Programmes, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgrammePage"}}}}}}
     post: {operationId: createAuditProgramme, tags: [audit], summary: Create an annual audit programme, requestBody: {$ref: "#/components/requestBodies/AuditProgramme"}, responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/AuditProgramme"}}}}}}
   /audit/team-leads:
     get: {operationId: listAuditTeamLeads, tags: [audit], summary: List active Audit users assigned a role marked Audit Team Lead, responses: {"200": {description: Eligible team leads, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/AuditTeamLeadOption"}}}}}}}
@@ -1603,6 +1603,15 @@ paths:
     post: {operationId: reviewAuditSchedule, tags: [audit], summary: Approve or send back schedule, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed}}}
   /audit/schedules/{id}/feasibility:
     post: {operationId: recordAuditScheduleFeasibility, tags: [audit], summary: Record an infeasible audit decision, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AuditScheduleFeasibility"}, responses: {"200": {description: Feasibility decision recorded, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}, "409": {description: An Audit Plan already exists}}}
+  /audit/plan-source-schedules/{id}:
+    get:
+      operationId: getAuditPlanSourceSchedule
+      tags: [audit]
+      summary: Get a source schedule within the user's Audit Plan view scope
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200": {description: Source schedule, content: {application/json: {schema: {$ref: "#/components/schemas/AuditSchedule"}}}}
+        "403": {description: Outside Audit Plan access}
   /audit/plan-number-preview:
     get:
       operationId: getAuditPlanNumberPreview

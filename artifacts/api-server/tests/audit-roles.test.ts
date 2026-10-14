@@ -81,6 +81,53 @@ afterAll(async () => {
 });
 
 describe("Audit role permission persistence", () => {
+  it("applies each module action independently, including nested Findings and Plan source selectors", async () => {
+    const roleId = crypto.randomUUID();
+    const input = { id: roleId, name: `Action matrix ${suffix}`, description: "Explicit module actions",
+      active: true, systemDefault: false, roleAuthorizationLevel: null, permissions: [] as { key: string; name: string }[] };
+    expect((await api("POST", "/audit/admin/roles", input)).status).toBe(201);
+    const [person] = await db.insert(users).values({ organizationId, username: `actions.${suffix}`,
+      fullName: "Module actions user", email: `actions.${suffix}@example.test` }).returning();
+    await db.insert(applicationAccess).values({ organizationId, username: person!.username, canOpenAudit: true });
+    const [assignment] = await db.insert(auditUserWorkspaceRoles).values({
+      organizationId, userId: person!.id, workspaceRoleId: roleId, projectIds: [],
+    }).returning();
+    const token = issueToken(person!);
+    const set = async (...keys: string[]) => {
+      expect((await api("PUT", `/audit/admin/roles/${roleId}`, {
+        ...input, permissions: keys.map(key => ({ key, name: key })),
+      })).status).toBe(200);
+    };
+    const missingId = crypto.randomUUID();
+    for (const module of ["schedules", "plans", "audits", "findings", "cars"] as const) {
+      const writePath = module === "cars" ? `/audit/cars/${missingId}` : `/audit/${module}`;
+      const method = module === "cars" ? "PUT" : "POST";
+      await set(`audit.${module}.view_all`);
+      expect((await api("GET", `/audit/${module}`, undefined, token)).status).toBe(200);
+      expect((await api(method, writePath, {}, token)).status).toBe(403);
+      await set(`audit.${module}.view_all`, `audit.${module}.create_edit`);
+      expect((await api(method, writePath, {}, token)).status).not.toBe(403);
+      if (module !== "cars") {
+        expect((await api("DELETE", `/audit/${module}/${missingId}`, undefined, token)).status).toBe(403);
+        await set(`audit.${module}.view_all`, `audit.${module}.delete`);
+        expect((await api("DELETE", `/audit/${module}/${missingId}`, undefined, token)).status).toBe(404);
+      }
+    }
+    await set("audit.plans.view_all", "audit.plans.submit");
+    expect((await api("POST", `/audit/plans/${missingId}/send-for-audit`, { roleIds: [] }, token)).status).not.toBe(403);
+    expect((await api("POST", "/audit/plans", {}, token)).status).toBe(403);
+    expect((await api("GET", "/audit/schedules?context=plan", undefined, token)).status).toBe(200);
+    expect((await api("GET", "/audit/schedules", undefined, token)).status).toBe(403);
+    await set("audit.audits.view_all", "audit.audits.create_edit");
+    expect((await api("POST", `/audit/audits/${missingId}/finding-items`, {}, token)).status).toBe(403);
+    await set("audit.findings.view_all", "audit.findings.create_edit");
+    expect((await api("POST", `/audit/audits/${missingId}/finding-items`, {}, token)).status).not.toBe(403);
+    await set("audit.schedules.view_all", "audit.schedules.create_edit");
+    expect((await api("POST", "/audit/programmes", {}, token)).status).toBe(422);
+    const [project] = await db.insert(projects).values({ organizationId, name: "Restricted module project", code: `AM${suffix}` }).returning();
+    await db.update(auditUserWorkspaceRoles).set({ projectIds: [project!.id] }).where(eq(auditUserWorkspaceRoles.id, assignment!.id));
+    expect((await api("POST", "/audit/programmes", {}, token)).status).toBe(403);
+  });
   it("persists module grants and enforces them without changing other modules", async () => {
     const roleId = crypto.randomUUID();
     const input = {
@@ -105,6 +152,9 @@ describe("Audit role permission persistence", () => {
       expect((await api("GET", `/audit/${module}`, undefined, token)).status).toBe(403);
     }
     expect((await api("POST", "/audit/plans", {}, token)).status).toBe(403);
+    expect((await api("GET", "/audit/schedules?context=plan", undefined, token)).status).toBe(200);
+    expect((await api("GET", "/audit/programmes?context=plan", undefined, token)).status).toBe(200);
+    expect((await api("GET", `/audit/plan-source-schedules/${crypto.randomUUID()}`, undefined, token)).status).toBe(404);
     const permissions = [
       { key: "audit.schedules.view_all", name: "Schedules view" },
       { key: "audit.schedules.create_edit", name: "Schedules edit" },
@@ -121,8 +171,10 @@ describe("Audit role permission persistence", () => {
     expect((await api("GET", "/audit/reports/open-vs-closed", undefined, token)).status).toBe(200);
     expect((await api("GET", "/audit/reports/open-vs-closed?format=csv", undefined, token)).status).toBe(403);
     expect((await api("POST", "/audit/schedules", {}, token)).status).toBe(422);
-    // Schedule editing must never confer top-level Programme creation.
-    expect((await api("POST", "/audit/programmes", {}, token)).status).toBe(403);
+    // The explicit module control covers Schedules / Programme when assigned organization-wide.
+    expect((await api("POST", "/audit/programmes", {}, token)).status).toBe(422);
+    // Source lookups use Plan scope, without granting general Schedule access.
+    expect((await api("GET", "/audit/schedules?context=plan", undefined, token)).status).toBe(403);
     expect((await api("PUT", `/audit/admin/roles/${roleId}`, {
       ...input, permissions: [...permissions, { key: "audit.reports.export", name: "Reports export" }],
     })).status).toBe(200);

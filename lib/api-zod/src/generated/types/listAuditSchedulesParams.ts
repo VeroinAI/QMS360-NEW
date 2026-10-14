@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LimitParameter } from './limitParameter';
+import type { ListAuditSchedulesContext } from './listAuditSchedulesContext';
 import type { PageParameter } from './pageParameter';
 
 export type ListAuditSchedulesParams = {
@@ -19,4 +20,8 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 parentId?: string;
+/**
+ * Plan source selection uses Audit Plan view scope without granting Schedule actions
+ */
+context?: ListAuditSchedulesContext;
 };

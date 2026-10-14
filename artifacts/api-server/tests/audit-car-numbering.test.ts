@@ -18,7 +18,7 @@ import { readFindingNumberState } from "../src/lib/audit-finding-numbering";
 import { carWordReportData } from "../src/lib/car-word-report-data";
 
 let server: Server, base: string, orgId: string, userId: string, projectId: string, missingProjectId: string;
-let token: string, otherToken: string, employeeToken: string, departmentId: string, browserAuditId: string;
+let token: string, otherToken: string, employeeToken: string, employeeId: string, departmentId: string, browserAuditId: string;
 const suffix = randomUUID().slice(0, 8), fixturePath = "/tmp/qms-audit-car-fixture.json";
 const pattern = { prefix: "QAM", middle: "CAR", separator: "-", padding: 4 };
 const response = { rootCause: "Root cause", correction: "Correction", correctiveAction: "Prevent recurrence" };
@@ -77,6 +77,7 @@ beforeAll(async () => {
     email: `car-${i}-${suffix}@example.test`, username: `car-${i}-${suffix}`,
   }))).returning();
   userId = people[0]!.id; token = issueToken(people[0]!); otherToken = issueToken(people[1]!); employeeToken = issueToken(people[2]!);
+  employeeId = people[2]!.id;
   await db.insert(applicationAccess).values(people.map(person => ({
     organizationId: orgId, username: person.username, canOpenAudit: true, status: "active",
   })));
@@ -99,9 +100,20 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   if (process.env.QMS_AUDIT_CAR_CLEANUP !== "1" && orgId) {
-    if (process.env.QMS_AUDIT_CAR_BROWSER === "1") await writeFile(fixturePath, JSON.stringify({
-      orgId, token, otherToken, userId, projectId, auditId: browserAuditId, year: 2035,
-    }), { mode: 0o600 });
+    if (process.env.QMS_AUDIT_CAR_BROWSER === "1") {
+      const [role] = await db.insert(auditWorkspaceRoles).values({ organizationId: orgId, name: "Module verification user" }).returning();
+      for (const module of ["dashboard", "schedules", "plans", "audits", "findings", "cars", "reports"]) {
+        const [permission] = await db.insert(auditPermissions).values({
+          organizationId: orgId, key: `audit.${module}.view_all`, label: `${module} view`, category: "audit",
+        }).returning();
+        await db.insert(auditWorkspaceRolePermissions).values({ organizationId: orgId, workspaceRoleId: role!.id, permissionId: permission!.id });
+      }
+      await db.insert(auditUserWorkspaceRoles).values({ organizationId: orgId, userId: employeeId, workspaceRoleId: role!.id });
+      await writeFile(fixturePath, JSON.stringify({
+        orgId, token, otherToken, userId, projectId, auditId: browserAuditId, year: 2035,
+        moduleRoleId: role!.id, moduleUserId: employeeId, moduleToken: employeeToken,
+      }), { mode: 0o600 });
+    }
     else await cleanup(orgId);
   }
   if (server) await new Promise<void>(resolve => server.close(() => resolve()));
@@ -234,6 +246,28 @@ describe.skipIf(process.env.QMS_AUDIT_CAR_CLEANUP === "1")("Audit CAR numbering"
     expect((await api("GET", `/cars/${f.carId}`)).body.carNumber).toBe("QAM-CC100-CAR-30-0126");
     expect([await readPlanNumberState(orgId), await readReportNumberState(orgId), await readFindingNumberState(orgId)]).toEqual(other);
     await saveCarNumbering(orgId, pattern);
+  });
+  it("honors CAR module actions for the assigned user without substituting other module grants", async () => {
+    const [role] = await db.insert(auditWorkspaceRoles).values({ organizationId: orgId, name: `Module response ${suffix}` }).returning();
+    const grant = async (key: string) => {
+      const [permission] = await db.insert(auditPermissions).values({ organizationId: orgId, key, label: key, category: "audit" }).returning();
+      await db.insert(auditWorkspaceRolePermissions).values({ organizationId: orgId, workspaceRoleId: role!.id, permissionId: permission!.id });
+    };
+    await grant("audit.cars.view_all"); await grant("audit.cars.create_edit");
+    await db.insert(auditUserWorkspaceRoles).values({ organizationId: orgId, userId: employeeId, workspaceRoleId: role!.id });
+    const f = await makeCar(2036);
+    await db.update(audits).set({ checklistState: (f.audit.checklistState as Record<string, unknown>[]).map(item =>
+      item.id === f.itemIds[0] ? { ...item, actionTakerId: employeeId } : item) }).where(eq(audits.id, f.audit.id));
+    expect((await api("PUT", `/cars/${f.carId}`, response, employeeToken)).status).toBe(200);
+    expect((await api("PUT", `/cars/${f.carId}`, { ...response, saveAndSubmit: true }, employeeToken)).status).toBe(403);
+    await grant("audit.cars.submit");
+    expect((await api("PUT", `/cars/${f.carId}`, { ...response, saveAndSubmit: true }, employeeToken)).status).toBe(200);
+    const review = await makeCar(2037);
+    await db.update(auditPlans).set({ status: JSON.stringify({ leadAuditorId: employeeId }) }).where(eq(auditPlans.id, review.plan.id));
+    expect((await api("PUT", `/cars/${review.carId}`, { ...response, saveAndSubmit: true })).status).toBe(200);
+    expect((await api("POST", `/cars/${review.carId}/review`, { decision: "accept" }, employeeToken)).status).toBe(403);
+    await grant("audit.cars.approve_reject");
+    expect((await api("POST", `/cars/${review.carId}/review`, { decision: "accept" }, employeeToken)).status).toBe(200);
   });
 });
 it.skipIf(process.env.QMS_AUDIT_CAR_CLEANUP !== "1")("removes only the isolated CAR browser fixture", async () => {

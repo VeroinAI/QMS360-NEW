@@ -137,6 +137,7 @@ import { useLov, withLegacyOption } from "@/lib/use-lov";
 import { categoryOptionsForAuditType } from "./audit-category-options";
 import { useFieldAccess } from "@/lib/use-field-access";
 import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
+import { useGetAuditPlanSourceSchedule, getGetAuditPlanSourceScheduleQueryKey } from "@workspace/api-client-react";
 import { useFieldControls } from "@/lib/field-controls";
 import {
   cacheAuditPlanContext,
@@ -638,8 +639,9 @@ function Metric({ label, value, icon }: { label: string; value: number; icon: Re
 }
 
 function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: AuditSchedule; onClose: () => void; parentId?: string; parentRange?: ProgrammeRange }) {
+  const permissions = useAuditCapabilities();
   const qc = useQueryClient(); const { toast } = useToast();
-  const fc = useFieldControls("audit", "schedule"); const ro = (key: string) => fc.fieldProps(key).disabled; const req = (key: string) => fc.fieldProps(key).required;
+  const fc = useFieldControls("audit", "schedule"); const ro = (key: string) => !permissions.can("schedules", "create_edit") || fc.fieldProps(key).disabled; const req = (key: string) => fc.fieldProps(key).required;
   const [createdScheduleId, setCreatedScheduleId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<AuditSchedule>(initial ?? {
@@ -1159,6 +1161,7 @@ function ProgrammeTeamLeadsDialog({ item, onClose, onSaved }: {
 }
 
 function Programmes() {
+  const permissions = useAuditCapabilities();
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState<{ id: string; title: string }>();
@@ -1182,7 +1185,7 @@ function Programmes() {
     toast({ title: message });
   };
   return <div className="space-y-5">
-    <PageHeader title="Audit schedules" description="Create and manage annual audit programmes" action={<Button onClick={() => setOpen(true)}><Plus className="mr-2 size-4"/>New Schedule</Button>} />
+    <PageHeader title="Audit schedules" description="Create and manage annual audit programmes" action={<Button disabled={!permissions.canCreateProgramme} onClick={() => setOpen(true)}><Plus className="mr-2 size-4"/>New Schedule</Button>} />
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>New Schedule</DialogTitle></DialogHeader><ProgrammeForm onClose={() => setOpen(false)} /></DialogContent></Dialog>
     {submitting && <ProgrammeSubmitDialog key={submitting.id} item={submitting} onClose={() => setSubmitting(undefined)} onSubmitted={updated => done("Audit schedule submitted", updated)}/>}
     {sendingBack && <ProgrammeSendBackDialog key={sendingBack.id} item={sendingBack} onClose={() => setSendingBack(undefined)} onSentBack={updated => done("Audit schedule sent back", updated)}/>}
@@ -1196,13 +1199,14 @@ function Programmes() {
         {item.canManageTeamLeads && <Button size="sm" variant="outline" onClick={() => setManagingLeads(item)}>Manage Team Leads</Button>}
         {item.id !== "legacy" && item.canSubmit && <Button size="sm" disabled={item.childCount === 0 || !!submitting} onClick={() => setSubmitting(item)}>{item.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}
         {item.id !== "legacy" && item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: updated => done("Audit schedule approved", updated), onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve</Button><Button size="sm" variant="outline" onClick={() => setSendingBack(item)}>Send back</Button></>}
-        {item.id !== "legacy" && <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved audit schedules cannot be deleted" : item.childCount > 0 ? "Audit schedules with child audits cannot be deleted" : "Delete audit schedule"} disabled={item.workflowState === "Approved" || item.childCount > 0 || remove.isPending} onClick={() => window.confirm("Delete this audit schedule?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Audit schedule deleted"), onError: e => toast({ title: "Unable to delete audit schedule", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>}
+        {item.id !== "legacy" && <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved audit schedules cannot be deleted" : item.childCount > 0 ? "Audit schedules with child audits cannot be deleted" : "Delete audit schedule"} disabled={!permissions.can("schedules", "delete") || item.workflowState === "Approved" || item.childCount > 0 || remove.isPending} onClick={() => window.confirm("Delete this audit schedule?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Audit schedule deleted"), onError: e => toast({ title: "Unable to delete audit schedule", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>}
       </div></TableCell></TableRow>)}
     </TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage} /></CardContent></Card>}
   </div>;
 }
 
 function Schedules() {
+  const permissions = useAuditCapabilities();
   const { parentId = "" } = useParams<{ parentId: string }>();
   const focusId = new URLSearchParams(window.location.search).get("focusSchedule") ?? "";
   const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false); const [displaying, setDisplaying] = useState<AuditSchedule | undefined>();
@@ -1212,7 +1216,7 @@ function Schedules() {
   const [showProgrammeDetails, setShowProgrammeDetails] = useState(false);
   const [showLeadManager, setShowLeadManager] = useState(false);
   const [planning, setPlanning] = useState<AuditSchedule | undefined>();
-  const query = useListAuditSchedules({ page, limit: PAGE_SIZE, parentId }); const planSchedules = useListAuditPlans({ page: 1, limit: 100 }); const qc = useQueryClient(); const { toast } = useToast();
+  const query = useListAuditSchedules({ page, limit: PAGE_SIZE, parentId }); const planSchedules = useListAuditPlans({ page: 1, limit: 100 }, { query: { enabled: permissions.canRead("plans"), queryKey: ["/api/audit/plans", { page: 1, limit: 100 }] } }); const qc = useQueryClient(); const { toast } = useToast();
   const focused = useGetAuditSchedule(focusId, { query: { enabled: !!focusId, queryKey: ["/api/audit/schedules", focusId] } });
   const programme = useGetAuditProgramme(parentId, { query: { enabled: parentId !== "legacy" && !!parentId, queryKey: getGetAuditProgrammeQueryKey(parentId) } });
   const allChildren = useListAuditSchedules({ page: 1, limit: 200, parentId });
@@ -1352,7 +1356,7 @@ function Schedules() {
     finally { setLoadingFile(false); if (fileInput.current) fileInput.current.value = ""; }
   };
   const programmePending = parentId !== "legacy" && (programme.isLoading || !programme.data);
-  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<div className="flex flex-wrap gap-2">{parentId !== "legacy" && <Button variant="outline" onClick={() => setShowProgrammeDetails(true)} disabled={!programme.data}><Info className="mr-2 size-4"/>Schedule details</Button>}{programme.data?.canManageTeamLeads && <Button variant="outline" onClick={() => setShowLeadManager(true)}>Manage Team Leads</Button>}<Button variant="outline" onClick={() => void download()} disabled={allChildren.isLoading || downloading || programmePending}><Download className="mr-2 size-4"/>{downloading ? "Downloading…" : "Download"}</Button><Button variant="outline" onClick={() => fileInput.current?.click()} disabled={loadingFile || projects.isLoading || programmePending || parentSubmitted}><Upload className="mr-2 size-4"/>{loadingFile ? "Loading…" : "Load"}</Button><input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void loadFile(file); }}/>{parentId !== "legacy" && programme.data?.canSubmit && <Button variant="outline" disabled={programmePending || !programme.data.childCount || !!submitting} onClick={() => setSubmitting({ id: parentId, title: programme.data.title })}>{programme.data.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}{programme.data?.workflowState === "Submitted" && programme.data.canReview && <><Button disabled={reviewProgramme.isPending} onClick={() => reviewProgramme.mutate({ id: parentId, data: { decision: "approve" } }, { onSuccess: updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule approved"); }, onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve schedule</Button><Button variant="outline" onClick={() => setSendingProgrammeBack({ id: parentId, title: programme.data!.title })}>Send back</Button></>}<Button disabled={programmePending || parentSubmitted} title={parentSubmitted ? "New audits cannot be created while the audit schedule is submitted" : undefined} onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button></div>}/>
+  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<div className="flex flex-wrap gap-2">{parentId !== "legacy" && <Button variant="outline" onClick={() => setShowProgrammeDetails(true)} disabled={!programme.data}><Info className="mr-2 size-4"/>Schedule details</Button>}{programme.data?.canManageTeamLeads && <Button variant="outline" onClick={() => setShowLeadManager(true)}>Manage Team Leads</Button>}<Button variant="outline" onClick={() => void download()} disabled={!permissions.canExport("schedules") || allChildren.isLoading || downloading || programmePending}><Download className="mr-2 size-4"/>{downloading ? "Downloading…" : "Download"}</Button><Button variant="outline" onClick={() => fileInput.current?.click()} disabled={!permissions.can("schedules", "create_edit") || loadingFile || projects.isLoading || programmePending || parentSubmitted}><Upload className="mr-2 size-4"/>{loadingFile ? "Loading…" : "Load"}</Button><input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" disabled={!permissions.can("schedules", "create_edit")} className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void loadFile(file); }}/>{parentId !== "legacy" && programme.data?.canSubmit && <Button variant="outline" disabled={!permissions.can("schedules", "submit") || programmePending || !programme.data.childCount || !!submitting} onClick={() => setSubmitting({ id: parentId, title: programme.data.title })}>{programme.data.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}{programme.data?.workflowState === "Submitted" && programme.data.canReview && <><Button disabled={reviewProgramme.isPending} onClick={() => reviewProgramme.mutate({ id: parentId, data: { decision: "approve" } }, { onSuccess: updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule approved"); }, onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve schedule</Button><Button variant="outline" onClick={() => setSendingProgrammeBack({ id: parentId, title: programme.data!.title })}>Send back</Button></>}<Button disabled={!permissions.can("schedules", "create_edit") || programmePending || parentSubmitted} title={parentSubmitted ? "New audits cannot be created while the audit schedule is submitted" : undefined} onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button></div>}/>
     {showProgrammeDetails && programme.data && <ProgrammeDetailsDialog item={programme.data} onClose={() => setShowProgrammeDetails(false)}/>}
     {showLeadManager && programme.data && <ProgrammeTeamLeadsDialog item={programme.data} onClose={() => setShowLeadManager(false)} onSaved={updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit Team Leads updated"); }}/>}
     {focusId && <Card><CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
@@ -1385,11 +1389,11 @@ function Schedules() {
     {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Audit</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><div className="flex flex-wrap gap-1"><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge><FeasibilityBadge decision={item.feasibilityDecision}/></div></TableCell><TableCell><div className="flex justify-end gap-1">
       <Button size="sm" variant="outline" onClick={() => setDisplaying(item)}>Display</Button>
       <ScheduleActivityButton id={item.id} title={item.title}/>
-      {item.workflowState === "Draft" && <Button size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button>}
+      {item.workflowState === "Draft" && <Button disabled={!permissions.can("schedules", "create_edit")} size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button>}
       {item.feasibilityFeedback && <Button size="icon" variant="ghost" aria-label={`View feasibility feedback for ${item.title}`} title="View Remarks / Feedback" onClick={() => setDisplaying(item)}><Info className="size-4"/></Button>}
       {item.workflowState === "Approved" && <Button size="sm" title={!item.parentId ? "New Plans require an audit belonging to a New Schedule" : parentSubmitted ? "New plans cannot be created while the audit schedule is submitted" : item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={!item.parentId || parentSubmitted || item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>}
       {item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved") })}>Approve</Button><Button size="sm" variant="outline" onClick={() => sendBack(item.id)}>Send back</Button></>}
-      <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved child audits cannot be deleted" : "Delete child audit"} disabled={item.workflowState === "Approved" || remove.isPending} onClick={() => window.confirm("Delete this child audit?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Child audit deleted"), onError: e => toast({ title: "Unable to delete child audit", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>
+      <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved child audits cannot be deleted" : "Delete child audit"} disabled={!permissions.can("schedules", "delete") || item.workflowState === "Approved" || remove.isPending} onClick={() => window.confirm("Delete this child audit?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Child audit deleted"), onError: e => toast({ title: "Unable to delete child audit", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>
     </div></TableCell></TableRow>)}</TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card>}
     {items.length > 0 && viewMode === "gantt" && <div className="space-y-4"><ScheduleGantt items={items} onDisplay={setDisplaying} onEdit={item => { setEditing(item); setOpen(true); }} onNewPlan={setPlanning} planCreationDisabled={parentSubmitted}/><Card className="bg-transparent border-none shadow-none"><CardContent className="p-0"><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card></div>}
   </div>;
@@ -1405,16 +1409,18 @@ function ScheduleDisplay({ schedule, onClose }: { schedule: AuditSchedule; onClo
     <DialogFooter><Button onClick={onClose}>Close</Button></DialogFooter></>;
 }
 
-function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme, readOnly = false, queued = false, queuedOperation = "create" }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; presetSchedule?: AuditSchedule; presetProgramme?: AuditProgramme; readOnly?: boolean; queued?: boolean; queuedOperation?: "create" | "update" }) {
+function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme, readOnly: requestedReadOnly = false, queued = false, queuedOperation = "create" }: { schedules: AuditSchedule[]; onClose: () => void; initial?: AuditPlan; presetSchedule?: AuditSchedule; presetProgramme?: AuditProgramme; readOnly?: boolean; queued?: boolean; queuedOperation?: "create" | "update" }) {
+  const permissions = useAuditCapabilities();
+  const readOnly = requestedReadOnly || !permissions.can("plans", "create_edit");
   const [programmeId, setProgrammeId] = useState(presetSchedule?.parentId ?? "");
   const programmes = useQuery({
     queryKey: ["/api/audit/programmes", { purpose: "plan-source-options" }],
-    queryFn: () => loadPlanOptionPages(page => listAuditProgrammes({ page, limit: 100 })),
+    queryFn: () => loadPlanOptionPages(page => listAuditProgrammes({ page, limit: 100, context: "plan" })),
     enabled: !initial && !readOnly && navigator.onLine,
   });
   const programmeAudits = useQuery({
     queryKey: ["/api/audit/schedules", { parentId: programmeId, purpose: "plan-source-options" }],
-    queryFn: () => loadPlanOptionPages(page => listAuditSchedules({ page, limit: 100, parentId: programmeId })),
+    queryFn: () => loadPlanOptionPages(page => listAuditSchedules({ page, limit: 100, parentId: programmeId, context: "plan" })),
     enabled: !initial && !readOnly && !!programmeId && navigator.onLine,
   });
   const [form, setForm] = useState<AuditPlan>(initial ? {
@@ -1434,8 +1440,8 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [feasibilityOpen, setFeasibilityOpen] = useState(false);
-  const linkedSchedule = useGetAuditSchedule(form.scheduleId ?? "", {
-    query: { enabled: !!form.scheduleId && navigator.onLine, staleTime: 0, refetchOnMount: "always", queryKey: getGetAuditScheduleQueryKey(form.scheduleId ?? "") },
+  const linkedSchedule = useGetAuditPlanSourceSchedule(form.scheduleId ?? "", {
+    query: { enabled: !!form.scheduleId && navigator.onLine, staleTime: 0, refetchOnMount: "always", queryKey: getGetAuditPlanSourceScheduleQueryKey(form.scheduleId ?? "") },
   });
   const [feasibilityFeedback, setFeasibilityFeedback] = useState("");
   const [feasibilityError, setFeasibilityError] = useState("");
@@ -1936,6 +1942,7 @@ function SendForAuditDialog({ plan, open, onOpenChange, onSent }: {
 }
 
 function Plans() {
+  const permissions = useAuditCapabilities();
   const [queuedPlans, setQueuedPlans] = useState<QueuedAuditPlan[]>([]);
   const [correcting, setCorrecting] = useState<QueuedAuditPlan>();
   useEffect(() => {
@@ -1946,7 +1953,7 @@ function Plans() {
   }, []);
   const [page, setPage] = useState(1); const [open, setOpen] = useState(false); const [search, setSearch] = useState(""); const [sendPlan, setSendPlan] = useState<AuditPlan>();
   const [, navigate] = useLocation();
-  const query = useListAuditPlans({ page, limit: PAGE_SIZE }); const knownPlans = useListAuditPlans({ page: 1, limit: 100 }); const schedules = useListAuditSchedules({ page: 1, limit: 100 }); const openAudit = useSendAuditPlanForExecution(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
+  const query = useListAuditPlans({ page, limit: PAGE_SIZE }); const knownPlans = useListAuditPlans({ page: 1, limit: 100 }); const schedules = useListAuditSchedules({ page: 1, limit: 100, context: "plan" }); const openAudit = useSendAuditPlanForExecution(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
   const items = (query.data?.items ?? []).filter(x => x.auditTitle.toLowerCase().includes(search.toLowerCase()));
   const occupiedScheduleIds = new Set((knownPlans.data?.items ?? []).map(plan => plan.scheduleId));
   const availableSchedules = (schedules.data?.items ?? []).filter(schedule =>
@@ -1957,10 +1964,10 @@ function Plans() {
     qc.invalidateQueries({ queryKey: ["/api/audit/audits"] });
     toast({ title });
   };
-  return <div className="space-y-5"><PageHeader title="Audit plans" description="Define the Stage 2 Audit Planning programme" action={<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button><Plus className="mr-2 size-4"/>New plan</Button></DialogTrigger><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader><PlanForm schedules={availableSchedules} onClose={() => setOpen(false)}/></DialogContent></Dialog>}/><Input className="max-w-sm" placeholder="Search audit title…" value={search} onChange={e => setSearch(e.target.value)}/><State loading={query.isLoading} error={query.error} empty={!items.length}/>
+  return <div className="space-y-5"><PageHeader title="Audit plans" description="Define the Stage 2 Audit Planning programme" action={<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button disabled={!permissions.can("plans", "create_edit")}><Plus className="mr-2 size-4"/>New plan</Button></DialogTrigger><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader><PlanForm schedules={availableSchedules} onClose={() => setOpen(false)}/></DialogContent></Dialog>}/><Input className="max-w-sm" placeholder="Search audit title…" value={search} onChange={e => setSearch(e.target.value)}/><State loading={query.isLoading} error={query.error} empty={!items.length}/>
     <div className="grid gap-4 md:grid-cols-2">{items.map(plan => <Card key={plan.id}><CardHeader><div className="flex justify-between gap-2"><CardTitle className="text-base"><Link className="underline-offset-4 hover:underline" href={`/audit/plans/${plan.id}`}>{plan.auditTitle}</Link></CardTitle><Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div>
       {plan.planNumber && <p className="break-all font-mono text-sm" data-testid="audit-plan-number">{plan.planNumber}</p>}
-      <CardDescription>{date(plan.startDateTime)} · {plan.activitySection}</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><p><b>Audit type:</b> {plan.auditTypes.join(", ")}</p><p><b>Team:</b> {plan.teamMemberIds.length} member(s)</p><p className="text-muted-foreground">{plan.description || plan.activityRemarks}</p><div className="flex flex-wrap justify-end gap-2"><AuditPlanDownload id={plan.id}/><Button size="sm" variant="outline" asChild><Link href={`/audit/plans/${plan.id}`}>{plan.status === "Draft" ? <Pencil className="mr-2 size-4"/> : <Eye className="mr-2 size-4"/>}{plan.status === "Draft" ? "Edit" : "View"}</Link></Button>{plan.status === "Draft" && <Button size="sm" onClick={() => setSendPlan(plan)}><Send className="mr-2 size-4"/>Send for Audit</Button>}<Button size="sm" variant="outline" disabled={plan.status === "Draft" || openAudit.isPending} title={plan.status === "Draft" ? "Send this plan for audit first" : "Open Audit Execution"} onClick={() => openAudit.mutate({ id: plan.id, data: { roleIds: [] } }, { onSuccess: audit => navigate(`/audit/audits/${audit.id}`), onError: error => toast({ title: "Unable to open Audit Execution", description: errorText(error), variant: "destructive" }) })}><ClipboardCheck className="mr-2 size-4"/>Audit</Button><Button size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></div></CardContent></Card>)}</div>
+      <CardDescription>{date(plan.startDateTime)} · {plan.activitySection}</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><p><b>Audit type:</b> {plan.auditTypes.join(", ")}</p><p><b>Team:</b> {plan.teamMemberIds.length} member(s)</p><p className="text-muted-foreground">{plan.description || plan.activityRemarks}</p><div className="flex flex-wrap justify-end gap-2"><AuditPlanDownload id={plan.id}/><Button size="sm" variant="outline" asChild><Link href={`/audit/plans/${plan.id}`}>{plan.status === "Draft" && permissions.can("plans", "create_edit") ? <Pencil className="mr-2 size-4"/> : <Eye className="mr-2 size-4"/>}{plan.status === "Draft" && permissions.can("plans", "create_edit") ? "Edit" : "View"}</Link></Button>{plan.status === "Draft" && <Button disabled={!permissions.can("plans", "submit")} size="sm" onClick={() => setSendPlan(plan)}><Send className="mr-2 size-4"/>Send for Audit</Button>}<Button size="sm" variant="outline" disabled={!permissions.can("plans", "submit") || !permissions.canRead("audits") || plan.status === "Draft" || openAudit.isPending} title={plan.status === "Draft" ? "Send this plan for audit first" : "Open Audit Execution"} onClick={() => openAudit.mutate({ id: plan.id, data: { roleIds: [] } }, { onSuccess: audit => navigate(`/audit/audits/${audit.id}`), onError: error => toast({ title: "Unable to open Audit Execution", description: errorText(error), variant: "destructive" }) })}><ClipboardCheck className="mr-2 size-4"/>Audit</Button><Button disabled={!permissions.can("plans", "delete")} size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></div></CardContent></Card>)}</div>
     {!!queuedPlans.length && <Card><CardHeader><CardTitle>Plans saved on this device</CardTitle><CardDescription>Correct rejected plans here, then save to retry synchronization. A correction to an already saved plan must be reviewed and applied to its editable draft.</CardDescription></CardHeader><CardContent className="space-y-3">{queuedPlans.map(item => <div key={item.id} className="rounded border p-3"><p className="font-medium">{item.plan.auditTitle}</p><p className="text-sm text-destructive">{item.lastError ?? "Awaiting synchronization"}</p><div className="mt-2 flex flex-wrap gap-2">{item.savedPlanConflict && <Button variant="outline" asChild><Link href={`/audit/plans/${item.id}`}>Compare saved plan</Link></Button>}<Button variant="outline" onClick={() => setCorrecting(item)}>{item.savedPlanConflict ? "Review and apply to saved draft" : "Correct queued plan"}</Button></div></div>)}</CardContent></Card>}
     <Dialog open={!!correcting} onOpenChange={isOpen => !isOpen && setCorrecting(undefined)}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{correcting?.savedPlanConflict ? "Review correction to saved draft" : "Correct queued Audit Plan"}</DialogTitle>{correcting?.savedPlanConflict && <p className="text-sm text-muted-foreground">Saving applies these corrections to the existing draft. If it is no longer editable, your correction stays on this device with an error.</p>}</DialogHeader>{correcting && <PlanForm key={correcting.id} initial={correcting.plan} queued queuedOperation={correcting.savedPlanConflict ? "update" : correcting.operation ?? "create"} schedules={schedules.data?.items ?? []} onClose={() => setCorrecting(undefined)}/>}</DialogContent></Dialog>
     <SendForAuditDialog plan={sendPlan} open={!!sendPlan} onOpenChange={isOpen => !isOpen && setSendPlan(undefined)} onSent={() => refresh("Audit sent to Audit Execution")} />
@@ -1968,17 +1975,18 @@ function Plans() {
 }
 
 function PlanDetail() {
+  const permissions = useAuditCapabilities();
   const { id = "" } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const [sendOpen, setSendOpen] = useState(false);
   const query = useGetAuditPlan(id);
-  const schedules = useListAuditSchedules({ page: 1, limit: 100 });
+  const schedules = useListAuditSchedules({ page: 1, limit: 100, context: "plan" });
   const qc = useQueryClient();
   const { toast } = useToast();
   if (query.isLoading || query.error || !query.data) return <div className="space-y-4"><Button variant="ghost" asChild><Link href="/audit/plans"><ArrowLeft className="mr-2 size-4"/>Audit plans</Link></Button><State loading={query.isLoading} error={query.error} empty={!query.data}/></div>;
   const plan = query.data;
-  const editable = plan.status === "Draft";
-  return <div className="space-y-5"><Button variant="ghost" asChild><Link href="/audit/plans"><ArrowLeft className="mr-2 size-4"/>Audit plans</Link></Button><PageHeader title={plan.auditTitle} description={editable ? "Draft Audit Plan · editable" : `${plan.status} Audit Plan · read-only`} action={<div className="flex flex-wrap items-center gap-2"><AuditPlanDownload id={plan.id}/>{editable && <Button onClick={() => setSendOpen(true)}><Send className="mr-2 size-4"/>Send for Audit</Button>}<Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div>}/><Card><CardContent className="pt-6"><PlanForm initial={plan} readOnly={!editable} schedules={schedules.data?.items ?? []} onClose={() => navigate("/audit/plans")}/></CardContent></Card><SendForAuditDialog plan={plan} open={sendOpen} onOpenChange={setSendOpen} onSent={() => { qc.invalidateQueries({ queryKey: ["/api/audit/plans"] }); qc.invalidateQueries({ queryKey: ["/api/audit/audits"] }); void query.refetch(); toast({ title: "Audit sent to Audit Execution" }); }} /></div>;
+  const editable = plan.status === "Draft" && permissions.can("plans", "create_edit");
+  return <div className="space-y-5"><Button variant="ghost" asChild><Link href="/audit/plans"><ArrowLeft className="mr-2 size-4"/>Audit plans</Link></Button><PageHeader title={plan.auditTitle} description={editable ? "Draft Audit Plan · editable" : `${plan.status} Audit Plan · read-only`} action={<div className="flex flex-wrap items-center gap-2"><AuditPlanDownload id={plan.id}/>{plan.status === "Draft" && permissions.can("plans", "submit") && <Button onClick={() => setSendOpen(true)}><Send className="mr-2 size-4"/>Send for Audit</Button>}<Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div>}/><Card><CardContent className="pt-6"><PlanForm initial={plan} readOnly={!editable} schedules={schedules.data?.items ?? []} onClose={() => navigate("/audit/plans")}/></CardContent></Card><SendForAuditDialog plan={plan} open={sendOpen} onOpenChange={setSendOpen} onSent={() => { qc.invalidateQueries({ queryKey: ["/api/audit/plans"] }); qc.invalidateQueries({ queryKey: ["/api/audit/audits"] }); void query.refetch(); toast({ title: "Audit sent to Audit Execution" }); }} /></div>;
 }
 
 function Audits() {
@@ -2011,7 +2019,8 @@ function MeetingEditor({ auditId, kind, value, openingAttendees }: { auditId: st
   const [form, setForm] = useState<MeetingMinutes>(value ?? { heldAt: "", attendees: [], minutes: "" });
   const [attendeePickerOpen, setAttendeePickerOpen] = useState(false);
   const qc = useQueryClient(); const { toast } = useToast();
-  const fa = useFieldAccess("audit"); const locked = fa.readOnly("audit-execution", `${kind}Meeting`);
+  const permissions = useAuditCapabilities();
+  const fa = useFieldAccess("audit"); const locked = !permissions.can("audits", "create_edit") || fa.readOnly("audit-execution", `${kind}Meeting`);
   const opening = useUpdateAuditOpeningMeeting(); const closing = useUpdateAuditClosingMeeting();
   const attendeeOptions = useListAuditMeetingAttendees(auditId);
   const users = attendeeOptions.data ?? [];
@@ -2045,6 +2054,8 @@ function MeetingEditor({ auditId, kind, value, openingAttendees }: { auditId: st
 }
 
 function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistItem[] }) {
+  const permissions = useAuditCapabilities();
+  const readOnly = !permissions.can("audits", "create_edit");
   const empty = () => ({ clause: "", auditArea: "", question: "", description: "", auditFinding: "", evidenceIds: [] as string[], files: [] as PendingChecklistEvidence[] });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ChecklistItem | null>(null);
@@ -2180,8 +2191,8 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
     <CardHeader className="flex-row flex-wrap items-center justify-between gap-3">
       <div><CardTitle>Checklist</CardTitle><CardDescription>Clause-level audit questions and findings</CardDescription></div>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" disabled={downloading || areas.isLoading || !!areas.error || !areas.options.length} onClick={() => void download()}><Download className="mr-2 size-4"/>{downloading ? "Preparing…" : "Download Template"}</Button>
-        <Button variant="outline" disabled={importing || areas.isLoading || !!areas.error || !areas.options.length} onClick={() => uploadInput.current?.click()}><Upload className="mr-2 size-4"/>{importing ? "Importing…" : "Upload Excel"}</Button>
+        <Button variant="outline" disabled={!permissions.canExport("audits") || downloading || areas.isLoading || !!areas.error || !areas.options.length} onClick={() => void download()}><Download className="mr-2 size-4"/>{downloading ? "Preparing…" : "Download Template"}</Button>
+        <Button variant="outline" disabled={readOnly || importing || areas.isLoading || !!areas.error || !areas.options.length} onClick={() => uploadInput.current?.click()}><Upload className="mr-2 size-4"/>{importing ? "Importing…" : "Upload Excel"}</Button>
         <input ref={uploadInput} className="hidden" type="file" accept=".xlsx" onChange={event => { const file = event.target.files?.[0]; if (file) void importFile(file); }}/>
         <Button onClick={() => { setEditing(null); setDraft(empty()); setOpen(true); }}><Plus className="mr-2 size-4"/>New Item</Button>
       </div>
@@ -2203,7 +2214,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
                 : <span key={id} className="block text-muted-foreground">File unavailable</span>;
             }) : "—"}</TableCell>
             <TableCell className="align-top"><div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => openEdit(item)}><Pencil className="mr-2 size-3"/>Edit</Button>
+              <Button disabled={readOnly} size="sm" variant="outline" onClick={() => openEdit(item)}><Pencil className="mr-2 size-3"/>Edit</Button>
               <Button size="sm" variant="outline" className="text-destructive" aria-label={`Delete checklist item ${item.clause ?? ""}: ${item.question}`}
                 title={checklistDeletionBlockReason(item) ?? "Delete this checklist item"}
                 disabled={Boolean(checklistDeletionBlockReason(item)) || deleteItem.isPending || saving || importing}

@@ -9,8 +9,8 @@ Audit module grants are additive to existing global permissions. Do not automati
 
 **How to apply:** Clearly tell administrators to remove broad global grants when they intend a module-limited role. A module view grant covers only its authorizing assignments' projects. Action grants and Audit workflow markers do not imply view access. Preserve existing application-administrator behavior within assignment scope, not organization-wide by role name.
 
-Keep Schedule editing separate from organization-wide Programme creation, and require the existing positive Approval Level for module-specific Schedule approval.
+The explicit “Schedules / Programme → Create / edit” module grant now authorizes top-level Programme creation only when its role assignment is organization-wide. The older generic `data_entry` grant remains child-Schedule-only. Keep the dedicated Programme-create capability supported, and require the existing positive Approval Level for module-specific Schedule approval.
 
-**Why:** Module controls must not undo the previously agreed Programme-creation and sequential-approval boundaries.
+**Why:** The user subsequently requested that each module's Create grant permit creation in that module; the current Schedule list's New Schedule action creates a Programme. A project-restricted assignment still cannot create an organization-level parent outside its scope.
 
-**How to apply:** Treat module-specific Schedule approval as an approval grant for level validation and approval-stage role selection, but never interpret Schedule create/edit as the dedicated Programme-create capability.
+**How to apply:** Preserve the distinction between explicit module grants and legacy generic data entry. Plan editors may fetch scoped source Schedules and Programmes for selection without gaining general Schedule actions. Record-level ownership, assigned approval stages, CAR Action Taker/Lead boundaries and field access remain additional checks.

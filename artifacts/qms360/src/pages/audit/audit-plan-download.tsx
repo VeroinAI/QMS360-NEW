@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
 import { Download } from "lucide-react";
 import { customFetch } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
 export function AuditPlanDownload({ id }: { id: string }) {
+  const permissions = useAuditCapabilities();
   const [busy, setBusy] = useState(false);
   const { toast } = useToast();
   const download = async () => {
@@ -21,7 +23,7 @@ export function AuditPlanDownload({ id }: { id: string }) {
       toast({ title: "Unable to download Audit Plan", description: error instanceof Error ? error.message : "Please try again.", variant: "destructive" });
     } finally { setBusy(false); }
   };
-  return <Button size="sm" variant="outline" disabled={busy} onClick={() => void download()} aria-label="Download Audit Plan PDF">
+  return <Button size="sm" variant="outline" disabled={busy || !permissions.canExport("plans")} onClick={() => void download()} aria-label="Download Audit Plan PDF">
     <Download className="mr-2 size-4"/>{busy ? "Preparing…" : "Download PDF"}
   </Button>;
 }

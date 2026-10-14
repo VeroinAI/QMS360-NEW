@@ -5439,7 +5439,18 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 parentId?: string;
+/**
+ * Plan source selection uses Audit Plan view scope without granting Schedule actions
+ */
+context?: ListAuditSchedulesContext;
 };
+
+export type ListAuditSchedulesContext = typeof ListAuditSchedulesContext[keyof typeof ListAuditSchedulesContext];
+
+
+export const ListAuditSchedulesContext = {
+  plan: 'plan',
+} as const;
 
 export type ListAuditMyActionsParams = {
 /**
@@ -5463,7 +5474,18 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+/**
+ * Plan source selection uses Audit Plan view scope
+ */
+context?: ListAuditProgrammesContext;
 };
+
+export type ListAuditProgrammesContext = typeof ListAuditProgrammesContext[keyof typeof ListAuditProgrammesContext];
+
+
+export const ListAuditProgrammesContext = {
+  plan: 'plan',
+} as const;
 
 export type GetAuditPlanNumberPreviewParams = {
 /**

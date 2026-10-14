@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { useFieldAccess } from "@/lib/use-field-access";
 import { useFieldControls } from "@/lib/field-controls";
+import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
 
 export const isAuditReportEligible = (status?: string) => status === "Complete" || status === "Closed";
 
@@ -18,9 +19,10 @@ export function useAuditEditAccess(audit: { canEdit?: boolean }, fieldKey?: "sta
 }
 
 export function ReportButton({ audit, size }: { audit: { id: string; status: string }; size?: "sm" }) {
+  const permissions = useAuditCapabilities();
   const [busy, setBusy] = useState(false);
   const { toast } = useToast();
-  const ok = isAuditReportEligible(audit.status);
+  const ok = isAuditReportEligible(audit.status) && permissions.canExport("audits");
   const download = async () => {
     if (busy || !ok) return;
     setBusy(true);

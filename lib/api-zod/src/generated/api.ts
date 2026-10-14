@@ -7015,7 +7015,8 @@ export const listAuditSchedulesQueryLimitMax = 200;
 export const ListAuditSchedulesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditSchedulesQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listAuditSchedulesQueryLimitMax).default(listAuditSchedulesQueryLimitDefault),
-  "parentId": zod.coerce.string().optional()
+  "parentId": zod.coerce.string().optional(),
+  "context": zod.enum(['plan']).optional().describe('Plan source selection uses Audit Plan view scope without granting Schedule actions')
 })
 
 export const listAuditSchedulesResponseOneTotalMin = 0;
@@ -7196,7 +7197,8 @@ export const listAuditProgrammesQueryLimitMax = 200;
 
 export const ListAuditProgrammesQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listAuditProgrammesQueryPageDefault),
-  "limit": zod.coerce.number().min(1).max(listAuditProgrammesQueryLimitMax).default(listAuditProgrammesQueryLimitDefault)
+  "limit": zod.coerce.number().min(1).max(listAuditProgrammesQueryLimitMax).default(listAuditProgrammesQueryLimitDefault),
+  "context": zod.enum(['plan']).optional().describe('Plan source selection uses Audit Plan view scope')
 })
 
 export const listAuditProgrammesResponseOneTotalMin = 0;
@@ -7729,6 +7731,75 @@ export const RecordAuditScheduleFeasibilityResponse = zod.object({
   "location": zod.string().optional().describe('GPS coordinates formatted as latitude, longitude'),
   "gpsLat": zod.number().min(recordAuditScheduleFeasibilityResponseGpsLatMin).max(recordAuditScheduleFeasibilityResponseGpsLatMax).nullish(),
   "gpsLng": zod.number().min(recordAuditScheduleFeasibilityResponseGpsLngMin).max(recordAuditScheduleFeasibilityResponseGpsLngMax).nullish(),
+  "processProductOwner": zod.string().optional(),
+  "plannedStartDate": zod.coerce.date(),
+  "plannedEndDate": zod.coerce.date(),
+  "qaqcReference": zod.string().optional(),
+  "auditNumber": zod.string().optional(),
+  "qaqcScope": zod.string().optional(),
+  "qaqcClauses": zod.string().optional(),
+  "remarks": zod.string().nullish(),
+  "l1Name": zod.string().optional(),
+  "l1ReviewStatus": zod.enum(['Pending', 'Accept', 'Send Back']).optional(),
+  "l1ReviewComments": zod.string().nullish(),
+  "l1Attachments": zod.array(zod.string()).optional(),
+  "l2Name": zod.string().optional(),
+  "l2ReviewStatus": zod.enum(['Pending', 'Accept', 'Send Back']).optional(),
+  "l2ReviewComments": zod.string().nullish(),
+  "l2Attachments": zod.array(zod.string()).optional(),
+  "memoDescription": zod.string().optional(),
+  "memoCirculation": zod.string().optional(),
+  "ownerId": zod.string().optional(),
+  "workflowState": zod.enum(['Draft', 'Submitted', 'Approved', 'Sent Back', 'Deleted']),
+  "reviewComments": zod.string().nullish(),
+  "currentApprovalRole": zod.string().nullable(),
+  "approvalRoles": zod.array(zod.string()),
+  "canReview": zod.boolean()
+})
+
+
+/**
+ * @summary Get a source schedule within the user's Audit Plan view scope
+ */
+export const GetAuditPlanSourceScheduleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+export const getAuditPlanSourceScheduleResponseActivityRoleAssignmentsItemUserIdsMax = 200;
+
+export const getAuditPlanSourceScheduleResponseActivityRoleAssignmentsMax = 200;
+
+export const getAuditPlanSourceScheduleResponseGpsLatMin = -90;
+export const getAuditPlanSourceScheduleResponseGpsLatMax = 90;
+
+export const getAuditPlanSourceScheduleResponseGpsLngMin = -180;
+export const getAuditPlanSourceScheduleResponseGpsLngMax = 180;
+
+
+
+export const GetAuditPlanSourceScheduleResponse = zod.object({
+  "id": zod.string(),
+  "parentId": zod.string().nullish().describe('Parent audit programme identifier'),
+  "teamLeadIds": zod.array(zod.string()).nullish().describe('Selected leads on the parent programme; null for legacy schedules'),
+  "year": zod.number(),
+  "activityRoleAssignments": zod.array(zod.object({
+  "roleId": zod.string().min(1),
+  "userIds": zod.array(zod.string().min(1)).min(1).max(getAuditPlanSourceScheduleResponseActivityRoleAssignmentsItemUserIdsMax)
+})).max(getAuditPlanSourceScheduleResponseActivityRoleAssignmentsMax).optional(),
+  "title": zod.string(),
+  "hasPlan": zod.boolean().optional().describe('Whether an active Audit Plan already exists for this schedule'),
+  "feasibilityDecision": zod.union([zod.literal('cancelled'),zod.literal('reschedule'),zod.literal(null)]).nullish().describe('Latest infeasible audit decision'),
+  "feasibilityFeedback": zod.string().nullish().describe('Mandatory remarks or feedback for the infeasible audit decision'),
+  "feasibilityRecordedAt": zod.coerce.date().nullish(),
+  "projectIds": zod.array(zod.string()),
+  "auditTypes": zod.array(zod.string().describe('Values managed via \/platform\/master-data\/lov\/audit_types')).optional(),
+  "auditCategory": zod.string().optional(),
+  "departmentProject": zod.string().optional(),
+  "location": zod.string().optional().describe('GPS coordinates formatted as latitude, longitude'),
+  "gpsLat": zod.number().min(getAuditPlanSourceScheduleResponseGpsLatMin).max(getAuditPlanSourceScheduleResponseGpsLatMax).nullish(),
+  "gpsLng": zod.number().min(getAuditPlanSourceScheduleResponseGpsLngMin).max(getAuditPlanSourceScheduleResponseGpsLngMax).nullish(),
   "processProductOwner": zod.string().optional(),
   "plannedStartDate": zod.coerce.date(),
   "plannedEndDate": zod.coerce.date(),

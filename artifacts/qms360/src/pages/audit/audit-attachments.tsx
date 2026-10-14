@@ -11,6 +11,7 @@ import type { EvidenceFile } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
 
 const mimeByExtension: Record<string, string> = {
   pdf: "application/pdf", doc: "application/msword",
@@ -22,10 +23,12 @@ const mimeByExtension: Record<string, string> = {
 };
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Please try again.";
 
-export function AuditAttachments({ auditId, recordType = "audit", readOnly = false, onUploadingChange }: {
+export function AuditAttachments({ auditId, recordType = "audit", readOnly: requestedReadOnly = false, onUploadingChange }: {
   auditId: string; recordType?: "audit" | "car"; readOnly?: boolean; onUploadingChange?: (uploading: boolean) => void;
 }) {
   const isCar = recordType === "car";
+  const permissions = useAuditCapabilities();
+  const readOnly = requestedReadOnly || !permissions.can(isCar ? "cars" : "audits", "create_edit");
   const [page, setPage] = useState(1);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState("");

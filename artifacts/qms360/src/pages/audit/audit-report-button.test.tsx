@@ -1,6 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ReportButton, isAuditReportEligible } from "./audit-complete";
+vi.mock("@/lib/use-audit-capabilities", () => ({
+  useAuditCapabilities: () => ({ canExport: () => true }),
+}));
 
 describe("Audit workspace PowerPoint report button", () => {
   it.each(["Complete", "Closed"])("downloads directly instead of navigating for %s audits", status => {

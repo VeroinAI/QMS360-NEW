@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { restrictDronaProjects } from "../lib/drona/session";
-import { qaqcPermissionMatches, auditModulePermissionMatches, auditModuleReadMatches, type QaqcOperation } from "@workspace/field-controls";
+import { qaqcPermissionMatches, auditModulePermissionMatches, auditModuleReadMatches, type AuditOperation, type QaqcOperation } from "@workspace/field-controls";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import {
   applicationAccess,
@@ -37,7 +37,7 @@ const platformAdmins = new Set(["Super Admin", "Org Admin"]);
 const isAdminName = (name: string) => /\b(admin|administrator)\b/i.test(name);
 
 export type EffectiveProjectScope = { unrestricted: boolean; projectIds: string[]; processAuditsAllowed?: boolean };
-type PermissionTarget = { module: string; action: PermissionAction; operation?: "review" | QaqcOperation };
+type PermissionTarget = { module: string; action: PermissionAction; operation?: "review" | QaqcOperation | AuditOperation };
 const restrictScope = (req: Request, appKey: AppKey, scope: EffectiveProjectScope) =>
   restrictDronaProjects(req.dronaProjectIds, scope, appKey === "audit");
 
@@ -211,6 +211,7 @@ async function matchingPermissionRows(req: Request, appKey: AppKey, target: Perm
       isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt), eq(t.roles.status, "active"),
     ));
   const capabilities = target.operation === "review" ? ["approve_reject"]
+    : appKey === "audit" && target.operation && target.operation !== "export" ? [target.operation]
     : target.action === "select"
     ? ["view_all", "view_own", ...(appKey === "lessons" ? ["view_own_scope"] : [])]
     : ["create_edit", ...(appKey === "lessons" ? ["data_entry"] : [])];
@@ -219,14 +220,13 @@ async function matchingPermissionRows(req: Request, appKey: AppKey, target: Perm
     const key = String(row.key ?? "").toLowerCase();
     if (appKey === "audit" && key.startsWith("audit.")) {
       if (isAdminName(String(row.roleName ?? ""))) return true;
-      return target.operation === "review" ? auditModulePermissionMatches(key, normalized, "approve_reject")
-        : target.operation === "export" ? auditModulePermissionMatches(key, normalized, "export")
+      return target.operation ? auditModulePermissionMatches(key, normalized, (target.operation === "review" ? "approve_reject" : target.operation) as AuditOperation)
         : target.action === "select" ? auditModuleReadMatches(key, normalized)
         : auditModulePermissionMatches(key, normalized, "create_edit");
     }
     if (appKey === "qaqc") {
       const op = target.operation === "review" ? "approve_reject" : target.operation;
-      return op ? qaqcPermissionMatches(key, target.module, op)
+        return op ? qaqcPermissionMatches(key, target.module, op as QaqcOperation)
         : target.action === "select"
           ? qaqcPermissionMatches(key, target.module, "view_all") || qaqcPermissionMatches(key, target.module, "view_own_scope")
           : qaqcPermissionMatches(key, target.module, "create_edit");
@@ -334,7 +334,8 @@ export function requirePermission(
       const normalized = module.toLowerCase();
       if (appKey === "audit" && key.startsWith("audit.")) {
         if (isAdminName(String(r.roleName ?? ""))) return true;
-        if (options.allowAuditProgrammeCreate) return false;
+        if (options.allowAuditProgrammeCreate) return !r.projectIds?.length && !r.businessUnitIds?.length
+          && auditModulePermissionMatches(key, normalized, "create_edit");
         const path = req.originalUrl.split("?")[0];
         // Read permission is still required to download a record. Export alone
         // never exposes records, and the extra export check is applied by Audit.

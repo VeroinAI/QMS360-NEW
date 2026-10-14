@@ -1,5 +1,6 @@
 import { formatDate, formatDateTime } from '@workspace/spreadsheet-dates';
 import { useEffect, useState } from "react";
+import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
 import { responseFieldLabel } from "@/lib/response-field-labels";
 import { Link, useParams } from "wouter";
 import { customFetch, downloadAuditReportPdf, useGetGeneratedAuditReport, useGetAudit } from "@workspace/api-client-react";
@@ -48,6 +49,7 @@ function Section({ section, index }: { section: AuditReportSection; index: numbe
 }
 
 export function AuditReportPage() {
+  const permissions = useAuditCapabilities();
   const { id = "" } = useParams<{ id: string }>(); const { toast } = useToast();
   const audit = useGetAudit(id);
   const eligible = isAuditReportEligible(audit.data?.status);
@@ -70,7 +72,7 @@ export function AuditReportPage() {
   const sections = report.data?.sections ?? [];
   return <div className="space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-2">{back}
-      <Button onClick={() => void download()} disabled={busy} data-testid="button-download-report-pdf"><Download className="mr-2 size-4" />{busy ? "Preparing…" : "Download PDF"}</Button></div>
+      <Button onClick={() => void download()} disabled={busy || !permissions.canExport("audits")} data-testid="button-download-report-pdf"><Download className="mr-2 size-4" />{busy ? "Preparing…" : "Download PDF"}</Button></div>
     {report.isLoading ? <div className="space-y-3" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-64 w-full" /></div>
       : report.error || !report.data ? <Card><CardContent className="py-10 text-center"><AlertTriangle className="mx-auto mb-3 size-8 text-muted-foreground" /><p className="font-semibold">Unable to load report</p><p className="text-sm text-muted-foreground">{msg(report.error)}</p><Button className="mt-4" variant="outline" onClick={() => void report.refetch()}>Retry</Button></CardContent></Card>
       : <Card><CardHeader className="border-b"><div className="flex flex-wrap items-start justify-between gap-2"><CardTitle className="text-2xl">{report.data.audit.title}</CardTitle><Badge>{report.data.audit.status}</Badge></div>

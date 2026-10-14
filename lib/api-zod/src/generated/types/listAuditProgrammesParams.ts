@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LimitParameter } from './limitParameter';
+import type { ListAuditProgrammesContext } from './listAuditProgrammesContext';
 import type { PageParameter } from './pageParameter';
 
 export type ListAuditProgrammesParams = {
@@ -18,4 +19,8 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+/**
+ * Plan source selection uses Audit Plan view scope
+ */
+context?: ListAuditProgrammesContext;
 };

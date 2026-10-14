@@ -19768,6 +19768,83 @@ export const useRecordAuditScheduleFeasibility = <TError = ErrorType<void>,
       return useMutation(getRecordAuditScheduleFeasibilityMutationOptions(options));
     }
 
+export const getGetAuditPlanSourceScheduleUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/plan-source-schedules/${id}`
+}
+
+/**
+ * @summary Get a source schedule within the user's Audit Plan view scope
+ */
+export const getAuditPlanSourceSchedule = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<AuditSchedule> => {
+
+  return customFetch<AuditSchedule>(getGetAuditPlanSourceScheduleUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditPlanSourceScheduleQueryKey = (id: string,) => {
+    return [
+    `/api/audit/plan-source-schedules/${id}`
+    ] as const;
+    }
+
+
+export const getGetAuditPlanSourceScheduleQueryOptions = <TData = Awaited<ReturnType<typeof getAuditPlanSourceSchedule>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanSourceSchedule>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditPlanSourceScheduleQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditPlanSourceSchedule>>> = ({ signal }) => getAuditPlanSourceSchedule(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanSourceSchedule>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditPlanSourceScheduleQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditPlanSourceSchedule>>>
+export type GetAuditPlanSourceScheduleQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a source schedule within the user's Audit Plan view scope
+ */
+
+export function useGetAuditPlanSourceSchedule<TData = Awaited<ReturnType<typeof getAuditPlanSourceSchedule>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanSourceSchedule>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditPlanSourceScheduleQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGetAuditPlanNumberPreviewUrl = (params: GetAuditPlanNumberPreviewParams,) => {
   const normalizedParams = new URLSearchParams();
 

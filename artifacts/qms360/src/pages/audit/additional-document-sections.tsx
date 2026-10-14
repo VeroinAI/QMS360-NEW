@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download, Plus, Trash2, Upload } from "lucide-react";
 import {
@@ -44,6 +45,7 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : "
 function OrganizationChart({ auditId, documents, onUpdated }: {
   auditId: string; documents?: AuditAdditionalDocuments; onUpdated: (audit: Audit) => void;
 }) {
+  const permissions = useAuditCapabilities();
   const { toast } = useToast();
   const qc = useQueryClient();
   const intent = useCreateAuditEvidenceIntent();
@@ -129,7 +131,7 @@ function OrganizationChart({ auditId, documents, onUpdated }: {
 
   return <>
     <div className="flex flex-wrap items-center gap-3">
-      <Button type="button" size="sm" disabled={busy} onClick={() => input.current?.click()}>
+      <Button type="button" size="sm" disabled={busy || !permissions.can("audits", "create_edit")} onClick={() => input.current?.click()}>
         <Upload className="mr-2 size-4" aria-hidden="true"/>{busy ? "Uploading…" : documents?.organizationChartId ? "Replace file" : "Upload file"}
       </Button>
       <input ref={input} type="file" className="sr-only" tabIndex={-1} accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" aria-label="Choose Organization Chart file" onChange={event => chooseFile(event.target.files?.[0] ?? null)}/>
@@ -173,6 +175,7 @@ function toDraftRows(fixed: readonly (readonly [string, string])[], saved: Audit
 function StatusRows({ auditId, section, saved, savedRemarks, onUpdated }: {
   auditId: string; section: StatusSection; saved?: AuditDocumentStatusRow[]; savedRemarks?: string; onUpdated: (audit: Audit) => void;
 }) {
+  const permissions = useAuditCapabilities();
   const fixed = section === "design-status" ? designLabels : procurementLabels;
   const fixedIds = new Set<string>(fixed.map(([id]) => id));
   const { toast } = useToast();
@@ -250,7 +253,7 @@ function StatusRows({ auditId, section, saved, savedRemarks, onUpdated }: {
       <Button type="button" variant="outline" size="sm" onClick={add} disabled={saving}><Plus className="mr-2 size-4" aria-hidden="true"/>Add line</Button>
       <div className="flex items-center gap-3">
         {dirty && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
-        <Button type="button" size="sm" onClick={() => void save()} disabled={!dirty || saving}>{saving ? "Saving…" : "Save"}</Button>
+        <Button type="button" size="sm" onClick={() => void save()} disabled={!permissions.can("audits", "create_edit") || !dirty || saving}>{saving ? "Saving…" : "Save"}</Button>
       </div>
     </div>
   </div>;

@@ -24,6 +24,7 @@ import { useFieldControls } from "@/lib/field-controls";
 import { useFieldAccess } from "@/lib/use-field-access";
 import { useLov } from "@/lib/use-lov";
 import { AuditAttachments } from "./audit-attachments";
+import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
 
 const LIMIT = 10;
 const EDITABLE = ["Open", "Draft", "Rejected", "Returned for query", "Returned for rework"];
@@ -60,6 +61,7 @@ export function CarResponseDialog({ car, entry, auditAreaLabel, evidence, open, 
   const update = useUpdateCorrectiveActionReport();
   const controls = useFieldControls("audit", "car");
   const access = useFieldAccess("audit");
+  const permissions = useAuditCapabilities();
   const viewOnly = readOnly || !car || car.canRespond !== true || !EDITABLE.includes(car.status);
   const [f, setF] = useState({ rootCause: car?.rootCause ?? "", correction: car?.correction ?? "", correctiveAction: car?.correctiveAction ?? "" });
   const [err, setErr] = useState("");
@@ -68,7 +70,7 @@ export function CarResponseDialog({ car, entry, auditAreaLabel, evidence, open, 
   const valid = !!f.rootCause.trim() && !!f.correction.trim() && !!f.correctiveAction.trim();
   const clean = { rootCause: f.rootCause.trim(), correction: f.correction.trim(), correctiveAction: f.correctiveAction.trim() };
   const run = async (andSubmit: boolean) => {
-    if (viewOnly || !car || busy) return;
+    if (viewOnly || !car || busy || (andSubmit && !permissions.can("cars", "submit"))) return;
     setErr("");
     if (andSubmit && !valid) { setErr(`${responseFieldLabels.rootCause}, ${responseFieldLabels.correction} and ${responseFieldLabels.correctiveAction} are all required to submit.`); return; }
     const body = { ...car, ...clean };
@@ -103,7 +105,7 @@ export function CarResponseDialog({ car, entry, auditAreaLabel, evidence, open, 
       {err && <p role="alert" data-testid="status-car-error" className="text-sm text-destructive">{err}</p>}
        <DialogFooter><Button variant="outline" disabled={busy} onClick={onClose}>{viewOnly ? "Close" : "Cancel"}</Button>
          {!viewOnly && <><Button variant="outline" data-testid="button-save-car" disabled={busy} onClick={() => void run(false)}>Save response</Button>
-         <Button data-testid="button-save-submit-car" disabled={busy} onClick={() => void run(true)}>{busy ? "Working…" : "Save & submit"}</Button></>}</DialogFooter>
+         <Button data-testid="button-save-submit-car" disabled={busy || !permissions.can("cars", "submit")} onClick={() => void run(true)}>{busy ? "Working…" : "Save & submit"}</Button></>}</DialogFooter>
     </DialogContent></Dialog>;
 }
 

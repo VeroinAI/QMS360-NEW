@@ -3,6 +3,9 @@ import type { ComponentProps, PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { CarRegisterEntry, CorrectiveActionReport } from "@workspace/api-client-react";
 import { CarRegister, CarResponseDialog } from "./car-register";
+vi.mock("@/lib/use-audit-capabilities", () => ({
+  useAuditCapabilities: () => ({ can: () => true, canRead: () => true, canExport: () => true }),
+}));
 vi.mock("./audit-attachments", () => ({
   AuditAttachments: ({ auditId, recordType, readOnly }: { auditId: string; recordType: string; readOnly: boolean }) =>
     <div data-testid="car-evidence" data-record-id={auditId} data-record-type={recordType} data-read-only={String(readOnly)}/>,

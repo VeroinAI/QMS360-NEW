@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useLov } from "@/lib/use-lov";
 import { checklistFindings } from "./checklist-workbook";
+import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
 
 const findingOptions = checklistFindings.filter(value => value !== "Not applicable");
 const findingSchema = z.object({
@@ -53,6 +54,8 @@ const supportedFile = (file: File) =>
   file.type.startsWith("image/");
 
 export function FindingsGrid({ auditId, items }: { auditId: string; items: ChecklistItem[] }) {
+  const permissions = useAuditCapabilities();
+  const readOnly = !permissions.can("findings", "create_edit");
   const { toast } = useToast();
   const qc = useQueryClient();
   const areas = useLov("Audit Area");
@@ -135,7 +138,7 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
       if (file && !fileId) {
         const type = file.type || "application/octet-stream";
         const upload = await intent.mutateAsync({ data: {
-          recordType: "audit", recordId: auditId, category: type.startsWith("image/") ? "image" : "document",
+          recordType: "audit", recordId: auditId, category: "finding_evidence",
           fileName: file.name, mimeType: type, sizeBytes: file.size, clientReference: uploadReference.current,
         } });
         await customFetch(upload.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": type } });
@@ -203,7 +206,7 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
   return <Card>
     <CardHeader className="flex-row flex-wrap items-start justify-between gap-3">
       <div><CardTitle>Findings</CardTitle><CardDescription>Clause-level findings and the people responsible for action.</CardDescription></div>
-      <Button type="button" data-testid="button-add-finding" onClick={() => setOpen(true)}><Plus className="mr-2 size-4" aria-hidden="true"/>Add Finding</Button>
+      <Button disabled={readOnly} type="button" data-testid="button-add-finding" onClick={() => setOpen(true)}><Plus className="mr-2 size-4" aria-hidden="true"/>Add Finding</Button>
     </CardHeader>
     <CardContent>
       <div className="overflow-x-auto rounded-md border" role="region" aria-label="Audit findings spreadsheet" tabIndex={0}>
@@ -228,7 +231,7 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
                 }) : "—"}
               </TableCell>
               <TableCell className="w-64 border-r border-b border-border/60 px-3 align-top">
-                <Select value={assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId || ""} onValueChange={value => void assignUser(item, { actionTakerId: value })} disabled={users.isLoading || !!users.error || !!assigningId || !eligibleUsers.length}>
+                <Select value={assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId || ""} onValueChange={value => void assignUser(item, { actionTakerId: value })} disabled={readOnly || users.isLoading || !!users.error || !!assigningId || !eligibleUsers.length}>
                   <SelectTrigger data-testid={`select-action-taker-${item.id}`} aria-label={`Action Taker for clause ${item.clause || item.id}`} className="h-9 w-full text-left"><SelectValue placeholder={users.isLoading ? "Loading users…" : "Assign a user"}>{(assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId) ? userName(assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId!) : undefined}</SelectValue></SelectTrigger>
                   <SelectContent>
                     {item.actionTakerId && !eligibleUsers.some(user => user.id === item.actionTakerId) &&
@@ -241,7 +244,7 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
               <TableCell className="min-w-64 border-b border-border/60 px-3 align-top">
                 <Select value={assignmentDrafts[item.id]?.recommendedPriorityAction || item.recommendedPriorityAction || ""}
                   onValueChange={value => void assignUser(item, { recommendedPriorityAction: value as FindingPriorityAction })}
-                  disabled={!!assigningId || !(assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId) || users.isLoading || !!users.error}>
+                  disabled={readOnly || !!assigningId || !(assignmentDrafts[item.id]?.actionTakerId || item.actionTakerId) || users.isLoading || !!users.error}>
                   <SelectTrigger data-testid={`select-priority-action-${item.id}`} aria-label={`Recommended priority actions for clause ${item.clause || item.id}`} className="h-9 w-full text-left"><SelectValue placeholder="Select priority action"/></SelectTrigger>
                   <SelectContent>{findingPriorityActions.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
                 </Select>

@@ -92,6 +92,10 @@ const auditModules: Array<[string, string]> = [
 ];
 for (const [path, module] of auditModules) {
   router.use(path, (req, res, next) => {
+    // Source selectors inherit Plan scope; they do not grant Schedule mutations.
+    if (req.method === "GET" && req.path === "/" && req.query.context === "plan" && ["/programmes", "/schedules"].includes(path)) {
+      return requirePermission("audit", "plans", "select")(req, res, next);
+    }
     if (path === "/cars" && req.method === "POST" && /^\/[^/]+\/review\/?$/.test(req.path)) {
       return asyncHandler(async (req, _res, next) => {
         const readScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "select" });
@@ -113,7 +117,10 @@ for (const [path, module] of auditModules) {
       (req.method === "POST" && req.path === "/")
       || (req.method === "PUT" && /^\/[^/]+\/?$/.test(req.path))
     );
-    return requirePermission("audit", module, req.method === "GET" ? "select" : "full", {
+    const targetModule = path === "/audits" && /^\/[^/]+\/(finding-items|checklist\/[^/]+\/action-taker)(?:\/|$)/.test(req.path) ? "findings"
+      : path === "/schedules" && /^\/[^/]+\/feasibility\/?$/.test(req.path) ? "plans"
+      : path === "/findings" && /^\/[^/]+\/cars\/?$/.test(req.path) ? "cars" : module;
+    return requirePermission("audit", targetModule, req.method === "GET" ? "select" : "full", {
       allowAuditScheduleDataEntry: scheduleWrite,
       allowAuditProgrammeCreate: programmeCreate,
     })(req, res, () => auditExportGuard(module)(req, res, next));
@@ -147,16 +154,18 @@ const auditEvidenceModules: Record<string, string> = {
   corrective_action_report: "cars", car: "cars",
 };
 router.use("/evidence", asyncHandler(async (req, res, next) => {
+  let category = typeof req.body?.category === "string" ? req.body.category : null;
   let recordType = typeof req.body?.recordType === "string" ? req.body.recordType
     : typeof req.query.recordType === "string" ? req.query.recordType : null;
   if (!recordType) {
     const evidenceId = req.path.split("/").filter(Boolean)[0];
-    const [stored] = evidenceId ? await db.select({ recordType: auditEvidenceFiles.recordType }).from(auditEvidenceFiles).where(and(
+    const [stored] = evidenceId ? await db.select({ recordType: auditEvidenceFiles.recordType, category: auditEvidenceFiles.category }).from(auditEvidenceFiles).where(and(
       eq(auditEvidenceFiles.id, evidenceId), eq(auditEvidenceFiles.organizationId, req.currentUser!.organizationId), isNull(auditEvidenceFiles.deletedAt),
     )).limit(1) : [];
     recordType = stored?.recordType ?? null;
+    category = stored?.category ?? null;
   }
-  const module = recordType ? auditEvidenceModules[recordType] : null;
+  const module = recordType === "audit" && category === "finding_evidence" ? "findings" : recordType ? auditEvidenceModules[recordType] : null;
   if (!module) throw new HttpError(422, "Unsupported audit evidence record type");
   await requirePermission("audit", module, req.method === "GET" ? "select" : "full", {
     allowAuditScheduleDataEntry: recordType === "audit_schedule" && (
@@ -2159,6 +2168,14 @@ router.get("/plan-number-preview", requirePermission("audit", "plans", "select")
   res.json(Api.GetAuditPlanNumberPreviewResponse.parse(await previewPlanNumber(actor(req).organizationId,
     isProcessAuditSchedule(schedule) ? null : schedule.projectId, meta.departmentProject, meta.plannedStartDate)));
 }));
+router.get("/plan-source-schedules/:id", requirePermission("audit", "plans", "select"), asyncHandler(async (req, res) => {
+  const [row] = await db.select().from(auditSchedules).where(and(
+    active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id)),
+  ));
+  await assertChildSchedule(row);
+  if (!await scheduleInScope(req, row)) throw new HttpError(403, "This source schedule is outside your Audit Plan scope");
+  res.json(await scheduleResponse(req, row));
+}));
 router.get("/plans", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const scope = await getAuthorizedProjectScope(req, "audit");
   const where = and(active(auditPlans, actor(req).organizationId), scope.unrestricted ? undefined :
@@ -3641,6 +3658,12 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
   await assertFieldControls(req, "audit", "car", { mode: "update", current: carDto(before) });
   const saveAndSubmit = data.saveAndSubmit === true;
   if (saveAndSubmit) {
+    const scope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full", operation: "submit" });
+    const process = !context.audit.projectId && context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit");
+    if (!scope.unrestricted && !(context.audit.projectId && scope.projectIds.includes(context.audit.projectId))
+      && !(process && (scope.processAuditsAllowed || scope.projectIds.length))) {
+      throw new HttpError(403, "CAR Submit / send permission is required in this scope");
+    }
     if (!context.leadId) throw new HttpError(422, "Select a Lead / Internal Auditor in the linked Audit Plan before submitting");
     if (!data.rootCause?.trim() || !data.correction?.trim() || !data.correctiveAction?.trim()) {
       throw new HttpError(422, "Root cause, correction, and corrective action are required");

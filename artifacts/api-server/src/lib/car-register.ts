@@ -4,6 +4,7 @@ import { auditFindings, auditPlans, auditSchedules, audits, correctiveActionRepo
   auditUserWorkspaceRoles, auditWorkspaceRoles, auditWorkspaceRolePermissions, auditPermissions } from "@workspace/db";
 import { getAuthorizedProjectScope, getAuthorizedFullProjectScope, type EffectiveProjectScope } from "../middlewares/rbac";
 import { HttpError } from "./workspace";
+import { activeAuditCapabilities } from "./audit-capabilities";
 
 export const carJson = (value: string | null | undefined): any => {
   try {
@@ -69,7 +70,11 @@ export async function carContext(req: Request, carId: string, allowInactiveSourc
   const canRespond = !inactiveSource && ownerId === req.currentUser!.id;
   const writeScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full" });
   const canEditResponse = canRespond && writableProject(writeScope, audit.projectId, Boolean(context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit")));
-  const canReview = !inactiveSource && context.leadId === req.currentUser!.id && await carLeadMarker(org, req.currentUser!.id);
+  const reviewScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full", operation: "review" });
+  const moduleReview = (await activeAuditCapabilities(req)).keys.includes("audit.cars.approve_reject");
+  const canReview = !inactiveSource && context.leadId === req.currentUser!.id && (
+    await carLeadMarker(org, req.currentUser!.id)
+    || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit")))));
   return { ...context, car, finding, item, ownerId, canRespond, canEditResponse, canReview };
 }
 
@@ -88,6 +93,8 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
   ]);
   const scope = await getAuthorizedProjectScope(req, "audit");
   const writeScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full" });
+  const reviewScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full", operation: "review" });
+  const moduleReview = (await activeAuditCapabilities(req)).keys.includes("audit.cars.approve_reject");
   const entries: any[] = [];
   for (const audit of auditRows) {
     const plan = planRows.find(row => row.id === audit.auditPlanId);
@@ -118,7 +125,8 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
         const inactiveSource = source.legacy && !!(source.finding?.evidence as any)?.sourceChecklistItemId;
         const canRespond = !inactiveSource && ownerId === userId
           && writableProject(writeScope, audit.projectId, Boolean(process));
-        const canReview = !inactiveSource && pm.leadAuditorId === userId && leadMarker;
+        const canReview = !inactiveSource && pm.leadAuditorId === userId && (leadMarker
+          || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(carJson(schedule?.status).auditTypes?.includes("Quality Internal Process Audit")))));
         const response = car ? { ...dto(car), canRespond, canReview } : undefined;
         entries.push({ id: car?.id || `${audit.id}:${item.id}`, auditId: audit.id, itemId: item.id,
           auditTitle: schedule?.title || carJson(audit.status).title || audit.referenceNumber, scheduleId: programme?.id || null,
