@@ -67,3 +67,17 @@ database attachment storage as a choice requiring QMS code adaptation. Direct
 SMTP setup to the existing Integration Cockpit; involve infrastructure support
 only for an observed connectivity/configuration problem. Supply SQL separately
 when the user requests a particular production data operation.
+
+The user relayed that AWS/Drona already uses S3 in Mumbai with CloudFront,
+application-specific folder prefixes and database file references, and that its
+backend has AWS credentials configured. Treat these as reported infrastructure,
+not verified QMS360 access or proof that attachments are private.
+
+**Why:** Recommending a new storage service or PostgreSQL attachment storage
+would duplicate their existing infrastructure. A folder prefix and CloudFront
+URL alone do not enforce QMS360 record authorization.
+
+**How to apply:** Reuse their S3 setup after confirming the QMS360 prefix, the
+QMS360 API runtime's IAM access and private download policy. Keep credentials
+out of chat; implement the QMS360 storage adaptation here rather than assigning
+application development to the infrastructure team.
