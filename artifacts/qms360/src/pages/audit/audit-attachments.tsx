@@ -22,21 +22,25 @@ const mimeByExtension: Record<string, string> = {
 };
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Please try again.";
 
-export function AuditAttachments({ auditId }: { auditId: string }) {
+export function AuditAttachments({ auditId, recordType = "audit", readOnly = false, onUploadingChange }: {
+  auditId: string; recordType?: "audit" | "car"; readOnly?: boolean; onUploadingChange?: (uploading: boolean) => void;
+}) {
+  const isCar = recordType === "car";
   const [page, setPage] = useState(1);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const references = useRef(new Map<string, string>());
-  const query = useListAuditEvidence({ recordType: "audit", recordId: auditId, scope: "attachments", page, limit: 200 });
+  const query = useListAuditEvidence({ recordType, recordId: auditId, ...(!isCar ? { scope: "attachments" as const } : {}), page, limit: 200 });
   const intent = useCreateAuditEvidenceIntent();
   const confirm = useConfirmAuditEvidence();
   const qc = useQueryClient();
   const { toast } = useToast();
 
   const upload = async (files: File[]) => {
-    if (!files.length) return;
+    if (!files.length || readOnly || uploading) return;
     setUploading(true);
+    onUploadingChange?.(true);
     let succeeded = 0;
     let failed = 0;
     try {
@@ -45,8 +49,8 @@ export function AuditAttachments({ auditId }: { auditId: string }) {
         const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
         const mimeType = file.type || mimeByExtension[extension] || "application/octet-stream";
         const maxMb = mimeType.startsWith("video/") ? 200 : mimeType.startsWith("image/") ? 8 : 25;
-        if (!file.size || file.size > maxMb * 1024 * 1024) {
-          toast({ title: `Unable to attach ${file.name}`, description: `File must be between 1 byte and ${maxMb} MB.`, variant: "destructive" });
+        if (!file.size || (!isCar && file.size > maxMb * 1024 * 1024)) {
+          toast({ title: `Unable to attach ${file.name}`, description: isCar ? "The selected file is empty." : `File must be between 1 byte and ${maxMb} MB.`, variant: "destructive" });
           failed++;
           continue;
         }
@@ -54,7 +58,7 @@ export function AuditAttachments({ auditId }: { auditId: string }) {
         if (!references.current.has(fingerprint)) references.current.set(fingerprint, crypto.randomUUID());
         try {
           const created = await intent.mutateAsync({ data: {
-            recordType: "audit", recordId: auditId, category: "attachment",
+            recordType, recordId: auditId, category: "attachment",
             fileName: file.name, mimeType, sizeBytes: file.size,
             clientReference: references.current.get(fingerprint)!,
           } });
@@ -77,6 +81,7 @@ export function AuditAttachments({ auditId }: { auditId: string }) {
       }
     } finally {
       setUploading(false);
+      onUploadingChange?.(false);
       setProgress("");
     }
   };
@@ -100,21 +105,21 @@ export function AuditAttachments({ auditId }: { auditId: string }) {
     <CardHeader>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <CardTitle>Attachment</CardTitle>
-          <CardDescription>Attach multiple files · photos ≤8MB · videos ≤200MB · documents ≤25MB</CardDescription>
+          <CardTitle>{isCar ? "CAR response evidence" : "Attachment"}</CardTitle>
+          <CardDescription>{isCar ? "Photos, videos, PDF, Word, Excel, PowerPoint and text files. Organization file-size limits apply. Attachments are saved immediately after upload." : "Attach multiple files · photos ≤8MB · videos ≤200MB · documents ≤25MB"}</CardDescription>
         </div>
-        <Button type="button" disabled={uploading} onClick={() => input.current?.click()}>
+        {!readOnly && <><Button type="button" disabled={uploading} onClick={() => input.current?.click()}>
           <Upload className="mr-2 size-4" aria-hidden="true"/>
           {uploading ? `Attaching ${progress}…` : "Attach files"}
         </Button>
         <input ref={input} className="sr-only" tabIndex={-1} type="file" multiple
           accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
-          aria-label="Choose files to attach to this audit"
+          aria-label={isCar ? "Choose CAR response evidence files" : "Choose files to attach to this audit"}
           onChange={event => {
             const selected = Array.from(event.target.files ?? []);
             event.target.value = "";
             void upload(selected);
-          }}/>
+          }}/></>}
       </div>
     </CardHeader>
     <CardContent className="space-y-4">

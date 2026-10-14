@@ -4,7 +4,7 @@ import type { Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import {
-  applicationAccess, auditAuditLogEntries, auditFindings, auditNotifications, auditPermissions, auditPlans,
+  applicationAccess, auditAuditLogEntries, auditEvidenceFiles, auditFindings, auditNotifications, auditPermissions, auditPlans,
   auditSchedules, audits, auditUserWorkspaceRoles, auditWorkspaceRolePermissions, auditWorkspaceRoles,
   correctiveActionReports, db, masterDataGroups, masterDataValues, organizations, organizationSettings,
   platformRoles, projects, users,
@@ -29,7 +29,7 @@ async function api(method: string, path: string, data?: unknown, auth = token) {
   return { status: result.status, body: await result.json() };
 }
 async function cleanup(org: string) {
-  for (const table of [auditNotifications, auditAuditLogEntries, correctiveActionReports, auditFindings, audits,
+  for (const table of [auditNotifications, auditAuditLogEntries, auditEvidenceFiles, correctiveActionReports, auditFindings, audits,
     auditPlans, auditSchedules, organizationSettings, masterDataValues, masterDataGroups,
     auditWorkspaceRolePermissions, auditUserWorkspaceRoles, auditWorkspaceRoles, auditPermissions,
     applicationAccess, users, platformRoles, projects]) {
@@ -186,6 +186,33 @@ describe.skipIf(process.env.QMS_AUDIT_CAR_CLEANUP === "1")("Audit CAR numbering"
     expect(submitted.status).toBe(200); expect(submitted.body.carNumber).toBe("QAM-CC100-CAR-29-0001");
     const [stored] = await db.select().from(correctiveActionReports).where(eq(correctiveActionReports.id, f.carId));
     expect(JSON.parse(stored!.effectivenessNotes!).extensionReason).toBe("Retain original metadata");
+  });
+  it("scopes response evidence to a CAR and enforces assignment, lifecycle, type and size limits", async () => {
+    const f = await makeCar(2034);
+    const evidence = { recordType: "car", recordId: f.carId, category: "attachment",
+      fileName: "response.txt", mimeType: "text/plain", sizeBytes: 5, clientReference: randomUUID() };
+    // Reject before creating any upload intent or issuing a number.
+    expect((await api("POST", "/evidence", evidence, otherToken)).status).toBe(403);
+    expect((await api("POST", "/evidence", { ...evidence, mimeType: "application/x-msdownload" })).status).toBe(422);
+    expect((await api("POST", "/evidence", { ...evidence, sizeBytes: 26 * 1024 * 1024 })).status).toBe(422);
+    // Seed an existing confirmed attachment to verify read/list/download access without contacting cloud storage.
+    const [file] = await db.insert(auditEvidenceFiles).values({ organizationId: orgId,
+      recordType: "car", recordId: f.carId, category: "attachment", fileName: "response.txt",
+      mimeType: "text/plain", sizeBytes: 5, storageKey: "", status: "stored", uploadedById: userId }).returning();
+    await db.insert(auditEvidenceFiles).values({ organizationId: orgId,
+      recordType: "car", recordId: f.carId, category: "attachment", fileName: "pending.txt",
+      mimeType: "text/plain", sizeBytes: 5, storageKey: "", status: "uploading", uploadedById: userId });
+    const listed = await api("GET", `/evidence?recordType=car&recordId=${f.carId}&page=1&limit=200`, undefined, otherToken);
+    expect(listed.status).toBe(200);
+    expect(listed.body.items.map((row: { id: string }) => row.id)).toEqual([file!.id]);
+    expect((await api("GET", `/cars/${f.carId}`)).body.carNumber).toBeNull();
+    expect((await api("PUT", `/cars/${f.carId}`, { ...response, saveAndSubmit: true })).status).toBe(200);
+    expect((await api("POST", "/evidence", evidence)).status).toBe(409);
+    expect((await api("PUT", `/evidence/${file!.id}/confirm`)).status).toBe(409);
+    const overwrite = await fetch(`${base}/api/files/${file!.id}`, { method: "PUT",
+      headers: { authorization: `Bearer ${token}`, "content-type": "text/plain" }, body: "other" });
+    expect(overwrite.status).toBe(404);
+    expect((await api("GET", `/evidence?recordType=car&recordId=${f.carId}&page=1&limit=200`)).body.items).toHaveLength(1);
   });
   it("maintains next number with backward protection and does not change Plan, Report or Finding ranges", async () => {
     const before = await readCarNumberState(orgId);

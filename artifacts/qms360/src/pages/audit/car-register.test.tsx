@@ -3,6 +3,10 @@ import type { ComponentProps, PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { CarRegisterEntry, CorrectiveActionReport } from "@workspace/api-client-react";
 import { CarRegister, CarResponseDialog } from "./car-register";
+vi.mock("./audit-attachments", () => ({
+  AuditAttachments: ({ auditId, recordType, readOnly }: { auditId: string; recordType: string; readOnly: boolean }) =>
+    <div data-testid="car-evidence" data-record-id={auditId} data-record-type={recordType} data-read-only={String(readOnly)}/>,
+}));
 
 const { list } = vi.hoisted(() => ({
   list: vi.fn(() => ({
@@ -81,6 +85,12 @@ describe("CAR Response display and assignment guards", () => {
     expect(html).toContain('data-testid="button-save-car"');
     expect(html).toContain('data-testid="button-save-submit-car"');
     expect(html).not.toMatch(/readonly=""/i);
+    expect(html).toContain('data-record-type="car"');
+    expect(html).toContain(`data-record-id="${car.id}"`);
+    expect(html).toContain('data-read-only="false"');
+  });
+  it("makes response attachments read-only for viewers", () => {
+    expect(render({ ...car, canRespond: false })).toContain('data-read-only="true"');
   });
   const entry: CarRegisterEntry = {
     id: "finding-1", auditId: "audit-1", itemId: "item-1", scheduleName: "Parent programme",

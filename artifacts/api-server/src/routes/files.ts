@@ -16,6 +16,7 @@ import type { AppKey } from "../lib/workspace";
 import { requireAuth } from "../middlewares/auth";
 import { getAuthorizedProjectScope, type AppKey as RbacAppKey, type PermissionAction } from "../middlewares/rbac";
 import { canReadLesson } from "./lessons";
+import { carContext } from "../lib/car-register";
 
 const router: IRouter = Router();
 const uploadDir = path.resolve(process.cwd(), "uploads");
@@ -98,11 +99,25 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
       const [parent] = await db.select({ projectId: audits.projectId }).from(auditFindings).innerJoin(audits, eq(auditFindings.auditId, audits.id)).where(and(eq(auditFindings.id, row.recordId), eq(auditFindings.organizationId, organizationId), isNull(auditFindings.deletedAt), isNull(audits.deletedAt)));
       return parent?.projectId ? { projectId: parent.projectId, module: "findings" } : null;
     }
-    const [parent] = await db.select({ projectId: audits.projectId }).from(correctiveActionReports)
+    const [parent] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(correctiveActionReports)
       .innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id))
       .innerJoin(audits, eq(auditFindings.auditId, audits.id))
       .where(and(eq(correctiveActionReports.id, row.recordId), eq(correctiveActionReports.organizationId, organizationId), isNull(correctiveActionReports.deletedAt), isNull(auditFindings.deletedAt), isNull(audits.deletedAt)));
-    return parent?.projectId ? { projectId: parent.projectId, module: "cars" } : null;
+    if (parent?.projectId) return { projectId: parent.projectId, module: "cars" };
+    if (!parent?.planId) return null;
+    const [schedule] = await db.select({ status: auditSchedules.status }).from(auditPlans)
+      .innerJoin(auditSchedules, eq(auditPlans.auditScheduleId, auditSchedules.id))
+      .where(and(
+        eq(auditPlans.id, parent.planId), eq(auditPlans.organizationId, organizationId), isNull(auditPlans.deletedAt),
+        eq(auditSchedules.organizationId, organizationId), isNull(auditSchedules.deletedAt),
+      ));
+    try {
+      const types = JSON.parse(schedule?.status ?? "{}")?.auditTypes;
+      if (Array.isArray(types) && types.includes("Quality Internal Process Audit")) {
+        return { projectId: null, module: "cars", allowProjectless: true };
+      }
+    } catch { /* Invalid schedule metadata must not grant projectless access. */ }
+    return null;
   }
   const qaqcParents: Record<string, { table: any; module: string }> = {
     metric: { table: qaqcMetricEntries, module: "metrics" }, qaqc_metric: { table: qaqcMetricEntries, module: "metrics" },
@@ -136,6 +151,12 @@ async function authorizeEvidence(req: express.Request, found: NonNullable<Awaite
   if (parent.allowProjectless) {
     if (!scope.unrestricted && !scope.projectIds.length && !scope.processAuditsAllowed) return false;
   } else if (!scope.unrestricted && (parent.projectIds ?? [parent.projectId!]).some((projectId) => !scope.projectIds.includes(projectId))) return false;
+  if (found.app === "audit" && ["car", "corrective_action_report"].includes(found.row.recordType)) {
+    try {
+      const context = await carContext(req, found.row.recordId, action === "select");
+      if (action !== "select" && (!context.canEditResponse || !["open", "draft", "rejected"].includes(context.car.workflowState))) return false;
+    } catch { return false; }
+  }
   if (found.app === "lessons" && action === "select") {
     const [lesson] = await db.select().from(lessonLearnedForms).where(and(
       eq(lessonLearnedForms.id, found.row.recordId),

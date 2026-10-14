@@ -3771,9 +3771,18 @@ const evidenceDto = (row: AnyRow) => ({
   clientReference: row.clientReference ?? row.id, storageUrl: row.status === "stored" ? `/api/files/${row.id}` : null,
   gpsLat: null, gpsLng: null, createdAt: row.createdAt,
 });
+async function assertCarEvidenceWritable(req: Request, recordType: string, recordId: string) {
+  if (!["car", "corrective_action_report"].includes(recordType)) return;
+  const context = await carContext(req, recordId);
+  if (!context.canEditResponse) throw new HttpError(403, "Only the assigned action taker may attach CAR response evidence");
+  if (!["open", "draft", "rejected"].includes(context.car.workflowState)) {
+    throw new HttpError(409, "Evidence cannot be attached in the CAR's current state");
+  }
+}
 router.post("/evidence", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditEvidenceIntentBody, req);
   await assertAuditRecordAccess(req, data.recordType, data.recordId);
+  await assertCarEvidenceWritable(req, data.recordType, data.recordId);
   const [settings] = await db.select().from(organizationSettings).where(and(eq(organizationSettings.organizationId, actor(req).organizationId), isNull(organizationSettings.deletedAt)));
   if (settings) {
     const limits = settings.evidenceLimits;
@@ -3800,6 +3809,7 @@ router.put("/evidence/:id/confirm", asyncHandler(async (req, res) => {
   )).limit(1);
   if (!before) throw new HttpError(404, "Evidence not found");
   await assertAuditRecordAccess(req, before.recordType, before.recordId);
+  await assertCarEvidenceWritable(req, before.recordType, before.recordId);
   let row;
   try {
     row = await confirmEvidence(db, "audit", String(req.params.id), actor(req).organizationId);
@@ -3814,7 +3824,12 @@ router.get("/evidence", asyncHandler(async (req, res) => {
   if (!parsed.success) throw new HttpError(422, parsed.error.message);
   const { page, limit } = parsed.data;
   await assertAuditRecordAccess(req, parsed.data.recordType, parsed.data.recordId);
-  const all = await listEvidence(db, "audit", actor(req).organizationId, parsed.data.recordType, parsed.data.recordId);
+  if (["car", "corrective_action_report"].includes(parsed.data.recordType)) {
+    await carContext(req, parsed.data.recordId, true);
+  }
+  const listed = await listEvidence(db, "audit", actor(req).organizationId, parsed.data.recordType, parsed.data.recordId);
+  const all = ["car", "corrective_action_report"].includes(parsed.data.recordType)
+    ? listed.filter((file: AnyRow) => file.status === "stored") : listed;
   if (parsed.data.scope !== "attachments") {
     res.json(paginated(all.slice((page - 1) * limit, page * limit).map(evidenceDto), all.length, page, limit));
     return;
