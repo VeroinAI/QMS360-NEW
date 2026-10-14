@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ComponentProps, PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { CorrectiveActionReport } from "@workspace/api-client-react";
+import type { CarRegisterEntry, CorrectiveActionReport } from "@workspace/api-client-react";
 import { CarRegister, CarResponseDialog } from "./car-register";
 
 const { list } = vi.hoisted(() => ({
@@ -81,6 +81,44 @@ describe("CAR Response display and assignment guards", () => {
     expect(html).toContain('data-testid="button-save-car"');
     expect(html).toContain('data-testid="button-save-submit-car"');
     expect(html).not.toMatch(/readonly=""/i);
+  });
+  const entry: CarRegisterEntry = {
+    id: "finding-1", auditId: "audit-1", itemId: "item-1", scheduleName: "Parent programme",
+    auditTitle: "Selected audit", auditTypes: ["Internal audit"], projectName: "Linked project",
+    clause: "9.2", auditArea: "area_key", description: "Recorded finding description", classification: "Major NC",
+    actionTakerName: "Assigned action taker", evidenceIds: ["evidence-1"], status: "Draft",
+    canRespond: true, canReview: false, car: { ...car, carNumber: "QAM-CC100-CAR-26-0001" },
+  };
+  it("includes all register data as display-only details alongside the three editable response fields", () => {
+    const html = renderToStaticMarkup(<CarResponseDialog car={entry.car} entry={entry} auditAreaLabel="Configured area label"
+      evidence={<span>Evidence document.pdf</span>} open onClose={() => {}} />);
+    for (const value of ["Parent programme", "Selected audit", "Internal audit", "Linked project",
+      "Configured area label", "9.2", "Recorded finding description", "Major NC", "Assigned action taker",
+      "Draft", "Evidence document.pdf", "QAM-CC100-CAR-26-0001"]) expect(html).toContain(value);
+    expect(html).toContain("Read-only CAR register details");
+    expect(html).toContain("Corrective Action) — Recorded");
+    expect(html).toContain(">Yes</dd>");
+    expect(html).not.toContain("area_key");
+    expect(html.match(/<textarea\b/g)).toHaveLength(3);
+    expect(html).not.toMatch(/<input\b/);
+    expect(html).not.toMatch(/readonly=""/i);
+  });
+  it("opens unstarted responses read-only without requiring or creating a CAR", () => {
+    const html = renderToStaticMarkup(<CarResponseDialog entry={{ ...entry, car: undefined, canRespond: false }}
+      open onClose={() => {}} />);
+    expect(html).toContain("Parent programme");
+    expect(html).toContain("Not numbered");
+    expect(html.match(/<textarea\b/g)).toHaveLength(3);
+    for (const input of html.match(/<textarea\b[^>]*>/g) ?? []) expect(input).toMatch(/readonly=""/i);
+    expect(html).not.toContain("button-save-car");
+    expect(html).not.toContain("button-save-submit-car");
+  });
+  it("keeps submitted and closed responses read-only even if a stale assignment flag says editable", () => {
+    for (const status of ["Submitted", "Closed"] as const) {
+      const html = render({ ...car, status });
+      expect(html).not.toContain("button-save-car");
+      for (const input of html.match(/<textarea\b[^>]*>/g) ?? []) expect(input).toMatch(/readonly=""/i);
+    }
   });
 });
 

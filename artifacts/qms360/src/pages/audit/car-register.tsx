@@ -1,5 +1,6 @@
 import { responseFieldLabels } from "@/lib/response-field-labels";
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetAuditCarNumberingQueryKey } from "@workspace/api-client-react";
 import { Download } from "lucide-react";
@@ -17,8 +18,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { CarRegisterTable } from "./car-register-table";
-import { CarDisplayDialog, CarLogDialog } from "./car-register-details";
+import { canEditCarEntry, CarRegisterTable } from "./car-register-table";
+import { CarResponseDetails, CarLogDialog } from "./car-register-details";
 import { useFieldControls } from "@/lib/field-controls";
 import { useFieldAccess } from "@/lib/use-field-access";
 import { useLov } from "@/lib/use-lov";
@@ -48,21 +49,24 @@ export function CarReviewNotes({ car }: { car: CorrectiveActionReport }) {
     <b>Review{car.reviewOutcome ? ` — ${outcomeLabel(car.reviewOutcome)}` : ""}:</b> <span className="whitespace-pre-wrap">{car.reviewComments || "No comments."}</span></div>;
 }
 
-export function CarResponseDialog({ car, open, onClose, readOnly = false }: { car: CorrectiveActionReport; open: boolean; onClose: () => void; readOnly?: boolean }) {
+export function CarResponseDialog({ car, entry, auditAreaLabel, evidence, open, onClose, readOnly = false }: {
+  car?: CorrectiveActionReport; entry?: CarRegisterEntry; auditAreaLabel?: string; evidence?: ReactNode;
+  open: boolean; onClose: () => void; readOnly?: boolean;
+}) {
   const { toast } = useToast();
-  const refresh = useCarRefresh(car.id);
+  const refresh = useCarRefresh(car?.id);
   const qc = useQueryClient();
   const update = useUpdateCorrectiveActionReport();
   const controls = useFieldControls("audit", "car");
   const access = useFieldAccess("audit");
-  const viewOnly = readOnly || car.canRespond !== true;
-  const [f, setF] = useState({ rootCause: car.rootCause ?? "", correction: car.correction ?? "", correctiveAction: car.correctiveAction ?? "" });
+  const viewOnly = readOnly || !car || car.canRespond !== true || !EDITABLE.includes(car.status);
+  const [f, setF] = useState({ rootCause: car?.rootCause ?? "", correction: car?.correction ?? "", correctiveAction: car?.correctiveAction ?? "" });
   const [err, setErr] = useState("");
   const busy = update.isPending;
   const valid = !!f.rootCause.trim() && !!f.correction.trim() && !!f.correctiveAction.trim();
   const clean = { rootCause: f.rootCause.trim(), correction: f.correction.trim(), correctiveAction: f.correctiveAction.trim() };
   const run = async (andSubmit: boolean) => {
-    if (viewOnly) return;
+    if (viewOnly || !car) return;
     setErr("");
     if (andSubmit && !valid) { setErr(`${responseFieldLabels.rootCause}, ${responseFieldLabels.correction} and ${responseFieldLabels.correctiveAction} are all required to submit.`); return; }
     const body = { ...car, ...clean };
@@ -83,14 +87,15 @@ export function CarResponseDialog({ car, open, onClose, readOnly = false }: { ca
   const field = (key: keyof typeof f, label: string) => <div className="space-y-1"><Label htmlFor={`car-${key}`}>{label}{!viewOnly && " *"}</Label>
     <Textarea id={`car-${key}`} data-testid={`input-car-${key}`} rows={3} value={f[key]} readOnly={viewOnly} disabled={!viewOnly && (busy || controls.fieldProps(key).disabled || access.readOnly("car", key))} onChange={e => { if (!viewOnly) setF(v => ({ ...v, [key]: e.target.value })); }}/></div>;
   return <Dialog open={open} onOpenChange={v => { if (!v && !busy) onClose(); }}>
-    <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
-       <DialogHeader><DialogTitle>CAR Response</DialogTitle><DialogDescription>{viewOnly ? "Read-only CAR response. Only the assigned Action Taker can edit this response." : "Describe the cause and the actions taken for this finding."}</DialogDescription></DialogHeader>
+    <DialogContent className={`max-h-[90dvh] overflow-y-auto ${entry ? "sm:max-w-3xl" : "sm:max-w-xl"}`}>
+       <DialogHeader><DialogTitle>CAR Response</DialogTitle><DialogDescription>{viewOnly ? "Read-only CAR response. Editing requires the assigned Action Taker and an editable CAR status." : "Finding details are read-only. Enter the root cause, correction and corrective action below."}</DialogDescription></DialogHeader>
       <div className="rounded-md border bg-muted/40 p-2 text-sm" data-testid="text-car-number">
         <span className="text-xs uppercase text-muted-foreground">CAR Number</span>
-        {car.carNumber ? <p className="font-mono font-semibold">{car.carNumber}</p>
+        {car?.carNumber ? <p className="font-mono font-semibold">{car.carNumber}</p>
           : <p className="text-muted-foreground">{viewOnly ? "Not numbered" : "Not numbered yet. A CAR Number is assigned on the first successful Save response or Save & submit and is retained on later edits and retries."}</p>}
       </div>
-      <CarReviewNotes car={car}/>
+      {entry && <CarResponseDetails entry={entry} auditAreaLabel={auditAreaLabel ?? entry.auditArea} evidence={evidence ?? "—"} />}
+      {car && <CarReviewNotes car={car}/>}
       {field("rootCause", responseFieldLabels.rootCause)}{field("correction", responseFieldLabels.correction)}{field("correctiveAction", responseFieldLabels.correctiveAction)}
       {err && <p role="alert" data-testid="status-car-error" className="text-sm text-destructive">{err}</p>}
        <DialogFooter><Button variant="outline" disabled={busy} onClick={onClose}>{viewOnly ? "Close" : "Cancel"}</Button>
@@ -155,7 +160,7 @@ export function CarRegister() {
   const [department, setDepartment] = useState("all");
   const [status, setStatus] = useState("all");
   const [legacy, setLegacy] = useState(false);
-  const [respond, setRespond] = useState<CorrectiveActionReport>();
+  const [respond, setRespond] = useState<{ car: CorrectiveActionReport; entry: CarRegisterEntry }>();
   const [reviewing, setReviewing] = useState<CorrectiveActionReport>();
   const [displaying, setDisplaying] = useState<CarRegisterEntry>();
   const [logging, setLogging] = useState<CarRegisterEntry>();
@@ -166,19 +171,26 @@ export function CarRegister() {
   const data = query.data;
   const reset = <T,>(set: (v: T) => void) => (v: T) => { set(v); setPage(1); };
   const open = (e: CarRegisterEntry) => {
-    if (!e.canRespond) return;
+    if (!canEditCarEntry(e)) return;
     if (e.car) {
       editSession.mutate({ id: e.car.id }, {
-        onSuccess: car => setRespond(car),
+        onSuccess: car => setRespond({ car, entry: { ...e, car } }),
         onError: err => toast({ title: "Unable to open CAR", description: errorText(err), variant: "destructive" }),
       });
       return;
     }
     start.mutate({ data: { auditId: e.auditId, itemId: e.itemId } }, {
-      onSuccess: car => { refresh(); setRespond(car as CorrectiveActionReport); },
+      onSuccess: car => { refresh(); setRespond({ car, entry: { ...e, car } }); },
       onError: err => toast({ title: "Unable to start CAR", description: errorText(err), variant: "destructive" }),
     });
   };
+  const latestEntry = (entry: CarRegisterEntry) => data?.items.find(item => item.id === entry.id) ?? entry;
+  const responseDetails = (entry: CarRegisterEntry) => ({
+    entry,
+    auditAreaLabel: auditAreas.isLoading && entry.auditArea ? "Loading Audit Area…"
+      : auditAreas.options.find(option => option.value === entry.auditArea)?.label ?? entry.auditArea,
+    evidence: <Evidence entry={entry} />,
+  });
   const opts = (label: string, list?: { id: string; name: string }[]) => [<SelectItem key="all" value="all">{label}</SelectItem>, ...(list ?? []).map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)];
   return <div className="space-y-5">
     <div><h1 className="text-2xl font-semibold tracking-tight">Corrective Action Register</h1><p className="mt-1 text-sm text-muted-foreground">Audit findings and the corrective action responses raised against them</p></div>
@@ -197,14 +209,15 @@ export function CarRegister() {
     {auditAreas.error && <p role="alert" className="text-sm text-destructive">Unable to load Audit Area labels. <button type="button" className="underline" onClick={() => void auditAreas.refetch()}>Retry</button></p>}
     {data && <CarRegisterTable entries={data.items} auditAreaOptions={auditAreas.options} auditAreasLoading={auditAreas.isLoading} page={page} limit={LIMIT} busy={start.isPending || editSession.isPending}
       renderEvidence={entry => <Evidence entry={entry} />} onEdit={open} onDisplay={setDisplaying}
+      onOpenResponse={entry => { if (canEditCarEntry(entry)) open(entry); else setDisplaying(entry); }}
       onReview={entry => { if (entry.car) setReviewing(entry.car); }} onLog={setLogging} />}
     {data && data.items.length > 0 && <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground"><span>{data.total} total</span>
       <div className="flex gap-2"><Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</Button><Button variant="outline" size="sm" disabled={page * LIMIT >= data.total} onClick={() => setPage(page + 1)}>Next</Button></div></div>}
-    {respond && <CarResponseDialog key={respond.id} car={respond} open onClose={() => setRespond(undefined)}/>}
+    {respond && <CarResponseDialog key={respond.car.id} car={respond.car} {...responseDetails(latestEntry(respond.entry))}
+      readOnly={!canEditCarEntry(latestEntry(respond.entry))} open onClose={() => setRespond(undefined)}/>}
     {reviewing && <CarReviewDialog key={reviewing.id} car={reviewing} open onClose={() => setReviewing(undefined)}/>}
-    {displaying && (displaying.car
-      ? <CarResponseDialog key={`display-${displaying.car.id}`} car={displaying.car} open readOnly onClose={() => setDisplaying(undefined)} />
-      : <CarDisplayDialog entry={displaying} onClose={() => setDisplaying(undefined)} />)}
+    {displaying && <CarResponseDialog key={`display-${displaying.id}`} car={latestEntry(displaying).car}
+      {...responseDetails(latestEntry(displaying))} open readOnly onClose={() => setDisplaying(undefined)} />}
     {logging && <CarLogDialog key={logging.id} entry={logging} onClose={() => setLogging(undefined)} />}
   </div>;
 }

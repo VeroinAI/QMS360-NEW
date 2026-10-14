@@ -12,6 +12,8 @@ export const CAR_REGISTER_COLUMNS = [
 ] as const;
 
 const EDITABLE = ["Open", "Draft", "Rejected", "Returned for query", "Returned for rework"];
+export const canEditCarEntry = (entry: CarRegisterEntry) => entry.canRespond === true
+  && (entry.car ? EDITABLE.includes(entry.car.status) : !entry.legacy && EDITABLE.includes(entry.status));
 const tone = (s: string) => s === "Closed" || s === "Accepted" ? "default" as const : s === "Rejected" ? "destructive" as const : "secondary" as const;
 
 export interface CarRegisterTableProps {
@@ -23,12 +25,13 @@ export interface CarRegisterTableProps {
   busy: boolean;
   renderEvidence: (entry: CarRegisterEntry) => ReactNode;
   onEdit: (entry: CarRegisterEntry) => void;
+  onOpenResponse: (entry: CarRegisterEntry) => void;
   onDisplay: (entry: CarRegisterEntry) => void;
   onReview: (entry: CarRegisterEntry) => void;
   onLog: (entry: CarRegisterEntry) => void;
 }
 
-export function CarRegisterTable({ entries, auditAreaOptions = [], auditAreasLoading = false, page, limit, busy, renderEvidence, onEdit, onDisplay, onReview, onLog }: CarRegisterTableProps) {
+export function CarRegisterTable({ entries, auditAreaOptions = [], auditAreasLoading = false, page, limit, busy, renderEvidence, onEdit, onOpenResponse, onDisplay, onReview, onLog }: CarRegisterTableProps) {
   const cell = "border border-border px-2 py-1.5 align-top text-xs whitespace-normal break-words";
   return <div className="max-h-[70dvh] overflow-auto rounded-md border border-border" data-testid="table-car-register">
     <table className="w-full min-w-[1600px] border-collapse text-left">
@@ -40,13 +43,13 @@ export function CarRegisterTable({ entries, auditAreaOptions = [], auditAreasLoa
         {entries.length === 0 && <tr data-testid="row-car-empty"><td colSpan={CAR_REGISTER_COLUMNS.length} className="border border-border px-3 py-10 text-center text-sm text-muted-foreground">No findings match these filters.</td></tr>}
         {entries.map(e => {
           const car = e.car;
-          const canEdit = !!e.canRespond && !busy
-            && (car ? EDITABLE.includes(car.status) : !e.legacy && EDITABLE.includes(e.status));
+          const canEdit = canEditCarEntry(e) && !busy;
           const canReview = !!e.canReview && car?.status === "Submitted";
           const done = !!car?.correctiveAction?.trim();
           return <tr key={e.id} data-testid={`row-car-${e.id}`} className="odd:bg-background even:bg-muted/30">
             <td className={`${cell} font-mono`} data-testid={`text-car-number-${e.id}`}>{car?.carNumber || <span className="font-sans text-muted-foreground">Not numbered</span>}</td>
-            <td className={cell}>{e.scheduleName}</td>
+            <td className={cell}><button type="button" className="text-left font-medium text-primary underline underline-offset-2 hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+              data-testid={`link-car-schedule-${e.id}`} aria-haspopup="dialog" aria-label={`Open CAR Response for ${e.scheduleName || "unlinked schedule"} — ${e.auditTitle}`} disabled={busy} onClick={() => onOpenResponse(e)}>{e.scheduleName || "No linked schedule"}</button></td>
             <td className={cell}>{e.auditTitle}</td>
             <td className={cell}>{e.auditTypes?.join(", ")}</td>
             <td className={cell}>{e.department || e.projectName}</td>

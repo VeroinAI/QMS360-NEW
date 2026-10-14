@@ -7,6 +7,24 @@ import type { CarRegisterEntry } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+export function CarResponseDetails({ entry, auditAreaLabel, evidence }: { entry: CarRegisterEntry; auditAreaLabel: string; evidence: ReactNode }) {
+  const fields: [string, ReactNode][] = [
+    ["Audit Schedule", entry.scheduleName], ["Audit Title", entry.auditTitle],
+    ["Audit Type", entry.auditTypes?.join(", ")], ["Project / Department", entry.department || entry.projectName],
+    ["Audit Area", auditAreaLabel], ["Clause", entry.clause], ["Description", entry.description],
+    ["Audit Findings", entry.classification], ["Status", entry.status],
+    ["Action Taker", entry.actionTakerName], ["Evidence", evidence],
+    ["Corrective Action Recorded", entry.car?.correctiveAction?.trim() ? "Yes" : "No"],
+  ];
+  return <section aria-label="Read-only CAR register details" className="rounded-md border bg-muted/20 p-4">
+    <p className="mb-3 text-xs text-muted-foreground">Finding and register details are display only.</p>
+    <dl className="grid gap-4 sm:grid-cols-2">{fields.map(([label, value]) => <div key={label} className={label === "Description" ? "sm:col-span-2" : ""}>
+      <dt className="text-xs font-medium text-muted-foreground">{responseFieldLabel(label)}</dt>
+      <dd className="mt-1 whitespace-pre-wrap break-words text-sm">{value || "—"}</dd>
+    </div>)}</dl>
+  </section>;
+}
+
 export function CarDisplayDialog({ entry, onClose, reviewNotes }: { entry: CarRegisterEntry; onClose: () => void; reviewNotes?: ReactNode }) {
   const car = entry.car;
   const fields = [

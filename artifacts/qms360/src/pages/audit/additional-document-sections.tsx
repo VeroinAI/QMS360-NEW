@@ -230,7 +230,7 @@ function StatusRows({ auditId, section, saved, savedRemarks, onUpdated }: {
       <div className="grid min-w-[650px] grid-cols-[minmax(350px,1.2fr)_minmax(240px,1fr)] gap-5">
         <div className="space-y-3">
           <div className="grid grid-cols-[minmax(160px,1fr)_130px_32px] gap-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Status</span><span>Value</span><span className="sr-only">Actions</span>
+            <span>{section === "procurement-status" ? "Items" : "Status"}</span><span>{section === "procurement-status" ? "Count" : "Value"}</span><span className="sr-only">Actions</span>
           </div>
           {rows.map(row => <div key={row.id} className="grid grid-cols-[minmax(160px,1fr)_130px_32px] items-start gap-3">
             {fixedIds.has(row.id)

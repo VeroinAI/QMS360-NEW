@@ -100,7 +100,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (process.env.QMS_AUDIT_CAR_CLEANUP !== "1" && orgId) {
     if (process.env.QMS_AUDIT_CAR_BROWSER === "1") await writeFile(fixturePath, JSON.stringify({
-      orgId, token, userId, projectId, auditId: browserAuditId, year: 2035,
+      orgId, token, otherToken, userId, projectId, auditId: browserAuditId, year: 2035,
     }), { mode: 0o600 });
     else await cleanup(orgId);
   }

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { CarRegisterEntry, CorrectiveActionReport } from "@workspace/api-client-react";
-import { CAR_REGISTER_COLUMNS, CarRegisterTable, type CarRegisterTableProps } from "./car-register-table";
+import { canEditCarEntry, CAR_REGISTER_COLUMNS, CarRegisterTable, type CarRegisterTableProps } from "./car-register-table";
 
 const entry: CarRegisterEntry = {
   id: "finding-1", auditId: "audit-1", itemId: "item-1", auditTitle: "Audit title", scheduleName: "Schedule",
@@ -12,7 +12,7 @@ const entry: CarRegisterEntry = {
 const render = (entries: CarRegisterEntry[], busy = false, areaProps: Pick<CarRegisterTableProps, "auditAreaOptions" | "auditAreasLoading"> = {}) => renderToStaticMarkup(<CarRegisterTable
   {...areaProps}
   entries={entries} page={1} limit={10} busy={busy} renderEvidence={() => <span>Evidence link</span>}
-  onEdit={() => {}} onDisplay={() => {}} onReview={() => {}} onLog={() => {}} />);
+  onEdit={() => {}} onOpenResponse={() => {}} onDisplay={() => {}} onReview={() => {}} onLog={() => {}} />);
 const button = (html: string, id: string) => html.match(new RegExp(`<button[^>]*data-testid="${id}"[^>]*>`))?.[0] ?? "";
 const car = (status: CorrectiveActionReport["status"], correctiveAction?: string) => ({
   id: "car-1", findingId: "finding-1", responsibleDepartment: "Area", ownerId: "user-1", dueDate: "2026-10-05", status, correctiveAction,
@@ -22,7 +22,9 @@ describe("Excel-style CAR Register", () => {
   it("renders the parent schedule and selected audit title in their respective columns", () => {
     const html = render([{ ...entry, scheduleName: "Audit Schedule - 2026", auditTitle: "AM-1709-2106" }]);
     const cells = [...html.matchAll(/<td\b[^>]*>(.*?)<\/td>/g)].map(match => match[1]);
-    expect(cells[1]).toBe("Audit Schedule - 2026");
+    expect(cells[1]).toContain(">Audit Schedule - 2026</button>");
+    expect(cells[1]).toContain('data-testid="link-car-schedule-finding-1"');
+    expect(cells[1]).toContain('aria-haspopup="dialog"');
     expect(cells[2]).toBe("AM-1709-2106");
   });
   it("displays the corresponding master-data label instead of the Audit Area key", () => {
@@ -94,5 +96,15 @@ describe("Excel-style CAR Register", () => {
   it("retains headers and an accessible empty row", () => {
     expect(render([])).toMatch(/colspan="16"/i);
     expect(render([])).toContain("No findings match these filters.");
+  });
+  it("keeps the schedule link available for read-only users and historical or submitted rows", () => {
+    for (const row of [{ ...entry, canRespond: false }, { ...entry, legacy: true },
+      { ...entry, car: car("Submitted"), status: "Submitted" }, { ...entry, car: car("Closed"), status: "Closed" }]) {
+      expect(button(render([row]), "link-car-schedule-finding-1")).not.toContain('disabled=""');
+      expect(canEditCarEntry(row)).toBe(false);
+    }
+    expect(canEditCarEntry(entry)).toBe(true);
+    expect(canEditCarEntry({ ...entry, car: car("Draft") })).toBe(true);
+    expect(button(render([entry], true), "link-car-schedule-finding-1")).toContain('disabled=""');
   });
 });
