@@ -96,8 +96,7 @@ export async function carWordReportData(req: Request, input: { auditId: string; 
   return {
     auditor: person(context.leadId)?.name,
     date: carReportDate(car?.createdAt ?? finding?.createdAt),
-    // QMS360 does not currently store a formal CAR number; do not invent one.
-    carNumber: null,
+    carNumber: typeof meta.carNumber === "string" ? meta.carNumber : null,
     department: context.scheduleMeta.departmentProject || finding?.responsibleDepartment,
     recipient: person(recipientId)?.name,
     auditReference: context.audit.referenceNumber,

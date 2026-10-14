@@ -9,6 +9,11 @@ import type { CorrectiveActionReportExtensionStatus } from './correctiveActionRe
 import type { CorrectiveActionReportStatus } from './correctiveActionReportStatus';
 
 export interface CorrectiveActionReport {
+  /**
+     * Assigned on the first successful response save or submission
+     * @nullable
+     */
+  readonly carNumber?: string | null;
   id: string;
   findingId: string;
   responsibleDepartment: string;

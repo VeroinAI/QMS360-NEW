@@ -3210,6 +3210,21 @@ export interface AuditFindingNumberRangeInput {
   nextNumber: number;
 }
 
+export interface AuditCarNumberRangeInput {
+  /** @minLength 1 */
+  scope: string;
+  /**
+     * @minimum 1900
+     * @maximum 9999
+     */
+  year: number;
+  /**
+     * @minimum 1
+     * @maximum 999999999999
+     */
+  nextNumber: number;
+}
+
 export type AuditFindingNumberingSettingsFindingTypesItem = typeof AuditFindingNumberingSettingsFindingTypesItem[keyof typeof AuditFindingNumberingSettingsFindingTypesItem];
 
 
@@ -3823,6 +3838,11 @@ export const CorrectiveActionReportExtensionStatus = {
 } as const;
 
 export interface CorrectiveActionReport {
+  /**
+     * Assigned on the first successful response save or submission
+     * @nullable
+     */
+  readonly carNumber?: string | null;
   id: string;
   findingId: string;
   responsibleDepartment: string;
@@ -5651,6 +5671,10 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+};
+
+export type UpdateAuditCarNumberRange200 = {
+  saved: boolean;
 };
 
 export type UpdateAuditFindingNumberRange200 = {

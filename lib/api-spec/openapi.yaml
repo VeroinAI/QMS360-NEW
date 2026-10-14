@@ -1924,6 +1924,29 @@ paths:
   /audit/admin/report-numbering:
     get: {operationId: getAuditReportNumbering, tags: [audit-admin], summary: Read independent Audit Report yearly project and department numbering, responses: {"200": {description: Audit Report numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingSettings"}}}}}}
     put: {operationId: updateAuditReportNumbering, tags: [audit-admin], summary: Save Audit Report prefix and middle text without resetting counters, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}, responses: {"200": {description: Saved Audit Report pattern, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}}}
+  /audit/admin/car-numbering:
+    get: {operationId: getAuditCarNumbering, tags: [audit-admin], summary: Read independent Audit CAR yearly numbering, responses: {"200": {description: CAR numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingSettings"}}}}}}
+    put: {operationId: updateAuditCarNumbering, tags: [audit-admin], summary: Save CAR number format without resetting counters, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}, responses: {"200": {description: Saved CAR format, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}}}
+  /audit/admin/car-numbering/ranges:
+    put:
+      operationId: updateAuditCarNumberRange
+      tags: [audit-admin]
+      summary: Set the next CAR running number for a project or department and year
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AuditCarNumberRangeInput"}
+      responses:
+        "200":
+          description: Next CAR running number saved without issuing a number
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [saved]
+                properties:
+                  saved: {type: boolean}
   /audit/admin/finding-numbering:
     get: {operationId: getAuditFindingNumbering, tags: [audit-admin], summary: Read independent finding-type yearly numbering, responses: {"200": {description: Finding numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingNumberingSettings"}}}}}}
     put: {operationId: updateAuditFindingNumbering, tags: [audit-admin], summary: Save finding number format and per-type middle codes without resetting counters, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingNumberingPattern"}}}}, responses: {"200": {description: Saved format, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingNumberingPattern"}}}}}}
@@ -3947,6 +3970,13 @@ components:
         scope: {type: string, minLength: 1}
         year: {type: number, minimum: 1900, maximum: 9999}
         nextNumber: {type: number, minimum: 1, maximum: 999999999999}
+    AuditCarNumberRangeInput:
+      type: object
+      required: [scope, year, nextNumber]
+      properties:
+        scope: {type: string, minLength: 1}
+        year: {type: number, minimum: 1900, maximum: 9999}
+        nextNumber: {type: number, minimum: 1, maximum: 999999999999}
     AuditFindingNumberingSettings:
       type: object
       required: [pattern, findingTypes, sources, ranges]
@@ -4194,6 +4224,7 @@ components:
       type: object
       required: [id, findingId, responsibleDepartment, ownerId, status, dueDate]
       properties:
+        carNumber: {type: [string, "null"], readOnly: true, description: Assigned on the first successful response save or submission}
         id: {type: string}
         findingId: {type: string}
         responsibleDepartment: {type: string}

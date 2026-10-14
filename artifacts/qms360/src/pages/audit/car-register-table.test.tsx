@@ -22,8 +22,8 @@ describe("Excel-style CAR Register", () => {
   it("renders the parent schedule and selected audit title in their respective columns", () => {
     const html = render([{ ...entry, scheduleName: "Audit Schedule - 2026", auditTitle: "AM-1709-2106" }]);
     const cells = [...html.matchAll(/<td\b[^>]*>(.*?)<\/td>/g)].map(match => match[1]);
-    expect(cells[0]).toBe("Audit Schedule - 2026");
-    expect(cells[1]).toBe("AM-1709-2106");
+    expect(cells[1]).toBe("Audit Schedule - 2026");
+    expect(cells[2]).toBe("AM-1709-2106");
   });
   it("displays the corresponding master-data label instead of the Audit Area key", () => {
     const original = { ...entry, auditArea: "design_engg" };
@@ -51,7 +51,7 @@ describe("Excel-style CAR Register", () => {
   });
   it("keeps the recorded-action column and inserts Word Download immediately before Log", () => {
     expect(CAR_REGISTER_COLUMNS).toEqual([
-      "Audit Schedule", "Audit Title", "Audit Type", "Project / Department", "Audit Area", "Description",
+      "CAR Number", "Audit Schedule", "Audit Title", "Audit Type", "Project / Department", "Audit Area", "Description",
       "Audit Findings", "Evidence", "Action Taker", "Corrective Action Recorded", "Edit", "Display", "Close / Resent CAR", "Download", "Log",
     ]);
     const html = render([entry]);
@@ -92,7 +92,7 @@ describe("Excel-style CAR Register", () => {
     expect(button(render([{ ...entry, canRespond: false }]), "button-log-finding-1")).not.toContain('disabled=""');
   });
   it("retains headers and an accessible empty row", () => {
-    expect(render([])).toMatch(/colspan="15"/i);
+    expect(render([])).toMatch(/colspan="16"/i);
     expect(render([])).toContain("No findings match these filters.");
   });
 });

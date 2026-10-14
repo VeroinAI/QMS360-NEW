@@ -36,6 +36,7 @@ import type {
   ApproverScopeInput,
   Audit,
   AuditBody,
+  AuditCarNumberRangeInput,
   AuditChecklistImportItem,
   AuditChecklistItemInput,
   AuditDocumentStatusInput,
@@ -342,6 +343,7 @@ import type {
   SyncJob,
   SyncJobPageResponse,
   TemporaryPasswordInput,
+  UpdateAuditCarNumberRange200,
   UpdateAuditFindingNumberRange200,
   UpdateAuditReportNumberRange200,
   UpdateMasterDataGroupInput,
@@ -26000,6 +26002,225 @@ export const useUpdateAuditReportNumbering = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUpdateAuditReportNumberingMutationOptions(options));
+    }
+
+export const getGetAuditCarNumberingUrl = () => {
+
+
+
+
+  return `/api/audit/admin/car-numbering`
+}
+
+/**
+ * @summary Read independent Audit CAR yearly numbering
+ */
+export const getAuditCarNumbering = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanNumberingSettings> => {
+
+  return customFetch<AuditPlanNumberingSettings>(getGetAuditCarNumberingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAuditCarNumberingQueryKey = () => {
+    return [
+    `/api/audit/admin/car-numbering`
+    ] as const;
+    }
+
+
+export const getGetAuditCarNumberingQueryOptions = <TData = Awaited<ReturnType<typeof getAuditCarNumbering>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditCarNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditCarNumberingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditCarNumbering>>> = ({ signal }) => getAuditCarNumbering({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAuditCarNumbering>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAuditCarNumberingQueryResult = NonNullable<Awaited<ReturnType<typeof getAuditCarNumbering>>>
+export type GetAuditCarNumberingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read independent Audit CAR yearly numbering
+ */
+
+export function useGetAuditCarNumbering<TData = Awaited<ReturnType<typeof getAuditCarNumbering>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditCarNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAuditCarNumberingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAuditCarNumberingUrl = () => {
+
+
+
+
+  return `/api/audit/admin/car-numbering`
+}
+
+/**
+ * @summary Save CAR number format without resetting counters
+ */
+export const updateAuditCarNumbering = async (auditPlanNumberingPattern: AuditPlanNumberingPattern, options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanNumberingPattern> => {
+
+  return customFetch<AuditPlanNumberingPattern>(getUpdateAuditCarNumberingUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditPlanNumberingPattern)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditCarNumberingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditCarNumbering>>, TError,{data: BodyType<AuditPlanNumberingPattern>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditCarNumbering>>, TError,{data: BodyType<AuditPlanNumberingPattern>}, TContext> => {
+
+const mutationKey = ['updateAuditCarNumbering'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditCarNumbering>>, {data: BodyType<AuditPlanNumberingPattern>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAuditCarNumbering(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditCarNumberingMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditCarNumbering>>>
+    export type UpdateAuditCarNumberingMutationBody = BodyType<AuditPlanNumberingPattern>
+    export type UpdateAuditCarNumberingMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Save CAR number format without resetting counters
+ */
+export const useUpdateAuditCarNumbering = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditCarNumbering>>, TError,{data: BodyType<AuditPlanNumberingPattern>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditCarNumbering>>,
+        TError,
+        {data: BodyType<AuditPlanNumberingPattern>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditCarNumberingMutationOptions(options));
+    }
+
+export const getUpdateAuditCarNumberRangeUrl = () => {
+
+
+
+
+  return `/api/audit/admin/car-numbering/ranges`
+}
+
+/**
+ * @summary Set the next CAR running number for a project or department and year
+ */
+export const updateAuditCarNumberRange = async (auditCarNumberRangeInput: AuditCarNumberRangeInput, options?: Parameters<typeof customFetch>[1]): Promise<UpdateAuditCarNumberRange200> => {
+
+  return customFetch<UpdateAuditCarNumberRange200>(getUpdateAuditCarNumberRangeUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditCarNumberRangeInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditCarNumberRangeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditCarNumberRange>>, TError,{data: BodyType<AuditCarNumberRangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditCarNumberRange>>, TError,{data: BodyType<AuditCarNumberRangeInput>}, TContext> => {
+
+const mutationKey = ['updateAuditCarNumberRange'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditCarNumberRange>>, {data: BodyType<AuditCarNumberRangeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAuditCarNumberRange(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditCarNumberRangeMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditCarNumberRange>>>
+    export type UpdateAuditCarNumberRangeMutationBody = BodyType<AuditCarNumberRangeInput>
+    export type UpdateAuditCarNumberRangeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Set the next CAR running number for a project or department and year
+ */
+export const useUpdateAuditCarNumberRange = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditCarNumberRange>>, TError,{data: BodyType<AuditCarNumberRangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditCarNumberRange>>,
+        TError,
+        {data: BodyType<AuditCarNumberRangeInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditCarNumberRangeMutationOptions(options));
     }
 
 export const getGetAuditFindingNumberingUrl = () => {

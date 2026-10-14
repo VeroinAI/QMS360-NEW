@@ -52,6 +52,7 @@ import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../l
 import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
 import { allocatePlanNumber, getPlanNumberDepartments, previewPlanNumber, readPlanNumberState, savePlanNumbering, type PlanNumberPattern } from "../lib/audit-plan-numbering";
 import { allocateReportNumber, readReportNumberState, saveReportNumbering } from "../lib/audit-report-numbering";
+import { lockNumberedCarResponse, readCarNumberState, saveCarNumbering, type CarNumberRange } from "../lib/audit-car-numbering";
 import { allocateFindingNumber, numberedFindingTypes, readFindingNumberState, saveFindingNumbering, type FindingNumberPattern, type FindingNumberRange } from "../lib/audit-finding-numbering";
 import { projectNumberContext } from "@workspace/field-controls";
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
@@ -2683,6 +2684,12 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
     if ((auditMeta(locked).reportNumber || currentChecklist.some(item => item.findingNumber)) && locked.auditPlanId !== plan.id) {
       throw new HttpError(409, "An audit with an issued Report or Finding Number cannot be moved to a different Audit Plan.");
     }
+    if (locked.auditPlanId !== plan.id) {
+      const cars = await tx.select({ notes: correctiveActionReports.effectivenessNotes }).from(correctiveActionReports)
+        .innerJoin(auditFindings, eq(auditFindings.id, correctiveActionReports.auditFindingId))
+        .where(and(eq(auditFindings.auditId, locked.id), eq(correctiveActionReports.organizationId, actor(req).organizationId)));
+      if (cars.some(car => carJson(car.notes).carNumber)) throw new HttpError(409, "An audit with an issued CAR Number cannot be moved to a different Audit Plan.");
+    }
     const findingRows = currentChecklist.filter(item => item.source === "finding");
     const findingIds = new Set(findingRows.map(item => item.id));
     values.checklistState = data.checklist ? [
@@ -3218,6 +3225,7 @@ router.delete("/findings/:id", asyncHandler(async (req, res) => {
 }));
 
 type CarMeta = {
+  carNumber?: string; carNumberScope?: string; carNumberYear?: number; carNumberSequence?: number;
   extensionReason?: string | null; extensionReviewedBy?: string | null; extensionReviewedAt?: string | null;
   extensionPriorState?: string | null;
   reviewComments?: string | null; effectivenessVerified?: boolean; closedAt?: string | null;
@@ -3254,6 +3262,7 @@ const carDto = (row: AnyRow) => {
   const meta = carMeta(row);
   return {
     id: row.id, findingId: row.auditFindingId, responsibleDepartment: row.responsibleDepartment,
+    carNumber: meta.carNumber ?? null,
     ownerId: row.ownerId ?? row.id, rootCause: row.rootCause, correction: row.correction, correctiveAction: row.correctiveAction,
     status: row.workflowState === "rejected" && ["query", "rework"].includes(meta.reviewOutcome ?? "")
       ? `Returned for ${meta.reviewOutcome}`
@@ -3638,12 +3647,16 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
     }
   }
   const row = await db.transaction(async tx => {
+    const { settings } = await lockScheduleNumbering(tx, actor(req).organizationId);
+    const { car: current, meta } = await lockNumberedCarResponse(tx, settings, before.id, actor(req).id);
+    if (current.workflowState !== before.workflowState) throw new HttpError(409, "CAR changed while saving. Reload and retry.");
     const [saved] = await tx.update(correctiveActionReports).set({
       rootCause: data.rootCause, correction: data.correction, correctiveAction: data.correctiveAction,
-      ownerId: context.ownerId, dueDate: before.dueDate, workflowState: saveAndSubmit ? "submitted" : "draft", updatedAt: new Date(),
+      ownerId: context.ownerId, dueDate: current.dueDate, workflowState: saveAndSubmit ? "submitted" : "draft",
+      effectivenessNotes: JSON.stringify(meta), updatedAt: new Date(),
     }).where(and(eq(correctiveActionReports.id, before.id), eq(correctiveActionReports.workflowState, before.workflowState))).returning();
     if (!saved) throw new HttpError(409, "CAR changed while saving. Reload and retry.");
-    await auditLog(req, saveAndSubmit ? "submit" : "update", "corrective_action_report", saved.id, before, saved, tx as unknown as typeof db);
+    await auditLog(req, saveAndSubmit ? "submit" : "update", "corrective_action_report", saved.id, current, saved, tx as unknown as typeof db);
     return saved;
   });
   if (saveAndSubmit) await notify(db, "audit", { organizationId: actor(req).organizationId, userId: context.leadId!,
@@ -3659,13 +3672,21 @@ router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
   if (!context.leadId) throw new HttpError(422, "Select a Lead / Internal Auditor in the linked Audit Plan before submitting");
   if (!["open", "draft", "rejected"].includes(before.workflowState)) throw new HttpError(409, "CAR is not eligible for submission");
   if (!before.rootCause?.trim() || !before.correction?.trim() || !before.correctiveAction?.trim()) throw new HttpError(422, "Root cause, correction, and corrective action are required");
-  const [row] = await db.update(correctiveActionReports).set({ workflowState: "submitted", updatedAt: new Date() })
-    .where(and(eq(correctiveActionReports.id, before.id), eq(correctiveActionReports.workflowState, before.workflowState))).returning();
-  if (!row) throw new HttpError(409, "CAR changed while submitting. Reload and retry.");
+  const row = await db.transaction(async tx => {
+    const { settings } = await lockScheduleNumbering(tx, actor(req).organizationId);
+    const { car: current, meta } = await lockNumberedCarResponse(tx, settings, before.id, actor(req).id);
+    if (current.workflowState !== before.workflowState) throw new HttpError(409, "CAR changed while submitting. Reload and retry.");
+    if (!current.rootCause?.trim() || !current.correction?.trim() || !current.correctiveAction?.trim()) throw new HttpError(422, "Root cause, correction, and corrective action are required");
+    const [saved] = await tx.update(correctiveActionReports).set({
+      workflowState: "submitted", effectivenessNotes: JSON.stringify(meta), updatedAt: new Date(),
+    }).where(eq(correctiveActionReports.id, current.id)).returning();
+    await auditLog(req, "submit", "corrective_action_report", current.id, current, saved, tx as unknown as typeof db);
+    return saved!;
+  });
   await notify(db, "audit", { organizationId: actor(req).organizationId, userId: context.leadId,
     type: "car_submitted", title: "CAR response awaiting your review", body: "The action taker submitted a response to an Audit finding.",
     entityType: "corrective_action_report", entityId: row.id });
-  await auditLog(req, "submit", "corrective_action_report", row.id, before, row); res.json(carDto(row));
+  res.json(carDto(row));
 }));
 router.post("/cars/:id/review", asyncHandler(async (req, res) => { const data = body<AnyRow>(Api.ReviewCorrectiveActionReportBody, req);
   if (data.decision !== "accept" && !data.comments?.trim()) throw new HttpError(422, "Comments are required when returning a response for queries or rework");
@@ -4106,6 +4127,29 @@ router.get("/admin/finding-numbering", asyncHandler(async (req, res) => {
       type, Object.fromEntries(Object.entries(ranges).filter(([scope]) => allowed.has(scope))),
     ])),
   }));
+}));
+router.get("/admin/car-numbering", asyncHandler(async (req, res) => {
+  const sources = await auditPlanNumberSources(req);
+  const state = await readCarNumberState(actor(req).organizationId);
+  res.json(Api.GetAuditCarNumberingResponse.parse({ ...state, sources,
+    ranges: Object.fromEntries(sources.filter(source => state.ranges[source.key]).map(source => [source.key, state.ranges[source.key]])) }));
+}));
+router.put("/admin/car-numbering", asyncHandler(async (req, res) => {
+  const pattern = body<PlanNumberPattern>(Api.UpdateAuditCarNumberingBody, req);
+  const before = await readCarNumberState(actor(req).organizationId);
+  const saved = await saveCarNumbering(actor(req).organizationId, pattern);
+  await auditLog(req, "update_car_numbering", "audit_car_numbering", actor(req).organizationId, before.pattern, saved.pattern);
+  res.json(Api.UpdateAuditCarNumberingResponse.parse(saved.pattern));
+}));
+router.put("/admin/car-numbering/ranges", asyncHandler(async (req, res) => {
+  const range = body<CarNumberRange>(Api.UpdateAuditCarNumberRangeBody, req);
+  if (!(await auditPlanNumberSources(req)).some(source => source.key === range.scope)) throw new HttpError(404, "Project or department is not available in your Audit administration scope");
+  const before = await readCarNumberState(actor(req).organizationId);
+  const saved = await saveCarNumbering(actor(req).organizationId, undefined, range);
+  await auditLog(req, "maintain_car_number_range", "audit_car_numbering", range.scope.split(":")[1],
+    { ...range, nextNumber: (before.ranges[range.scope]?.[String(range.year)] ?? 0) + 1 },
+    { ...range, nextNumber: (saved.ranges[range.scope]?.[String(range.year)] ?? 0) + 1 });
+  res.json(Api.UpdateAuditCarNumberRangeResponse.parse({ saved: true }));
 }));
 router.put("/admin/finding-numbering", asyncHandler(async (req, res) => {
   const pattern = body<FindingNumberPattern>(Api.UpdateAuditFindingNumberingBody, req);

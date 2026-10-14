@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CarWordDownloadButton } from "./car-word-download";
 
 export const CAR_REGISTER_COLUMNS = [
-  "Audit Schedule", "Audit Title", "Audit Type", "Project / Department", "Audit Area", "Description",
+  "CAR Number", "Audit Schedule", "Audit Title", "Audit Type", "Project / Department", "Audit Area", "Description",
   "Audit Findings", "Evidence", "Action Taker", "Corrective Action Recorded", "Edit", "Display", "Close / Resent CAR", "Download", "Log",
 ] as const;
 
@@ -45,6 +45,7 @@ export function CarRegisterTable({ entries, auditAreaOptions = [], auditAreasLoa
           const canReview = !!e.canReview && car?.status === "Submitted";
           const done = !!car?.correctiveAction?.trim();
           return <tr key={e.id} data-testid={`row-car-${e.id}`} className="odd:bg-background even:bg-muted/30">
+            <td className={`${cell} font-mono`} data-testid={`text-car-number-${e.id}`}>{car?.carNumber || <span className="font-sans text-muted-foreground">Not numbered</span>}</td>
             <td className={cell}>{e.scheduleName}</td>
             <td className={cell}>{e.auditTitle}</td>
             <td className={cell}>{e.auditTypes?.join(", ")}</td>

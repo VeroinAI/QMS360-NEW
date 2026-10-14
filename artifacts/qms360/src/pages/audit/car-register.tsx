@@ -1,6 +1,7 @@
 import { responseFieldLabels } from "@/lib/response-field-labels";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { getGetAuditCarNumberingQueryKey } from "@workspace/api-client-react";
 import { Download } from "lucide-react";
 import {
    customFetch, getGetCorrectiveActionReportQueryKey, getListCarActivityQueryKey, getListCarRegisterQueryKey, useListAuditEvidence, useListCarRegister,
@@ -50,6 +51,7 @@ export function CarReviewNotes({ car }: { car: CorrectiveActionReport }) {
 export function CarResponseDialog({ car, open, onClose, readOnly = false }: { car: CorrectiveActionReport; open: boolean; onClose: () => void; readOnly?: boolean }) {
   const { toast } = useToast();
   const refresh = useCarRefresh(car.id);
+  const qc = useQueryClient();
   const update = useUpdateCorrectiveActionReport();
   const controls = useFieldControls("audit", "car");
   const access = useFieldAccess("audit");
@@ -70,9 +72,11 @@ export function CarResponseDialog({ car, open, onClose, readOnly = false }: { ca
     });
     if (missing.length) { setErr(`Complete required fields: ${missing.join(", ")}.`); return; }
     try {
-      await update.mutateAsync({ id: car.id, data: { ...clean, saveAndSubmit: andSubmit } });
+      const saved = await update.mutateAsync({ id: car.id, data: { ...clean, saveAndSubmit: andSubmit } });
       refresh();
-      toast({ title: andSubmit ? "CAR submitted" : "Response saved" });
+      void qc.invalidateQueries({ queryKey: getGetAuditCarNumberingQueryKey() });
+      const num = (saved as CorrectiveActionReport | undefined)?.carNumber;
+      toast({ title: andSubmit ? "CAR submitted" : "Response saved", description: num ? `CAR Number ${num}` : undefined });
       onClose();
     } catch (e) { setErr(errorText(e)); refresh(); }
   };
@@ -81,6 +85,11 @@ export function CarResponseDialog({ car, open, onClose, readOnly = false }: { ca
   return <Dialog open={open} onOpenChange={v => { if (!v && !busy) onClose(); }}>
     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
        <DialogHeader><DialogTitle>CAR Response</DialogTitle><DialogDescription>{viewOnly ? "Read-only CAR response. Only the assigned Action Taker can edit this response." : "Describe the cause and the actions taken for this finding."}</DialogDescription></DialogHeader>
+      <div className="rounded-md border bg-muted/40 p-2 text-sm" data-testid="text-car-number">
+        <span className="text-xs uppercase text-muted-foreground">CAR Number</span>
+        {car.carNumber ? <p className="font-mono font-semibold">{car.carNumber}</p>
+          : <p className="text-muted-foreground">{viewOnly ? "Not numbered" : "Not numbered yet. A CAR Number is assigned on the first successful Save response or Save & submit and is retained on later edits and retries."}</p>}
+      </div>
       <CarReviewNotes car={car}/>
       {field("rootCause", responseFieldLabels.rootCause)}{field("correction", responseFieldLabels.correction)}{field("correctiveAction", responseFieldLabels.correctiveAction)}
       {err && <p role="alert" data-testid="status-car-error" className="text-sm text-destructive">{err}</p>}

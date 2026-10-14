@@ -11067,6 +11067,7 @@ export const CreateFindingCarsResponse = zod.object({
   "limit": zod.number().min(1)
 }).and(zod.object({
   "items": zod.array(zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11121,6 +11122,7 @@ export const ListCorrectiveActionReportsResponse = zod.object({
   "limit": zod.number().min(1)
 }).and(zod.object({
   "items": zod.array(zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11189,6 +11191,7 @@ export const ListCarRegisterResponse = zod.object({
   "canReview": zod.boolean(),
   "legacy": zod.boolean().optional(),
   "car": zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11258,6 +11261,7 @@ export const StartFindingCarBody = zod.object({
 })
 
 export const StartFindingCarResponse = zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11288,6 +11292,7 @@ export const OpenCarEditSessionParams = zod.object({
 })
 
 export const OpenCarEditSessionResponse = zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11348,6 +11353,7 @@ export const GetCorrectiveActionReportParams = zod.object({
 })
 
 export const GetCorrectiveActionReportResponse = zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11390,6 +11396,7 @@ export const UpdateCorrectiveActionReportBody = zod.object({
 })
 
 export const UpdateCorrectiveActionReportResponse = zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -11877,6 +11884,7 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "raisedAt": zod.coerce.date().optional()
 })),
   "cars": zod.array(zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -12469,6 +12477,96 @@ export const UpdateAuditReportNumberingResponse = zod.object({
   "middle": zod.string().max(updateAuditReportNumberingResponseMiddleMax),
   "separator": zod.string().max(updateAuditReportNumberingResponseSeparatorMax),
   "padding": zod.number().min(1).max(updateAuditReportNumberingResponsePaddingMax)
+})
+
+
+/**
+ * @summary Read independent Audit CAR yearly numbering
+ */
+export const getAuditCarNumberingResponsePatternPrefixMax = 80;
+
+export const getAuditCarNumberingResponsePatternMiddleMax = 80;
+
+export const getAuditCarNumberingResponsePatternSeparatorMax = 80;
+
+export const getAuditCarNumberingResponsePatternPaddingMax = 12;
+
+
+
+export const GetAuditCarNumberingResponse = zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string().max(getAuditCarNumberingResponsePatternPrefixMax),
+  "middle": zod.string().max(getAuditCarNumberingResponsePatternMiddleMax),
+  "separator": zod.string().max(getAuditCarNumberingResponsePatternSeparatorMax),
+  "padding": zod.number().min(1).max(getAuditCarNumberingResponsePatternPaddingMax)
+}),
+  "ranges": zod.record(zod.string(), zod.record(zod.string(), zod.number())),
+  "sources": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.enum(['project', 'department']),
+  "label": zod.string(),
+  "sourceValue": zod.string()
+}))
+})
+
+
+/**
+ * @summary Save CAR number format without resetting counters
+ */
+export const updateAuditCarNumberingBodyPrefixMax = 80;
+
+export const updateAuditCarNumberingBodyMiddleMax = 80;
+
+export const updateAuditCarNumberingBodySeparatorMax = 80;
+
+export const updateAuditCarNumberingBodyPaddingMax = 12;
+
+
+
+export const UpdateAuditCarNumberingBody = zod.object({
+  "prefix": zod.string().max(updateAuditCarNumberingBodyPrefixMax),
+  "middle": zod.string().max(updateAuditCarNumberingBodyMiddleMax),
+  "separator": zod.string().max(updateAuditCarNumberingBodySeparatorMax),
+  "padding": zod.number().min(1).max(updateAuditCarNumberingBodyPaddingMax)
+})
+
+export const updateAuditCarNumberingResponsePrefixMax = 80;
+
+export const updateAuditCarNumberingResponseMiddleMax = 80;
+
+export const updateAuditCarNumberingResponseSeparatorMax = 80;
+
+export const updateAuditCarNumberingResponsePaddingMax = 12;
+
+
+
+export const UpdateAuditCarNumberingResponse = zod.object({
+  "prefix": zod.string().max(updateAuditCarNumberingResponsePrefixMax),
+  "middle": zod.string().max(updateAuditCarNumberingResponseMiddleMax),
+  "separator": zod.string().max(updateAuditCarNumberingResponseSeparatorMax),
+  "padding": zod.number().min(1).max(updateAuditCarNumberingResponsePaddingMax)
+})
+
+
+/**
+ * @summary Set the next CAR running number for a project or department and year
+ */
+
+export const updateAuditCarNumberRangeBodyYearMin = 1900;
+export const updateAuditCarNumberRangeBodyYearMax = 9999;
+
+export const updateAuditCarNumberRangeBodyNextNumberMax = 999999999999;
+
+
+
+export const UpdateAuditCarNumberRangeBody = zod.object({
+  "scope": zod.string().min(1),
+  "year": zod.number().min(updateAuditCarNumberRangeBodyYearMin).max(updateAuditCarNumberRangeBodyYearMax),
+  "nextNumber": zod.number().min(1).max(updateAuditCarNumberRangeBodyNextNumberMax)
+})
+
+export const UpdateAuditCarNumberRangeResponse = zod.object({
+  "saved": zod.boolean()
 })
 
 

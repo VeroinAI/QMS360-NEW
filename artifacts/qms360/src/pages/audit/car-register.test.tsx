@@ -24,6 +24,9 @@ vi.mock("@tanstack/react-query", () => ({
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
+vi.mock("@/lib/use-lov", () => ({
+  useLov: () => ({ options: [], isLoading: false }),
+}));
 vi.mock("@/lib/field-controls", () => ({
   useFieldControls: () => ({ fieldProps: () => ({ disabled: false }), mandatoryFieldKeys: () => [] }),
 }));
