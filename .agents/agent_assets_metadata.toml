@@ -162,3 +162,17 @@ mtime_ms = 1791877997434
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/d2dbd4ba-e99a-48df-b7b4-93bc2085de15/461ee95e-eac5-4b0e-9307-e1952eb8b2a2"
 storage_version_token = "1791878012834165"
 content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+[[outputs]]
+id = "ToTqQvU4VlcOUxa3HjV85"
+uri = "file://docs/drona/qms360-aws-storage-email.txt"
+type = "text"
+title = "Email to AWS team — QMS360 S3 configuration"
+description = "Ready-to-send email with backend environment settings, IAM policy, S3 CORS configuration, private-access requirements and deployment checks."
+logical_id = "0fe54ce1-c0d8-4193-a74f-b43497d034c8"
+content_hash = "sha256:faf3c31affff554de48f09cc2c70f9d7998fd99a00cf72046241c1f6e313bd28"
+size = 7058
+mtime_ms = 1791976416547
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/0fe54ce1-c0d8-4193-a74f-b43497d034c8/86e370bd-eb99-4d92-a3a2-0b9f35d7ed61"
+storage_version_token = "1791976557313988"
+content_type = "text/plain"

@@ -81,3 +81,14 @@ URL alone do not enforce QMS360 record authorization.
 QMS360 API runtime's IAM access and private download policy. Keep credentials
 out of chat; implement the QMS360 storage adaptation here rather than assigning
 application development to the infrastructure team.
+
+For the AWS attachment handoff, keep confidential QMS360 files behind application
+authorization; do not adopt the existing CloudFront URL as a public file URL.
+
+**Why:** The supplied CloudFront distribution serves a shared bucket and its
+viewer-access policy has not been verified. S3 Block Public Access alone does
+not prevent a public distribution with origin access from exposing files.
+
+**How to apply:** Ask infrastructure operators to isolate the QMS360 prefix from
+unauthenticated CloudFront access as well as public S3 access. Keep the deployment
+handoff configuration-only; no frontend/backend development is assigned to them.

@@ -6,6 +6,10 @@ import { startEmailQueueScheduler } from "./lib/email-queue";
 import { runLessonsEscalationDigest } from "./lib/lessons-escalation-digest";
 import { runQaqcReportingAutomation } from "./lib/qaqc-reporting-automation";
 import { moveAuditActivitiesMaster } from "./lib/audit-activities-master-scope";
+import { storageProvider, validateStorageConfiguration } from "./lib/storage-config";
+
+validateStorageConfiguration();
+logger.info({ storageProvider: storageProvider() }, "Private attachment storage configured");
 
 const rawPort = process.env["PORT"];
 

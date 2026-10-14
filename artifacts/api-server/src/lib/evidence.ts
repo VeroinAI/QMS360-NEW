@@ -1,4 +1,5 @@
 import { getObject, signedUploadUrl } from "./objectStorage";
+import { isRemoteStorageKey } from "./storage-config";
 import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import {
@@ -76,10 +77,10 @@ export async function confirmEvidence(database: any, app: AppKey, id: string, or
       eq(table.id, id), eq(table.organizationId, organizationId), isNull(table.deletedAt),
     )).limit(1);
     if (pending && ["organization_chart", "good_practices", "attachment"].includes(pending.category) && pending.status !== "stored") {
-      if (!pending.storageKey.startsWith("gcs:")) throw new Error("Evidence upload is not ready");
+      if (!isRemoteStorageKey(pending.storageKey)) throw new Error("Evidence upload is not ready");
       let object: Response;
       try {
-        object = await getObject(pending.storageKey.slice(4));
+        object = await getObject(pending.storageKey.replace(/^gcs:/, ""));
         await object.body?.cancel();
       } catch {
         throw new Error("Evidence upload has not completed; retry the upload");

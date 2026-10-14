@@ -8,6 +8,7 @@ import { db, feedbackAttachments, feedbackEntries } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { isAdminUser } from "../lib/field-access";
 import { getObject, storeObject } from "../lib/objectStorage";
+import { allowLocalStorageFallback, isRemoteStorageKey, toStorageKey } from "../lib/storage-config";
 import {
   findFallbackAttachment,
   forceAttachmentFallback,
@@ -91,8 +92,9 @@ router.put("/:attachmentId/upload", requireAuth, express.raw({ type: "*/*", limi
     let storageKey: string;
     try {
       const stored = await storeObject(`qms360/feedback/${req.currentUser!.organizationId}/${found.feedbackId}/${found.attachment.id}`, body, found.attachment.mimeType);
-      storageKey = `gcs:${stored}`;
+      storageKey = toStorageKey(stored);
     } catch (storageError) {
+      if (!allowLocalStorageFallback()) throw storageError;
       req.log.warn({ storageError }, "Object storage unavailable; using local feedback upload fallback");
       await mkdir(uploadDir, { recursive: true });
       await writeFile(path.join(uploadDir, found.attachment.id), body, { flag: "wx" });
@@ -113,9 +115,9 @@ router.get("/:attachmentId/file", requireAuth, async (req, res): Promise<void> =
   }
   const safeName = found.attachment.fileName.replaceAll('"', "");
   res.setHeader("X-Content-Type-Options", "nosniff");
-  if (found.attachment.storageKey.startsWith("gcs:")) {
+  if (isRemoteStorageKey(found.attachment.storageKey)) {
     try {
-      const object = await getObject(found.attachment.storageKey.slice(4));
+      const object = await getObject(found.attachment.storageKey.replace(/^gcs:/, ""));
       res.setHeader("Content-Type", "application/octet-stream");
       res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
       Readable.fromWeb(object.body as import("node:stream/web").ReadableStream).pipe(res);

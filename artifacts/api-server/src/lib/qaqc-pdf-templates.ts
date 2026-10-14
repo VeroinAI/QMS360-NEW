@@ -3,6 +3,7 @@ import { db, reportTemplates } from "@workspace/db";
 import { PDFDocument } from "pdf-lib";
 import type { QaqcPdfTemplate } from "@workspace/api-zod";
 import { getObject } from "./objectStorage";
+import { privateObjectPath } from "./storage-config";
 import { HttpError } from "./workspace";
 import { inspectPdf, renderPdfLayout, type PdfMapping } from "./qaqc-pdf-layout";
 
@@ -63,8 +64,7 @@ export async function changePdfTemplates<T>(organizationId: string, action: (tx:
 
 export async function readTemplatePdf(organizationId: string, row: TemplateRow) {
   const metadata = templateMetadata(row);
-  const root = process.env.PRIVATE_OBJECT_DIR?.replace(/\/$/, "");
-  const prefix = root && `${root}/qaqc-pdf-templates/${organizationId}/`;
+  const prefix = `${privateObjectPath(`qaqc-pdf-templates/${organizationId}`)}/`;
   if (!prefix || !metadata.storagePath.startsWith(prefix)
     || metadata.storagePath.includes("..") || !metadata.storagePath.endsWith(`/${row.id}.pdf`)) {
     throw new HttpError(422, "Invalid tenant PDF template storage reference");

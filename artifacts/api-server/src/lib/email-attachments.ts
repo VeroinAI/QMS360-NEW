@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getObject, removeObject, storeObject } from "./objectStorage";
+import { privateObjectPath } from "./storage-config";
 
 export type EmailPdfAttachment = {
   filename: string;
@@ -37,8 +38,7 @@ export async function storeEmailPdfAttachment(
 }
 
 function validateEmailPdfPath(organizationId: string, objectPath: string) {
-  const root = process.env.PRIVATE_OBJECT_DIR?.replace(/\/+$/, "");
-  const prefix = root ? `${root}/email-attachments/${sanitizeObjectPathPart(organizationId)}/` : "";
+  const prefix = `${privateObjectPath(`email-attachments/${sanitizeObjectPathPart(organizationId)}`)}/`;
   if (!prefix || !objectPath.startsWith(prefix) || objectPath.includes("\\") || /[?#]/.test(objectPath)) {
     throw new Error("Email PDF attachment has an invalid private object path");
   }

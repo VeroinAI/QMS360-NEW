@@ -12,6 +12,7 @@ import {
 import { evidenceLimits, evidenceTable } from "../lib/evidence";
 import { validateEvidenceFile } from "../lib/files";
 import { getObject, storeObject } from "../lib/objectStorage";
+import { allowLocalStorageFallback, isRemoteStorageKey, toStorageKey } from "../lib/storage-config";
 import type { AppKey } from "../lib/workspace";
 import { requireAuth } from "../middlewares/auth";
 import { getAuthorizedProjectScope, type AppKey as RbacAppKey, type PermissionAction } from "../middlewares/rbac";
@@ -185,8 +186,9 @@ router.put("/:evidenceId", requireAuth,
     }
     let storageKey: string;
     try {
-      storageKey = `gcs:${await storeObject(`qms360/${found.app}/${found.row.id}`, body, found.row.mimeType)}`;
+      storageKey = toStorageKey(await storeObject(`qms360/${found.app}/${found.row.id}`, body, found.row.mimeType));
     } catch (storageError) {
+      if (!allowLocalStorageFallback()) throw storageError;
       req.log.warn({ storageError }, "Object storage unavailable; using local upload fallback");
       await mkdir(uploadDir, { recursive: true });
       storageKey = `local:${found.app}/${found.row.id}`;
@@ -211,9 +213,9 @@ router.head("/:evidenceId", requireAuth, async (req, res): Promise<void> => {
   res.setHeader("Content-Type", found.row.mimeType);
   res.setHeader("Content-Length", found.row.sizeBytes);
   res.setHeader("Content-Disposition", `inline; filename="${found.row.fileName.replaceAll('"', "")}"`);
-  if (found.row.storageKey.startsWith("gcs:")) {
+  if (isRemoteStorageKey(found.row.storageKey)) {
     try {
-      const object = await getObject(found.row.storageKey.slice(4));
+      const object = await getObject(found.row.storageKey.replace(/^gcs:/, ""));
       await object.body?.cancel();
       res.status(200).end();
     } catch {
@@ -233,9 +235,9 @@ router.head("/:evidenceId", requireAuth, async (req, res): Promise<void> => {
 router.get("/:evidenceId", requireAuth, async (req, res): Promise<void> => {
   const found = await findEvidence(String(req.params.evidenceId), req.currentUser!.organizationId);
   if (!found || found.row.status !== "stored" || !await authorizeEvidence(req, found, "select")) { res.status(404).json({ error: "Evidence file not found" }); return; }
-  if (found.row.storageKey.startsWith("gcs:")) {
+  if (isRemoteStorageKey(found.row.storageKey)) {
     try {
-      const object = await getObject(found.row.storageKey.slice(4));
+      const object = await getObject(found.row.storageKey.replace(/^gcs:/, ""));
       res.setHeader("Content-Type", object.headers.get("content-type") ?? found.row.mimeType);
       const length = object.headers.get("content-length");
       if (length) res.setHeader("Content-Length", length);

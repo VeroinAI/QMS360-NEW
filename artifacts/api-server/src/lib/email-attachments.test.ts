@@ -1,20 +1,23 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { storeObject, getObject } = vi.hoisted(() => ({
+const { storeObject, getObject, removeObject } = vi.hoisted(() => ({
   storeObject: vi.fn(),
   getObject: vi.fn(),
+  removeObject: vi.fn(),
 }));
 
-vi.mock("./objectStorage", () => ({ storeObject, getObject }));
+vi.mock("./objectStorage", () => ({ storeObject, getObject, removeObject }));
 
-import { loadEmailPdfAttachments, storeEmailPdfAttachment } from "./email-attachments";
+import { loadEmailPdfAttachments, removeEmailPdfAttachment, storeEmailPdfAttachment } from "./email-attachments";
 
 describe("email PDF attachments", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.PRIVATE_OBJECT_DIR = "/private";
+    vi.stubEnv("PRIVATE_OBJECT_DIR", "/private");
+    vi.stubEnv("QMS_STORAGE_PROVIDER", "replit");
     storeObject.mockImplementation(async (path: string) => `/private/${path}`);
   });
+  afterEach(() => vi.unstubAllEnvs());
 
   it("stores a validated PDF under a sanitized, unique private path", async () => {
     const bytes = Buffer.from("%PDF-1.7\nsample");
@@ -51,5 +54,27 @@ describe("email PDF attachments", () => {
       headers: { "content-type": "text/plain" },
     }));
     await expect(loadEmailPdfAttachments("org", [metadata])).rejects.toThrow("not a PDF");
+  });
+
+  it("loads and removes S3 email PDFs through the same tenant boundary", async () => {
+    vi.stubEnv("QMS_STORAGE_PROVIDER", "s3");
+    vi.stubEnv("AWS_REGION", "ap-south-1");
+    vi.stubEnv("QMS_S3_BUCKET", "private-test-bucket");
+    vi.stubEnv("QMS_S3_PREFIX", "qms360-prod");
+    storeObject.mockImplementation(async (path: string) => `s3://private-test-bucket/qms360-prod/${path}`);
+    const bytes = Buffer.from("%PDF-1.7\nsample");
+    const metadata = await storeEmailPdfAttachment("org", "record", bytes);
+    getObject.mockResolvedValueOnce(new Response(bytes, {
+      headers: { "content-type": "application/pdf", "content-length": String(bytes.length) },
+    }));
+    expect((await loadEmailPdfAttachments("org", [metadata]))[0]?.content).toEqual(bytes);
+    await removeEmailPdfAttachment("org", metadata.objectPath);
+    expect(removeObject).toHaveBeenCalledWith(metadata.objectPath);
+    await expect(removeEmailPdfAttachment("other-org", metadata.objectPath)).rejects.toThrow("invalid private object path");
+    await expect(loadEmailPdfAttachments("org", [{
+      ...metadata, objectPath: metadata.objectPath.replace("qms360-prod", "other-app"),
+    }])).rejects.toThrow("invalid private object path");
+    expect(getObject).toHaveBeenCalledTimes(1);
+    expect(removeObject).toHaveBeenCalledTimes(1);
   });
 });

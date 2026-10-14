@@ -44,6 +44,7 @@ import { assertProjectInOrg, assertProjectScopeInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
 import { getObject, storeObject } from "../lib/objectStorage";
+import { isRemoteStorageKey, toStorageKey } from "../lib/storage-config";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
 import { asyncHandler, HttpError, listNotifications, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
@@ -4053,8 +4054,8 @@ router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
     const file = report.evidence.find(f => f.id === photo.id)!;
     try {
       let bytes: Buffer;
-      if (file.storageKey.startsWith("gcs:")) {
-        const object = await getObject(file.storageKey.slice(4));
+      if (isRemoteStorageKey(file.storageKey)) {
+        const object = await getObject(file.storageKey.replace(/^gcs:/, ""));
         if (Number(object.headers.get("content-length") ?? 0) > 20_000_000) throw new Error("Image exceeds report size limit");
         bytes = Buffer.from(await object.arrayBuffer());
       } else {
@@ -4083,8 +4084,8 @@ router.get("/audits/:id/report/pdf", asyncHandler(async (req, res) => {
     const file = report.evidence.find(f => f.id === photo.id)!;
     try {
       let bytes: Buffer;
-      if (file.storageKey.startsWith("gcs:")) {
-        const object = await getObject(file.storageKey.slice(4));
+      if (isRemoteStorageKey(file.storageKey)) {
+        const object = await getObject(file.storageKey.replace(/^gcs:/, ""));
         if (Number(object.headers.get("content-length") ?? 0) > 20_000_000) throw new Error("Image exceeds report size limit");
         bytes = Buffer.from(await object.arrayBuffer());
       } else {
@@ -4379,7 +4380,7 @@ router.put("/admin/users/:userId/profile", requireAuditAdmin, asyncHandler(async
     if (bytes.length > 512 * 1024) throw new HttpError(422, "Signature image exceeds the 512KB limit");
     if (!bytes.length || bytes.toString("base64") !== match[2]) throw new HttpError(422, "Signature image must contain valid base64 data");
     await validateSignatureImage(bytes, match[1]!);
-    signaturePath = `gcs:${await storeObject(`qms360/signatures/${target.id}`, bytes, match[1]!)}`;
+    signaturePath = toStorageKey(await storeObject(`qms360/signatures/${target.id}`, bytes, match[1]!));
   } else if (data.signatureDataUrl === null) {
     signaturePath = null;
   }

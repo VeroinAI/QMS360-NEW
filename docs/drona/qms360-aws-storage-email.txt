@@ -1,0 +1,106 @@
+Subject: QMS360 deployment – AWS S3 attachment storage configuration
+
+Hi Team,
+
+The QMS360 backend has been updated to support your existing AWS S3 setup. Please deploy the updated backend from the agreed private repository, install the updated dependencies using the committed pnpm lockfile, and build using the existing deployment procedure.
+
+No application source-code edits or database DDL are required for this storage update.
+
+1. Configure the QMS360 BACKEND runtime
+
+Set the following environment variables on the service/process that actually runs the QMS360 Node.js API (not on the frontend, database, S3 console, or build step alone):
+
+QMS_STORAGE_PROVIDER=s3
+AWS_REGION=ap-south-1
+QMS_S3_BUCKET=dronahq-app-prod-mumbai
+QMS_S3_PREFIX=qms360-prod
+NODE_ENV=production
+
+Where to maintain these:
+- ECS: QMS360 task definition -> container environment; attach access through the task role, not only the execution role.
+- EC2: QMS360 service environment/configuration (systemd EnvironmentFile, PM2 ecosystem environment, or the existing application service configuration); attach an instance profile for AWS access.
+- Other hosting: the QMS360 backend service's runtime environment/secrets configuration.
+
+Use the option matching your existing hosting; no hosting change is requested. Restart/redeploy the QMS360 API after configuration. Configure every API replica and any separate worker that loads email attachments with the same storage settings.
+
+qms360-prod is the proposed dedicated prefix, not a request for a new bucket. You may choose a different dedicated prefix if needed, but update QMS_S3_PREFIX and the IAM policy consistently. Do not change the prefix after files have been uploaded without a reviewed relocation plan.
+
+2. Grant AWS access to the actual QMS360 API runtime
+
+Prefer an IAM role/instance profile/task role. The application uses the standard AWS SDK credential chain and does not contain credentials.
+
+The following object permissions are required for the selected prefix:
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "QMS360PrivateAttachments",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::dronahq-app-prod-mumbai/qms360-prod/*"
+    }
+  ]
+}
+
+Attach this to the QMS360 runtime role, subject to your organization's IAM controls. Existing bucket policies, permissions boundaries and organization policies must also allow these operations. No bucket-wide listing or public ACL permission is needed by this adapter.
+
+Keep your current bucket ownership/encryption settings. If this prefix uses SSE-KMS, also grant the necessary kms:GenerateDataKey and kms:Decrypt access on the relevant KMS key, including its key policy.
+
+If role-based access is unavailable, maintain AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in the backend host's approved secret store and inject them at runtime. Temporary credentials additionally require AWS_SESSION_TOKEN and automatic renewal. Do not send credentials by email, put them in Git, or expose them to the frontend.
+
+3. Configure browser-upload CORS on the S3 bucket
+
+Some existing QMS360 screens upload directly to a short-lived signed S3 PUT URL. Other uploads continue through the API.
+
+In AWS Console -> S3 -> dronahq-app-prod-mumbai -> Permissions -> CORS configuration, add/merge a rule like the following. Replace https://YOUR-QMS360-FRONTEND-HOST with the exact origin from which users open QMS360 (scheme and hostname, optional port, NO path or trailing slash). Add any other explicitly approved frontend origin to AllowedOrigins.
+
+[
+  {
+    "AllowedOrigins": ["https://YOUR-QMS360-FRONTEND-HOST"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["content-type", "x-amz-*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 300
+  }
+]
+
+This is a shared bucket: retain other applications' existing CORS rules. Do not replace the whole configuration with this example. CORS does not grant S3 access and is not a substitute for IAM or application authorization. No public-read setting is required.
+
+4. Keep attachments PRIVATE
+
+QMS360 uses authenticated API downloads with its existing organization/project/record permission checks. The backend reads the private S3 object and streams it to the authorized user. The database stores file references and metadata, not file bytes.
+
+CloudFront is NOT required by this adapter, and there is no QMS360 CloudFront URL setting to maintain.
+
+IMPORTANT: A private S3 bucket can still be exposed by a publicly accessible CloudFront distribution with origin access. Please ensure qms360-prod/* is NOT readable through unauthenticated CloudFront URLs or public S3 URLs. Review the existing distribution at https://dsgvjfnd2ao8v.cloudfront.net and its origin/bucket policy. Either exclude the QMS360 prefix from public CloudFront origin access, or enforce an approved private viewer-access policy for that prefix. Do not disrupt other applications using the shared bucket/distribution.
+
+Keep S3 Block Public Access enabled according to your existing shared-bucket policy. Do not add public-read ACLs or a public bucket policy for QMS360.
+
+5. Network and deployment checks
+
+- Allow outbound HTTPS from the QMS360 backend to the regional S3 service and to any AWS credential/STS/KMS services required by your runtime role and encryption setup.
+- If the runtime uses temporary credentials, ensure they are automatically refreshed. Signed upload URLs last at most 15 minutes and may expire earlier with the credentials used to sign them.
+- Confirm the deployed API logs "Private attachment storage configured" with storageProvider "s3". This confirms provider selection, not IAM connectivity; the functional checks below are still required.
+- S3 upload failures are reported as failures. Production will not silently save new uploads to temporary local disk.
+
+After deployment, please verify:
+1. Upload an attachment in QMS360 and confirm the new object appears under qms360-prod/.
+2. Confirm a direct-upload screen works too (for example, Audit -> Additional Documents -> Organization chart).
+3. Download/view the attachment as an authorized user.
+4. Confirm a user without record access cannot download it.
+5. Confirm the same file cannot be read using an unsigned S3 or public CloudFront URL.
+6. Test an email with a generated PDF attachment if this is enabled.
+7. Confirm object deletion permission using an approved disposable test object; normal application attachment deletion may retain the object under existing retention behavior.
+
+The code-level storage tests and backend type checks passed in development. Live AWS connectivity and policy checks still need to be completed in your environment.
+
+This update does not move historical files or rewrite existing stored references. Do not assume that changing the storage provider copies old attachments to AWS.
+
+Please confirm the final prefix, the runtime IAM configuration, the allowed frontend origin(s), and the results of the above checks.
+
+Regards

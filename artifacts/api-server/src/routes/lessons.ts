@@ -68,6 +68,7 @@ import { assertProjectInOrg, assertProjectScopeInOrg, assertUserInOrg } from "..
 import { AiUnavailableError, promptToTransaction, rephraseText } from "../lib/ai";
 import { confirmEvidence, createEvidenceIntent as createIntent, deleteEvidence, listEvidence } from "../lib/evidence";
 import { getObject, storeObject } from "../lib/objectStorage";
+import { isRemoteStorageKey, toStorageKey } from "../lib/storage-config";
 import {
   asyncHandler, HttpError, notFound, notify, paginated, pagination, writeAuditLog,
   listNotifications, markNotificationRead,
@@ -266,8 +267,8 @@ async function lessonPdfAssets(
   const imagePhotos = (await Promise.all(imageRows.map(async photo => {
     try {
       let imageBytes: Buffer;
-      if (photo.storageKey.startsWith("gcs:")) {
-        const response = await getObject(photo.storageKey.slice(4));
+      if (isRemoteStorageKey(photo.storageKey)) {
+        const response = await getObject(photo.storageKey.replace(/^gcs:/, ""));
         imageBytes = Buffer.from(await response.arrayBuffer());
       } else {
         const localKey = photo.storageKey.replace(/^local:/, "").replace("/", "-");
@@ -1381,7 +1382,7 @@ router.put("/admin/users/:userId/profile", asyncHandler(async (req, res) => {
     if (!match) throw new HttpError(422, "Signature must be a PNG, JPEG or WebP image");
     const bytes = Buffer.from(match[2]!, "base64");
     if (bytes.length > 512 * 1024) throw new HttpError(422, "Signature image exceeds the 512KB limit");
-    signaturePath = `gcs:${await storeObject(`qms360/signatures/${target.id}`, bytes, match[1]!)}`;
+    signaturePath = toStorageKey(await storeObject(`qms360/signatures/${target.id}`, bytes, match[1]!));
   } else if (body.signatureDataUrl === null) {
     signaturePath = null;
   }
