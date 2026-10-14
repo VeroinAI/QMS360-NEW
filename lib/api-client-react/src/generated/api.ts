@@ -111,6 +111,10 @@ import type {
   DownloadQaqcSowTemplateParams,
   DraftQaqcSowBrief200,
   DronaSessionInput,
+  DronaUserCandidate,
+  DronaUserImport,
+  DronaUserImportResult,
+  DronaUserSearch,
   EmailDeliverySettings,
   EmailEventRule,
   EmailEventRuleInput,
@@ -1779,6 +1783,148 @@ export function useGetApplicationAccess<TData = Awaited<ReturnType<typeof getApp
 
 
 
+
+export const getLookupDronaUserUrl = () => {
+
+
+
+
+  return `/api/platform/drona-users/lookup`
+}
+
+/**
+ * @summary Super Admin lookup of an existing Drona user assigned QMS360 access
+ */
+export const lookupDronaUser = async (dronaUserSearch: DronaUserSearch, options?: Parameters<typeof customFetch>[1]): Promise<DronaUserCandidate> => {
+
+  return customFetch<DronaUserCandidate>(getLookupDronaUserUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dronaUserSearch)
+  }
+);}
+
+
+
+
+
+export const getLookupDronaUserMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof lookupDronaUser>>, TError,{data: BodyType<DronaUserSearch>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof lookupDronaUser>>, TError,{data: BodyType<DronaUserSearch>}, TContext> => {
+
+const mutationKey = ['lookupDronaUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof lookupDronaUser>>, {data: BodyType<DronaUserSearch>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  lookupDronaUser(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LookupDronaUserMutationResult = NonNullable<Awaited<ReturnType<typeof lookupDronaUser>>>
+    export type LookupDronaUserMutationBody = BodyType<DronaUserSearch>
+    export type LookupDronaUserMutationError = ErrorType<void>
+
+    /**
+ * @summary Super Admin lookup of an existing Drona user assigned QMS360 access
+ */
+export const useLookupDronaUser = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof lookupDronaUser>>, TError,{data: BodyType<DronaUserSearch>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof lookupDronaUser>>,
+        TError,
+        {data: BodyType<DronaUserSearch>},
+        TContext
+      > => {
+      return useMutation(getLookupDronaUserMutationOptions(options));
+    }
+
+export const getAddDronaUserUrl = () => {
+
+
+
+
+  return `/api/platform/drona-users`
+}
+
+/**
+ * @summary Make an existing Drona user available for existing QMS360 role assignment
+ */
+export const addDronaUser = async (dronaUserImport: DronaUserImport, options?: Parameters<typeof customFetch>[1]): Promise<DronaUserImportResult> => {
+
+  return customFetch<DronaUserImportResult>(getAddDronaUserUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dronaUserImport)
+  }
+);}
+
+
+
+
+
+export const getAddDronaUserMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addDronaUser>>, TError,{data: BodyType<DronaUserImport>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addDronaUser>>, TError,{data: BodyType<DronaUserImport>}, TContext> => {
+
+const mutationKey = ['addDronaUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addDronaUser>>, {data: BodyType<DronaUserImport>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  addDronaUser(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddDronaUserMutationResult = NonNullable<Awaited<ReturnType<typeof addDronaUser>>>
+    export type AddDronaUserMutationBody = BodyType<DronaUserImport>
+    export type AddDronaUserMutationError = ErrorType<void>
+
+    /**
+ * @summary Make an existing Drona user available for existing QMS360 role assignment
+ */
+export const useAddDronaUser = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addDronaUser>>, TError,{data: BodyType<DronaUserImport>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addDronaUser>>,
+        TError,
+        {data: BodyType<DronaUserImport>},
+        TContext
+      > => {
+      return useMutation(getAddDronaUserMutationOptions(options));
+    }
 
 export const getSetUserTemporaryPasswordUrl = (userId: string,) => {
 

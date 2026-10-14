@@ -5,6 +5,38 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export interface DronaUserSearch {
+  /**
+     * @minLength 3
+     * @maxLength 320
+     */
+  email: string;
+}
+
+export interface DronaUserImport {
+  /**
+     * @minLength 3
+     * @maxLength 320
+     */
+  email: string;
+  /** @pattern ^[1-9][0-9]{0,18}$ */
+  externalUserId: string;
+}
+
+export interface DronaUserCandidate {
+  externalUserId: string;
+  email: string;
+  fullName: string;
+  alreadyPresent: boolean;
+}
+
+export interface DronaUserImportResult {
+  userId: string;
+  email: string;
+  fullName: string;
+  alreadyPresent: boolean;
+}
+
 export interface AuditMemoDefaults {
   /**
      * Default free-text From heading, not an email address

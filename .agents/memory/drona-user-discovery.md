@@ -15,3 +15,16 @@ additional approval processes and source-account creation were not requested.
 application approvals as preserved constraints, not a new process. Assess existing
 backend read permissions before requesting any DBA action; do not request DBA
 credentials or promise schema changes are unnecessary without checking the target.
+
+Discovery must distinguish an active Drona identity/project membership from the
+customer's narrower requirement that a user is already assigned QMS360.
+
+**Why:** Existing login/project-access policy deliberately ignores unconfirmed
+module metadata; that does not prove a user is QMS-assigned for this new import.
+The actual QMS module identifier is deployment-owned, not established by the
+reviewed schema.
+
+**How to apply:** Require an operator-confirmed entitlement mapping and fail
+closed if unavailable. Keep discovery's entitlement check separate from the
+settled login/project-membership rules; do not guess module names, broaden
+discovery to all active users, or silently introduce module gates into login.

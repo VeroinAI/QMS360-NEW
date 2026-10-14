@@ -352,6 +352,36 @@ paths:
       summary: Get current user's application access flags
       responses:
         "200": {description: Application access, content: {application/json: {schema: {$ref: "#/components/schemas/ApplicationAccess"}}}}
+  /platform/drona-users/lookup:
+    post:
+      operationId: lookupDronaUser
+      tags: [platform]
+      summary: Super Admin lookup of an existing Drona user assigned QMS360 access
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/DronaUserSearch"}}}
+      responses:
+        "200": {description: Matching source user, content: {application/json: {schema: {$ref: "#/components/schemas/DronaUserCandidate"}}}}
+        "403": {description: Super Admin or source eligibility required}
+        "404": {description: User not found}
+        "409": {description: Ambiguous identity}
+        "422": {description: Invalid email}
+        "503": {description: Drona source configuration or access unavailable}
+  /platform/drona-users:
+    post:
+      operationId: addDronaUser
+      tags: [platform]
+      summary: Make an existing Drona user available for existing QMS360 role assignment
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: "#/components/schemas/DronaUserImport"}}}
+      responses:
+        "200": {description: Linked QMS360 identity, content: {application/json: {schema: {$ref: "#/components/schemas/DronaUserImportResult"}}}}
+        "403": {description: Super Admin or source eligibility required}
+        "404": {description: User not found}
+        "409": {description: Identity changed or link requires review}
+        "422": {description: Invalid email or source identity}
+        "503": {description: Drona source configuration or access unavailable}
   /platform/users/{userId}/temporary-password:
     put:
       operationId: setUserTemporaryPassword
@@ -2242,6 +2272,33 @@ components:
     FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    DronaUserSearch:
+      type: object
+      required: [email]
+      properties:
+        email: {type: string, minLength: 3, maxLength: 320}
+    DronaUserImport:
+      type: object
+      required: [email, externalUserId]
+      properties:
+        email: {type: string, minLength: 3, maxLength: 320}
+        externalUserId: {type: string, pattern: '^[1-9][0-9]{0,18}$'}
+    DronaUserCandidate:
+      type: object
+      required: [externalUserId, email, fullName, alreadyPresent]
+      properties:
+        externalUserId: {type: string}
+        email: {type: string}
+        fullName: {type: string}
+        alreadyPresent: {type: boolean}
+    DronaUserImportResult:
+      type: object
+      required: [userId, email, fullName, alreadyPresent]
+      properties:
+        userId: {type: string}
+        email: {type: string}
+        fullName: {type: string}
+        alreadyPresent: {type: boolean}
     AuditMemoDefaults:
       type: object
       required: [from, to]

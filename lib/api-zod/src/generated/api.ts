@@ -508,6 +508,48 @@ export const GetApplicationAccessResponse = zod.object({
 
 
 /**
+ * @summary Super Admin lookup of an existing Drona user assigned QMS360 access
+ */
+export const lookupDronaUserBodyEmailMin = 3;
+export const lookupDronaUserBodyEmailMax = 320;
+
+
+
+export const LookupDronaUserBody = zod.object({
+  "email": zod.string().min(lookupDronaUserBodyEmailMin).max(lookupDronaUserBodyEmailMax)
+})
+
+export const LookupDronaUserResponse = zod.object({
+  "externalUserId": zod.string(),
+  "email": zod.string(),
+  "fullName": zod.string(),
+  "alreadyPresent": zod.boolean()
+})
+
+
+/**
+ * @summary Make an existing Drona user available for existing QMS360 role assignment
+ */
+export const addDronaUserBodyEmailMin = 3;
+export const addDronaUserBodyEmailMax = 320;
+
+export const addDronaUserBodyExternalUserIdRegExp = new RegExp('^[1-9][0-9]{0,18}$');
+
+
+export const AddDronaUserBody = zod.object({
+  "email": zod.string().min(addDronaUserBodyEmailMin).max(addDronaUserBodyEmailMax),
+  "externalUserId": zod.string().regex(addDronaUserBodyExternalUserIdRegExp)
+})
+
+export const AddDronaUserResponse = zod.object({
+  "userId": zod.string(),
+  "email": zod.string(),
+  "fullName": zod.string(),
+  "alreadyPresent": zod.boolean()
+})
+
+
+/**
  * @summary Set or replace a user's sign-in password
  */
 export const SetUserTemporaryPasswordParams = zod.object({

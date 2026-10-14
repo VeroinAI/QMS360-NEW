@@ -176,3 +176,17 @@ mtime_ms = 1791976416547
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/0fe54ce1-c0d8-4193-a74f-b43497d034c8/86e370bd-eb99-4d92-a3a2-0b9f35d7ed61"
 storage_version_token = "1791976557313988"
 content_type = "text/plain"
+
+[[outputs]]
+id = "O66ps7SS8SEnCkxNoGe8w"
+uri = "file://docs/drona/admin-add-user.md"
+type = "text"
+title = "Drona Add User — AWS setup instructions"
+description = "Deployment setting, source eligibility checks, existing database permissions, and AWS acceptance checklist. No new schema migration for this feature."
+logical_id = "8b3b930d-711d-4cf6-bb9a-c8bb0d4f3e7e"
+content_hash = "sha256:45eaefcae90971d84819fd9c543075a95f2d7f7f491da5f779a2e0326f60dca8"
+size = 4794
+mtime_ms = 1791977792855
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/8b3b930d-711d-4cf6-bb9a-c8bb0d4f3e7e/153b1583-14e4-4004-8093-7ef8e4359ef0"
+storage_version_token = "1791978247603081"
+content_type = "text/markdown"

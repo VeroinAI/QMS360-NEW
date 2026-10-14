@@ -55,6 +55,7 @@ function requireActiveUser(user: QmsUser, email: string) {
 /** Execute inside a transaction. Exported for rollback-only database tests. */
 export async function provisionDronaIdentity(
   tx: ProvisionExecutor, email: string, target: ProvisionTarget,
+  review?: { actorId: string; reference: string },
 ): Promise<DronaIdentity> {
   await lockTarget(tx, target);
   const normalized = email.trim().toLowerCase();
@@ -99,7 +100,7 @@ export async function provisionDronaIdentity(
     const link = await tx.execute(sql`INSERT INTO shared.drona_user_links
       (environment_key, organization_id, external_user_id, user_id, review_reference, reviewed_by)
       VALUES (${target.environment}, ${target.organizationId}::uuid, ${externalUserId}::bigint, ${user.id}::uuid,
-        'automatic:email-exception', ${user.id}::uuid) ON CONFLICT DO NOTHING RETURNING user_id`);
+        ${review?.reference ?? "automatic:email-exception"}, ${review?.actorId ?? user.id}::uuid) ON CONFLICT DO NOTHING RETURNING user_id`);
     if (link.rows.length !== 1) throw new DronaAccessError(409, "QMS identity link conflicts; administrator review is required");
   }
   await rememberDronaLink(tx, target, "user", externalUserId, user.id);
