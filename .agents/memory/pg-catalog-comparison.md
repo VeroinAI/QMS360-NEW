@@ -21,6 +21,12 @@ Semantic normalization must keep SQL literals opaque and compare JSONB numbers l
 
 **How to apply:** Rewrite SQL token groups rather than rejoined expression text. For JSONB defaults, preserve numeric lexemes and use exact decimal normalization, or conservatively report differences instead of parsing numbers through JavaScript Number.
 
+Treat physical column order separately from column-definition drift.
+
+**Why:** Manual additive changes can leave otherwise identical tables with different attribute positions. Reordering existing columns is unnecessary for QMS360's named-column queries and risks a destructive table rebuild.
+
+**How to apply:** Match columns by schema, table and column name; compare types, defaults, nullability, identity and generated properties without attribute position. Report order differences separately, not as missing columns.
+
 PostgreSQL can deparse a text-column `IN` literal list as `= ANY (ARRAY[...])`.
 Treat the known built-in text/literal case as equivalent, but do not generalize
 to arbitrary arrays, casts, operators or expressions.
