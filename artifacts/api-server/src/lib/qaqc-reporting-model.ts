@@ -40,6 +40,7 @@ export type MonthlyReportComputed = {
   };
   manpower: { count: number; approved: number; rejected: number };
   qtbt: { manhours: number; accumulatedTalkCount: number; accumulatedManhours: number };
+  training: { manhours: number; accumulatedTrainingCount: number; accumulatedManhours: number };
 };
 export type DailyReportComputed = {
   disciplines?: Record<string, unknown>;
@@ -127,6 +128,11 @@ function calculateMonthly(data: Record<string, any>, baseline: Record<string, an
       manhours: round(manhours), accumulatedTalkCount: Number(previousQtbt.accumulatedTalkCount ?? 0) + Number(qtbt.talkCount ?? 0),
       accumulatedManhours: round(Number(previousQtbt.accumulatedManhours ?? 0) + manhours),
     },
+    training: {
+      manhours: round(Number(data.training?.attendance ?? 0) * Number(data.training?.durationMinutes ?? 0) / 60),
+      accumulatedTrainingCount: Number(baseline.training?.accumulatedTrainingCount ?? 0) + Number(data.training?.trainingCount ?? 0),
+      accumulatedManhours: round(Number(baseline.training?.accumulatedManhours ?? 0) + Number(data.training?.attendance ?? 0) * Number(data.training?.durationMinutes ?? 0) / 60),
+    },
   };
 }
 
@@ -207,6 +213,18 @@ function validateMonthly(data: Record<string, any>, baseline: Record<string, any
     if (tagSum !== Number(material.totalItems ?? 0)) errors.push("material status tags must sum to totalItems");
   }
   const qtbt = data.qtbt ?? {};
+  if (data.training !== undefined) {
+    if (!isObject(data.training)) errors.push("training must be an object");
+    else {
+      for (const key of ["trainingCount", "attendance", "durationMinutes"]) {
+        const value = data.training[key];
+        if (key === "trainingCount" || Number(data.training.trainingCount) > 0 || value !== undefined) {
+          if (!numeric(value)) errors.push(`training.${key} must be a nonnegative integer`);
+        }
+      }
+    }
+  }
+  if (data.qmsReportRemarks !== undefined && typeof data.qmsReportRemarks !== "string") errors.push("qmsReportRemarks must be text");
   requiredNumber(qtbt.talkCount, "qtbt.talkCount");
   if (Number(qtbt.talkCount ?? 0) > 0) {
     requiredNumber(qtbt.attendance, "qtbt.attendance");

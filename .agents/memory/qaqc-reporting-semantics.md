@@ -35,9 +35,17 @@ PQI “Average of All Projects” uses only same-period submitted/approved repor
 
 **How to apply:** Do not invent zero or 100% for missing project reports, mix periods, or let this average expose projects outside the viewer's permissions.
 
-Manpower departments in Metrics entry are free text, as specified in the supplied field table. NCR ageing uses a department dropdown instead. Keep the existing master-data department checks for legacy monthly entries and NCR ageing.
+Manpower departments in Metrics entry now use Department Master choices, displaying labels and storing values. Preserve previously saved free-text departments when editing old reports; validate new master selections. NCR ageing retains its master-data checks.
 
-**Why:** A text input that accepts a department in its preview but rejects it on save unless it is registered in master data does not implement the supplied field definition.
+**Why:** On 2026-10-15 the user explicitly replaced the earlier free-text requirement with a Department Master dropdown. Historical entries must remain usable without rewriting their departments.
+
+**How to apply:** Offer active master entries for new selections without turning old free-text departments into new selectable master data.
+
+Training in the QA/QC Metrics monthly report is independent from Quality Toolbox Talks (QTBT). Keep separate accumulated training counts and participant-hours; calculate hours as attendees × minutes ÷ 60.
+
+**Why:** The user requested a separate Training section between QTBT and document status, with its own prior/current cumulative values.
+
+**How to apply:** Carry training totals from the previous submitted period, preserve legacy reports without training, and never combine training totals with QTBT.
 
 Metric counts remain manual entry within this application, including creation and editing in the existing QA/QC module. External NCR/RFI/RMI integration is deferred until the user explicitly chooses an authoritative source.
 

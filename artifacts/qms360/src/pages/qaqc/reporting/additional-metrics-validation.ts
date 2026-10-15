@@ -31,6 +31,13 @@ export function validateAdditionalMetrics(data: Obj, baseline?: Obj, requireBrie
   const qtbtInt = num(q.talkCount) > 0 ? requiredInt : optionalInt;
   qtbtInt(q.attendance, 'QTBT: No. of attendees');
   qtbtInt(q.durationMinutes, 'QTBT: Duration (minutes)');
+  if (data.training !== undefined) {
+    const t = data.training ?? {};
+    requiredInt(t.trainingCount, 'Training: Total Nos of Training this Month');
+    const check = num(t.trainingCount) > 0 ? requiredInt : optionalInt;
+    check(t.attendance, 'Training: No. of Attendees');
+    check(t.durationMinutes, 'Training: Duration (minutes)');
+  }
   for (const [key, label] of [['drawings', 'Drawings'], ['submittals', 'Submittals']]) {
     const d = data.documents?.[key!] ?? {};
     for (const [field, title] of [['approved', 'Approved'], ['resubmitted', 'Re-submitted'], ['rejected', 'Rejected'], ['underReview', 'Under Review'], ['clientReviewDays', 'Average Client Review Time'], ['internalReviewDays', 'Average Review Time (Algihaz)']])

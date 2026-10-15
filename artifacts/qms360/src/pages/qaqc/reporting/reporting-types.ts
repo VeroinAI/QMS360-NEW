@@ -82,6 +82,8 @@ export function calcMonthly(d: Obj, baseline: Obj | undefined, target?: Obj) {
   const manhours = (num(q.attendance) * num(q.durationMinutes)) / 60;
   const bq: Obj = baseline?.qtbt ?? {};
   const qtbt = { manhours, accTalks: num(bq.accumulatedTalkCount) + num(q.talkCount), accManhours: num(bq.accumulatedManhours) + manhours };
+  const trainingManhours = num(d.training?.attendance) * num(d.training?.durationMinutes) / 60;
+  const training = { manhours: trainingManhours, accTraining: num(baseline?.training?.accumulatedTrainingCount) + num(d.training?.trainingCount), accManhours: num(baseline?.training?.accumulatedManhours) + trainingManhours };
   const manpower = { total: sum((d.manpower ?? []).map((r: Obj) => r.count)), approved: sum((d.manpower ?? []).map((r: Obj) => r.approved)), rejected: sum((d.manpower ?? []).map((r: Obj) => r.rejected)) };
   for (const g of ['drawings', 'submittals']) for (const f of ['approved', 'resubmitted', 'rejected', 'underReview', 'clientReviewDays', 'internalReviewDays']) if (!isNum(d.documents?.[g]?.[f])) { issues.push(`Documents (${g}): all counts and review days are required.`); break; }
   if (!d.pqpStatus) issues.push('PQP status is required.');
@@ -95,7 +97,7 @@ export function calcMonthly(d: Obj, baseline: Obj | undefined, target?: Obj) {
   for (const [k] of METRICS.slice(0, 2)) for (const [i, r] of (d.metrics?.[k]?.ageing ?? []).entries()) { if (!String(r.department ?? '').trim()) issues.push(`${k} ageing row ${i + 1}: department is required.`); if (num(r.count) < 1) issues.push(`${k} ageing row ${i + 1}: count must be positive.`); }
   if (!String(d.narrative ?? '').trim()) issues.push('Final assessment narrative is required.');
   if (d.assessmentConfirmationRequired === true && d.assessmentConfirmed !== true) issues.push('Review and confirm the final quality assessment before submission.');
-  return { metrics, pqi, material, tagSum, qtbt, manpower, issues };
+  return { metrics, pqi, material, tagSum, qtbt, training, manpower, issues };
 }
 
 export function calcDaily(d: Obj) {
@@ -140,6 +142,7 @@ export function zeroFill(type: ReportType, d: Obj): Obj {
   out.metrics = out.metrics ?? {};
   for (const [k] of METRICS) out.metrics[k] = { ...out.metrics[k], issued: 0, closed: 0 };
   out.qtbt = { talkCount: 0, attendance: 0, durationMinutes: 0 };
+  if (out.training) out.training = { trainingCount: 0, attendance: 0, durationMinutes: 0 };
   return out;
 }
 

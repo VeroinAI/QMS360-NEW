@@ -2,6 +2,20 @@ import { describe, expect, it } from "vitest";
 import { buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData } from "./qaqc-reporting-model";
 
 describe("QA/QC SOW report model", () => {
+  it("calculates independent training counters and participant-hours", () => {
+    const result = calculateReport("monthly", { training: { trainingCount: 3, attendance: 12, durationMinutes: 45 } },
+      { training: { accumulatedTrainingCount: 7, accumulatedManhours: 20 } }, {}) as any;
+    expect(result.training).toEqual({ manhours: 9, accumulatedTrainingCount: 10, accumulatedManhours: 29 });
+    expect(result.qtbt.accumulatedTalkCount).toBe(0);
+    const legacy = calculateReport("monthly", {}, {}, {}) as any;
+    expect(legacy.training).toEqual({ manhours: 0, accumulatedTrainingCount: 0, accumulatedManhours: 0 });
+  });
+  it("rejects malformed training counts and accepts absent legacy training", () => {
+    const invalid = validateReportData("monthly", { training: { trainingCount: -1, attendance: 2.5, durationMinutes: 30 } }, {}, false);
+    expect(invalid.errors).toContain("training.trainingCount must be a nonnegative integer");
+    expect(invalid.errors).toContain("training.attendance must be a nonnegative integer");
+    expect(validateReportData("monthly", {}, {}, false).errors.some(e => e.startsWith("training."))).toBe(false);
+  });
   const fullMonthlyData = (closed = 2) => ({
     metrics: Object.fromEntries(["external_ncr", "internal_ncr", "rfi", "rmi"].map((key) => [
       key, { issued: 10, closed, ageing: key === "external_ncr" ? [{ bucket: "over45", count: 2 }] : [] },

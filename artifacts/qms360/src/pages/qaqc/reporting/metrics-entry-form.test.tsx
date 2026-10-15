@@ -91,6 +91,15 @@ describe('MetricsEntryForm metric details tile', () => {
     expect(html).not.toContain('Last Internal Audit Conducted Date');
     expect(html).not.toContain('Next Internal Audit Conducted Date');
   });
+  it('shows Department Master labels while storing their values and retaining historical text', () => {
+    const d = { ...data, manpower: [{ department: 'old free text', count: 1 }] };
+    const ctx = { data: d, readOnly: false, set: () => {}, fc: () => ({ disabled: false, required: false }),
+      departments: [{ value: 'QUAL', label: 'Quality Department' }] };
+    const html = renderToStaticMarkup(<FormCtx.Provider value={ctx}><MetricsEntryForm /></FormCtx.Provider>);
+    expect(html).toMatch(/<option[^>]*value="QUAL"[^>]*>Quality Department<\/option>/);
+    expect(html).toContain('old free text (previously saved)');
+    expect(html).not.toMatch(/<input[^>]*value="old free text"/);
+  });
   it('renders every saved meeting and its dates on reopening', () => {
     const meetings = [
       { type: 'Internal Meeting', lastDate: '2026-10-01', nextDate: '2026-10-02' },

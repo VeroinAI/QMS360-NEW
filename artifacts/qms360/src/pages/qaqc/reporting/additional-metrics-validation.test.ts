@@ -12,6 +12,14 @@ const valid = (): Obj => ({
 });
 
 describe('additional Metrics fields', () => {
+  it('validates training without requiring it on historical reports and preserves report remarks', () => {
+    expect(validateAdditionalMetrics({ ...valid(), training: { trainingCount: 0 } })).toEqual([]);
+    expect(validateAdditionalMetrics({ ...valid(), training: { trainingCount: 1 } }).join(' ')).toContain('Training: No. of Attendees');
+    expect(validateAdditionalMetrics({ ...valid(), training: { trainingCount: 2, attendance: 8, durationMinutes: 30 } })).toEqual([]);
+    expect(validateAdditionalMetrics({ ...valid(), training: { trainingCount: -1 } }).join(' ')).toContain('Training: Total Nos');
+    const remarks = 'First line\nSecond line';
+    expect(normaliseAdditionalMetrics({ ...valid(), qmsReportRemarks: remarks }).qmsReportRemarks).toBe(remarks);
+  });
   it('allows zero mandatory counts, optional blanks and an unconfirmed draft', () => {
     expect(validateAdditionalMetrics(valid())).toEqual([]);
     expect(normaliseAdditionalMetrics(valid())).toMatchObject({ assessmentConfirmationRequired: true, qmsDepartmentInput: 'sow' });

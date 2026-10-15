@@ -80,7 +80,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     staleTime: 30_000,
     refetchInterval: metricsEntry ? 60_000 : false,
   } });
-  const [data, setData] = useState<Obj>(() => (metricsEntry ? { ...defaultData(reportType), meetings: [{ type: '', lastDate: '', nextDate: '' }], internalAudit: {}, manpower: [{ department: '' }], assessmentConfirmationRequired: true, assessmentConfirmed: false } : defaultData(reportType)));
+  const [data, setData] = useState<Obj>(() => (metricsEntry ? { ...defaultData(reportType), meetings: [{ type: '', lastDate: '', nextDate: '' }], internalAudit: {}, manpower: [{ department: '', departmentSource: 'master' }], training: { trainingCount: 0, attendance: 0, durationMinutes: 0 }, assessmentConfirmationRequired: true, assessmentConfirmed: false } : defaultData(reportType)));
   const initFor = useRef<string | null>(null);
   useEffect(() => { if (report && initFor.current !== report.id) { initFor.current = report.id; setData({ ...defaultData(reportType), ...(report.data as Obj) }); } }, [report, reportType]);
 
@@ -181,7 +181,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   if (id && reportQ.error) return <PageFrame title={TITLES[reportType]} description="Report unavailable"><ErrorBox error={reportQ.error} retry={() => reportQ.refetch()} /></PageFrame>;
 
   return <FormCtx.Provider value={form}>
-    <PageFrame title={metricsEntry ? `${report ? '' : 'New '}QA/QC Metrics Entry${report?.referenceNumber ? ` - ${report.referenceNumber}` : ''}` : report ? `${TITLES[reportType]} ${report.referenceNumber ? `- ${report.referenceNumber}` : ''}` : `New ${TITLES[reportType].toLowerCase()}`} description={projectName ? `${projectName} - ${per}` : 'Select a project and period to begin.'}
+    <PageFrame title={metricsEntry ? `QA/QC Metrics – Monthly Report${report?.referenceNumber ? ` - ${report.referenceNumber}` : ''}` : report ? `${TITLES[reportType]} ${report.referenceNumber ? `- ${report.referenceNumber}` : ''}` : `New ${TITLES[reportType].toLowerCase()}`} description={projectName ? `${projectName} - ${per}` : 'Select a project and period to begin.'}
       actions={<><Link href={metricsEntry ? '/qaqc/metrics' : `/qaqc/${reportType}`}><Button variant="secondary"><ArrowLeft className="mr-2 size-4" />{metricsEntry ? 'Back to QA/QC Metrics' : 'All reports'}</Button></Link>
         {report && canExport && <><Button variant="secondary" disabled={busy} onClick={() => run(async () => { try { saveFile(await exportQaqcSowReport(report.id, undefined, { headers: { Accept: XLSX_MIME } }), `${reportType}-${per}.xlsx`); } catch (e) { fail('Export failed')(e); } })}><FileSpreadsheet className="mr-2 size-4" />XLSX</Button>
           <Button variant="secondary" disabled={busy} onClick={() => run(async () => { try { saveFile(await exportQaqcSowReport(report.id, { templateId: pdfTemplate }, { headers: { Accept: 'application/pdf' } }), `${reportType}-${per}.pdf`); } catch (e) { fail('Export failed')(e); } })}><FileText className="mr-2 size-4" />PDF</Button></>}</>}>

@@ -15,6 +15,11 @@ describe("Metrics entry department policy", () => {
   it("does not opt out for unknown or boolean mode flags", () => {
     expect(reportDepartmentReferences("monthly", { ...data, manpowerDepartmentInput: true })).toHaveLength(3);
   });
+  it("checks new master selections while retaining old free-text manpower", () => {
+    expect(reportDepartmentReferences("monthly", { ...data, manpowerDepartmentInput: "text",
+      manpower: [...data.manpower, { department: "QUALITY", departmentSource: "master" }],
+    })).toEqual(["QUALITY", "Quality", "Safety"]);
+  });
   it("does not add department checks to daily or CSAT", () => {
     expect(reportDepartmentReferences("daily", data)).toEqual([]);
     expect(reportDepartmentReferences("csat", data)).toEqual([]);

@@ -4,8 +4,7 @@ const object = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const rows = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
 
-// The six-section Metrics entry specifies manpower departments as free text.
-// All other report department fields retain their existing master-data policy.
+// Preserve historical free-text manpower; newly selected master values are validated.
 export function reportDepartmentReferences(type: ReportType, data: Record<string, unknown>): string[] {
   if (type !== "monthly") return [];
   const references: string[] = [];
@@ -16,6 +15,7 @@ export function reportDepartmentReferences(type: ReportType, data: Record<string
     }
   };
   if (data.manpowerDepartmentInput !== "text") collect(data.manpower);
+  else collect(rows(data.manpower).filter(row => object(row).departmentSource === "master"));
   const metrics = object(data.metrics);
   for (const key of ["external_ncr", "internal_ncr"]) collect(object(metrics[key]).ageing);
   return references;

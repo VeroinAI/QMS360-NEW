@@ -175,6 +175,7 @@ function zeroFill(type: ReportType, value: Record<string, any>) {
       if (data.material) data.material[key] = 0;
     }
     if (data.qtbt) for (const key of ["talkCount", "attendance", "durationMinutes"]) data.qtbt[key] = 0;
+    if (data.training) for (const key of ["trainingCount", "attendance", "durationMinutes"]) data.training[key] = 0;
     for (const section of ["drawings", "submittals"]) if (data.documents?.[section]) {
       for (const key of ["approved", "resubmitted", "rejected", "underReview", "clientReviewDays", "internalReviewDays"]) data.documents[section][key] = 0;
     }
@@ -250,6 +251,7 @@ async function historyBaseline(organizationId: string, projectId: string, type: 
       metrics,
       material: { accumulatedIssued: Number(computed.material?.accumulatedIssued ?? 0), accumulatedClosed: Number(computed.material?.accumulatedClosed ?? 0) },
       qtbt: { accumulatedTalkCount: Number(computed.qtbt?.accumulatedTalkCount ?? 0), accumulatedManhours: Number(computed.qtbt?.accumulatedManhours ?? 0) },
+      training: { accumulatedTrainingCount: Number(computed.training?.accumulatedTrainingCount ?? 0), accumulatedManhours: Number(computed.training?.accumulatedManhours ?? 0) },
     }, previous };
   }
   return { baseline: {}, previous };

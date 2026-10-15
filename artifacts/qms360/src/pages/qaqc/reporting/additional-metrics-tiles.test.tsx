@@ -18,8 +18,8 @@ const tag = (h: string, id: string) => new RegExp(`<[^>]*data-testid="${id}"[^>]
 
 describe('AdditionalMetricsTiles', () => {
   const h = render();
-  it('titles 9-13', () => {
-    ['9. Material Inspection', '10. Quality Toolbox Talk', '11. Project Monthly Document Status – Submittals &amp; Drawings', '12. QMS Report', '13. Quality Assessment Brief'].forEach(t => expect(h).toContain(t));
+  it('titles 9-14 with Training inserted after QTBT', () => {
+    ['9. Material Inspection', '10. Quality Toolbox Talk', '11. Training', '12. Project Monthly Document Status – Submittals &amp; Drawings', '13. QMS Report', '14. Quality Assessment Brief'].forEach(t => expect(h).toContain(t));
   });
   it('material fields, radio, conditionals, variance', () => {
     expect(h).toContain('Acc. MIRN till Last Month'); expect(h).toContain('Closed till Last Month');
@@ -48,6 +48,23 @@ describe('AdditionalMetricsTiles', () => {
   it('qms', () => {
     QMS_DEPARTMENTS.forEach(d => expect(h).toContain(`value="${d.split("&").join("&amp;")}"`));
     expect(h).toContain('data-testid="row-qms-0"'); expect(h).toContain('button-remove-qms-0'); expect(h).toContain('button-add-qms');
+    expect(h).toMatch(/<textarea[^>]*data-testid="input-qms-report-remarks"/);
+  });
+  it('computes independent training totals and exposes only current-month inputs', () => {
+    const training = { trainingCount: 3, attendance: 12, durationMinutes: 45 };
+    const d = { ...base, training };
+    const b = { ...baseline, training: { accumulatedTrainingCount: 7, accumulatedManhours: 20 } };
+    const calc = calcMonthly(d, b);
+    expect(calc.training).toEqual({ manhours: 9, accTraining: 10, accManhours: 29 });
+    expect(calc.qtbt.accTalks).toBe(6);
+    const ctx = { data: d, readOnly: false, set: () => {}, fc: () => ({ disabled: false, required: false }) };
+    const html = renderToStaticMarkup(<FormCtx.Provider value={ctx}><AdditionalMetricsTiles Tile={Tile} calc={calc} baseline={b} onDraftAi={() => {}} aiBusy={false} aiDraft="" onUseDraft={() => {}} /></FormCtx.Provider>);
+    expect(tid(html, 'text-training-base-count')).toBe('7');
+    expect(tid(html, 'text-training-base-manhours')).toBe('20.00');
+    expect(tid(html, 'text-training-manhours')).toBe('9.00');
+    expect(tid(html, 'text-training-acc-count')).toBe('10');
+    expect(tid(html, 'text-training-acc-manhours')).toBe('29.00');
+    expect(tag(render(d, {}, true), 'input-training-count')).toMatch(DIS);
   });
   it('assessment and ai', () => {
     expect(tag(h, 'input-narrative')).toContain('aria-required="true"');

@@ -113,6 +113,21 @@ export function DocumentsTile() {
   </section>)}</div>;
 }
 
+export function TrainingTile({ calc, baseline }: { calc: Obj; baseline?: Obj }) {
+  const f = useForm(); const t = f.data.training ?? {}; const c = calc.training ?? {}; const b = baseline?.training ?? {};
+  const need = Number(t.trainingCount) > 0;
+  return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <RO label="Acc. till Last Month (auto)" value={Number(b.accumulatedTrainingCount) || 0} tid="text-training-base-count" />
+    <RO label="Manhours till Last Month (auto)" value={fmt(Number(b.accumulatedManhours) || 0, 2)} tid="text-training-base-manhours" />
+    <Int path={['training', 'trainingCount']} label="Total Nos of Training this Month" required tid="training-count" />
+    <Int path={['training', 'attendance']} label="No. of Attendees" required={need} tid="training-attendance" />
+    <Int path={['training', 'durationMinutes']} label="Duration (minutes)" required={need} tid="training-duration" />
+    <RO label="Total Manhours this Month" value={fmt(c.manhours ?? 0, 2)} tid="text-training-manhours" />
+    <RO label="Acc. Training till this Month" value={c.accTraining ?? 0} tid="text-training-acc-count" />
+    <RO label="Acc. Manhours till this Month" value={fmt(c.accManhours ?? 0, 2)} tid="text-training-acc-manhours" />
+  </div>;
+}
+
 export function QmsReportsTile() {
   const f = useForm(); const path: Path = ['qmsReports']; const rows: Obj[] = getIn(f.data, path) ?? [];
   return <div className="space-y-3">
@@ -128,6 +143,7 @@ export function QmsReportsTile() {
       {!f.readOnly && <Button type="button" size="icon" variant="ghost" data-testid={`button-remove-qms-${i}`} aria-label={`Remove QMS report ${i + 1}`} onClick={() => f.set(path, rows.filter((_, j) => j !== i))}><Trash2 className="size-4 text-destructive" /></Button>}
     </div>; })}
     {!f.readOnly && <Button type="button" size="sm" variant="outline" data-testid="button-add-qms" onClick={() => f.set(path, [...rows, { department: '', type: '', documentName: '', status: '', remarks: '' }])}><Plus className="mr-1 size-4" />Add QMS report</Button>}
+    <Txt path={['qmsReportRemarks']} label="Remarks" multiline tid="qms-report-remarks" />
   </div>;
 }
 
@@ -157,8 +173,9 @@ export function AdditionalMetricsTiles({ Tile, calc, baseline, ...ai }: Addition
   return <>
     <Tile index={9} title="Material Inspection"><MaterialTile calc={calc} baseline={baseline} /></Tile>
     <Tile index={10} title="Quality Toolbox Talk (QTBT)"><QtbtTile calc={calc} baseline={baseline} /></Tile>
-    <Tile index={11} title="Project Monthly Document Status – Submittals & Drawings"><DocumentsTile /></Tile>
-    <Tile index={12} title="QMS Report"><QmsReportsTile /></Tile>
-    <Tile index={13} title="Quality Assessment Brief"><AssessmentTile {...ai} /></Tile>
+    <Tile index={11} title="Training"><TrainingTile calc={calc} baseline={baseline} /></Tile>
+    <Tile index={12} title="Project Monthly Document Status – Submittals & Drawings"><DocumentsTile /></Tile>
+    <Tile index={13} title="QMS Report"><QmsReportsTile /></Tile>
+    <Tile index={14} title="Quality Assessment Brief"><AssessmentTile {...ai} /></Tile>
   </>;
 }
