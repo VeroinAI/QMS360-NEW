@@ -14,7 +14,7 @@ import { canQaqcUserReview, requireQaqcTask } from "../lib/qaqc-capabilities";
 import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
 import { assertLovValue, getLovValues } from "../lib/lov";
 import { logger } from "../lib/logger";
-import { reportDepartmentReferences } from "../lib/qaqc-reporting-department-policy";
+import { reportDepartmentReferences, reportDisciplineReferences } from "../lib/qaqc-reporting-department-policy";
 import { monthlySectionAccess, mergeMonthlySections } from "../lib/qaqc-monthly-sections";
 import { monthlySectionForField } from "@workspace/field-controls";
 import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
@@ -467,6 +467,8 @@ async function targetsFor(req: Request, projectCustomFields: Record<string, any>
 async function assertReportLovValues(req: Request, type: ReportType, data: Record<string, any>) {
   for (const department of reportDepartmentReferences(type, data))
     await assertLovValue(db, org(req), "departments", department);
+  for (const discipline of reportDisciplineReferences(type, data))
+    await assertLovValue(db, org(req), "disciplines", discipline);
 }
 
 function userId(customFields: Record<string, unknown>, key: string): string | undefined {
@@ -498,6 +500,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
   }
   const relevantUsers = isQaqcAdmin ? allUsers : allUsers.filter((user) => assignedIds.has(user.id) || user.id === actor(req));
   const departments = await getLovValues(db, org(req), "departments");
+  const manpowerDisciplines = await getLovValues(db, org(req), "disciplines");
   const resultBase = {
     reportType: type,
     projects: projectsInScope.map((item) => ({
@@ -509,6 +512,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
     approvers: relevantUsers.filter((user) => approverIds.has(user.id) && user.id !== actor(req)),
     masterData: {
       departments,
+      manpowerDisciplines,
       pqpStatuses: ["Approved A", "Approved B", "Approved C", "Under Preparation", "Under Review with Client", "Rejected", "Others"],
       meetings: ["Project Management Review Meeting", "Internal Meeting", "External Meeting", "Project Quality Meeting"],
       disciplines: ["Civil", "Mechanical", "Structural", "Electrical", "Instrumentation"],

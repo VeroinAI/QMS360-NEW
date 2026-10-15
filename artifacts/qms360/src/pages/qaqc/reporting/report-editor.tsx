@@ -130,7 +130,8 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     if (p[0] !== 'narrative' && p[0] !== 'assessmentConfirmed') clearAiSuggestion();
     setData(d => editAssessmentData(d, p, v, metricsEntry));
   },
-    fc: (key: string) => ({ disabled: locked || (reportType === 'monthly' && !canMaintainMonthlyField(key, editableSections ?? [])), required: false }), departments: (ctx.masterData?.departments ?? ctx.masterData?.qmsDepartments) as (string | { value: string; label?: string })[] | undefined };
+    fc: (key: string) => ({ disabled: locked || (reportType === 'monthly' && !canMaintainMonthlyField(key, editableSections ?? [])), required: false }), departments: (ctx.masterData?.departments ?? ctx.masterData?.qmsDepartments) as (string | { value: string; label?: string })[] | undefined,
+    manpowerDisciplines: ctx.masterData?.manpowerDisciplines as { value: string; label?: string }[] | undefined };
   const fail = (title: string) => (e: unknown) => toast({ title, description: errMsg(e), variant: 'destructive' });
   const saveData = () => {
     if (reportType !== 'monthly') return clean;

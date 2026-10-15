@@ -20,7 +20,7 @@ export const setIn = (o: any, p: Path, v: unknown): any => {
   return copy;
 };
 
-export type FormCtxValue = { data: Obj; set: (p: Path, v: unknown) => void; readOnly: boolean; editableSections?: readonly string[]; fc: (key: string) => { disabled: boolean; required: boolean }; departments?: (string | { value: string; label?: string })[] };
+export type FormCtxValue = { data: Obj; set: (p: Path, v: unknown) => void; readOnly: boolean; editableSections?: readonly string[]; fc: (key: string) => { disabled: boolean; required: boolean }; departments?: (string | { value: string; label?: string })[]; manpowerDisciplines?: { value: string; label?: string }[] };
 export const FormCtx = createContext<FormCtxValue | null>(null);
 export function useForm() { const c = useContext(FormCtx); if (!c) throw new Error('FormCtx missing'); return c; }
 

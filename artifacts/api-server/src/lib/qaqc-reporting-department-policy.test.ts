@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reportDepartmentReferences } from "./qaqc-reporting-department-policy";
+import { reportDepartmentReferences, reportDisciplineReferences } from "./qaqc-reporting-department-policy";
 
 describe("Metrics entry department policy", () => {
   const data = {
@@ -23,5 +23,21 @@ describe("Metrics entry department policy", () => {
   it("does not add department checks to daily or CSAT", () => {
     expect(reportDepartmentReferences("daily", data)).toEqual([]);
     expect(reportDepartmentReferences("csat", data)).toEqual([]);
+  });
+  it("validates new manpower against Discipline Master, leaving NCR department checks unchanged", () => {
+    const report = { ...data, manpower: [{ department: "CIV", departmentSource: "discipline_master" }] };
+    expect(reportDepartmentReferences("monthly", report)).toEqual(["Quality", "Safety"]);
+    expect(reportDisciplineReferences("monthly", report)).toEqual(["CIV"]);
+    expect(reportDisciplineReferences("daily", report)).toEqual([]);
+    expect(reportDisciplineReferences("csat", report)).toEqual([]);
+  });
+  it("keeps legacy Department Master and free-text entries distinct from discipline selections", () => {
+    const report = { ...data, manpowerDepartmentInput: "text", manpower: [
+      { department: "QUALITY", departmentSource: "master" },
+      { department: "Legacy free text" },
+      { department: "CIV", departmentSource: "discipline_master" },
+    ] };
+    expect(reportDepartmentReferences("monthly", report)).toEqual(["QUALITY", "Quality", "Safety"]);
+    expect(reportDisciplineReferences("monthly", report)).toEqual(["CIV"]);
   });
 });

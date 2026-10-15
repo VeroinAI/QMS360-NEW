@@ -39,7 +39,7 @@ export function validateMetricsEntry(data: Obj, baseline: Obj = {}, options: { r
   if (!(data.manpower ?? []).length) issues.push('Add at least one Quality Manpower row.');
   for (const [i, row] of (data.manpower ?? []).entries()) {
     const label = `Quality Manpower ${i + 1}`;
-    if (!String(row.department ?? '').trim()) issues.push(`${label}: Department is required.`);
+    if (!String(row.department ?? '').trim()) issues.push(`${label}: Discipline is required.`);
     if (!integer(row.count, 1)) issues.push(`${label}: Nos must be an integer greater than zero.`);
     if (typeof row.approvalRequired !== 'boolean') issues.push(`${label}: select whether client approval is required.`);
     if (row.approvalRequired) {

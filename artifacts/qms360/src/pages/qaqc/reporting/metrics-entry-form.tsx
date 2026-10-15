@@ -57,19 +57,19 @@ function YesNo({ path, label, required }: { path: Path; label: string; required?
   return <Field id={id} label={label} required={required}><Select disabled={ro} value={typeof value === 'boolean' ? (value ? 'Yes' : 'No') : ''} onValueChange={v => set(v === 'Yes')}><SelectTrigger id={id} aria-required={required}><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="Yes">Yes</SelectItem><SelectItem value="No">No</SelectItem></SelectContent></Select></Field>;
 }
 
-function ManpowerDepartment({ path }: { path: Path }) {
+function ManpowerDiscipline({ path }: { path: Path }) {
   const f = useForm(); const id = useId();
   const value = getIn(f.data, [...path, 'department']) ?? '';
-  const options = (f.departments ?? []).map(d => typeof d === 'string' ? { value: d, label: d } : d);
+  const options = f.manpowerDisciplines ?? [];
   const legacy = value && !options.some(d => d.value === value);
-  return <Field id={id} label="Department" required>
+  return <Field id={id} label="Discipline" required>
     <select id={id} aria-required="true" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:opacity-50"
-      disabled={f.readOnly} value={value} onChange={e => f.set(path, { ...getIn(f.data, path), department: e.target.value, departmentSource: 'master' })}>
-      <option value="">Select department</option>
+      disabled={f.readOnly} value={value} onChange={e => f.set(path, { ...getIn(f.data, path), department: e.target.value, departmentSource: 'discipline_master' })}>
+      <option value="">Select discipline</option>
       {legacy && <option value={value}>{value} (previously saved)</option>}
       {options.filter(d => d.value).map(d => <option key={d.value} value={d.value}>{d.label ?? d.value}</option>)}
     </select>
-    {!options.length && <p className="text-xs text-muted-foreground">No active departments configured in Department Master.</p>}
+    {!options.length && <p className="text-xs text-muted-foreground">No active disciplines configured in Discipline Master.</p>}
   </Field>;
 }
 
@@ -122,8 +122,8 @@ export function MetricsEntryForm({ calc, ...pqiProps }: { calc?: Record<string, 
       </div>
     </Tile>
     <Tile index={6} title="Quality Manpower">
-      <Rows path={['manpower']} noun="manpower row" addLabel="Add manpower row" blank={() => ({ department: '', departmentSource: 'master' })}>
-        {(p, row) => <><ManpowerDepartment path={p} /><IntIn path={[...p, 'count']} label="Nos" required min={1} /><YesNo path={[...p, 'approvalRequired']} label="Is client approval required?" required />
+      <Rows path={['manpower']} noun="manpower row" addLabel="Add manpower row" blank={() => ({ department: '', departmentSource: 'discipline_master' })}>
+        {(p, row) => <><ManpowerDiscipline path={p} /><IntIn path={[...p, 'count']} label="Nos" required min={1} /><YesNo path={[...p, 'approvalRequired']} label="Is client approval required?" required />
           {row.approvalRequired === true && <><IntIn path={[...p, 'approved']} label="Approved" required /><IntIn path={[...p, 'rejected']} label="Rejected" required /></>}</>}
       </Rows>
       <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-sm"><span className="font-medium">Total Manpower</span><span data-testid="text-total-manpower" className="font-semibold">{total}</span></div>

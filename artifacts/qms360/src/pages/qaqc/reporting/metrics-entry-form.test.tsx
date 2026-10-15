@@ -100,12 +100,15 @@ describe('MetricsEntryForm metric details tile', () => {
     expect(html).not.toContain('Last Internal Audit Conducted Date');
     expect(html).not.toContain('Next Internal Audit Conducted Date');
   });
-  it('shows Department Master labels while storing their values and retaining historical text', () => {
+  it('shows Discipline Master labels while storing their values and retaining historical text', () => {
     const d = { ...data, manpower: [{ department: 'old free text', count: 1 }] };
     const ctx = { data: d, readOnly: false, set: () => {}, fc: () => ({ disabled: false, required: false }),
-      departments: [{ value: 'QUAL', label: 'Quality Department' }] };
+      departments: [{ value: 'QUAL', label: 'Quality Department' }],
+      manpowerDisciplines: [{ value: 'CIV', label: 'Civil Engineering' }] };
     const html = renderToStaticMarkup(<FormCtx.Provider value={ctx}><MetricsEntryForm /></FormCtx.Provider>);
-    expect(html).toMatch(/<option[^>]*value="QUAL"[^>]*>Quality Department<\/option>/);
+    expect(html).toMatch(/<option[^>]*value="CIV"[^>]*>Civil Engineering<\/option>/);
+    expect(html).toContain('Select discipline');
+    expect(html).not.toContain('No active disciplines configured');
     expect(html).toContain('old free text (previously saved)');
     expect(html).not.toMatch(/<input[^>]*value="old free text"/);
   });

@@ -14,9 +14,19 @@ export function reportDepartmentReferences(type: ReportType, data: Record<string
       if (typeof department === "string" && department.trim()) references.push(department);
     }
   };
-  if (data.manpowerDepartmentInput !== "text") collect(data.manpower);
-  else collect(rows(data.manpower).filter(row => object(row).departmentSource === "master"));
+  const departmentManpower = rows(data.manpower).filter(row => object(row).departmentSource !== "discipline_master");
+  if (data.manpowerDepartmentInput !== "text") collect(departmentManpower);
+  else collect(departmentManpower.filter(row => object(row).departmentSource === "master"));
   const metrics = object(data.metrics);
   for (const key of ["external_ncr", "internal_ncr"]) collect(object(metrics[key]).ageing);
   return references;
+}
+
+export function reportDisciplineReferences(type: ReportType, data: Record<string, unknown>): string[] {
+  if (type !== "monthly") return [];
+  return rows(data.manpower).flatMap(value => {
+    const row = object(value);
+    return row.departmentSource === "discipline_master" && typeof row.department === "string" && row.department.trim()
+      ? [row.department] : [];
+  });
 }
