@@ -82,6 +82,15 @@ describe('MetricsEntryForm metric details tile', () => {
     expect(html).toContain('Remove meeting 1');
     expect(html).not.toContain('No meeting added.');
   });
+  it('uses the requested labels for point 5 internal audit fields', () => {
+    const { html } = render();
+    expect(html).toContain('5. QMS Internal Audit');
+    expect(html).toContain('Is Internal Audit Conducted?');
+    expect(html).toContain('Last Audit Date');
+    expect(html).toContain('Next Audit Date');
+    expect(html).not.toContain('Last Internal Audit Conducted Date');
+    expect(html).not.toContain('Next Internal Audit Conducted Date');
+  });
   it('renders every saved meeting and its dates on reopening', () => {
     const meetings = [
       { type: 'Internal Meeting', lastDate: '2026-10-01', nextDate: '2026-10-02' },

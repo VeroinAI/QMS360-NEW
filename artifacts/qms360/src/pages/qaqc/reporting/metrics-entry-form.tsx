@@ -95,8 +95,8 @@ export function MetricsEntryForm({ calc, ...pqiProps }: { calc?: Record<string, 
     <Tile index={5} title="QMS Internal Audit">
       <div className={cols}>
         <YesNo path={['internalAudit', 'conducted']} label="Is Internal Audit Conducted?" required />
-        <TextIn path={['internalAudit', 'lastDate']} label="Last Internal Audit Conducted Date" type="date" required />
-        <TextIn path={['internalAudit', 'nextDate']} label="Next Internal Audit Conducted Date" type="date" required />
+        <TextIn path={['internalAudit', 'lastDate']} label="Last Audit Date" type="date" required />
+        <TextIn path={['internalAudit', 'nextDate']} label="Next Audit Date" type="date" required />
       </div>
     </Tile>
     <Tile index={6} title="Quality Manpower">
