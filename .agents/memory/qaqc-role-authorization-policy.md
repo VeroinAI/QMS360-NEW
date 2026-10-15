@@ -14,6 +14,12 @@ Apply checkbox-based authorization changes to QA/QC only. Do not change Lessons 
 
 **How to apply:** Keep application-specific authorization branches separate; platform administrators retain their existing bypass.
 
+New role permission keys must be accepted by both the application permission catalog and the generated role request/response contracts.
+
+**Why:** Section checkboxes worked in the editor, but role saves failed because the API contract still rejected their keys before persistence.
+
+**How to apply:** When adding QA/QC permissions, update the source API contract, regenerate the validators and clients, and test the actual create/update validators against the full permission catalog, including list/reload responses.
+
 For legacy QA/QC own-record access, original creation/import audit provenance is ownership evidence; later edits must not transfer ownership.
 
 **Why:** Enforcing own access should not require a production schema migration solely for the role-editing fix, or incorrectly attribute a record to its most recent editor.
