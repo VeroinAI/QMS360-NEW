@@ -19,7 +19,7 @@ const tag = (h: string, id: string) => new RegExp(`<[^>]*data-testid="${id}"[^>]
 describe('AdditionalMetricsTiles', () => {
   const h = render();
   it('titles 9-14 with Training inserted after QTBT', () => {
-    ['9. Material Inspection', '10. Quality Toolbox Talk', '11. Training', '12. Project Monthly Document Status – Submittals &amp; Drawings', '13. QMS Report', '14. Quality Assessment Brief'].forEach(t => expect(h).toContain(t));
+    ['9. Material Inspection', '10. Quality Toolbox Talk', '11. Training', '12. Project Monthly Document Status – Submittals &amp; Drawings', '13. QMS Document Register', '14. Quality Assessment Brief'].forEach(t => expect(h).toContain(t));
   });
   it('material fields, radio, conditionals, variance', () => {
     expect(h).toContain('Acc. MIRN till Last Month'); expect(h).toContain('Closed till Last Month');

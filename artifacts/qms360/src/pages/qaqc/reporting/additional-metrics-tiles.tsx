@@ -175,7 +175,7 @@ export function AdditionalMetricsTiles({ Tile, calc, baseline, ...ai }: Addition
     <Tile index={10} title="Quality Toolbox Talk (QTBT)"><QtbtTile calc={calc} baseline={baseline} /></Tile>
     <Tile index={11} title="Training"><TrainingTile calc={calc} baseline={baseline} /></Tile>
     <Tile index={12} title="Project Monthly Document Status – Submittals & Drawings"><DocumentsTile /></Tile>
-    <Tile index={13} title="QMS Report"><QmsReportsTile /></Tile>
+    <Tile index={13} title="QMS Document Register"><QmsReportsTile /></Tile>
     <Tile index={14} title="Quality Assessment Brief"><AssessmentTile {...ai} /></Tile>
   </>;
 }
