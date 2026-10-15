@@ -88,7 +88,7 @@ export function MetricsEntryForm({ calc, ...pqiProps }: { calc?: Record<string, 
       </div>
     </Tile>
     <Tile index={4} title="Meetings Conducted">
-      <Rows path={['meetings']} noun="meeting" addLabel="Add meeting" blank={() => ({ type: '', lastDate: '', nextDate: '' })}>
+      <Rows path={['meetings']} noun="meeting" addLabel="Add Meeting" blank={() => ({ type: '', lastDate: '', nextDate: '' })}>
         {(p, row) => { const sel = !!row.type; return <><PickIn path={[...p, 'type']} label="Meeting Type" options={MEETING_TYPES} /><TextIn path={[...p, 'lastDate']} label="Date (from)" type="date" required={sel} /><TextIn path={[...p, 'nextDate']} label="Date (to)" type="date" required={sel} /></>; }}
       </Rows>
     </Tile>

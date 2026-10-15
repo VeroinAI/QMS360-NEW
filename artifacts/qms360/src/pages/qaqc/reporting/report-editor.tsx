@@ -80,7 +80,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     staleTime: 30_000,
     refetchInterval: metricsEntry ? 60_000 : false,
   } });
-  const [data, setData] = useState<Obj>(() => (metricsEntry ? { ...defaultData(reportType), meetings: [], internalAudit: {}, manpower: [{ department: '' }], assessmentConfirmationRequired: true, assessmentConfirmed: false } : defaultData(reportType)));
+  const [data, setData] = useState<Obj>(() => (metricsEntry ? { ...defaultData(reportType), meetings: [{ type: '', lastDate: '', nextDate: '' }], internalAudit: {}, manpower: [{ department: '' }], assessmentConfirmationRequired: true, assessmentConfirmed: false } : defaultData(reportType)));
   const initFor = useRef<string | null>(null);
   useEffect(() => { if (report && initFor.current !== report.id) { initFor.current = report.id; setData({ ...defaultData(reportType), ...(report.data as Obj) }); } }, [report, reportType]);
 

@@ -73,4 +73,33 @@ describe('MetricsEntryForm metric details tile', () => {
     inputs.forEach(i => expect(i).toContain('disabled'));
     expect(ro).not.toContain('Add ageing row');
   });
+  it('shows a meeting selector and two dates for a blank meeting row', () => {
+    const html = render(false, { ...data, meetings: [{ type: '', lastDate: '', nextDate: '' }] }).html;
+    expect(html).toContain('Meeting Type');
+    expect(html).toContain('Date (from)');
+    expect(html).toContain('Date (to)');
+    expect(html).toContain('Add Meeting');
+    expect(html).toContain('Remove meeting 1');
+    expect(html).not.toContain('No meeting added.');
+  });
+  it('renders every saved meeting and its dates on reopening', () => {
+    const meetings = [
+      { type: 'Internal Meeting', lastDate: '2026-10-01', nextDate: '2026-10-02' },
+      { type: 'External Meeting', lastDate: '2026-10-03', nextDate: '2026-10-04' },
+    ];
+    const html = render(false, { ...data, meetings }).html;
+    // Radix Select renders its selected text after mounting, not during SSR.
+    expect((html.match(/>Meeting Type</g) ?? []).length).toBe(2);
+    for (const row of meetings) {
+      expect(html).toContain(`value="${row.lastDate}"`);
+      expect(html).toContain(`value="${row.nextDate}"`);
+    }
+    expect(html).toContain('Remove meeting 2');
+    const readOnly = render(true, { ...data, meetings }).html;
+    expect(readOnly).not.toContain('Add Meeting');
+    expect(readOnly).not.toContain('Remove meeting');
+    for (const input of readOnly.match(/<input[^>]*>/g) ?? []) {
+      expect(input).toContain('disabled');
+    }
+  });
 });
