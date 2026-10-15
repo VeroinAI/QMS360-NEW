@@ -196,11 +196,12 @@ export async function getRoleAssignmentProjectScope(req: Request, appKey: AppKey
   return getAppAdminScope(req, appKey);
 }
 
+const qaqcPermissionRows = new WeakMap<Request, Promise<any[]>>();
 async function matchingPermissionRows(req: Request, appKey: AppKey, target: PermissionTarget) {
   const user = req.currentUser!;
   const t = appTables(appKey) as any;
-  const rows = await db.select({
-    roleName: t.roles.name, key: t.permissions.key, grant: t.rolePermissions.grant,
+  const load = () => db.select({
+    roleId: t.roles.id, roleName: t.roles.name, key: t.permissions.key, grant: t.rolePermissions.grant,
     projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
   }).from(t.userRoles)
     .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
@@ -210,12 +211,16 @@ async function matchingPermissionRows(req: Request, appKey: AppKey, target: Perm
       eq(t.userRoles.userId, user.id), eq(t.userRoles.organizationId, user.organizationId),
       isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt), eq(t.roles.status, "active"),
     ));
+  const pending = appKey === "qaqc" ? qaqcPermissionRows.get(req) ?? load().then(rows => rows) : load();
+  if (appKey === "qaqc") qaqcPermissionRows.set(req, Promise.resolve(pending));
+  const rows = await pending;
   const capabilities = target.operation === "review" ? ["approve_reject"]
     : appKey === "audit" && target.operation && target.operation !== "export" ? [target.operation]
     : target.action === "select"
     ? ["view_all", "view_own", ...(appKey === "lessons" ? ["view_own_scope"] : [])]
     : ["create_edit", ...(appKey === "lessons" ? ["data_entry"] : [])];
   const normalized = target.module.toLowerCase();
+  const sectionRoles = new Set(rows.filter((r: any) => r.key === "qaqc.monthly_sections.configured").map((r: any) => r.roleId));
   return rows.filter((row: any) => {
     const key = String(row.key ?? "").toLowerCase();
     if (appKey === "audit" && key.startsWith("audit.")) {
@@ -225,6 +230,11 @@ async function matchingPermissionRows(req: Request, appKey: AppKey, target: Perm
         : auditModulePermissionMatches(key, normalized, "create_edit");
     }
     if (appKey === "qaqc") {
+      if (target.module.startsWith("monthly_section_")) {
+        return sectionRoles.has(row.roleId)
+          ? key === `qaqc.${target.module}.create_edit`
+          : qaqcPermissionMatches(key, "monthly_reports", "create_edit");
+      }
       const op = target.operation === "review" ? "approve_reject" : target.operation;
         return op ? qaqcPermissionMatches(key, target.module, op as QaqcOperation)
         : target.action === "select"

@@ -2440,6 +2440,9 @@ components:
       type: object
       required: [data]
       properties:
+        expectedUpdatedAt:
+          type: string
+          description: Last loaded report updatedAt. Required for monthly report saves; stale edits return 409.
         data: {$ref: "#/components/schemas/QaqcSowObject"}
     QaqcSowReportSubmitInput:
       type: object
@@ -2483,6 +2486,7 @@ components:
         organizationId: {type: string}
         projectId: {type: string}
         projectName: {type: string}
+        createdById: {type: string, nullable: true}
         reportType: {type: string, enum: [monthly, daily, csat]}
         period: {type: string}
         state: {type: string, enum: [draft, submitted, approved, sent_back]}

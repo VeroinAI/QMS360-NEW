@@ -23,6 +23,15 @@ function render(readOnly = false, d: Obj = data, b: Obj = baseline) {
 const text = (html: string, id: string) => new RegExp(`data-testid="${id}"[^>]*>([^<]*)<`).exec(html)?.[1] ?? '';
 
 describe('MetricsEntryForm metric details tile', () => {
+  it('keeps denied sections visible and read-only while the assigned section stays editable', () => {
+    const ctx = { data, readOnly: false, editableSections: ['meetings'], set: () => {}, fc: () => ({ disabled: false, required: false }) };
+    const html = renderToStaticMarkup(<FormCtx.Provider value={ctx}><MetricsEntryForm /></FormCtx.Provider>);
+    expect(html).toContain('Read-only');
+    expect(html).toContain('PQP Status');
+    expect(html).toContain('Add Meeting');
+    expect(html).not.toContain('Add Department');
+    expect(html).not.toContain('Add ageing row');
+  });
   const { html, calc } = render();
   it('groups all four categories under one numbered metric-details tile', () => {
     ['2. PQP Status', '3. Report Reference', '4. Meetings Conducted', '5. QMS Internal Audit', '6. Quality Manpower', '7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI &amp; RMI)'].forEach(t => expect(html).toContain(t));

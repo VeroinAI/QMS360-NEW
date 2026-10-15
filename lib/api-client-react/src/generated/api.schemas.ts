@@ -268,6 +268,8 @@ export interface QaqcPdfTemplatePublication {
 export interface QaqcSowObject {[key: string]: unknown}
 
 export interface QaqcSowReportUpdateInput {
+  /** Last loaded report updatedAt. Required for monthly report saves; stale edits return 409. */
+  expectedUpdatedAt?: string;
   data: QaqcSowObject;
 }
 
@@ -348,6 +350,7 @@ export interface QaqcSowReport {
   organizationId: string;
   projectId: string;
   projectName?: string;
+  createdById?: string | null;
   reportType: QaqcSowReportReportType;
   period: string;
   state: QaqcSowReportState;

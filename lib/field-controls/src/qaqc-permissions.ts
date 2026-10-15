@@ -1,3 +1,4 @@
+import { monthlySectionPermissions } from "./qaqc-monthly-sections";
 export type QaqcOperation = "view_own_scope" | "view_all" | "create_edit" | "delete" | "submit" | "approve_reject" | "import" | "export" | "ai" | "configure_masters" | "manage_ai_settings" | "delegate" | "manage_roles" | "manage_access" | "view_audit_log";
 const read = ["view_own_scope", "view_all"] as const;
 const edit = [...read, "create_edit", "delete"] as const;
@@ -26,6 +27,7 @@ export const qaqcActivityPermissions = qaqcActivityGroups.flatMap(group => group
   key: `qaqc.${group.module}.${action}`, name: `${group.label}: ${qaqcOperationLabels[action]}`,
 })));
 export const qaqcPermissionCatalog = [
+  ...monthlySectionPermissions,
   ...qaqcActivityPermissions,
   ...qaqcAdministrativePermissions.map(action => ({ key: `qaqc.${action}`, name: qaqcOperationLabels[action] })),
   ...qaqcGlobalPermissions.map(key => ({ key, name: key === "data_entry" ? "Create / edit (all activities)" : `${qaqcOperationLabels[key]} (all activities)` })),

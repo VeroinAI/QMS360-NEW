@@ -20,7 +20,7 @@ export const setIn = (o: any, p: Path, v: unknown): any => {
   return copy;
 };
 
-export type FormCtxValue = { data: Obj; set: (p: Path, v: unknown) => void; readOnly: boolean; fc: (key: string) => { disabled: boolean; required: boolean }; departments?: (string | { value: string; label?: string })[] };
+export type FormCtxValue = { data: Obj; set: (p: Path, v: unknown) => void; readOnly: boolean; editableSections?: readonly string[]; fc: (key: string) => { disabled: boolean; required: boolean }; departments?: (string | { value: string; label?: string })[] };
 export const FormCtx = createContext<FormCtxValue | null>(null);
 export function useForm() { const c = useContext(FormCtx); if (!c) throw new Error('FormCtx missing'); return c; }
 
@@ -61,8 +61,8 @@ export function RowsEditor({ path, blank, addLabel, children }: { path: Path; bl
   const f = useForm();
   const rows: Obj[] = getIn(f.data, path) ?? [];
   return <div className="space-y-3">
-    {rows.map((_, i) => <div key={i} className="flex items-end gap-2 rounded-lg border bg-muted/20 p-3"><div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">{children([...path, i], i)}</div>{!f.readOnly && <Button size="icon" variant="ghost" aria-label="Remove row" onClick={() => f.set(path, rows.filter((_, j) => j !== i))}><Trash2 className="size-4 text-destructive" /></Button>}</div>)}
-    {!f.readOnly && <Button size="sm" variant="outline" onClick={() => f.set(path, [...rows, blank()])}><Plus className="mr-1 size-4" />{addLabel}</Button>}
+    {rows.map((_, i) => <div key={i} className="flex items-end gap-2 rounded-lg border bg-muted/20 p-3"><div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">{children([...path, i], i)}</div>{!f.readOnly && !f.fc(String(path[0])).disabled && <Button size="icon" variant="ghost" aria-label="Remove row" onClick={() => f.set(path, rows.filter((_, j) => j !== i))}><Trash2 className="size-4 text-destructive" /></Button>}</div>)}
+    {!f.readOnly && !f.fc(String(path[0])).disabled && <Button size="sm" variant="outline" onClick={() => f.set(path, [...rows, blank()])}><Plus className="mr-1 size-4" />{addLabel}</Button>}
   </div>;
 }
 

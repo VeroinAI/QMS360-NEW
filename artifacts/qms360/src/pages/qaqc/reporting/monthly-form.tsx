@@ -8,7 +8,7 @@ import { AssessmentTile } from './additional-metrics-tiles';
 type Calc = { metrics: Record<string, Obj>; pqi: Obj; material: Obj; tagSum: number; qtbt: Obj; manpower: Obj };
 
 export function MonthlyForm({ calc, target, onDraftAi, aiBusy, aiDraft, aiError, onUseDraft }: { calc: Calc; target?: Obj; onDraftAi: () => void; aiBusy: boolean; aiDraft: string; aiError?: string; onUseDraft: () => void }) {
-  const { data, readOnly } = useForm();
+  const { data, readOnly, fc } = useForm();
   const pqp = data.pqpStatus as string | undefined;
   const approved = !!pqp?.startsWith('Approved');
   return <div className="space-y-6">
@@ -70,7 +70,7 @@ export function MonthlyForm({ calc, target, onDraftAi, aiBusy, aiDraft, aiError,
     <Section title="Final quality assessment" description="You must confirm the final narrative. An AI draft never replaces it automatically.">
       {data.assessmentConfirmationRequired === true ? <AssessmentTile onDraftAi={onDraftAi} aiBusy={aiBusy} aiDraft={aiDraft} aiError={aiError} onUseDraft={onUseDraft} /> : <>
       <TextField path={['narrative']} label="Narrative" multiline />
-      {!readOnly && <div className="space-y-3"><Button variant="outline" size="sm" disabled={aiBusy} onClick={onDraftAi}><Sparkles className="mr-2 size-4" />{aiBusy ? 'Drafting...' : 'Draft with VerionAI'}</Button>
+      {!readOnly && !fc('narrative').disabled && <div className="space-y-3"><Button variant="outline" size="sm" disabled={aiBusy} onClick={onDraftAi}><Sparkles className="mr-2 size-4" />{aiBusy ? 'Drafting...' : 'Draft with VerionAI'}</Button>
         {aiDraft && <div className="space-y-2 rounded-lg border bg-muted/30 p-3"><p className="text-xs font-medium text-muted-foreground">AI draft (editable before use)</p><p className="whitespace-pre-wrap text-sm">{aiDraft}</p><Button size="sm" onClick={onUseDraft}>Copy into narrative</Button></div>}</div>}
       </>}
     </Section>

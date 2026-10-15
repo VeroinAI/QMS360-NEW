@@ -2429,6 +2429,7 @@ export const ListQaqcSowReportsResponse = zod.object({
   "organizationId": zod.string(),
   "projectId": zod.string(),
   "projectName": zod.string().optional(),
+  "createdById": zod.string().nullish(),
   "reportType": zod.enum(['monthly', 'daily', 'csat']),
   "period": zod.string(),
   "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),
@@ -2465,6 +2466,7 @@ export const CreateQaqcSowReportResponse = zod.object({
   "organizationId": zod.string(),
   "projectId": zod.string(),
   "projectName": zod.string().optional(),
+  "createdById": zod.string().nullish(),
   "reportType": zod.enum(['monthly', 'daily', 'csat']),
   "period": zod.string(),
   "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),
@@ -2494,6 +2496,7 @@ export const GetQaqcSowReportResponse = zod.object({
   "organizationId": zod.string(),
   "projectId": zod.string(),
   "projectName": zod.string().optional(),
+  "createdById": zod.string().nullish(),
   "reportType": zod.enum(['monthly', 'daily', 'csat']),
   "period": zod.string(),
   "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),
@@ -2519,6 +2522,7 @@ export const UpdateQaqcSowReportParams = zod.object({
 })
 
 export const UpdateQaqcSowReportBody = zod.object({
+  "expectedUpdatedAt": zod.string().optional().describe('Last loaded report updatedAt. Required for monthly report saves; stale edits return 409.'),
   "data": zod.record(zod.string(), zod.unknown())
 })
 
@@ -2527,6 +2531,7 @@ export const UpdateQaqcSowReportResponse = zod.object({
   "organizationId": zod.string(),
   "projectId": zod.string(),
   "projectName": zod.string().optional(),
+  "createdById": zod.string().nullish(),
   "reportType": zod.enum(['monthly', 'daily', 'csat']),
   "period": zod.string(),
   "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),
@@ -2570,6 +2575,7 @@ export const SubmitQaqcSowReportResponse = zod.object({
   "organizationId": zod.string(),
   "projectId": zod.string(),
   "projectName": zod.string().optional(),
+  "createdById": zod.string().nullish(),
   "reportType": zod.enum(['monthly', 'daily', 'csat']),
   "period": zod.string(),
   "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),
@@ -2604,6 +2610,7 @@ export const ReviewQaqcSowReportResponse = zod.object({
   "organizationId": zod.string(),
   "projectId": zod.string(),
   "projectName": zod.string().optional(),
+  "createdById": zod.string().nullish(),
   "reportType": zod.enum(['monthly', 'daily', 'csat']),
   "period": zod.string(),
   "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']),

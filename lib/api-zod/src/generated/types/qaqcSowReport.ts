@@ -14,6 +14,7 @@ export interface QaqcSowReport {
   organizationId: string;
   projectId: string;
   projectName?: string;
+  createdById?: string | null;
   reportType: QaqcSowReportReportType;
   period: string;
   state: QaqcSowReportState;

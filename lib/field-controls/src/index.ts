@@ -1,3 +1,4 @@
+export * from "./qaqc-monthly-sections";
 export { plannedDate, datedActivities, auditPlanDateErrors, planActivityFieldValues, auditPlanReplayMatches, type DatedActivity } from "./audit-plan-dates";
 export * from "./audit-permissions";
 export * from "./reference-number-fields";

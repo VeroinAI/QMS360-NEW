@@ -8,5 +8,7 @@
 import type { QaqcSowObject } from './qaqcSowObject';
 
 export interface QaqcSowReportUpdateInput {
+  /** Last loaded report updatedAt. Required for monthly report saves; stale edits return 409. */
+  expectedUpdatedAt?: string;
   data: QaqcSowObject;
 }

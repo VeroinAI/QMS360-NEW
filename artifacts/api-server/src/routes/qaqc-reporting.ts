@@ -15,6 +15,8 @@ import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
 import { assertLovValue, getLovValues } from "../lib/lov";
 import { logger } from "../lib/logger";
 import { reportDepartmentReferences } from "../lib/qaqc-reporting-department-policy";
+import { monthlySectionAccess, mergeMonthlySections } from "../lib/qaqc-monthly-sections";
+import { monthlySectionForField } from "@workspace/field-controls";
 import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import {
   buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, type CsatReportComputed, type DailyReportComputed,
@@ -215,11 +217,11 @@ async function reportRow(req: Request, id: string) {
   const rows = await db.select().from(qaqcReportSubmissions).where(and(
     eq(qaqcReportSubmissions.id, id), active(qaqcReportSubmissions, org(req)),
     !scope.unrestricted ? inArray(qaqcReportSubmissions.projectId, scope.projectIds) : undefined,
-    req.permissionScope === "own" ? or(
-      eq(qaqcReportSubmissions.createdById, actor(req)), eq(qaqcReportSubmissions.approverId, actor(req)),
-    ) : undefined,
   )).limit(1);
   if (!rows[0]) throw new HttpError(404, "Report not found");
+  if (req.permissionScope === "own" && rows[0].createdById !== actor(req) && rows[0].approverId !== actor(req)
+    && !(rows[0].reportType === "monthly" && (await monthlySectionAccess(req, rows[0].projectId)).length))
+    throw new HttpError(404, "Report not found");
   return rows[0];
 }
 
@@ -350,7 +352,7 @@ async function hasDownstreamSubmission(projectId: string, type: ReportType, peri
 
 function reportDto(row: any, projectName?: string) {
   return {
-    id: row.id, organizationId: row.organizationId, projectId: row.projectId, projectName,
+    id: row.id, organizationId: row.organizationId, projectId: row.projectId, projectName, createdById: row.createdById,
     reportType: row.reportType, period: row.period, state: row.state, data: row.data,
     computed: row.computed, baseline: row.baseline, approverId: row.approverId,
     submittedById: row.submittedById, submittedAt: row.submittedAt, approvedAt: row.approvedAt,
@@ -585,6 +587,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
   }
   const result = {
     ...resultBase,
+    editableSections: type === "monthly" ? await monthlySectionAccess(req, projectId) : undefined,
     users: isQaqcAdmin ? allUsers : allUsers.filter((user) => projectUserIds.has(user.id) || user.id === actor(req)),
     approvers: allUsers.filter((user) => selectedApproverIds.has(user.id) && user.id !== actor(req)),
     masterData: { ...resultBase.masterData, auditPrefill: auditPrefill.filter((item) => !!item.auditDate) },
@@ -620,7 +623,11 @@ router.get("/reports", multipleReportAccess(), asyncHandler(async (req, res) => 
   const { page, limit, offset } = pagination(req);
   const where = active(qaqcReportSubmissions, org(req), filters);
   const rows = await db.select().from(qaqcReportSubmissions).where(where).orderBy(desc(qaqcReportSubmissions.period), desc(qaqcReportSubmissions.createdAt));
-  const visible = rows.filter((row) => canReadByCapability(req, row));
+  const visibility = await Promise.all(rows.map(async row => canReadByCapability(req, row)
+    || (row.reportType === "monthly" && !!access.get("monthly")?.allowed
+      && (access.get("monthly")!.scope.unrestricted || access.get("monthly")!.scope.projectIds.includes(row.projectId))
+      && (await monthlySectionAccess(req, row.projectId)).length > 0)));
+  const visible = rows.filter((_, i) => visibility[i]);
   const items = await Promise.all(visible.slice(offset, offset + limit).map(withProject));
   res.json({ items, total: visible.length, page, limit });
 }));
@@ -631,8 +638,15 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
   const period = normalizePeriod(type, req.body?.period, today);
   const projectId = String(req.body?.projectId ?? "");
   if (!projectId || !isObject(req.body?.data)) throw new HttpError(422, "projectId and object data are required");
-  const data = zeroFill(type, req.body.data);
+  let data = zeroFill(type, req.body.data);
   await projectAllowed(req, projectId);
+  if (type === "monthly") {
+    const sections = await monthlySectionAccess(req, projectId);
+    if (!sections.includes("project")) throw new HttpError(403, "Your role cannot create monthly reports (Project Details section)");
+    data = mergeMonthlySections({}, req.body.data, sections);
+    if (data.noUpdates === true) data = zeroFill(type, data);
+    data.assessmentConfirmationRequired = true;
+  }
   const fieldBody = { projectId, reportType: type, period, data };
   await assertFieldAccess(req, "qaqc", "report-envelope", { mode: "create", body: fieldBody });
   await assertFieldControls(req, "qaqc", "report-envelope", { mode: "create", body: fieldBody });
@@ -661,19 +675,34 @@ router.get("/reports/:id", reportPermissionById("select"), asyncHandler(async (r
 
 router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (req, res) => {
   const before = await reportRow(req, String(req.params.id));
-  if (before.createdById !== actor(req)) throw new HttpError(403, "Only the report creator may edit this report");
+  if (before.reportType === "monthly" && req.body?.expectedUpdatedAt !== before.updatedAt.toISOString())
+    throw new HttpError(409, "This report has changed or its version is missing. Reload the latest report before saving.");
+  if (before.reportType !== "monthly" && before.createdById !== actor(req)) throw new HttpError(403, "Only the report creator may edit this report");
   if (!["draft", "sent_back"].includes(before.state)) throw new HttpError(409, "Only draft or sent-back reports can be edited");
   if (await hasDownstreamSubmission(before.projectId, before.reportType as ReportType, before.period))
     throw new HttpError(409, `Cannot edit ${before.period}; a later report has already been submitted`);
   if (!isObject(req.body?.data)) throw new HttpError(422, "data must be an object");
-  const fieldBody = { projectId: before.projectId, reportType: before.reportType, period: before.period, data: req.body.data };
+  const requestedData = before.reportType === "monthly"
+    ? mergeMonthlySections(before.data as Record<string, any>, req.body.data, await monthlySectionAccess(req, before.projectId))
+    : req.body.data;
+  const fieldBody = { projectId: before.projectId, reportType: before.reportType, period: before.period, data: requestedData };
   await assertFieldAccess(req, "qaqc", "report-envelope", { mode: "update", current: before as any, body: fieldBody });
   await assertFieldControls(req, "qaqc", "report-envelope", { mode: "update", current: before as any, body: fieldBody });
-  const data = zeroFill(before.reportType as ReportType, req.body.data);
+  const data = before.reportType === "monthly" && req.body.data.noUpdates !== true ? requestedData : zeroFill(before.reportType as ReportType, requestedData);
   if (before.data?.assessmentConfirmationRequired === true) data.assessmentConfirmationRequired = true;
   if (before.data?.qmsDepartmentInput === "sow") data.qmsDepartmentInput = "sow";
-  await assertReportLovValues(req, before.reportType as ReportType, data);
-  const validation = validateReportData(before.reportType as ReportType, data, before.baseline as any, false);
+  // Draft contributors are responsible only for the sections they changed.
+  // Submission still validates every section of the complete saved report.
+  const changedSections = new Set(Object.keys(req.body.data).map(monthlySectionForField).filter(Boolean));
+  const validationData = before.reportType === "monthly"
+    ? Object.fromEntries(Object.entries(data).filter(([key]) => changedSections.has(monthlySectionForField(key))))
+    : data;
+  if (before.reportType === "monthly") {
+    validationData.manpowerDepartmentInput = data.manpowerDepartmentInput;
+    validationData.qmsDepartmentInput = data.qmsDepartmentInput;
+  }
+  await assertReportLovValues(req, before.reportType as ReportType, validationData);
+  const validation = validateReportData(before.reportType as ReportType, validationData, before.baseline as any, false);
   if (!validation.valid) throw new HttpError(422, validation.errors.join("; "));
   const [project] = await db.select({ customFields: projects.customFields }).from(projects).where(eq(projects.id, before.projectId)).limit(1);
   const settings = isObject(project?.customFields.qaqcReporting) ? project.customFields.qaqcReporting : {};
@@ -681,8 +710,8 @@ router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (re
   const [row] = await db.update(qaqcReportSubmissions).set({
     data, computed: calculateReport(before.reportType as ReportType, data, before.baseline as any, targets),
     updatedAt: new Date(),
-  }).where(and(eq(qaqcReportSubmissions.id, before.id), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
-  if (!row) throw new HttpError(409, "Report state changed; reload before editing");
+  }).where(and(eq(qaqcReportSubmissions.id, before.id), eq(qaqcReportSubmissions.updatedAt, before.updatedAt), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
+  if (!row) throw new HttpError(409, "This report changed while you were saving. Reload the latest report before editing again.");
   await audit(req, "update", row.id, before, row);
   res.json(await withProject(row));
 }));
@@ -784,14 +813,17 @@ router.post("/reports/:id/review", reportPermissionById("own"), asyncHandler(asy
 router.post("/reports/:id/ai-brief", reportPermissionById("own"), asyncHandler(async (req, res) => {
   const row = await reportRow(req, String(req.params.id));
   if (row.reportType !== "monthly") throw new HttpError(422, "AI brief is available for monthly reports only");
-  if (row.createdById !== actor(req)) throw new HttpError(403, "Only the report creator may request an AI brief");
+  if (!(await monthlySectionAccess(req, row.projectId)).includes("assessment"))
+    throw new HttpError(403, "Your role cannot maintain the Quality Assessment Brief section");
   if (!["draft", "sent_back"].includes(row.state)) throw new HttpError(409, "AI briefs are available only for editable draft or sent-back reports");
   await projectAllowed(req, row.projectId);
   if (await hasDownstreamSubmission(row.projectId, "monthly", row.period))
     throw new HttpError(409, `Cannot edit ${row.period}; a later report has already been submitted`);
   if (Object.prototype.hasOwnProperty.call(req.body ?? {}, "data") && !isObject(req.body.data))
     throw new HttpError(422, "data must be an object");
-  const data = zeroFill("monthly", isObject(req.body?.data) ? req.body.data : row.data);
+  const data = isObject(req.body?.data)
+    ? mergeMonthlySections(row.data as Record<string, any>, req.body.data, await monthlySectionAccess(req, row.projectId))
+    : structuredClone(row.data);
   if (row.data?.assessmentConfirmationRequired === true) data.assessmentConfirmationRequired = true;
   if (row.data?.qmsDepartmentInput === "sow") data.qmsDepartmentInput = "sow";
   const history = await db.selectDistinctOn([qaqcReportSubmissions.period], {

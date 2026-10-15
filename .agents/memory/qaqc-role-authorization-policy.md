@@ -19,3 +19,9 @@ For legacy QA/QC own-record access, original creation/import audit provenance is
 **Why:** Enforcing own access should not require a production schema migration solely for the role-editing fix, or incorrectly attribute a record to its most recent editor.
 
 **How to apply:** Use original creation provenance alongside established submission/reviewer participation; fail closed when ownership cannot be established.
+
+QA/QC monthly reports support section-restricted shared editing. Unauthorized sections stay visible and read-only; authorized contributors may maintain their sections in accessible draft or sent-back reports created by another user.
+
+**Why:** The user explicitly chose read-only visibility and shared contributions rather than hidden sections or creator-only editing.
+
+**How to apply:** Keep existing project and report-state boundaries. Section permissions are additive across roles; an unconfigured whole-report edit role retains legacy section access. Enable section restrictions on each broad role that should be limited. Preserve creator submission/deletion and reviewer responsibilities. Validate the complete report at submission, not as a prerequisite for another contributor's draft save.

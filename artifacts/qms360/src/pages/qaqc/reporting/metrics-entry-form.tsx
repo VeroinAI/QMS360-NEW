@@ -1,11 +1,12 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useContext, useId, useState, type ReactNode } from 'react';
+import { monthlySections } from '@workspace/field-controls';
 import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getIn, useForm } from './form-kit';
+import { FormCtx, getIn, useForm } from './form-kit';
 import { MetricDetailsForm } from './metric-details-form';
 import { PqiFields, type PqiFieldsProps } from './pqi-fields';
 import { MEETING_TYPES, PQP_STATUSES, num, type Obj } from './reporting-types';
@@ -15,14 +16,19 @@ type Path = (string | number)[];
 export function Tile({ index, title, children }: { index?: number; title: string; children: ReactNode }) {
   const [open, setOpen] = useState(true);
   const uid = useId();
+  const context = useContext(FormCtx);
+  const section = index ? monthlySections[index - 1] : undefined;
+  const denied = !!context?.editableSections && !!section && !context.editableSections.includes(section.id);
+  const body = context && denied
+    ? <FormCtx.Provider value={{ ...context, readOnly: true }}>{children}</FormCtx.Provider> : children;
   return <Card>
     <CardHeader className="p-0">
       <button type="button" aria-expanded={open} aria-controls={`${uid}-body`} onClick={() => setOpen(o => !o)} className="flex w-full items-center justify-between gap-3 rounded-t-xl px-6 py-4 text-left hover:bg-muted/40">
-        <CardTitle className="text-base">{index ? `${index}. ` : ''}{title}</CardTitle>
+        <CardTitle className="text-base">{index ? `${index}. ` : ''}{title}{denied && <span className="ml-2 text-xs font-normal text-muted-foreground">Read-only</span>}</CardTitle>
         <ChevronDown className={`size-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
     </CardHeader>
-    <div id={`${uid}-body`} hidden={!open}><CardContent className="space-y-4">{children}</CardContent></div>
+    <div id={`${uid}-body`} hidden={!open}><CardContent className="space-y-4">{body}</CardContent></div>
   </Card>;
 }
 

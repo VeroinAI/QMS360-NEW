@@ -31,8 +31,8 @@ function Int({ path, label, required, disabled, tid }: { path: Path; label: stri
 function Txt({ path, label, required, multiline, tid }: { path: Path; label: string; required?: boolean; multiline?: boolean; tid: string }) {
   const f = useForm(); const id = useId(); const v = getIn(f.data, path) ?? '';
   return <Field id={id} label={label} required={required}>{multiline
-    ? <Textarea id={id} data-testid={`input-${tid}`} rows={4} aria-required={required || undefined} disabled={f.readOnly} value={v} onChange={e => f.set(path, e.target.value)} />
-    : <Input id={id} data-testid={`input-${tid}`} aria-required={required || undefined} disabled={f.readOnly} value={v} onChange={e => f.set(path, e.target.value)} />}</Field>;
+    ? <Textarea id={id} data-testid={`input-${tid}`} rows={4} aria-required={required || undefined} disabled={f.readOnly || f.fc(String(path[0])).disabled} value={v} onChange={e => f.set(path, e.target.value)} />
+    : <Input id={id} data-testid={`input-${tid}`} aria-required={required || undefined} disabled={f.readOnly || f.fc(String(path[0])).disabled} value={v} onChange={e => f.set(path, e.target.value)} />}</Field>;
 }
 function Pick({ path, label, options, required, tid }: { path: Path; label: string; options: readonly string[]; required?: boolean; tid: string }) {
   const f = useForm(); const id = useId(); const v = getIn(f.data, path) ?? '';
@@ -148,7 +148,7 @@ export function QmsReportsTile() {
 }
 
 export function AssessmentTile({ onDraftAi, aiBusy, aiDraft, onUseDraft, aiError, onConfirm }: Omit<AdditionalMetricsTilesProps, 'Tile' | 'calc' | 'baseline'>) {
-  const f = useForm(); const cid = useId(); const ro = f.readOnly;
+  const f = useForm(); const cid = useId(); const ro = f.readOnly || f.fc('narrative').disabled;
   const confirmed = f.data.assessmentConfirmed === true;
   return <div className="space-y-4">
     {aiBusy && <p role="status" aria-live="polite" className="text-sm text-muted-foreground">VerionAI is generating the assessment suggestion…</p>}
