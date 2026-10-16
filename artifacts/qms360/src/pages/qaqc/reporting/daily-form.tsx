@@ -2,8 +2,9 @@ import { Fragment, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { NumField, Section, getIn, useForm } from './form-kit';
-import { calcDaily, DISCIPLINES, DISC_STATUSES, DOC_TYPES, DOC_TYPE_LABELS, LEGACY_DOC_TYPES, ENTITIES, PEND_BUCKETS, PEND_STATUSES, num, type Obj } from './reporting-types';
+import { calcDaily, DISCIPLINES, DISC_STATUSES, DOC_TYPES, DOC_TYPE_LABELS, LEGACY_DOC_TYPES, REJECTED_SUBMISSION_TYPES, ENTITIES, PEND_BUCKETS, PEND_STATUSES, num, type Obj } from './reporting-types';
 import { ApprovedRevisions } from './approved-revisions';
+import { DailyCountTile } from './daily-count-tile';
 
 type Calc = ReturnType<typeof calcDaily>;
 const disciplineOrder = ['Civil', 'Structural', 'Mechanical', 'Electrical', 'Instrumentation'];
@@ -76,6 +77,8 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
       </div>
     </details>
     <ApprovedRevisions baseline={baseline} />
+    <DailyCountTile title="Correspondence" field="correspondence" rows={[['outgoing', 'Outgoing'], ['incoming', 'Incoming']]} baseline={baseline} />
+    <DailyCountTile title="Rejected Submissions" field="rejectedSubmissions" rows={REJECTED_SUBMISSION_TYPES} baseline={baseline} />
     {ENTITIES.map(e => <Section key={e} title={`Pending with ${e}`} description="Status by ageing bucket. Entity and row totals are calculated.">
       <div className="overflow-x-auto"><table className="w-full"><thead><tr><th rowSpan={2} className="px-2 text-left text-xs font-medium text-muted-foreground">Status</th>{PEND_BUCKETS.map(([b, l]) => <Fragment2 key={b}>{pair(l)}</Fragment2>)}{pair('Row total')}</tr><tr>{PEND_BUCKETS.map(([b]) => <Fragment2 key={b}>{sub}</Fragment2>)}{sub}</tr></thead><tbody>
         {PEND_STATUSES.map(([s, sl]) => { const rowSum = (src: unknown) => PEND_BUCKETS.reduce((a, [b]) => a + num(getIn(src, ['pending', e, s, b])), 0); return <tr key={s} className="border-t"><td className="px-2 py-1 text-sm font-medium">{sl}</td>
@@ -84,7 +87,6 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
         <tr className="border-t bg-muted/30"><td className="px-2 py-1 text-sm font-semibold" colSpan={PEND_BUCKETS.length * 2 + 1}>Entity total</td><td className="px-1 text-right"><Tot v={prevCalc.pending[e] ?? 0} /></td><td className="px-1 text-right"><Tot v={calc.pending[e] ?? 0} /></td></tr>
       </tbody></table></div>
     </Section>)}
-    <Section title="Correspondence"><table className="w-full"><thead><tr><th className="px-2 text-left text-xs font-medium text-muted-foreground">Direction</th>{sub}</tr></thead><tbody>{([['incoming', 'Incoming'], ['outgoing', 'Outgoing']] as const).map(([k, l]) => <tr key={k} className="border-t"><td className="px-2 py-1 text-sm">{l}</td><td className="px-1 text-right"><Prev v={bp(['correspondence', k]) ?? 0} /></td><td className="px-1 text-right"><NumField bare path={['correspondence', k]} label={`${l} current`} /></td></tr>)}</tbody></table></Section>
   </div>;
 }
 

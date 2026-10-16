@@ -16,6 +16,7 @@ export const DISC_STATUSES: [string, string][] = [['approved', 'Approved'], ['re
 export const DOC_TYPES = ['Drawings', 'Material Submittals', 'Method Statements', 'ITPs', 'RFIs', 'Procedures', 'Calculations', 'Vendors'];
 export const DOC_TYPE_LABELS: Record<string, string> = { ITPs: 'ITP', Vendors: 'Vendor Documents' };
 export const LEGACY_DOC_TYPES = ['CVs', 'PQP', 'IFR'];
+export const REJECTED_SUBMISSION_TYPES = [['drawing', 'Drawing'], ['materials', 'Materials'], ['calculation', 'Calculation'], ['general', 'General']] as const;
 export const ENTITIES = ['Client', 'Algihaz', 'Supplier'];
 export const PEND_STATUSES: [string, string][] = [['underReview', 'Under review'], ['A', 'A'], ['B', 'B'], ['C', 'C'], ['D', 'D'], ['E', 'E']];
 export const PEND_BUCKETS: [string, string][] = [['upTo7', 'Up to 7 days'], ['days8To30', '8-30 days'], ['over30', 'Over 30 days']];
@@ -128,6 +129,7 @@ export function dailyPaths(): (string | number)[][] {
   for (const t of DOC_TYPES) out.push(['documentTypes', t]);
   for (const e of ENTITIES) for (const [s] of PEND_STATUSES) for (const [b] of PEND_BUCKETS) out.push(['pending', e, s, b]);
   out.push(['correspondence', 'incoming'], ['correspondence', 'outgoing']);
+  for (const [key] of REJECTED_SUBMISSION_TYPES) out.push(['rejectedSubmissions', key]);
   return out;
 }
 

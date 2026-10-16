@@ -29,6 +29,7 @@ const TYPE_FIELDS: Record<ReportingType, Array<[string, string, string]>> = {
     ["revisions", "Approved status by revision (JSON object)", "json"],
     ["documentTypes", "Document types (JSON object)", "json"], ["pending", "Pending documents (JSON object)", "json"],
     ["correspondence", "Correspondence (JSON object: incoming,outgoing)", "json"],
+    ["rejectedSubmissions", "Rejected submissions (JSON object: drawing,materials,calculation,general)", "json"],
   ],
   csat: [
     ["ratings", "Ratings (JSON object: quality,timeline,communication,professionalism,valueForMoney,issueHandling)", "json"],

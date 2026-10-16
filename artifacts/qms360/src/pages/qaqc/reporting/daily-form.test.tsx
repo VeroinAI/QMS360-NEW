@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DailyForm } from './daily-form';
 import { FormCtx } from './form-kit';
-import { calcDaily, DISCIPLINES, DISC_STATUSES, type Obj } from './reporting-types';
+import { calcDaily, DISCIPLINES, DISC_STATUSES, zeroFill, type Obj } from './reporting-types';
 import { moveRevision } from './approved-revisions';
 
 function render(data: Obj = {}, baseline: Obj = {}, readOnly = false, fieldLocked = false) {
@@ -31,7 +31,7 @@ describe('Daily discipline submission layout', () => {
       expect(html).toContain(`aria-label="${d} ${cat === 'drawings' ? 'Drawings' : 'Submittals'}"`);
       for (const [, label] of DISC_STATUSES) expect(html).toContain(`aria-label="${d} ${cat} ${label} current"`);
     }
-    expect(html.match(/Yesterday \(auto\)/g)).toHaveLength(11);
+    expect(html.match(/Yesterday \(auto\)/g)).toHaveLength(13);
     expect(html.match(/Total \(auto\)/g)).toHaveLength(10);
     for (const title of ['Approved status by Rivision', 'Document Types', 'Correspondence', 'Pending with Client']) expect(html).toContain(title);
   });
@@ -127,5 +127,33 @@ describe('Daily discipline submission layout', () => {
     expect(moveRevision(original, 'drawings', 0, 'drawings')).toBe(original);
     expect(calcDaily({ revisions: { drawings: [{ name: '0', value: 1 }, { name: '0', value: 2 }] } }).issues)
       .toContain('Duplicate drawings revision name: 0.');
+  });
+
+  it('places correspondence and rejected submissions immediately after revisions in the requested order', () => {
+    const html = render({
+      correspondence: { outgoing: 12, incoming: 8 },
+      rejectedSubmissions: { drawing: 4, materials: 3, calculation: 2, general: 1 },
+    }, { correspondence: { outgoing: 10, incoming: 7 }, rejectedSubmissions: { drawing: 2, materials: 1, calculation: 1, general: 0 } });
+    const headings = ['Approved status by Rivision', 'Correspondence', 'Rejected Submissions', 'Pending with Client'].map(title => html.indexOf(title));
+    expect(headings).toEqual([...headings].sort((a, b) => a - b));
+    expect(html.match(/aria-label="Correspondence"/g)).toHaveLength(1);
+    expect(html.indexOf('aria-label="Correspondence Outgoing yesterday"')).toBeLessThan(html.indexOf('aria-label="Correspondence Incoming yesterday"'));
+    const rows = ['Drawing', 'Materials', 'Calculation', 'General'].map(label => html.indexOf(`aria-label="Rejected Submissions ${label} yesterday"`));
+    expect(rows.every(index => index >= 0)).toBe(true);
+    expect(rows).toEqual([...rows].sort((a, b) => a - b));
+    expect(html).toMatch(/aria-label="Correspondence Outgoing yesterday"[^>]*readOnly=""[^>]*value="10"/);
+    expect(html).toMatch(/aria-label="Correspondence Outgoing current"[^>]*value="12"/);
+    expect(html).toMatch(/aria-label="Rejected Submissions Drawing yesterday"[^>]*readOnly=""[^>]*value="2"/);
+    expect(html).toMatch(/aria-label="Rejected Submissions Drawing current"[^>]*value="4"/);
+  });
+
+  it('zero-fills all rejected submission counts and respects field locks', () => {
+    expect(zeroFill('daily', {}).rejectedSubmissions).toEqual({ drawing: 0, materials: 0, calculation: 0, general: 0 });
+    for (const html of [render({}, {}, true), render({}, {}, false, true)]) {
+      for (const label of ['Drawing', 'Materials', 'Calculation', 'General']) {
+        expect(html).toMatch(new RegExp(`aria-label="Rejected Submissions ${label} current"[^>]*disabled=""`));
+      }
+      expect(html).toMatch(/aria-label="Correspondence Outgoing current"[^>]*disabled=""/);
+    }
   });
 });

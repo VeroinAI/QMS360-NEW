@@ -49,6 +49,7 @@ export type DailyReportComputed = {
   documentTypes: Record<string, unknown>;
   pending: Record<string, unknown>;
   correspondence: Record<string, unknown>;
+  rejectedSubmissions: Record<string, unknown>;
   revisions: Record<string, unknown>;
 };
 export type CsatReportComputed = { averageRating: number; ratings: Record<string, number> };
@@ -62,6 +63,7 @@ const ENTITIES = ["Client", "Algihaz", "Supplier"] as const;
 const PENDING_STATUSES = ["underReview", "A", "B", "C", "D", "E"] as const;
 const BUCKETS = ["upTo7", "days8To30", "over30"] as const;
 export const DAILY_DOCUMENT_TYPES = ["Drawings", "Material Submittals", "Method Statements", "ITPs", "RFIs", "Procedures", "Calculations", "Vendors"] as const;
+export const DAILY_REJECTED_SUBMISSION_TYPES = ["drawing", "materials", "calculation", "general"] as const;
 const LEGACY_DOCUMENT_TYPES = ["CVs", "PQP", "IFR"] as const;
 const RATINGS = ["quality", "timeline", "communication", "professionalism", "valueForMoney", "issueHandling"] as const;
 const isObject = (v: unknown): v is Record<string, any> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -273,6 +275,7 @@ function validateDaily(data: Record<string, any>, submit: boolean, errors: strin
   for (const entity of ENTITIES) for (const status of PENDING_STATUSES) for (const bucket of BUCKETS)
     check(data.pending?.[entity]?.[status]?.[bucket], `pending.${entity}.${status}.${bucket}`);
   for (const field of ["incoming", "outgoing"]) check(data.correspondence?.[field], `correspondence.${field}`);
+  for (const field of DAILY_REJECTED_SUBMISSION_TYPES) check(data.rejectedSubmissions?.[field], `rejectedSubmissions.${field}`);
 }
 
 function validateCsat(data: Record<string, any>, submit: boolean, errors: string[]) {
@@ -306,6 +309,7 @@ export function calculateReport(reportType: ReportType, data: Record<string, any
     documentTypes: data.documentTypes ?? {},
     pending: data.pending ?? {},
     correspondence: data.correspondence ?? {},
+    rejectedSubmissions: data.rejectedSubmissions ?? {},
     revisions: data.revisions ?? {},
   };
 }

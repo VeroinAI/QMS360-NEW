@@ -168,6 +168,24 @@ describe("QA/QC SOW report model", () => {
     expect(result.errors).toContain("pending.Supplier.E.over30 is required and must be a nonnegative integer");
   });
 
+  it("validates rejected submission counts and preserves independent cumulative snapshots", () => {
+    const rejectedSubmissions = { drawing: 6, materials: 4, calculation: 2, general: 1 };
+    expect(validateReportData("daily", { rejectedSubmissions }, {}, false).valid).toBe(true);
+    for (const key of Object.keys(rejectedSubmissions)) {
+      for (const value of [-1, 1.5, "2"]) {
+        const invalid = validateReportData("daily", { rejectedSubmissions: { [key]: value } }, {}, false);
+        expect(invalid.errors).toContain(`rejectedSubmissions.${key} must be a nonnegative integer`);
+      }
+    }
+    expect(validateReportData("daily", {}, {}, true).errors)
+      .toContain("rejectedSubmissions.drawing is required and must be a nonnegative integer");
+    const result = calculateReport("daily", { rejectedSubmissions, correspondence: { outgoing: 8, incoming: 3 } },
+      { rejectedSubmissions: { drawing: 5 }, correspondence: { outgoing: 7 } }, {}) as any;
+    expect(result.rejectedSubmissions).toEqual(rejectedSubmissions);
+    expect(result.correspondence.outgoing).toBe(8);
+    expect((calculateReport("daily", {}, {}, {}) as any).rejectedSubmissions).toEqual({});
+  });
+
   it("requires the revised daily document types while retaining optional legacy counts", () => {
     const documentTypes = Object.fromEntries(DAILY_DOCUMENT_TYPES.map(type => [type, 0]));
     const result = validateReportData("daily", { documentTypes }, {}, true);

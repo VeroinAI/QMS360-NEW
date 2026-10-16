@@ -19,7 +19,7 @@ import { monthlySectionAccess, mergeMonthlySections } from "../lib/qaqc-monthly-
 import { monthlySectionForField } from "@workspace/field-controls";
 import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import {
-  buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, DAILY_DOCUMENT_TYPES, type CsatReportComputed, type DailyReportComputed,
+  buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, DAILY_DOCUMENT_TYPES, DAILY_REJECTED_SUBMISSION_TYPES, type CsatReportComputed, type DailyReportComputed,
   type MonthlyReportComputed, type ReportType,
 } from "../lib/qaqc-reporting-model";
 
@@ -165,6 +165,7 @@ function zeroFill(type: ReportType, value: Record<string, any>) {
         zero.pending[entity][status] = { upTo7: 0, days8To30: 0, over30: 0 };
     }
     zero.correspondence = { incoming: 0, outgoing: 0 };
+    zero.rejectedSubmissions = Object.fromEntries(DAILY_REJECTED_SUBMISSION_TYPES.map(key => [key, 0]));
     return clearNumbers(mergeDefaults(zero, data));
   }
   if (type === "monthly") {
