@@ -33,13 +33,35 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
   const prevCalc = calcDaily(baseline ?? {});
   const bp = (p: (string | number)[]) => getIn(baseline, p);
   return <div className="space-y-6">
-    {(['drawings', 'submittals'] as const).map(cat => <Section key={cat} title={`Disciplines - ${cat}`} description="Yesterday is the preceding submitted snapshot (read-only). Totals are calculated.">
-      <div className="overflow-x-auto"><table className="w-full"><thead><tr><th rowSpan={2} className="px-2 text-left text-xs font-medium text-muted-foreground">Discipline</th>{DISC_STATUSES.map(([s, l]) => <Fragment2 key={s}>{pair(l)}</Fragment2>)}{pair('Total')}</tr><tr>{DISC_STATUSES.map(([s]) => <Fragment2 key={s}>{sub}</Fragment2>)}{sub}</tr></thead><tbody>
-        {DISCIPLINES.map(d => <tr key={d} className="border-t"><td className="px-2 py-1 text-sm font-medium">{d}</td>
-          {DISC_STATUSES.map(([s, l]) => <Fragment2 key={s}><td className="px-1 py-1 text-right"><Prev v={bp(['disciplines', cat, d, s]) ?? 0} /></td><td className="px-1 py-1 text-right"><NumField bare path={['disciplines', cat, d, s]} label={`${d} ${cat} ${l} current`} /></td></Fragment2>)}
-          <td className="px-1 text-right"><Tot v={prevCalc.disc[`${cat}.${d}`]?.total ?? 0} /></td><td className="px-1 text-right"><Tot v={calc.disc[`${cat}.${d}`]?.total ?? 0} /></td></tr>)}
-      </tbody></table></div>
-    </Section>)}
+    <Section title="Daily Submission - Drawings and Submittals by Discipline" description="Enter the cumulative figures as on the Current Date for each discipline. Yesterday is read-only (auto-loaded from the previous log) and Total is auto-calculated as Approved + Resubmit + Rejected + Under Review.">
+      {(['drawings', 'submittals'] as const).map(cat => {
+        const categoryLabel = cat === 'drawings' ? 'Drawings' : 'Submittals';
+        const overall = (source: Calc) => DISCIPLINES.reduce((total, discipline) => total + (source.disc[`${cat}.${discipline}`]?.total ?? 0), 0);
+        return <div key={cat} className="space-y-4" data-testid={`daily-disciplines-${cat}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-base font-semibold">{categoryLabel}</h3>
+            <p className="text-xs text-muted-foreground" aria-live="polite">{categoryLabel} overall total — Yesterday {overall(prevCalc)} · Current {overall(calc)}</p>
+          </div>
+          {DISCIPLINES.map(d => <div key={d} className="rounded-lg border bg-muted/10 p-3">
+            <h4 className="mb-3 text-sm font-semibold text-primary">{d}</h4>
+            <div className="overflow-x-auto"><table className="w-full min-w-[360px] table-fixed text-sm" aria-label={`${d} ${categoryLabel}`}>
+              <thead><tr><th scope="col" className="w-2/5 px-2 py-2 text-left text-xs font-medium text-muted-foreground">Metric</th><th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">Yesterday (auto)</th><th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">Current Date <span aria-hidden="true">*</span></th></tr></thead>
+              <tbody>
+                <tr className="border-t bg-primary/5"><th scope="row" className="px-2 py-2 text-left font-medium">Total (auto)</th>
+                  <td className="px-2 py-2"><Input aria-label={`${d} ${cat} total yesterday`} readOnly className="bg-muted/50 text-muted-foreground" value={prevCalc.disc[`${cat}.${d}`]?.total ?? 0} /></td>
+                  <td className="px-2 py-2"><Input aria-label={`${d} ${cat} total current`} readOnly className="bg-muted/50 font-semibold" value={calc.disc[`${cat}.${d}`]?.total ?? 0} /></td>
+                </tr>
+                {DISC_STATUSES.map(([s, l]) => <tr key={s} className="border-t">
+                  <th scope="row" className="px-2 py-2 text-left font-normal">{s === 'underReview' ? 'Under Review' : l}</th>
+                  <td className="px-2 py-2"><Input aria-label={`${d} ${cat} ${l} yesterday`} readOnly className="bg-muted/50 text-muted-foreground" value={bp(['disciplines', cat, d, s]) ?? 0} /></td>
+                  <td className="px-2 py-2 [&_input]:h-9 [&_input]:w-full"><NumField bare path={['disciplines', cat, d, s]} label={`${d} ${cat} ${l} current`} /></td>
+                </tr>)}
+              </tbody>
+            </table></div>
+          </div>)}
+        </div>;
+      })}
+    </Section>
     <Section title="Revisions" description="Dynamic revision names must be unique per category. Yesterday values are read-only."><Revisions cat="drawings" baseline={baseline} /><Revisions cat="submittals" baseline={baseline} /></Section>
     <Section title="Document types">
       <table className="w-full"><thead><tr><th className="px-2 text-left text-xs font-medium text-muted-foreground">Type</th>{sub}</tr></thead><tbody>{DOC_TYPES.map(t => <tr key={t} className="border-t"><td className="px-2 py-1 text-sm">{t}</td><td className="px-1 text-right"><Prev v={bp(['documentTypes', t]) ?? 0} /></td><td className="px-1 text-right"><NumField bare path={['documentTypes', t]} label={`${t} current`} /></td></tr>)}</tbody></table>
