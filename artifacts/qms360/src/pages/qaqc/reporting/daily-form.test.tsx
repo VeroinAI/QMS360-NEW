@@ -11,6 +11,15 @@ function render(data: Obj = {}, baseline: Obj = {}, readOnly = false, fieldLocke
 }
 
 describe('Daily discipline submission layout', () => {
+  it('orders disciplines consistently in drawings and submittals', () => {
+    const html = render();
+    for (const category of ['Drawings', 'Submittals']) {
+      const positions = ['Civil', 'Structural', 'Mechanical', 'Electrical', 'Instrumentation']
+        .map(d => html.indexOf(`aria-label="${d} ${category}"`));
+      expect(positions.every(position => position >= 0)).toBe(true);
+      expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    }
+  });
   it('combines both categories under one heading with individual discipline tables', () => {
     const html = render();
     expect(html).toContain('Daily Submission - Drawings and Submittals by Discipline');

@@ -6,6 +6,8 @@ import { NumField, Section, getIn, useForm } from './form-kit';
 import { calcDaily, DISCIPLINES, DISC_STATUSES, DOC_TYPES, ENTITIES, PEND_BUCKETS, PEND_STATUSES, num, type Obj } from './reporting-types';
 
 type Calc = ReturnType<typeof calcDaily>;
+const disciplineOrder = ['Civil', 'Structural', 'Mechanical', 'Electrical', 'Instrumentation'];
+const displayDisciplines = [...DISCIPLINES].sort((a, b) => disciplineOrder.indexOf(a) - disciplineOrder.indexOf(b));
 const Prev = ({ v }: { v: unknown }) => <span className="inline-flex h-8 w-20 items-center justify-end rounded-md border bg-muted/50 px-2 text-sm text-muted-foreground" title="Yesterday (read-only)">{v === undefined || v === null ? '-' : String(v)}</span>;
 const Tot = ({ v }: { v: number }) => <span className="inline-flex h-8 w-20 items-center justify-end px-2 text-sm font-semibold">{v}</span>;
 const th = 'px-2 py-2 text-right text-xs font-medium text-muted-foreground';
@@ -42,7 +44,7 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
             <h3 className="text-base font-semibold">{categoryLabel}</h3>
             <p className="text-xs text-muted-foreground" aria-live="polite">{categoryLabel} overall total — Yesterday {overall(prevCalc)} · Current {overall(calc)}</p>
           </div>
-          {DISCIPLINES.map(d => <div key={d} className="rounded-lg border bg-muted/10 p-3">
+          {displayDisciplines.map(d => <div key={d} className="rounded-lg border bg-muted/10 p-3">
             <h4 className="mb-3 text-sm font-semibold text-primary">{d}</h4>
             <div className="overflow-x-auto"><table className="w-full min-w-[360px] table-fixed text-sm" aria-label={`${d} ${categoryLabel}`}>
               <thead><tr><th scope="col" className="w-2/5 px-2 py-2 text-left text-xs font-medium text-muted-foreground">Metric</th><th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">Yesterday (auto)</th><th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">Current Date <span aria-hidden="true">*</span></th></tr></thead>
