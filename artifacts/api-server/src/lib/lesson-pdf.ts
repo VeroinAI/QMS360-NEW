@@ -1,30 +1,30 @@
+import { readFile } from "node:fs/promises";
+import fontkit from "@pdf-lib/fontkit";
 import { formatDateInTimeZone } from "@workspace/spreadsheet-dates";
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
+import { PDFDocument, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 
 type PdfLesson = Record<string, unknown>;
 export type LessonPdfImage = { mimeType: string; imageBytes: Uint8Array };
 export type LessonPdfPhoto = LessonPdfImage & { category: string };
 export type LessonPdfAssets = {
-  logoBytes?: Uint8Array;
   photos?: LessonPdfPhoto[];
   preparedSignature?: LessonPdfImage;
   approvedSignature?: LessonPdfImage;
 };
-
-const PAGE_WIDTH = 595.28;
-const PAGE_HEIGHT = 841.89;
-const LEFT = 29;
-const TOP = 813;
-const WIDTH = PAGE_WIDTH - LEFT * 2;
-const PURPLE = rgb(0.35, 0.16, 0.52);
-const LIGHT_GREY = rgb(0.9, 0.9, 0.9);
-const PHOTO_BLUE = rgb(0.91, 0.95, 1);
+type Box = readonly [x: number, top: number, width: number, height: number];
 const BLACK = rgb(0, 0, 0);
 const WHITE = rgb(1, 1, 1);
 
+async function asset(name: string) {
+  try { return await readFile(new URL(`./${name}`, import.meta.url)); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    return readFile(new URL(`../assets/${name}`, import.meta.url));
+  }
+}
+
 function valueText(value: unknown) {
-  const text = String(value ?? "").trim();
-  return text || "—";
+  return String(value ?? "").trim() || "—";
 }
 
 function dateText(value: unknown) {
@@ -33,243 +33,149 @@ function dateText(value: unknown) {
   return Number.isNaN(date.getTime()) ? valueText(value) : formatDateInTimeZone(date, "UTC");
 }
 
-function wrapText(text: string, font: PDFFont, size: number, width: number, maxLines: number) {
-  const words = text.replace(/\s+/g, " ").trim().split(" ");
+function wrap(text: string, font: PDFFont, size: number, width: number) {
   const lines: string[] = [];
-  let line = "";
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (font.widthOfTextAtSize(candidate, size) <= width) {
-      line = candidate;
-      continue;
+  for (const paragraph of text.split(/\r?\n/)) {
+    let line = "";
+    for (const word of paragraph.trim().split(/\s+/)) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (font.widthOfTextAtSize(candidate, size) <= width) {
+        line = candidate;
+        continue;
+      }
+      if (line) lines.push(line);
+      line = word;
+      while (font.widthOfTextAtSize(line, size) > width && line.length > 1) {
+        let cut = line.length - 1;
+        while (cut > 1 && font.widthOfTextAtSize(line.slice(0, cut), size) > width) cut--;
+        lines.push(line.slice(0, cut));
+        line = line.slice(cut);
+      }
     }
-    if (line) lines.push(line);
-    line = word;
-    while (font.widthOfTextAtSize(line, size) > width && line.length > 1) {
-      let cut = line.length - 1;
-      while (cut > 1 && font.widthOfTextAtSize(line.slice(0, cut), size) > width) cut -= 1;
-      lines.push(line.slice(0, cut));
-      line = line.slice(cut);
-    }
+    lines.push(line);
   }
-  if (line) lines.push(line);
-  if (lines.length > maxLines) {
-    const visible = lines.slice(0, maxLines);
-    let last = visible[maxLines - 1]!;
-    while (last.length > 1 && font.widthOfTextAtSize(`${last}…`, size) > width) last = last.slice(0, -1);
-    visible[maxLines - 1] = `${last}…`;
-    return visible;
-  }
-  return lines.length ? lines : ["—"];
+  return lines;
 }
 
-function cell(page: PDFPage, x: number, top: number, width: number, height: number, fill = WHITE, borderWidth = 0.65) {
-  page.drawRectangle({ x, y: top - height, width, height, color: fill, borderColor: BLACK, borderWidth });
-}
-
-function cellText(
-  page: PDFPage,
-  text: unknown,
-  x: number,
-  top: number,
-  width: number,
-  height: number,
-  font: PDFFont,
-  options: { size?: number; align?: "left" | "center"; color?: ReturnType<typeof rgb>; padding?: number } = {},
-) {
-  const size = options.size ?? 8.2;
-  const padding = options.padding ?? 6;
-  const leading = size * 1.12;
-  const maxLines = Math.max(1, Math.floor((height - padding * 2) / leading));
-  const lines = wrapText(valueText(text), font, size, width - padding * 2, maxLines);
-  let y = top - (height - lines.length * leading) / 2 - size;
+function drawLines(page: PDFPage, lines: string[], font: PDFFont, size: number, box: Box, center = true) {
+  const [x, top, width, height] = box;
+  const leading = size * 1.15;
+  let baseline = page.getHeight() - top - (height - lines.length * leading) / 2 - size;
   for (const line of lines) {
-    const textWidth = font.widthOfTextAtSize(line, size);
-    const tx = options.align === "center" ? x + Math.max(padding, (width - textWidth) / 2) : x + padding;
-    page.drawText(line, { x: tx, y, size, font, color: options.color ?? BLACK });
-    y -= leading;
+    page.drawText(line, {
+      x: center ? x + (width - font.widthOfTextAtSize(line, size)) / 2 : x + 5,
+      y: baseline, font, size, color: BLACK,
+    });
+    baseline -= leading;
   }
 }
 
 async function embedImage(document: PDFDocument, image: LessonPdfImage) {
   const bytes = image.imageBytes;
-  const isPng = image.mimeType.includes("png") || (bytes[0] === 0x89 && bytes[1] === 0x50);
-  return isPng ? document.embedPng(bytes) : document.embedJpg(bytes);
+  return image.mimeType.includes("png") || (bytes[0] === 0x89 && bytes[1] === 0x50)
+    ? document.embedPng(bytes) : document.embedJpg(bytes);
 }
 
-function drawContainedImage(page: PDFPage, image: PDFImage, x: number, top: number, width: number, height: number) {
+function drawContainedImage(page: PDFPage, image: PDFImage, [x, top, width, height]: Box) {
   const scale = Math.min(width / image.width, height / image.height);
-  const drawWidth = image.width * scale;
-  const drawHeight = image.height * scale;
-  page.drawImage(image, {
-    x: x + (width - drawWidth) / 2,
-    y: top - height + (height - drawHeight) / 2,
-    width: drawWidth,
-    height: drawHeight,
-  });
+  const w = image.width * scale, h = image.height * scale;
+  page.drawImage(image, { x: x + (width - w) / 2, y: page.getHeight() - top - height + (height - h) / 2, width: w, height: h });
 }
 
 export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets = {}) {
-  const document = await PDFDocument.create();
+  const [template, regularBytes, boldBytes] = await Promise.all([
+    asset("lesson-learned-template.pdf"), asset("DejaVuSans.ttf"), asset("DejaVuSans-Bold.ttf"),
+  ]);
+  const document = await PDFDocument.load(template);
+  document.registerFontkit(fontkit);
   document.setTitle(`Lesson Learned Form - ${valueText(lesson.referenceNumber)}`);
   document.setSubject(`APPROVAL STATUS: ${valueText(lesson.workflowState).toUpperCase()}`);
-  const page = document.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  const regular = await document.embedFont(StandardFonts.Helvetica);
-  const bold = await document.embedFont(StandardFonts.HelveticaBold);
-  let y = TOP;
-
-  // Client template header: exact three-cell purple band and Alghaz Holding logo.
-  const headerHeight = 48;
-  const logoWidth = 130;
-  const codeWidth = 83;
-  cell(page, LEFT, y, logoWidth, headerHeight, PURPLE);
-  cell(page, LEFT + logoWidth, y, WIDTH - logoWidth - codeWidth, headerHeight, PURPLE);
-  cell(page, LEFT + WIDTH - codeWidth, y, codeWidth, headerHeight, PURPLE);
-  if (assets.logoBytes) {
-    try {
-      const logo = await document.embedJpg(assets.logoBytes);
-      drawContainedImage(page, logo, LEFT + 7, y - 4, logoWidth - 14, headerHeight - 8);
-    } catch {
-      cellText(page, "ALGIHAZ HOLDING", LEFT, y, logoWidth, headerHeight, bold, { size: 8, align: "center", color: WHITE });
+  const regular = await document.embedFont(regularBytes, { subset: true });
+  const bold = await document.embedFont(boldBytes, { subset: true });
+  const page = document.getPages()[0]!;
+  const overflow: { label: string; text: string }[] = [];
+  const field = (label: string, value: unknown, box: Box) => {
+    const text = valueText(value);
+    let size = 9.5, lines = wrap(text, regular, size, box[2] - 10);
+    while (lines.length * size * 1.15 > box[3] - 6 && size > 7) {
+      size -= 0.5;
+      lines = wrap(text, regular, size, box[2] - 10);
     }
-  } else {
-    cellText(page, "ALGIHAZ HOLDING", LEFT, y, logoWidth, headerHeight, bold, { size: 8, align: "center", color: WHITE });
+    if (lines.length * size * 1.15 > box[3] - 6) {
+      overflow.push({ label, text });
+      const count = Math.max(1, Math.floor((box[3] - 6) / (size * 1.15)));
+      lines = [...lines.slice(0, count - 1), "(See continuation)"];
+    }
+    drawLines(page, lines, regular, size, box);
+  };
+  // Exact cell coordinates from the supplied Word form. Its embedded logo,
+  // small-cap title, Quality band, colours, borders and control footer stay intact.
+  field("Reference # (LL)", lesson.referenceNumber, [28.9, 111.6, 179.4, 28.5]);
+  field("Title", lesson.title, [208.4, 111.6, 179.4, 28.5]);
+  field("Discipline", lesson.disciplineId, [387.9, 111.6, 179.6, 28.5]);
+  field("Categorization (LL)", lesson.categorisationId, [28.9, 168.4, 179.4, 28.5]);
+  field("Date", dateText(lesson.capturedAt), [208.4, 168.4, 179.4, 28.5]);
+  field("Location", lesson.repeatLocation || (lesson.gpsLat != null && lesson.gpsLng != null ? `${lesson.gpsLat}, ${lesson.gpsLng}` : null), [387.9, 168.4, 179.6, 28.5]);
+  const impact = String(lesson.impact).toLowerCase();
+  if (impact === "positive" || impact === "negative") {
+    page.drawText("X", { x: impact === "positive" ? 204.8 : 382, y: page.getHeight() - 213.4, font: bold, size: 9, color: BLACK });
   }
-  cellText(page, "LESSON LEARNED FORM", LEFT + logoWidth, y, WIDTH - logoWidth - codeWidth, headerHeight, bold, { size: 14, align: "center", color: WHITE });
-  cellText(page, "SHEQ", LEFT + WIDTH - codeWidth, y, codeWidth, headerHeight, bold, { size: 13, align: "center", color: WHITE });
-  y -= headerHeight + 6;
+  field("Description", lesson.description, [149.3, 222.4, 418.3, 28.7]);
+  field("Reference", lesson.reference, [149.3, 251.1, 418.3, 28.7]);
+  field("Why Did It Happen? (Root cause)", lesson.rootCause, [149.3, 279.8, 418.3, 51]);
+  field("How can we rectify? (Correction)", lesson.correction, [149.3, 330.8, 418.3, 51]);
+  field("How It can Be Avoided in Future? (Corrective action)", lesson.correctiveAction, [149.3, 381.8, 418.3, 51]);
 
-  const third = WIDTH / 3;
-  const metaRow = (labels: string[], values: unknown[]) => {
-    for (let index = 0; index < 3; index += 1) {
-      const x = LEFT + third * index;
-      cell(page, x, y, third, 23, LIGHT_GREY);
-      cellText(page, labels[index], x, y, third, 23, bold, { align: "center" });
-    }
-    y -= 23;
-    for (let index = 0; index < 3; index += 1) {
-      const x = LEFT + third * index;
-      cell(page, x, y, third, 31);
-      cellText(page, values[index], x, y, third, 31, regular, { align: "center", size: 8.5 });
-    }
-    y -= 31;
-  };
-  metaRow(["Reference # (LL)", "Title", "Discipline"], [lesson.referenceNumber, lesson.title, lesson.disciplineId]);
-  metaRow(["Categorization (LL)", "Date", "Location"], [
-    lesson.categorisationId,
-    dateText(lesson.capturedAt),
-    lesson.repeatLocation || (lesson.gpsLat && lesson.gpsLng ? `${lesson.gpsLat}, ${lesson.gpsLng}` : "—"),
-  ]);
-
-  const labelWidth = 120;
-  const dataWidth = WIDTH - labelWidth;
-  const fieldRow = (label: string, value: unknown, height: number) => {
-    cell(page, LEFT, y, labelWidth, height, LIGHT_GREY);
-    cell(page, LEFT + labelWidth, y, dataWidth, height);
-    cellText(page, label, LEFT, y, labelWidth, height, bold);
-    cellText(page, value, LEFT + labelWidth, y, dataWidth, height, regular, { align: "center", size: 8.4 });
-    y -= height;
-  };
-
-  cell(page, LEFT, y, labelWidth, 28, LIGHT_GREY);
-  cell(page, LEFT + labelWidth, y, dataWidth, 28);
-  cellText(page, "Impact (LL)", LEFT, y, labelWidth, 28, bold);
-  const positive = String(lesson.impact).toLowerCase() === "positive";
-  const negative = String(lesson.impact).toLowerCase() === "negative";
-  const choiceY = y - 17;
-  page.drawRectangle({ x: LEFT + 176, y: choiceY, width: 8, height: 8, borderColor: BLACK, borderWidth: 0.7 });
-  page.drawRectangle({ x: LEFT + 352, y: choiceY, width: 8, height: 8, borderColor: BLACK, borderWidth: 0.7 });
-  if (positive) page.drawText("X", { x: LEFT + 177, y: choiceY + 0.5, size: 7, font: bold });
-  if (negative) page.drawText("X", { x: LEFT + 353, y: choiceY + 0.5, size: 7, font: bold });
-  page.drawText("Positive", { x: LEFT + 190, y: choiceY, size: 8.4, font: regular });
-  page.drawText("Negative", { x: LEFT + 366, y: choiceY, size: 8.4, font: regular });
-  y -= 28;
-
-  fieldRow("Description", lesson.description, 34);
-  fieldRow("Reference", lesson.reference, 31);
-  fieldRow("Why Did It Happen? (Root cause)", lesson.rootCause, 55);
-  fieldRow("How can we rectify? (Correction)", lesson.correction, 55);
-  fieldRow("How It can Be Avoided in Future? (Corrective action)", lesson.correctiveAction, 55);
-
-  const photoRow = async (label: string, category: string) => {
-    const height = 91;
-    cell(page, LEFT, y, labelWidth, height, LIGHT_GREY);
-    cell(page, LEFT + labelWidth, y, dataWidth, height, PHOTO_BLUE);
-    cellText(page, label, LEFT, y, labelWidth, height, bold);
-    const candidates = (assets.photos ?? []).filter(photo => photo.category === category).slice(0, 2);
+  for (const [category, top] of [["before", 440.2], ["after", 542.2]] as const) {
+    const photos = (assets.photos ?? []).filter(photo => photo.category === category).slice(0, 2);
     const embedded: PDFImage[] = [];
-    for (const photo of candidates) {
-      try { embedded.push(await embedImage(document, photo)); } catch { /* Keep the template cell intact for unsupported/corrupt images. */ }
+    for (const photo of photos) {
+      try { embedded.push(await embedImage(document, photo)); } catch { /* Preserve the photo area if evidence is not a readable image. */ }
     }
-    if (!embedded.length) {
-      cellText(page, "No photo attached", LEFT + labelWidth, y, dataWidth, height, regular, { align: "center", color: rgb(0.45, 0.45, 0.45) });
-    } else {
-      const slotWidth = dataWidth / embedded.length;
-      embedded.forEach((image, index) => drawContainedImage(page, image, LEFT + labelWidth + slotWidth * index + 4, y - 4, slotWidth - 8, height - 8));
-    }
-    y -= height;
-  };
-  await photoRow("Before Photo", "before");
-  await photoRow("After Photo", "after");
+    embedded.forEach((image, index) => {
+      const slot = 406 / embedded.length;
+      drawContainedImage(page, image, [154 + index * slot + 3, top + 3, slot - 6, 85.2]);
+    });
+  }
+  field("Prepared by — Designation", lesson.submittedByDesignation, [113.9, 688, 188.6, 28.5]);
+  field("Approved by — Designation", lesson.reviewedByDesignation, [381.9, 688, 184.4, 28.5]);
+  field("Prepared by — Name", lesson.submittedByName, [113.9, 716.5, 188.6, 28.5]);
+  field("Approved by — Name", lesson.reviewedByName, [381.9, 716.5, 184.4, 28.5]);
+  for (const [signature, x, width] of [
+    [assets.preparedSignature, 117.9, 180.6], [assets.approvedSignature, 385.9, 176.4],
+  ] as const) {
+    if (!signature) continue;
+    try { drawContainedImage(page, await embedImage(document, signature), [x, 748, width, 19.5]); }
+    catch { /* Never substitute or fabricate a signature. */ }
+  }
+  field("Prepared by — Date", dateText(lesson.submittedAt), [113.9, 770.5, 188.6, 25.5]);
+  field("Approved by — Date", dateText(lesson.reviewedAt), [381.9, 770.5, 184.4, 25.5]);
 
-  const status = valueText(lesson.workflowState).toUpperCase();
-  cell(page, LEFT, y, WIDTH, 23, PURPLE);
-  cellText(page, `Approval  |  Status: ${status}`, LEFT, y, WIDTH, 23, bold, { align: "center", color: WHITE, size: 8.5 });
-  y -= 23;
-  const half = WIDTH / 2;
-  cell(page, LEFT, y, half, 22, LIGHT_GREY);
-  cell(page, LEFT + half, y, half, 22, LIGHT_GREY);
-  cellText(page, "Prepared by", LEFT, y, half, 22, bold, { align: "center" });
-  cellText(page, "Approved by", LEFT + half, y, half, 22, bold, { align: "center" });
-  y -= 22;
-  const approvalLabel = 84;
-  const approvalValue = half - approvalLabel;
-  const approvalRow = (label: string, prepared: unknown, approved: unknown) => {
-    cell(page, LEFT, y, approvalLabel, 22, LIGHT_GREY);
-    cell(page, LEFT + approvalLabel, y, approvalValue, 22);
-    cell(page, LEFT + half, y, approvalLabel, 22, LIGHT_GREY);
-    cell(page, LEFT + half + approvalLabel, y, approvalValue, 22);
-    cellText(page, label, LEFT, y, approvalLabel, 22, bold);
-    cellText(page, prepared, LEFT + approvalLabel, y, approvalValue, 22, regular, { align: "center", size: 7.8 });
-    cellText(page, label, LEFT + half, y, approvalLabel, 22, bold);
-    cellText(page, approved, LEFT + half + approvalLabel, y, approvalValue, 22, regular, { align: "center", size: 7.8 });
-    y -= 22;
-  };
-  approvalRow("Designation", lesson.submittedByDesignation, lesson.reviewedByDesignation);
-  approvalRow("Name", lesson.submittedByName, lesson.reviewedByName);
-  cell(page, LEFT, y, approvalLabel, 22, LIGHT_GREY);
-  cell(page, LEFT + approvalLabel, y, approvalValue, 22);
-  cell(page, LEFT + half, y, approvalLabel, 22, LIGHT_GREY);
-  cell(page, LEFT + half + approvalLabel, y, approvalValue, 22);
-  cellText(page, "Signature", LEFT, y, approvalLabel, 22, bold);
-  cellText(page, "Signature", LEFT + half, y, approvalLabel, 22, bold);
-  const drawSignature = async (signature: LessonPdfImage | undefined, x: number) => {
-    if (!signature) {
-      cellText(page, "", x, y, approvalValue, 22, regular, { align: "center", size: 7.8 });
-      return;
+  // Keep the fixed Word form readable without silently losing unusually long data.
+  if (overflow.length) {
+    const header = await document.embedPage(page, { left: 24, bottom: page.getHeight() - 78, right: 572, top: page.getHeight() - 24 });
+    const footer = await document.embedPage(page, { left: 24, bottom: 25, right: 572, top: 37 });
+    let continuation: PDFPage;
+    let top = 0;
+    const addContinuation = () => {
+      continuation = document.addPage([page.getWidth(), page.getHeight()]);
+      continuation.drawPage(header, { x: 24, y: page.getHeight() - 78, width: 548, height: 54 });
+      continuation.drawPage(footer, { x: 24, y: 25, width: 548, height: 12 });
+      drawLines(continuation, [`Additional lesson details — ${valueText(lesson.referenceNumber)}`], bold, 9, [29, 90, 538, 20]);
+      top = 120;
+    };
+    addContinuation();
+    for (const entry of overflow) {
+      for (const line of [...wrap(entry.label, bold, 10, 528), ...wrap(entry.text, regular, 9.5, 528), ""]) {
+        if (top > 780) addContinuation();
+        drawLines(continuation!, [line], regular, 9.5, [29, top, 538, 14], false);
+        top += 14;
+      }
     }
-    try {
-      const image = await embedImage(document, signature);
-      drawContainedImage(page, image, x + 3, y - 2, approvalValue - 6, 18);
-    } catch {
-      cellText(page, "", x, y, approvalValue, 22, regular, { align: "center", size: 7.8 });
-    }
-  };
-  await drawSignature(assets.preparedSignature, LEFT + approvalLabel);
-  await drawSignature(assets.approvedSignature, LEFT + half + approvalLabel);
-  y -= 22;
-  approvalRow("Date", dateText(lesson.submittedAt), dateText(lesson.reviewedAt));
-
-  const footerTop = y - 6;
-  const footerWidths = [65, 70, 73, 120, 70, 63, 35, 41];
-  const footerValues = ["Revision Date", "19-Dec-2023", "Control Number", "SHEQ-01-SF-005", "Revision", "00", "Page", "1 of 1"];
-  let footerX = LEFT;
-  footerWidths.forEach((width, index) => {
-    cell(page, footerX, footerTop, width, 12, index % 2 === 0 ? LIGHT_GREY : WHITE, 0.45);
-    cellText(page, footerValues[index], footerX, footerTop, width, 12, index % 2 === 0 ? bold : regular, { align: "center", size: 5.2, padding: 2 });
-    footerX += width;
-  });
-
-  page.drawRectangle({ x: LEFT - 5, y: footerTop - 17, width: WIDTH + 10, height: TOP - footerTop + 22, borderColor: rgb(0.35, 0.35, 0.35), borderWidth: 0.7 });
+    document.getPages().forEach((sheet, index, pages) => {
+      sheet.drawRectangle({ x: 531.5, y: sheet.getHeight() - 815.4, width: 33.5, height: 8.5, color: WHITE });
+      drawLines(sheet, [`${index + 1} of ${pages.length}`], regular, 6, [532, 807, 32, 8.5]);
+    });
+  }
   return Buffer.from(await document.save({ useObjectStreams: false }));
 }

@@ -11,6 +11,7 @@
 - [Password rotation policy](password-rotation-policy.md) — administrator-assigned passwords remain valid; do not add a forced password-change gate or session flag.
 - [RBAC setup for testing non-admin writes](demo-seed-users.md) — seeded workspace roles start with zero permission grants, so non-admin writes 403 until granted; never store credentials in memory.
 - [Lessons API request-body quirks](lessons-api-quirks.md) — discipline/categorisation take master-data values not UUIDs; server assigns its own id on create.
+- [Lessons PDF template policy](lessons-pdf-template-policy.md) — the revised official Word form governs downloaded and emailed PDFs; preserve branding and use actual record data only.
 - [Lessons approver eligibility](lessons-approver-eligibility.md) — approver selection requires an explicit role approval grant, including for administrators.
 - [Lessons overview counts](lessons-overview-policy.md) — all tiles follow the selected project; personal totals cover all accessible records while the recent tile retains recent-record semantics.
 - [Wouter :rest* wildcard limitation](wouter-rest-wildcard.md) — :rest* matches one segment only; deep nested routes need explicit App.tsx routes.

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { createLessonPdf } from "../src/lib/lesson-pdf";
 
 describe("Lesson Learned PDF", () => {
@@ -35,7 +37,33 @@ describe("Lesson Learned PDF", () => {
     expect(content.startsWith("%PDF-")).toBe(true);
     expect(parsed.getPageCount()).toBe(1);
     expect(parsed.getSubject()).toBe("APPROVAL STATUS: APPROVED");
-    expect(content.match(/\/Subtype \/Image/g)).toHaveLength(3);
+    // The supplied Word form contains its own logo and pale-blue photo backdrop.
+    // These (including the logo's transparency mask) are retained in addition
+    // to the record photo and two signatures.
+    expect(content.match(/\/Subtype \/Image/g)).toHaveLength(6);
     expect(content).toContain("%%EOF");
+  });
+  it("retains the actual Word template branding even without any record images", async () => {
+    const [pdf, template] = await Promise.all([
+      createLessonPdf({ referenceNumber: "LL-TEST", workflowState: "Draft" }),
+      readFile(new URL("../src/assets/lesson-learned-template.pdf", import.meta.url)),
+    ]);
+    const result = await PDFDocument.load(pdf), original = await PDFDocument.load(template);
+    expect(result.getPages()[0]!.getSize()).toEqual(original.getPages()[0]!.getSize());
+    expect(result.getPageCount()).toBe(1);
+    expect(pdf.toString("latin1").match(/\/Subtype \/Image/g)).toHaveLength(3);
+    expect(result.getSubject()).toBe("APPROVAL STATUS: DRAFT");
+  });
+  it("preserves long field content on continuation pages instead of clipping it", async () => {
+    const pdf = await createLessonPdf({
+      referenceNumber: "LL-LONG",
+      description: "This is the full description. ".repeat(300) + "END OF LONG DESCRIPTION",
+      rootCause: "Details with accents: é ñ and العربية.",
+      workflowState: "Approved",
+    });
+    expect((await PDFDocument.load(pdf)).getPageCount()).toBeGreaterThan(1);
+    const output = resolve(process.cwd(), "../../generated-artifacts/lesson-form");
+    await mkdir(output, { recursive: true });
+    await writeFile(resolve(output, "long-content-check.pdf"), pdf);
   });
 });

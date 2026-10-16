@@ -235,7 +235,6 @@ async function lessonPdfAssets(
   row: typeof lessonLearnedForms.$inferSelect,
   photos: Array<typeof lessonsEvidenceFiles.$inferSelect>,
 ) {
-  const logoBytes = await readFile(path.resolve(process.cwd(), "src/assets/lesson-learned-header-logo.jpg")).catch(() => undefined);
   const signerIds = [row.submittedById, row.reviewedById].filter((id): id is string => Boolean(id));
   const signers = signerIds.length
     ? await db.select({ id: users.id, signaturePath: users.signaturePath }).from(users).where(and(
@@ -284,7 +283,7 @@ async function lessonPdfAssets(
     loadSignature(row.submittedById),
     loadSignature(row.reviewedById),
   ]);
-  return { logoBytes, photos: imagePhotos, preparedSignature, approvedSignature };
+  return { photos: imagePhotos, preparedSignature, approvedSignature };
 }
 
 async function disciplineNameMap(organizationId: string): Promise<Map<string, string>> {

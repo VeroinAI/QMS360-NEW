@@ -204,3 +204,17 @@ mtime_ms = 1792049108041
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/12b7c30b-4f80-41e5-9064-e19c33f5813e/295b992b-f3b3-4361-968d-e67609a6cdb1"
 storage_version_token = "1792049118583839"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "aryO9QiE20KAxQOt6U_SB"
+uri = "file://generated-artifacts/lesson-form/AGH-QAM-LL-000058-revised-preview.pdf"
+type = "pdf"
+title = "Revised Lesson Learned form — PDF preview"
+description = "Updated Word-based layout populated using the record details, photos and signatures from your attached PDF."
+logical_id = "9ebb9e8f-b9dc-4509-8c99-12b604d7a567"
+content_hash = "sha256:484e65fdc0ff4118eea04fcfdcb992f3a0592d10d64cd649131ae45cdf51de9f"
+size = 168775
+mtime_ms = 1792132362912
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/9ebb9e8f-b9dc-4509-8c99-12b604d7a567/27dc3edb-300c-4a35-bd32-125bb1aa2e6f"
+storage_version_token = "1792132444799178"
+content_type = "application/pdf"
