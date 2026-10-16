@@ -56,7 +56,8 @@ describe('Daily discipline submission layout', () => {
   it('shows the requested Document Types tile in order with separate yesterday and current inputs', () => {
     const html = render({ documentTypes: { ITPs: 12, RFIs: 6, Procedures: 3, Calculations: 2, Vendors: 8 } },
       { documentTypes: { ITPs: 10, RFIs: 4, Vendors: 7 } });
-    expect(html).toContain('6.3.2a Document Types');
+    expect(html).toContain('Document Types');
+    expect(html).not.toContain('6.3.2a Document Types');
     expect(html).toContain('Documents by Type (cumulative)');
     const labels = ['Drawings', 'Material Submittals', 'Method Statements', 'ITP', 'RFIs', 'Procedures', 'Calculations', 'Vendor Documents'];
     const positions = labels.map(label => html.indexOf(`aria-label="${label} yesterday"`));

@@ -69,7 +69,7 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
     <Section title="Revisions" description="Dynamic revision names must be unique per category. Yesterday values are read-only."><Revisions cat="drawings" baseline={baseline} /><Revisions cat="submittals" baseline={baseline} /></Section>
     <details open className="group rounded-xl border bg-card text-card-foreground shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-6 text-base font-semibold [&::-webkit-details-marker]:hidden">
-        6.3.2a Document Types<ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+        Document Types<ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
       <div className="space-y-4 px-6 pb-6">
         <p className="text-sm font-medium">Documents by Type (cumulative)</p>
