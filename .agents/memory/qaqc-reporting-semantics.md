@@ -3,6 +3,12 @@ name: QA/QC reporting semantics
 description: SOW interpretation for carry-forward baselines, document snapshots, survey dates, and QTBT manhours.
 ---
 
+New CSAT reports use a read-only server-assigned current date in the organization's time zone; existing report dates remain unchanged.
+
+**Why:** The user explicitly requested a server-defaulted, read-only date instead of a user-selected survey date.
+
+**How to apply:** Derive the creation date on the server, show that same server date in New Report, and preserve historical dates when editing.
+
 Monthly and daily carry-forward uses the immediately preceding submitted report, including one awaiting approval, or its approved equivalent. Approval is not a prerequisite for the next period. The first report starts from zero only when there is no usable history; later reports require an immediate submitted predecessor. CSAT is an independent dated survey, not a forced monthly submission.
 
 **Why:** The SOW says previous submission, not previous approval, and specifies a monthly cadence only for the quality report. Waiting for approval or imposing that cadence on surveys adds restrictions not requested.

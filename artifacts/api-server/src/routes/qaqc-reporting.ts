@@ -479,7 +479,7 @@ function userId(customFields: Record<string, unknown>, key: string): string | un
 router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncHandler(async (req, res) => {
   const type = typeFor(req);
   const today = await orgLocalToday(req);
-  const selectedPeriod = req.query.period ?? (type === "daily" ? today : `${today.slice(0, 7)}-01`);
+  const selectedPeriod = type === "csat" ? today : req.query.period ?? (type === "daily" ? today : `${today.slice(0, 7)}-01`);
   let period = normalizePeriod(type, selectedPeriod, today);
   const projectsInScope = await activeProjects(req, type);
   const allUsers = await activeUsers(req);
@@ -503,6 +503,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
   const manpowerDisciplines = await getLovValues(db, org(req), "disciplines");
   const resultBase = {
     reportType: type,
+    serverToday: today,
     projects: projectsInScope.map((item) => ({
       id: item.id, name: item.name, code: item.code,
       costCentre: item.customFields.costCentre ?? item.customFields.cost_centre ?? null,
@@ -639,7 +640,7 @@ router.get("/reports", multipleReportAccess(), asyncHandler(async (req, res) => 
 router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHandler(async (req, res) => {
   const type = parseType(req.body?.reportType);
   const today = await orgLocalToday(req);
-  const period = normalizePeriod(type, req.body?.period, today);
+  const period = normalizePeriod(type, type === "csat" ? today : req.body?.period, today);
   const projectId = String(req.body?.projectId ?? "");
   if (!projectId || !isObject(req.body?.data)) throw new HttpError(422, "projectId and object data are required");
   let data = zeroFill(type, req.body.data);

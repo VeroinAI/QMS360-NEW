@@ -45,6 +45,19 @@ describe('Customer Satisfaction (CSAT) feedback form', () => {
     expect(render({ ...answered, ratings: { ...answered.ratings, quality: '1' } }).match(/checked=""/g)).toHaveLength(8);
   });
 
+  it('uses satisfaction-colored selectable tiles for every survey question and outcome', () => {
+    const html = render(answered);
+    expect(html).toContain('Scale: 1 = Very Dissatisfied, 5 = Excellent');
+    expect(html).toContain('Qualitative Feedback');
+    expect(html).not.toContain('Feedback details');
+    expect(html).not.toContain('Additional feedback');
+    for (const color of ['red', 'orange', 'amber', 'lime', 'green']) {
+      expect(html).toContain(`bg-${color}-50`);
+    }
+    expect(html.match(/min-h-24/g)).toHaveLength(36);
+    expect(html.match(/focus-within:ring-2/g)).toHaveLength(36);
+  });
+
   it('respects read-only forms and field-access locks', () => {
     for (const html of [render(answered, true), render(answered, false, true)]) {
       expect(html.match(/<input[^>]*type="radio"[^>]*disabled=""/g)).toHaveLength(36);
