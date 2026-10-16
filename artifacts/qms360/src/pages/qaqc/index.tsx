@@ -11,11 +11,11 @@ import {
 } from 'recharts';
 import {
   ArrowLeft, Bot, Check, ChevronLeft, ChevronRight, ClipboardCheck, Download,
-  FileBarChart, FileText, Gauge, Inbox, PackageCheck, Plus, Search, Sparkles,
+  FileText, Gauge, Inbox, PackageCheck, Plus, Search, Sparkles,
   Trash2, Upload, Users, X,
 } from 'lucide-react';
 import {
-  downloadQaqcMetricsTemplate, exportDocumentGovernanceReport, exportQaqcMonthlyReport,
+  exportDocumentGovernanceReport,
   useAnswerQaqcPromptQuestion, useCreateCustomerSatisfactionEntry,
   useCreateDocumentGovernanceEntry, useCreateMaterialInspection, useCreateQaqcMetric,
   useCreateQtbtEntry, useCreateQualityBrief, useDeleteCustomerSatisfactionEntry,
@@ -274,7 +274,6 @@ function NativeMetricsPage() {
   const del = useDeleteQaqcMetric(); const submit = useSubmitQaqcMetric(); const review = useReviewQaqcMetric(); const importer = useImportQaqcMetrics();
   const [reviewing, setReviewing] = useState<{ id: string; decision: 'approve' | 'send_back' }>(); const [comments, setComments] = useState('');
   const done = (message: string) => { invalidate(queryClient); toast({ title: message }); };
-  const delivery = async (kind: 'template' | 'report') => { try { const r = kind === 'template' ? await downloadQaqcMetricsTemplate({ format: 'xlsx' }) : await exportQaqcMonthlyReport({ format: 'csv', ...(period ? { period } : {}) }); if (r.downloadUrl) window.location.assign(r.downloadUrl); else toast({ title: r.fileName, description: r.message || 'Your report is being prepared.' }); } catch (e) { toast({ title: 'Download failed', description: errorText(e), variant: 'destructive' }); } };
   const importFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -288,7 +287,7 @@ function NativeMetricsPage() {
       });
     } catch { toast({ title: 'Could not read the file', description: 'Use the downloaded CSV or Excel template and try again.', variant: 'destructive' }); }
   };
-  return <Page title="QA/QC Metrics – Monthly Report" description="Monthly quality transactions, closure performance and ageing analysis." actions={<>{cap.can(M, 'import') && <Button variant="secondary" onClick={() => delivery('template')}><Download className="mr-2 size-4" />Template</Button>}{cap.can(M, 'export') && <Button variant="secondary" onClick={() => delivery('report')}><FileBarChart className="mr-2 size-4" />Export CSV</Button>}{cap.can(M, 'create_edit') && <Link href="/qaqc/metrics/new"><Button variant="secondary"><Plus className="mr-2 size-4" />New entry</Button></Link>}</>}>
+  return <Page title="QA/QC Metrics – Monthly Report" description="Monthly quality transactions, closure performance and ageing analysis." actions={<>{cap.can(M, 'create_edit') && <Link href="/qaqc/metrics/new"><Button variant="secondary"><Plus className="mr-2 size-4" />New entry</Button></Link>}</>}>
     {cap.can(M, 'create_edit') && cap.can(M, 'ai') && <AiQuickEntry onExtract={data => { setEditing(undefined); setSeed(data); setOpen(true); }} />}
     <Card><CardContent className="flex flex-col gap-3 p-4 sm:flex-row"><SearchBox value={projectId} onChange={v => { setProjectId(v); setPage(1); }} placeholder="Filter by project ID" /><Input className="w-full sm:w-44" type="month" value={period} onChange={e => { setPeriod(e.target.value); setPage(1); }} />{cap.can(M, 'import') && <Label className="flex cursor-pointer items-center gap-2 rounded-md border px-3 text-sm"><Upload className="size-4" />{importer.isPending ? 'Importing…' : 'Import Excel / CSV'}<input className="hidden" type="file" accept=".csv,.xlsx" onChange={importFile} /></Label>}</CardContent></Card>
     {cap.canAnyRead('monthly_reports') && <MetricsReportList />}
