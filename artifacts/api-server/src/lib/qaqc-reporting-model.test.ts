@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData } from "./qaqc-reporting-model";
+import { buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, DAILY_DOCUMENT_TYPES } from "./qaqc-reporting-model";
 
 describe("QA/QC SOW report model", () => {
   it("calculates independent training counters and participant-hours", () => {
@@ -166,6 +166,21 @@ describe("QA/QC SOW report model", () => {
     expect(result.valid).toBe(false);
     expect(result.errors).toContain("disciplines.drawings.Civil.approved is required and must be a nonnegative integer");
     expect(result.errors).toContain("pending.Supplier.E.over30 is required and must be a nonnegative integer");
+  });
+
+  it("requires the revised daily document types while retaining optional legacy counts", () => {
+    const documentTypes = Object.fromEntries(DAILY_DOCUMENT_TYPES.map(type => [type, 0]));
+    const result = validateReportData("daily", { documentTypes }, {}, true);
+    expect(result.errors.filter(error => error.startsWith("documentTypes."))).toEqual([]);
+    for (const type of ["RFIs", "Procedures", "Calculations"]) {
+      const invalid = validateReportData("daily", { documentTypes: { ...documentTypes, [type]: -1 } }, {}, false);
+      expect(invalid.errors).toContain(`documentTypes.${type} must be a nonnegative integer`);
+    }
+    const legacy = { ...documentTypes, CVs: 3, PQP: 2, IFR: 8 };
+    expect(validateReportData("daily", { documentTypes: legacy }, {}, false).valid).toBe(true);
+    expect((calculateReport("daily", { documentTypes: legacy }, {}, {}) as any).documentTypes).toEqual(legacy);
+    expect(validateReportData("daily", { documentTypes: { IFR: -1 } }, {}, false).errors)
+      .toContain("documentTypes.IFR must be a nonnegative integer");
   });
 
   it("validates all six exact CSAT dimensions and calculates the mean", () => {

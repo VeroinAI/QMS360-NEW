@@ -3,6 +3,12 @@ name: QA/QC reporting semantics
 description: SOW interpretation for carry-forward baselines, document snapshots, survey dates, and QTBT manhours.
 ---
 
+The revised Daily Submission document-type list must not reinterpret historical IFR counts as RFIs. Keep legacy CVs, PQP and IFR counts available when present; ITP and Vendor Documents are display renames for existing categories.
+
+**Why:** The supplied replacement list introduces RFIs, Procedures and Calculations but does not establish a mapping from the removed historical categories. Relabeling IFR as RFIs would invent a business mapping.
+
+**How to apply:** Preserve old counts alongside the revised list when reopening historical reports; do not silently move or discard them.
+
 New CSAT reports use a read-only server-assigned current date in the organization's time zone; existing report dates remain unchanged.
 
 **Why:** The user explicitly requested a server-defaulted, read-only date instead of a user-selected survey date.

@@ -1,9 +1,9 @@
 import { Fragment, type ReactNode } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumField, Section, getIn, useForm } from './form-kit';
-import { calcDaily, DISCIPLINES, DISC_STATUSES, DOC_TYPES, ENTITIES, PEND_BUCKETS, PEND_STATUSES, num, type Obj } from './reporting-types';
+import { calcDaily, DISCIPLINES, DISC_STATUSES, DOC_TYPES, DOC_TYPE_LABELS, LEGACY_DOC_TYPES, ENTITIES, PEND_BUCKETS, PEND_STATUSES, num, type Obj } from './reporting-types';
 
 type Calc = ReturnType<typeof calcDaily>;
 const disciplineOrder = ['Civil', 'Structural', 'Mechanical', 'Electrical', 'Instrumentation'];
@@ -34,6 +34,8 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
   const f = useForm();
   const prevCalc = calcDaily(baseline ?? {});
   const bp = (p: (string | number)[]) => getIn(baseline, p);
+  const documentTypes = [...DOC_TYPES, ...LEGACY_DOC_TYPES.filter(t =>
+    getIn(f.data, ['documentTypes', t]) !== undefined || bp(['documentTypes', t]) !== undefined)];
   return <div className="space-y-6">
     <Section title="Daily Submission - Drawings and Submittals by Discipline" description="Enter the cumulative figures as on the Current Date for each discipline. Yesterday is read-only (auto-loaded from the previous log) and Total is auto-calculated as Approved + Resubmit + Rejected + Under Review.">
       {(['drawings', 'submittals'] as const).map(cat => {
@@ -65,9 +67,31 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
       })}
     </Section>
     <Section title="Revisions" description="Dynamic revision names must be unique per category. Yesterday values are read-only."><Revisions cat="drawings" baseline={baseline} /><Revisions cat="submittals" baseline={baseline} /></Section>
-    <Section title="Document types">
-      <table className="w-full"><thead><tr><th className="px-2 text-left text-xs font-medium text-muted-foreground">Type</th>{sub}</tr></thead><tbody>{DOC_TYPES.map(t => <tr key={t} className="border-t"><td className="px-2 py-1 text-sm">{t}</td><td className="px-1 text-right"><Prev v={bp(['documentTypes', t]) ?? 0} /></td><td className="px-1 text-right"><NumField bare path={['documentTypes', t]} label={`${t} current`} /></td></tr>)}</tbody></table>
-    </Section>
+    <details open className="group rounded-xl border bg-card text-card-foreground shadow-sm">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-6 text-base font-semibold [&::-webkit-details-marker]:hidden">
+        6.3.2a Document Types<ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="space-y-4 px-6 pb-6">
+        <p className="text-sm font-medium">Documents by Type (cumulative)</p>
+        <div className="overflow-x-auto"><table className="w-full min-w-[360px] table-fixed text-sm" aria-label="Documents by Type (cumulative)">
+          <thead><tr>
+            <th scope="col" className="w-1/4 px-2 py-2 text-left text-xs font-medium text-muted-foreground">Document Type</th>
+            <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">Yesterday (auto)</th>
+            <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">Current Date <span aria-hidden="true">*</span></th>
+          </tr></thead>
+          <tbody>{documentTypes.map(t => {
+            const label = DOC_TYPE_LABELS[t] ?? t;
+            const legacy = LEGACY_DOC_TYPES.includes(t);
+            return <tr key={t} className="border-t">
+              <th scope="row" className="px-2 py-2 text-left font-normal">{label}{legacy && <span className="ml-1 text-xs text-muted-foreground">(previously saved)</span>}</th>
+              <td className="px-2 py-2"><Input aria-label={`${label} yesterday`} readOnly className="bg-muted/50 text-muted-foreground" value={bp(['documentTypes', t]) ?? 0} /></td>
+              <td className="px-2 py-2 [&_input]:h-9 [&_input]:w-full"><NumField bare path={['documentTypes', t]} label={`${label} current`} /></td>
+            </tr>;
+          })}</tbody>
+        </table></div>
+        <p className="text-xs text-muted-foreground">Discipline progress on the dashboard is derived automatically from the discipline blocks above.</p>
+      </div>
+    </details>
     {ENTITIES.map(e => <Section key={e} title={`Pending with ${e}`} description="Status by ageing bucket. Entity and row totals are calculated.">
       <div className="overflow-x-auto"><table className="w-full"><thead><tr><th rowSpan={2} className="px-2 text-left text-xs font-medium text-muted-foreground">Status</th>{PEND_BUCKETS.map(([b, l]) => <Fragment2 key={b}>{pair(l)}</Fragment2>)}{pair('Row total')}</tr><tr>{PEND_BUCKETS.map(([b]) => <Fragment2 key={b}>{sub}</Fragment2>)}{sub}</tr></thead><tbody>
         {PEND_STATUSES.map(([s, sl]) => { const rowSum = (src: unknown) => PEND_BUCKETS.reduce((a, [b]) => a + num(getIn(src, ['pending', e, s, b])), 0); return <tr key={s} className="border-t"><td className="px-2 py-1 text-sm font-medium">{sl}</td>

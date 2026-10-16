@@ -30,9 +30,9 @@ describe('Daily discipline submission layout', () => {
       expect(html).toContain(`aria-label="${d} ${cat === 'drawings' ? 'Drawings' : 'Submittals'}"`);
       for (const [, label] of DISC_STATUSES) expect(html).toContain(`aria-label="${d} ${cat} ${label} current"`);
     }
-    expect(html.match(/Yesterday \(auto\)/g)).toHaveLength(10);
+    expect(html.match(/Yesterday \(auto\)/g)).toHaveLength(11);
     expect(html.match(/Total \(auto\)/g)).toHaveLength(10);
-    for (const title of ['Revisions', 'Document types', 'Correspondence', 'Pending with Client']) expect(html).toContain(title);
+    for (const title of ['Revisions', 'Document Types', 'Correspondence', 'Pending with Client']) expect(html).toContain(title);
   });
 
   it('shows prior cumulative values and calculates totals independently by category', () => {
@@ -50,6 +50,35 @@ describe('Daily discipline submission layout', () => {
       const fields = html.match(/<input[^>]*aria-label="[^"]+ (?:drawings|submittals) (?:Approved|Resubmit|Rejected|Under review) current"[^>]*>/g) ?? [];
       expect(fields).toHaveLength(40);
       for (const field of fields) expect(field).toContain('disabled=""');
+    }
+  });
+
+  it('shows the requested Document Types tile in order with separate yesterday and current inputs', () => {
+    const html = render({ documentTypes: { ITPs: 12, RFIs: 6, Procedures: 3, Calculations: 2, Vendors: 8 } },
+      { documentTypes: { ITPs: 10, RFIs: 4, Vendors: 7 } });
+    expect(html).toContain('6.3.2a Document Types');
+    expect(html).toContain('Documents by Type (cumulative)');
+    const labels = ['Drawings', 'Material Submittals', 'Method Statements', 'ITP', 'RFIs', 'Procedures', 'Calculations', 'Vendor Documents'];
+    const positions = labels.map(label => html.indexOf(`aria-label="${label} yesterday"`));
+    expect(positions.every(position => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    for (const label of labels) expect(html).toContain(`aria-label="${label} current"`);
+    expect(html).toMatch(/aria-label="ITP yesterday"[^>]*readOnly=""[^>]*value="10"/);
+    expect(html).toMatch(/aria-label="ITP current"[^>]*value="12"/);
+    expect(html).toMatch(/aria-label="RFIs yesterday"[^>]*readOnly=""[^>]*value="4"/);
+    expect(html).not.toContain('(previously saved)');
+    expect(html).toContain('Discipline progress on the dashboard is derived automatically from the discipline blocks above.');
+  });
+
+  it('retains legacy document counts without treating IFR as RFIs', () => {
+    const html = render({ documentTypes: { CVs: 5, PQP: 2, IFR: 9 } }, { documentTypes: { IFR: 8 } });
+    expect(html.match(/\(previously saved\)/g)).toHaveLength(3);
+    expect(html).toMatch(/aria-label="IFR yesterday"[^>]*value="8"/);
+    expect(html).toMatch(/aria-label="IFR current"[^>]*value="9"/);
+    expect(html).toMatch(/aria-label="RFIs yesterday"[^>]*value="0"/);
+    for (const lockedHtml of [render({}, {}, true), render({}, {}, false, true)]) {
+      expect(lockedHtml).toMatch(/aria-label="Procedures current"[^>]*disabled=""/);
+      expect(lockedHtml).toMatch(/aria-label="Vendor Documents current"[^>]*disabled=""/);
     }
   });
 });

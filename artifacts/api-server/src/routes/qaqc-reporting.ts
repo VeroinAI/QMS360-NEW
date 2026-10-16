@@ -19,7 +19,7 @@ import { monthlySectionAccess, mergeMonthlySections } from "../lib/qaqc-monthly-
 import { monthlySectionForField } from "@workspace/field-controls";
 import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import {
-  buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, type CsatReportComputed, type DailyReportComputed,
+  buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, DAILY_DOCUMENT_TYPES, type CsatReportComputed, type DailyReportComputed,
   type MonthlyReportComputed, type ReportType,
 } from "../lib/qaqc-reporting-model";
 
@@ -157,7 +157,7 @@ function zeroFill(type: ReportType, value: Record<string, any>) {
         zero.disciplines[section][discipline] = { approved: 0, resubmit: 0, rejected: 0, underReview: 0 };
     }
     zero.revisions = { drawings: [], submittals: [] };
-    zero.documentTypes = Object.fromEntries(["Drawings", "Material Submittals", "Method Statements", "ITPs", "CVs", "PQP", "IFR", "Vendors"].map((key) => [key, 0]));
+    zero.documentTypes = Object.fromEntries(DAILY_DOCUMENT_TYPES.map((key) => [key, 0]));
     zero.pending = {};
     for (const entity of ["Client", "Algihaz", "Supplier"]) {
       zero.pending[entity] = {};

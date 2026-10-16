@@ -61,7 +61,8 @@ const DAILY_STATUSES = ["approved", "resubmit", "rejected", "underReview"] as co
 const ENTITIES = ["Client", "Algihaz", "Supplier"] as const;
 const PENDING_STATUSES = ["underReview", "A", "B", "C", "D", "E"] as const;
 const BUCKETS = ["upTo7", "days8To30", "over30"] as const;
-const DOCUMENT_TYPES = ["Drawings", "Material Submittals", "Method Statements", "ITPs", "CVs", "PQP", "IFR", "Vendors"] as const;
+export const DAILY_DOCUMENT_TYPES = ["Drawings", "Material Submittals", "Method Statements", "ITPs", "RFIs", "Procedures", "Calculations", "Vendors"] as const;
+const LEGACY_DOCUMENT_TYPES = ["CVs", "PQP", "IFR"] as const;
 const RATINGS = ["quality", "timeline", "communication", "professionalism", "valueForMoney", "issueHandling"] as const;
 const isObject = (v: unknown): v is Record<string, any> => !!v && typeof v === "object" && !Array.isArray(v);
 const numeric = (v: unknown) => typeof v === "number" && Number.isInteger(v) && v >= 0;
@@ -265,7 +266,10 @@ function validateDaily(data: Record<string, any>, submit: boolean, errors: strin
       });
     }
   }
-  for (const type of DOCUMENT_TYPES) check(data.documentTypes?.[type], `documentTypes.${type}`);
+  for (const type of DAILY_DOCUMENT_TYPES) check(data.documentTypes?.[type], `documentTypes.${type}`);
+  for (const type of LEGACY_DOCUMENT_TYPES) {
+    if (data.documentTypes?.[type] !== undefined) check(data.documentTypes[type], `documentTypes.${type}`);
+  }
   for (const entity of ENTITIES) for (const status of PENDING_STATUSES) for (const bucket of BUCKETS)
     check(data.pending?.[entity]?.[status]?.[bucket], `pending.${entity}.${status}.${bucket}`);
   for (const field of ["incoming", "outgoing"]) check(data.correspondence?.[field], `correspondence.${field}`);
