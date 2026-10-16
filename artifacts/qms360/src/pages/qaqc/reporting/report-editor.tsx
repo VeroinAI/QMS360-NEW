@@ -51,7 +51,7 @@ function PlainCard({ children }: { children: React.ReactNode }) {
 function ProjectTile({ children }: { children: React.ReactNode }) { return <Tile index={1} title="Project Details"><div className="space-y-4">{children}</div></Tile>; }
 
 export function ReportEditor({ reportType, id, metricsEntry = false }: { reportType: ReportType; id?: string; metricsEntry?: boolean }) {
-  const Wrap = metricsEntry ? ProjectTile : PlainCard;
+  const Wrap = metricsEntry || reportType === 'daily' ? ProjectTile : PlainCard;
   const base = metricsEntry ? '/qaqc/metrics/reports' : `/qaqc/${reportType}`;
   const [, nav] = useLocation();
   const { toast } = useToast();

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DailyForm } from './daily-form';
 import { FormCtx } from './form-kit';
-import { calcDaily, DISCIPLINES, DISC_STATUSES, zeroFill, type Obj } from './reporting-types';
+import { calcDaily, DISCIPLINES, DISC_STATUSES, ENTITIES, PEND_BUCKETS, PEND_STATUSES, zeroFill, type Obj } from './reporting-types';
 import { moveRevision } from './approved-revisions';
 
 function render(data: Obj = {}, baseline: Obj = {}, readOnly = false, fieldLocked = false) {
@@ -33,7 +33,7 @@ describe('Daily discipline submission layout', () => {
     }
     expect(html.match(/Yesterday \(auto\)/g)).toHaveLength(13);
     expect(html.match(/Total \(auto\)/g)).toHaveLength(10);
-    for (const title of ['Approved status by Rivision', 'Document Types', 'Correspondence', 'Pending with Client']) expect(html).toContain(title);
+    for (const title of ['Approved status by Rivision', 'Document Types', 'Correspondence', 'Submission Review — Pending Days']) expect(html).toContain(title);
   });
 
   it('shows prior cumulative values and calculates totals independently by category', () => {
@@ -134,7 +134,7 @@ describe('Daily discipline submission layout', () => {
       correspondence: { outgoing: 12, incoming: 8 },
       rejectedSubmissions: { drawing: 4, materials: 3, calculation: 2, general: 1 },
     }, { correspondence: { outgoing: 10, incoming: 7 }, rejectedSubmissions: { drawing: 2, materials: 1, calculation: 1, general: 0 } });
-    const headings = ['Approved status by Rivision', 'Correspondence', 'Rejected Submissions', 'Pending with Client'].map(title => html.indexOf(title));
+    const headings = ['Approved status by Rivision', 'Correspondence', 'Rejected Submissions', 'Submission Review — Pending Days'].map(title => html.indexOf(title));
     expect(headings).toEqual([...headings].sort((a, b) => a - b));
     expect(html.match(/aria-label="Correspondence"/g)).toHaveLength(1);
     expect(html.indexOf('aria-label="Correspondence Outgoing yesterday"')).toBeLessThan(html.indexOf('aria-label="Correspondence Incoming yesterday"'));
@@ -154,6 +154,43 @@ describe('Daily discipline submission layout', () => {
         expect(html).toMatch(new RegExp(`aria-label="Rejected Submissions ${label} current"[^>]*disabled=""`));
       }
       expect(html).toMatch(/aria-label="Correspondence Outgoing current"[^>]*disabled=""/);
+    }
+  });
+
+  it('numbers the daily business tiles consecutively and combines every pending entity in one table', () => {
+    const html = render();
+    const titles = [
+      '2. Daily Submission - Drawings and Submittals by Discipline',
+      '3. Document Types', '4. Approved status by Rivision', '5. Correspondence',
+      '6. Rejected Submissions', '7. Submission Review — Pending Days',
+    ];
+    const positions = titles.map(title => html.indexOf(title));
+    expect(positions.every(position => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    expect(html).not.toContain('6.3.6');
+    expect(html).not.toContain('Pending with ');
+    expect(html.match(/aria-label="Submission Review — Pending Days"/g)).toHaveLength(1);
+    for (const label of ['≤7 days', '8–30 days', '≥31 days', 'UNDER REVIEW', 'STATUS A', 'STATUS E']) expect(html).toContain(label);
+    expect(html.match(/scope="rowgroup"/g)).toHaveLength(3);
+    for (const entity of ENTITIES) for (const [, status] of PEND_STATUSES) for (const [, bucket] of PEND_BUCKETS) {
+      expect(html).toContain(`aria-label="${entity} ${status} ${bucket} current"`);
+    }
+  });
+
+  it('preserves pending counts and row totals with role-based read-only inputs', () => {
+    const data = { pending: {
+      Client: { A: { upTo7: 2, days8To30: 3, over30: 4 } },
+      Algihaz: { underReview: { upTo7: 5 } }, Supplier: { E: { over30: 6 } },
+    } };
+    const html = render(data);
+    expect(html).toMatch(/aria-label="Client A Up to 7 days current"[^>]*value="2"/);
+    expect(html).toMatch(/aria-label="Client A total"[^>]*>9</);
+    expect(html).toMatch(/aria-label="Algihaz Under review total"[^>]*>5</);
+    expect(html).toMatch(/aria-label="Supplier E total"[^>]*>6</);
+    for (const lockedHtml of [render(data, {}, true), render(data, {}, false, true)]) {
+      const pendingInputs = lockedHtml.match(/<input[^>]*aria-label="(?:Client|Algihaz|Supplier) [^"]+ current"[^>]*>/g) ?? [];
+      expect(pendingInputs).toHaveLength(54);
+      for (const input of pendingInputs) expect(input).toContain('disabled=""');
     }
   });
 });

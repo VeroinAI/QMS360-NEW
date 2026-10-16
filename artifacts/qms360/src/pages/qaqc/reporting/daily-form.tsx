@@ -1,19 +1,14 @@
-import { Fragment, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { NumField, Section, getIn, useForm } from './form-kit';
-import { calcDaily, DISCIPLINES, DISC_STATUSES, DOC_TYPES, DOC_TYPE_LABELS, LEGACY_DOC_TYPES, REJECTED_SUBMISSION_TYPES, ENTITIES, PEND_BUCKETS, PEND_STATUSES, num, type Obj } from './reporting-types';
+import { calcDaily, DISCIPLINES, DISC_STATUSES, DOC_TYPES, DOC_TYPE_LABELS, LEGACY_DOC_TYPES, REJECTED_SUBMISSION_TYPES, type Obj } from './reporting-types';
 import { ApprovedRevisions } from './approved-revisions';
 import { DailyCountTile } from './daily-count-tile';
+import { PendingDays } from './pending-days';
 
 type Calc = ReturnType<typeof calcDaily>;
 const disciplineOrder = ['Civil', 'Structural', 'Mechanical', 'Electrical', 'Instrumentation'];
 const displayDisciplines = [...DISCIPLINES].sort((a, b) => disciplineOrder.indexOf(a) - disciplineOrder.indexOf(b));
-const Prev = ({ v }: { v: unknown }) => <span className="inline-flex h-8 w-20 items-center justify-end rounded-md border bg-muted/50 px-2 text-sm text-muted-foreground" title="Yesterday (read-only)">{v === undefined || v === null ? '-' : String(v)}</span>;
-const Tot = ({ v }: { v: number }) => <span className="inline-flex h-8 w-20 items-center justify-end px-2 text-sm font-semibold">{v}</span>;
-const th = 'px-2 py-2 text-right text-xs font-medium text-muted-foreground';
-const pair = (label: string) => <th colSpan={2} className="px-2 pt-2 text-center text-xs font-medium">{label}</th>;
-const sub = <><th className={th}>Yesterday</th><th className={th}>Current</th></>;
 
 export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
   const f = useForm();
@@ -22,7 +17,7 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
   const documentTypes = [...DOC_TYPES, ...LEGACY_DOC_TYPES.filter(t =>
     getIn(f.data, ['documentTypes', t]) !== undefined || bp(['documentTypes', t]) !== undefined)];
   return <div className="space-y-6">
-    <Section title="Daily Submission - Drawings and Submittals by Discipline" description="Enter the cumulative figures as on the Current Date for each discipline. Yesterday is read-only (auto-loaded from the previous log) and Total is auto-calculated as Approved + Resubmit + Rejected + Under Review.">
+    <Section title="2. Daily Submission - Drawings and Submittals by Discipline" description="Enter the cumulative figures as on the Current Date for each discipline. Yesterday is read-only (auto-loaded from the previous log) and Total is auto-calculated as Approved + Resubmit + Rejected + Under Review.">
       {(['drawings', 'submittals'] as const).map(cat => {
         const categoryLabel = cat === 'drawings' ? 'Drawings' : 'Submittals';
         const overall = (source: Calc) => DISCIPLINES.reduce((total, discipline) => total + (source.disc[`${cat}.${discipline}`]?.total ?? 0), 0);
@@ -53,7 +48,7 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
     </Section>
     <details open className="group rounded-xl border bg-card text-card-foreground shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-6 text-base font-semibold [&::-webkit-details-marker]:hidden">
-        Document Types<ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+        3. Document Types<ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
       <div className="space-y-4 px-6 pb-6">
         <p className="text-sm font-medium">Documents by Type (cumulative)</p>
@@ -77,17 +72,8 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
       </div>
     </details>
     <ApprovedRevisions baseline={baseline} />
-    <DailyCountTile title="Correspondence" field="correspondence" rows={[['outgoing', 'Outgoing'], ['incoming', 'Incoming']]} baseline={baseline} />
-    <DailyCountTile title="Rejected Submissions" field="rejectedSubmissions" rows={REJECTED_SUBMISSION_TYPES} baseline={baseline} />
-    {ENTITIES.map(e => <Section key={e} title={`Pending with ${e}`} description="Status by ageing bucket. Entity and row totals are calculated.">
-      <div className="overflow-x-auto"><table className="w-full"><thead><tr><th rowSpan={2} className="px-2 text-left text-xs font-medium text-muted-foreground">Status</th>{PEND_BUCKETS.map(([b, l]) => <Fragment2 key={b}>{pair(l)}</Fragment2>)}{pair('Row total')}</tr><tr>{PEND_BUCKETS.map(([b]) => <Fragment2 key={b}>{sub}</Fragment2>)}{sub}</tr></thead><tbody>
-        {PEND_STATUSES.map(([s, sl]) => { const rowSum = (src: unknown) => PEND_BUCKETS.reduce((a, [b]) => a + num(getIn(src, ['pending', e, s, b])), 0); return <tr key={s} className="border-t"><td className="px-2 py-1 text-sm font-medium">{sl}</td>
-          {PEND_BUCKETS.map(([b, bl]) => <Fragment2 key={b}><td className="px-1 text-right"><Prev v={bp(['pending', e, s, b]) ?? 0} /></td><td className="px-1 text-right"><NumField bare path={['pending', e, s, b]} label={`${e} ${sl} ${bl} current`} /></td></Fragment2>)}
-          <td className="px-1 text-right"><Tot v={rowSum(baseline)} /></td><td className="px-1 text-right"><Tot v={rowSum(f.data)} /></td></tr>; })}
-        <tr className="border-t bg-muted/30"><td className="px-2 py-1 text-sm font-semibold" colSpan={PEND_BUCKETS.length * 2 + 1}>Entity total</td><td className="px-1 text-right"><Tot v={prevCalc.pending[e] ?? 0} /></td><td className="px-1 text-right"><Tot v={calc.pending[e] ?? 0} /></td></tr>
-      </tbody></table></div>
-    </Section>)}
+    <DailyCountTile index={5} title="Correspondence" field="correspondence" rows={[['outgoing', 'Outgoing'], ['incoming', 'Incoming']]} baseline={baseline} />
+    <DailyCountTile index={6} title="Rejected Submissions" field="rejectedSubmissions" rows={REJECTED_SUBMISSION_TYPES} baseline={baseline} />
+    <PendingDays />
   </div>;
 }
-
-function Fragment2({ children }: { children: ReactNode }) { return <Fragment>{children}</Fragment>; }

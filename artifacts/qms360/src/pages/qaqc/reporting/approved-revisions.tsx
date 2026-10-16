@@ -33,7 +33,7 @@ export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
     .map((row: Obj) => ({ cat, row })));
   const add = (cat: Category, row: Obj) => f.set(['revisions'], { ...revisions, [cat]: [...(revisions[cat] ?? []), row] });
 
-  return <Section title="Approved status by Rivision" description={'“Yesterday Approved” is auto-fetched from the last log for this project and is read-only. Percentage is calculated against overall cumulative documents (Drawings + Submittals Total).'}>
+  return <Section title="4. Approved status by Rivision" description={'“Yesterday Approved” is auto-fetched from the last log for this project and is read-only. Percentage is calculated against overall cumulative documents (Drawings + Submittals Total).'}>
     <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm" aria-label="Approved status by revision">
       <thead><tr>
         {['Document Type', 'Revision No.', 'Yesterday Approved (auto)', 'Current Approved', '% of Overall Cum'].map((label, i) =>

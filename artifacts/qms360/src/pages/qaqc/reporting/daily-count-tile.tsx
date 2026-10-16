@@ -3,12 +3,12 @@ import { Input } from '@/components/ui/input';
 import { NumField, getIn } from './form-kit';
 import type { Obj } from './reporting-types';
 
-export function DailyCountTile({ title, field, rows, baseline }: {
-  title: string; field: string; rows: readonly (readonly [string, string])[]; baseline: Obj;
+export function DailyCountTile({ title, field, rows, baseline, index }: {
+  title: string; field: string; rows: readonly (readonly [string, string])[]; baseline: Obj; index?: number;
 }) {
   return <details open className="group rounded-xl border bg-card text-card-foreground shadow-sm">
     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-6 text-base font-semibold [&::-webkit-details-marker]:hidden">
-      {title}<ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+      {index ? `${index}. ${title}` : title}<ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
     </summary>
     <div className="overflow-x-auto px-6 pb-6"><table className="w-full min-w-[360px] table-fixed text-sm" aria-label={title}>
       <thead><tr>
