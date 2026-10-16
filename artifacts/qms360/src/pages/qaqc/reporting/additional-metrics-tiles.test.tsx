@@ -48,7 +48,16 @@ describe('AdditionalMetricsTiles', () => {
   it('qms', () => {
     QMS_DEPARTMENTS.forEach(d => expect(h).toContain(`value="${d.split("&").join("&amp;")}"`));
     expect(h).toContain('data-testid="row-qms-0"'); expect(h).toContain('button-remove-qms-0'); expect(h).toContain('button-add-qms');
-    expect(h).toMatch(/<textarea[^>]*data-testid="input-qms-report-remarks"/);
+    expect(h).not.toContain('data-testid="input-qms-report-remarks"');
+    expect(h).toMatch(/<textarea[^>]*data-testid="input-qms-0-remarks"/);
+    const saved = { ...base, qmsReportRemarks: 'Historical section note', qmsReports: [{ ...base.qmsReports[0], remarks: 'Document note' }] };
+    for (const readOnly of [false, true]) {
+      const html = render(saved, {}, readOnly);
+      expect(html).not.toContain('input-qms-report-remarks');
+      expect(html).toContain('Document note');
+      expect(html).not.toContain('Historical section note');
+    }
+    expect(saved.qmsReportRemarks).toBe('Historical section note');
   });
   it('computes independent training totals and exposes only current-month inputs', () => {
     const training = { trainingCount: 3, attendance: 12, durationMinutes: 45 };

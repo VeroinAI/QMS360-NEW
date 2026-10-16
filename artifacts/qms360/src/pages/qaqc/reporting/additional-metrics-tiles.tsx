@@ -143,7 +143,6 @@ export function QmsReportsTile() {
       {!f.readOnly && <Button type="button" size="icon" variant="ghost" data-testid={`button-remove-qms-${i}`} aria-label={`Remove QMS report ${i + 1}`} onClick={() => f.set(path, rows.filter((_, j) => j !== i))}><Trash2 className="size-4 text-destructive" /></Button>}
     </div>; })}
     {!f.readOnly && <Button type="button" size="sm" variant="outline" data-testid="button-add-qms" onClick={() => f.set(path, [...rows, { department: '', type: '', documentName: '', status: '', remarks: '' }])}><Plus className="mr-1 size-4" />Add QMS report</Button>}
-    <Txt path={['qmsReportRemarks']} label="Remarks" multiline tid="qms-report-remarks" />
   </div>;
 }
 
