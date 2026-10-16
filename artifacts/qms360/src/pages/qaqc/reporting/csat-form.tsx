@@ -9,9 +9,6 @@ const SELECTED_COLORS: Record<string, string> = {
   '3': 'border-amber-500 bg-amber-50 text-amber-900',
   '4': 'border-lime-600 bg-lime-50 text-lime-900',
   '5': 'border-green-600 bg-green-50 text-green-900',
-  Yes: 'border-green-600 bg-green-50 text-green-900',
-  No: 'border-red-600 bg-red-50 text-red-900',
-  Partially: 'border-amber-500 bg-amber-50 text-amber-900',
 };
 
 function SurveyRadio({ path, label, numeric = false }: { path: string[]; label: string; numeric?: boolean }) {
@@ -22,9 +19,9 @@ function SurveyRadio({ path, label, numeric = false }: { path: string[]; label: 
   const options = numeric ? CSAT_SCALE : OUTCOMES.map(value => ({ value, label: value }));
   return <fieldset disabled={disabled} role="radiogroup" aria-labelledby={`${id}-label`} aria-required="true" className="min-w-0 rounded-lg border p-4">
     <legend id={`${id}-label`} className="px-1 text-sm font-medium">{label}<span className="ml-1 text-destructive" aria-hidden="true">*</span></legend>
-    <div className={`grid gap-3 ${numeric ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-3'}`}>
-      {options.map(option => <label key={option.value} className={`relative flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border-2 px-2 py-3 text-center text-sm transition-colors focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 ${String(value ?? '') === option.value ? SELECTED_COLORS[option.value] : 'border-border bg-background text-foreground'} ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:shadow-sm'}`}>
-        <input type="radio" name={id} value={option.value} aria-label={option.label} required disabled={disabled} className="sr-only"
+    <div className={numeric ? 'grid grid-cols-2 gap-3 sm:grid-cols-5' : 'flex flex-wrap gap-x-6 gap-y-3'}>
+      {options.map(option => <label key={option.value} className={numeric ? `relative flex min-h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border-2 px-2 py-3 text-center text-sm transition-colors focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 ${String(value ?? '') === option.value ? SELECTED_COLORS[option.value] : 'border-border bg-background text-foreground'} ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:shadow-sm'}` : `flex items-center gap-2 text-sm ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+        <input type="radio" name={id} value={option.value} aria-label={option.label} required disabled={disabled} className={numeric ? 'sr-only' : 'size-5 shrink-0 accent-primary'}
           data-testid={`radio-csat-${path.at(-1)}-${option.value}`}
           checked={String(value ?? '') === option.value}
           onChange={() => f.set(path, numeric ? Number(option.value) : option.value)} />

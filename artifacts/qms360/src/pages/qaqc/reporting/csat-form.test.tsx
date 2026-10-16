@@ -45,7 +45,7 @@ describe('Customer Satisfaction (CSAT) feedback form', () => {
     expect(render({ ...answered, ratings: { ...answered.ratings, quality: '1' } }).match(/checked=""/g)).toHaveLength(8);
   });
 
-  it('uses satisfaction-colored selectable tiles for every survey question and outcome', () => {
+  it('keeps satisfaction ratings as colored tiles and both outcomes as visible radio buttons', () => {
     const html = render(answered);
     expect(html).toContain('Scale: 1 = Very Dissatisfied, 5 = Excellent');
     expect(html).toContain('Qualitative Feedback');
@@ -54,8 +54,14 @@ describe('Customer Satisfaction (CSAT) feedback form', () => {
     for (const color of ['red', 'orange', 'amber', 'lime', 'green']) {
       expect(html).toContain(`bg-${color}-50`);
     }
-    expect(html.match(/min-h-24/g)).toHaveLength(36);
-    expect(html.match(/focus-within:ring-2/g)).toHaveLength(36);
+    expect(html.match(/min-h-24/g)).toHaveLength(30);
+    expect(html.match(/focus-within:ring-2/g)).toHaveLength(30);
+    expect(html.match(/class="size-5 shrink-0 accent-primary"/g)).toHaveLength(6);
+    for (const field of ['expectations', 'recommend']) {
+      for (const option of ['Yes', 'No', 'Partially']) {
+        expect(html).toContain(`data-testid="radio-csat-${field}-${option}"`);
+      }
+    }
   });
 
   it('respects read-only forms and field-access locks', () => {
