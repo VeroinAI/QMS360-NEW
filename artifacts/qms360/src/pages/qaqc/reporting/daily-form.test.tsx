@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { DailyForm } from './daily-form';
 import { FormCtx } from './form-kit';
 import { calcDaily, DISCIPLINES, DISC_STATUSES, type Obj } from './reporting-types';
+import { moveRevision } from './approved-revisions';
 
 function render(data: Obj = {}, baseline: Obj = {}, readOnly = false, fieldLocked = false) {
   return renderToStaticMarkup(<FormCtx.Provider value={{ data, readOnly, set: () => {}, fc: () => ({ disabled: fieldLocked, required: false }) }}>
@@ -32,7 +33,7 @@ describe('Daily discipline submission layout', () => {
     }
     expect(html.match(/Yesterday \(auto\)/g)).toHaveLength(11);
     expect(html.match(/Total \(auto\)/g)).toHaveLength(10);
-    for (const title of ['Revisions', 'Document Types', 'Correspondence', 'Pending with Client']) expect(html).toContain(title);
+    for (const title of ['Approved status by Rivision', 'Document Types', 'Correspondence', 'Pending with Client']) expect(html).toContain(title);
   });
 
   it('shows prior cumulative values and calculates totals independently by category', () => {
@@ -81,5 +82,50 @@ describe('Daily discipline submission layout', () => {
       expect(lockedHtml).toMatch(/aria-label="Procedures current"[^>]*disabled=""/);
       expect(lockedHtml).toMatch(/aria-label="Vendor Documents current"[^>]*disabled=""/);
     }
+  });
+
+  it('places the combined revision tile after document types with type choices and calculated percentages', () => {
+    const html = render({
+      disciplines: { drawings: { Civil: { approved: 60 } }, submittals: { Civil: { approved: 40 } } },
+      revisions: { drawings: [{ name: '0', value: 20 }], submittals: [{ name: 'A', value: 15 }] },
+    }, { revisions: { drawings: [{ name: '0', value: 12 }], submittals: [{ name: 'A', value: 10 }] } });
+    expect(html.indexOf('Approved status by Rivision')).toBeGreaterThan(html.indexOf('Document Types'));
+    for (const label of ['Document Type', 'Revision No.', 'Yesterday Approved (auto)', 'Current Approved', '% of Overall Cum', 'Add Revision']) expect(html).toContain(label);
+    expect(html.match(/<select /g)).toHaveLength(2);
+    expect(html.match(/<option[^>]*value="drawings"/g)).toHaveLength(2);
+    expect(html.match(/<option[^>]*value="submittals"/g)).toHaveLength(2);
+    expect(html).toMatch(/aria-label="Drawing revision 1 yesterday approved"[^>]*readOnly=""[^>]*value="12"/);
+    expect(html).toMatch(/aria-label="Submittal revision 1 yesterday approved"[^>]*readOnly=""[^>]*value="10"/);
+    expect(html).toContain('20.0%');
+    expect(html).toContain('15.0%');
+  });
+
+  it('preserves prior-only revisions, handles zero totals, and respects revision field locks', () => {
+    const data = { revisions: { drawings: [{ name: 'B', value: 2 }] } };
+    const baseline = { revisions: { submittals: [{ name: 'A', value: 7 }] } };
+    const html = render(data, baseline);
+    expect(html).toContain('Enter current');
+    expect(html).toContain('0.0%');
+    expect(html).not.toContain('NaN');
+    expect(html).not.toContain('Infinity');
+    expect(html).toMatch(/aria-label="Submittal revision A previous log approved"[^>]*value="7"/);
+    for (const lockedHtml of [render(data, baseline, true), render(data, baseline, false, true)]) {
+      expect(lockedHtml).not.toContain('Add Revision');
+      expect(lockedHtml).not.toContain('Remove Drawing revision');
+      expect(lockedHtml).not.toContain('Enter current');
+      expect(lockedHtml).toMatch(/aria-label="Drawing revision 1 document type"[^>]*disabled=""/);
+      expect(lockedHtml).toMatch(/aria-label="Drawing revision 1 current approved"[^>]*disabled=""/);
+    }
+  });
+
+  it('moves a revision between document types without losing its values or other rows', () => {
+    const original = { drawings: [{ name: 'A', value: 12 }, { name: 'B', value: 4 }], submittals: [{ name: '0', value: 3 }] };
+    const moved = moveRevision(original, 'drawings', 0, 'submittals');
+    expect(moved.drawings).toEqual([{ name: 'B', value: 4 }]);
+    expect(moved.submittals).toEqual([{ name: '0', value: 3 }, { name: 'A', value: 12 }]);
+    expect(original.drawings).toHaveLength(2);
+    expect(moveRevision(original, 'drawings', 0, 'drawings')).toBe(original);
+    expect(calcDaily({ revisions: { drawings: [{ name: '0', value: 1 }, { name: '0', value: 2 }] } }).issues)
+      .toContain('Duplicate drawings revision name: 0.');
   });
 });

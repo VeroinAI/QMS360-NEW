@@ -1,9 +1,9 @@
 import { Fragment, type ReactNode } from 'react';
-import { ChevronDown, Plus, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { NumField, Section, getIn, useForm } from './form-kit';
 import { calcDaily, DISCIPLINES, DISC_STATUSES, DOC_TYPES, DOC_TYPE_LABELS, LEGACY_DOC_TYPES, ENTITIES, PEND_BUCKETS, PEND_STATUSES, num, type Obj } from './reporting-types';
+import { ApprovedRevisions } from './approved-revisions';
 
 type Calc = ReturnType<typeof calcDaily>;
 const disciplineOrder = ['Civil', 'Structural', 'Mechanical', 'Electrical', 'Instrumentation'];
@@ -13,22 +13,6 @@ const Tot = ({ v }: { v: number }) => <span className="inline-flex h-8 w-20 item
 const th = 'px-2 py-2 text-right text-xs font-medium text-muted-foreground';
 const pair = (label: string) => <th colSpan={2} className="px-2 pt-2 text-center text-xs font-medium">{label}</th>;
 const sub = <><th className={th}>Yesterday</th><th className={th}>Current</th></>;
-
-function Revisions({ cat, baseline }: { cat: 'drawings' | 'submittals'; baseline: Obj }) {
-  const f = useForm();
-  const rows: Obj[] = f.data.revisions?.[cat] ?? [];
-  const prior: Obj[] = baseline?.revisions?.[cat] ?? [];
-  const names = new Set(rows.map(r => String(r.name ?? '').trim().toLowerCase()));
-  const path = ['revisions', cat];
-  const priorVal = (name: string) => prior.find(p => String(p.name).toLowerCase() === String(name ?? '').trim().toLowerCase())?.value;
-  return <div className="space-y-2"><p className="text-sm font-medium capitalize">{cat} revisions</p>
-    <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">Revision</th>{sub}<th /></tr></thead><tbody>
-      {prior.filter(p => !names.has(String(p.name).trim().toLowerCase())).map((p, i) => <tr key={`p${i}`} className="border-t"><td className="px-2 py-1">{p.name}</td><td className="px-2 py-1 text-right"><Prev v={p.value} /></td><td className="px-2 py-1 text-right">{!f.readOnly && <Button size="sm" variant="outline" onClick={() => f.set(path, [...rows, { name: p.name, value: undefined }])}>Enter current</Button>}</td><td /></tr>)}
-      {rows.map((r, i) => <tr key={i} className="border-t"><td className="px-2 py-1"><Input disabled={f.readOnly} placeholder={`Rev ${String(i).padStart(2, '0')}`} value={r.name ?? ''} onChange={e => f.set([...path, i, 'name'], e.target.value)} className="h-8" /></td><td className="px-2 py-1 text-right"><Prev v={priorVal(r.name)} /></td><td className="px-2 py-1 text-right"><NumField bare path={[...path, i, 'value']} label={`${cat} revision ${r.name ?? i} current`} /></td><td>{!f.readOnly && <Button size="icon" variant="ghost" aria-label="Remove revision" onClick={() => f.set(path, rows.filter((_, j) => j !== i))}><Trash2 className="size-4 text-destructive" /></Button>}</td></tr>)}
-    </tbody></table></div>
-    {!f.readOnly && <Button size="sm" variant="outline" onClick={() => f.set(path, [...rows, { name: `Rev ${String(rows.length).padStart(2, '0')}`, value: undefined }])}><Plus className="mr-1 size-4" />Add revision</Button>}
-  </div>;
-}
 
 export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
   const f = useForm();
@@ -66,7 +50,6 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
         </div>;
       })}
     </Section>
-    <Section title="Revisions" description="Dynamic revision names must be unique per category. Yesterday values are read-only."><Revisions cat="drawings" baseline={baseline} /><Revisions cat="submittals" baseline={baseline} /></Section>
     <details open className="group rounded-xl border bg-card text-card-foreground shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-6 text-base font-semibold [&::-webkit-details-marker]:hidden">
         Document Types<ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
@@ -92,6 +75,7 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
         <p className="text-xs text-muted-foreground">Discipline progress on the dashboard is derived automatically from the discipline blocks above.</p>
       </div>
     </details>
+    <ApprovedRevisions baseline={baseline} />
     {ENTITIES.map(e => <Section key={e} title={`Pending with ${e}`} description="Status by ageing bucket. Entity and row totals are calculated.">
       <div className="overflow-x-auto"><table className="w-full"><thead><tr><th rowSpan={2} className="px-2 text-left text-xs font-medium text-muted-foreground">Status</th>{PEND_BUCKETS.map(([b, l]) => <Fragment2 key={b}>{pair(l)}</Fragment2>)}{pair('Row total')}</tr><tr>{PEND_BUCKETS.map(([b]) => <Fragment2 key={b}>{sub}</Fragment2>)}{sub}</tr></thead><tbody>
         {PEND_STATUSES.map(([s, sl]) => { const rowSum = (src: unknown) => PEND_BUCKETS.reduce((a, [b]) => a + num(getIn(src, ['pending', e, s, b])), 0); return <tr key={s} className="border-t"><td className="px-2 py-1 text-sm font-medium">{sl}</td>
