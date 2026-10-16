@@ -62,7 +62,7 @@ function ManpowerDiscipline({ path }: { path: Path }) {
   const value = getIn(f.data, [...path, 'department']) ?? '';
   const options = f.manpowerDisciplines ?? [];
   const legacy = value && !options.some(d => d.value === value);
-  return <Field id={id} label="Discipline" required>
+  return <Field id={id} label="Department" required>
     <select id={id} aria-required="true" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:opacity-50"
       disabled={f.readOnly} value={value} onChange={e => f.set(path, { ...getIn(f.data, path), department: e.target.value, departmentSource: 'discipline_master' })}>
       <option value="">Select discipline</option>

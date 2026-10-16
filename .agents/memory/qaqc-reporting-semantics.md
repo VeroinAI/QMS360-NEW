@@ -47,9 +47,9 @@ PQI “Average of All Projects” uses only same-period submitted/approved repor
 
 **How to apply:** Do not invent zero or 100% for missing project reports, mix periods, or let this average expose projects outside the viewer's permissions.
 
-Manpower departments in Metrics entry now use Department Master choices, displaying labels and storing values. Preserve previously saved free-text departments when editing old reports; validate new master selections. NCR ageing retains its master-data checks.
+Quality Manpower in the Monthly Metrics entry displays the field label “Department” but intentionally uses Discipline Master choices, displaying their labels and storing their values. Do not switch its source to Department Master because of the visible label. Preserve previously saved free-text entries when editing old reports. NCR ageing retains its master-data checks.
 
-**Why:** On 2026-10-15 the user explicitly replaced the earlier free-text requirement with a Department Master dropdown. Historical entries must remain usable without rewriting their departments.
+**Why:** The user subsequently selected Discipline Master as the source and explicitly confirmed on 2026-10-16 that this mapping is correct; only the visible field label should read “Department”. Historical entries must remain usable without rewriting their values.
 
 **How to apply:** Offer active master entries for new selections without turning old free-text departments into new selectable master data.
 

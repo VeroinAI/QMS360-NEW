@@ -108,6 +108,8 @@ describe('MetricsEntryForm metric details tile', () => {
     const html = renderToStaticMarkup(<FormCtx.Provider value={ctx}><MetricsEntryForm /></FormCtx.Provider>);
     expect(html).toMatch(/<option[^>]*value="CIV"[^>]*>Civil Engineering<\/option>/);
     expect(html).toContain('Select discipline');
+    expect(html).toMatch(/<label[^>]*>Department/);
+    expect(html).not.toMatch(/<label[^>]*>Discipline/);
     expect(html).not.toContain('No active disciplines configured');
     expect(html).toContain('old free text (previously saved)');
     expect(html).not.toMatch(/<input[^>]*value="old free text"/);
