@@ -19,7 +19,9 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
+export default defineConfig(({ mode }) => {
+const dronaBuild = mode === 'drona';
+const basePath = dronaBuild ? './' : process.env.BASE_PATH;
 
 if (!basePath) {
   throw new Error(
@@ -27,21 +29,29 @@ if (!basePath) {
   );
 }
 
-export default defineConfig({
+return {
   base: basePath,
   plugins: [
+    ...(dronaBuild ? [{
+      name: 'drona-no-root-pwa',
+      // The shared PWA manifest targets "/" and must not install a container
+      // build as a root-mounted app. Drona owns the container lifecycle.
+      transformIndexHtml: (html: string) => html.replace(
+        /<link\s+rel="manifest"[^>]*>\s*/g, '',
+      ),
+    }] : []),
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
     ...(process.env.NODE_ENV !== 'production' &&
     process.env.REPL_ID !== undefined
       ? [
-          await import('@replit/vite-plugin-cartographer').then((m) =>
+          import('@replit/vite-plugin-cartographer').then((m) =>
             m.cartographer({
               root: path.resolve(import.meta.dirname, '..'),
             }),
           ),
-          await import('@replit/vite-plugin-dev-banner').then((m) =>
+          import('@replit/vite-plugin-dev-banner').then((m) =>
             m.devBanner(),
           ),
         ]
@@ -80,4 +90,5 @@ export default defineConfig({
     host: '0.0.0.0',
     allowedHosts: true,
   },
+};
 });

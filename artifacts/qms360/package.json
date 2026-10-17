@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
     "build": "vite build --config vite.config.ts",
+    "build:drona": "vite build --config vite.config.ts --mode drona",
+    "check:drona-build": "node scripts/check-drona-build.mjs",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "PORT=5173 BASE_PATH=/ vitest run"

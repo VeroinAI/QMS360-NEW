@@ -47,6 +47,7 @@
 - [Lessons approval escalation digest](lessons-approval-escalation-digest.md) — submittedAt-based working-day thresholds feed grouped scheduled reports, not per-form Lessons escalation emails.
 - [Production schema synchronization](production-schema-synchronization.md) — a successful publish can still leave QMS360 production behind development; verify live schema when APIs return missing-relation errors.
 - [AWS client handoff](aws-client-handoff.md) — use the user's private GitHub handoff; cloning does not configure environments, and manually run SQL needs migration tracking.
+- [Drona container build](drona-container-build.md) — isolate relative assets and hash navigation from Replit builds; portable assets do not configure the API bridge.
 - [Workspace package installation](workspace-package-installation.md) — package installer targets root; pnpm rejects unscoped root installs, so use artifact-filtered pnpm for leaf-only dependencies.
 - [Audit application approval policy](audit-application-approval-policy.md) — Audit role assignment must not itself unlock the application; keep a separate administrator approval step.
 - [Shared application approval recovery](shared-application-approval-recovery.md) — shared active status can hide an unapproved app; recover requests without changing unrelated access.

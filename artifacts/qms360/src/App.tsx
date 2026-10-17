@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LockKeyhole } from 'lucide-react';
 import { Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
+import { useHashLocation } from 'wouter/use-hash-location';
 import {
   getGetCurrentUserQueryKey, setAuthTokenGetter, useGetCurrentUser, useLogin, useGetAuthConfiguration,
   type AuthResponse,
@@ -126,5 +127,6 @@ function AuthenticatedRouter() {
 }
 
 export default function App() {
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><AuthenticatedRouter /><WorkflowConfirmationHost /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
+  const dronaBuild = import.meta.env.MODE === 'drona';
+  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter hook={dronaBuild ? useHashLocation : undefined} base={dronaBuild ? '' : import.meta.env.BASE_URL.replace(/\/$/, '')}><AuthenticatedRouter /><WorkflowConfirmationHost /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
 }
