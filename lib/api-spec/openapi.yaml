@@ -2544,6 +2544,7 @@ components:
       properties:
         roleName: {type: string}
         roleNames: {type: array, items: {type: string}, uniqueItems: true}
+        ccRoleNames: {type: array, items: {type: string, minLength: 1, maxLength: 200}, uniqueItems: true, maxItems: 100}
         projectIds: {type: array, items: {type: string}}
         senderMode: {type: string, enum: [form_creator, approving_user]}
         subjectTemplate: {type: string, maxLength: 250}

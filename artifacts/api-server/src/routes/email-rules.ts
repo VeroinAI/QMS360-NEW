@@ -104,6 +104,7 @@ router.post("/email-rules", requireAuth, requireAdmin, asyncHandler(async (req, 
   if (!parsed.success) throw new HttpError(422, "Invalid email rule");
   await validate(parsed.data, req.currentUser!.organizationId);
   await ensureUsers(req.currentUser!.organizationId, [parsed.data.createdByUserId, parsed.data.receiverUserId]);
+  await ensureWorkspaceRoles(req.currentUser!.organizationId, parsed.data.eventType.split(".")[0]!, parsed.data.recipientConfig?.ccRoleNames ?? []);
   if (parsed.data.recipientMode === "workspace_role") {
     await ensureWorkspaceRoles(req.currentUser!.organizationId, parsed.data.eventType.split(".")[0]!, [
       ...(parsed.data.recipientConfig?.roleNames ?? []),
@@ -138,6 +139,7 @@ router.patch("/email-rules/:id", requireAuth, requireAdmin, asyncHandler(async (
   if (!parsed.success) throw new HttpError(422, "Invalid email rule");
   await validate(parsed.data, req.currentUser!.organizationId);
   await ensureUsers(req.currentUser!.organizationId, [parsed.data.createdByUserId, parsed.data.receiverUserId]);
+  await ensureWorkspaceRoles(req.currentUser!.organizationId, parsed.data.eventType.split(".")[0]!, parsed.data.recipientConfig?.ccRoleNames ?? []);
   if (parsed.data.recipientMode === "workspace_role") {
     await ensureWorkspaceRoles(req.currentUser!.organizationId, parsed.data.eventType.split(".")[0]!, [
       ...(parsed.data.recipientConfig?.roleNames ?? []),

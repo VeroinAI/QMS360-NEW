@@ -167,7 +167,24 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
       recipients = rows.map((row) => ({ email: row.email, name: row.name }));
     }
   }
-  return { rule, recipients: [...new Map(recipients.map((item) => [item.email.toLowerCase(), item])).values()], sender };
+  const ccRecipients = await resolveEmailRuleCc(database, event, rule.recipientConfig);
+  return { rule, recipients: [...new Map(recipients.map((item) => [item.email.toLowerCase(), item])).values()], sender, ccRecipients };
+}
+
+/** Resolve explicit CC grants in the event's application, never another tenant/app. */
+export async function resolveEmailRuleCc(
+  database: typeof db,
+  event: Pick<AuditEvent, "organizationId" | "app">,
+  config: { ccRoleNames?: string[] } | null | undefined,
+) {
+  const names = [...new Set((config?.ccRoleNames ?? []).map(name => name.trim()).filter(Boolean))];
+  if (!names.length || !["audit", "lessons", "qaqc"].includes(event.app)) return [];
+  const ids = await resolveWorkspaceRoleUserIds(database, event.organizationId, event.app, names);
+  if (!ids.length) return [];
+  return database.select({ email: users.email, name: users.fullName }).from(users).where(and(
+    eq(users.organizationId, event.organizationId), eq(users.accessStatus, "active"),
+    isNull(users.deletedAt), inArray(users.id, ids),
+  ));
 }
 
 export async function dispatchEmailRule(event: AuditEvent, options: {
@@ -185,6 +202,7 @@ export async function dispatchEmailRule(event: AuditEvent, options: {
     }
     const delivery = await enqueueEmail(db, {
       organizationId: event.organizationId, recipientIds: [], recipients: result.recipients,
+      ccRecipients: result.ccRecipients ?? [],
       ...(attachments.length ? { attachments } : {}),
       sender: result.sender ?? undefined,
       ruleTemplate: result.rule.recipientConfig,
@@ -242,7 +260,7 @@ export async function queueAuditApprovalEmail(
     candidate.eventType === eventType &&
     (!candidate.createdByUserId || candidate.createdByUserId === input.actorId));
 
-  // Approval workflows supply the complete, privacy-scoped participant list.
+  // To recipients remain workflow-scoped; explicit configured CC roles are additive.
   if (rule && !rule.enabled) return { queued: 0 };
 
   let recipientIds = [...new Set(input.recipientIds)];
@@ -263,7 +281,7 @@ export async function queueAuditApprovalEmail(
   return enqueueEmail(database, {
     organizationId: input.organizationId,
     recipientIds,
-    ccRecipients,
+    ccRecipients: [...ccRecipients, ...await resolveEmailRuleCc(database, { organizationId: input.organizationId, app: "audit" }, rule?.recipientConfig)],
     subject: input.subject,
     text: input.text,
     ruleTemplate: rule?.recipientConfig,

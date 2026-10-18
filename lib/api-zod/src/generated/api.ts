@@ -13230,6 +13230,10 @@ export const MarkAuditNotificationReadResponse = zod.void()
 
 
 export const listEmailRulesResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const listEmailRulesResponseRecipientConfigCcRoleNamesItemMax = 200;
+
+export const listEmailRulesResponseRecipientConfigCcRoleNamesMax = 100;
+
 export const listEmailRulesResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const listEmailRulesResponseRecipientConfigBodyTemplateMax = 20000;
@@ -13248,6 +13252,7 @@ export const ListEmailRulesResponseItem = zod.object({
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
+  "ccRoleNames": zod.array(zod.string().min(1).max(listEmailRulesResponseRecipientConfigCcRoleNamesItemMax)).max(listEmailRulesResponseRecipientConfigCcRoleNamesMax).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(listEmailRulesResponseRecipientConfigSubjectTemplateMax).optional(),
@@ -13265,6 +13270,10 @@ export const ListEmailRulesResponse = zod.array(ListEmailRulesResponseItem)
 export const createEmailRuleBodyPriorityMin = 0;
 
 export const createEmailRuleBodyEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const createEmailRuleBodyRecipientConfigCcRoleNamesItemMax = 200;
+
+export const createEmailRuleBodyRecipientConfigCcRoleNamesMax = 100;
+
 export const createEmailRuleBodyRecipientConfigSubjectTemplateMax = 250;
 
 export const createEmailRuleBodyRecipientConfigBodyTemplateMax = 20000;
@@ -13281,6 +13290,7 @@ export const CreateEmailRuleBody = zod.object({
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
+  "ccRoleNames": zod.array(zod.string().min(1).max(createEmailRuleBodyRecipientConfigCcRoleNamesItemMax)).max(createEmailRuleBodyRecipientConfigCcRoleNamesMax).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(createEmailRuleBodyRecipientConfigSubjectTemplateMax).optional(),
@@ -13293,6 +13303,10 @@ export const CreateEmailRuleBody = zod.object({
 })
 
 export const createEmailRuleResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const createEmailRuleResponseRecipientConfigCcRoleNamesItemMax = 200;
+
+export const createEmailRuleResponseRecipientConfigCcRoleNamesMax = 100;
+
 export const createEmailRuleResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const createEmailRuleResponseRecipientConfigBodyTemplateMax = 20000;
@@ -13311,6 +13325,7 @@ export const CreateEmailRuleResponse = zod.object({
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
+  "ccRoleNames": zod.array(zod.string().min(1).max(createEmailRuleResponseRecipientConfigCcRoleNamesItemMax)).max(createEmailRuleResponseRecipientConfigCcRoleNamesMax).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(createEmailRuleResponseRecipientConfigSubjectTemplateMax).optional(),
@@ -13331,6 +13346,10 @@ export const UpdateEmailRuleParams = zod.object({
 export const updateEmailRuleBodyPriorityMin = 0;
 
 export const updateEmailRuleBodyEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const updateEmailRuleBodyRecipientConfigCcRoleNamesItemMax = 200;
+
+export const updateEmailRuleBodyRecipientConfigCcRoleNamesMax = 100;
+
 export const updateEmailRuleBodyRecipientConfigSubjectTemplateMax = 250;
 
 export const updateEmailRuleBodyRecipientConfigBodyTemplateMax = 20000;
@@ -13347,6 +13366,7 @@ export const UpdateEmailRuleBody = zod.object({
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
+  "ccRoleNames": zod.array(zod.string().min(1).max(updateEmailRuleBodyRecipientConfigCcRoleNamesItemMax)).max(updateEmailRuleBodyRecipientConfigCcRoleNamesMax).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(updateEmailRuleBodyRecipientConfigSubjectTemplateMax).optional(),
@@ -13359,6 +13379,10 @@ export const UpdateEmailRuleBody = zod.object({
 })
 
 export const updateEmailRuleResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const updateEmailRuleResponseRecipientConfigCcRoleNamesItemMax = 200;
+
+export const updateEmailRuleResponseRecipientConfigCcRoleNamesMax = 100;
+
 export const updateEmailRuleResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const updateEmailRuleResponseRecipientConfigBodyTemplateMax = 20000;
@@ -13377,6 +13401,7 @@ export const UpdateEmailRuleResponse = zod.object({
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
+  "ccRoleNames": zod.array(zod.string().min(1).max(updateEmailRuleResponseRecipientConfigCcRoleNamesItemMax)).max(updateEmailRuleResponseRecipientConfigCcRoleNamesMax).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(updateEmailRuleResponseRecipientConfigSubjectTemplateMax).optional(),
@@ -13401,6 +13426,10 @@ export const ReorderEmailRulesBody = zod.object({
 })
 
 export const reorderEmailRulesResponseEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const reorderEmailRulesResponseRecipientConfigCcRoleNamesItemMax = 200;
+
+export const reorderEmailRulesResponseRecipientConfigCcRoleNamesMax = 100;
+
 export const reorderEmailRulesResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const reorderEmailRulesResponseRecipientConfigBodyTemplateMax = 20000;
@@ -13419,6 +13448,7 @@ export const ReorderEmailRulesResponseItem = zod.object({
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
+  "ccRoleNames": zod.array(zod.string().min(1).max(reorderEmailRulesResponseRecipientConfigCcRoleNamesItemMax)).max(reorderEmailRulesResponseRecipientConfigCcRoleNamesMax).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(reorderEmailRulesResponseRecipientConfigSubjectTemplateMax).optional(),
@@ -13632,6 +13662,10 @@ export const SimulateEmailRuleBody = zod.object({
 })
 
 export const simulateEmailRuleResponseRuleOneEventTypeRegExp = new RegExp('^[a-z0-9_-]+\\.[a-z0-9_-]+\\.[a-z0-9_-]+$');
+export const simulateEmailRuleResponseRuleOneRecipientConfigCcRoleNamesItemMax = 200;
+
+export const simulateEmailRuleResponseRuleOneRecipientConfigCcRoleNamesMax = 100;
+
 export const simulateEmailRuleResponseRuleOneRecipientConfigSubjectTemplateMax = 250;
 
 export const simulateEmailRuleResponseRuleOneRecipientConfigBodyTemplateMax = 20000;
@@ -13652,6 +13686,7 @@ export const SimulateEmailRuleResponse = zod.object({
   "recipientConfig": zod.object({
   "roleName": zod.string().optional(),
   "roleNames": zod.array(zod.string()).optional(),
+  "ccRoleNames": zod.array(zod.string().min(1).max(simulateEmailRuleResponseRuleOneRecipientConfigCcRoleNamesItemMax)).max(simulateEmailRuleResponseRuleOneRecipientConfigCcRoleNamesMax).optional(),
   "projectIds": zod.array(zod.string()).optional(),
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigSubjectTemplateMax).optional(),

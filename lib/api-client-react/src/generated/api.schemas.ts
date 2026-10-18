@@ -405,6 +405,12 @@ export type EmailRecipientConfigBodyRichText = { [key: string]: unknown } | null
 export interface EmailRecipientConfig {
   roleName?: string;
   roleNames?: string[];
+  /**
+     * @maxItems 100
+     * @items.minLength 1
+     * @items.maxLength 200
+     */
+  ccRoleNames?: string[];
   projectIds?: string[];
   senderMode?: EmailRecipientConfigSenderMode;
   /** @maxLength 250 */
