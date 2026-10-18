@@ -27,7 +27,11 @@ app.use(
     },
   }),
 );
-app.use(cors());
+// Unset CORS_ORIGINS keeps today's fully-open behavior (local dev, and any
+// deploy where the frontend is same-origin) -- only a real split deploy
+// (S3/CloudFront frontend, separate backend) needs to set this.
+const allowedOrigins = (process.env.CORS_ORIGINS ?? "").split(",").map((o) => o.trim()).filter(Boolean);
+app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : undefined));
 // Evidence uploads are raw bytes and must be parsed before the global JSON middleware.
 app.use("/api/files", filesRouter);
 app.use("/api/feedback/attachments", feedbackFilesRouter);
