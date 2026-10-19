@@ -276,6 +276,21 @@ router.get("/reports/:id/export", asyncHandler(async (req, res) => {
   if (!canReadReport(req, exportAccess, report)) throw new HttpError(403, "Export is not permitted for this report");
   const name = `qaqc-${report.reportType}-${report.period}-${report.referenceNumber ?? report.id}`;
   const templateId = selectedTemplateId(req);
+  if (format === "pdf" && report.reportType === "daily" && templateId === "daily-dashboard") {
+    // Use the current request origin, not a fixed development or production host.
+    // This is a clickable link only; no outbound request is made.
+    const referrer = req.get("referer");
+    if (referrer) {
+      try {
+        const url = new URL(req.originalUrl.split("?")[0]!, referrer);
+        if (url.protocol === "https:" || url.protocol === "http:") {
+          url.searchParams.set("format", "pdf");
+          url.searchParams.set("templateId", "daily-submission");
+          report.dailyReportPdfUrl = url.toString();
+        }
+      } catch { /* A non-browser export can still render with an explicit unmapped link. */ }
+    }
+  }
   if (format === "pdf" && report.reportType === "monthly" && ["monthly-metrics", "monthly-dashboard"].includes(templateId ?? "")) {
     // Read live snapshots at download time, never a cached form portfolio average.
     const access = await reportAccess(req, "monthly");
@@ -316,7 +331,7 @@ router.get("/reports/:id/export", asyncHandler(async (req, res) => {
     }
   }
   const bytes = format === "pdf" ? await exportQaqcReportPdf(report, { templateId }) : exportQaqcReportExcel(report);
-  download(res, `${name}${format === "pdf" && templateId === "monthly-dashboard" ? "-dashboard" : ""}.${format}`, format === "pdf" ? "application/pdf" : qaqcReportingWorkbookMimeType, bytes);
+  download(res, `${name}${format === "pdf" && ["monthly-dashboard", "daily-dashboard"].includes(templateId ?? "") ? "-dashboard" : ""}.${format}`, format === "pdf" ? "application/pdf" : qaqcReportingWorkbookMimeType, bytes);
 }));
 
 function requestedFormat(req: any) {

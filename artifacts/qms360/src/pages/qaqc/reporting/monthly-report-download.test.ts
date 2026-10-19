@@ -27,12 +27,13 @@ describe('Shared monthly report PDF export', () => {
     await expect(exportMonthlyReportPdf('monthly-1')).rejects.toThrow('Export denied');
     expect(api).toHaveBeenCalledTimes(1);
   });
-  it('connects the editor and landing downloads to the same exporter without changing Excel', () => {
+  it('keeps monthly PDF downloads and limits the editor XLSX button to CSAT', () => {
     const editor = readFileSync(new URL('./report-editor.tsx', import.meta.url), 'utf8');
     const list = readFileSync(new URL('./metrics-report-list.tsx', import.meta.url), 'utf8');
     expect(editor).toContain('exportMonthlyReportPdf(report.id)');
     expect(list).toContain('exportMonthlyReportPdf(r.id)');
     expect(editor).not.toContain('PdfTemplatePicker');
     expect(editor).toContain("exportQaqcSowReport(report.id, undefined, { headers: { Accept: XLSX_MIME } })");
+    expect(editor).toContain("{reportType === 'csat' && <Button");
   });
 });

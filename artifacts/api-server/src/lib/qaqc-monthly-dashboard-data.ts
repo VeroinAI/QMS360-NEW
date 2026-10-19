@@ -2,7 +2,17 @@ import type { QaqcReportExport } from "./qaqc-reporting-export";
 import { monthlyDate, UNMAPPED } from "./qaqc-monthly-report-template";
 
 type Obj = Record<string, any>;
-export type DashboardChart = { categories: string[]; series: { name: string; values: (number | null)[]; color: string }[]; hide?: string };
+export type DashboardChart = {
+  categories: string[];
+  series: { name: string; values: (number | null)[]; color: string }[];
+  hide?: string;
+  compact?: boolean;
+  percent?: boolean;
+  signed?: boolean;
+  hideLabels?: boolean;
+  hideZeroLabels?: boolean;
+  pointColors?: string[];
+};
 const keys = ["external_ncr", "internal_ncr", "rfi", "rmi"];
 const labels = ["External NCR", "Internal NCR", "RFI", "RMI"];
 const n = (v: unknown): number | null => typeof v === "number" && Number.isFinite(v) ? v : null;

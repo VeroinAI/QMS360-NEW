@@ -1,7 +1,7 @@
 import {renderToStaticMarkup} from 'react-dom/server';
 import {Router} from 'wouter';
 import {beforeEach,describe,expect,it,vi} from 'vitest';
-import {DailyDownloadButton,downloadDailyReport} from './daily-download-button';
+import {DailyDownloadButton,downloadDailyDashboard,downloadDailyReport} from './daily-download-button';
 import {ReportList} from './report-list';
 
 const mocks=vi.hoisted(()=>({canExport:true,api:vi.fn(),save:vi.fn(),list:vi.fn(),ctx:vi.fn()}));
@@ -23,6 +23,16 @@ beforeEach(()=>{
   ]}});
 });
 describe('Daily Download shared by landing and individual report',()=>{
+  it('exports the dashboard separately and uses the requested labels only in the editor',async()=>{
+    await downloadDailyDashboard(report);
+    expect(mocks.api).toHaveBeenCalledWith('daily-1',{templateId:'daily-dashboard'},{headers:{Accept:'application/pdf'}});
+    expect(mocks.save).toHaveBeenCalledWith('pdf-response','daily-dashboard-2026-10-19-daily-1.pdf');
+    expect(renderToStaticMarkup(<DailyDownloadButton report={report} label="Export Report PDF"/>)).toContain('Export Report PDF');
+    const html=renderToStaticMarkup(<DailyDownloadButton report={report} dashboard label="Export Dashboard PDF"/>);
+    expect(html).toContain('Export Dashboard PDF');expect(html).toContain('download-daily-dashboard-daily-1');
+    mocks.canExport=false;
+    expect(renderToStaticMarkup(<DailyDownloadButton report={report} dashboard label="Export Dashboard PDF"/>)).toBe('');
+  });
   it('uses the same Word template, PDF accept type and saved report ID',async()=>{
     await downloadDailyReport(report);
     expect(mocks.api).toHaveBeenCalledWith('daily-1',{templateId:'daily-submission'},{headers:{Accept:'application/pdf'}});
@@ -32,6 +42,11 @@ describe('Daily Download shared by landing and individual report',()=>{
     mocks.api.mockRejectedValueOnce(new Error('Export denied'));
     await expect(downloadDailyReport(report)).rejects.toThrow('Export denied');
     expect(mocks.save).not.toHaveBeenCalled();
+  });
+  it('does not silently download the other report when dashboard export fails',async()=>{
+    mocks.api.mockRejectedValueOnce(new Error('Export denied'));
+    await expect(downloadDailyDashboard(report)).rejects.toThrow('Export denied');
+    expect(mocks.api).toHaveBeenCalledTimes(1);expect(mocks.save).not.toHaveBeenCalled();
   });
   it('uses Download label, supports busy state, and hides for users without export rights',()=>{
     const html=renderToStaticMarkup(<DailyDownloadButton report={report} disabled/>);

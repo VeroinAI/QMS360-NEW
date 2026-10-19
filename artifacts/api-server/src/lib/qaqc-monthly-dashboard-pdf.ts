@@ -2,7 +2,7 @@ import { DOMParser, type Element } from "@xmldom/xmldom";
 import { posix } from "node:path";
 import { unzipSync, strFromU8 } from "fflate";
 import fontkit from "@pdf-lib/fontkit";
-import { PDFDocument, type PDFFont, type PDFPage, rgb } from "pdf-lib";
+import { PDFDocument, PDFName, PDFString, type PDFFont, type PDFPage, rgb, degrees } from "pdf-lib";
 import type { QaqcReportExport } from "./qaqc-reporting-export";
 import { monthlyAsset, UNMAPPED } from "./qaqc-monthly-report-template";
 import { monthlyDashboardData, type DashboardChart } from "./qaqc-monthly-dashboard-data";
@@ -20,15 +20,34 @@ const box = (xf?: Element): Box => ({ x: emu(a(one(xf, "off"), "x")), y: emu(a(o
 const palette = ["06AEBB", "EB9823", "D58BCB", "A43C96", "582C83", "BBA9D2"];
 
 export async function exportMonthlyDashboardPdf(report: QaqcReportExport): Promise<Buffer> {
-  const mapped = monthlyDashboardData(report);
-  const files = unzipSync(await monthlyAsset("qaqc-monthly-dashboard-template.pptx"));
+  return exportPresentationDashboardPdf({
+    mapped: monthlyDashboardData(report), template: "qaqc-monthly-dashboard-template.pptx", pages: 5,
+    title: `QA/QC Monthly Dashboard — ${report.projectName ?? UNMAPPED} — ${report.period}`,
+    footer: "Algihaz · QA/QC Monthly Dashboard", kind: "monthly",
+  });
+}
+
+export type PresentationDashboard = {
+  values: Record<string, string>; tones: Record<string, string>; charts: Record<number, DashboardChart>;
+  tables?: Record<string, { rows: string[][]; tones?: Record<string, string> }>;
+  links?: Record<string, string>;
+  statusMismatch?: boolean;
+};
+
+/** Shared OOXML renderer; monthly and daily mappings stay independent. */
+export async function exportPresentationDashboardPdf(options: {
+  mapped: PresentationDashboard; template: string; pages: number; title: string; footer: string; kind: "monthly" | "daily";
+}): Promise<Buffer> {
+  const { mapped } = options;
+  const daily = options.kind === "daily";
+  const files = unzipSync(await monthlyAsset(options.template));
   const parse = (name: string) => {
     if (!files[name]) throw new Error(`Monthly dashboard template part missing: ${name}`);
     return new DOMParser().parseFromString(strFromU8(files[name]!), "application/xml").documentElement!;
   };
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
-  pdf.setTitle(`QA/QC Monthly Dashboard — ${mapped.project} — ${mapped.month}`);
+  pdf.setTitle(options.title);
   pdf.setAuthor("QMS360"); pdf.setSubject("Monthly QA/QC dashboard");
   const [normal, bold, symbols] = await Promise.all(["Carlito-Regular.ttf", "Carlito-Bold.ttf", "DejaVuSans.ttf"].map(async name =>
     pdf.embedFont(await monthlyAsset(name), { subset: false, features: { liga: false, clig: false, kern: false } })));
@@ -99,10 +118,14 @@ export async function exportMonthlyDashboardPdf(report: QaqcReportExport): Promi
   function chart(page: PDFPage, b: Box, model: DashboardChart, template: Element, index: number) {
     if (model.hide) { text(page, model.hide, b, 14, "66666A", false, "ctr", "ctr"); return; }
     if (!model.categories.length || !model.series.length || model.series.every(s => s.values.every(v => v === null))) {
-      text(page, index === 10 ? "No manpower rows added" : UNMAPPED, b, 14, "66666A", false, "ctr", "ctr"); return;
+      text(page, !daily && index === 10 ? "No manpower rows added" : UNMAPPED, b, model.compact ? 9 : 14, "66666A", false, "ctr", "ctr"); return;
     }
     if (all(template, "doughnutChart").length) {
       const values = model.series[0]!.values;
+      if (values.some(v => v === null || v < 0)) {
+        text(page, values.some(v => v !== null && v < 0) ? "Negative change — see signed figures" : UNMAPPED, b, 9, "66666A", false, "ctr", "ctr");
+        return;
+      }
       const total = values.reduce<number>((s, v) => s + Math.max(0, v ?? 0), 0);
       const radius = Math.min(b.w, b.h) * .44, cx = b.x + b.w / 2, cy = height - b.y - b.h / 2;
       if (!total) page.drawCircle({ x: cx, y: cy, size: radius, borderColor: ink("E7DFEF"), borderWidth: radius * .28 });
@@ -113,7 +136,7 @@ export async function exportMonthlyDashboardPdf(report: QaqcReportExport): Promi
         const points = Array.from({ length: steps + 1 }, (_, j) => {
           const t = angle + arc * j / steps; return `${Math.cos(t) * radius},${Math.sin(t) * radius}`;
         });
-        if (arc) page.drawSvgPath(`M0,0 L${points.join(" L")} Z`, { x: cx, y: cy, color: ink(index === 2 ? i === 0 ? "582C83" : "E7DFEF" : palette[i % palette.length]!) });
+        if (arc) page.drawSvgPath(`M0,0 L${points.join(" L")} Z`, { x: cx, y: cy, color: ink(model.pointColors?.[i] ?? (!daily && index === 2 ? i === 0 ? "582C83" : "E7DFEF" : palette[i % palette.length]!)) });
         angle += arc;
       });
       page.drawCircle({ x: cx, y: cy, size: radius * .72, color: ink("FFFFFF") });
@@ -121,44 +144,49 @@ export async function exportMonthlyDashboardPdf(report: QaqcReportExport): Promi
     }
     const horizontal = a(all(template, "barDir")[0], "val") === "bar";
     const stacked = a(all(template, "grouping")[0], "val") === "stacked";
-    const legendH = model.series.length > 1 ? 28 : 12;
-    const labelW = horizontal ? Math.min(index === 10 ? 130 : 80, b.w * .4) : 28;
-    const plot = { x: b.x + labelW, y: b.y + 9, w: b.w - labelW - 22, h: b.h - legendH - 32 };
+    const compact = !!model.compact;
+    const legendH = model.series.length > 1 ? 28 : compact ? 0 : 12;
+    const labelW = horizontal ? Math.min(!daily && index === 10 ? 130 : daily && [9, 14].includes(index) ? 130 : 80, b.w * .48) : compact ? 0 : 28;
+    const plot = { x: b.x + labelW, y: b.y + (compact ? 0 : 9), w: b.w - labelW - (compact ? 4 : 22), h: Math.max(12, b.h - legendH - (compact ? 13 : 32)) };
     const values = model.categories.map((_, i) => stacked ? model.series.reduce((s, r) => s + (r.values[i] ?? 0), 0) : Math.max(...model.series.map(s => s.values[i] ?? 0)));
     const rawStep = Math.max(1, ...values) * 1.08 / 4;
     const magnitude = 10 ** Math.floor(Math.log10(rawStep));
     const nice = [1, 2, 2.5, 5, 10].find(v => v * magnitude >= rawStep) ?? 10;
-    const max = index === 1 ? Math.max(100, ...values) : (index === 9 ? nice * magnitude : Math.max(1, Math.ceil(nice * magnitude))) * 4;
+    const max = !daily && index === 1 ? Math.max(100, ...values) : (!daily && index === 9 || model.percent ? nice * magnitude : Math.max(1, Math.ceil(nice * magnitude))) * 4;
+    const min = model.signed ? Math.min(0, ...model.series.flatMap(s => s.values.map(v => v ?? 0))) : 0;
+    const scale = (v: number) => (v - min) / (max - min);
+    const zero = scale(0);
     for (let j = 0; j <= 4; j++) {
-      const v = max * j / 4;
+      const v = min + (max - min) * j / 4;
+      if (compact) continue;
       if (horizontal) {
         const x = plot.x + plot.w * j / 4;
         page.drawLine({ start: { x, y: height - plot.y }, end: { x, y: height - plot.y - plot.h }, color: ink("E6E0EB"), thickness: .5 });
-        text(page, Number(v.toFixed(1)).toString(), { x: x - 14, y: plot.y + plot.h + 3, w: 28, h: 10 }, 8, "66666A", false, "ctr");
+        text(page, `${Number(v.toFixed(1))}${model.percent ? "%" : ""}`, { x: x - 14, y: plot.y + plot.h + 3, w: 28, h: 10 }, 8, "66666A", false, "ctr");
       } else {
         const y = plot.y + plot.h - plot.h * j / 4;
         page.drawLine({ start: { x: plot.x, y: height - y }, end: { x: plot.x + plot.w, y: height - y }, color: ink("E6E0EB"), thickness: .5 });
-        text(page, Number(v.toFixed(1)).toString(), { x: b.x, y: y - 4, w: labelW - 4, h: 10 }, 8, "66666A", false, "r");
+        text(page, `${Number(v.toFixed(1))}${model.percent ? "%" : ""}`, { x: b.x, y: y - 4, w: labelW - 4, h: 10 }, 8, "66666A", false, "r");
       }
     }
     const step = (horizontal ? plot.h : plot.w) / model.categories.length;
     model.categories.forEach((label, i) => {
-      if (horizontal) text(page, label, { x: b.x, y: plot.y + step * i, w: labelW - 6, h: step }, 10, "66666A", false, "r", "ctr");
-      else text(page, label, { x: plot.x + step * i, y: plot.y + plot.h + 5, w: step, h: 15 }, 9, "66666A", false, "ctr");
+      if (horizontal) text(page, label, { x: b.x, y: plot.y + step * i, w: labelW - 6, h: step }, compact ? 7 : 10, "66666A", false, "r", "ctr");
+      else text(page, label, { x: plot.x + step * i, y: plot.y + plot.h + (compact ? 1 : 5), w: step, h: compact ? 12 : 15 }, compact ? 5 : 9, "66666A", false, "ctr");
       let offset = 0;
       const thickness = step * .65 / (stacked ? 1 : model.series.length);
       model.series.forEach((s, j) => {
         const value = s.values[i];
-        const length = Math.max(0, value ?? 0) / max * (horizontal ? plot.w : plot.h);
+        const length = Math.abs((value ?? 0) / (max - min)) * (horizontal ? plot.w : plot.h);
         const gap = step * .175;
         const r = horizontal
-          ? { x: plot.x + offset, y: plot.y + step * i + gap + (stacked ? 0 : j * thickness), w: length, h: Math.max(.5, thickness - (stacked ? 0 : 1)) }
-          : { x: plot.x + step * i + gap + (stacked ? 0 : j * thickness), y: plot.y + plot.h - length - offset, w: Math.max(.5, thickness - 1), h: length };
-        if (value !== null && length > 0) rect(page, r, s.color);
-        const labelValue = value === null ? "—" : Number(value.toFixed(1)).toString();
-        if (!stacked || length > 24) text(page, labelValue, horizontal
+          ? { x: plot.x + plot.w * zero + offset - ((value ?? 0) < 0 ? length : 0), y: plot.y + step * i + gap + (stacked ? 0 : j * thickness), w: length, h: Math.max(.5, thickness - (stacked ? 0 : 1)) }
+          : { x: plot.x + step * i + gap + (stacked ? 0 : j * thickness), y: plot.y + plot.h * (1 - zero) - ((value ?? 0) >= 0 ? length : 0) - offset, w: Math.max(.5, thickness - 1), h: length };
+        if (value !== null && length > 0) rect(page, r, model.pointColors?.[i] ?? s.color);
+        const labelValue = value === null ? "—" : `${model.signed && value > 0 ? "+" : ""}${model.percent ? value.toFixed(1) : Number(value.toFixed(1))}${model.percent ? "%" : ""}`;
+        if (!model.hideLabels && !(model.hideZeroLabels && value === 0) && (!stacked || length > (daily ? 10 : 24))) text(page, labelValue, horizontal
           ? { x: r.x + (stacked ? 2 : r.w + 3), y: r.y, w: stacked ? r.w - 2 : 28, h: r.h }
-          : { x: r.x - 4, y: r.y - 12, w: r.w + 8, h: 11 }, 8, stacked ? "FFFFFF" : "3A3A3B", true, horizontal ? "l" : "ctr", "ctr");
+          : { x: r.x - 4, y: stacked ? r.y + (r.h - 11) / 2 : (value ?? 0) < 0 ? r.y + r.h : r.y - (compact ? 8 : 12), w: r.w + 8, h: compact ? 8 : 11 }, compact ? 5 : 8, stacked ? "FFFFFF" : "3A3A3B", true, horizontal ? "l" : "ctr", "ctr");
         if (stacked) offset += length;
       });
     });
@@ -171,7 +199,7 @@ export async function exportMonthlyDashboardPdf(report: QaqcReportExport): Promi
       });
     }
   }
-  for (let index = 1; index <= 5; index++) {
+  for (let index = 1; index <= options.pages; index++) {
     const page = pdf.addPage([width, height]);
     rect(page, { x: 0, y: 0, w: width, h: height }, "F3EFF7");
     const slide = parse(`ppt/slides/slide${index}.xml`);
@@ -198,8 +226,50 @@ export async function exportMonthlyDashboardPdf(report: QaqcReportExport): Promi
         const body = one(tx, "bodyPr");
         const textBox = { x: b.x + emu(a(body, "lIns")), y: b.y + emu(a(body, "tIns")), w: b.w - emu(a(body, "lIns")) - emu(a(body, "rIns")), h: b.h - emu(a(body, "tIns")) - emu(a(body, "bIns")) };
         const hex = mapped.tones[name] || style?.hex || "3A3A3B";
-        text(page, value, textBox, Number(a(runProps, "sz", "1200"))/100, hex, a(runProps, "b") === "1", a(one(paras[0], "pPr"), "algn", "l"), a(body, "anchor", "t"));
+        if (daily && name === "Report date") {
+          const lines = value.split("\n");
+          const styles = paras.map(p => one(all(p, "r")[0], "rPr"));
+          const sizes = styles.map(p => Number(a(p, "sz", "1200")) / 100);
+          let y = textBox.y + Math.max(0, (textBox.h - sizes.reduce((n, s) => n + s * 1.2, 0)) / 2);
+          lines.forEach((line, i) => {
+            const size = sizes[i] ?? 12, p = styles[i];
+            text(page, line, { x: textBox.x, y, w: textBox.w, h: size * 1.2 }, size, fill(p)?.hex ?? hex, a(p, "b") === "1", "ctr");
+            y += size * 1.2;
+          });
+        } else if (a(body, "vert") === "vert270") {
+          const font = a(runProps, "b") === "1" ? bold! : normal!;
+          let size = Number(a(runProps, "sz", "1200")) / 100;
+          while (size > 6 && measure(value, size, font) > b.h - 4) size -= .5;
+          page.drawText(value, { x: b.x + b.w / 2 + size * .35, y: height - b.y - b.h / 2 - measure(value, size, font) / 2, font, size, color: ink(hex), rotate: degrees(90) });
+        } else text(page, value, textBox, Number(a(runProps, "sz", "1200"))/100, hex, a(runProps, "b") === "1", a(one(paras[0], "pPr"), "algn", "l"), a(body, "anchor", "t"));
+        const href = mapped.links?.[name];
+        if (href && /^https?:\/\//.test(href)) {
+          page.node.addAnnot(pdf.context.register(pdf.context.obj({
+            Type: "Annot", Subtype: "Link", Rect: [b.x, height - b.y - b.h, b.x + b.w, height - b.y],
+            Border: [0, 0, 0], A: { S: PDFName.of("URI"), URI: PDFString.of(href) },
+          })));
+        }
       } else if (shape.localName === "graphicFrame") {
+        const table = all(shape, "tbl")[0];
+        if (table) {
+          const name = a(all(shape, "cNvPr")[0], "name"), model = mapped.tables?.[name];
+          if (!model) throw new Error(`Unmapped dashboard table: ${name}`);
+          const b = box(one(shape, "xfrm")), columns = els(one(table, "tblGrid"), "gridCol").map(c => emu(a(c, "w")));
+          let y = b.y;
+          els(table, "tr").forEach((row, r) => {
+            const h = emu(a(row, "h"));
+            let x = b.x;
+            els(row, "tc").forEach((cell, col) => {
+              const cp = one(cell, "tcPr"), tx = one(cell, "txBody"), rp = all(tx!, "rPr")[0], p = one(tx, "p");
+              const w = columns[col]!, background = fill(cp), color = model.tones?.[`${r}:${col}`] ?? fill(rp)?.hex ?? "3A3A3B";
+              if (background) rect(page, { x, y, w, h }, background.hex);
+              text(page, model.rows[r]?.[col] ?? UNMAPPED, { x: x + 4, y: y + 3, w: Math.max(1, w - 8), h: Math.max(1, h - 6) }, Number(a(rp, "sz", "1000"))/100, color, a(rp, "b") === "1", a(one(p, "pPr"), "algn", "l"), "ctr");
+              x += w;
+            });
+            y += h;
+          });
+          continue;
+        }
         const chartRef = all(shape, "chart")[0];
         if (!chartRef) continue;
         const rel = chartRef.getAttribute("r:id") || "";
@@ -220,7 +290,7 @@ export async function exportMonthlyDashboardPdf(report: QaqcReportExport): Promi
         page.drawImage(image, { x: b.x, y: height - b.y - b.h, width: b.w, height: b.h });
       }
     }
-    text(page, "Algihaz · QA/QC Monthly Dashboard", { x: 36, y: height - 23, w: width - 100, h: 14 }, 9, "66666A");
+    text(page, options.footer, { x: 36, y: height - 23, w: width - 100, h: 14 }, 9, "66666A");
     if (index === 3 && mapped.statusMismatch) text(page, "Status tags total differs from total items", { x: 36, y: height - 42, w: width - 72, h: 14 }, 10, "C0392B", true);
   }
   return Buffer.from(await pdf.save());
