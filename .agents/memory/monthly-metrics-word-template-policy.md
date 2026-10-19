@@ -24,3 +24,11 @@ included project count. Preserve organization, project and own/full visibility.
 **Why:** The user explicitly requested the available-report average even when
 other projects have not yet submitted. This is a PDF-only exception; do not change
 the existing form/dashboard completeness policy.
+
+Draft reports must not contribute to the PDF's portfolio PQI. When there are no
+eligible submitted/approved reports, display “No submitted reports”, not a missing
+mapping marker or an invented zero average.
+
+**Why:** The user explicitly confirmed submitted/approved-only eligibility after
+an October report returned zero contributors because the saved reports were drafts.
+The count caption must include the actual reporting month and year.

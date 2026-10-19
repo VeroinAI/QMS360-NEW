@@ -55,12 +55,17 @@ describe("Customer Word monthly metrics report",()=>{
   });
   it("prints the live average with its report count and removes the old pending explanation",async()=>{
     const {text}=await mapped();
-    expect(text).toContain("37.5 (Total monthly report for project is -> 2)");
+    expect(text).toContain("37.5 (Total monthly report for reporting period (October, 2026) submitted -> 2)");
+    expect(text).not.toContain("Total monthly report for project is");
     expect(text).not.toContain("stays pending until every");
     const none=await mapped({...report,monthlyDownloadPqi:{average:null,projectCount:0}});
-    expect(none.text).toContain("To be mapped (Total monthly report for project is -> 0)");
+    expect(none.text).toContain("No submitted reports (Total monthly report for reporting period (October, 2026) submitted -> 0)");
     const zero=await mapped({...report,monthlyDownloadPqi:{average:0,projectCount:1}});
-    expect(zero.text).toContain("0.0 (Total monthly report for project is -> 1)");
+    expect(zero.text).toContain("0.0 (Total monthly report for reporting period (October, 2026) submitted -> 1)");
+    const missingScore=await mapped({...report,monthlyDownloadPqi:{average:null,projectCount:1}});
+    expect(missingScore.text).toContain("To be mapped (Total monthly report for reporting period (October, 2026) submitted -> 1)");
+    const differentMonth=await mapped({...report,period:"2027-01-01"});
+    expect(differentMonth.text).toContain("reporting period (January, 2027) submitted -> 2");
   });
   it("handles no meetings/reports, inapplicable fields and unconfirmed drafts truthfully",async()=>{
     const {text}=await mapped({...report,data:{...data,meetings:[],qmsReports:[],pqpStatus:"Under Preparation",internalAudit:{conducted:false},material:{...data.material,osdAvailable:false},assessmentConfirmed:false},submittedAt:null,submittedByName:null});
@@ -113,6 +118,13 @@ describe("Customer Word monthly metrics report",()=>{
     const {text,xml}=await mapped({...report,data:{...data,narrative:"Safety <review> & quality\n".repeat(100)}});
     expect(xml).toContain("&lt;review&gt; &amp;");expect(text.match(/Safety/g)).toHaveLength(100);
   });
+  it("renders the no-submissions message in the PDF without substituting a zero average",async()=>{
+    const bytes=await exportQaqcReportPdf({...report,monthlyDownloadPqi:{average:null,projectCount:0}},{templateId:"monthly-metrics"});
+    const pdf=await PDFDocument.load(bytes);
+    expect(pdf.getPageCount()).toBeGreaterThan(0);
+    await mkdir("../../generated-artifacts",{recursive:true});
+    await writeFile("../../generated-artifacts/qaqc-monthly-empty-average-preview.pdf",bytes);
+  },30000);
   it("keeps a missing field distinct from actual zero",async()=>{
     const {text}=await mapped({...report,computed:{},data:{},baseline:{}});
     expect(text).toContain("To be mapped");expect(text).not.toContain("90.4");expect(text).not.toContain("88.7");

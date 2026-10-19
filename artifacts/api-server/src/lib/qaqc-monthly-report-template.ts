@@ -176,7 +176,9 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
     i === 2 && num(v) !== undefined && Number(v) > 0 ? `+${decimal(v)}` : decimal(v),1,i === 2 ? tone(v) : undefined));
   put(29,0,2,num(pqi.variance) === undefined ? UNMAPPED : Number(pqi.variance)>0 ? "▲ improved vs last month" : Number(pqi.variance)<0 ? "▼ declined vs last month" : "● no change",2,tone(pqi.variance));
   const downloadPqi = report.monthlyDownloadPqi;
-  put(31,0,1,`${decimal(downloadPqi?.average)}${downloadPqi ? ` (Total monthly report for project is -> ${downloadPqi.projectCount})` : ""}`,0);
+  const downloadAverage = downloadPqi?.projectCount === 0 ? "No submitted reports" : decimal(downloadPqi?.average);
+  const reportingPeriod = period(report.period).replace(/ (\d{4})$/, ", $1");
+  put(31,0,1,`${downloadAverage}${downloadPqi ? ` (Total monthly report for reporting period (${reportingPeriod}) submitted -> ${downloadPqi.projectCount})` : ""}`,0);
   put(31,0,1,"Average of saved ‘Acc. till this month’ scores from authorized submitted/approved project reports for this month, calculated at download time.",1);
   [[mat.previousIssued,mat.issued,mat.accumulatedIssued], [mat.previousClosed,mat.closed,mat.accumulatedClosed],
     [num(mat.previousIssued)! - num(mat.previousClosed)!, "—", mat.open],
