@@ -12,6 +12,7 @@ export type QaqcReportExport = {
   projectCode?: string | null;
   costCentre?: string | null;
   submittedByName?: string | null;
+  submittedByDesignation?: string | null;
   createdByName?: string | null;
   projectTeam?: { pmName?: string | null; peName?: string | null; dcName?: string | null };
   organizationTimezone?: string | null;

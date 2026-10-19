@@ -131,7 +131,7 @@ async function getReport(req: any, id: string) {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dailySettings[key]) ? dailySettings[key] as string : null;
   const actorIds = [...new Set([...audit.map((entry) => entry.actorId), report.submittedById, report.createdById,
     ...["pmId","peId","dcId"].map(teamId)].filter((id): id is string => !!id))];
-  const actors = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName }).from(users)
+  const actors = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
     .where(and(eq(users.organizationId, organizationId(req)), inArray(users.id, actorIds))) : [];
   const actorNames = new Map(actors.map((user) => [user.id, user.fullName]));
   const [dailyOrganization] = report.reportType === "daily"
@@ -150,6 +150,7 @@ async function getReport(req: any, id: string) {
       return typeof value === "string" || typeof value === "number" ? String(value) : null;
     })(),
     submittedByName: report.submittedById ? actorNames.get(report.submittedById) ?? null : null,
+    submittedByDesignation: report.submittedById ? actors.find(user => user.id === report.submittedById)?.designation ?? null : null,
     ...(report.reportType === "daily" ? {
       createdByName:actorNames.get(report.createdById) ?? null,
       organizationTimezone:dailyOrganization?.timezone ?? null,

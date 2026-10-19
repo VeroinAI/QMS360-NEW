@@ -27,7 +27,7 @@ const report: QaqcReportExport={
   id:"preview-report",organizationId:"example-org",projectId:"example-project",
   projectName:"Example Construction Project",costCentre:"CC-900",period:"2026-10-01",state:"draft",reportType:"monthly",
   data,computed:calculateReport("monthly",data,baseline,{}),baseline,
-  submittedByName:"Report Submitter",submittedAt:"2026-10-31T12:00:00Z",
+  submittedByName:"Report Submitter",submittedByDesignation:"Corporate QA/QC Manager",submittedAt:"2026-10-31T12:00:00Z",
   monthlyDownloadPqi:{average:37.5,projectCount:2},
 };
 async function mapped(r=report) {
@@ -66,6 +66,19 @@ describe("Customer Word monthly metrics report",()=>{
     expect(missingScore.text).toContain("To be mapped (Total monthly report for reporting period (October, 2026) submitted -> 1)");
     const differentMonth=await mapped({...report,period:"2027-01-01"});
     expect(differentMonth.text).toContain("reporting period (January, 2027) submitted -> 2");
+  });
+  it("prints the submitter's saved designation and keeps missing designations explicit",async()=>{
+    const submittedBy = (body: Awaited<ReturnType<typeof mapped>>["body"]) =>
+      children(body,"tbl").find(t=>t.textContent?.includes("SUBMITTED BY"))!;
+    const actual = await mapped();
+    const cells = children(children(submittedBy(actual.body),"tr")[0]!,"tc");
+    expect(children(cells[1]!,"p").map(p=>p.textContent))
+      .toEqual(["SUBMITTED BY","Report Submitter","Corporate QA/QC Manager"]);
+    for (const designation of [undefined,null,"","   "]) {
+      const missing = await mapped({...report,submittedByDesignation:designation});
+      const missingCells = children(children(submittedBy(missing.body),"tr")[0]!,"tc");
+      expect(children(missingCells[1]!,"p")[2]!.textContent).toBe("To be mapped");
+    }
   });
   it("handles no meetings/reports, inapplicable fields and unconfirmed drafts truthfully",async()=>{
     const {text}=await mapped({...report,data:{...data,meetings:[],qmsReports:[],pqpStatus:"Under Preparation",internalAudit:{conducted:false},material:{...data.material,osdAvailable:false},assessmentConfirmed:false},submittedAt:null,submittedByName:null});

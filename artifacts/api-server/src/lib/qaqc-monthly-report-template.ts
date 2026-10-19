@@ -240,7 +240,7 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   rebuild(50,d.qmsReports,r => [r.department,r.type,r.documentName,r.status,r.remarks],"No QMS document register rows added");
   body.removeChild(blocks[51]!);
   put(53,0,0,confirmation,1,d.assessmentConfirmed === true ? "2E7D32" : "66666A");
-  put(53,0,1,report.submittedByName,1); put(53,0,1,UNMAPPED,2); // No report signatory title captured.
+  put(53,0,1,report.submittedByName,1); put(53,0,1,report.submittedByDesignation?.trim() || null,2);
   put(53,0,2,monthlyDate(report.submittedAt),1); put(53,0,2,`Report ID  ${text(report.referenceNumber ?? report.id)}`,2);
   // Explicitly remove the reviewer appendix, sample header, comments and sample footer.
   for (const block of blocks.slice(54)) if (block.localName !== "sectPr") body.removeChild(block);
