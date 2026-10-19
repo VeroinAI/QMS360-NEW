@@ -73,7 +73,7 @@ export function MetricsReportList() {
     if (!canExport || downloading) return;
     setDownloading(r.id);
     try {
-      const res = await exportQaqcSowReport(r.id, undefined, { headers: { Accept: 'application/pdf' } });
+      const res = await exportQaqcSowReport(r.id, { templateId: 'monthly-metrics' }, { headers: { Accept: 'application/pdf' } });
       saveFile(res, `monthly-report-${(r.projectName ?? r.projectId).replace(/[^\w-]+/g, '-')}-${String(r.period).slice(0, 7)}.pdf`);
       toast({ title: 'Download started', description: `${r.projectName ?? r.projectId} - ${formatMonthYear(r.period)}` });
     } catch (e) {

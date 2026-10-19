@@ -128,6 +128,9 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   for (const name of ["audit-plan-template.pdf", "lesson-learned-template.pdf", "car-report-template.docx", "audit-report-template.pptx", "DejaVuSans.ttf", "DejaVuSans-Bold.ttf", "audit-plan-font-license.txt"]) {
     await copyFile(path.join(artifactDir, "src/assets", name), path.join(distDir, name));
   }
+  for (const name of ["qaqc-monthly-report-template.docx", "Carlito-Regular.ttf", "Carlito-Bold.ttf", "Carlito-Italic.ttf", "Carlito-BoldItalic.ttf", "Carlito-OFL.txt"]) {
+    await copyFile(path.join(artifactDir, "src/assets", name), path.join(distDir, name));
+  }
 }
 
 buildAll().catch((err) => {

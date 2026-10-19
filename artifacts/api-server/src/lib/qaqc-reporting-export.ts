@@ -10,6 +10,8 @@ export type QaqcReportExport = {
   projectId: string;
   projectName?: string | null;
   projectCode?: string | null;
+  costCentre?: string | null;
+  submittedByName?: string | null;
   reportType: ReportingType | string;
   period: string;
   state: string;
@@ -184,6 +186,12 @@ async function makePdf(title: string, sections: Array<[string, unknown]>) {
 }
 
 export async function exportQaqcReportPdf(report: QaqcReportExport, options: { templateId?: string } = {}): Promise<Buffer> {
+  // Opt-in from the Metrics landing page only. Other downloads, managed PDF
+  // templates and scheduled email attachments keep their existing behavior.
+  if (report.reportType === "monthly" && options.templateId === "monthly-metrics") {
+    const { exportMonthlyMetricsPdf } = await import("./qaqc-monthly-report-pdf");
+    return exportMonthlyMetricsPdf(report);
+  }
   report = formatPresentationData(report);
   const title = `${report.reportType.toUpperCase()} QA/QC Report`;
   const metadata = {

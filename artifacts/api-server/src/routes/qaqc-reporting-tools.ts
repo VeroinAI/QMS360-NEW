@@ -116,7 +116,7 @@ async function getReport(req: any, id: string) {
   if (!safeType(report.reportType)) throw new HttpError(404, "QA/QC report type is invalid");
   const access = await reportAccess(req, report.reportType);
   if (!canReadReport(req, access, report)) throw new HttpError(404, "QA/QC report was not found in your authorized project scope");
-  const [project] = await db.select({ name: projects.name, code: projects.code }).from(projects)
+  const [project] = await db.select({ name: projects.name, code: projects.code, customFields: projects.customFields }).from(projects)
     .where(and(eq(projects.id, report.projectId), eq(projects.organizationId, organizationId(req)), isNull(projects.deletedAt))).limit(1);
   const audit = await db.select({
     id: auditLogEntries.id, action: auditLogEntries.action, actorId: auditLogEntries.actorId,
@@ -125,7 +125,7 @@ async function getReport(req: any, id: string) {
     eq(auditLogEntries.organizationId, organizationId(req)), eq(auditLogEntries.entityType, "qaqc_report"),
     eq(auditLogEntries.entityId, report.id),
   )).orderBy(auditLogEntries.createdAt);
-  const actorIds = [...new Set(audit.map((entry) => entry.actorId).filter((id): id is string => !!id))];
+  const actorIds = [...new Set([...audit.map((entry) => entry.actorId), report.submittedById].filter((id): id is string => !!id))];
   const actors = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName }).from(users)
     .where(and(eq(users.organizationId, organizationId(req)), inArray(users.id, actorIds))) : [];
   const actorNames = new Map(actors.map((user) => [user.id, user.fullName]));
@@ -135,6 +135,12 @@ async function getReport(req: any, id: string) {
     )).orderBy(asc(reportTemplates.name));
   return {
     ...report, projectName: project?.name ?? null, projectCode: project?.code ?? null,
+    costCentre: (() => {
+      const fields = jsonObject(project?.customFields);
+      const value = fields.costCentre ?? fields.cost_centre;
+      return typeof value === "string" || typeof value === "number" ? String(value) : null;
+    })(),
+    submittedByName: report.submittedById ? actorNames.get(report.submittedById) ?? null : null,
     reportTemplates: templates.map((template) => ({ name: template.name, template: safeTemplateMetadata(jsonObject(template.template)) })),
     history: audit.map(({ after, ...entry }) => ({
       ...entry, actorName: entry.actorId ? actorNames.get(entry.actorId) ?? "Former or unavailable user" : "System",
