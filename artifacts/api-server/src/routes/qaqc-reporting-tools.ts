@@ -21,6 +21,7 @@ import {
 } from "../lib/qaqc-reporting-excel";
 import { buildQaqcReportingDashboard } from "./qaqc-reporting";
 import { safeTemplateMetadata } from "../lib/qaqc-pdf-templates";
+import { monthlyDownloadAverage } from "../lib/qaqc-monthly-download-average";
 import type { QaqcOperation } from "@workspace/field-controls";
 
 const router: IRouter = Router();
@@ -271,7 +272,29 @@ router.get("/reports/:id/export", asyncHandler(async (req, res) => {
   const exportAccess = await reportAccess(req, report.reportType as ReportingType, "export");
   if (!canReadReport(req, exportAccess, report)) throw new HttpError(403, "Export is not permitted for this report");
   const name = `qaqc-${report.reportType}-${report.period}-${report.referenceNumber ?? report.id}`;
-  const bytes = format === "pdf" ? await exportQaqcReportPdf(report, { templateId: selectedTemplateId(req) }) : exportQaqcReportExcel(report);
+  const templateId = selectedTemplateId(req);
+  if (format === "pdf" && report.reportType === "monthly" && templateId === "monthly-metrics") {
+    // Read live snapshots at download time, never a cached form portfolio average.
+    const access = await reportAccess(req, "monthly");
+    const snapshots = await db.select({
+      projectId: qaqcReportSubmissions.projectId,
+      createdById: qaqcReportSubmissions.createdById,
+      approverId: qaqcReportSubmissions.approverId,
+      computed: qaqcReportSubmissions.computed,
+    }).from(qaqcReportSubmissions).innerJoin(projects, and(
+      eq(projects.id, qaqcReportSubmissions.projectId),
+      eq(projects.organizationId, organizationId(req)), isNull(projects.deletedAt),
+    )).where(and(
+      eq(qaqcReportSubmissions.organizationId, organizationId(req)),
+      eq(qaqcReportSubmissions.reportType, "monthly"),
+      eq(qaqcReportSubmissions.period, report.period),
+      inArray(qaqcReportSubmissions.state, ["submitted", "approved"]),
+      isNull(qaqcReportSubmissions.deletedAt),
+      !access.scope.unrestricted ? inArray(qaqcReportSubmissions.projectId, access.scope.projectIds) : undefined,
+    ));
+    report.monthlyDownloadPqi = monthlyDownloadAverage(snapshots.filter(row => canReadReport(req, access, row)));
+  }
+  const bytes = format === "pdf" ? await exportQaqcReportPdf(report, { templateId }) : exportQaqcReportExcel(report);
   download(res, `${name}.${format}`, format === "pdf" ? "application/pdf" : qaqcReportingWorkbookMimeType, bytes);
 }));
 

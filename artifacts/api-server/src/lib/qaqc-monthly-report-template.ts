@@ -113,8 +113,16 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   put(11, 0, 3, pqpNA ? "Not applicable" : monthlyDate(d.pqpSubmittedDate));
   put(11, 1, 1, /^Approved [ABC]$/.test(d.pqpStatus ?? "") ? monthlyDate(d.pqpApprovedDate) : "Not applicable");
   put(14, 0, 1, d.reportReference); put(14, 0, 3, monthlyDate(d.reportFrom)); put(14, 1, 1, monthlyDate(d.reportTo));
-  // Last meeting date is the occurrence date; next planned date is not an outcome.
-  rebuild(16, d.meetings, r => [r.type, monthlyDate(r.lastDate), UNMAPPED, UNMAPPED], "No meeting added");
+  // Keep only the requested Meeting type and Date columns, with source styling.
+  const meetingTable = blocks[16]!, meetingGrid = child(meetingTable, "tblGrid")!;
+  children(meetingGrid).slice(2).forEach(col => meetingGrid.removeChild(col));
+  children(meetingGrid).forEach((col, i) => col.setAttributeNS(W, "w:w", String([6438, 3200][i])));
+  children(meetingTable, "tr").forEach(row => {
+    children(row, "tc").slice(2).forEach(cell => row.removeChild(cell));
+    children(row, "tc").forEach((cell, i) =>
+      child(child(cell, "tcPr"), "tcW")!.setAttributeNS(W, "w:w", String([6438, 3200][i])));
+  });
+  rebuild(16, d.meetings, r => [r.type, monthlyDate(r.lastDate)], "No meeting added");
   para(17, `${rows(d.meetings).length} meetings conducted this month.`);
   const audit = d.internalAudit ?? {};
   put(19, 0, 1, typeof audit.conducted === "boolean" ? audit.conducted ? "Yes" : "No" : UNMAPPED);
@@ -167,8 +175,9 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   [pqi.previous,pqi.accumulated,pqi.variance,pqi.monthly].forEach((v,i) => put(29,0,i,
     i === 2 && num(v) !== undefined && Number(v) > 0 ? `+${decimal(v)}` : decimal(v),1,i === 2 ? tone(v) : undefined));
   put(29,0,2,num(pqi.variance) === undefined ? UNMAPPED : Number(pqi.variance)>0 ? "▲ improved vs last month" : Number(pqi.variance)<0 ? "▼ declined vs last month" : "● no change",2,tone(pqi.variance));
-  put(31,0,1,UNMAPPED,0);
-  // No cross-project aggregate is read here: preserve report/project RBAC.
+  const downloadPqi = report.monthlyDownloadPqi;
+  put(31,0,1,`${decimal(downloadPqi?.average)}${downloadPqi ? ` (Total monthly report for project is -> ${downloadPqi.projectCount})` : ""}`,0);
+  put(31,0,1,"Average of saved ‘Acc. till this month’ scores from authorized submitted/approved project reports for this month, calculated at download time.",1);
   [[mat.previousIssued,mat.issued,mat.accumulatedIssued], [mat.previousClosed,mat.closed,mat.accumulatedClosed],
     [num(mat.previousIssued)! - num(mat.previousClosed)!, "—", mat.open],
     [num(mat.previousIssued) === undefined || num(mat.previousClosed) === undefined ? UNMAPPED

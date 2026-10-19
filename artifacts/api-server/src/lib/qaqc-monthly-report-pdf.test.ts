@@ -28,6 +28,7 @@ const report: QaqcReportExport={
   projectName:"Example Construction Project",costCentre:"CC-900",period:"2026-10-01",state:"draft",reportType:"monthly",
   data,computed:calculateReport("monthly",data,baseline,{}),baseline,
   submittedByName:"Report Submitter",submittedAt:"2026-10-31T12:00:00Z",
+  monthlyDownloadPqi:{average:37.5,projectCount:2},
 };
 async function mapped(r=report) {
   const result=await buildMonthlyReportDocument(r);
@@ -44,11 +45,22 @@ describe("Customer Word monthly metrics report",()=>{
     const {body}=await mapped();
     const tables=children(body,"tbl");
     const meeting=tables.find(t=>t.textContent?.includes("Meeting type"))!;
-    expect(meeting.textContent).toContain("10-10-2026To be mappedTo be mapped");
+    expect(children(meeting,"tr").map(row=>children(row,"tc").map(c=>c.textContent)))
+      .toEqual([["Meeting type","Date"],["Internal Meeting","10-10-2026"]]);
+    expect(meeting.textContent).not.toMatch(/Participants|Key outcome/);
     const ageing=tables.find(t=>t.textContent?.includes("NCR type"))!;
     expect(children(children(ageing,"tr")[1]!,"tc").map(c=>c.textContent).slice(1,4)).toEqual(["2","0","0"]);
     const qms=tables.find(t=>t.textContent?.includes("Document Name")&&t.textContent?.includes("Actual Document"))!;
     expect(qms.textContent).toContain("QualitySOPActual DocumentApproved & PublishedActual QMS remarks");
+  });
+  it("prints the live average with its report count and removes the old pending explanation",async()=>{
+    const {text}=await mapped();
+    expect(text).toContain("37.5 (Total monthly report for project is -> 2)");
+    expect(text).not.toContain("stays pending until every");
+    const none=await mapped({...report,monthlyDownloadPqi:{average:null,projectCount:0}});
+    expect(none.text).toContain("To be mapped (Total monthly report for project is -> 0)");
+    const zero=await mapped({...report,monthlyDownloadPqi:{average:0,projectCount:1}});
+    expect(zero.text).toContain("0.0 (Total monthly report for project is -> 1)");
   });
   it("handles no meetings/reports, inapplicable fields and unconfirmed drafts truthfully",async()=>{
     const {text}=await mapped({...report,data:{...data,meetings:[],qmsReports:[],pqpStatus:"Under Preparation",internalAudit:{conducted:false},material:{...data.material,osdAvailable:false},assessmentConfirmed:false},submittedAt:null,submittedByName:null});

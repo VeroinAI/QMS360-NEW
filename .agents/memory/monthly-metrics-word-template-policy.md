@@ -15,3 +15,12 @@ input screen's buckets in the monthly PDF only.
 **Why:** The original template requested bands the form does not collect, leaving
 unnecessary mapping gaps. Match the actual entry definitions, rather than changing
 the form or attempting to divide saved bucket counts into different ranges.
+
+The monthly PDF's portfolio PQI uses submitted/approved reports already available
+for that month at download time, not the form's completeness-gated portfolio
+calculation. Show the average of their saved accumulated PQI scores and the
+included project count. Preserve organization, project and own/full visibility.
+
+**Why:** The user explicitly requested the available-report average even when
+other projects have not yet submitted. This is a PDF-only exception; do not change
+the existing form/dashboard completeness policy.
