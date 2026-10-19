@@ -144,6 +144,7 @@ async function getReport(req: any, id: string) {
   return {
     ...report, projectName: project?.name ?? null, projectCode: project?.code ?? null,
     projectLocation: project?.location ?? null,
+    projectAdditionalData: jsonObject(jsonObject(project?.customFields).qmsAdditionalData),
     costCentre: (() => {
       const fields = jsonObject(project?.customFields);
       const value = fields.costCentre ?? fields.cost_centre;

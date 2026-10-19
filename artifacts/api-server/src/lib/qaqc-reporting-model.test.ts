@@ -206,6 +206,23 @@ describe("QA/QC SOW report model", () => {
     expect(validateReportData("csat", { ratings, expectations: "Yes", recommend: "Partially" }, {}, true).valid).toBe(true);
     expect((calculateReport("csat", { ratings }, {}, {}) as any).averageRating).toBe(4);
   });
+  it("requires a preferred contact method when follow-up is Yes on save and submission", () => {
+    const data = {
+      ratings: { quality: 5, timeline: 4, communication: 3, professionalism: 4, valueForMoney: 5, issueHandling: 3 },
+      expectations: "Yes", recommend: "Partially", followUp: "Yes",
+    };
+    for (const submit of [false, true]) {
+      for (const preferredContactMethod of [undefined, "", "   "]) {
+        expect(validateReportData("csat", { ...data, preferredContactMethod }, {}, submit).errors)
+          .toContain("preferredContactMethod is required when follow-up is Yes");
+      }
+      expect(validateReportData("csat", { ...data, preferredContactMethod: "Email customer@example.test" }, {}, submit).valid).toBe(true);
+      expect(validateReportData("csat", { ...data, followUp: "No" }, {}, submit).valid).toBe(true);
+      expect(validateReportData("csat", { ...data, followUp: undefined }, {}, submit).valid).toBe(true);
+      expect(validateReportData("csat", { ...data, followUp: "Maybe" }, {}, submit).errors).toContain("followUp must be Yes or No");
+      expect(validateReportData("csat", { ...data, preferredContactMethod: ["Email"] }, {}, submit).errors).toContain("preferredContactMethod must be text");
+    }
+  });
 
   it("returns validation errors instead of crashing on missing narrative or malformed row arrays", () => {
     expect(() => validateReportData("monthly", {

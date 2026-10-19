@@ -1361,9 +1361,9 @@ paths:
   /qaqc/admin/users/{userId}/roles/{id}:
     delete: {operationId: removeQaqcUserRole, tags: [qaqc-admin], summary: Remove an assigned role, parameters: [{$ref: "#/components/parameters/UserId"}, {$ref: "#/components/parameters/Id"}], responses: {"204": {description: Removed}}}
   /qaqc/admin/access-queue:
-    get: {operationId: listQaqcAccessQueue, tags: [qaqc-admin], summary: List pending access requests, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
+    get: {operationId: listQaqcAccessQueue, deprecated: true, tags: [qaqc-admin], summary: Retired access queue (always empty; active roles grant entry), parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
   /qaqc/admin/access-queue/{id}/decision:
-    post: {operationId: decideQaqcAccessRequest, tags: [qaqc-admin], summary: Decide an access request, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"200": {description: Decided}}}
+    post: {operationId: decideQaqcAccessRequest, deprecated: true, tags: [qaqc-admin], summary: Retired application approval, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"410": {description: Application entry now follows active role assignments}}}
   /qaqc/admin/delegations:
     get: {operationId: listQaqcDelegations, tags: [qaqc-admin], summary: List delegations, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/DelegationPage"}}}
     post: {operationId: createQaqcDelegation, tags: [qaqc-admin], summary: Create delegation, requestBody: {$ref: "#/components/requestBodies/Delegation"}, responses: {"201": {description: Created}}}
@@ -1532,9 +1532,9 @@ paths:
   /lessons/users/{userId}/signature:
     get: {operationId: getUserSignature, tags: [lessons], summary: Stream a user's signature image, parameters: [{$ref: "#/components/parameters/UserId"}], responses: {"200": {description: Signature image, content: {image/png: {}, image/jpeg: {}, image/webp: {}}}}}
   /lessons/admin/access-queue:
-    get: {operationId: listLessonsAccessQueue, tags: [lessons-admin], summary: List access queue, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
+    get: {operationId: listLessonsAccessQueue, deprecated: true, tags: [lessons-admin], summary: Retired access queue (always empty; active roles grant entry), parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
   /lessons/admin/access-queue/{id}/decision:
-    post: {operationId: decideLessonsAccessRequest, tags: [lessons-admin], summary: Decide access request, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"200": {description: Decided}}}
+    post: {operationId: decideLessonsAccessRequest, deprecated: true, tags: [lessons-admin], summary: Retired application approval, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"410": {description: Application entry now follows active role assignments}}}
   /lessons/admin/delegations:
     get: {operationId: listLessonsDelegations, tags: [lessons-admin], summary: List lesson delegations, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {description: Paginated lesson delegations, content: {application/json: {schema: {$ref: "#/components/schemas/LessonDelegationPage"}}}}}}
     post: {operationId: createLessonsDelegation, tags: [lessons-admin], summary: Create a selected-form lesson delegation, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonDelegationInput"}}}}, responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/LessonDelegation"}}}}}}
@@ -1958,7 +1958,7 @@ paths:
   /audit/admin/users/{userId}/roles/{id}:
     delete: {operationId: removeAuditUserRole, tags: [audit-admin], summary: Remove an assigned role, parameters: [{$ref: "#/components/parameters/UserId"}, {$ref: "#/components/parameters/Id"}], responses: {"204": {description: Removed}}}
   /audit/admin/access-queue:
-    get: {operationId: listAuditAccessQueue, tags: [audit-admin], summary: List access queue, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
+    get: {operationId: listAuditAccessQueue, deprecated: true, tags: [audit-admin], summary: Retired access queue (always empty; active roles grant entry), parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
   /audit/admin/plan-numbering:
     get: {operationId: getAuditPlanNumbering, tags: [audit-admin], summary: Read Audit Plan yearly project and department numbering, responses: {"200": {description: Numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingSettings"}}}}}}
     put: {operationId: updateAuditPlanNumbering, tags: [audit-admin], summary: Save Audit Plan number format without resetting counters, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}, responses: {"200": {description: Saved pattern, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}}}
@@ -2037,7 +2037,7 @@ paths:
     get: {operationId: getAuditScheduleNumbering, tags: [audit-admin], summary: Get separate Audit Schedule field numbering settings, responses: {"200": {description: Schedule numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}}}
     put: {operationId: updateAuditScheduleNumbering, tags: [audit-admin], summary: Set Audit Schedule field prefixes and ranges, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}, responses: {"200": {description: Saved settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}}}
   /audit/admin/access-queue/{id}/decision:
-    post: {operationId: decideAuditAccessRequest, tags: [audit-admin], summary: Decide access request, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"200": {description: Decided}}}
+    post: {operationId: decideAuditAccessRequest, deprecated: true, tags: [audit-admin], summary: Retired application approval, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"410": {description: Application entry now follows active role assignments}}}
   /audit/admin/delegations:
     get: {operationId: listAuditDelegations, tags: [audit-admin], summary: List delegations, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/DelegationPage"}}}
     post: {operationId: createAuditDelegation, tags: [audit-admin], summary: Create delegation, requestBody: {$ref: "#/components/requestBodies/Delegation"}, responses: {"201": {description: Created}}}
@@ -2953,6 +2953,7 @@ components:
       additionalProperties: false
       required: [client, contractor, contractProjectNumber, contractSigned, contractPeriod, tcc, pac, fac]
       properties:
+        name: {type: ["string", "null"], maxLength: 500}
         client: {type: ["string", "null"], maxLength: 500}
         contractor: {type: ["string", "null"], maxLength: 500}
         contractProjectNumber: {type: ["string", "null"], maxLength: 500}

@@ -10,6 +10,7 @@ const fields: Array<[keyof ProjectAdditionalData, string]> = [
   ['client', 'Client'], ['contractor', 'Contractor'],
   ['contractProjectNumber', 'Contract / project no.'], ['contractSigned', 'Contract signed'],
   ['contractPeriod', 'Contract period'], ['tcc', 'TCC'], ['pac', 'PAC'], ['fac', 'FAC'],
+  ['name', 'Name'],
   ['email', 'Email address'], ['phone', 'Phone'],
 ];
 
@@ -28,6 +29,7 @@ export function ProjectAdditionalDataEditor({ record, canEdit, onSaved, onPendin
     return () => onPendingChange(false);
   }, [update.isPending, onPendingChange]);
   const normalized: ProjectAdditionalData = {
+    name: values.name.trim() || null,
     client: values.client.trim() || null, contractor: values.contractor.trim() || null,
     contractProjectNumber: values.contractProjectNumber.trim() || null, contractSigned: values.contractSigned.trim() || null,
     contractPeriod: values.contractPeriod.trim() || null, tcc: values.tcc.trim() || null,

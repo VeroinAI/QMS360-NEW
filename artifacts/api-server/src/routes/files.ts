@@ -5,7 +5,7 @@ import { Readable } from "node:stream";
 import express, { Router, type IRouter } from "express";
 import { and, eq, isNull } from "drizzle-orm";
 import {
-  applicationAccess, auditFindings, auditPlans, auditSchedules, audits, correctiveActionReports, customerSatisfactionEntries,
+  auditFindings, auditPlans, auditSchedules, audits, correctiveActionReports, customerSatisfactionEntries,
   db, documentGovernanceLogEntries, lessonLearnedForms, materialInspectionEntries, qaqcMetricEntries,
   qualityAssessmentBriefs, qtbtEntries,
 } from "@workspace/db";
@@ -34,11 +34,6 @@ async function findEvidence(id: string, organizationId: string) {
   return null;
 }
 
-const appAccessColumns = {
-  qaqc: applicationAccess.canOpenQaqc,
-  lessons: applicationAccess.canOpenLessons,
-  audit: applicationAccess.canOpenAudit,
-};
 type EvidenceParent = {
   projectId: string | null;
   projectIds?: string[];
@@ -139,14 +134,6 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
 
 async function authorizeEvidence(req: express.Request, found: NonNullable<Awaited<ReturnType<typeof findEvidence>>>, action: PermissionAction) {
   const user = req.currentUser!;
-  if (!["Super Admin", "Org Admin"].includes(user.platformRole)) {
-    const column = appAccessColumns[found.app];
-    const [access] = await db.select({ allowed: column }).from(applicationAccess).where(and(
-      eq(applicationAccess.organizationId, user.organizationId), eq(applicationAccess.username, user.username),
-      eq(column, true), isNull(applicationAccess.deletedAt),
-    )).limit(1);
-    if (!access) return false;
-  }
   const parent = await evidenceProject(found, user.organizationId);
   if (!parent) return false;
   const scope = await getAuthorizedProjectScope(req, found.app as RbacAppKey, { module: parent.module, action });

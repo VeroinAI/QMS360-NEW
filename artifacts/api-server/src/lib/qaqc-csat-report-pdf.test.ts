@@ -17,6 +17,29 @@ const report: QaqcReportExport = {
   },
 };
 describe("Customer Word CSAT PDF",()=>{
+  it("maps customer name and both contact fields from Project Master Additional Data",()=>{
+    const v=csatReportValues({...report,
+      submittedByName:"Report Submitter",
+      projectAdditionalData:{name:"  Project Contact  ",email:" quality@example.test ",phone:"+91 9876543210"},
+      data:{...report.data,followUp:"Yes",preferredContactMethod:"Email during office hours"},
+    });
+    expect(v.name).toBe("Project Contact");
+    expect(v.contact).toBe("quality@example.test / +91 9876543210");
+    expect(v.followUp).toBe("Yes");expect(v.contactMethod).toBe("Email during office hours");
+    expect(v.name).not.toBe("Report Submitter");
+  });
+  it("keeps available contact details and uses To be mapped only when unavailable",()=>{
+    expect(csatReportValues({...report,projectAdditionalData:{email:"quality@example.test",phone:null}}).contact).toBe("quality@example.test");
+    expect(csatReportValues({...report,projectAdditionalData:{phone:"+91 9876543210",email:""}}).contact).toBe("+91 9876543210");
+    const v=csatReportValues({...report,submittedByName:"Not the customer",projectAdditionalData:{name:" ",email:[],phone:null}});
+    expect(v.name).toBe("To be mapped");expect(v.contact).toBe("To be mapped");
+  });
+  it("maps saved follow-up responses and never prints a stale contact method for No",()=>{
+    const v=csatReportValues({...report,data:{...report.data,followUp:"Yes",preferredContactMethod:"Phone after 5pm"}});
+    expect(v.followUp).toBe("Yes");expect(v.contactMethod).toBe("Phone after 5pm");
+    const no=csatReportValues({...report,data:{...report.data,followUp:"No",preferredContactMethod:"Old preference"}});
+    expect(no.followUp).toBe("No");expect(no.contactMethod).toBe("To be mapped");
+  });
   it("maps actual six ratings, feedback, project, survey date and outcomes",()=>{
     const v=csatReportValues(report);
     expect(v.ratings).toEqual([5,4,3,5,2,1]);
@@ -38,7 +61,10 @@ describe("Customer Word CSAT PDF",()=>{
     expect(v.satisfactory).toBe("To be mapped");expect(v.comments).toBe("To be mapped");
   });
   it("exports the original one-page form using the common export API",async()=>{
-    const bytes=await exportQaqcReportPdf(report,{templateId:"csat-form"});
+    const bytes=await exportQaqcReportPdf({...report,
+      projectAdditionalData:{name:"Project Contact",email:"quality@example.test",phone:"+91 9876543210"},
+      data:{...report.data,followUp:"Yes",preferredContactMethod:"Email during office hours"},
+    },{templateId:"csat-form"});
     const pdf=await PDFDocument.load(bytes);
     expect(pdf.getPageCount()).toBe(1);
     expect(pdf.getTitle()).toContain("Example Construction Project");

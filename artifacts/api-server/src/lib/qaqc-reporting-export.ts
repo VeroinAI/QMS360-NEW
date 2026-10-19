@@ -18,6 +18,7 @@ export type QaqcReportExport = {
   organizationTimezone?: string | null;
   monthlyDownloadPqi?: { average: number | null; projectCount: number };
   projectLocation?: string | null;
+  projectAdditionalData?: Record<string, unknown> | null;
   reportType: ReportingType | string;
   period: string;
   state: string;

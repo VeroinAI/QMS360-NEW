@@ -3,7 +3,6 @@ import { restrictDronaProjects } from "../lib/drona/session";
 import { qaqcPermissionMatches, auditModulePermissionMatches, auditModuleReadMatches, type AuditOperation, type QaqcOperation } from "@workspace/field-controls";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import {
-  applicationAccess,
   auditPermissions,
   auditUserWorkspaceRoles,
   auditWorkspaceRolePermissions,
@@ -63,13 +62,24 @@ export async function getEffectiveProjectScope(userId: string, organizationId: s
   }).from(t.userRoles)
     .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
     .where(and(
-      eq(t.userRoles.userId, userId), eq(t.userRoles.organizationId, organizationId),
+      eq(t.userRoles.userId, userId), eq(t.userRoles.organizationId, organizationId), eq(t.roles.organizationId, organizationId),
       isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt), eq(t.roles.status, "active"),
     ));
   if (rows.some((row: any) => !(row.projectIds?.length) && !(row.businessUnitIds?.length))) {
     return { unrestricted: true, projectIds: [] };
   }
   return { unrestricted: false, projectIds: [...new Set(rows.flatMap((row: any) => row.projectIds ?? []))] };
+}
+
+/** Application entry follows active role assignments, never legacy access reviews. */
+export async function getRoleBasedApplicationAccess(user: { id: string; organizationId: string; platformRole: string }) {
+  const apps = ["qaqc", "lessons", "audit"] as const;
+  const allowed = await Promise.all(apps.map(async app => {
+    if (platformAdmins.has(user.platformRole)) return true;
+    const scope = await getEffectiveProjectScope(user.id, user.organizationId, app);
+    return scope.unrestricted || scope.projectIds.length > 0;
+  }));
+  return { qaqc: allowed[0]!, lessons: allowed[1]!, audit: allowed[2]! };
 }
 
 /** Platform project pickers combine all three application assignments. */
@@ -281,22 +291,12 @@ export function requireAppAccess(appKey: AppKey) {
       }
       return next();
     }
-    // Application approval and active QMS assignments are independent of Drona
-    // project membership. Each record operation applies the intersection below.
-    // In particular, an approved department-only Process Audit must remain usable.
+    // Entry follows active assignments. Record operations still apply Drona and
+    // capability-specific scope, including department-only Process Audits.
     const scope = await getEffectiveProjectScope(user.id, user.organizationId, appKey);
     if (!scope.unrestricted && !scope.projectIds.length) {
       return void res.status(403).json({ error: "You do not have access to any projects in this application" });
     }
-    const column = appKey === "qaqc" ? applicationAccess.canOpenQaqc
-      : appKey === "lessons" ? applicationAccess.canOpenLessons : applicationAccess.canOpenAudit;
-    const [access] = await db.select({ allowed: column }).from(applicationAccess).where(and(
-      eq(applicationAccess.organizationId, user.organizationId),
-      eq(applicationAccess.username, user.username),
-      eq(column, true),
-      isNull(applicationAccess.deletedAt),
-    )).limit(1);
-    if (!access) return void res.status(403).json({ error: "You do not have access to this application" });
     next();
   };
 }

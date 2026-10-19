@@ -78,4 +78,34 @@ describe('Customer Satisfaction (CSAT) feedback form', () => {
     }
     expect(validateCsat({ ...answered, recommend: 'Maybe' })).toHaveLength(1);
   });
+  it('shows mutually exclusive Yes/No checkboxes and reveals the required contact field only for Yes', () => {
+    const blank = render(answered);
+    expect(blank).toContain('Would you like us to follow up on your feedback?');
+    expect(blank.match(/type="checkbox"/g)).toHaveLength(2);
+    expect(blank).not.toContain('input-csat-preferred-contact-method');
+    const yes = render({ ...answered, followUp: 'Yes', preferredContactMethod: 'Email: customer@example.test' });
+    expect(yes.match(/type="checkbox"[^>]*checked=""/g)).toHaveLength(1);
+    expect(yes).toContain('input-csat-preferred-contact-method');
+    expect(yes).toContain('value="Email: customer@example.test"');
+    expect(yes).toMatch(/<input[^>]*aria-label="Preferred contact method"[^>]*required=""/);
+    const no = render({ ...answered, followUp: 'No' });
+    expect(no.match(/type="checkbox"[^>]*checked=""/g)).toHaveLength(1);
+    expect(no).not.toContain('input-csat-preferred-contact-method');
+  });
+  it('requires nonblank text only when follow-up is Yes and preserves legacy reports', () => {
+    for (const preferredContactMethod of [undefined, '', '   ']) {
+      expect(validateCsat({ ...answered, followUp: 'Yes', preferredContactMethod }))
+        .toContain('Preferred contact method is required when follow-up is Yes.');
+    }
+    expect(validateCsat({ ...answered, followUp: 'Yes', preferredContactMethod: 'Phone after 5pm' })).toEqual([]);
+    expect(validateCsat({ ...answered, followUp: 'No' })).toEqual([]);
+    expect(validateCsat(answered)).toEqual([]);
+    expect(validateCsat({ ...answered, followUp: 'Maybe' })).toContain('Follow-up: select Yes or No.');
+  });
+  it('locks both new fields in read-only reports and respects field-specific locks', () => {
+    for (const html of [render({ ...answered, followUp: 'Yes' }, true), render({ ...answered, followUp: 'Yes' }, false, true)]) {
+      expect(html.match(/<input[^>]*type="checkbox"[^>]*disabled=""/g)).toHaveLength(2);
+      expect(html).toMatch(/<input[^>]*aria-label="Preferred contact method"[^>]*disabled=""/);
+    }
+  });
 });

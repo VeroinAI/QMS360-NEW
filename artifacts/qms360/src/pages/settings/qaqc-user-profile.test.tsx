@@ -32,6 +32,8 @@ describe("Workspace user profile action", () => {
     expect(html).toContain("Edit profile");
     expect(html).toContain("Edit email");
     expect(html).toContain("Set password");
+    expect(html).not.toContain("Access request queue");
+    expect(html).toContain("Delegations");
   });
   it("does not show the QA/QC profile action without role-management access", () => {
     state.manageRoles = false;

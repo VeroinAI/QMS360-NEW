@@ -12722,7 +12722,8 @@ export const getListQaqcAccessQueueUrl = (params?: ListQaqcAccessQueueParams,) =
 }
 
 /**
- * @summary List pending access requests
+ * @deprecated
+ * @summary Retired access queue (always empty; active roles grant entry)
  */
 export const listQaqcAccessQueue = async (params?: ListQaqcAccessQueueParams, options?: Parameters<typeof customFetch>[1]): Promise<AccessRequestPageResponse> => {
 
@@ -12769,7 +12770,8 @@ export type ListQaqcAccessQueueQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List pending access requests
+ * @deprecated
+ * @summary Retired access queue (always empty; active roles grant entry)
  */
 
 export function useListQaqcAccessQueue<TData = Awaited<ReturnType<typeof listQaqcAccessQueue>>, TError = ErrorType<unknown>>(
@@ -12799,12 +12801,13 @@ export const getDecideQaqcAccessRequestUrl = (id: string,) => {
 }
 
 /**
- * @summary Decide an access request
+ * @deprecated
+ * @summary Retired application approval
  */
 export const decideQaqcAccessRequest = async (id: string,
-    adminDecisionBody: AdminDecisionBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    adminDecisionBody: AdminDecisionBody, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
 
-  return customFetch<void>(getDecideQaqcAccessRequestUrl(id),
+  return customFetch<unknown>(getDecideQaqcAccessRequestUrl(id),
   {
     ...options,
     method: 'POST',
@@ -12817,7 +12820,7 @@ export const decideQaqcAccessRequest = async (id: string,
 
 
 
-export const getDecideQaqcAccessRequestMutationOptions = <TError = ErrorType<unknown>,
+export const getDecideQaqcAccessRequestMutationOptions = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideQaqcAccessRequest>>, TError,{id: string;data: BodyType<AdminDecisionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof decideQaqcAccessRequest>>, TError,{id: string;data: BodyType<AdminDecisionBody>}, TContext> => {
 
@@ -12846,12 +12849,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DecideQaqcAccessRequestMutationResult = NonNullable<Awaited<ReturnType<typeof decideQaqcAccessRequest>>>
     export type DecideQaqcAccessRequestMutationBody = BodyType<AdminDecisionBody>
-    export type DecideQaqcAccessRequestMutationError = ErrorType<unknown>
+    export type DecideQaqcAccessRequestMutationError = ErrorType<void>
 
     /**
- * @summary Decide an access request
+ * @deprecated
+ * @summary Retired application approval
  */
-export const useDecideQaqcAccessRequest = <TError = ErrorType<unknown>,
+export const useDecideQaqcAccessRequest = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideQaqcAccessRequest>>, TError,{id: string;data: BodyType<AdminDecisionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof decideQaqcAccessRequest>>,
@@ -16757,7 +16761,8 @@ export const getListLessonsAccessQueueUrl = (params?: ListLessonsAccessQueuePara
 }
 
 /**
- * @summary List access queue
+ * @deprecated
+ * @summary Retired access queue (always empty; active roles grant entry)
  */
 export const listLessonsAccessQueue = async (params?: ListLessonsAccessQueueParams, options?: Parameters<typeof customFetch>[1]): Promise<AccessRequestPageResponse> => {
 
@@ -16804,7 +16809,8 @@ export type ListLessonsAccessQueueQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List access queue
+ * @deprecated
+ * @summary Retired access queue (always empty; active roles grant entry)
  */
 
 export function useListLessonsAccessQueue<TData = Awaited<ReturnType<typeof listLessonsAccessQueue>>, TError = ErrorType<unknown>>(
@@ -16834,12 +16840,13 @@ export const getDecideLessonsAccessRequestUrl = (id: string,) => {
 }
 
 /**
- * @summary Decide access request
+ * @deprecated
+ * @summary Retired application approval
  */
 export const decideLessonsAccessRequest = async (id: string,
-    adminDecisionBody: AdminDecisionBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    adminDecisionBody: AdminDecisionBody, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
 
-  return customFetch<void>(getDecideLessonsAccessRequestUrl(id),
+  return customFetch<unknown>(getDecideLessonsAccessRequestUrl(id),
   {
     ...options,
     method: 'POST',
@@ -16852,7 +16859,7 @@ export const decideLessonsAccessRequest = async (id: string,
 
 
 
-export const getDecideLessonsAccessRequestMutationOptions = <TError = ErrorType<unknown>,
+export const getDecideLessonsAccessRequestMutationOptions = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideLessonsAccessRequest>>, TError,{id: string;data: BodyType<AdminDecisionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof decideLessonsAccessRequest>>, TError,{id: string;data: BodyType<AdminDecisionBody>}, TContext> => {
 
@@ -16881,12 +16888,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DecideLessonsAccessRequestMutationResult = NonNullable<Awaited<ReturnType<typeof decideLessonsAccessRequest>>>
     export type DecideLessonsAccessRequestMutationBody = BodyType<AdminDecisionBody>
-    export type DecideLessonsAccessRequestMutationError = ErrorType<unknown>
+    export type DecideLessonsAccessRequestMutationError = ErrorType<void>
 
     /**
- * @summary Decide access request
+ * @deprecated
+ * @summary Retired application approval
  */
-export const useDecideLessonsAccessRequest = <TError = ErrorType<unknown>,
+export const useDecideLessonsAccessRequest = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideLessonsAccessRequest>>, TError,{id: string;data: BodyType<AdminDecisionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof decideLessonsAccessRequest>>,
@@ -25942,7 +25950,8 @@ export const getListAuditAccessQueueUrl = (params?: ListAuditAccessQueueParams,)
 }
 
 /**
- * @summary List access queue
+ * @deprecated
+ * @summary Retired access queue (always empty; active roles grant entry)
  */
 export const listAuditAccessQueue = async (params?: ListAuditAccessQueueParams, options?: Parameters<typeof customFetch>[1]): Promise<AccessRequestPageResponse> => {
 
@@ -25989,7 +25998,8 @@ export type ListAuditAccessQueueQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List access queue
+ * @deprecated
+ * @summary Retired access queue (always empty; active roles grant entry)
  */
 
 export function useListAuditAccessQueue<TData = Awaited<ReturnType<typeof listAuditAccessQueue>>, TError = ErrorType<unknown>>(
@@ -27043,12 +27053,13 @@ export const getDecideAuditAccessRequestUrl = (id: string,) => {
 }
 
 /**
- * @summary Decide access request
+ * @deprecated
+ * @summary Retired application approval
  */
 export const decideAuditAccessRequest = async (id: string,
-    adminDecisionBody: AdminDecisionBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    adminDecisionBody: AdminDecisionBody, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
 
-  return customFetch<void>(getDecideAuditAccessRequestUrl(id),
+  return customFetch<unknown>(getDecideAuditAccessRequestUrl(id),
   {
     ...options,
     method: 'POST',
@@ -27061,7 +27072,7 @@ export const decideAuditAccessRequest = async (id: string,
 
 
 
-export const getDecideAuditAccessRequestMutationOptions = <TError = ErrorType<unknown>,
+export const getDecideAuditAccessRequestMutationOptions = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideAuditAccessRequest>>, TError,{id: string;data: BodyType<AdminDecisionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof decideAuditAccessRequest>>, TError,{id: string;data: BodyType<AdminDecisionBody>}, TContext> => {
 
@@ -27090,12 +27101,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DecideAuditAccessRequestMutationResult = NonNullable<Awaited<ReturnType<typeof decideAuditAccessRequest>>>
     export type DecideAuditAccessRequestMutationBody = BodyType<AdminDecisionBody>
-    export type DecideAuditAccessRequestMutationError = ErrorType<unknown>
+    export type DecideAuditAccessRequestMutationError = ErrorType<void>
 
     /**
- * @summary Decide access request
+ * @deprecated
+ * @summary Retired application approval
  */
-export const useDecideAuditAccessRequest = <TError = ErrorType<unknown>,
+export const useDecideAuditAccessRequest = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideAuditAccessRequest>>, TError,{id: string;data: BodyType<AdminDecisionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof decideAuditAccessRequest>>,

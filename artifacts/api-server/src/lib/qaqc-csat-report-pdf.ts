@@ -10,10 +10,15 @@ const RATING_KEYS = ["quality","timeline","communication","professionalism","val
 const value = (v: unknown) => typeof v === "string" && v.trim() ? v.trim() : UNMAPPED;
 export function csatReportValues(report: QaqcReportExport) {
   const d = report.data as Record<string, any>;
+  const additional = report.projectAdditionalData ?? {};
+  const contact = [value(additional.email), value(additional.phone)]
+    .filter(part => part !== UNMAPPED).join(" / ") || UNMAPPED;
   return {
     project: value(report.projectName), location: value(report.projectLocation),
-    // These optional fields are absent from the present entry form.
-    name: UNMAPPED, contact: UNMAPPED, followUp: UNMAPPED, contactMethod: UNMAPPED,
+    // Use this report's Project Master Additional Data, never the QMS submitter.
+    name: value(additional.name), contact,
+    followUp: ["Yes", "No"].includes(d.followUp) ? d.followUp as string : UNMAPPED,
+    contactMethod: d.followUp === "Yes" ? value(d.preferredContactMethod) : UNMAPPED,
     satisfactory: value(d.satisfactoryAspects), improvements: value(d.improvementSuggestions),
     comments: value(d.comments),
     ratings: RATING_KEYS.map(k => Number.isInteger(d.ratings?.[k]) && d.ratings[k] >= 1 && d.ratings[k] <= 5 ? d.ratings[k] as number : null),

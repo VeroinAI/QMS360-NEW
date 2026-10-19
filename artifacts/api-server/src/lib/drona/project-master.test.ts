@@ -42,11 +42,12 @@ describe("Project Additional Data contacts", () => {
     expect(UpdateProjectAdditionalDataBody.safeParse({ costCentre: null, additionalData }).success).toBe(true);
   });
   it("persists contacts in existing scoped metadata and returns them for reopening", async () => {
-    const data = payload("quality+project@example.com", "+91 9876543210");
+    const contacts = payload("quality+project@example.com", "+91 9876543210");
+    const data = { ...contacts, additionalData: { ...contacts.additionalData, name: "Project Contact" } };
     execute.mockResolvedValueOnce({ rows: [{ available: false }] })
       .mockResolvedValueOnce({ rows: [{ id: projectId, costCentre: data.costCentre, additionalData: data.additionalData, updatedAt: iso }] });
     const result = await saveProjectAdditionalData(input, projectId, data);
-    expect(result?.additionalData).toMatchObject({ email: data.additionalData.email, phone: data.additionalData.phone });
+    expect(result?.additionalData).toMatchObject({ name: "Project Contact", email: data.additionalData.email, phone: data.additionalData.phone });
     expect(UpdateProjectAdditionalDataResponse.safeParse(result).success).toBe(true);
     const query = new PgDialect().sqlToQuery(execute.mock.calls[1][0]);
     expect(query.params).toContain(JSON.stringify(data.additionalData));
@@ -56,7 +57,7 @@ describe("Project Additional Data contacts", () => {
   });
   it("returns null contacts for projects that predate these fields", async () => {
     mockList(iso, iso);
-    expect((await readDronaProjectMaster(input)).items[0].additionalData).toMatchObject({ email: null, phone: null });
+    expect((await readDronaProjectMaster(input)).items[0].additionalData).toMatchObject({ name: null, email: null, phone: null });
   });
 });
 

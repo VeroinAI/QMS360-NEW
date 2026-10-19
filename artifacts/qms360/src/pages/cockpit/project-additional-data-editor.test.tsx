@@ -11,6 +11,12 @@ const record = { id: 'project-1', additionalData: { email: 'quality@example.com'
 const props = { record, canEdit: true, onSaved: vi.fn(), onPendingChange: vi.fn(), onCancel: vi.fn() };
 
 describe('Project Additional Data contact fields', () => {
+  it('renders the optional Name field and reopens its saved value', () => {
+    const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} record={{ ...record, additionalData: { ...record.additionalData!, name: 'Project Contact' } }} />);
+    expect(html).toContain('for="project-additional-name">Name');
+    expect(html).toMatch(/<input[^>]*id="project-additional-name"[^>]*value="Project Contact"/);
+    expect(html).not.toMatch(/<input[^>]*id="project-additional-name"[^>]*required=""/);
+  });
   it('renders saved contacts with email and international telephone inputs', () => {
     const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} />);
     expect(html).toContain('Email address');

@@ -1,6 +1,6 @@
 import { Link } from 'wouter';
 import { ArrowRight, BarChart3, Blocks, Database, FileCheck2, Lightbulb, Lock, Network } from 'lucide-react';
-import { getGetAppOverviewQueryKey, useGetApplicationAccess, useGetAppOverview, useGetCurrentUser } from '@workspace/api-client-react';
+import { getGetAppOverviewQueryKey, getGetApplicationAccessQueryKey, useGetApplicationAccess, useGetAppOverview, useGetCurrentUser } from '@workspace/api-client-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,7 +13,7 @@ const apps = [
 
 export function LandingPage() {
   const session = useGetCurrentUser();
-  const access = useGetApplicationAccess();
+  const access = useGetApplicationAccess({ query: { queryKey: getGetApplicationAccessQueryKey(), refetchInterval: 15000, refetchOnWindowFocus: true } });
   const qaqc = useGetAppOverview('qaqc', { query: { queryKey: getGetAppOverviewQueryKey('qaqc'), enabled: access.data?.qaqc === true } });
   const lessons = useGetAppOverview('lessons', { query: { queryKey: getGetAppOverviewQueryKey('lessons'), enabled: access.data?.lessons === true } });
   const audit = useGetAppOverview('audit', { query: { queryKey: getGetAppOverviewQueryKey('audit'), enabled: access.data?.audit === true } });

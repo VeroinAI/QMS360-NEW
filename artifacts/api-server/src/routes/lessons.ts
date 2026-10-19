@@ -16,7 +16,6 @@ import {
   CreateLessonsDelegationBody,
   CreateLessonsEvidenceIntentBody,
   CreateLessonsRoleBody,
-  DecideLessonsAccessRequestBody,
   RephraseLessonFieldBody,
   ReviewLessonFormBody,
   UpdateLessonFormBody,
@@ -30,8 +29,6 @@ import {
   CreateApproverScopeBody,
   ReassignLessonsPendingActionsBody,
 } from "@workspace/api-zod";
-import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
-import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../lib/application-access-requests";
 import { createLessonPdf } from "../lib/lesson-pdf";
 import { storeEmailPdfAttachment, type EmailPdfAttachment } from "../lib/email-attachments";
 import {
@@ -411,19 +408,15 @@ async function eligibleLessonDelegateIds(organizationId: string): Promise<Set<st
   const rows = await db.select({
     id: users.id,
     platformRole: platformRoles.name,
-    canOpenLessons: applicationAccess.canOpenLessons,
     workspaceRole: lessonsWorkspaceRoles.name,
     permissionKey: lessonsPermissions.key,
   })
     .from(users)
     .leftJoin(platformRoles, eq(users.platformRoleId, platformRoles.id))
-    .leftJoin(applicationAccess, and(
-      eq(applicationAccess.organizationId, organizationId),
-      eq(applicationAccess.username, users.username),
-      isNull(applicationAccess.deletedAt),
-    ))
     .leftJoin(lessonsUserWorkspaceRoles, and(
       eq(lessonsUserWorkspaceRoles.userId, users.id),
+      eq(lessonsUserWorkspaceRoles.organizationId, organizationId),
+      eq(lessonsUserWorkspaceRoles.status, "active"),
       isNull(lessonsUserWorkspaceRoles.deletedAt),
     ))
     .leftJoin(lessonsWorkspaceRoles, and(
@@ -448,7 +441,7 @@ async function eligibleLessonDelegateIds(organizationId: string): Promise<Set<st
   for (const row of rows) {
     const current = state.get(row.id) ?? { platformAdmin: false, appAccess: false, workspaceAdmin: false, view: false, approve: false };
     current.platformAdmin ||= ["Super Admin", "Org Admin"].includes(row.platformRole ?? "");
-    current.appAccess ||= row.canOpenLessons === true;
+    current.appAccess ||= !!row.workspaceRole;
     current.workspaceAdmin ||= /\b(admin|administrator)\b/i.test(row.workspaceRole ?? "");
     const key = String(row.permissionKey ?? "").toLowerCase();
     current.view ||= ["view_all", "view_own", "view_own_scope", "lessons"].includes(key)
@@ -1443,21 +1436,12 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
 }));
 
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
-  const { page, limit, offset } = pagination(req);
-  const pending = await loadPendingApplicationRequestPage(req, "lessons", offset, limit);
-  const usernames = pending.items.map(row => row.username);
-  const userRows = usernames.length ? await db.select().from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId),
-    isNull(users.deletedAt), inArray(users.username, usernames))) : [];
-  const byUsername = activeUserIdentityByUsername(userRows, req.currentUser!.organizationId);
-  res.json(paginated(pending.items.map(r => ({
-    id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: r.requestedRoleId,
-    status: "pending", requestedAt: r.requestedAt,
-  })), pending.total, page, limit));
+  const { page, limit } = pagination(req);
+  res.json(paginated([], 0, page, limit));
 }));
 
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
-  const body = parseBody(DecideLessonsAccessRequestBody, req, res); if (!body) return;
-  res.json(await decideApplicationAccess(req, "lessons", body.decision, body.comments));
+  res.status(410).json({ error: "Separate application approval is no longer required. Manage access through active role assignments." });
 }));
 
 router.get("/admin/delegations", asyncHandler(async (req, res) => {

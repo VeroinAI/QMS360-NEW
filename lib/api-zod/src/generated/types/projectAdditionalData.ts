@@ -11,6 +11,11 @@ export interface ProjectAdditionalData {
      * @maxLength 500
      * @nullable
      */
+  name?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
   client: string | null;
   /**
      * @maxLength 500

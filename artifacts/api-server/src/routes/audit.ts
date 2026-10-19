@@ -48,8 +48,6 @@ import { isRemoteStorageKey, toStorageKey } from "../lib/storage-config";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { confirmEvidence, createEvidenceIntent, listEvidence } from "../lib/evidence";
 import { asyncHandler, HttpError, listNotifications, notify, paginated, pagination, staffedRoleNames, writeAuditLog } from "../lib/workspace";
-import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
-import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../lib/application-access-requests";
 import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockScheduleNumbering, type ScheduleNumbering } from "../lib/audit-schedule-numbering";
 import { allocatePlanNumber, getPlanNumberDepartments, previewPlanNumber, readPlanNumberState, savePlanNumbering, type PlanNumberPattern } from "../lib/audit-plan-numbering";
 import { allocateReportNumber, readReportNumberState, saveReportNumbering } from "../lib/audit-report-numbering";
@@ -882,10 +880,6 @@ async function auditUsersWithMarker(organizationId: string, permissionKey: "audi
     id: users.id, fullName: users.fullName, designation: users.designation,
     ...(permissionKey === "audit_team_lead" ? { email: users.email } : {}),
   }).from(users)
-    .innerJoin(applicationAccess, and(
-      eq(applicationAccess.username, users.username), eq(applicationAccess.organizationId, organizationId),
-      eq(applicationAccess.canOpenAudit, true), isNull(applicationAccess.deletedAt),
-    ))
     .innerJoin(auditUserWorkspaceRoles, and(
       eq(auditUserWorkspaceRoles.userId, users.id), eq(auditUserWorkspaceRoles.organizationId, organizationId),
       eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
@@ -911,10 +905,6 @@ async function auditUsersWithMarker(organizationId: string, permissionKey: "audi
 
 async function eligibleMeetingAttendees(organizationId: string) {
   return db.selectDistinct({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
-    .innerJoin(applicationAccess, and(
-      eq(applicationAccess.username, users.username), eq(applicationAccess.organizationId, organizationId),
-      eq(applicationAccess.canOpenAudit, true), isNull(applicationAccess.deletedAt),
-    ))
     .innerJoin(auditUserWorkspaceRoles, and(
       eq(auditUserWorkspaceRoles.userId, users.id), eq(auditUserWorkspaceRoles.organizationId, organizationId),
       eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
@@ -1977,9 +1967,13 @@ const planValues = (data: AnyRow) => ({
 });
 async function auditPlanUsers(organizationId: string) {
   const rows = await db.select({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
-    .innerJoin(applicationAccess, and(
-      eq(applicationAccess.username, users.username), eq(applicationAccess.organizationId, organizationId),
-      eq(applicationAccess.canOpenAudit, true), isNull(applicationAccess.deletedAt),
+    .innerJoin(auditUserWorkspaceRoles, and(
+      eq(auditUserWorkspaceRoles.userId, users.id), eq(auditUserWorkspaceRoles.organizationId, organizationId),
+      eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
+    ))
+    .innerJoin(auditWorkspaceRoles, and(
+      eq(auditWorkspaceRoles.id, auditUserWorkspaceRoles.workspaceRoleId), eq(auditWorkspaceRoles.organizationId, organizationId),
+      eq(auditWorkspaceRoles.status, "active"), isNull(auditWorkspaceRoles.deletedAt),
     ))
     .where(and(eq(users.organizationId, organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt)))
     .orderBy(asc(users.fullName));
@@ -4422,22 +4416,6 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
     const [assigned] = existing
       ? await tx.update(auditUserWorkspaceRoles).set(values).where(eq(auditUserWorkspaceRoles.id, existing.id)).returning()
       : await tx.insert(auditUserWorkspaceRoles).values(values).returning();
-    // Role assignment and the renewed request must commit together. A role
-    // never grants application access: only an approval can set canOpenAudit.
-    const accessRows = await tx.select().from(applicationAccess).where(and(
-      eq(applicationAccess.organizationId, actor(req).organizationId),
-      eq(applicationAccess.username, user.username),
-      isNull(applicationAccess.deletedAt),
-    ));
-    if (!accessRows.some(access => access.canOpenAudit)) {
-      for (const access of accessRows) {
-        await writeAuditLog(tx, "audit", {
-          organizationId: actor(req).organizationId, actorId: actor(req).id,
-          action: "request_access", entityType: "application_access", entityId: access.id,
-          after: { userId: user.id, roleId: role.id }, ipAddress: req.ip,
-        }, { dispatch: false });
-      }
-    }
     return assigned;
   });
   await auditLog(req, "assign_role", "user_workspace_role", row.id, existing, row); res.json(row);
@@ -4460,21 +4438,11 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
 }));
 
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
-  const { page, limit, offset } = pagination(req);
-  const organizationId = actor(req).organizationId;
-  const pending = await loadPendingApplicationRequestPage(req, "audit", offset, limit);
-  const usernames = pending.items.map(row => row.username);
-  const orgUsers = usernames.length ? await db.select().from(users).where(and(eq(users.organizationId, organizationId),
-    isNull(users.deletedAt), inArray(users.username, usernames))) : [];
-  const byUsername = activeUserIdentityByUsername(orgUsers, organizationId);
-  res.json(paginated(pending.items.map(r => ({
-    id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: r.requestedRoleId,
-    status: "pending", requestedAt: r.requestedAt,
-  })), pending.total, page, limit));
+  const { page, limit } = pagination(req);
+  res.json(paginated([], 0, page, limit));
 }));
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
-  const data = body<AnyRow>(Api.DecideAuditAccessRequestBody, req);
-  res.json(await decideApplicationAccess(req, "audit", data.decision, data.comments));
+  res.status(410).json({ error: "Separate application approval is no longer required. Manage access through active role assignments." });
 }));
 const delegationDto = (x: AnyRow, peopleById = new Map<string, AnyRow>()) => {
   const personFields = (prefix: "delegator" | "delegate", userId: string) => {

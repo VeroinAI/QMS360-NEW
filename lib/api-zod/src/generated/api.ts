@@ -327,6 +327,8 @@ export const ListDronaProjectMasterQueryParams = zod.object({
   "search": zod.coerce.string().max(listDronaProjectMasterQuerySearchMax).optional()
 })
 
+export const listDronaProjectMasterResponseItemsItemAdditionalDataNameMax = 500;
+
 export const listDronaProjectMasterResponseItemsItemAdditionalDataClientMax = 500;
 
 export const listDronaProjectMasterResponseItemsItemAdditionalDataContractorMax = 500;
@@ -360,6 +362,7 @@ export const ListDronaProjectMasterResponse = zod.object({
   "businessUnit": zod.string().nullable(),
   "costCentre": zod.string().nullable(),
   "additionalData": zod.object({
+  "name": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataNameMax).nullish(),
   "client": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataClientMax).nullable(),
   "contractor": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataContractorMax).nullable(),
   "contractProjectNumber": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataContractProjectNumberMax).nullable(),
@@ -427,6 +430,8 @@ export const UpdateProjectAdditionalDataParams = zod.object({
 
 export const updateProjectAdditionalDataBodyCostCentreMax = 100;
 
+export const updateProjectAdditionalDataBodyAdditionalDataNameMax = 500;
+
 export const updateProjectAdditionalDataBodyAdditionalDataClientMax = 500;
 
 export const updateProjectAdditionalDataBodyAdditionalDataContractorMax = 500;
@@ -455,6 +460,7 @@ export const updateProjectAdditionalDataBodyAdditionalDataPhoneRegExp = new RegE
 export const UpdateProjectAdditionalDataBody = zod.object({
   "costCentre": zod.string().max(updateProjectAdditionalDataBodyCostCentreMax).nullable(),
   "additionalData": zod.object({
+  "name": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataNameMax).nullish(),
   "client": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataClientMax).nullable(),
   "contractor": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataContractorMax).nullable(),
   "contractProjectNumber": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataContractProjectNumberMax).nullable(),
@@ -467,6 +473,8 @@ export const UpdateProjectAdditionalDataBody = zod.object({
   "phone": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataPhoneMax).regex(updateProjectAdditionalDataBodyAdditionalDataPhoneRegExp).nullish()
 })
 })
+
+export const updateProjectAdditionalDataResponseAdditionalDataNameMax = 500;
 
 export const updateProjectAdditionalDataResponseAdditionalDataClientMax = 500;
 
@@ -497,6 +505,7 @@ export const UpdateProjectAdditionalDataResponse = zod.object({
   "id": zod.string(),
   "costCentre": zod.string().nullable(),
   "additionalData": zod.object({
+  "name": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataNameMax).nullish(),
   "client": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataClientMax).nullable(),
   "contractor": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataContractorMax).nullable(),
   "contractProjectNumber": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataContractProjectNumberMax).nullable(),
@@ -4859,7 +4868,8 @@ export const RemoveQaqcUserRoleResponse = zod.void()
 
 
 /**
- * @summary List pending access requests
+ * @deprecated
+ * @summary Retired access queue (always empty; active roles grant entry)
  */
 export const listQaqcAccessQueueQueryPageDefault = 1;
 
@@ -4903,7 +4913,8 @@ export const ListQaqcAccessQueueResponse = zod.object({
 
 
 /**
- * @summary Decide an access request
+ * @deprecated
+ * @summary Retired application approval
  */
 export const DecideQaqcAccessRequestParams = zod.object({
   "id": zod.coerce.string()
@@ -4914,7 +4925,7 @@ export const DecideQaqcAccessRequestBody = zod.object({
   "comments": zod.string().nullish()
 })
 
-export const DecideQaqcAccessRequestResponse = zod.unknown()
+export const DecideQaqcAccessRequestResponse = zod.void()
 
 
 /**
@@ -6479,7 +6490,8 @@ export const GetUserSignatureResponse = zod.unknown()
 
 
 /**
- * @summary List access queue
+ * @deprecated
+ * @summary Retired access queue (always empty; active roles grant entry)
  */
 export const listLessonsAccessQueueQueryPageDefault = 1;
 
@@ -6523,7 +6535,8 @@ export const ListLessonsAccessQueueResponse = zod.object({
 
 
 /**
- * @summary Decide access request
+ * @deprecated
+ * @summary Retired application approval
  */
 export const DecideLessonsAccessRequestParams = zod.object({
   "id": zod.coerce.string()
@@ -6534,7 +6547,7 @@ export const DecideLessonsAccessRequestBody = zod.object({
   "comments": zod.string().nullish()
 })
 
-export const DecideLessonsAccessRequestResponse = zod.unknown()
+export const DecideLessonsAccessRequestResponse = zod.void()
 
 
 /**
@@ -12460,7 +12473,8 @@ export const RemoveAuditUserRoleResponse = zod.void()
 
 
 /**
- * @summary List access queue
+ * @deprecated
+ * @summary Retired access queue (always empty; active roles grant entry)
  */
 export const listAuditAccessQueueQueryPageDefault = 1;
 
@@ -12953,7 +12967,8 @@ export const UpdateAuditScheduleNumberingResponse = zod.object({
 
 
 /**
- * @summary Decide access request
+ * @deprecated
+ * @summary Retired application approval
  */
 export const DecideAuditAccessRequestParams = zod.object({
   "id": zod.coerce.string()
@@ -12964,7 +12979,7 @@ export const DecideAuditAccessRequestBody = zod.object({
   "comments": zod.string().nullish()
 })
 
-export const DecideAuditAccessRequestResponse = zod.unknown()
+export const DecideAuditAccessRequestResponse = zod.void()
 
 
 /**

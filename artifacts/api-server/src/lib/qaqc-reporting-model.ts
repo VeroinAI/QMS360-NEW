@@ -279,6 +279,14 @@ function validateDaily(data: Record<string, any>, submit: boolean, errors: strin
 }
 
 function validateCsat(data: Record<string, any>, submit: boolean, errors: string[]) {
+  if (data.followUp !== undefined && !["Yes", "No"].includes(data.followUp)) {
+    errors.push("followUp must be Yes or No");
+  }
+  if (data.preferredContactMethod !== undefined && typeof data.preferredContactMethod !== "string") {
+    errors.push("preferredContactMethod must be text");
+  } else if (data.followUp === "Yes" && !String(data.preferredContactMethod ?? "").trim()) {
+    errors.push("preferredContactMethod is required when follow-up is Yes");
+  }
   for (const key of RATINGS) {
     const value = data.ratings?.[key];
     if ((submit && (!Number.isInteger(value) || value < 1 || value > 5)) || (value !== undefined && (!Number.isInteger(value) || value < 1 || value > 5))) errors.push(`ratings.${key} must be an integer from 1 to 5`);
