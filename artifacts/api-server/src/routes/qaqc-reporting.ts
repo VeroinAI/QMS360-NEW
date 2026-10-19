@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { and, asc, count, desc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, getTableColumns, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
   auditPlans, businessUnits, db, organizations, projects, qaqcMetricEntries, materialInspectionEntries, qtbtEntries,
   qaqcReportDeliveryRuns, qaqcReportSubmissions, targetBenchmarks, users,
@@ -18,6 +18,7 @@ import { reportDepartmentReferences, reportDisciplineReferences } from "../lib/q
 import { monthlySectionAccess, mergeMonthlySections } from "../lib/qaqc-monthly-sections";
 import { monthlySectionForField } from "@workspace/field-controls";
 import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
+import { exactReportVersion } from "../lib/qaqc-report-version";
 import {
   buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, DAILY_DOCUMENT_TYPES, DAILY_REJECTED_SUBMISSION_TYPES, type CsatReportComputed, type DailyReportComputed,
   type MonthlyReportComputed, type ReportType,
@@ -215,7 +216,10 @@ async function projectAllowed(req: Request, projectId: string) {
 
 async function reportRow(req: Request, id: string) {
   const scope = await getAuthorizedProjectScope(req, "qaqc");
-  const rows = await db.select().from(qaqcReportSubmissions).where(and(
+  const rows = await db.select({
+    ...getTableColumns(qaqcReportSubmissions),
+    databaseUpdatedAt: sql<string>`${qaqcReportSubmissions.updatedAt}::text`,
+  }).from(qaqcReportSubmissions).where(and(
     eq(qaqcReportSubmissions.id, id), active(qaqcReportSubmissions, org(req)),
     !scope.unrestricted ? inArray(qaqcReportSubmissions.projectId, scope.projectIds) : undefined,
   )).limit(1);
@@ -716,7 +720,7 @@ router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (re
   const [row] = await db.update(qaqcReportSubmissions).set({
     data, computed: calculateReport(before.reportType as ReportType, data, before.baseline as any, targets),
     updatedAt: new Date(),
-  }).where(and(eq(qaqcReportSubmissions.id, before.id), eq(qaqcReportSubmissions.updatedAt, before.updatedAt), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
+  }).where(and(eq(qaqcReportSubmissions.id, before.id), exactReportVersion(qaqcReportSubmissions.updatedAt, before.databaseUpdatedAt), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
   if (!row) throw new HttpError(409, "This report changed while you were saving. Reload the latest report before editing again.");
   await audit(req, "update", row.id, before, row);
   res.json(await withProject(row));
