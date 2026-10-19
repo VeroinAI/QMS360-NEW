@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { PDFDocument } from "pdf-lib";
+import { describe, expect, it, vi } from "vitest";
+import { PDFDocument, PDFPage } from "pdf-lib";
 import { mkdir, writeFile } from "node:fs/promises";
 import { csatReportValues } from "./qaqc-csat-report-pdf";
 import { exportQaqcReportPdf, type QaqcReportExport } from "./qaqc-reporting-export";
@@ -17,6 +17,17 @@ const report: QaqcReportExport = {
   },
 };
 describe("Customer Word CSAT PDF",()=>{
+  it("omits the Survey date and Report identity line, including on continuation pages",async()=>{
+    const draw=vi.spyOn(PDFPage.prototype,"drawText");
+    try {
+      const bytes=await exportQaqcReportPdf({...report,data:{...report.data,comments:"Customer feedback for continuation. ".repeat(160)}},{templateId:"csat-form"});
+      expect((await PDFDocument.load(bytes)).getPageCount()).toBeGreaterThan(1);
+      const text=draw.mock.calls.map(([s])=>s).join("\n");
+      expect(text).not.toContain("Survey date:");
+      expect(text).not.toContain("Report:");
+      expect(text).not.toContain(report.id);
+    } finally { draw.mockRestore(); }
+  });
   it("maps customer name and both contact fields from Project Master Additional Data",()=>{
     const v=csatReportValues({...report,
       submittedByName:"Report Submitter",

@@ -119,11 +119,7 @@ export async function exportCsatReportPdf(report: QaqcReportExport): Promise<Buf
     page.drawRectangle({x:289.3,y:h-y-22,width:262,height:21.5,color:WHITE});
     box(label,s,289.5,y,261,21,8.5);
   }
-  // Identify the selected record without changing the form's controlled revision footer.
-  const identity=`Survey date: ${v.date} · Report: ${report.referenceNumber ?? report.id}`;
-  const identityLines=wrap(identity,521,normal,7);
-  page.drawText(identityLines[0]!,{x:29.5,y:h-794,size:7,font:normal,color:BLACK});
-  if(overflow.length || identityLines.length>1) {
+  if(overflow.length) {
     let continuation=pdf.addPage([page.getWidth(),h]), y=80;
     const startPage=()=>{
       continuation.drawRectangle({x:29,y:h-65,width:522,height:30,color:PURPLE});
@@ -136,7 +132,7 @@ export async function exportCsatReportPdf(report: QaqcReportExport): Promise<Buf
         continuation.drawText(line,{x:39,y:h-y-size,font,size,color:BLACK});y+=size*1.3;
       }
     };
-    write(`Project: ${v.project}`);write(identity);y+=10;
+    write(`Project: ${v.project}`);y+=10;
     for(const item of overflow){write(item.label,bold);write(item.text);y+=14;}
   }
   // Background footer reads "1 of 1"; update the page-count cell for overflow only.
