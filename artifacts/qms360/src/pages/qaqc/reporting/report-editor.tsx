@@ -2,7 +2,7 @@ import { formatDateTime } from '@workspace/spreadsheet-dates';
 import { canMaintainMonthlyField, monthlySectionForField, monthlySectionPayload } from '@workspace/field-controls';
 import { workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Download, FileSpreadsheet, FileText, Save, Send, Trash2, Upload, Eraser } from 'lucide-react';
 import {
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { canEditMetricsDocument } from './metrics-report-policy';
 import { useToast } from '@/hooks/use-toast';
 import { useFieldControls } from '@/lib/field-controls';
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
@@ -51,6 +52,8 @@ function PlainCard({ children }: { children: React.ReactNode }) {
 function ProjectTile({ children }: { children: React.ReactNode }) { return <Tile index={1} title="Project Details"><div className="space-y-4">{children}</div></Tile>; }
 
 export function ReportEditor({ reportType, id, metricsEntry = false }: { reportType: ReportType; id?: string; metricsEntry?: boolean }) {
+  const search = useSearch();
+  const displayOnly = metricsEntry && new URLSearchParams(search).get('mode') === 'view';
   const Wrap = metricsEntry || reportType === 'daily' ? ProjectTile : PlainCard;
   const base = metricsEntry ? '/qaqc/metrics/reports' : `/qaqc/${reportType}`;
   const [, nav] = useLocation();
@@ -102,7 +105,9 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const [delOpen, setDelOpen] = useState(false);
   const [decision, setDecision] = useState<'approve' | 'send_back'>(); const [comments, setComments] = useState('');
 
-  const editable = !report || report.state === 'draft' || report.state === 'sent_back';
+  const editable = !displayOnly && (!report || (metricsEntry
+    ? canEditMetricsDocument(report.state, canEdit)
+    : report.state === 'draft' || report.state === 'sent_back'));
   const blocked = !report && ctx.canStart === false;
   const readOnly = !editable || !canEdit || !canMaintain || blocked || !pid || locked || busy || create.isPending || update.isPending || aiGenerating || (reportType === 'monthly' && (ctxQ.isLoading || !!ctxQ.error));
   const frozen = !!report && !editable;
@@ -128,6 +133,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     if (id) sessionStorage.removeItem(`qaqc-ai-${id}`);
   };
   const form = { data, readOnly, editableSections, set: (p: (string | number)[], v: unknown) => {
+    if (metricsEntry && readOnly) return;
     if (reportType === 'monthly' && !canMaintainMonthlyField(String(p[0]), editableSections ?? [])) return;
     dirtyFields.current.add(String(p[0]));
     if (p[0] !== 'narrative' && p[0] !== 'assessmentConfirmed') clearAiSuggestion();
@@ -151,6 +157,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   };
 
   const save = () => {
+    if (metricsEntry && readOnly) return;
     if (report) update.mutate({ id: report.id, data: updateData() }, { onSuccess: r => { saved(r); invalidate(); toast({ title: 'Draft saved' }); }, onError: fail('Could not save') });
     else create.mutate({ data: { projectId: pid, reportType, period: per, data: saveData() } }, { onSuccess: r => { dirtyFields.current.clear(); invalidate(); toast({ title: 'Draft created' }); nav(`${base}/${r.id}`); }, onError: fail('Could not create') });
   };
@@ -258,11 +265,11 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
             <Card><CardContent className="space-y-2 p-4">
               {editable && canEdit && canMaintain && <Button className="w-full" disabled={readOnly || create.isPending || update.isPending || !pid} onClick={save}><Save className="mr-2 size-4" />{report ? 'Save draft' : 'Create draft'}</Button>}
               {metricsEntry && issues.length > 0 && <p className="text-xs text-muted-foreground">Drafts can be saved section by section. All required sections must be complete before submission.</p>}
-              {metricsEntry && report && <Link href={`/qaqc/monthly/${report.id}`}><Button className="w-full" variant="outline">Open monthly report for submission</Button></Link>}
+              {metricsEntry && report && !displayOnly && <Link href={`/qaqc/monthly/${report.id}`}><Button className="w-full" variant="outline">Open monthly report for submission</Button></Link>}
               {!metricsEntry && editable && report && canSubmit && isCreator && <Button className="w-full" variant="outline" disabled={issues.length > 0 || locked} onClick={() => setSubmitOpen(true)}><Send className="mr-2 size-4" />Submit for approval</Button>}
               {!metricsEntry && editable && report && issues.length > 0 && <p className="text-xs text-destructive">Resolve {issues.length} open validation issue(s) to enable submission.</p>}
               {editable && report && canDelete && isCreator && <Button className="w-full" variant="outline" onClick={() => setDelOpen(true)}><Trash2 className="mr-2 size-4 text-destructive" />Delete draft</Button>}
-              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground"><p className="font-medium text-foreground">Who can act</p><p>{reportType === 'monthly' ? 'Authorized contributors: maintain assigned sections in shared drafts or sent-back reports. Other sections are read-only. Creator retains submission and deletion responsibilities.' : 'Creator: save, submit and delete while draft or sent back.'}{locked ? ' Editing is locked by field controls.' : ''}</p><p>Reviewer: {assignedReviewer ? (assignedReviewer.name ?? assignedReviewer.fullName) : report?.approverId ? 'assigned approver' : 'chosen at submission'} approves or sends back once submitted.</p></div>
+              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground"><p className="font-medium text-foreground">Who can act</p><p>{metricsEntry ? 'Authorized contributors can maintain their assigned sections while the document is Draft. Display mode and all other statuses are read-only on this screen.' : reportType === 'monthly' ? 'Authorized contributors: maintain assigned sections in shared drafts or sent-back reports. Other sections are read-only. Creator retains submission and deletion responsibilities.' : 'Creator: save, submit and delete while draft or sent back.'}{locked ? ' Editing is locked by field controls.' : ''}</p><p>Reviewer: {assignedReviewer ? (assignedReviewer.name ?? assignedReviewer.fullName) : report?.approverId ? 'assigned approver' : 'chosen at submission'} approves or sends back once submitted.</p></div>
               {!metricsEntry && isApprover && canReview && <><Button className="w-full" onClick={() => setDecision('approve')}>Approve</Button><Button className="w-full" variant="outline" onClick={() => setDecision('send_back')}>Send back</Button></>}
               {!metricsEntry && report?.state === 'submitted' && !(isApprover && canReview) && <p className="text-xs text-muted-foreground">Review actions are disabled for you: only the assigned reviewer can act.</p>}
             </CardContent></Card>
