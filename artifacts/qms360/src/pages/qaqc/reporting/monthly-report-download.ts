@@ -4,3 +4,7 @@ import { exportQaqcSowReport } from '@workspace/api-client-react';
 export function exportMonthlyReportPdf(reportId: string) {
   return exportQaqcSowReport(reportId, { templateId: 'monthly-metrics' }, { headers: { Accept: 'application/pdf' } });
 }
+
+export function exportMonthlyDashboardPdf(reportId: string) {
+  return exportQaqcSowReport(reportId, { templateId: 'monthly-dashboard' }, { headers: { Accept: 'application/pdf' } });
+}

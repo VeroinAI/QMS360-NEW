@@ -1,12 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { exportMonthlyReportPdf } from './monthly-report-download';
+import { exportMonthlyDashboardPdf, exportMonthlyReportPdf } from './monthly-report-download';
 
 const api = vi.hoisted(() => vi.fn());
 vi.mock('@workspace/api-client-react', () => ({ exportQaqcSowReport: api }));
 beforeEach(() => vi.clearAllMocks());
 
 describe('Shared monthly report PDF export', () => {
+  it('keeps the new dashboard PDF separate from the existing monthly report', async () => {
+    api.mockResolvedValueOnce({ blob: new Blob(['dashboard']) });
+    await exportMonthlyDashboardPdf('monthly-1');
+    expect(api).toHaveBeenCalledWith('monthly-1', { templateId: 'monthly-dashboard' }, { headers: { Accept: 'application/pdf' } });
+    const editor = readFileSync(new URL('./report-editor.tsx', import.meta.url), 'utf8');
+    expect(editor).toContain('Monthly Report PDF');
+    expect(editor).toContain('Monthly Dashboard PDF');
+    expect(editor).toContain('exportMonthlyDashboardPdf(report.id)');
+  });
   it('requests the approved monthly PDF layout for the saved report', async () => {
     const response = { blob: new Blob(['pdf'], { type: 'application/pdf' }) };
     api.mockResolvedValueOnce(response);

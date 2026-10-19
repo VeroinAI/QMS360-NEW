@@ -22,6 +22,7 @@ import {
 import { buildQaqcReportingDashboard } from "./qaqc-reporting";
 import { safeTemplateMetadata } from "../lib/qaqc-pdf-templates";
 import { monthlyDownloadAverage } from "../lib/qaqc-monthly-download-average";
+import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import type { QaqcOperation } from "@workspace/field-controls";
 
 const router: IRouter = Router();
@@ -275,10 +276,16 @@ router.get("/reports/:id/export", asyncHandler(async (req, res) => {
   if (!canReadReport(req, exportAccess, report)) throw new HttpError(403, "Export is not permitted for this report");
   const name = `qaqc-${report.reportType}-${report.period}-${report.referenceNumber ?? report.id}`;
   const templateId = selectedTemplateId(req);
-  if (format === "pdf" && report.reportType === "monthly" && templateId === "monthly-metrics") {
+  if (format === "pdf" && report.reportType === "monthly" && ["monthly-metrics", "monthly-dashboard"].includes(templateId ?? "")) {
     // Read live snapshots at download time, never a cached form portfolio average.
     const access = await reportAccess(req, "monthly");
     const snapshots = await db.select({
+      id: qaqcReportSubmissions.id,
+      organizationId: qaqcReportSubmissions.organizationId,
+      reportType: qaqcReportSubmissions.reportType,
+      period: qaqcReportSubmissions.period,
+      state: qaqcReportSubmissions.state,
+      createdAt: qaqcReportSubmissions.createdAt,
       projectId: qaqcReportSubmissions.projectId,
       createdById: qaqcReportSubmissions.createdById,
       approverId: qaqcReportSubmissions.approverId,
@@ -295,9 +302,21 @@ router.get("/reports/:id/export", asyncHandler(async (req, res) => {
       !access.scope.unrestricted ? inArray(qaqcReportSubmissions.projectId, access.scope.projectIds) : undefined,
     ));
     report.monthlyDownloadPqi = monthlyDownloadAverage(snapshots.filter(row => canReadReport(req, access, row)));
+    if (templateId === "monthly-dashboard") {
+      // The supplied dashboard mapping uses the form's portfolio completeness rule.
+      // Keep the existing Monthly Report PDF's available-report average unchanged.
+      const active = await db.select({ id: projects.id }).from(projects).where(and(
+        eq(projects.organizationId, organizationId(req)), eq(projects.status, "active"), isNull(projects.deletedAt),
+      ));
+      report.monthlyDashboardPortfolio = calculatePortfolioPqi({
+        organizationId: organizationId(req), period: report.period,
+        projects: active.filter(project => canSeeProject(access, project.id)),
+        reports: snapshots, canReadReport: row => canReadReport(req, access, row),
+      });
+    }
   }
   const bytes = format === "pdf" ? await exportQaqcReportPdf(report, { templateId }) : exportQaqcReportExcel(report);
-  download(res, `${name}.${format}`, format === "pdf" ? "application/pdf" : qaqcReportingWorkbookMimeType, bytes);
+  download(res, `${name}${format === "pdf" && templateId === "monthly-dashboard" ? "-dashboard" : ""}.${format}`, format === "pdf" ? "application/pdf" : qaqcReportingWorkbookMimeType, bytes);
 }));
 
 function requestedFormat(req: any) {
