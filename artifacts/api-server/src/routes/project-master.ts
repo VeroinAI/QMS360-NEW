@@ -48,7 +48,7 @@ router.patch("/integrations/project-master/:projectId/cost-centre", requireAuth,
 router.patch("/integrations/project-master/:projectId/additional-data", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const params = UpdateProjectAdditionalDataParams.safeParse(req.params);
   const body = UpdateProjectAdditionalDataBody.safeParse(req.body);
-  const keys = ["client", "contractor", "contractProjectNumber", "contractSigned", "contractPeriod", "tcc", "pac", "fac", "email", "phone"];
+  const keys = Object.keys(UpdateProjectAdditionalDataBody.shape.additionalData.shape);
   if (!params.success || !body.success ||
       Object.keys(req.body ?? {}).some(key => !["costCentre", "additionalData"].includes(key)) ||
       Object.keys(req.body?.additionalData ?? {}).some(key => !keys.includes(key))) {
