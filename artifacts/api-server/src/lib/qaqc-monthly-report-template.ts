@@ -190,7 +190,32 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
     [...fields.map(k => text(v[k])),total,decimal(v.clientReviewDays),decimal(v.internalReviewDays)].forEach((v,j) => put(45,i+1,j+1,v));
     put(48,i,1,v.remarks);
   });
-  rebuild(50,d.qmsReports,r => [r.documentName,UNMAPPED,UNMAPPED,r.remarks],"No QMS report rows added");
+  // Retain the section number's accent and the heading's original purple run.
+  descendants(blocks[49]!, "t")[1]!.textContent = "QMS Document Register";
+  const register = blocks[50]!;
+  const registerColumns = [
+    ["Department", 1700], ["Type", 1000], ["Document Name", 2600],
+    ["Status", 2200], ["Remarks", 2138],
+  ] as const;
+  const grid = child(register, "tblGrid")!;
+  const gridSample = children(grid)[0]!;
+  for (const node of children(grid)) grid.removeChild(node);
+  registerColumns.forEach(([, width]) => {
+    const node = gridSample.cloneNode(true) as Element;
+    node.setAttributeNS(W, "w:w", String(width)); grid.appendChild(node);
+  });
+  // Clone the source header/body cells so fonts, fills and padding stay uniform.
+  children(register, "tr").forEach((row, index) => {
+    const originals = children(row, "tc");
+    originals.forEach(cell => row.removeChild(cell));
+    registerColumns.forEach(([label, width], col) => {
+      const cell = originals[Math.min(col, originals.length - 1)]!.cloneNode(true) as Element;
+      child(child(cell, "tcPr"), "tcW")!.setAttributeNS(W, "w:w", String(width));
+      if (index === 0) set(children(cell, "p")[0]!, label);
+      row.appendChild(cell);
+    });
+  });
+  rebuild(50,d.qmsReports,r => [r.department,r.type,r.documentName,r.status,r.remarks],"No QMS document register rows added");
   body.removeChild(blocks[51]!);
   put(53,0,0,confirmation,1,d.assessmentConfirmed === true ? "2E7D32" : "66666A");
   put(53,0,1,report.submittedByName,1); put(53,0,1,UNMAPPED,2); // No report signatory title captured.

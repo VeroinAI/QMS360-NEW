@@ -47,12 +47,12 @@ describe("Customer Word monthly metrics report",()=>{
     expect(meeting.textContent).toContain("10-10-2026To be mappedTo be mapped");
     const ageing=tables.find(t=>t.textContent?.includes("NCR type"))!;
     expect(ageing.textContent).toContain("2To be mappedTo be mappedTo be mapped");
-    const qms=tables.find(t=>t.textContent?.includes("Reference no.")&&t.textContent?.includes("Actual Document"))!;
-    expect(qms.textContent).toContain("Actual DocumentTo be mappedTo be mappedActual QMS remarks");
+    const qms=tables.find(t=>t.textContent?.includes("Document Name")&&t.textContent?.includes("Actual Document"))!;
+    expect(qms.textContent).toContain("QualitySOPActual DocumentApproved & PublishedActual QMS remarks");
   });
   it("handles no meetings/reports, inapplicable fields and unconfirmed drafts truthfully",async()=>{
     const {text}=await mapped({...report,data:{...data,meetings:[],qmsReports:[],pqpStatus:"Under Preparation",internalAudit:{conducted:false},material:{...data.material,osdAvailable:false},assessmentConfirmed:false},submittedAt:null,submittedByName:null});
-    expect(text).toContain("No meeting added");expect(text).toContain("No QMS report rows added");
+    expect(text).toContain("No meeting added");expect(text).toContain("No QMS document register rows added");
     expect(text).toContain("Not applicable");expect(text).toContain("Not confirmed");
     expect(text).not.toContain("Reviewed and confirmed");
     expect(text).not.toContain("Weekly Quality Review");
@@ -61,6 +61,35 @@ describe("Customer Word monthly metrics report",()=>{
     const {xml,text}=await mapped({...report,data:{...data,material:{...data.material,totalItems:1}}});
     expect(text).toContain("✖ Status tags total 10 ≠ Total items in MIRNs 1");expect(xml).toContain('w:val="C0392B"');
     expect(data.material.totalItems).toBe(10);
+  });
+  it("replaces section 11 with the five input-screen columns, preserving styling and missing markers",async()=>{
+    const {body,text}=await mapped({...report,data:{...data,qmsReports:[...data.qmsReports,{department:"HSSE",type:"Form",documentName:"Missing status document"}]}});
+    expect(text).toContain("11   QMS Document Register");
+    expect(text).not.toContain("QMS Reports");
+    const table=children(body,"tbl").find(t=>t.textContent?.includes("Document Name"))!;
+    const tableRows=children(table,"tr");
+    expect(children(tableRows[0]!,"tc").map(c=>c.textContent)).toEqual(["Department","Type","Document Name","Status","Remarks"]);
+    expect(children(tableRows[2]!,"tc").map(c=>c.textContent)).toEqual(["HSSE","Form","Missing status document","To be mapped","To be mapped"]);
+    expect(tableRows.every(r=>children(r,"tc").length===5)).toBe(true);
+    const xml=new XMLSerializer().serializeToString(table);
+    expect(xml).toContain('w:fill="582C83"');
+    expect(xml).not.toContain("Reference no.");
+    expect(xml).not.toContain("QMS-DC-2026-10");
+  });
+  it("maps the supplied NCR ageing references without splitting incompatible saved bands",async()=>{
+    const metrics={
+      external_ncr:{issued:9,closed:0,ageing:[{bucket:"0-15",count:1},{bucket:"0-15",count:2},{bucket:"15-45",count:4},{bucket:"over45",count:2}]},
+      internal_ncr:{issued:0,closed:0,ageing:[]},
+    };
+    const r={...report,data:{...data,metrics},baseline:{},computed:calculateReport("monthly",{...data,metrics},{},{})};
+    const {body}=await mapped(r);
+    const table=children(body,"tbl").find(t=>t.textContent?.includes("NCR type"))!;
+    const values=children(table,"tr").slice(1).map(row=>children(row,"tc").map(c=>c.textContent));
+    expect(values[0]).toEqual(["External NCR","3","To be mapped","To be mapped","To be mapped","9","✔ 9 / 9"]);
+    expect(values[1]).toEqual(["Internal NCR","0","To be mapped","To be mapped","To be mapped","0","✔ 0 / 0"]);
+    if (!("metrics" in r.computed)) throw new Error("Expected monthly calculations");
+    const mismatch=await mapped({...r,computed:{...r.computed,metrics:{...r.computed.metrics,external_ncr:{...r.computed.metrics.external_ncr,open:8}}}});
+    expect(mismatch.text).toContain("✖ 9 / 8");
   });
   it("escapes arbitrary user text in XML and preserves long multiline narratives",async()=>{
     const {text,xml}=await mapped({...report,data:{...data,narrative:"Safety <review> & quality\n".repeat(100)}});
