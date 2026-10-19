@@ -24,8 +24,6 @@ const appNav = {
   qaqc: [
     ['Overview', '/qaqc', LayoutDashboard], ['QA/QC Metrics', '/qaqc/metrics', BarChart3],
     ['Customer Satisfaction (CSAT)', '/qaqc/csat', ClipboardCheck], ['Daily Submission', '/qaqc/daily', ClipboardCheck],
-    ['Inspections', '/qaqc/material-inspections', ClipboardCheck], ['Documents', '/qaqc/documents', FileText],
-    ['Monthly reports', '/qaqc/monthly', FileText],
     ['Report dashboard', '/qaqc/report-dashboard', BarChart3], ['Reporting settings', '/qaqc/settings', LayoutDashboard],
   ],
   lessons: [
