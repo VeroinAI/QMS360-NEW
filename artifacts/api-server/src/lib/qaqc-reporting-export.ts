@@ -12,6 +12,7 @@ export type QaqcReportExport = {
   projectCode?: string | null;
   costCentre?: string | null;
   submittedByName?: string | null;
+  projectLocation?: string | null;
   reportType: ReportingType | string;
   period: string;
   state: string;
@@ -186,6 +187,10 @@ async function makePdf(title: string, sections: Array<[string, unknown]>) {
 }
 
 export async function exportQaqcReportPdf(report: QaqcReportExport, options: { templateId?: string } = {}): Promise<Buffer> {
+  if (report.reportType === "csat" && options.templateId === "csat-form") {
+    const { exportCsatReportPdf } = await import("./qaqc-csat-report-pdf");
+    return exportCsatReportPdf(report);
+  }
   // Opt-in from the Metrics landing page only. Other downloads, managed PDF
   // templates and scheduled email attachments keep their existing behavior.
   if (report.reportType === "monthly" && options.templateId === "monthly-metrics") {

@@ -131,6 +131,7 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   for (const name of ["qaqc-monthly-report-template.docx", "Carlito-Regular.ttf", "Carlito-Bold.ttf", "Carlito-Italic.ttf", "Carlito-BoldItalic.ttf", "Carlito-OFL.txt"]) {
     await copyFile(path.join(artifactDir, "src/assets", name), path.join(distDir, name));
   }
+  await copyFile(path.join(artifactDir, "src/assets/qaqc-csat-template.pdf"), path.join(distDir, "qaqc-csat-template.pdf"));
 }
 
 buildAll().catch((err) => {

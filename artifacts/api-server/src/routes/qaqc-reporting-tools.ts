@@ -116,7 +116,7 @@ async function getReport(req: any, id: string) {
   if (!safeType(report.reportType)) throw new HttpError(404, "QA/QC report type is invalid");
   const access = await reportAccess(req, report.reportType);
   if (!canReadReport(req, access, report)) throw new HttpError(404, "QA/QC report was not found in your authorized project scope");
-  const [project] = await db.select({ name: projects.name, code: projects.code, customFields: projects.customFields }).from(projects)
+  const [project] = await db.select({ name: projects.name, code: projects.code, location: projects.location, customFields: projects.customFields }).from(projects)
     .where(and(eq(projects.id, report.projectId), eq(projects.organizationId, organizationId(req)), isNull(projects.deletedAt))).limit(1);
   const audit = await db.select({
     id: auditLogEntries.id, action: auditLogEntries.action, actorId: auditLogEntries.actorId,
@@ -135,6 +135,7 @@ async function getReport(req: any, id: string) {
     )).orderBy(asc(reportTemplates.name));
   return {
     ...report, projectName: project?.name ?? null, projectCode: project?.code ?? null,
+    projectLocation: project?.location ?? null,
     costCentre: (() => {
       const fields = jsonObject(project?.customFields);
       const value = fields.costCentre ?? fields.cost_centre;

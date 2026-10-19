@@ -99,3 +99,4 @@
 - [PowerPoint import destinations](pptx-import-destination.md) — reference imports can replace an existing slides manifest; isolate the destination and preserve unrelated decks.
 - [PowerPoint package integrity](pptx-package-integrity.md) — enforce DrawingML paragraph order and clone continuations from pristine parts; XML parsing alone misses invalid PowerPoint structure.
 - [Monthly metrics Word template](monthly-metrics-word-template-policy.md) — Word-styled landing-page downloads use saved data and exact “To be mapped” gaps; keep other exports independent.
+- [CSAT Word report policy](csat-word-template-policy.md) — both Download entry points share the branded form; preserve actual answers, optional-data gaps and long feedback.
