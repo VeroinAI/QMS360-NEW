@@ -64,3 +64,9 @@ Metric counts remain manual entry within this application, including creation an
 **Why:** On 2026-10-04 the user clarified: “As of now this will be manual entry within this application. In future, we will see if it has to come from external application.” This supersedes the proposed automatic current-month source integration; the supplied table also separates manual Phase 1 from later integration.
 
 **How to apply:** Preserve manual issued/closed entry for external NCR, internal NCR, RFI and RMI. Carry forward prior submitted report totals automatically, but do not introduce source synchronization or a separate record-level source module without new direction from the user.
+
+The Lovable dashboard URL supplied by the user is a layout reference, not an instruction to adopt its sample projects or replace QMS360 reporting workflow rules.
+
+**Why:** The request adds a Dashboard after Overview without breaking existing development. Reusing the established submitted/approved, capability-scoped reporting data avoids introducing a conflicting approved-only analytics policy.
+
+**How to apply:** Keep Overview and Report dashboard independent. Use actual project-master metadata for filters; do not invent SBG mappings or demo data to fill reference sections.
