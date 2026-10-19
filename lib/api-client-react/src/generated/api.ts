@@ -323,6 +323,7 @@ import type {
   QaqcSowReportSubmitInput,
   QaqcSowReportUpdateInput,
   QaqcSowWorkbookInput,
+  QaqcUserProfileResult,
   QtbtPageResponse,
   QualityAssessmentBrief,
   QualityBriefPageResponse,
@@ -12399,6 +12400,155 @@ export function useListQaqcUsers<TData = Awaited<ReturnType<typeof listQaqcUsers
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListQaqcUsersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateQaqcUserProfileUrl = (userId: string,) => {
+
+
+
+
+  return `/api/qaqc/admin/users/${userId}/profile`
+}
+
+/**
+ * @summary Update a user's designation and signature
+ */
+export const updateQaqcUserProfile = async (userId: string,
+    userProfileUpdate: UserProfileUpdate, options?: Parameters<typeof customFetch>[1]): Promise<QaqcUserProfileResult> => {
+
+  return customFetch<QaqcUserProfileResult>(getUpdateQaqcUserProfileUrl(userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(userProfileUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateQaqcUserProfileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQaqcUserProfile>>, TError,{userId: string;data: BodyType<UserProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateQaqcUserProfile>>, TError,{userId: string;data: BodyType<UserProfileUpdate>}, TContext> => {
+
+const mutationKey = ['updateQaqcUserProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateQaqcUserProfile>>, {userId: string;data: BodyType<UserProfileUpdate>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updateQaqcUserProfile(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateQaqcUserProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateQaqcUserProfile>>>
+    export type UpdateQaqcUserProfileMutationBody = BodyType<UserProfileUpdate>
+    export type UpdateQaqcUserProfileMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a user's designation and signature
+ */
+export const useUpdateQaqcUserProfile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateQaqcUserProfile>>, TError,{userId: string;data: BodyType<UserProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateQaqcUserProfile>>,
+        TError,
+        {userId: string;data: BodyType<UserProfileUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateQaqcUserProfileMutationOptions(options));
+    }
+
+export const getGetQaqcUserSignatureUrl = (userId: string,) => {
+
+
+
+
+  return `/api/qaqc/admin/users/${userId}/signature`
+}
+
+/**
+ * @summary Retrieve a managed user's signature image
+ */
+export const getQaqcUserSignature = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetQaqcUserSignatureUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcUserSignatureQueryKey = (userId: string,) => {
+    return [
+    `/api/qaqc/admin/users/${userId}/signature`
+    ] as const;
+    }
+
+
+export const getGetQaqcUserSignatureQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcUserSignature>>, TError = ErrorType<void>>(userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcUserSignature>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcUserSignatureQueryKey(userId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcUserSignature>>> = ({ signal }) => getQaqcUserSignature(userId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: userId !== null && userId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcUserSignature>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcUserSignatureQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcUserSignature>>>
+export type GetQaqcUserSignatureQueryError = ErrorType<void>
+
+
+/**
+ * @summary Retrieve a managed user's signature image
+ */
+
+export function useGetQaqcUserSignature<TData = Awaited<ReturnType<typeof getQaqcUserSignature>>, TError = ErrorType<void>>(
+ userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcUserSignature>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcUserSignatureQueryOptions(userId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

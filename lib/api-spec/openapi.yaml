@@ -1352,6 +1352,10 @@ paths:
     put: {operationId: updateQaqcRole, tags: [qaqc-admin], summary: Update workspace role, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"200": {description: Updated}}}
   /qaqc/admin/users:
     get: {operationId: listQaqcUsers, tags: [qaqc-admin], summary: List workspace users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
+  /qaqc/admin/users/{userId}/profile:
+    put: {operationId: updateQaqcUserProfile, tags: [qaqc-admin], summary: Update a user's designation and signature, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/UserProfileUpdate"}}}}, responses: {"200": {description: Updated profile, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcUserProfileResult"}}}}, "403": {description: Role management access required}, "404": {description: User not found}, "422": {description: Invalid profile or signature}}}
+  /qaqc/admin/users/{userId}/signature:
+    get: {operationId: getQaqcUserSignature, tags: [qaqc-admin], summary: Retrieve a managed user's signature image, parameters: [{$ref: "#/components/parameters/UserId"}], responses: {"200": {description: Signature image, content: {image/png: {schema: {type: string, format: binary}}, image/jpeg: {schema: {type: string, format: binary}}, image/webp: {schema: {type: string, format: binary}}}}, "403": {description: Role management access required}, "404": {description: Signature not found}}}
   /qaqc/admin/users/{userId}/roles:
     post: {operationId: assignQaqcUserRole, tags: [qaqc-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
   /qaqc/admin/users/{userId}/roles/{id}:
@@ -3574,6 +3578,10 @@ components:
       properties:
         designation: {type: [string, "null"]}
         signatureDataUrl: {type: [string, "null"], description: "data:image/... base64 payload; null clears the signature"}
+    QaqcUserProfileResult:
+      type: object
+      required: [id, designation, signatureUrl]
+      properties: {id: {type: string}, designation: {type: [string, "null"]}, signatureUrl: {type: [string, "null"], format: uri-reference}}
     AuditUserProfileUpdateResult:
       type: object
       required: [id, designation, signatureUrl]

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { applyExcelDateFormats } from "../lib/excel-date-cells";
 import { formatSpreadsheetDate, isSpreadsheetDateField } from "@workspace/spreadsheet-dates";
 import { visibleAdminUsers } from "../lib/admin-user-discovery";
+import qaqcUserProfileRouter from "./qaqc-user-profile";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql,
@@ -784,6 +785,7 @@ router.get("/field-controls", asyncHandler(async (req, res) => {
 
 // Per-application administration
 router.use("/admin", asyncHandler(qaqcAdminTask));
+router.use("/admin/users", qaqcUserProfileRouter);
 router.get("/admin/field-controls", asyncHandler(async (req, res) => {
   res.json(await readFieldControls(org(req), "qaqc"));
 }));
@@ -826,7 +828,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
   const items = await Promise.all(rows.map(async (u) => {
     const assigned = await db.select({ role: workspaceRoles, assignment: userWorkspaceRoles }).from(userWorkspaceRoles).innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id)).where(and(eq(userWorkspaceRoles.userId, u.id), isNull(userWorkspaceRoles.deletedAt), isNull(workspaceRoles.deletedAt)));
     const visibleAssigned = assigned.filter((r) => canManageAssignmentScope(req, r.assignment.projectIds, r.assignment.businessUnitIds));
-    return { id: u.id, username: u.username, fullName: u.fullName, email: u.email, platformRole: availablePlatformRoles.find((role) => role.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: await Promise.all(visibleAssigned.map(async (r) => ({ ...(await roleResponse(r.role)), scopeType: r.assignment.projectIds?.length ? "project" as const : "organization" as const, scopeIds: r.assignment.projectIds ?? [] }))), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt };
+    return { id: u.id, username: u.username, fullName: u.fullName, email: u.email, designation: u.designation, signatureUrl: u.signaturePath ? `/api/qaqc/admin/users/${u.id}/signature` : null, platformRole: availablePlatformRoles.find((role) => role.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: await Promise.all(visibleAssigned.map(async (r) => ({ ...(await roleResponse(r.role)), scopeType: r.assignment.projectIds?.length ? "project" as const : "organization" as const, scopeIds: r.assignment.projectIds ?? [] }))), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt };
   }));
   res.json(paginated(items, visibleRows.length, page, limit));
 }));

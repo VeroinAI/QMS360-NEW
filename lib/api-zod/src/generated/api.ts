@@ -4803,6 +4803,35 @@ export const ListQaqcUsersResponse = zod.object({
 
 
 /**
+ * @summary Update a user's designation and signature
+ */
+export const UpdateQaqcUserProfileParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const UpdateQaqcUserProfileBody = zod.object({
+  "designation": zod.string().nullish(),
+  "signatureDataUrl": zod.string().nullish().describe('data:image\/... base64 payload; null clears the signature')
+})
+
+export const UpdateQaqcUserProfileResponse = zod.object({
+  "id": zod.string(),
+  "designation": zod.string().nullable(),
+  "signatureUrl": zod.string().nullable()
+})
+
+
+/**
+ * @summary Retrieve a managed user's signature image
+ */
+export const GetQaqcUserSignatureParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const GetQaqcUserSignatureResponse = zod.unknown()
+
+
+/**
  * @summary Assign role and scope
  */
 export const AssignQaqcUserRoleParams = zod.object({

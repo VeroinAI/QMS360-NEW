@@ -2107,6 +2107,14 @@ export interface UserProfileUpdate {
   signatureDataUrl?: string | null;
 }
 
+export interface QaqcUserProfileResult {
+  id: string;
+  /** @nullable */
+  designation: string | null;
+  /** @nullable */
+  signatureUrl: string | null;
+}
+
 export interface AuditUserProfileUpdateResult {
   id: string;
   /** @nullable */

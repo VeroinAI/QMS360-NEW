@@ -560,6 +560,7 @@ export * from './qaqcSowReportSubmitInput';
 export * from './qaqcSowReportUpdateInput';
 export * from './qaqcSowWorkbookInput';
 export * from './qaqcSowWorkbookInputReportType';
+export * from './qaqcUserProfileResult';
 export * from './qTBTEntry';
 export * from './qTBTPage';
 export * from './qtbtPageResponse';
