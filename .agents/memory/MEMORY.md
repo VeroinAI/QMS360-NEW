@@ -97,3 +97,4 @@
 - [Lessons dynamic numbering](lessons-dynamic-numbering-requirement.md) — requested configurable prefix fields, initially Project Cost Center and selected Discipline master Value.
 - [Email browser drafts](email-browser-draft-visibility.md) — hide already registered local copies without deleting drafts or changing active email placeholders.
 - [PowerPoint import destinations](pptx-import-destination.md) — reference imports can replace an existing slides manifest; isolate the destination and preserve unrelated decks.
+- [PowerPoint package integrity](pptx-package-integrity.md) — enforce DrawingML paragraph order and clone continuations from pristine parts; XML parsing alone misses invalid PowerPoint structure.
