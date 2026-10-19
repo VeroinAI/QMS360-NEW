@@ -12,6 +12,9 @@ export type QaqcReportExport = {
   projectCode?: string | null;
   costCentre?: string | null;
   submittedByName?: string | null;
+  createdByName?: string | null;
+  projectTeam?: { pmName?: string | null; peName?: string | null; dcName?: string | null };
+  organizationTimezone?: string | null;
   projectLocation?: string | null;
   reportType: ReportingType | string;
   period: string;
@@ -187,6 +190,10 @@ async function makePdf(title: string, sections: Array<[string, unknown]>) {
 }
 
 export async function exportQaqcReportPdf(report: QaqcReportExport, options: { templateId?: string } = {}): Promise<Buffer> {
+  if (report.reportType === "daily" && options.templateId === "daily-submission") {
+    const { exportDailySubmissionPdf } = await import("./qaqc-daily-report-pdf");
+    return exportDailySubmissionPdf(report);
+  }
   if (report.reportType === "csat" && options.templateId === "csat-form") {
     const { exportCsatReportPdf } = await import("./qaqc-csat-report-pdf");
     return exportCsatReportPdf(report);

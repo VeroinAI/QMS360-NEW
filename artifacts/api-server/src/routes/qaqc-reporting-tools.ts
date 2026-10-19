@@ -125,10 +125,17 @@ async function getReport(req: any, id: string) {
     eq(auditLogEntries.organizationId, organizationId(req)), eq(auditLogEntries.entityType, "qaqc_report"),
     eq(auditLogEntries.entityId, report.id),
   )).orderBy(auditLogEntries.createdAt);
-  const actorIds = [...new Set([...audit.map((entry) => entry.actorId), report.submittedById].filter((id): id is string => !!id))];
+  const dailySettings = report.reportType === "daily" ? jsonObject(jsonObject(project?.customFields).qaqcReporting) : {};
+  const teamId = (key:string) => typeof dailySettings[key] === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dailySettings[key]) ? dailySettings[key] as string : null;
+  const actorIds = [...new Set([...audit.map((entry) => entry.actorId), report.submittedById, report.createdById,
+    ...["pmId","peId","dcId"].map(teamId)].filter((id): id is string => !!id))];
   const actors = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName }).from(users)
     .where(and(eq(users.organizationId, organizationId(req)), inArray(users.id, actorIds))) : [];
   const actorNames = new Map(actors.map((user) => [user.id, user.fullName]));
+  const [dailyOrganization] = report.reportType === "daily"
+    ? await db.select({timezone:organizations.timezone}).from(organizations).where(eq(organizations.id,organizationId(req))).limit(1)
+    : [];
   const templates = await db.select({ name: reportTemplates.name, template: reportTemplates.template })
     .from(reportTemplates).where(and(
       eq(reportTemplates.organizationId, organizationId(req)), isNull(reportTemplates.deletedAt),
@@ -142,6 +149,12 @@ async function getReport(req: any, id: string) {
       return typeof value === "string" || typeof value === "number" ? String(value) : null;
     })(),
     submittedByName: report.submittedById ? actorNames.get(report.submittedById) ?? null : null,
+    ...(report.reportType === "daily" ? {
+      createdByName:actorNames.get(report.createdById) ?? null,
+      organizationTimezone:dailyOrganization?.timezone ?? null,
+      projectTeam:Object.fromEntries([["pmName","pmId"],["peName","peId"],["dcName","dcId"]]
+        .map(([name,key])=>[name,actorNames.get(teamId(key!) ?? "") ?? null])),
+    } : {}),
     reportTemplates: templates.map((template) => ({ name: template.name, template: safeTemplateMetadata(jsonObject(template.template)) })),
     history: audit.map(({ after, ...entry }) => ({
       ...entry, actorName: entry.actorId ? actorNames.get(entry.actorId) ?? "Former or unavailable user" : "System",

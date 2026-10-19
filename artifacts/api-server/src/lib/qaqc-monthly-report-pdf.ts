@@ -19,9 +19,18 @@ const height = (lines: Line[]) => lines.reduce((s,l) => s+l.before+l.height+l.af
  */
 export async function exportMonthlyMetricsPdf(report: QaqcReportExport): Promise<Buffer> {
   const { body, project, month } = await buildMonthlyReportDocument(report);
+  return renderQaqcWordDocument(body, {
+    title:`QA/QC Metrics – Monthly Report — ${project} — ${month}`,
+    subject:"QA/QC monthly metrics",
+    footer:`Algihaz · QA/QC Monthly Metrics Report · ${month}`,
+  });
+}
+
+/** Shared Word-style renderer; report-specific data mapping stays independent. */
+export async function renderQaqcWordDocument(body: Element, options: {title:string;subject:string;footer:string}): Promise<Buffer> {
   const pdf = await PDFDocument.create(); pdf.registerFontkit(fontkit);
-  pdf.setTitle(`QA/QC Metrics – Monthly Report — ${project} — ${month}`);
-  pdf.setAuthor("QMS360"); pdf.setSubject("QA/QC monthly metrics");
+  pdf.setTitle(options.title);
+  pdf.setAuthor("QMS360"); pdf.setSubject(options.subject);
   const fontNames = ["Carlito-Regular.ttf","Carlito-Bold.ttf","DejaVuSans.ttf","Carlito-Italic.ttf","Carlito-BoldItalic.ttf"];
   // Carlito's composite glyphs do not survive fontkit subsetting reliably.
   // Embed complete fonts so the PDF renders correctly in Acrobat and browsers.
@@ -166,7 +175,9 @@ export async function exportMonthlyMetricsPdf(report: QaqcReportExport): Promise
   const pages=pdf.getPages();
   pages.forEach((p,i) => {
     p.drawLine({start:{x:left,y:bottom-12},end:{x:width-right,y:bottom-12},thickness:0.5,color:color("D9CCE8")});
-    const foot=`Algihaz · QA/QC Monthly Metrics Report · ${month}`;
+    let foot=options.footer;
+    while(regular!.widthOfTextAtSize(foot,8)>contentWidth-85 && foot.length>1)
+      foot=foot.replace(/…$/,"").slice(0,-1)+"…";
     p.drawText(foot,{x:left,y:bottom-24,size:8,font:regular,color:color("66666A")});
     const count=`Page ${i+1} of ${pages.length}`;
     p.drawText(count,{x:width-right-regular!.widthOfTextAtSize(count,8),y:bottom-24,size:8,font:regular,color:color("66666A")});

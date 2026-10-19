@@ -100,3 +100,4 @@
 - [PowerPoint package integrity](pptx-package-integrity.md) — enforce DrawingML paragraph order and clone continuations from pristine parts; XML parsing alone misses invalid PowerPoint structure.
 - [Monthly metrics Word template](monthly-metrics-word-template-policy.md) — Word-styled landing-page downloads use saved data and exact “To be mapped” gaps; keep other exports independent.
 - [CSAT Word report policy](csat-word-template-policy.md) — both Download entry points share the branded form; preserve actual answers, optional-data gaps and long feedback.
+- [Daily Submission Word template](daily-submission-word-template-policy.md) — shared Daily downloads use saved data/baselines; omit sample data and reviewer-only instructions.

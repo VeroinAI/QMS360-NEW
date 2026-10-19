@@ -132,6 +132,7 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     await copyFile(path.join(artifactDir, "src/assets", name), path.join(distDir, name));
   }
   await copyFile(path.join(artifactDir, "src/assets/qaqc-csat-template.pdf"), path.join(distDir, "qaqc-csat-template.pdf"));
+  await copyFile(path.join(artifactDir, "src/assets/qaqc-daily-report-template.docx"), path.join(distDir, "qaqc-daily-report-template.docx"));
 }
 
 buildAll().catch((err) => {

@@ -24,6 +24,7 @@ import { useFieldControls } from '@/lib/field-controls';
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { CsatForm } from './csat-form';
 import { CsatDownloadButton } from './csat-download-button';
+import { DailyDownloadButton } from './daily-download-button';
 import { validateCsat } from './csat-validation';
 import { DailyForm } from './daily-form';
 import { FormCtx, ReadOnlyValue } from './form-kit';
@@ -224,9 +225,9 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     <PageFrame title={metricsEntry ? `QA/QC Metrics – Monthly Report${report?.referenceNumber ? ` - ${report.referenceNumber}` : ''}` : report ? `${TITLES[reportType]} ${report.referenceNumber ? `- ${report.referenceNumber}` : ''}` : reportType === 'csat' ? 'New customer satisfaction (CSAT)' : `New ${TITLES[reportType].toLowerCase()}`} description={projectName ? `${projectName} - ${per}` : 'Select a project and period to begin.'}
       actions={<><Link href={metricsEntry ? '/qaqc/metrics' : `/qaqc/${reportType}`}><Button variant="secondary"><ArrowLeft className="mr-2 size-4" />{metricsEntry ? 'Back to QA/QC Metrics' : 'All reports'}</Button></Link>
         {report && canExport && <><Button variant="secondary" disabled={busy} onClick={() => run(async () => { try { saveFile(await exportQaqcSowReport(report.id, undefined, { headers: { Accept: XLSX_MIME } }), `${reportType}-${per}.xlsx`); } catch (e) { fail('Export failed')(e); } })}><FileSpreadsheet className="mr-2 size-4" />XLSX</Button>
-          {reportType === 'csat' ? <CsatDownloadButton report={report} disabled={busy} variant="secondary" /> : <Button variant="secondary" disabled={busy} onClick={() => run(async () => { try { saveFile(await exportQaqcSowReport(report.id, { templateId: pdfTemplate }, { headers: { Accept: 'application/pdf' } }), `${reportType}-${per}.pdf`); } catch (e) { fail('Export failed')(e); } })}><FileText className="mr-2 size-4" />PDF</Button>}</>}</>}>
+          {reportType === 'csat' ? <CsatDownloadButton report={report} disabled={busy} variant="secondary" /> : reportType === 'daily' ? <DailyDownloadButton report={report} disabled={busy} variant="secondary" /> : <Button variant="secondary" disabled={busy} onClick={() => run(async () => { try { saveFile(await exportQaqcSowReport(report.id, { templateId: pdfTemplate }, { headers: { Accept: 'application/pdf' } }), `${reportType}-${per}.pdf`); } catch (e) { fail('Export failed')(e); } })}><FileText className="mr-2 size-4" />PDF</Button>}</>}</>}>
       {report && <div className="flex flex-wrap items-center gap-3"><StateBadge state={report.state} />{report.submittedAt && <span className="text-sm text-muted-foreground">Submitted {formatDateTime(report.submittedAt)}</span>}{frozen && <span className="text-sm text-muted-foreground">Read-only after submission</span>}</div>}
-      {report && reportType !== 'csat' && <PdfTemplatePicker reportType={reportType} kind="report" value={pdfTemplate} onChange={setPdfTemplate} />}
+      {report && reportType === 'monthly' && <PdfTemplatePicker reportType={reportType} kind="report" value={pdfTemplate} onChange={setPdfTemplate} />}
       {report?.state === 'sent_back' && <Alert variant="destructive"><AlertTitle>Sent back for correction</AlertTitle><AlertDescription>{report.reviewComments}</AlertDescription></Alert>}
       <Wrap>
         <div className={metricsEntry ? 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3' : 'grid gap-3 sm:grid-cols-2 lg:grid-cols-4'}>
