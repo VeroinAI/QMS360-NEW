@@ -8,3 +8,10 @@ The QA/QC Metrics landing-page Download must use the customer's Word report layo
 **Why:** The user supplied a revised monthly Word layout and explicitly required its layout, colours and font combination while allowing unmatched fields to remain visible. This is a targeted download change, not permission to change other export formats or scheduled email attachments.
 
 **How to apply:** Keep other managed PDF template flows independent. Saved system calculations remain authoritative; do not change business calculations to reproduce sample figures. Do not split incompatible ageing bands or expose cross-project data just to fill a template. The supplied Calibri font is not embedded in the Word file; use embedded, metrically compatible Carlito for portable output without a production office/browser dependency, and disclose that substitution.
+
+The user explicitly approved replacing the original Word ageing bands with the
+input screen's buckets in the monthly PDF only.
+
+**Why:** The original template requested bands the form does not collect, leaving
+unnecessary mapping gaps. Match the actual entry definitions, rather than changing
+the form or attempting to divide saved bucket counts into different ranges.

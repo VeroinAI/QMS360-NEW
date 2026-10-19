@@ -140,17 +140,28 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
     put(23, 15, col + 1, col < 2 ? text(v.open) : "n/a");
   });
   para(24, "Cumulative closure % = closed ÷ accumulated issued (100% when nothing issued). Closure rate this month = closed this month ÷ issued this month, using the saved system calculation. Variance = change in cumulative closure %, in percentage points (pp). Open count and ageing are tracked for NCRs only.");
-  // Current bands 0–15 / 15–45 / >45 cannot be split into the template's
-  // 16–30 / 31–60 / >60 bands. Never manufacture those figures.
+  // The PDF now mirrors the entry screen's three saved ageing buckets.
+  const ageingColumns = ["NCR type", "0-15 days", "15-45 days", "Over 45 days", "Total aged", "Total vs Open"];
+  const ageingWidths = [2038, 1400, 1400, 1400, 1400, 2000];
+  const ageingTable = blocks[26]!, ageingGrid = child(ageingTable, "tblGrid")!;
+  ageingGrid.removeChild(children(ageingGrid)[4]!);
+  children(ageingGrid).forEach((col, i) => col.setAttributeNS(W, "w:w", String(ageingWidths[i])));
+  children(ageingTable, "tr").forEach((row, r) => {
+    row.removeChild(children(row, "tc")[4]!);
+    children(row, "tc").forEach((cell, col) => {
+      child(child(cell, "tcPr"), "tcW")!.setAttributeNS(W, "w:w", String(ageingWidths[col]));
+      if (r === 0) set(children(cell, "p")[0]!, ageingColumns[col]);
+    });
+  });
   keys.slice(0, 2).forEach((key, i) => {
     const ageing = rows(d.metrics?.[key]?.ageing);
     const sum = ageing.reduce((s, r) => s + Number(r.count ?? 0), 0), open = metrics[key]?.open;
-    for (let col = 1; col <= 4; col++) put(26, i + 1, col,
-      col === 1 && Array.isArray(d.metrics?.[key]?.ageing)
-        ? ageing.filter(r => r.bucket === "0-15").reduce((s,r) => s + Number(r.count ?? 0), 0) : UNMAPPED);
-    put(26, i + 1, 5, Array.isArray(d.metrics?.[key]?.ageing) ? sum : UNMAPPED);
+    ["0-15", "15-45", "over45"].forEach((bucket, col) => put(26, i + 1, col + 1,
+      Array.isArray(d.metrics?.[key]?.ageing)
+        ? ageing.filter(r => r.bucket === bucket).reduce((s,r) => s + Number(r.count ?? 0), 0) : UNMAPPED));
+    put(26, i + 1, 4, Array.isArray(d.metrics?.[key]?.ageing) ? sum : UNMAPPED);
     const known = Array.isArray(d.metrics?.[key]?.ageing) && num(open) !== undefined;
-    put(26, i + 1, 6, known ? `${sum === open ? "✔" : "✖"} ${sum} / ${open}` : UNMAPPED, 0,
+    put(26, i + 1, 5, known ? `${sum === open ? "✔" : "✖"} ${sum} / ${open}` : UNMAPPED, 0,
       known ? sum === open ? "2E7D32" : "C0392B" : "66666A");
   });
   [pqi.previous,pqi.accumulated,pqi.variance,pqi.monthly].forEach((v,i) => put(29,0,i,

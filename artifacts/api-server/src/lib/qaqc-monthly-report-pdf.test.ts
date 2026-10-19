@@ -40,13 +40,13 @@ describe("Customer Word monthly metrics report",()=>{
     for(const sample of ["Al Nakheel","CC-2041","Sample User","stable quality performance","NCR ageing reviewed","QMS-DC-2026-10","FOR REVIEW ONLY","6 of 9 active","Structural shop drawings"])expect(text).not.toContain(sample);
     expect(xml).toContain('w:fill="582C83"');expect(xml).toContain('w:fill="F3EFF7"');
   });
-  it("keeps unmatched fields explicit, does not invent incompatible ageing bands or signatory titles",async()=>{
+  it("keeps unmatched fields explicit without inventing meeting outcomes or signatory titles",async()=>{
     const {body}=await mapped();
     const tables=children(body,"tbl");
     const meeting=tables.find(t=>t.textContent?.includes("Meeting type"))!;
     expect(meeting.textContent).toContain("10-10-2026To be mappedTo be mapped");
     const ageing=tables.find(t=>t.textContent?.includes("NCR type"))!;
-    expect(ageing.textContent).toContain("2To be mappedTo be mappedTo be mapped");
+    expect(children(children(ageing,"tr")[1]!,"tc").map(c=>c.textContent).slice(1,4)).toEqual(["2","0","0"]);
     const qms=tables.find(t=>t.textContent?.includes("Document Name")&&t.textContent?.includes("Actual Document"))!;
     expect(qms.textContent).toContain("QualitySOPActual DocumentApproved & PublishedActual QMS remarks");
   });
@@ -76,7 +76,7 @@ describe("Customer Word monthly metrics report",()=>{
     expect(xml).not.toContain("Reference no.");
     expect(xml).not.toContain("QMS-DC-2026-10");
   });
-  it("maps the supplied NCR ageing references without splitting incompatible saved bands",async()=>{
+  it("uses the entry screen's ageing buckets, summing departments separately for each NCR type",async()=>{
     const metrics={
       external_ncr:{issued:9,closed:0,ageing:[{bucket:"0-15",count:1},{bucket:"0-15",count:2},{bucket:"15-45",count:4},{bucket:"over45",count:2}]},
       internal_ncr:{issued:0,closed:0,ageing:[]},
@@ -85,11 +85,17 @@ describe("Customer Word monthly metrics report",()=>{
     const {body}=await mapped(r);
     const table=children(body,"tbl").find(t=>t.textContent?.includes("NCR type"))!;
     const values=children(table,"tr").slice(1).map(row=>children(row,"tc").map(c=>c.textContent));
-    expect(values[0]).toEqual(["External NCR","3","To be mapped","To be mapped","To be mapped","9","✔ 9 / 9"]);
-    expect(values[1]).toEqual(["Internal NCR","0","To be mapped","To be mapped","To be mapped","0","✔ 0 / 0"]);
+    expect(children(children(table,"tr")[0]!,"tc").map(c=>c.textContent)).toEqual(["NCR type","0-15 days","15-45 days","Over 45 days","Total aged","Total vs Open"]);
+    expect(values[0]).toEqual(["External NCR","3","4","2","9","✔ 9 / 9"]);
+    expect(values[1]).toEqual(["Internal NCR","0","0","0","0","✔ 0 / 0"]);
+    expect(table.textContent).not.toMatch(/16–30|31–60|> 60/);
     if (!("metrics" in r.computed)) throw new Error("Expected monthly calculations");
     const mismatch=await mapped({...r,computed:{...r.computed,metrics:{...r.computed.metrics,external_ncr:{...r.computed.metrics.external_ncr,open:8}}}});
     expect(mismatch.text).toContain("✖ 9 / 8");
+    expect(mismatch.xml).toContain('w:val="C0392B"');
+    const missing=await mapped({...report,data:{...data,metrics:{external_ncr:{issued:0,closed:0}}}});
+    const missingTable=children(missing.body,"tbl").find(t=>t.textContent?.includes("NCR type"))!;
+    expect(children(children(missingTable,"tr")[1]!,"tc").map(c=>c.textContent).slice(1)).toEqual(Array(5).fill("To be mapped"));
   });
   it("escapes arbitrary user text in XML and preserves long multiline narratives",async()=>{
     const {text,xml}=await mapped({...report,data:{...data,narrative:"Safety <review> & quality\n".repeat(100)}});
