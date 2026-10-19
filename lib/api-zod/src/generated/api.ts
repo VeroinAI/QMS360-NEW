@@ -342,6 +342,14 @@ export const listDronaProjectMasterResponseItemsItemAdditionalDataPacMax = 500;
 
 export const listDronaProjectMasterResponseItemsItemAdditionalDataFacMax = 500;
 
+export const listDronaProjectMasterResponseItemsItemAdditionalDataEmailMax = 254;
+
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataEmailRegExp = new RegExp('^[A-Za-z0-9!#$%&\'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&\'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$');
+export const listDronaProjectMasterResponseItemsItemAdditionalDataPhoneMax = 32;
+
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataPhoneRegExp = new RegExp('^\\+[1-9](?:[ -]?[0-9]){6,14}$');
 
 
 export const ListDronaProjectMasterResponse = zod.object({
@@ -359,7 +367,9 @@ export const ListDronaProjectMasterResponse = zod.object({
   "contractPeriod": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataContractPeriodMax).nullable(),
   "tcc": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataTccMax).nullable(),
   "pac": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataPacMax).nullable(),
-  "fac": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataFacMax).nullable()
+  "fac": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataFacMax).nullable(),
+  "email": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataEmailMax).regex(listDronaProjectMasterResponseItemsItemAdditionalDataEmailRegExp).nullish(),
+  "phone": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataPhoneMax).regex(listDronaProjectMasterResponseItemsItemAdditionalDataPhoneRegExp).nullish()
 }).optional(),
   "location": zod.string().nullable(),
   "status": zod.string(),
@@ -432,6 +442,14 @@ export const updateProjectAdditionalDataBodyAdditionalDataPacMax = 500;
 
 export const updateProjectAdditionalDataBodyAdditionalDataFacMax = 500;
 
+export const updateProjectAdditionalDataBodyAdditionalDataEmailMax = 254;
+
+
+export const updateProjectAdditionalDataBodyAdditionalDataEmailRegExp = new RegExp('^[A-Za-z0-9!#$%&\'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&\'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$');
+export const updateProjectAdditionalDataBodyAdditionalDataPhoneMax = 32;
+
+
+export const updateProjectAdditionalDataBodyAdditionalDataPhoneRegExp = new RegExp('^\\+[1-9](?:[ -]?[0-9]){6,14}$');
 
 
 export const UpdateProjectAdditionalDataBody = zod.object({
@@ -444,7 +462,9 @@ export const UpdateProjectAdditionalDataBody = zod.object({
   "contractPeriod": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataContractPeriodMax).nullable(),
   "tcc": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataTccMax).nullable(),
   "pac": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataPacMax).nullable(),
-  "fac": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataFacMax).nullable()
+  "fac": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataFacMax).nullable(),
+  "email": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataEmailMax).regex(updateProjectAdditionalDataBodyAdditionalDataEmailRegExp).nullish(),
+  "phone": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataPhoneMax).regex(updateProjectAdditionalDataBodyAdditionalDataPhoneRegExp).nullish()
 })
 })
 
@@ -463,6 +483,14 @@ export const updateProjectAdditionalDataResponseAdditionalDataPacMax = 500;
 
 export const updateProjectAdditionalDataResponseAdditionalDataFacMax = 500;
 
+export const updateProjectAdditionalDataResponseAdditionalDataEmailMax = 254;
+
+
+export const updateProjectAdditionalDataResponseAdditionalDataEmailRegExp = new RegExp('^[A-Za-z0-9!#$%&\'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&\'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$');
+export const updateProjectAdditionalDataResponseAdditionalDataPhoneMax = 32;
+
+
+export const updateProjectAdditionalDataResponseAdditionalDataPhoneRegExp = new RegExp('^\\+[1-9](?:[ -]?[0-9]){6,14}$');
 
 
 export const UpdateProjectAdditionalDataResponse = zod.object({
@@ -476,7 +504,9 @@ export const UpdateProjectAdditionalDataResponse = zod.object({
   "contractPeriod": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataContractPeriodMax).nullable(),
   "tcc": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataTccMax).nullable(),
   "pac": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataPacMax).nullable(),
-  "fac": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataFacMax).nullable()
+  "fac": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataFacMax).nullable(),
+  "email": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataEmailMax).regex(updateProjectAdditionalDataResponseAdditionalDataEmailRegExp).nullish(),
+  "phone": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataPhoneMax).regex(updateProjectAdditionalDataResponseAdditionalDataPhoneRegExp).nullish()
 }),
   "updatedAt": zod.coerce.date()
 })

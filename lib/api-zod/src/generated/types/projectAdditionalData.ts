@@ -47,4 +47,16 @@ export interface ProjectAdditionalData {
      * @nullable
      */
   fac: string | null;
+  /**
+     * @maxLength 254
+     * @nullable
+     * @pattern ^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$
+     */
+  email?: string | null;
+  /**
+     * @maxLength 32
+     * @nullable
+     * @pattern ^\+[1-9](?:[ -]?[0-9]){6,14}$
+     */
+  phone?: string | null;
 }
