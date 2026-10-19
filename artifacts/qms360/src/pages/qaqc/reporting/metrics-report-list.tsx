@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { formatDate as organizationDate } from '@workspace/spreadsheet-dates';
 import { Link } from 'wouter';
-import { exportQaqcSowReport, getGetQaqcSowContextQueryKey, getListQaqcSowReportsQueryKey, useGetQaqcSowContext, useListQaqcSowReports, type ListQaqcSowReportsParams, type QaqcSowReport } from '@workspace/api-client-react';
+import { getGetQaqcSowContextQueryKey, getListQaqcSowReportsQueryKey, useGetQaqcSowContext, useListQaqcSowReports, type ListQaqcSowReportsParams, type QaqcSowReport } from '@workspace/api-client-react';
 import { Download, Eye, Lock, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { Empty, ErrorBox, Loading, StateBadge, errMsg, saveFile } from './shell';
 import { canEditMetricsDocument, metricsDocumentHref } from './metrics-report-policy';
+import { exportMonthlyReportPdf } from './monthly-report-download';
 
 const ALL = '__all__';
 const LIMIT = 20;
@@ -73,7 +74,7 @@ export function MetricsReportList() {
     if (!canExport || downloading) return;
     setDownloading(r.id);
     try {
-      const res = await exportQaqcSowReport(r.id, { templateId: 'monthly-metrics' }, { headers: { Accept: 'application/pdf' } });
+      const res = await exportMonthlyReportPdf(r.id);
       saveFile(res, `monthly-report-${(r.projectName ?? r.projectId).replace(/[^\w-]+/g, '-')}-${String(r.period).slice(0, 7)}.pdf`);
       toast({ title: 'Download started', description: `${r.projectName ?? r.projectId} - ${formatMonthYear(r.period)}` });
     } catch (e) {
