@@ -9,6 +9,12 @@ The QA/QC Metrics landing-page Download and the individual monthly report's PDF 
 
 **How to apply:** Keep other managed PDF template flows independent. Saved system calculations remain authoritative; do not change business calculations to reproduce sample figures. Do not split incompatible ageing bands or expose cross-project data just to fill a template. The supplied Calibri font is not embedded in the Word file; use embedded, metrically compatible Carlito for portable output without a production office/browser dependency, and disclose that substitution.
 
+Reserve “To be mapped” strictly for fields with no QMS mapping. Mapped fields with absent saved data must display “—”, while actual zeros remain zero and conditional “Not applicable” rules remain independent.
+
+**Why:** The user clarified that using “To be mapped” for missing data misleads report readers into thinking the application integration is incomplete.
+
+**How to apply:** Distinguish missing data from missing mappings at each report binding, not through a blanket replacement of PDF text. Preserve literal user content, saved calculations and other report types' existing fallback policies.
+
 The user explicitly approved replacing the original Word ageing bands with the
 input screen's buckets in the monthly PDF only.
 

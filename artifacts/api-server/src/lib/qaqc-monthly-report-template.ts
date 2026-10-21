@@ -5,6 +5,8 @@ import type { QaqcReportExport } from "./qaqc-reporting-export";
 
 export const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 export const UNMAPPED = "To be mapped";
+// All values bound below have QMS mappings. An absent value is not an absent mapping.
+const MISSING_DATA = "—";
 export const children = (e: Element, tag?: string): Element[] =>
   Array.from(e.childNodes).filter((n): n is Element => n.nodeType === 1 && (!tag || n.localName === tag));
 export const child = (e: Element | undefined, tag: string) => e && children(e, tag)[0];
@@ -17,25 +19,27 @@ export async function monthlyAsset(name: string) {
     return readFile(new URL(`../assets/${name}`, import.meta.url));
   }
 }
-const text = (v: unknown): string => v === null || v === undefined || v === "" ? UNMAPPED : String(v);
+const text = (v: unknown): string => v === null || v === undefined || String(v).trim() === "" ? MISSING_DATA : String(v);
 const num = (v: unknown) => typeof v === "number" && Number.isFinite(v) ? v : undefined;
-const decimal = (v: unknown, places = 1) => num(v)?.toFixed(places) ?? UNMAPPED;
-const percent = (v: unknown) => num(v) === undefined ? UNMAPPED : `${decimal(v)}%`;
-export function monthlyDate(v: unknown) {
+const decimal = (v: unknown, places = 1) => num(v)?.toFixed(places) ?? MISSING_DATA;
+const percent = (v: unknown) => num(v) === undefined ? MISSING_DATA : `${decimal(v)}%`;
+export function monthlyDate(v: unknown, missing = UNMAPPED) {
   const s = v instanceof Date ? v.toISOString() : String(v ?? "");
   const match = /^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/.exec(s);
-  return match ? `${match[3]}-${match[2]}-${match[1]}` : UNMAPPED;
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : missing;
 }
+// Keep the shared date helper's fallback unchanged for CSAT and Daily exports.
+const reportDate = (v: unknown) => monthlyDate(v, MISSING_DATA);
 function period(v: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v))
-    ? new Date(`${v}T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }) : UNMAPPED;
+    ? new Date(`${v}T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }) : MISSING_DATA;
 }
 const rows = (v: unknown): Record<string, any>[] => Array.isArray(v) ? v.filter(r => r && typeof r === "object") : [];
-const variance = (v: unknown, unit = "pp") => num(v) === undefined ? UNMAPPED
+const variance = (v: unknown, unit = "pp") => num(v) === undefined ? MISSING_DATA
   : `${Number(v) > 0 ? "▲ +" : Number(v) < 0 ? "▼ " : "● "}${decimal(v)} ${unit}${v === 0 ? " (no change)" : ""}`;
 
 /** Changes values only; all table/run styling comes from the customer's Word file.
- * Unmatched template fields deliberately do not inherit its illustrative values.
+ * Mapped fields with no saved data use a dash, never sample values or an unmapped marker.
  */
 export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   const files = unzipSync(await monthlyAsset("qaqc-monthly-report-template.docx"));
@@ -110,9 +114,9 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   put(9, 0, 1, project); put(9, 0, 3, month); put(9, 1, 1, report.costCentre);
   put(11, 0, 1, d.pqpStatus === "Others" ? d.pqpOther : d.pqpStatus);
   const pqpNA = !d.pqpStatus || d.pqpStatus === "Under Preparation";
-  put(11, 0, 3, pqpNA ? "Not applicable" : monthlyDate(d.pqpSubmittedDate));
-  put(11, 1, 1, /^Approved [ABC]$/.test(d.pqpStatus ?? "") ? monthlyDate(d.pqpApprovedDate) : "Not applicable");
-  put(14, 0, 1, d.reportReference); put(14, 0, 3, monthlyDate(d.reportFrom)); put(14, 1, 1, monthlyDate(d.reportTo));
+  put(11, 0, 3, pqpNA ? "Not applicable" : reportDate(d.pqpSubmittedDate));
+  put(11, 1, 1, /^Approved [ABC]$/.test(d.pqpStatus ?? "") ? reportDate(d.pqpApprovedDate) : "Not applicable");
+  put(14, 0, 1, d.reportReference); put(14, 0, 3, reportDate(d.reportFrom)); put(14, 1, 1, reportDate(d.reportTo));
   // Keep only the requested Meeting type and Date columns, with source styling.
   const meetingTable = blocks[16]!, meetingGrid = child(meetingTable, "tblGrid")!;
   children(meetingGrid).slice(2).forEach(col => meetingGrid.removeChild(col));
@@ -122,14 +126,14 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
     children(row, "tc").forEach((cell, i) =>
       child(child(cell, "tcPr"), "tcW")!.setAttributeNS(W, "w:w", String([6438, 3200][i])));
   });
-  rebuild(16, d.meetings, r => [r.type, monthlyDate(r.lastDate)], "No meeting added");
+  rebuild(16, d.meetings, r => [r.type, reportDate(r.lastDate)], "No meeting added");
   para(17, `${rows(d.meetings).length} meetings conducted this month.`);
   const audit = d.internalAudit ?? {};
-  put(19, 0, 1, typeof audit.conducted === "boolean" ? audit.conducted ? "Yes" : "No" : UNMAPPED);
-  put(19, 0, 3, audit.conducted === false ? "Not applicable" : monthlyDate(audit.lastDate));
-  put(19, 1, 1, audit.conducted === false ? "Not applicable" : monthlyDate(audit.nextDate));
+  put(19, 0, 1, typeof audit.conducted === "boolean" ? audit.conducted ? "Yes" : "No" : MISSING_DATA);
+  put(19, 0, 3, audit.conducted === false ? "Not applicable" : reportDate(audit.lastDate));
+  put(19, 1, 1, audit.conducted === false ? "Not applicable" : reportDate(audit.nextDate));
   const manpowerTotalRow = children(blocks[21]!, "tr").at(-1)!.cloneNode(true) as Element;
-  rebuild(21, d.manpower, r => [r.department, r.count, typeof r.approvalRequired === "boolean" ? r.approvalRequired ? "Yes" : "No" : UNMAPPED], "No manpower rows added");
+  rebuild(21, d.manpower, r => [r.department, r.count, typeof r.approvalRequired === "boolean" ? r.approvalRequired ? "Yes" : "No" : MISSING_DATA], "No manpower rows added");
   if (rows(d.manpower).length) {
     const table = blocks[21]!, total = manpowerTotalRow;
     children(total, "tc").forEach((cell, j) => set(children(cell, "p")[0]!, ["Total manpower", text(c.manpower?.count), ""][j] || " "));
@@ -166,15 +170,15 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
     const sum = ageing.reduce((s, r) => s + Number(r.count ?? 0), 0), open = metrics[key]?.open;
     ["0-15", "15-45", "over45"].forEach((bucket, col) => put(26, i + 1, col + 1,
       Array.isArray(d.metrics?.[key]?.ageing)
-        ? ageing.filter(r => r.bucket === bucket).reduce((s,r) => s + Number(r.count ?? 0), 0) : UNMAPPED));
-    put(26, i + 1, 4, Array.isArray(d.metrics?.[key]?.ageing) ? sum : UNMAPPED);
+        ? ageing.filter(r => r.bucket === bucket).reduce((s,r) => s + Number(r.count ?? 0), 0) : MISSING_DATA));
+    put(26, i + 1, 4, Array.isArray(d.metrics?.[key]?.ageing) ? sum : MISSING_DATA);
     const known = Array.isArray(d.metrics?.[key]?.ageing) && num(open) !== undefined;
-    put(26, i + 1, 5, known ? `${sum === open ? "✔" : "✖"} ${sum} / ${open}` : UNMAPPED, 0,
+    put(26, i + 1, 5, known ? `${sum === open ? "✔" : "✖"} ${sum} / ${open}` : MISSING_DATA, 0,
       known ? sum === open ? "2E7D32" : "C0392B" : "66666A");
   });
   [pqi.previous,pqi.accumulated,pqi.variance,pqi.monthly].forEach((v,i) => put(29,0,i,
     i === 2 && num(v) !== undefined && Number(v) > 0 ? `+${decimal(v)}` : decimal(v),1,i === 2 ? tone(v) : undefined));
-  put(29,0,2,num(pqi.variance) === undefined ? UNMAPPED : Number(pqi.variance)>0 ? "▲ improved vs last month" : Number(pqi.variance)<0 ? "▼ declined vs last month" : "● no change",2,tone(pqi.variance));
+  put(29,0,2,num(pqi.variance) === undefined ? MISSING_DATA : Number(pqi.variance)>0 ? "▲ improved vs last month" : Number(pqi.variance)<0 ? "▼ declined vs last month" : "● no change",2,tone(pqi.variance));
   const downloadPqi = report.monthlyDownloadPqi;
   const downloadAverage = downloadPqi?.projectCount === 0 ? "No submitted reports" : decimal(downloadPqi?.average);
   const reportingPeriod = period(report.period).replace(/ (\d{4})$/, ", $1");
@@ -182,25 +186,31 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   put(31,0,1,"Average of saved ‘Acc. till this month’ scores from authorized submitted/approved project reports for this month, calculated at download time.",1);
   [[mat.previousIssued,mat.issued,mat.accumulatedIssued], [mat.previousClosed,mat.closed,mat.accumulatedClosed],
     [num(mat.previousIssued)! - num(mat.previousClosed)!, "—", mat.open],
-    [num(mat.previousIssued) === undefined || num(mat.previousClosed) === undefined ? UNMAPPED
+    [num(mat.previousIssued) === undefined || num(mat.previousClosed) === undefined ? MISSING_DATA
       : percent(mat.previousIssued === 0 ? (mat.previousClosed === 0 ? 100 : 0) : mat.previousClosed / mat.previousIssued * 100),
     percent(mat.monthlyRate),percent(mat.accumulatedRate)]].forEach((vs,i) => vs.forEach((v,j) =>
-      put(34,i+1,j+1,typeof v === "number" && !Number.isFinite(v) ? UNMAPPED : v)));
+      put(34,i+1,j+1,typeof v === "number" && !Number.isFinite(v) ? MISSING_DATA : v)));
   put(34,5,1,variance(mat.variance,"pts"),0,tone(mat.variance));
-  put(36,0,1,typeof m.osdAvailable === "boolean" ? m.osdAvailable ? "Yes" : "No" : UNMAPPED);
+  put(36,0,1,typeof m.osdAvailable === "boolean" ? m.osdAvailable ? "Yes" : "No" : MISSING_DATA);
   const osd = (v: unknown) => m.osdAvailable === false ? "Not applicable" : text(v);
   put(36,0,3,osd(m.osdMirns)); put(36,1,1,osd(m.overage)); put(36,1,3,osd(m.shortage));
   put(36,2,1,osd(m.damage)); put(36,2,3,osd(m.defective));
   const statusKeys = ["approved","onHold","rejectedDoNotUse","rejectedReturn","hazardous","handleWithCare"];
-  statusKeys.forEach((k,i) => {
-    put(39,i+1,1,m[k]);
-    put(39,i+1,2,num(m[k]) !== undefined && num(m.totalItems) !== undefined && m.totalItems > 0
-      ? percent(m[k] / m.totalItems * 100) : m.totalItems === 0 && m[k] === 0 ? "0.0%" : UNMAPPED);
+  // Keep the full table width and original cell styling, with only status and count.
+  const statusTable = blocks[39]!, statusGrid = child(statusTable, "tblGrid")!;
+  const statusWidths = [7138, 2500];
+  statusGrid.removeChild(children(statusGrid)[2]!);
+  children(statusGrid).forEach((col, i) => col.setAttributeNS(W, "w:w", String(statusWidths[i])));
+  children(statusTable, "tr").forEach(row => {
+    row.removeChild(children(row, "tc")[2]!);
+    children(row, "tc").forEach((cell, i) =>
+      child(child(cell, "tcPr"), "tcW")!.setAttributeNS(W, "w:w", String(statusWidths[i])));
   });
+  statusKeys.forEach((k,i) => put(39,i+1,1,m[k]));
   const tagsKnown = statusKeys.every(k => num(m[k]) !== undefined) && num(m.totalItems) !== undefined;
   const tagSum = statusKeys.reduce((s,k) => s + Number(m[k] ?? 0),0), tagsMatch = tagSum === m.totalItems;
-  put(39,7,1,m.totalItems); put(39,7,2,num(m.totalItems) === undefined ? UNMAPPED : "100.0%");
-  para(40,tagsKnown ? `${tagsMatch ? "✔" : "✖"} Status tags total ${tagSum} ${tagsMatch ? "=" : "≠"} Total items in MIRNs ${m.totalItems}` : UNMAPPED,
+  put(39,7,1,m.totalItems);
+  para(40,tagsKnown ? `${tagsMatch ? "✔" : "✖"} Status tags total ${tagSum} ${tagsMatch ? "=" : "≠"} Total items in MIRNs ${m.totalItems}` : MISSING_DATA,
     tagsKnown ? tagsMatch ? "2E7D32" : "C0392B" : "66666A");
   const qb = baseline.qtbt ?? {};
   [[qb.accumulatedTalkCount,q.talkCount,qt.accumulatedTalkCount],
@@ -208,7 +218,7 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
     ["—",q.attendance,"—"],["—",q.durationMinutes,"—"]].forEach((vs,i) => vs.forEach((v,j) => put(42,i+1,j+1,v)));
   ["drawings","submittals"].forEach((key,i) => {
     const v = d.documents?.[key] ?? {}, fields = ["approved","resubmitted","rejected","underReview"];
-    const total = fields.every(k => num(v[k]) !== undefined) ? fields.reduce((s,k) => s + v[k],0) : UNMAPPED;
+    const total = fields.every(k => num(v[k]) !== undefined) ? fields.reduce((s,k) => s + v[k],0) : MISSING_DATA;
     [...fields.map(k => text(v[k])),total,decimal(v.clientReviewDays),decimal(v.internalReviewDays)].forEach((v,j) => put(45,i+1,j+1,v));
     put(48,i,1,v.remarks);
   });
@@ -241,7 +251,7 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   body.removeChild(blocks[51]!);
   put(53,0,0,confirmation,1,d.assessmentConfirmed === true ? "2E7D32" : "66666A");
   put(53,0,1,report.submittedByName,1); put(53,0,1,report.submittedByDesignation?.trim() || null,2);
-  put(53,0,2,monthlyDate(report.submittedAt),1); put(53,0,2,`Report ID  ${text(report.referenceNumber ?? report.id)}`,2);
+  put(53,0,2,reportDate(report.submittedAt),1); put(53,0,2,`Report ID  ${text(report.referenceNumber ?? report.id)}`,2);
   // Explicitly remove the reviewer appendix, sample header, comments and sample footer.
   for (const block of blocks.slice(54)) if (block.localName !== "sectPr") body.removeChild(block);
   return { body, project, month };

@@ -63,7 +63,7 @@ describe("Customer Word monthly metrics report",()=>{
     const zero=await mapped({...report,monthlyDownloadPqi:{average:0,projectCount:1}});
     expect(zero.text).toContain("0.0 (Total monthly report for reporting period (October, 2026) submitted -> 1)");
     const missingScore=await mapped({...report,monthlyDownloadPqi:{average:null,projectCount:1}});
-    expect(missingScore.text).toContain("To be mapped (Total monthly report for reporting period (October, 2026) submitted -> 1)");
+    expect(missingScore.text).toContain("— (Total monthly report for reporting period (October, 2026) submitted -> 1)");
     const differentMonth=await mapped({...report,period:"2027-01-01"});
     expect(differentMonth.text).toContain("reporting period (January, 2027) submitted -> 2");
   });
@@ -77,7 +77,7 @@ describe("Customer Word monthly metrics report",()=>{
     for (const designation of [undefined,null,"","   "]) {
       const missing = await mapped({...report,submittedByDesignation:designation});
       const missingCells = children(children(submittedBy(missing.body),"tr")[0]!,"tc");
-      expect(children(missingCells[1]!,"p")[2]!.textContent).toBe("To be mapped");
+      expect(children(missingCells[1]!,"p")[2]!.textContent).toBe("—");
     }
   });
   it("handles no meetings/reports, inapplicable fields and unconfirmed drafts truthfully",async()=>{
@@ -92,6 +92,22 @@ describe("Customer Word monthly metrics report",()=>{
     expect(text).toContain("✖ Status tags total 10 ≠ Total items in MIRNs 1");expect(xml).toContain('w:val="C0392B"');
     expect(data.material.totalItems).toBe(10);
   });
+  it("removes Share of total from MIRN status rows while preserving counts, total, width and styling",async()=>{
+    const {body,text}=await mapped();
+    const table=children(body,"tbl").find(t=>t.textContent?.includes("Status tag"))!;
+    const values=children(table,"tr").map(row=>children(row,"tc").map(cell=>cell.textContent));
+    expect(values).toEqual([
+      ["Status tag","No. of items"],["Approved","5"],["On Hold / Quarantine","1"],
+      ["Rejected – Do Not Use","1"],["Rejected – Return to Supplier","1"],
+      ["Hazardous Material","1"],["Handle & Store with Care","1"],["Total","10"],
+    ]);
+    expect(text).not.toContain("Share of total");
+    const xml=new XMLSerializer().serializeToString(table);
+    expect(xml).toContain('w:w="7138"');
+    expect(xml).toContain('w:w="2500"');
+    expect(xml).toContain('w:fill="582C83"');
+    expect(xml).toContain('w:fill="F3EFF7"');
+  });
   it("replaces section 11 with the five input-screen columns, preserving styling and missing markers",async()=>{
     const {body,text}=await mapped({...report,data:{...data,qmsReports:[...data.qmsReports,{department:"HSSE",type:"Form",documentName:"Missing status document"}]}});
     expect(text).toContain("11   QMS Document Register");
@@ -99,7 +115,7 @@ describe("Customer Word monthly metrics report",()=>{
     const table=children(body,"tbl").find(t=>t.textContent?.includes("Document Name"))!;
     const tableRows=children(table,"tr");
     expect(children(tableRows[0]!,"tc").map(c=>c.textContent)).toEqual(["Department","Type","Document Name","Status","Remarks"]);
-    expect(children(tableRows[2]!,"tc").map(c=>c.textContent)).toEqual(["HSSE","Form","Missing status document","To be mapped","To be mapped"]);
+    expect(children(tableRows[2]!,"tc").map(c=>c.textContent)).toEqual(["HSSE","Form","Missing status document","—","—"]);
     expect(tableRows.every(r=>children(r,"tc").length===5)).toBe(true);
     const xml=new XMLSerializer().serializeToString(table);
     expect(xml).toContain('w:fill="582C83"');
@@ -125,7 +141,7 @@ describe("Customer Word monthly metrics report",()=>{
     expect(mismatch.xml).toContain('w:val="C0392B"');
     const missing=await mapped({...report,data:{...data,metrics:{external_ncr:{issued:0,closed:0}}}});
     const missingTable=children(missing.body,"tbl").find(t=>t.textContent?.includes("NCR type"))!;
-    expect(children(children(missingTable,"tr")[1]!,"tc").map(c=>c.textContent).slice(1)).toEqual(Array(5).fill("To be mapped"));
+    expect(children(children(missingTable,"tr")[1]!,"tc").map(c=>c.textContent).slice(1)).toEqual(Array(5).fill("—"));
   });
   it("escapes arbitrary user text in XML and preserves long multiline narratives",async()=>{
     const {text,xml}=await mapped({...report,data:{...data,narrative:"Safety <review> & quality\n".repeat(100)}});
@@ -140,8 +156,52 @@ describe("Customer Word monthly metrics report",()=>{
   },30000);
   it("keeps a missing field distinct from actual zero",async()=>{
     const {text}=await mapped({...report,computed:{},data:{},baseline:{}});
-    expect(text).toContain("To be mapped");expect(text).not.toContain("90.4");expect(text).not.toContain("88.7");
+    expect(text).toContain("—");expect(text).not.toContain("To be mapped");
+    expect(text).not.toContain("90.4");expect(text).not.toContain("88.7");
+    expect(text).not.toMatch(/NaN|undefined|null/);
     expect(monthlyDate("2026-10-03")).toBe("03-10-2026");
+    // Other report types import this helper and retain their existing fallback.
+    expect(monthlyDate(undefined)).toBe("To be mapped");
+    expect(monthlyDate(undefined,"—")).toBe("—");
+  });
+  it("uses dashes for missing mapped text, dates, quantities and baseline values without hiding actual zeros",async()=>{
+    const partialData = {
+      pqpStatus:"Rejected", narrative:"   ",
+      material:{issued:5,closed:5,osdAvailable:true,osdMirns:0,overage:999,approved:0},
+      qtbt:{talkCount:5,attendance:5,durationMinutes:5},
+    };
+    const partial: QaqcReportExport = {...report,costCentre:null,submittedByName:null,
+      submittedByDesignation:null,submittedAt:null,monthlyDownloadPqi:undefined,
+      data:partialData,baseline:{},computed:calculateReport("monthly",partialData,{},{})};
+    const {body,text,xml}=await mapped(partial);
+    expect(text).not.toContain("To be mapped");
+    const tables=children(body,"tbl");
+    const osd=tables.find(t=>t.textContent?.includes("OSD available"))!;
+    expect(children(osd,"tr").map(row=>children(row,"tc").map(c=>c.textContent))).toEqual([
+      ["OSD available","Yes","MIRNs with OSD","0"],
+      ["Total overage qty","999","Total shortage qty","—"],
+      ["Total damage qty","—","Total defective qty","—"],
+    ]);
+    const qtbt=tables.find(t=>t.textContent?.includes("Number of talks"))!;
+    expect(children(children(qtbt,"tr")[1]!,"tc")[1]!.textContent).toBe("—");
+    expect(children(children(qtbt,"tr")[2]!,"tc")[1]!.textContent).toBe("—");
+    const pqp=tables.find(t=>t.textContent?.includes("PQP status"))!;
+    expect(children(children(pqp,"tr")[0]!,"tc")[3]!.textContent).toBe("—");
+    expect(xml).toContain('w:fill="582C83"');
+    expect(xml).toContain('w:fill="F3EFF7"');
+    const pdf=await exportQaqcReportPdf(partial,{templateId:"monthly-metrics"});
+    await mkdir("../../generated-artifacts",{recursive:true});
+    await writeFile("../../generated-artifacts/qaqc-monthly-missing-data-preview.pdf",pdf);
+  },30000);
+  it("keeps conditional not-applicable rules and literal user content unchanged",async()=>{
+    const {body,text}=await mapped({...report,data:{...data,
+      narrative:"Author note: To be mapped is the issue reported.",
+      material:{...data.material,osdAvailable:false},
+      internalAudit:{conducted:false},pqpStatus:"Under Preparation"}});
+    expect(text).toContain("Author note: To be mapped is the issue reported.");
+    const osd=children(body,"tbl").find(t=>t.textContent?.includes("OSD available"))!;
+    expect(children(osd,"tr").slice(1).every(row=>children(row,"tc")
+      .filter((_,index)=>index%2===1).every(cell=>cell.textContent==="Not applicable"))).toBe(true);
   });
   it("downloads a valid styled PDF through the existing exporter and writes a visual fixture",async()=>{
     const bytes=await exportQaqcReportPdf(report,{templateId:"monthly-metrics"});
