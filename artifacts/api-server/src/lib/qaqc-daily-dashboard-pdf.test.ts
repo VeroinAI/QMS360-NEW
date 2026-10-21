@@ -54,7 +54,18 @@ describe("Daily dashboard supplied presentation and mapping workbook", () => {
     expect(m.tables!["Drawings table"]!.rows[1]![5]).toBe("100");
     expect(m.charts[9]!.categories[0]).toBe("Drawing rev REV-A  +7");
     expect(m.charts[9]!.categories[1]).toBe("Submittal rev REV-A  +2");
-    expect(m.charts[15]!.series[0]!.values[0]).toBeCloseTo(10 / 244 * 100);
+    expect(m.charts[15]!.series[0]!.values[0]).toBeCloseTo(10 / 164 * 100);
+    expect(m.charts[15]!.series[0]!.values[1]).toBeCloseTo(11 / 80 * 100);
+    expect(m.charts[9]!.series[0]!.values).toEqual(m.charts[15]!.series[0]!.values);
+  });
+  it("keeps zero-category revision percentages independent of the other category", () => {
+    const r = structuredClone(report);
+    const d = r.data as any;
+    for (const row of Object.values(d.disciplines.drawings)) Object.assign(row as object, { approved: 0, resubmit: 0, rejected: 0, underReview: 0 });
+    r.computed = calculateReport("daily", r.data, r.baseline);
+    const m = dailyDashboardData(r);
+    expect(m.charts[15]!.series[0]!.values).toEqual([0, 11 / 80 * 100]);
+    expect(m.charts[9]!.series[0]!.values).toEqual(m.charts[15]!.series[0]!.values);
   });
   it("preserves negative and zero corrections without drawing a false positive donut segment", () => {
     const r = structuredClone(report);

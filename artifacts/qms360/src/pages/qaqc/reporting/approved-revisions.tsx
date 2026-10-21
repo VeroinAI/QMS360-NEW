@@ -25,7 +25,8 @@ export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
   const disabled = f.readOnly || f.fc('revisions').disabled;
   const revisions: Obj = f.data.revisions ?? {};
   const totals = calcDaily(f.data).disc;
-  const overall = Object.values(totals).reduce((total, row) => total + num(row.total), 0);
+  const categoryTotal = (cat: Category) => Object.entries(totals)
+    .reduce((total, [key, row]) => total + (key.startsWith(`${cat}.`) ? num(row.total) : 0), 0);
   const priorValue = (cat: Category, name: unknown) =>
     (baseline.revisions?.[cat] ?? []).find((row: Obj) => normalize(row.name) === normalize(name))?.value ?? 0;
   const missing = categories.flatMap(cat => (baseline.revisions?.[cat] ?? [])
@@ -33,7 +34,7 @@ export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
     .map((row: Obj) => ({ cat, row })));
   const add = (cat: Category, row: Obj) => f.set(['revisions'], { ...revisions, [cat]: [...(revisions[cat] ?? []), row] });
 
-  return <Section title="4. Approved status by Rivision" description={'“Yesterday Approved” is auto-fetched from the last log for this project and is read-only. Percentage is calculated against overall cumulative documents (Drawings + Submittals Total).'}>
+  return <Section title="4. Approved status by Rivision" description={'“Yesterday Approved” is auto-fetched from the last log for this project and is read-only. Drawing revision percentages use total cumulative Drawings; Submittal revision percentages use total cumulative Submittals.'}>
     <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm" aria-label="Approved status by revision">
       <thead><tr>
         {['Document Type', 'Revision No.', 'Yesterday Approved (auto)', 'Current Approved', '% of Overall Cum'].map((label, i) =>
@@ -43,6 +44,7 @@ export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
       <tbody>
         {categories.flatMap(cat => (revisions[cat] ?? []).map((row: Obj, i: number) => {
           const label = `${categoryLabel(cat)} revision ${i + 1}`;
+          const total = categoryTotal(cat);
           return <tr key={`${cat}-${i}`} className="border-t">
             <td className="px-2 py-2"><select aria-label={`${label} document type`} disabled={disabled} value={cat}
               className="h-9 w-full rounded-md border bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
@@ -53,7 +55,7 @@ export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
               onChange={e => f.set(['revisions', cat, i, 'name'], e.target.value)} /></td>
             <td className="px-2 py-2"><Input aria-label={`${label} yesterday approved`} readOnly className="bg-muted/50 text-muted-foreground" value={priorValue(cat, row.name)} /></td>
             <td className="px-2 py-2 [&_input]:h-9 [&_input]:w-full"><NumField bare path={['revisions', cat, i, 'value']} label={`${label} current approved`} /></td>
-            <td className="px-2 py-2 font-medium" aria-live="polite">{overall > 0 ? (num(row.value) / overall * 100).toFixed(1) : '0.0'}%</td>
+            <td className="px-2 py-2 font-medium" aria-live="polite">{total > 0 ? (num(row.value) / total * 100).toFixed(1) : '0.0'}%</td>
             <td className="px-2 py-2">{!disabled && <Button type="button" size="icon" variant="ghost" aria-label={`Remove ${label}`}
               onClick={() => f.set(['revisions', cat], revisions[cat].filter((_: unknown, index: number) => index !== i))}><Trash2 className="size-4 text-destructive" /></Button>}</td>
           </tr>;

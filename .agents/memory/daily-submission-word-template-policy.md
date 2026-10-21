@@ -14,3 +14,9 @@ The separate Daily Dashboard PDF follows the customer's four-page presentation a
 **Why:** The user requested separate Report PDF and Dashboard PDF actions. The workbook's matching sample numbers are illustrative, not new validation rules.
 
 **How to apply:** Do not force document-type counts to equal discipline totals, or discipline Under Review counts to equal the pending-review workspace. The dashboard's Overall Under Review counts only the Under Review status across parties, while pending totals and ageing include every review status. Do not silently clamp negative corrections into positive doughnut segments.
+
+Revision percentages use the cumulative total of the revision's own document category: Drawing revisions divide by all Drawings; Submittal revisions divide by all Submittals. Never use the combined total for a revision row.
+
+**Why:** The user explicitly replaced the original combined-denominator rule for the Daily Submission revision section.
+
+**How to apply:** Keep the entry form, daily report PDF and dashboard revision charts consistent. Use all statuses within the matching category's total, not only approved documents. A zero matching-category total yields 0.0%, regardless of the other category's total.

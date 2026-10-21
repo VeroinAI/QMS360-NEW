@@ -48,8 +48,8 @@ describe("Word-based Daily Submission download",()=>{
   it("matches revisions by normalized name within document category, not by array position",async()=>{
     const changed={...report,baseline:{...baseline,revisions:{drawings:[{name:"other",value:90},{name:" rev-a ",value:3}],submittals:[{name:"REV-A",value:7}]}}};
     const result=await mapped(changed),t=table(result,"Document typeRevision no.");
-    expect(cells(t,1).map(c=>c.textContent)).toEqual(["Drawing","REV-A","3","10","▲ +7","6.3%"]);
-    expect(cells(t,2).map(c=>c.textContent)).toEqual(["Submittal","REV-A","7","11","▲ +4","6.9%"]);
+    expect(cells(t,1).map(c=>c.textContent)).toEqual(["Drawing","REV-A","3","10","▲ +7","12.5%"]);
+    expect(cells(t,2).map(c=>c.textContent)).toEqual(["Submittal","REV-A","7","11","▲ +4","13.8%"]);
   });
   it("uses the saved baseline and treats first-report yesterday values as zero",async()=>{
     const result=await mapped({...report,baseline:{}});
@@ -79,6 +79,18 @@ describe("Word-based Daily Submission download",()=>{
     const result=await mapped({...report,data:zeros,computed:calculateReport("daily",zeros,{}),baseline:{}});
     expect(result.text).toContain("0.0%");expect(result.text).not.toContain("64.3%");
     expect(cells(table(result,"CUMULATIVE"),4).map(c=>c.textContent)).toEqual(["Submission total","0","0","0","0","0"]);
+  });
+  it("uses each revision's own category even when category totals differ or only one total is zero",async()=>{
+    const changed=structuredClone(data);
+    changed.disciplines.submittals!.Civil!.approved+=80;
+    const makeReport=()=>({...report,data:changed,computed:calculateReport("daily",changed,baseline)});
+    const result=await mapped(makeReport());
+    expect(cells(table(result,"Document typeRevision no."),1)[5]!.textContent).toBe("12.5%");
+    expect(cells(table(result,"Document typeRevision no."),2)[5]!.textContent).toBe("6.9%");
+    for(const row of Object.values(changed.disciplines.drawings!))Object.assign(row,{approved:0,resubmit:0,rejected:0,underReview:0});
+    const zero=await mapped(makeReport());
+    expect(cells(table(zero,"Document typeRevision no."),1)[5]!.textContent).toBe("0.0%");
+    expect(cells(table(zero,"Document typeRevision no."),2)[5]!.textContent).toBe("6.9%");
   });
   it("produces readable styled pages and flows large revision lists without dropping rows",async()=>{
     const normal=await exportQaqcReportPdf(report,{templateId:"daily-submission"});

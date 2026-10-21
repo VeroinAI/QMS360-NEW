@@ -78,10 +78,10 @@ export function dailyDashboardData(report: QaqcReportExport): PresentationDashbo
   });
   charts[4] = bar(["Outgoing", "Incoming"], "Correspondence", correspondenceChanges, "582C83", { pointColors: ["582C83", "06AEBB"], compact: true });
   charts[8] = bar(["Outgoing", "Incoming"], "Correspondence", correspondence, "582C83", { pointColors: ["582C83", "06AEBB"], compact: true });
-  const cumulative = combined();
   const revisions = ["drawings", "submittals"].flatMap(key => rows(d.revisions?.[key]).map(row => {
     const prior = number(rows(b.revisions?.[key]).find(p => norm(p.name) === norm(row.name))?.value) ?? 0;
     const now = number(row.value);
+    const cumulative = section(key);
     // The read-only percentage is not persisted as a separate column. This is
     // the same formula and denominator used by ApprovedRevisions in the form.
     const percentage = now === null || cumulative === null ? null : cumulative > 0 ? now / cumulative * 100 : 0;
@@ -125,7 +125,7 @@ export function dailyDashboardData(report: QaqcReportExport): PresentationDashbo
     "Current", activeTypes.map(k => current("documentTypes", k)));
   charts[15] = bar(revisions.map(r => r.label), "% of overall cum.", revisions.map(r => r.percentage), "582C83", { percent: true, pointColors: revisions.map(r => r.label.startsWith("Drawing") ? "582C83" : "06AEBB") });
   if (!revisions.length) { charts[9]!.hide = "No revision rows added"; charts[15]!.hide = "No revision rows added"; }
-  values["Revision note"] = `Approved: ${count(combined("approved"))} documents\nShare is measured against ${count(cumulative)} cumulative documents (Drawings + Submittals).`;
+  values["Revision note"] = `Approved: ${count(combined("approved"))} documents\nRevision shares use their document type's cumulative total: Drawings ${count(section("drawings"))}; Submittals ${count(section("submittals"))}.`;
   entities.forEach(e => {
     values[`KPI ${e} value`] = count(pending(e));
     values[`KPI ${e} sub`] = `${count(bucketTotal(e, "over30"))} pending ≥ 31 days`;

@@ -121,7 +121,7 @@ export async function buildDailyReportDocument(report:QaqcReportExport) {
     const priorRows=Array.isArray(b.revisions?.[key])?b.revisions[key]:[];
     const prior=number(priorRows.find((p:Obj)=>normalized(p.name)===normalized(row.name))?.value)??0;
     const now=number(row.value), delta=diff(now,prior);
-    const values=[key==="drawings"?"Drawing":"Submittal",row.name,count(prior),count(now),change(delta),percentage(now,combined())];
+    const values=[key==="drawings"?"Drawing":"Submittal",row.name,count(prior),count(now),change(delta),percentage(now,section(key))];
     children(clone,"tc").forEach((cell,col)=>{
       const ps=children(cell,"p");set(ps[0]!,values[col],col===4?tone(delta):undefined);
       ps.slice(1).forEach(p=>cell.removeChild(p));
@@ -132,7 +132,7 @@ export async function buildDailyReportDocument(report:QaqcReportExport) {
     const p=children(children(pristine,"tc")[0]!,"p")[0]!.cloneNode(true) as Element;
     set(p,"No revision rows added");body.replaceChild(p,revisionTable);
   }
-  para(23,`% of overall cum. = Current approved ÷ overall cumulative documents (Drawings total + Submittals total = ${count(combined())}).`);
+  para(23,`% of overall cum. = Current approved ÷ cumulative total for the selected document type (Drawings: ${count(section("drawings"))}; Submittals: ${count(section("submittals"))}) × 100.`);
   for(const [index,key] of ["outgoing","incoming"].entries()){
     const now=current("correspondence",key),prior=previous("correspondence",key);
     put(25,index+1,1,count(prior));put(25,index+1,2,count(now));put(25,index+1,3,change(diff(now,prior)),0,tone(diff(now,prior)));
