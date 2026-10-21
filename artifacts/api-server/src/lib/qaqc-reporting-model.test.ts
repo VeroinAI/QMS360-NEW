@@ -2,6 +2,25 @@ import { describe, expect, it } from "vitest";
 import { buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, DAILY_DOCUMENT_TYPES } from "./qaqc-reporting-model";
 
 describe("QA/QC SOW report model", () => {
+  it.each([false, true])("rejects repeated manpower departments when submit=%s", submit => {
+    const result = validateReportData("monthly", { manpower: [
+      { department: "Civil", count: 1, approvalRequired: false },
+      { department: " civil ", count: 2, approvalRequired: false },
+    ] }, {}, submit);
+    expect(result.errors).toContain('Quality Manpower 2: Discipline / Department "civil" is already selected in Quality Manpower 1. Each department can appear only once per report.');
+  });
+
+  it("allows distinct departments, blank draft rows, and reuse in separate reports", () => {
+    for (const manpower of [
+      [{ department: "Civil" }, { department: "Mechanical" }],
+      [{ department: "" }, { department: "" }],
+      [{ department: "Civil" }],
+      [{ department: "Civil" }],
+    ]) {
+      expect(validateReportData("monthly", { manpower }, {}, false).errors.filter(e => e.includes("already selected"))).toEqual([]);
+    }
+  });
+
   it("calculates independent training counters and participant-hours", () => {
     const result = calculateReport("monthly", { training: { trainingCount: 3, attendance: 12, durationMinutes: 45 } },
       { training: { accumulatedTrainingCount: 7, accumulatedManhours: 20 } }, {}) as any;

@@ -37,8 +37,15 @@ export function validateMetricsEntry(data: Obj, baseline: Obj = {}, options: { r
   checkDate(data.internalAudit?.lastDate, 'Last Internal Audit Conducted Date', true);
   checkDate(data.internalAudit?.nextDate, 'Next Internal Audit Conducted Date', true);
   if (!(data.manpower ?? []).length) issues.push('Add at least one Quality Manpower row.');
+  const manpowerDepartments = new Map<string, number>();
   for (const [i, row] of (data.manpower ?? []).entries()) {
     const label = `Quality Manpower ${i + 1}`;
+    const department = String(row.department ?? '').trim().toLowerCase();
+    if (department) {
+      const previous = manpowerDepartments.get(department);
+      if (previous !== undefined) issues.push(`${label}: Discipline / Department is already selected in Quality Manpower ${previous + 1}. Each department can appear only once per report.`);
+      else manpowerDepartments.set(department, i);
+    }
     if (!String(row.department ?? '').trim()) issues.push(`${label}: Discipline is required.`);
     if (!integer(row.count, 1)) issues.push(`${label}: Nos must be an integer greater than zero.`);
     if (typeof row.approvalRequired !== 'boolean') issues.push(`${label}: select whether client approval is required.`);

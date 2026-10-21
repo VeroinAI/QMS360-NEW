@@ -168,8 +168,15 @@ function validateMonthly(data: Record<string, any>, baseline: Record<string, any
     if ((row.lastDate && !validDate(row.lastDate)) || (row.nextDate && !validDate(row.nextDate))) errors.push(`meetings.${i} dates must be valid dates`);
   }
   if (data.manpower !== undefined && !Array.isArray(data.manpower)) errors.push("manpower must be an array");
+  const manpowerDepartments = new Map<string, number>();
   for (const [i, row] of (Array.isArray(data.manpower) ? data.manpower : []).entries()) {
     if (!isObject(row)) { errors.push(`manpower.${i} must be an object`); continue; }
+    const department = String(row.department ?? "").trim().toLowerCase();
+    if (department) {
+      const previous = manpowerDepartments.get(department);
+      if (previous !== undefined) errors.push(`Quality Manpower ${i + 1}: Discipline / Department "${String(row.department).trim()}" is already selected in Quality Manpower ${previous + 1}. Each department can appear only once per report.`);
+      else manpowerDepartments.set(department, i);
+    }
     if (submit && !String(row.department ?? "").trim()) errors.push(`manpower.${i}.department is required`);
     if ((submit || row.count !== undefined) && (!numeric(row.count) || row.count < 1)) errors.push(`manpower.${i}.count must be a positive integer`);
     if (submit && typeof row.approvalRequired !== "boolean") errors.push(`manpower.${i}.approvalRequired is required`);

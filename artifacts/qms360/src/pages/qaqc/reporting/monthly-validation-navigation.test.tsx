@@ -8,6 +8,35 @@ import { FormCtx } from './form-kit';
 import { calcMonthly, type Obj } from './reporting-types';
 
 describe('Monthly validation field navigation', () => {
+  it('identifies duplicate manpower departments and navigates to the repeated row', () => {
+    const issues = validateMetricsEntry({ manpower: [
+      { department: 'Civil', count: 1, approvalRequired: false },
+      { department: ' civil ', count: 2, approvalRequired: false },
+    ] });
+    const duplicate = issues.find(issue => issue.includes('already selected'));
+    expect(duplicate).toContain('Quality Manpower 2');
+    expect(monthlyIssuePath(duplicate!)).toBe('manpower.1.department');
+    expect(validateMetricsEntry({ manpower: [{ department: 'Civil' }, { department: 'Mechanical' }] })
+      .some(issue => issue.includes('already selected'))).toBe(false);
+  });
+
+  it('disables departments used by other rows and makes them available after removal', () => {
+    const render = (manpower: Obj[]) => {
+      const ctx = { data: { manpower }, readOnly: false, set: () => {},
+        fc: () => ({ disabled: false, required: false }),
+        manpowerDisciplines: [{ value: 'Civil', label: 'Civil' }, { value: 'Mechanical', label: 'Mechanical' }] };
+      const html = renderToStaticMarkup(<FormCtx.Provider value={ctx}><MetricsEntryForm /></FormCtx.Provider>);
+      return Array.from(html.matchAll(/<select[^>]*data-report-field="manpower\.\d+\.department"[^>]*>(.*?)<\/select>/g), match => match[1]);
+    };
+    const selects = render([{ department: 'Civil' }, { department: '' }]);
+    expect(selects[0]).toMatch(/<option[^>]*value="Civil"[^>]*selected=""/);
+    expect(selects[1]).toMatch(/<option[^>]*value="Civil"[^>]*disabled=""/);
+    expect(selects[1]).toMatch(/<option[^>]*value="Mechanical"[^>]*>/);
+    const afterRemoval = render([{ department: '' }]);
+    expect(afterRemoval[0]).toMatch(/<option[^>]*value="Civil"[^>]*>/);
+    expect(afterRemoval[0]).not.toContain('disabled');
+  });
+
   afterEach(() => vi.unstubAllGlobals());
   it.each([
     ['PQP Approval Date is required.', 'pqpApprovedDate'],
