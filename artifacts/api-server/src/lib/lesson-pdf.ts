@@ -208,6 +208,17 @@ export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets
     drawLines(expanded, row.lines, regular, 9.5 * scale,
       [left + 149.3 * scale, (split + index * 28) * scale, 418.3 * scale, 28 * scale]);
   });
+  // The cropped template's outer frame stops at the insertion seam. Continue
+  // both original sides through the new rows, with a small overlap to avoid
+  // hairline gaps at either join. Keep the template's 0.5 pt stroke.
+  for (const x of [24.25, 571]) {
+    expanded.drawLine({
+      start: { x: left + x * scale, y: height - (split - 0.5) * scale },
+      end: { x: left + x * scale, y: height - (split + added + 0.5) * scale },
+      thickness: 0.5 * scale,
+      color: BLACK,
+    });
+  }
   document.removePage(1);
   return Buffer.from(await document.save({ useObjectStreams: false }));
 }
