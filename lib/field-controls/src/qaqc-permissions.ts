@@ -11,6 +11,7 @@ export const qaqcActivityGroups = [
   { module: "document_governance", label: "Document governance log", actions: [...edit, "export"] },
   { module: "quality_briefs", label: "Quality briefs", actions: [...read, "create_edit", "submit", "approve_reject", "ai"] },
   { module: "monthly_reports", label: "Monthly reports & metric details", actions: [...reports, "ai"] },
+  { module: "historical_balances", label: "Historical balances / Go-live setup", actions: ["view_all", "create_edit", "import", "export"] },
   { module: "daily_reports", label: "Daily submissions", actions: [...reports] },
   { module: "csat_reports", label: "CSAT surveys & reports", actions: [...reports] },
 ] as const;
@@ -35,6 +36,9 @@ export const qaqcPermissionCatalog = [
 const legacyModule: Record<string, string> = { monthly_reports: "metrics", daily_reports: "document_governance", csat_reports: "customer_satisfaction" };
 export function qaqcPermissionMatches(key: string, module: string, operation: QaqcOperation): boolean {
   const normalized = key.toLowerCase();
+  // Historical corrections require explicit activity grants, never legacy
+  // application-wide data-entry/import/export shortcuts.
+  if (module === "historical_balances") return normalized === `qaqc.historical_balances.${operation}`;
   if (normalized === `qaqc.${module}.${operation}` || normalized === `qaqc.${operation}`) return true;
   const primitives = operation === "create_edit" ? ["create_edit", "data_entry"]
     : operation === "view_own_scope" ? ["view_own", "view_own_scope"]

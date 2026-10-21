@@ -21,9 +21,9 @@ export function Tile({ index, title, children }: { index?: number; title: string
   const denied = !!context?.editableSections && !!section && !context.editableSections.includes(section.id);
   const body = context && denied
     ? <FormCtx.Provider value={{ ...context, readOnly: true }}>{children}</FormCtx.Provider> : children;
-  return <Card>
+  return <Card data-report-tile={index}>
     <CardHeader className="p-0">
-      <button type="button" aria-expanded={open} aria-controls={`${uid}-body`} onClick={() => setOpen(o => !o)} className="flex w-full items-center justify-between gap-3 rounded-t-xl px-6 py-4 text-left hover:bg-muted/40">
+      <button type="button" data-report-tile-toggle aria-expanded={open} aria-controls={`${uid}-body`} onClick={() => setOpen(o => !o)} className="flex w-full items-center justify-between gap-3 rounded-t-xl px-6 py-4 text-left hover:bg-muted/40">
         <CardTitle className="text-base">{index ? `${index}. ` : ''}{title}{denied && <span className="ml-2 text-xs font-normal text-muted-foreground">Read-only</span>}</CardTitle>
         <ChevronDown className={`size-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
@@ -42,19 +42,19 @@ function useP(path: Path) { const f = useForm(); return { value: getIn(f.data, p
 
 function TextIn({ path, label, required, type = 'text', disabled, hint }: { path: Path; label: string; required?: boolean; type?: 'text' | 'date'; disabled?: boolean; hint?: string }) {
   const { value, set, ro } = useP(path); const id = useId();
-  return <Field id={id} label={label} required={required}><Input id={id} type={type} aria-required={required} disabled={ro || disabled} value={value ?? ''} onChange={e => set(e.target.value)} />{hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}</Field>;
+  return <div data-report-field={path.join('.')}><Field id={id} label={label} required={required}><Input id={id} type={type} aria-required={required} disabled={ro || disabled} value={value ?? ''} onChange={e => set(e.target.value)} />{hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}</Field></div>;
 }
 function IntIn({ path, label, required, min = 0 }: { path: Path; label: string; required?: boolean; min?: number }) {
   const { value, set, ro } = useP(path); const id = useId();
-  return <Field id={id} label={label} required={required}><Input id={id} type="number" min={min} step={1} inputMode="numeric" aria-required={required} disabled={ro} value={value ?? ''} onChange={e => set(e.target.value === '' ? undefined : Number(e.target.value))} /></Field>;
+  return <div data-report-field={path.join('.')}><Field id={id} label={label} required={required}><Input id={id} type="number" min={min} step={1} inputMode="numeric" aria-required={required} disabled={ro} value={value ?? ''} onChange={e => set(e.target.value === '' ? undefined : Number(e.target.value))} /></Field></div>;
 }
 function PickIn({ path, label, required, options }: { path: Path; label: string; required?: boolean; options: string[] }) {
   const { value, set, ro } = useP(path); const id = useId();
-  return <Field id={id} label={label} required={required}><Select disabled={ro} value={value == null ? '' : String(value)} onValueChange={set}><SelectTrigger id={id} aria-required={required}><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></Field>;
+  return <div data-report-field={path.join('.')}><Field id={id} label={label} required={required}><Select disabled={ro} value={value == null ? '' : String(value)} onValueChange={set}><SelectTrigger id={id} aria-required={required}><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></Field></div>;
 }
 function YesNo({ path, label, required }: { path: Path; label: string; required?: boolean }) {
   const { value, set, ro } = useP(path); const id = useId();
-  return <Field id={id} label={label} required={required}><Select disabled={ro} value={typeof value === 'boolean' ? (value ? 'Yes' : 'No') : ''} onValueChange={v => set(v === 'Yes')}><SelectTrigger id={id} aria-required={required}><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="Yes">Yes</SelectItem><SelectItem value="No">No</SelectItem></SelectContent></Select></Field>;
+  return <div data-report-field={path.join('.')}><Field id={id} label={label} required={required}><Select disabled={ro} value={typeof value === 'boolean' ? (value ? 'Yes' : 'No') : ''} onValueChange={v => set(v === 'Yes')}><SelectTrigger id={id} aria-required={required}><SelectValue placeholder="Select" /></SelectTrigger><SelectContent><SelectItem value="Yes">Yes</SelectItem><SelectItem value="No">No</SelectItem></SelectContent></Select></Field></div>;
 }
 
 function ManpowerDiscipline({ path }: { path: Path }) {
@@ -63,7 +63,7 @@ function ManpowerDiscipline({ path }: { path: Path }) {
   const options = f.manpowerDisciplines ?? [];
   const legacy = value && !options.some(d => d.value === value);
   return <Field id={id} label="Department" required>
-    <select id={id} aria-required="true" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:opacity-50"
+    <select id={id} data-report-field={[...path, 'department'].join('.')} aria-required="true" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:opacity-50"
       disabled={f.readOnly} value={value} onChange={e => f.set(path, { ...getIn(f.data, path), department: e.target.value, departmentSource: 'discipline_master' })}>
       <option value="">Select discipline</option>
       {legacy && <option value={value}>{value} (previously saved)</option>}
@@ -76,7 +76,7 @@ function ManpowerDiscipline({ path }: { path: Path }) {
 function Rows({ path, blank, addLabel, noun, children }: { path: Path; blank: () => Obj; addLabel: string; noun: string; children: (p: Path, row: Obj) => ReactNode }) {
   const f = useForm();
   const rows: Obj[] = getIn(f.data, path) ?? [];
-  return <div className="space-y-3">
+  return <div data-report-field={path.join('.')} className="space-y-3">
     {rows.length === 0 && <p className="text-sm text-muted-foreground">No {noun} added.</p>}
     {rows.map((row, i) => <div key={i} className="flex items-end gap-2 rounded-lg border bg-muted/20 p-3">
       <div className={`${cols} flex-1`}>{children([...path, i], row)}</div>

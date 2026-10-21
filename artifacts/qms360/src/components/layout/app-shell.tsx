@@ -93,7 +93,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
       case '/qaqc/monthly': return cap.canAnyRead('monthly_reports');
       case '/qaqc/report-dashboard': return reportsRead;
       case '/qaqc/dashboard': return reportsRead;
-      case '/qaqc/settings': return cap.canTask('configure_masters');
+      case '/qaqc/settings': return cap.canTask('configure_masters') || cap.can('historical_balances', 'view_all');
       default: return true;
     }
   };

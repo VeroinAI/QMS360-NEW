@@ -4,11 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MetricsReportList, monthInputToPeriod, pqpStatusLabel } from './metrics-report-list';
 
 const mocks = vi.hoisted(() => ({
-  list: vi.fn(), context: vi.fn(), read: true, edit: false, download: false,
+  list: vi.fn(), context: vi.fn(), read: true, edit: false, download: false, submit: false,
 }));
 vi.mock('@workspace/api-client-react', () => ({
   useListQaqcSowReports: mocks.list,
   useGetQaqcSowContext: mocks.context,
+  useGetCurrentUser: () => ({ data: { id: 'creator' } }),
+  getGetCurrentUserQueryKey: () => ['current-user'],
   getListQaqcSowReportsQueryKey: (params: unknown) => ['reports', params],
   getGetQaqcSowContextQueryKey: (params: unknown) => ['context', params],
   exportQaqcSowReport: vi.fn(),
@@ -16,7 +18,7 @@ vi.mock('@workspace/api-client-react', () => ({
 vi.mock('@/lib/use-qaqc-capabilities', () => ({
   useQaqcCapabilities: () => ({
     isLoading: false, canAnyRead: () => mocks.read,
-    can: (_module: string, operation: string) => operation === 'create_edit' ? mocks.edit : mocks.download,
+    can: (_module: string, operation: string) => operation === 'create_edit' ? mocks.edit : operation === 'submit' ? mocks.submit : mocks.download,
   }),
 }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
@@ -25,10 +27,10 @@ const render = () => renderToStaticMarkup(<Router ssrPath="/qaqc/metrics"><Metri
 describe('Monthly metrics landing report list', () => {
   beforeEach(() => {
     mocks.list.mockReset(); mocks.context.mockReset();
-    mocks.read = true; mocks.edit = false; mocks.download = false;
+    mocks.read = true; mocks.edit = false; mocks.download = false; mocks.submit = false;
     mocks.context.mockReturnValue({ data: { projects: [{ id: 'project-a', name: 'Project Alpha' }] } });
     mocks.list.mockReturnValue({ data: { items: [
-      { id: 'draft-report', projectId: 'project-a', projectName: 'Project Alpha', period: '2026-09-01', state: 'draft', data: { pqpStatus: 'Under Preparation' } },
+      { id: 'draft-report', createdById: 'creator', projectId: 'project-a', projectName: 'Project Alpha', period: '2026-09-01', state: 'draft', data: { pqpStatus: 'Under Preparation' } },
       { id: 'submitted-report', projectId: 'project-a', projectName: 'Project Alpha', period: '2026-08-01', state: 'submitted', data: { pqpStatus: 'Approved A', pqpSubmittedDate: '2026-08-10' } },
       { id: 'returned-report', projectId: 'project-a', projectName: 'Project Alpha', period: '2026-07-01', state: 'sent_back', data: {} },
     ], total: 3 } });
@@ -47,6 +49,16 @@ describe('Monthly metrics landing report list', () => {
     expect(html).toContain('/draft-report?mode=view');
     expect(html).not.toContain('>Edit<');
     expect(html).not.toContain('>Download<');
+    expect(html).not.toContain('Submit for approval');
+  });
+  it('offers submission only for the authorized creator of a draft', () => {
+    mocks.submit = true;
+    const html = render();
+    expect(html).toContain('button-submit-report-draft-report');
+    expect(html).not.toContain('button-submit-report-submitted-report');
+    expect(html).not.toContain('button-submit-report-returned-report');
+    mocks.list.mock.results[0].value.data.items[0].createdById = 'another-user';
+    expect(render()).not.toContain('button-submit-report-draft-report');
   });
   it('offers Edit only on drafts and keeps submitted and returned reports in Display', () => {
     mocks.edit = true; mocks.download = true;

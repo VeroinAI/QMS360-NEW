@@ -19,6 +19,7 @@ import { monthlySectionAccess, mergeMonthlySections } from "../lib/qaqc-monthly-
 import { monthlySectionForField } from "@workspace/field-controls";
 import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import { exactReportVersion } from "../lib/qaqc-report-version";
+import { getHistoricalSetup, historicalBaseline as historicalOpeningBaseline } from "../lib/qaqc-historical-balances";
 import {
   buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, DAILY_DOCUMENT_TYPES, DAILY_REJECTED_SUBMISSION_TYPES, type CsatReportComputed, type DailyReportComputed,
   type MonthlyReportComputed, type ReportType,
@@ -230,8 +231,8 @@ async function reportRow(req: Request, id: string) {
   return rows[0];
 }
 
-async function latestPrior(organizationId: string, projectId: string, type: ReportType, period: string) {
-  const rows = await db.select().from(qaqcReportSubmissions).where(and(
+async function latestPrior(organizationId: string, projectId: string, type: ReportType, period: string, database: Pick<typeof db,"select"> = db) {
+  const rows = await database.select().from(qaqcReportSubmissions).where(and(
     eq(qaqcReportSubmissions.organizationId, organizationId), eq(qaqcReportSubmissions.projectId, projectId),
     eq(qaqcReportSubmissions.reportType, type),
     lte(qaqcReportSubmissions.period, shiftPeriod(period, type, -1)),
@@ -242,9 +243,16 @@ async function latestPrior(organizationId: string, projectId: string, type: Repo
   return rows[0] ?? null;
 }
 
-async function historyBaseline(organizationId: string, projectId: string, type: ReportType, period: string) {
+export async function historyBaseline(organizationId: string, projectId: string, type: ReportType, period: string, database: Pick<typeof db,"select"> = db) {
   if (type === "csat") return { baseline: {}, previous: null };
-  const previous = await latestPrior(organizationId, projectId, type, period);
+  const previous = await latestPrior(organizationId, projectId, type, period, database);
+  if (type === "monthly") {
+    const [project] = await database.select({customFields:projects.customFields}).from(projects)
+      .where(and(eq(projects.id,projectId),eq(projects.organizationId,organizationId),isNull(projects.deletedAt))).limit(1);
+    const setup = getHistoricalSetup(project?.customFields as any,period);
+    if (setup) return {baseline:{...historicalOpeningBaseline(setup.balances),hasBaseline:true,
+      historicalSetup:{period,version:setup.version}},previous};
+  }
   if (!previous) return { baseline: {}, previous: null };
   if (type === "daily") return { baseline: previous.data as Record<string, any>, previous };
   if (type === "monthly") {
@@ -264,7 +272,7 @@ async function historyBaseline(organizationId: string, projectId: string, type: 
   return { baseline: {}, previous };
 }
 
-async function legacyBaseline(projectId: string, type: ReportType, period: string) {
+export async function legacyBaseline(projectId: string, type: ReportType, period: string) {
   if (type !== "monthly") return {};
   const through = shiftPeriod(period, type, -1);
   const [metrics, materials, talks] = await Promise.all([
@@ -315,6 +323,14 @@ async function sequenceBlock(projectId: string, type: ReportType, period: string
     isNull(qaqcReportSubmissions.deletedAt),
   )).orderBy(asc(qaqcReportSubmissions.period));
   const otherReports = reports.filter((row) => row.id !== currentId);
+  if(type==="monthly"&&getHistoricalSetup(project?.customFields as any,period)){
+    const downstream=otherReports.find(row=>row.period>period&&["submitted","approved"].includes(row.state));
+    if(downstream)return `Cannot change ${period}; downstream report ${downstream.period} has already been submitted`;
+    if(configuredStart&&period<configuredStart)return `The first reporting period is ${configuredStart}`;
+    // An explicitly authorized opening-balance month is a cutover anchor;
+    // do not require users to fabricate all missing pre-go-live reports.
+    return null;
+  }
   const priorPeriod = shiftPeriod(period, type, -1);
   const prior = otherReports.find((row) => row.period === priorPeriod);
   if (prior && !["submitted", "approved"].includes(prior.state)) return `The immediately prior report for ${priorPeriod} must be submitted`;
@@ -607,7 +623,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
       peName: allUsers.find((u) => u.id === userId(settings, "peId"))?.fullName ?? null,
       dcName: allUsers.find((u) => u.id === userId(settings, "dcId"))?.fullName ?? null,
     },
-    baseline: { ...baseline, previousPeriod: last?.period ?? null, hasBaseline: !!last || Object.keys(legacy).length > 0, legacyFallback: Object.keys(legacy).length > 0 },
+    baseline: { ...baseline, previousPeriod: last?.period ?? null, hasBaseline: !!(baseline as Record<string,unknown>).historicalSetup || !!last || Object.keys(legacy).length > 0, legacyFallback: Object.keys(legacy).length > 0 },
     canStart: !blockedReason,
     blockedReason,
     targets,
@@ -669,10 +685,19 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
   const [project] = await db.select({ customFields: projects.customFields }).from(projects).where(eq(projects.id, projectId)).limit(1);
   const settings = isObject(project?.customFields.qaqcReporting) ? project.customFields.qaqcReporting : {};
   try {
-    const [row] = await db.insert(qaqcReportSubmissions).values({
-      organizationId: org(req), projectId, reportType: type, period, data, createdById: actor(req),
-      baseline, computed: calculateReport(type, data, baseline, await targetsFor(req, project.customFields as any, settings)),
-    }).returning();
+    const [row] = await db.transaction(async tx => {
+      // Serialize report creation against opening-balance changes for this
+      // project, so no new draft can capture a stale opening snapshot.
+      if(type==="monthly") await tx.select({id:projects.id}).from(projects).where(eq(projects.id,projectId)).for("update");
+      const fresh=type==="monthly"?await historyBaseline(org(req),projectId,type,period,tx):null;
+      const opening=fresh&&Object.keys(fresh.baseline).length?fresh.baseline:baseline;
+      const check=validateReportData(type,data,opening,false);
+      if(!check.valid)throw new HttpError(422,check.errors.join("; "));
+      return tx.insert(qaqcReportSubmissions).values({
+        organizationId: org(req), projectId, reportType: type, period, data, createdById: actor(req),
+        baseline:opening, computed: calculateReport(type, data, opening, await targetsFor(req, project.customFields as any, settings)),
+      }).returning();
+    });
     await audit(req, "create", row.id, undefined, row);
     res.status(201).json(await withProject(row));
   } catch (error) {
@@ -781,7 +806,7 @@ router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(asy
     state: "submitted", approverId, submittedById: actor(req), submittedAt,
     baseline, computed: calculateReport(before.reportType as ReportType, before.data as any, baseline, targets),
     updatedAt: submittedAt,
-  }).where(and(eq(qaqcReportSubmissions.id, before.id), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
+  }).where(and(eq(qaqcReportSubmissions.id, before.id), exactReportVersion(qaqcReportSubmissions.updatedAt, before.databaseUpdatedAt), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
   if (!row) throw new HttpError(409, "Report state changed; reload before submitting");
   await audit(req, "submit", row.id, before, row);
   await notifyWithEmail(db, "qaqc", {

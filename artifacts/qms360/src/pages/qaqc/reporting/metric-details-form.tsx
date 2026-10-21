@@ -21,12 +21,12 @@ function RO({ label, value, tone, testId }: { label: string; value: ReactNode; t
 }
 function Int({ path, label, min = 0, required = true }: { path: Path; label: string; min?: number; required?: boolean }) {
   const f = useForm(); const id = useId(); const v = getIn(f.data, path);
-  return <Fld id={id} label={label} required={required}><Input id={id} type="number" min={min} step={1} inputMode="numeric" aria-required={required} disabled={f.readOnly} value={v ?? ''} onChange={e => f.set(path, e.target.value === '' ? undefined : Number(e.target.value))} /></Fld>;
+  return <div data-report-field={path.join('.')}><Fld id={id} label={label} required={required}><Input id={id} type="number" min={min} step={1} inputMode="numeric" aria-required={required} disabled={f.readOnly} value={v ?? ''} onChange={e => f.set(path, e.target.value === '' ? undefined : Number(e.target.value))} /></Fld></div>;
 }
 function Pick({ path, label, options }: { path: Path; label: string; options: { value: string; label: string }[] }) {
   const f = useForm(); const id = useId(); const v = getIn(f.data, path);
   const opts = v && !options.some(o => o.value === v) ? [{ value: String(v), label: String(v) }, ...options] : options;
-  return <Fld id={id} label={label} required><Select disabled={f.readOnly || !options.length} value={v == null ? '' : String(v)} onValueChange={x => f.set(path, x)}><SelectTrigger id={id} aria-required><SelectValue placeholder={options.length ? 'Select' : 'No options configured'} /></SelectTrigger><SelectContent>{opts.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select>{!options.length && <p className="text-xs text-muted-foreground">Configure Department choices in Master Data before adding NCR ageing rows.</p>}</Fld>;
+  return <div data-report-field={path.join('.')}><Fld id={id} label={label} required><Select disabled={f.readOnly || !options.length} value={v == null ? '' : String(v)} onValueChange={x => f.set(path, x)}><SelectTrigger id={id} aria-required><SelectValue placeholder={options.length ? 'Select' : 'No options configured'} /></SelectTrigger><SelectContent>{opts.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select>{!options.length && <p className="text-xs text-muted-foreground">Configure Department choices in Master Data before adding NCR ageing rows.</p>}</Fld></div>;
 }
 function DeptPick({ path }: { path: Path }) {
   const f = useForm();
@@ -62,7 +62,7 @@ function Details({ k, calc }: { k: string; calc?: Obj }) {
       <RO label="Variance" testId={`text-variance-${k}`} tone={vt} value={`${variance >= 0 ? '+' : ''}${fmt(variance)} pp (${vlabel})`} />
       {ncr && <RO label="Open NCRs" value={n(c.open)} testId={`text-open-${k}`} />}
     </div>
-    {ncr && <div className="space-y-3">
+    {ncr && <div data-report-field={ap.join('.')} className="space-y-3">
       <p className="text-sm font-medium">Open NCR ageing</p>
       {rows.length === 0 && <p className="text-sm text-muted-foreground">No ageing rows added.</p>}
       {rows.map((_, i) => <div key={i} className="flex items-end gap-2 rounded-lg border bg-muted/20 p-3">

@@ -35,6 +35,134 @@ tags:
   - name: audit-admin
     description: QMS Audit workspace administration
 paths:
+  /qaqc/reporting/historical-balances/bulk-template:
+    get:
+      operationId: getQaqcHistoricalBulkTemplate
+      tags: [qaqc]
+      parameters:
+        - {in: query, name: period, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: One project per row, with all 14 historical balances in columns
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: {type: string, format: binary}
+  /qaqc/reporting/historical-balances/bulk-preview:
+    post:
+      operationId: previewQaqcHistoricalBulkWorkbook
+      tags: [qaqc]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/QaqcHistoricalBulkUpload'}
+      responses:
+        '200':
+          description: Authorized per-project preview; no balances have been saved
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/QaqcHistoricalBulkPreview'}
+        '403': {description: At least one project is outside import scope}
+        '422': {description: "Workbook errors, including Excel row numbers"}
+  /qaqc/reporting/historical-balances/bulk-apply:
+    post:
+      operationId: applyQaqcHistoricalBulkBalances
+      tags: [qaqc]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/QaqcHistoricalBulkApply'}
+      responses:
+        '200':
+          description: All projects applied atomically with draft refreshes and per-project audit history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results, updatedProjects, updatedDrafts]
+                properties:
+                  updatedProjects: {type: number}
+                  updatedDrafts: {type: number}
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      required: [projectId, version, updatedDrafts]
+                      properties:
+                        projectId: {type: string}
+                        version: {type: number}
+                        updatedDrafts: {type: number}
+        '403': {description: Missing per-project historical import or edit permission}
+        '409': {description: Stale version or submitted history; the entire batch was rolled back}
+        '422': {description: Invalid balances or incompatible draft; the entire batch was rolled back}
+  /qaqc/reporting/historical-balances/projects:
+    get:
+      operationId: getQaqcHistoricalProjects
+      tags: [qaqc]
+      responses:
+        '200':
+          description: Projects authorized for historical balance maintenance
+          content:
+            application/json:
+              schema: {type: array, items: {type: object, additionalProperties: true}}
+  /qaqc/reporting/historical-balances:
+    get:
+      operationId: getQaqcHistoricalBalances
+      tags: [qaqc]
+      parameters:
+        - {in: query, name: projectId, required: true, schema: {type: string}}
+        - {in: query, name: period, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Opening balances, derived values, impact and retained audit history
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: true}
+    put:
+      operationId: saveQaqcHistoricalBalances
+      tags: [qaqc]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/QaqcHistoricalBalanceInput'}
+      responses:
+        '200':
+          description: Saved with draft recalculations and audit record
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: true}
+        '409': {description: Stale version or submitted reporting period}
+  /qaqc/reporting/historical-balances/preview:
+    post:
+      operationId: previewQaqcHistoricalWorkbook
+      tags: [qaqc]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/QaqcHistoricalWorkbookInput'}
+      responses:
+        '200':
+          description: Validated workbook without persisting changes
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: true}
+        '422': {description: Invalid workbook}
+  /qaqc/reporting/historical-balances/template:
+    get:
+      operationId: getQaqcHistoricalTemplate
+      tags: [qaqc]
+      parameters:
+        - {in: query, name: projectId, required: true, schema: {type: string}}
+        - {in: query, name: period, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Project and period specific Excel workbook
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: {type: string, format: binary}
   /healthz:
     get:
       operationId: healthCheck
@@ -2276,6 +2404,73 @@ components:
     FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    QaqcHistoricalBulkUpload:
+      type: object
+      additionalProperties: false
+      required: [period, fileBase64]
+      properties:
+        period: {type: string}
+        fileBase64: {type: string, maxLength: 2800000}
+    QaqcHistoricalBulkApply:
+      type: object
+      additionalProperties: false
+      required: [period, items]
+      properties:
+        period: {type: string}
+        items:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items: {$ref: '#/components/schemas/QaqcHistoricalBalanceInput'}
+    QaqcHistoricalBalanceChange:
+      type: object
+      required: [key, label, before, after]
+      properties:
+        key: {type: string}
+        label: {type: string}
+        before: {type: number}
+        after: {type: number}
+    QaqcHistoricalBulkPreview:
+      type: object
+      required: [period, rows, canApply]
+      properties:
+        period: {type: string}
+        canApply: {type: boolean}
+        rows:
+          type: array
+          items:
+            type: object
+            required: [projectId, projectCode, projectName, period, version, reason, balances, rowNumber, errors, affectedDrafts, changes]
+            properties:
+              projectId: {type: string}
+              projectCode: {type: string}
+              projectName: {type: string}
+              period: {type: string}
+              version: {type: number}
+              reason: {type: string}
+              balances: {type: object, additionalProperties: {type: number}}
+              rowNumber: {type: number}
+              errors: {type: array, items: {type: string}}
+              affectedDrafts: {type: number}
+              changes: {type: array, items: {$ref: '#/components/schemas/QaqcHistoricalBalanceChange'}}
+    QaqcHistoricalBalanceInput:
+      type: object
+      additionalProperties: false
+      required: [projectId, period, version, reason, balances]
+      properties:
+        projectId: {type: string}
+        period: {type: string}
+        version: {type: number, minimum: 0}
+        reason: {type: string}
+        balances: {type: object, additionalProperties: {type: number}}
+    QaqcHistoricalWorkbookInput:
+      type: object
+      additionalProperties: false
+      required: [projectId, period, fileBase64]
+      properties:
+        projectId: {type: string}
+        period: {type: string}
+        fileBase64: {type: string}
     DronaUserSearch:
       type: object
       required: [email]
@@ -3497,6 +3692,7 @@ components:
             qaqc.quality_briefs.submit, qaqc.quality_briefs.approve_reject, qaqc.quality_briefs.ai,
             qaqc.monthly_reports.view_own_scope, qaqc.monthly_reports.view_all, qaqc.monthly_reports.create_edit, qaqc.monthly_reports.delete,
             qaqc.monthly_reports.submit, qaqc.monthly_reports.approve_reject, qaqc.monthly_reports.import, qaqc.monthly_reports.export, qaqc.monthly_reports.ai,
+            qaqc.historical_balances.view_all, qaqc.historical_balances.create_edit, qaqc.historical_balances.import, qaqc.historical_balances.export,
             qaqc.monthly_sections.configured,
             qaqc.monthly_section_project.create_edit,
             qaqc.monthly_section_pqp.create_edit,

@@ -5,6 +5,67 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export interface QaqcHistoricalBulkUpload {
+  period: string;
+  /** @maxLength 2800000 */
+  fileBase64: string;
+}
+
+export type QaqcHistoricalBalanceInputBalances = {[key: string]: number};
+
+export interface QaqcHistoricalBalanceInput {
+  projectId: string;
+  period: string;
+  /** @minimum 0 */
+  version: number;
+  reason: string;
+  balances: QaqcHistoricalBalanceInputBalances;
+}
+
+export interface QaqcHistoricalBulkApply {
+  period: string;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  items: QaqcHistoricalBalanceInput[];
+}
+
+export interface QaqcHistoricalBalanceChange {
+  key: string;
+  label: string;
+  before: number;
+  after: number;
+}
+
+export type QaqcHistoricalBulkPreviewRowsItemBalances = {[key: string]: number};
+
+export type QaqcHistoricalBulkPreviewRowsItem = {
+  projectId: string;
+  projectCode: string;
+  projectName: string;
+  period: string;
+  version: number;
+  reason: string;
+  balances: QaqcHistoricalBulkPreviewRowsItemBalances;
+  rowNumber: number;
+  errors: string[];
+  affectedDrafts: number;
+  changes: QaqcHistoricalBalanceChange[];
+};
+
+export interface QaqcHistoricalBulkPreview {
+  period: string;
+  canApply: boolean;
+  rows: QaqcHistoricalBulkPreviewRowsItem[];
+}
+
+export interface QaqcHistoricalWorkbookInput {
+  projectId: string;
+  period: string;
+  fileBase64: string;
+}
+
 export interface DronaUserSearch {
   /**
      * @minLength 3
@@ -1931,6 +1992,10 @@ export const PermissionKey = {
   qaqcmonthly_reportsimport: 'qaqc.monthly_reports.import',
   qaqcmonthly_reportsexport: 'qaqc.monthly_reports.export',
   qaqcmonthly_reportsai: 'qaqc.monthly_reports.ai',
+  qaqchistorical_balancesview_all: 'qaqc.historical_balances.view_all',
+  qaqchistorical_balancescreate_edit: 'qaqc.historical_balances.create_edit',
+  qaqchistorical_balancesimport: 'qaqc.historical_balances.import',
+  qaqchistorical_balancesexport: 'qaqc.historical_balances.export',
   qaqcmonthly_sectionsconfigured: 'qaqc.monthly_sections.configured',
   qaqcmonthly_section_projectcreate_edit: 'qaqc.monthly_section_project.create_edit',
   qaqcmonthly_section_pqpcreate_edit: 'qaqc.monthly_section_pqp.create_edit',
@@ -4564,6 +4629,40 @@ export const ReportFormatParameter = {
   csv: 'csv',
   xlsx: 'xlsx',
 } as const;
+
+export type GetQaqcHistoricalBulkTemplateParams = {
+period: string;
+};
+
+export type ApplyQaqcHistoricalBulkBalances200ResultsItem = {
+  projectId: string;
+  version: number;
+  updatedDrafts: number;
+};
+
+export type ApplyQaqcHistoricalBulkBalances200 = {
+  updatedProjects: number;
+  updatedDrafts: number;
+  results: ApplyQaqcHistoricalBulkBalances200ResultsItem[];
+};
+
+export type GetQaqcHistoricalProjects200Item = { [key: string]: unknown };
+
+export type GetQaqcHistoricalBalancesParams = {
+projectId: string;
+period: string;
+};
+
+export type GetQaqcHistoricalBalances200 = { [key: string]: unknown };
+
+export type SaveQaqcHistoricalBalances200 = { [key: string]: unknown };
+
+export type PreviewQaqcHistoricalWorkbook200 = { [key: string]: unknown };
+
+export type GetQaqcHistoricalTemplateParams = {
+projectId: string;
+period: string;
+};
 
 export type ListPlatformProjectsParams = {
 /**

@@ -21,22 +21,22 @@ export const DOCUMENT_GROUPS = [['drawings', 'Drawings'], ['submittals', 'Submit
 const selectCls = 'flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50';
 const rateOf = (c: number, i: number) => (i === 0 && c === 0 ? 100 : i ? (c / i) * 100 : 0);
 
-function Field({ label, required, id, children }: { label: string; required?: boolean; id: string; children: ReactNode }) {
-  return <div className="min-w-0 space-y-1"><Label htmlFor={id} className="text-xs text-muted-foreground">{label}{required && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{children}</div>;
+function Field({ label, required, id, children, path }: { label: string; required?: boolean; id: string; children: ReactNode; path?: Path }) {
+  return <div data-report-field={path?.join('.')} className="min-w-0 space-y-1"><Label htmlFor={id} className="text-xs text-muted-foreground">{label}{required && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{children}</div>;
 }
 function Int({ path, label, required, disabled, tid }: { path: Path; label: string; required?: boolean; disabled?: boolean; tid: string }) {
   const f = useForm(); const id = useId(); const v = getIn(f.data, path);
-  return <Field id={id} label={label} required={required}><Input id={id} data-testid={`input-${tid}`} type="number" min={0} step={1} inputMode="numeric" aria-required={required || undefined} disabled={f.readOnly || disabled} value={v ?? ''} onChange={e => f.set(path, e.target.value === '' ? undefined : Number(e.target.value))} /></Field>;
+  return <Field id={id} path={path} label={label} required={required}><Input id={id} data-testid={`input-${tid}`} type="number" min={0} step={1} inputMode="numeric" aria-required={required || undefined} disabled={f.readOnly || disabled} value={v ?? ''} onChange={e => f.set(path, e.target.value === '' ? undefined : Number(e.target.value))} /></Field>;
 }
 function Txt({ path, label, required, multiline, tid }: { path: Path; label: string; required?: boolean; multiline?: boolean; tid: string }) {
   const f = useForm(); const id = useId(); const v = getIn(f.data, path) ?? '';
-  return <Field id={id} label={label} required={required}>{multiline
+  return <Field id={id} path={path} label={label} required={required}>{multiline
     ? <Textarea id={id} data-testid={`input-${tid}`} rows={4} aria-required={required || undefined} disabled={f.readOnly || f.fc(String(path[0])).disabled} value={v} onChange={e => f.set(path, e.target.value)} />
     : <Input id={id} data-testid={`input-${tid}`} aria-required={required || undefined} disabled={f.readOnly || f.fc(String(path[0])).disabled} value={v} onChange={e => f.set(path, e.target.value)} />}</Field>;
 }
 function Pick({ path, label, options, required, tid }: { path: Path; label: string; options: readonly string[]; required?: boolean; tid: string }) {
   const f = useForm(); const id = useId(); const v = getIn(f.data, path) ?? '';
-  return <Field id={id} label={label} required={required}><select id={id} data-testid={`select-${tid}`} className={selectCls} aria-required={required || undefined} disabled={f.readOnly} value={v} onChange={e => f.set(path, e.target.value)}><option value="">Select</option>{options.map(o => <option key={o} value={o}>{o}</option>)}</select></Field>;
+  return <Field id={id} path={path} label={label} required={required}><select id={id} data-testid={`select-${tid}`} className={selectCls} aria-required={required || undefined} disabled={f.readOnly} value={v} onChange={e => f.set(path, e.target.value)}><option value="">Select</option>{options.map(o => <option key={o} value={o}>{o}</option>)}</select></Field>;
 }
 function RO({ label, value, tid, className }: { label: string; value: ReactNode; tid: string; className?: string }) {
   return <div className="space-y-1"><p className="text-xs text-muted-foreground">{label}</p><div data-testid={tid} className={`flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm ${className ?? ''}`}>{value}</div></div>;
@@ -63,7 +63,7 @@ export function MaterialTile({ calc, baseline }: { calc: Obj; baseline?: Obj }) 
     </div>
     <div className="space-y-2">
       <p id={rid} className="text-xs text-muted-foreground">OSD Available<span className="ml-1 text-destructive" aria-hidden="true">*</span></p>
-      <RadioGroup aria-labelledby={rid} aria-required="true" data-testid="radio-material-osd" className="flex gap-4" disabled={f.readOnly} value={typeof osd === 'boolean' ? (osd ? 'Yes' : 'No') : ''} onValueChange={v => f.set(['material', 'osdAvailable'], v === 'Yes')}>
+      <RadioGroup data-report-field="material.osdAvailable" aria-labelledby={rid} aria-required="true" data-testid="radio-material-osd" className="flex gap-4" disabled={f.readOnly} value={typeof osd === 'boolean' ? (osd ? 'Yes' : 'No') : ''} onValueChange={v => f.set(['material', 'osdAvailable'], v === 'Yes')}>
         {['Yes', 'No'].map(o => <label key={o} className="flex items-center gap-2 text-sm"><RadioGroupItem value={o} id={`${rid}-${o}`} data-testid={`radio-material-osd-${o.toLowerCase()}`} />{o}</label>)}
       </RadioGroup>
     </div>
@@ -130,7 +130,7 @@ export function TrainingTile({ calc, baseline }: { calc: Obj; baseline?: Obj }) 
 
 export function QmsReportsTile() {
   const f = useForm(); const path: Path = ['qmsReports']; const rows: Obj[] = getIn(f.data, path) ?? [];
-  return <div className="space-y-3">
+  return <div data-report-field="qmsReports" className="space-y-3">
     {rows.length === 0 && <p className="text-sm text-muted-foreground">No QMS report rows added.</p>}
     {rows.map((_, i) => { const p = [...path, i]; return <div key={i} data-testid={`row-qms-${i}`} className="flex items-end gap-2 rounded-lg border bg-muted/20 p-3">
       <div className={`${cols} min-w-0 flex-1`}>
@@ -161,7 +161,7 @@ export function AssessmentTile({ onDraftAi, aiBusy, aiDraft, onUseDraft, aiError
         <Button type="button" size="sm" data-testid="button-use-suggestion" disabled={aiBusy} onClick={onUseDraft}>Use suggestion</Button>
       </div>}
     </div>}
-    <div className="flex items-center gap-2">
+    <div data-report-field="assessmentConfirmed" className="flex items-center gap-2">
       <Checkbox id={cid} data-testid="checkbox-assessment-confirmed" disabled={ro || aiBusy} checked={confirmed} onCheckedChange={v => { f.set(['assessmentConfirmed'], v === true); onConfirm?.(v === true); }} />
       <Label htmlFor={cid} className="text-sm">I have reviewed and confirmed this assessment</Label>
     </div>

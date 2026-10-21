@@ -7,3 +7,8 @@ export function metricsDocumentHref(id: string, state: string, permitted: boolea
   const path = `/qaqc/metrics/reports/${id}`;
   return canEditMetricsDocument(state, permitted) ? path : `${path}?mode=view`;
 }
+
+/** Submission stays with the creator; the server additionally enforces project scope. */
+export function canSubmitMetricsDocument(state: string | undefined, permitted: boolean, creatorId?: string | null, userId?: string) {
+  return state === 'draft' && permitted && !!userId && creatorId === userId;
+}

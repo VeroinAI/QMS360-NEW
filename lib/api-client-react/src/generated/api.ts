@@ -29,6 +29,7 @@ import type {
   AppOverview,
   AppSettings,
   ApplicationAccess,
+  ApplyQaqcHistoricalBulkBalances200,
   ApprovalItemPageResponse,
   ApprovalReviewBody,
   ApproveRejectBody,
@@ -172,6 +173,11 @@ import type {
   GetQaqcCapabilities200,
   GetQaqcDashboardParams,
   GetQaqcEscalationsParams,
+  GetQaqcHistoricalBalances200,
+  GetQaqcHistoricalBalancesParams,
+  GetQaqcHistoricalBulkTemplateParams,
+  GetQaqcHistoricalProjects200Item,
+  GetQaqcHistoricalTemplateParams,
   GetQaqcPdfTemplateCatalogParams,
   GetQaqcPqiParams,
   GetQaqcSowContextParams,
@@ -293,6 +299,7 @@ import type {
   PlatformRole,
   PlatformRoleUpdate,
   PlatformRoleUpdateResult,
+  PreviewQaqcHistoricalWorkbook200,
   Project,
   ProjectAdditionalDataInput,
   ProjectAdditionalDataResult,
@@ -307,6 +314,11 @@ import type {
   QAQCMetricEntry,
   QAQCMetricPageResponse,
   QTBTEntry,
+  QaqcHistoricalBalanceInput,
+  QaqcHistoricalBulkApply,
+  QaqcHistoricalBulkPreview,
+  QaqcHistoricalBulkUpload,
+  QaqcHistoricalWorkbookInput,
   QaqcPdfSourceField,
   QaqcPdfTemplate,
   QaqcPdfTemplateFileInput,
@@ -341,6 +353,7 @@ import type {
   RunLessonsEscalationReportJob200,
   RunLessonsEscalationReportJob409,
   SaveFieldMappingsBody,
+  SaveQaqcHistoricalBalances200,
   SearchLessonsLogParams,
   SendAuditPlanForExecutionInputBody,
   SendConnectorTestEmail200,
@@ -413,6 +426,571 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetQaqcHistoricalBulkTemplateUrl = (params: GetQaqcHistoricalBulkTemplateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/historical-balances/bulk-template?${stringifiedParams}` : `/api/qaqc/reporting/historical-balances/bulk-template`
+}
+
+export const getQaqcHistoricalBulkTemplate = async (params: GetQaqcHistoricalBulkTemplateParams, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetQaqcHistoricalBulkTemplateUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcHistoricalBulkTemplateQueryKey = (params?: GetQaqcHistoricalBulkTemplateParams,) => {
+    return [
+    `/api/qaqc/reporting/historical-balances/bulk-template`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetQaqcHistoricalBulkTemplateQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcHistoricalBulkTemplate>>, TError = ErrorType<unknown>>(params: GetQaqcHistoricalBulkTemplateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalBulkTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcHistoricalBulkTemplateQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcHistoricalBulkTemplate>>> = ({ signal }) => getQaqcHistoricalBulkTemplate(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalBulkTemplate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcHistoricalBulkTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcHistoricalBulkTemplate>>>
+export type GetQaqcHistoricalBulkTemplateQueryError = ErrorType<unknown>
+
+
+
+export function useGetQaqcHistoricalBulkTemplate<TData = Awaited<ReturnType<typeof getQaqcHistoricalBulkTemplate>>, TError = ErrorType<unknown>>(
+ params: GetQaqcHistoricalBulkTemplateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalBulkTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcHistoricalBulkTemplateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPreviewQaqcHistoricalBulkWorkbookUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/historical-balances/bulk-preview`
+}
+
+export const previewQaqcHistoricalBulkWorkbook = async (qaqcHistoricalBulkUpload: QaqcHistoricalBulkUpload, options?: Parameters<typeof customFetch>[1]): Promise<QaqcHistoricalBulkPreview> => {
+
+  return customFetch<QaqcHistoricalBulkPreview>(getPreviewQaqcHistoricalBulkWorkbookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcHistoricalBulkUpload)
+  }
+);}
+
+
+
+
+
+export const getPreviewQaqcHistoricalBulkWorkbookMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewQaqcHistoricalBulkWorkbook>>, TError,{data: BodyType<QaqcHistoricalBulkUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewQaqcHistoricalBulkWorkbook>>, TError,{data: BodyType<QaqcHistoricalBulkUpload>}, TContext> => {
+
+const mutationKey = ['previewQaqcHistoricalBulkWorkbook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewQaqcHistoricalBulkWorkbook>>, {data: BodyType<QaqcHistoricalBulkUpload>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewQaqcHistoricalBulkWorkbook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewQaqcHistoricalBulkWorkbookMutationResult = NonNullable<Awaited<ReturnType<typeof previewQaqcHistoricalBulkWorkbook>>>
+    export type PreviewQaqcHistoricalBulkWorkbookMutationBody = BodyType<QaqcHistoricalBulkUpload>
+    export type PreviewQaqcHistoricalBulkWorkbookMutationError = ErrorType<void>
+
+    export const usePreviewQaqcHistoricalBulkWorkbook = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewQaqcHistoricalBulkWorkbook>>, TError,{data: BodyType<QaqcHistoricalBulkUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewQaqcHistoricalBulkWorkbook>>,
+        TError,
+        {data: BodyType<QaqcHistoricalBulkUpload>},
+        TContext
+      > => {
+      return useMutation(getPreviewQaqcHistoricalBulkWorkbookMutationOptions(options));
+    }
+
+export const getApplyQaqcHistoricalBulkBalancesUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/historical-balances/bulk-apply`
+}
+
+export const applyQaqcHistoricalBulkBalances = async (qaqcHistoricalBulkApply: QaqcHistoricalBulkApply, options?: Parameters<typeof customFetch>[1]): Promise<ApplyQaqcHistoricalBulkBalances200> => {
+
+  return customFetch<ApplyQaqcHistoricalBulkBalances200>(getApplyQaqcHistoricalBulkBalancesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcHistoricalBulkApply)
+  }
+);}
+
+
+
+
+
+export const getApplyQaqcHistoricalBulkBalancesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyQaqcHistoricalBulkBalances>>, TError,{data: BodyType<QaqcHistoricalBulkApply>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyQaqcHistoricalBulkBalances>>, TError,{data: BodyType<QaqcHistoricalBulkApply>}, TContext> => {
+
+const mutationKey = ['applyQaqcHistoricalBulkBalances'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyQaqcHistoricalBulkBalances>>, {data: BodyType<QaqcHistoricalBulkApply>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  applyQaqcHistoricalBulkBalances(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyQaqcHistoricalBulkBalancesMutationResult = NonNullable<Awaited<ReturnType<typeof applyQaqcHistoricalBulkBalances>>>
+    export type ApplyQaqcHistoricalBulkBalancesMutationBody = BodyType<QaqcHistoricalBulkApply>
+    export type ApplyQaqcHistoricalBulkBalancesMutationError = ErrorType<void>
+
+    export const useApplyQaqcHistoricalBulkBalances = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyQaqcHistoricalBulkBalances>>, TError,{data: BodyType<QaqcHistoricalBulkApply>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applyQaqcHistoricalBulkBalances>>,
+        TError,
+        {data: BodyType<QaqcHistoricalBulkApply>},
+        TContext
+      > => {
+      return useMutation(getApplyQaqcHistoricalBulkBalancesMutationOptions(options));
+    }
+
+export const getGetQaqcHistoricalProjectsUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/historical-balances/projects`
+}
+
+export const getQaqcHistoricalProjects = async ( options?: Parameters<typeof customFetch>[1]): Promise<GetQaqcHistoricalProjects200Item[]> => {
+
+  return customFetch<GetQaqcHistoricalProjects200Item[]>(getGetQaqcHistoricalProjectsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcHistoricalProjectsQueryKey = () => {
+    return [
+    `/api/qaqc/reporting/historical-balances/projects`
+    ] as const;
+    }
+
+
+export const getGetQaqcHistoricalProjectsQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcHistoricalProjects>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcHistoricalProjectsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcHistoricalProjects>>> = ({ signal }) => getQaqcHistoricalProjects({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalProjects>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcHistoricalProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcHistoricalProjects>>>
+export type GetQaqcHistoricalProjectsQueryError = ErrorType<unknown>
+
+
+
+export function useGetQaqcHistoricalProjects<TData = Awaited<ReturnType<typeof getQaqcHistoricalProjects>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcHistoricalProjectsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetQaqcHistoricalBalancesUrl = (params: GetQaqcHistoricalBalancesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/historical-balances?${stringifiedParams}` : `/api/qaqc/reporting/historical-balances`
+}
+
+export const getQaqcHistoricalBalances = async (params: GetQaqcHistoricalBalancesParams, options?: Parameters<typeof customFetch>[1]): Promise<GetQaqcHistoricalBalances200> => {
+
+  return customFetch<GetQaqcHistoricalBalances200>(getGetQaqcHistoricalBalancesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcHistoricalBalancesQueryKey = (params?: GetQaqcHistoricalBalancesParams,) => {
+    return [
+    `/api/qaqc/reporting/historical-balances`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetQaqcHistoricalBalancesQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcHistoricalBalances>>, TError = ErrorType<unknown>>(params: GetQaqcHistoricalBalancesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalBalances>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcHistoricalBalancesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcHistoricalBalances>>> = ({ signal }) => getQaqcHistoricalBalances(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalBalances>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcHistoricalBalancesQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcHistoricalBalances>>>
+export type GetQaqcHistoricalBalancesQueryError = ErrorType<unknown>
+
+
+
+export function useGetQaqcHistoricalBalances<TData = Awaited<ReturnType<typeof getQaqcHistoricalBalances>>, TError = ErrorType<unknown>>(
+ params: GetQaqcHistoricalBalancesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalBalances>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcHistoricalBalancesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveQaqcHistoricalBalancesUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/historical-balances`
+}
+
+export const saveQaqcHistoricalBalances = async (qaqcHistoricalBalanceInput: QaqcHistoricalBalanceInput, options?: Parameters<typeof customFetch>[1]): Promise<SaveQaqcHistoricalBalances200> => {
+
+  return customFetch<SaveQaqcHistoricalBalances200>(getSaveQaqcHistoricalBalancesUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcHistoricalBalanceInput)
+  }
+);}
+
+
+
+
+
+export const getSaveQaqcHistoricalBalancesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveQaqcHistoricalBalances>>, TError,{data: BodyType<QaqcHistoricalBalanceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveQaqcHistoricalBalances>>, TError,{data: BodyType<QaqcHistoricalBalanceInput>}, TContext> => {
+
+const mutationKey = ['saveQaqcHistoricalBalances'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveQaqcHistoricalBalances>>, {data: BodyType<QaqcHistoricalBalanceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveQaqcHistoricalBalances(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveQaqcHistoricalBalancesMutationResult = NonNullable<Awaited<ReturnType<typeof saveQaqcHistoricalBalances>>>
+    export type SaveQaqcHistoricalBalancesMutationBody = BodyType<QaqcHistoricalBalanceInput>
+    export type SaveQaqcHistoricalBalancesMutationError = ErrorType<void>
+
+    export const useSaveQaqcHistoricalBalances = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveQaqcHistoricalBalances>>, TError,{data: BodyType<QaqcHistoricalBalanceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveQaqcHistoricalBalances>>,
+        TError,
+        {data: BodyType<QaqcHistoricalBalanceInput>},
+        TContext
+      > => {
+      return useMutation(getSaveQaqcHistoricalBalancesMutationOptions(options));
+    }
+
+export const getPreviewQaqcHistoricalWorkbookUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/historical-balances/preview`
+}
+
+export const previewQaqcHistoricalWorkbook = async (qaqcHistoricalWorkbookInput: QaqcHistoricalWorkbookInput, options?: Parameters<typeof customFetch>[1]): Promise<PreviewQaqcHistoricalWorkbook200> => {
+
+  return customFetch<PreviewQaqcHistoricalWorkbook200>(getPreviewQaqcHistoricalWorkbookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(qaqcHistoricalWorkbookInput)
+  }
+);}
+
+
+
+
+
+export const getPreviewQaqcHistoricalWorkbookMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewQaqcHistoricalWorkbook>>, TError,{data: BodyType<QaqcHistoricalWorkbookInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewQaqcHistoricalWorkbook>>, TError,{data: BodyType<QaqcHistoricalWorkbookInput>}, TContext> => {
+
+const mutationKey = ['previewQaqcHistoricalWorkbook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewQaqcHistoricalWorkbook>>, {data: BodyType<QaqcHistoricalWorkbookInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewQaqcHistoricalWorkbook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewQaqcHistoricalWorkbookMutationResult = NonNullable<Awaited<ReturnType<typeof previewQaqcHistoricalWorkbook>>>
+    export type PreviewQaqcHistoricalWorkbookMutationBody = BodyType<QaqcHistoricalWorkbookInput>
+    export type PreviewQaqcHistoricalWorkbookMutationError = ErrorType<void>
+
+    export const usePreviewQaqcHistoricalWorkbook = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewQaqcHistoricalWorkbook>>, TError,{data: BodyType<QaqcHistoricalWorkbookInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewQaqcHistoricalWorkbook>>,
+        TError,
+        {data: BodyType<QaqcHistoricalWorkbookInput>},
+        TContext
+      > => {
+      return useMutation(getPreviewQaqcHistoricalWorkbookMutationOptions(options));
+    }
+
+export const getGetQaqcHistoricalTemplateUrl = (params: GetQaqcHistoricalTemplateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/historical-balances/template?${stringifiedParams}` : `/api/qaqc/reporting/historical-balances/template`
+}
+
+export const getQaqcHistoricalTemplate = async (params: GetQaqcHistoricalTemplateParams, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetQaqcHistoricalTemplateUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcHistoricalTemplateQueryKey = (params?: GetQaqcHistoricalTemplateParams,) => {
+    return [
+    `/api/qaqc/reporting/historical-balances/template`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetQaqcHistoricalTemplateQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcHistoricalTemplate>>, TError = ErrorType<unknown>>(params: GetQaqcHistoricalTemplateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcHistoricalTemplateQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcHistoricalTemplate>>> = ({ signal }) => getQaqcHistoricalTemplate(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalTemplate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcHistoricalTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcHistoricalTemplate>>>
+export type GetQaqcHistoricalTemplateQueryError = ErrorType<unknown>
+
+
+
+export function useGetQaqcHistoricalTemplate<TData = Awaited<ReturnType<typeof getQaqcHistoricalTemplate>>, TError = ErrorType<unknown>>(
+ params: GetQaqcHistoricalTemplateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcHistoricalTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcHistoricalTemplateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getHealthCheckUrl = () => {
 

@@ -101,3 +101,4 @@
 - [CSAT Word report policy](csat-word-template-policy.md) — both Download entry points share the branded form; preserve actual answers, optional-data gaps and long feedback.
 - [Daily Submission Word template](daily-submission-word-template-policy.md) — shared Daily downloads use saved data/baselines; omit sample data and reviewer-only instructions.
 - [Monthly dashboard PDF](monthly-dashboard-pdf-policy.md) — separate presentation-style export; workbook mappings preserve real formulas, ageing bands and distinct portfolio coverage policy.
+- [Monthly historical balances](monthly-historical-balances-policy.md) — dedicated project-scoped manual/Excel opening setup; cutover anchors preserve submitted snapshots and current-month movements.

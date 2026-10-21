@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { formatDate as organizationDate } from '@workspace/spreadsheet-dates';
 import { Link } from 'wouter';
-import { getGetQaqcSowContextQueryKey, getListQaqcSowReportsQueryKey, useGetQaqcSowContext, useListQaqcSowReports, type ListQaqcSowReportsParams, type QaqcSowReport } from '@workspace/api-client-react';
-import { Download, Eye, Lock, Pencil } from 'lucide-react';
+import { getGetCurrentUserQueryKey, getGetQaqcSowContextQueryKey, getListQaqcSowReportsQueryKey, useGetCurrentUser, useGetQaqcSowContext, useListQaqcSowReports, type ListQaqcSowReportsParams, type QaqcSowReport } from '@workspace/api-client-react';
+import { Download, Eye, Lock, Pencil, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { Empty, ErrorBox, Loading, StateBadge, errMsg, saveFile } from './shell';
-import { canEditMetricsDocument, metricsDocumentHref } from './metrics-report-policy';
+import { canEditMetricsDocument, canSubmitMetricsDocument, metricsDocumentHref } from './metrics-report-policy';
+import { MetricsReportSubmitDialog } from './metrics-report-submit-dialog';
 import { exportMonthlyReportPdf } from './monthly-report-download';
 
 const ALL = '__all__';
@@ -43,12 +44,15 @@ export function MetricsReportList() {
   const canRead = cap.canAnyRead('monthly_reports');
   const canEdit = cap.can('monthly_reports', 'create_edit');
   const canExport = cap.can('monthly_reports', 'export');
+  const canSubmit = cap.can('monthly_reports', 'submit');
+  const me = useGetCurrentUser({ query: { queryKey: getGetCurrentUserQueryKey(), enabled: canRead } });
   const { toast } = useToast();
 
   const [projectId, setProjectId] = useState(ALL);
   const [month, setMonth] = useState('');
   const [page, setPage] = useState(1);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
 
   const ctxParams = { reportType: 'monthly' as const };
   const ctx = useGetQaqcSowContext(ctxParams, { query: { enabled: canRead, queryKey: getGetQaqcSowContextQueryKey(ctxParams), ...FRESH } });
@@ -130,6 +134,7 @@ export function MetricsReportList() {
                       <span className="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium hover:bg-muted">{editable ? <Pencil className="size-3.5" /> : <Eye className="size-3.5" />}{editable ? 'Edit' : 'Display'}</span>
                     </Link>
                     {canExport && <Button size="sm" variant="outline" disabled={!!downloading} onClick={() => download(r)} data-testid={`button-download-report-${r.id}`}><Download className="size-3.5" />{downloading === r.id ? 'Preparing...' : 'Download'}</Button>}
+                    {canSubmitMetricsDocument(r.state, canSubmit, r.createdById, me.data?.id) && <Button size="sm" variant="outline" disabled={q.isFetching} onClick={() => setSubmissionId(r.id)} data-testid={`button-submit-report-${r.id}`}><Send className="size-3.5" />Submit for approval</Button>}
                   </div></TableCell>
                 </TableRow>;
               })}
@@ -144,5 +149,8 @@ export function MetricsReportList() {
           </div>}
       </CardContent>
     </Card>
+    {submissionId && <MetricsReportSubmitDialog key={submissionId} id={submissionId}
+      onClose={() => { setSubmissionId(null); void q.refetch(); }}
+      onSubmitted={() => setSubmissionId(null)} />}
   </div>;
 }

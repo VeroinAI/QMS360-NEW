@@ -4,10 +4,11 @@ import { GovernanceDashboardPage } from './governance-dashboard-page';
 import { ReportEditor } from './report-editor';
 import { ReportList } from './report-list';
 import { SettingsPage } from './settings-page';
+import { HistoricalBalancesPage } from './historical-balances-page';
 import type { ReportType } from './reporting-types';
 
 const T: ReportType[] = ['monthly', 'daily', 'csat'];
-export const reportingPaths = ['/qaqc/metrics/new', '/qaqc/metrics/reports/:id', '/qaqc/monthly', '/qaqc/monthly/new', '/qaqc/monthly/:id', '/qaqc/daily', '/qaqc/daily/new', '/qaqc/daily/:id', '/qaqc/csat', '/qaqc/csat/new', '/qaqc/csat/:id', '/qaqc/report-dashboard', '/qaqc/dashboard', '/qaqc/settings'];
+export const reportingPaths = ['/qaqc/metrics/new', '/qaqc/metrics/reports/:id', '/qaqc/monthly', '/qaqc/monthly/new', '/qaqc/monthly/:id', '/qaqc/daily', '/qaqc/daily/new', '/qaqc/daily/:id', '/qaqc/csat', '/qaqc/csat/new', '/qaqc/csat/:id', '/qaqc/report-dashboard', '/qaqc/dashboard', '/qaqc/settings/historical-balances', '/qaqc/settings'];
 
 // Rendered inside the QAQC switch. /new is declared before /:id.
 export const reportingRoutes = [
@@ -20,5 +21,6 @@ export const reportingRoutes = [
   ]),
   <Route key="dash" path="/qaqc/report-dashboard" component={DashboardPage} />,
   <Route key="gdash" path="/qaqc/dashboard" component={GovernanceDashboardPage} />,
+  <Route key="hist" path="/qaqc/settings/historical-balances" component={HistoricalBalancesPage} />,
   <Route key="set" path="/qaqc/settings" component={SettingsPage} />,
 ];
