@@ -14,7 +14,8 @@ export const historicalFields = [
 ] as const;
 export const historicalPeriod = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-01$/, "Select a valid reporting month");
 export const historicalInput = z.object({
-  projectId:z.string().uuid(), period:historicalPeriod, version:z.number().int().nonnegative(),
+   projectId:z.string().uuid(), period:historicalPeriod, version:z.number().int().nonnegative(),
+   rowNumber:z.number().int().min(1).max(502).optional(),
   reason:z.string().trim().min(10,"Provide a correction reason of at least 10 characters").max(2000),
   balances:z.record(z.string(),z.number().finite().min(0).max(1e12)),
 }).strict().superRefine((v,c)=>{
@@ -33,11 +34,11 @@ export type HistoricalInput=z.infer<typeof historicalInput>;
 export const historicalBatchInput=z.object({
   period:historicalPeriod,items:z.array(historicalInput).min(1).max(500),
 }).strict().superRefine((v,c)=>{
-  const seen=new Set<string>();
+   const seen=new Map<string,number>();
   v.items.forEach((item,index)=>{
     if(item.period!==v.period)c.addIssue({code:"custom",path:["items",index,"period"],message:"Every row must match the selected reporting month"});
-    if(seen.has(item.projectId))c.addIssue({code:"custom",path:["items",index,"projectId"],message:"Duplicate project in workbook"});
-    seen.add(item.projectId);
+     if(seen.has(item.projectId))c.addIssue({code:"custom",path:["items",index,"projectId"],message:`Duplicate project in workbook; first appears in Opening balances! row ${seen.get(item.projectId)}`});
+     else seen.set(item.projectId,item.rowNumber??index+3);
   });
 });
 export type HistoricalSetup=HistoricalInput & {updatedAt:string;updatedById:string};
@@ -57,4 +58,11 @@ export function historicalBaseline(balances:Record<string,number>) {
 }
 export function getHistoricalSetup(customFields:Record<string,any>|null|undefined,period:string):HistoricalSetup|undefined {
   return customFields?.qaqcReporting?.historicalBalances?.[period];
+}
+
+/** Any existing setup, including one created under the previous correction policy, consumes the project's single opening load. */
+export function historicalLoadedPeriods(customFields:Record<string,any>|null|undefined):string[] {
+  const setups=customFields?.qaqcReporting?.historicalBalances;
+  if(!setups||typeof setups!=="object"||Array.isArray(setups))return [];
+  return Object.keys(setups).filter(period=>historicalPeriod.safeParse(period).success&&setups[period]!=null).sort();
 }

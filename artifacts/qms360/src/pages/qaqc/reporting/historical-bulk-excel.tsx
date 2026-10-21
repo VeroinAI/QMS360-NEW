@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { formatDate } from '@workspace/spreadsheet-dates';
 import { useMutation } from '@tanstack/react-query';
 import { applyQaqcHistoricalBulkBalances, getQaqcHistoricalBulkTemplate, previewQaqcHistoricalBulkWorkbook, type QaqcHistoricalBulkPreview } from '@workspace/api-client-react';
 import { Download, FileSpreadsheet, Upload } from 'lucide-react';
@@ -26,7 +27,7 @@ export function HistoricalBulkExcel({period,canImport,canExport,canEdit,disabled
   const applyM=useMutation({mutationFn:(body:Parameters<typeof applyQaqcHistoricalBulkBalances>[0])=>applyQaqcHistoricalBulkBalances(body),
     onSuccess:result=>{
       setPreview(null);setConfirm(false);setError('');invalidate();onApplied();
-      toast({title:'Historical balances saved',description:`${result.updatedProjects} projects updated for ${period!.slice(0,7)}; ${result.updatedDrafts} unsubmitted drafts refreshed.`});
+      toast({title:'Historical balances loaded',description:`${result.updatedProjects} projects loaded for ${formatDate(period)}; ${result.updatedDrafts} unsubmitted drafts refreshed.`});
     },
     onError:e=>{
       setConfirm(false);setError(`${errMsg(e)} This operation applies all projects or none. Reload the latest balances before retrying.`);
@@ -54,9 +55,11 @@ export function HistoricalBulkExcel({period,canImport,canExport,canEdit,disabled
   const ready=!!preview?.canApply&&canImport&&canEdit;
   return <Card className="min-w-0 border-primary/30">
     <CardHeader><CardTitle className="flex items-center gap-2 text-base"><FileSpreadsheet className="size-4" aria-hidden/>Multi-project Excel setup</CardTitle>
-      <CardDescription>One project per row, with all 14 historical opening balances in columns. A project selection is not required; select a month above.</CardDescription></CardHeader>
+      <CardDescription>One project per row, with all 14 historical opening balances in columns. A project selection is not required; select a month above. Opening balances can be loaded only once per project, across all months.</CardDescription></CardHeader>
     <CardContent className="space-y-4">
-      <p className="text-sm text-muted-foreground">The template includes projects you are authorized to export. Edit balances and a correction reason for each included project. Delete rows you do not want to update, including locked/read-only rows. Keep project details, month, version and headers unchanged.</p>
+      <p className="text-sm text-muted-foreground">Select each project from the Project Master dropdown in Excel. IDs, codes and versions are managed internally. Enter balances and an opening balance reason. Delete rows you do not want to load, including already-loaded, locked or read-only projects. Dates follow the QMS360 organization setting. Keep headers unchanged.</p>
+      <p className="text-sm text-muted-foreground">If any row is invalid or any project was previously loaded—even for a different month—the complete file is rejected. Errors identify the Excel sheet and row.</p>
+      {!period&&<p role="status" className="text-sm font-medium text-primary">Select a reporting month above to enable template download and Excel upload.</p>}
       <div className="flex flex-wrap gap-2">
         {canExport&&<Button variant="outline" disabled={!period||busy} onClick={()=>{setError('');downloadM.mutate();}}><Download className="mr-2 size-4"/>{downloadM.isPending?'Preparing template…':'Download multi-project template'}</Button>}
         {canImport&&<><input ref={fileRef} type="file" accept=".xlsx" className="hidden" aria-label="Upload multi-project historical balances" disabled={!period||busy} onChange={e=>{upload(e.target.files?.[0]);e.target.value='';}}/>
@@ -65,10 +68,10 @@ export function HistoricalBulkExcel({period,canImport,canExport,canEdit,disabled
       <p className="text-xs text-muted-foreground">Maximum 500 project rows / 2 MB. Existing single-project templates are also accepted. Uploading does not save anything.</p>
       {error&&<Alert variant="destructive" role="alert"><AlertTitle>Workbook could not be applied</AlertTitle><AlertDescription className="whitespace-pre-line break-words">{error}</AlertDescription></Alert>}
       {preview&&<div className="space-y-4 border-t pt-4">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Workbook preview — {preview.rows.length} projects · {preview.period.slice(0,7)}</h3><Badge variant={ready?'secondary':'destructive'}>{ready?'Ready for confirmation':'Resolve issues before applying'}</Badge></div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Workbook preview — {preview.rows.length} projects · {formatDate(preview.period)}</h3><Badge variant={ready?'secondary':'destructive'}>{ready?'Ready for confirmation':'Complete file blocked — resolve issues'}</Badge></div>
         {!ready&&<p className="text-sm text-destructive">No projects will be saved until every included row is valid and authorized. Applying also requires historical balance edit permission.</p>}
         <div className="space-y-2">{preview.rows.map(row=><details key={row.projectId} className="min-w-0 rounded-lg border p-3">
-          <summary className="cursor-pointer text-sm"><span className="font-medium">{row.projectCode} — {row.projectName}</span><span className="ml-2 text-muted-foreground">Row {row.rowNumber} · v{row.version} · {row.changes.length} balance changes · {row.affectedDrafts} drafts</span>
+          <summary className="cursor-pointer text-sm"><span className="font-medium">{row.projectName}</span><span className="ml-2 text-muted-foreground">Opening balances! Row {row.rowNumber} · {row.changes.length} balance changes · {row.affectedDrafts} drafts</span>
             {row.errors.length>0&&<span className="ml-2 text-destructive">Blocked</span>}</summary>
           {row.errors.length>0&&<ul className="mt-2 list-inside list-disc text-sm text-destructive">{row.errors.map(message=><li key={message}>{message}</li>)}</ul>}
           <p className="mt-2 break-words text-sm"><span className="text-muted-foreground">Reason: </span>{row.reason}</p>
@@ -80,9 +83,9 @@ export function HistoricalBulkExcel({period,canImport,canExport,canEdit,disabled
       </div>}
       <AlertDialog open={confirm} onOpenChange={open=>{if(!applyM.isPending)setConfirm(open);}}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Apply historical balances for {preview?.rows.length} projects?</AlertDialogTitle>
-          <AlertDialogDescription>All included projects for {period?.slice(0,7)} will be updated in one transaction, with a separate audit record and correction reason for each project. Never-submitted drafts will be refreshed. Submitted history will not change. If any row fails, none are saved. The selected project view will reload, replacing unsaved manual balance edits.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogDescription>Opening balances for {formatDate(period)} will be loaded once per project in one transaction, with an audit record and reason for each project. A previously loaded project is rejected even for a different month. Never-submitted drafts will be refreshed. Submitted history will not change. If any row fails, none are saved. The selected project view will reload, replacing unsaved manual balance edits.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel disabled={applyM.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={!ready||busy} onClick={e=>{e.preventDefault();if(preview&&period)applyM.mutate({period,items:preview.rows.map(({projectId,period,version,reason,balances})=>({projectId,period,version,reason,balances}))});}}>{applyM.isPending?'Applying…':'Confirm and apply all'}</AlertDialogAction>
+            <AlertDialogAction disabled={!ready||busy} onClick={e=>{e.preventDefault();if(preview&&period)applyM.mutate({period,items:preview.rows.map(({projectId,period,version,reason,balances,rowNumber})=>({projectId,period,version,reason,balances,rowNumber}))});}}>{applyM.isPending?'Applying…':'Confirm and apply all'}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

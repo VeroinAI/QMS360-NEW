@@ -2461,6 +2461,11 @@ components:
         projectId: {type: string}
         period: {type: string}
         version: {type: number, minimum: 0}
+        rowNumber:
+          type: number
+          minimum: 1
+          maximum: 502
+          description: Original Excel row reference, carried internally from workbook preview to atomic apply.
         reason: {type: string}
         balances: {type: object, additionalProperties: {type: number}}
     QaqcHistoricalWorkbookInput:

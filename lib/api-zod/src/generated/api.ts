@@ -50,6 +50,8 @@ export const PreviewQaqcHistoricalBulkWorkbookResponse = zod.object({
 
 export const applyQaqcHistoricalBulkBalancesBodyItemsItemVersionMin = 0;
 
+export const applyQaqcHistoricalBulkBalancesBodyItemsItemRowNumberMax = 502;
+
 export const applyQaqcHistoricalBulkBalancesBodyItemsMax = 500;
 
 
@@ -60,6 +62,7 @@ export const ApplyQaqcHistoricalBulkBalancesBody = zod.object({
   "projectId": zod.string(),
   "period": zod.string(),
   "version": zod.number().min(applyQaqcHistoricalBulkBalancesBodyItemsItemVersionMin),
+  "rowNumber": zod.number().min(1).max(applyQaqcHistoricalBulkBalancesBodyItemsItemRowNumberMax).optional().describe('Original Excel row reference, carried internally from workbook preview to atomic apply.'),
   "reason": zod.string(),
   "balances": zod.record(zod.string(), zod.number())
 })).min(1).max(applyQaqcHistoricalBulkBalancesBodyItemsMax)
@@ -90,12 +93,15 @@ export const GetQaqcHistoricalBalancesResponse = zod.record(zod.string(), zod.un
 
 export const saveQaqcHistoricalBalancesBodyVersionMin = 0;
 
+export const saveQaqcHistoricalBalancesBodyRowNumberMax = 502;
+
 
 
 export const SaveQaqcHistoricalBalancesBody = zod.object({
   "projectId": zod.string(),
   "period": zod.string(),
   "version": zod.number().min(saveQaqcHistoricalBalancesBodyVersionMin),
+  "rowNumber": zod.number().min(1).max(saveQaqcHistoricalBalancesBodyRowNumberMax).optional().describe('Original Excel row reference, carried internally from workbook preview to atomic apply.'),
   "reason": zod.string(),
   "balances": zod.record(zod.string(), zod.number())
 })

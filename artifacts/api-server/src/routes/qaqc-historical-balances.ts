@@ -7,8 +7,10 @@ import { requireAppAccess,requirePermission,getAuthorizedProjectScope } from "..
 import { asyncHandler,HttpError,writeAuditLog } from "../lib/workspace";
 import { calculateReport,validateReportData } from "../lib/qaqc-reporting-model";
 import { historyBaseline,legacyBaseline } from "./qaqc-reporting";
-import { historicalFields,historicalInput,historicalBatchInput,historicalPeriod,flattenHistorical,historicalBaseline,getHistoricalSetup,protectsHistoricalSnapshot,type HistoricalInput } from "../lib/qaqc-historical-balances";
-import { historicalWorkbook,parseHistoricalWorkbook,historicalBulkWorkbook,parseHistoricalBulkWorkbook } from "../lib/qaqc-historical-excel";
+import { historicalFields,historicalInput,historicalBatchInput,historicalPeriod,flattenHistorical,historicalBaseline,getHistoricalSetup,historicalLoadedPeriods,protectsHistoricalSnapshot,type HistoricalInput } from "../lib/qaqc-historical-balances";
+import { historicalBulkWorkbook,parseHistoricalBulkWorkbook } from "../lib/qaqc-historical-excel";
+import { historicalProjectCatalogue } from "../lib/qaqc-historical-projects";
+import { formatDate } from "@workspace/spreadsheet-dates";
 import type { QaqcOperation } from "@workspace/field-controls";
 
 const router=Router();
@@ -38,8 +40,29 @@ async function allowedProject(req:Request,id:string,operation:QaqcOperation){
   return project;
 }
 const object=(v:unknown):Record<string,any>=>v&&typeof v==="object"&&!Array.isArray(v)?v as Record<string,any>:{};
+async function catalogue(req:Request,operation:QaqcOperation){
+  const all=await db.select({id:projects.id,name:projects.name,code:projects.code}).from(projects)
+    .where(and(eq(projects.organizationId,org(req)),isNull(projects.deletedAt))).orderBy(asc(projects.name),asc(projects.id));
+  const view=await projectScope(req,"view_all"),op=await projectScope(req,operation);
+  try{return historicalProjectCatalogue(all).filter(p=>(view.unrestricted||view.projectIds.includes(p.id))&&(op.unrestricted||op.projectIds.includes(p.id)));}
+  catch(error){throw new HttpError(422,error instanceof Error?error.message:"Invalid Project Master");}
+}
+async function existingLoad(project:typeof projects.$inferSelect,reader:Pick<typeof db,"select">=db){
+  const periods=historicalLoadedPeriods(project.customFields);
+  if(periods.length)return {loaded:true,periods};
+  // Retained audit history also consumes the load if source synchronization or
+  // an older client removed the JSON setup. Deleting metadata must not reset it.
+  const [audit]=await reader.select({after:auditLogEntries.after}).from(auditLogEntries).where(and(
+    eq(auditLogEntries.organizationId,project.organizationId),eq(auditLogEntries.entityType,"qaqc_historical_balances"),
+    eq(auditLogEntries.entityId,project.id),eq(auditLogEntries.action,"update_historical_balances"),
+  )).orderBy(asc(auditLogEntries.createdAt)).limit(1);
+  const period=object(audit?.after).period;
+  return {loaded:!!audit,periods:historicalPeriod.safeParse(period).success?[String(period)]:[]};
+}
+const duplicateMessage=(name:string,periods:string[])=>`Project "${name}": historical opening balances have already been loaded${periods.length?` for reporting period ${periods.map(p=>formatDate(p)).join(", ")}`:" (a previous successful load is recorded)"}. Only one opening balance load is allowed per project, including different months.`;
 async function context(req:Request,projectId:string,period:string){
   const project=await allowedProject(req,projectId,"view_all");
+  const load=await existingLoad(project);
   const saved=getHistoricalSetup(project.customFields as any,period);
   const previous=await historyBaseline(org(req),projectId,"monthly",period);
   const legacy=Object.keys(previous.baseline).length?{}:await legacyBaseline(projectId,"monthly",period);
@@ -57,7 +80,8 @@ async function context(req:Request,projectId:string,period:string){
     derived:calculateReport("monthly",{},historicalBaseline(balances)),
     source:saved?"saved_setup":Object.keys(previous.baseline).length?"previous_report":Object.keys(legacy).length?"legacy_entries":"zero",
     saved:saved?{updatedAt:saved.updatedAt,updatedById:saved.updatedById}:undefined,
-    canApply:blockingReports.length===0,blockingReports,
+    canApply:!load.loaded&&blockingReports.length===0,blockingReports,
+    alreadyLoaded:load.loaded,loadedPeriods:load.periods,duplicateMessage:load.loaded?duplicateMessage(project.name,load.periods):undefined,
     affectedDrafts:reports.filter(r=>r.period===period&&r.state==="draft"&&!r.submittedAt)};
 }
 router.get("/historical-balances/projects",permission("view_all"),asyncHandler(async(req,res)=>{
@@ -78,7 +102,8 @@ router.get("/historical-balances",permission("view_all"),asyncHandler(async(req,
 router.get("/historical-balances/template",permission("export"),asyncHandler(async(req,res)=>{
   const {projectId,period}=parse(params,req.query),project=await allowedProject(req,projectId,"export");
   const c=await context(req,projectId,period);
-  const content=historicalWorkbook({projectId,period,version:c.version,reason:"",balances:c.balances},project.name);
+  const content=historicalBulkWorkbook([{input:{projectId,period,version:0,reason:"",balances:c.balances},projectCode:project.code,projectName:project.name,
+    status:c.duplicateMessage??(!c.canApply?"Locked: submitted history":"Ready for first opening load")}],await catalogue(req,"export"));
   res.setHeader("Content-Type","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition",`attachment; filename="historical-balances-${period.slice(0,7)}.xlsx"`);res.send(content);
 }));
@@ -86,8 +111,13 @@ router.post("/historical-balances/preview",permission("import"),asyncHandler(asy
   const body=parse(params.extend({fileBase64:z.string().max(2_800_000)}).strict(),req.body);
   await allowedProject(req,body.projectId,"import");
   let input;
-  try{input=parseHistoricalWorkbook(body.fileBase64,body.projectId,body.period);}catch(e){throw new HttpError(422,e instanceof Error?e.message:"Invalid workbook");}
+  try{
+    const entries=parseHistoricalBulkWorkbook(body.fileBase64,body.period,await catalogue(req,"import"));
+    if(entries.length!==1||entries[0]!.input.projectId!==body.projectId)throw new Error("The workbook must contain only the selected project. Use multi-project upload for multiple rows.");
+    input=entries[0]!.input;
+  }catch(e){throw new HttpError(422,e instanceof Error?e.message:"Invalid workbook");}
   const c=await context(req,body.projectId,body.period);
+  if(c.alreadyLoaded)throw new HttpError(409,c.duplicateMessage!);
   if(input.version!==c.version)throw new HttpError(409,"Historical balances changed. Download a fresh template before importing");
   if(!c.canApply)throw new HttpError(409,"Submitted history exists for this month or a later month. Select a future unsubmitted reporting period");
   res.json({...input,changes:historicalFields.filter(f=>c.balances[f.key]!==input.balances[f.key]).map(f=>({key:f.key,label:f.label,before:c.balances[f.key],after:input.balances[f.key]}))});
@@ -100,9 +130,11 @@ router.put("/historical-balances",permission("create_edit"),asyncHandler(async(r
 }));
 
 type HistoricalTx=Parameters<Parameters<typeof db.transaction>[0]>[0];
-async function applyHistoricalInput(req:Request,tx:HistoricalTx,input:HistoricalInput){
+export async function applyHistoricalInput(req:Request,tx:HistoricalTx,input:HistoricalInput){
     const [project]=await tx.select().from(projects).where(and(eq(projects.id,input.projectId),eq(projects.organizationId,org(req)),isNull(projects.deletedAt))).for("update");
     if(!project)throw new HttpError(404,"Project not found");
+    const load=await existingLoad(project,tx);
+    if(load.loaded)throw new HttpError(409,duplicateMessage(project.name,load.periods));
     const custom=object(project.customFields),settings=object(custom.qaqcReporting),setups=object(settings.historicalBalances);
     const before=getHistoricalSetup(custom,input.period);
     if((before?.version??0)!==input.version)throw new HttpError(409,"Historical balances changed. Reload the latest values before saving");
@@ -137,26 +169,24 @@ async function applyHistoricalInput(req:Request,tx:HistoricalTx,input:Historical
 
 router.get("/historical-balances/bulk-template",permission("export"),asyncHandler(async(req,res)=>{
   const {period}=parse(z.object({period:historicalPeriod}),req.query);
-  const view=await projectScope(req,"view_all"),exp=await projectScope(req,"export");
-  const eligible=await db.select({id:projects.id,name:projects.name,code:projects.code}).from(projects)
-    .where(and(eq(projects.organizationId,org(req)),isNull(projects.deletedAt),
-      view.unrestricted?undefined:inArray(projects.id,view.projectIds),exp.unrestricted?undefined:inArray(projects.id,exp.projectIds))).orderBy(asc(projects.id));
+  const eligible=await catalogue(req,"export");
   if(!eligible.length)throw new HttpError(403,"No projects are authorized for historical balance export");
   if(eligible.length>500)throw new HttpError(422,"A workbook supports at most 500 projects");
   const entries=[];
   for(const p of eligible){
     const c=await context(req,p.id,period);
     entries.push({input:{projectId:p.id,period,version:c.version,reason:"",balances:c.balances},projectCode:p.code,projectName:p.name,
-      status:!c.canApply?"Locked: submitted history":!c.canImport||!c.canEdit?"Read-only: missing import/edit permission":"Ready for editing"});
+      status:c.duplicateMessage??(!c.canApply?"Locked: submitted history":!c.canImport||!c.canEdit?"Read-only: missing import/edit permission":"Ready for first opening load")});
   }
   res.setHeader("Content-Type","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition",`attachment; filename="historical-balances-multi-project-${period.slice(0,7)}.xlsx"`);
-  res.send(historicalBulkWorkbook(entries));
+  res.send(historicalBulkWorkbook(entries,eligible));
 }));
 router.post("/historical-balances/bulk-preview",permission("import"),asyncHandler(async(req,res)=>{
   const body=parse(z.object({period:historicalPeriod,fileBase64:z.string().max(2_800_000)}).strict(),req.body);
   let entries;
-  try{entries=parseHistoricalBulkWorkbook(body.fileBase64,body.period);}catch(e){throw new HttpError(422,e instanceof Error?e.message:"Invalid workbook");}
+  const master=await catalogue(req,"import");
+  try{entries=parseHistoricalBulkWorkbook(body.fileBase64,body.period,master);}catch(e){throw new HttpError(422,e instanceof Error?e.message:"Invalid workbook");}
   // Authorize the entire file before returning any project data.
   for(const entry of entries)await allowedProject(req,entry.input.projectId,"import");
   const rows=[];
@@ -164,8 +194,9 @@ router.post("/historical-balances/bulk-preview",permission("import"),asyncHandle
     const {input}=entry,project=await allowedProject(req,input.projectId,"import"),c=await context(req,input.projectId,input.period);
     const errors:string[]=[];
     if(entry.projectCode!==undefined&&(entry.projectCode!==project.code||entry.projectName!==project.name))errors.push("Project code/name do not match Project ID. Download a fresh template");
-    if(input.version!==c.version)errors.push("Historical balances changed. Download a fresh template");
-    if(!c.canApply)errors.push("Submitted history exists for this or a later month. Choose a future unsubmitted period");
+    if(c.alreadyLoaded)errors.push(c.duplicateMessage!);
+    else if(!c.canApply)errors.push("Submitted history exists for this or a later month. Choose a future unsubmitted period for the first opening load");
+    if(!c.alreadyLoaded&&input.version!==c.version)errors.push("Historical balances changed. Download a fresh template");
     if(!c.canEdit)errors.push("Historical balance edit permission is also required to apply this row");
     rows.push({...input,rowNumber:entry.rowNumber,projectCode:project.code,projectName:project.name,errors,
       affectedDrafts:c.affectedDrafts.length,
@@ -174,21 +205,29 @@ router.post("/historical-balances/bulk-preview",permission("import"),asyncHandle
   res.json({period:body.period,rows,canApply:rows.every(row=>!row.errors.length)});
 }));
 router.post("/historical-balances/bulk-apply",permission("import"),permission("create_edit"),asyncHandler(async(req,res)=>{
-  const body=parse(historicalBatchInput,req.body);
-  const items=[...body.items].sort((a,b)=>a.projectId.localeCompare(b.projectId));
+  const parsed=historicalBatchInput.safeParse(req.body);
+  if(!parsed.success)throw new HttpError(422,parsed.error.issues.slice(0,30).map(issue=>{
+    const index=issue.path[1],row=typeof index==="number"?req.body?.items?.[index]?.rowNumber??index+3:null;
+    return `${row?`Opening balances! Row ${row}`:"Workbook"}: ${issue.path.join(".")}: ${issue.message}`;
+  }).join("\n"));
+  const items=parsed.data.items;
   for(const input of items){
     await allowedProject(req,input.projectId,"import");
     await allowedProject(req,input.projectId,"create_edit");
   }
-  const results=await db.transaction(async tx=>{
+  const results=await applyHistoricalBatch(req,items);
+  res.json({results,updatedProjects:results.length,updatedDrafts:results.reduce((n,r)=>n+r.updatedDrafts,0)});
+}));
+export async function applyHistoricalBatch(req:Request,inputs:HistoricalInput[]){
+  const items=inputs.map((input,index)=>({...input,rowNumber:input.rowNumber??index+3})).sort((a,b)=>a.projectId.localeCompare(b.projectId));
+  return db.transaction(async tx=>{
     const rows=[];
     // Identical project-lock ordering for every batch prevents cross-batch deadlocks.
     for(const input of items){
       try{rows.push({projectId:input.projectId,...await applyHistoricalInput(req,tx,input)});}
-      catch(error){if(error instanceof HttpError)throw new HttpError(error.status,`Project ${input.projectId}: ${error.message}`);throw error;}
+      catch(error){if(error instanceof HttpError)throw new HttpError(error.status,`Opening balances! Row ${input.rowNumber}: ${error.message} No records from this file were saved.`);throw error;}
     }
     return rows;
   });
-  res.json({results,updatedProjects:results.length,updatedDrafts:results.reduce((n,r)=>n+r.updatedDrafts,0)});
-}));
+}
 export default router;

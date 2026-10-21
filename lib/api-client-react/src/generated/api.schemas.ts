@@ -18,6 +18,12 @@ export interface QaqcHistoricalBalanceInput {
   period: string;
   /** @minimum 0 */
   version: number;
+  /**
+     * Original Excel row reference, carried internally from workbook preview to atomic apply.
+     * @minimum 1
+     * @maximum 502
+     */
+  rowNumber?: number;
   reason: string;
   balances: QaqcHistoricalBalanceInputBalances;
 }
