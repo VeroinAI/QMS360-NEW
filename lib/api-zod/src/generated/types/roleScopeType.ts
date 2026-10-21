@@ -12,4 +12,5 @@ export type RoleScopeType = typeof RoleScopeType[keyof typeof RoleScopeType];
 export const RoleScopeType = {
   organization: 'organization',
   project: 'project',
+  department: 'department',
 } as const;

@@ -1,13 +1,16 @@
 import { organizationDateFormat } from "./date-format";
 import { formatDate } from "@workspace/spreadsheet-dates";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import {
   applicationAccess, db, lessonEscalationRules, lessonLearnedForms, lessonsUserWorkspaceRoles,
-  lessonsWorkspaceRoles, organizationSettings, projects, users,
+  lessonsWorkspaceRoles, organizationSettings, projects, masterDataValues, users,
   lessonsEscalationOccurrences,
 } from "@workspace/db";
 import { enqueueEmail } from "./email-queue";
+import type { Request } from "express";
+import { getAuthorizedProjectScope, getAuthorizedFullProjectScope } from "../middlewares/rbac";
+import { lessonInScope } from "./lessons-source";
 import { businessDaysElapsed } from "./escalation";
 
 export const LESSONS_DIGEST_REPORT = "pending_lessons_approval" as const;
@@ -137,9 +140,14 @@ export async function runLessonsEscalationDigest(organizationId?: string, force 
     const calendar = { workingDays: setting.workingCalendar.workingDays, holidays: setting.workingCalendar.holidays };
     const [rules, forms] = await Promise.all([
       db.select().from(lessonEscalationRules).where(and(eq(lessonEscalationRules.organizationId, setting.organizationId), eq(lessonEscalationRules.triggerKey, "lesson_sla"), eq(lessonEscalationRules.status, "active"), isNull(lessonEscalationRules.deletedAt))).orderBy(asc(lessonEscalationRules.slaWorkingDays)),
-      db.select({ form: lessonLearnedForms, projectName: projects.name }).from(lessonLearnedForms).innerJoin(projects, eq(projects.id, lessonLearnedForms.projectId)).where(and(
+      db.select({ form: lessonLearnedForms, projectName: sql<string>`coalesce(${masterDataValues.label}, ${projects.name})` }).from(lessonLearnedForms)
+        .leftJoin(projects, eq(projects.id, lessonLearnedForms.projectId))
+        .leftJoin(masterDataValues, and(eq(masterDataValues.id, lessonLearnedForms.departmentId), eq(masterDataValues.organizationId, setting.organizationId))).where(and(
         eq(lessonLearnedForms.organizationId, setting.organizationId), eq(lessonLearnedForms.workflowState, "submitted"),
-        eq(projects.organizationId, setting.organizationId), eq(projects.status, "active"), isNull(projects.deletedAt),
+        or(
+          and(eq(projects.organizationId, setting.organizationId), eq(projects.status, "active"), isNull(projects.deletedAt)),
+          sql`${lessonLearnedForms.departmentId} IS NOT NULL`,
+        ),
         isNull(lessonLearnedForms.deletedAt),
       )),
     ]);
@@ -162,13 +170,17 @@ export async function runLessonsEscalationDigest(organizationId?: string, force 
       const toRoles = String(rule.recipientRole ?? "").split(",").map((v) => v.trim()).filter(Boolean);
       const ccRoles = Array.isArray(config.ccRecipientRoles) ? config.ccRecipientRoles.filter((v: unknown): v is string => typeof v === "string") : [];
       const [to, cc] = await Promise.all([recipientsForRoles(setting.organizationId, toRoles, false), recipientsForRoles(setting.organizationId, ccRoles, true)]);
+      const audiences = await departmentDigestAudiences(to, cc, rows);
+      for (const { to, cc, rows } of audiences) {
+      if (!to.length || !rows.length) continue;
       const ccRecipients = cc.filter((value) => !to.some((target) => target.email.toLowerCase() === value.email.toLowerCase())).map((value) => ({ email: value.email, name: value.name }));
-      const headers = ["Reference", "Title", "Project", "Submitter", "Approver", "Submitted", "Working days", "Level", "Threshold"];
+      const headers = ["Reference", "Title", "Project / Department", "Submitter", "Approver", "Submitted", "Working days", "Level", "Threshold"];
       const dateFormat = await organizationDateFormat(setting.organizationId);
       const cells = rows.map((row) => [row.form.referenceNumber, row.form.title, row.projectName, peopleById.get(row.form.submittedById ?? row.form.creatorId) ?? "Unknown", peopleById.get(row.form.approverId) ?? "Unassigned", formatDate(row.form.submittedAt, dateFormat), row.age, level, rule.slaWorkingDays]);
       const text = [headers.join(" | "), ...cells.map((row) => row.map(String).join(" | "))].join("\n");
       const html = `<p>Pending Lessons Learned forms requiring approval at <strong>${escapeHtml(level)}</strong>:</p><table border="1" cellpadding="6" cellspacing="0"><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${cells.map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
       queuedInputs.push({ organizationId: setting.organizationId, recipientIds: to.map((v) => v.id), ccRecipients, subject: `Pending Lessons Learned approvals — ${level}`, text, html, context: { app: "lessons", eventType: "lessons.pending_approval_digest", reportKey: LESSONS_DIGEST_REPORT, ruleId: rule.id, level } });
+      }
     }
     const next = nextLessonsDigestRun(now, job, setting.timezone);
     const occurrenceKey = force ? `manual:${randomUUID()}` : `scheduled:${job.nextRunAt}`;
@@ -209,4 +221,35 @@ export async function runLessonsEscalationDigest(organizationId?: string, force 
     if (claimed === "busy" && force) return { sentGroups, skipped: true };
   }
   return { sentGroups };
+}
+
+/** Keep the existing project digest policy; new department records must obey
+ * each recipient's read scope, including every CC recipient. */
+async function departmentDigestAudiences(to: Array<{ id: string; email: string; name: string }>, cc: Array<{ id: string; email: string; name: string }>, rows: any[]) {
+  if (!rows.some(row => row.form.departmentId)) return [{ to, cc, rows }];
+  // Load after routes initialize: the manual digest action shares this module.
+  const [{ getUserContext }, { canReadLesson }] = await Promise.all([import("./auth"), import("../routes/lessons")]);
+  const contexts = new Map<string, Promise<any>>();
+  async function readable(recipient: { id: string }, row: any) {
+    if (!row.form.departmentId) return true;
+    if (!contexts.has(recipient.id)) contexts.set(recipient.id, (async () => {
+      const actor = await getUserContext(recipient.id);
+      if (!actor) return null;
+      const request = { currentUser: actor } as Request;
+      const [scope, full] = await Promise.all([
+        getAuthorizedProjectScope(request, "lessons", { module: "lessons", action: "select" }),
+        getAuthorizedFullProjectScope(request, "lessons", { module: "lessons", action: "select" }),
+      ]);
+      return { request, scope, full };
+    })());
+    const context = await contexts.get(recipient.id)!;
+    return !!context && lessonInScope(context.scope, row.form)
+      && (lessonInScope(context.full, row.form) || await canReadLesson(context.request, row.form));
+  }
+  return Promise.all(to.map(async recipient => {
+    const allowed = await Promise.all(rows.map(row => readable(recipient, row)));
+    const visible = rows.filter((_, index) => allowed[index]);
+    const allowedCc = await Promise.all(cc.map(async p => (await Promise.all(visible.map(row => readable(p, row)))).every(Boolean)));
+    return { to: [recipient], cc: cc.filter((_, index) => allowedCc[index]), rows: visible };
+  }));
 }

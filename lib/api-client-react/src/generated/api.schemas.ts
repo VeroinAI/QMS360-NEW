@@ -2072,6 +2072,7 @@ export type RoleScopeType = typeof RoleScopeType[keyof typeof RoleScopeType];
 export const RoleScopeType = {
   organization: 'organization',
   project: 'project',
+  department: 'department',
 } as const;
 
 export interface Role {
@@ -2104,6 +2105,21 @@ export const RoleAssignmentScopeType = {
 export interface RoleAssignment {
   roleId: string;
   scopeType: RoleAssignmentScopeType;
+  scopeIds: string[];
+}
+
+export type LessonsRoleAssignmentScopeType = typeof LessonsRoleAssignmentScopeType[keyof typeof LessonsRoleAssignmentScopeType];
+
+
+export const LessonsRoleAssignmentScopeType = {
+  organization: 'organization',
+  project: 'project',
+  department: 'department',
+} as const;
+
+export interface LessonsRoleAssignment {
+  roleId: string;
+  scopeType: LessonsRoleAssignmentScopeType;
   scopeIds: string[];
 }
 
@@ -2886,6 +2902,7 @@ export interface AISuggestionLog {
 export interface LessonsReferenceData {
   generatedAt: string;
   projects: Project[];
+  departments?: ReferenceItem[];
   disciplines: ReferenceItem[];
   categorisation: ReferenceItem[];
 }
@@ -2921,12 +2938,26 @@ export interface ApproverScopeInput {
   categorisation?: string;
 }
 
+export type LessonLearnedFormSourceType = typeof LessonLearnedFormSourceType[keyof typeof LessonLearnedFormSourceType];
+
+
+export const LessonLearnedFormSourceType = {
+  Project: 'Project',
+  Department: 'Department',
+} as const;
+
 export interface LessonLearnedForm {
   id: string;
   readonly referenceNumber: string;
   /** @nullable */
   reference?: string | null;
-  projectId: string;
+  /** @nullable */
+  projectId: string | null;
+  sourceType?: LessonLearnedFormSourceType;
+  /** @nullable */
+  departmentId?: string | null;
+  /** @nullable */
+  readonly departmentName?: string | null;
   title: string;
   disciplineId: string;
   categorisationId: string;
@@ -5339,6 +5370,7 @@ projectId?: string;
  * Discipline LOV value
  */
 discipline?: string;
+departmentId?: string;
 /**
  * Categorisation LOV value
  */
@@ -5367,6 +5399,7 @@ limit?: LimitParameter;
 
 export type SearchLessonsLogParams = {
 search?: string;
+departmentId?: string;
 projectId?: ProjectIdParameter;
 disciplineId?: string;
 category?: string;
@@ -5456,6 +5489,7 @@ limit?: LimitParameter;
 
 export type ExportLessonsLogParams = {
 creatorId?: string;
+departmentId?: string;
 search?: string;
 projectId?: ProjectIdParameter;
 disciplineId?: string;

@@ -36,6 +36,7 @@ async function findEvidence(id: string, organizationId: string) {
 
 type EvidenceParent = {
   projectId: string | null;
+  departmentId?: string | null;
   projectIds?: string[];
   module: string;
   allowProjectless?: boolean;
@@ -59,11 +60,11 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
   const { app, row } = found;
   if (app === "lessons") {
     const [lesson] = await db.select({
-      projectId: lessonLearnedForms.projectId, creatorId: lessonLearnedForms.creatorId, approverId: lessonLearnedForms.approverId,
+      projectId: lessonLearnedForms.projectId, departmentId: lessonLearnedForms.departmentId, creatorId: lessonLearnedForms.creatorId, approverId: lessonLearnedForms.approverId,
     }).from(lessonLearnedForms).where(and(
       eq(lessonLearnedForms.id, row.recordId), eq(lessonLearnedForms.organizationId, organizationId), isNull(lessonLearnedForms.deletedAt),
     ));
-    return lesson ? { projectId: lesson.projectId, module: "lessons", creatorId: lesson.creatorId, approverId: lesson.approverId } : null;
+    return lesson ? { projectId: lesson.projectId, departmentId: lesson.departmentId, module: "lessons", creatorId: lesson.creatorId, approverId: lesson.approverId } : null;
   }
   if (app === "audit") {
     if (row.recordType === "audit_schedule") {
@@ -137,7 +138,9 @@ async function authorizeEvidence(req: express.Request, found: NonNullable<Awaite
   const parent = await evidenceProject(found, user.organizationId);
   if (!parent) return false;
   const scope = await getAuthorizedProjectScope(req, found.app as RbacAppKey, { module: parent.module, action });
-  if (parent.allowProjectless) {
+  if (found.app === "lessons" && parent.departmentId) {
+    if (!scope.unrestricted && !scope.allDepartmentsAllowed && !scope.departmentIds?.includes(parent.departmentId)) return false;
+  } else if (parent.allowProjectless) {
     if (!scope.unrestricted && !scope.projectIds.length && !scope.processAuditsAllowed) return false;
   } else if (!scope.unrestricted && (parent.projectIds ?? [parent.projectId!]).some((projectId) => !scope.projectIds.includes(projectId))) return false;
   if (found.app === "audit" && ["car", "corrective_action_report"].includes(found.row.recordType)) {

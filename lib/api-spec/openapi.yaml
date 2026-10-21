@@ -1526,6 +1526,7 @@ paths:
       parameters:
         - {name: projectId, in: query, schema: {type: string}}
         - {name: discipline, in: query, schema: {type: string}, description: Discipline LOV value}
+        - {name: departmentId, in: query, schema: {type: string}}
         - {name: categorisation, in: query, schema: {type: string}, description: Categorisation LOV value}
         - {name: includeSelf, in: query, schema: {type: string, enum: ["true"]}}
       responses: {"200": {description: Approvers, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/LessonApproverOption"}}}}}}
@@ -1555,6 +1556,7 @@ paths:
       summary: Search the lesson learned knowledge base
       parameters:
         - {name: search, in: query, schema: {type: string}}
+        - {name: departmentId, in: query, schema: {type: string}}
         - {$ref: "#/components/parameters/ProjectId"}
         - {name: disciplineId, in: query, schema: {type: string}}
         - {name: category, in: query, schema: {type: string}}
@@ -1622,6 +1624,7 @@ paths:
       summary: Export every lesson matching the lesson-log filters
       parameters:
         - {name: creatorId, in: query, schema: {type: string}}
+        - {name: departmentId, in: query, schema: {type: string}}
         - {name: search, in: query, schema: {type: string}}
         - {$ref: "#/components/parameters/ProjectId"}
         - {name: disciplineId, in: query, schema: {type: string}}
@@ -1652,7 +1655,7 @@ paths:
   /lessons/admin/users:
     get: {operationId: listLessonsUsers, tags: [lessons-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
   /lessons/admin/users/{userId}/roles:
-    post: {operationId: assignLessonsUserRole, tags: [lessons-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
+    post: {operationId: assignLessonsUserRole, tags: [lessons-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsRoleAssignment"}}}}, responses: {"200": {description: Assigned}}}
   /lessons/admin/users/{userId}/roles/{id}:
     delete: {operationId: removeLessonsUserRole, tags: [lessons-admin], summary: Remove an assigned role, parameters: [{$ref: "#/components/parameters/UserId"}, {$ref: "#/components/parameters/Id"}], responses: {"204": {description: Removed}}}
   /lessons/admin/users/{userId}/profile:
@@ -3728,11 +3731,15 @@ components:
     Role:
       type: object
       required: [id, name, permissions, active]
-      properties: {id: {type: string}, name: {type: string}, description: {type: [string, "null"]}, roleAuthorizationLevel: {type: [number, "null"], minimum: 1, maximum: 2147483647, multipleOf: 1, description: "Audit approval sequence level; required when Approve / reject is granted to an Audit role."}, permissions: {type: array, items: {$ref: "#/components/schemas/Permission"}}, active: {type: boolean}, systemDefault: {type: boolean}, scopeType: {type: string, enum: [organization, project]}, scopeIds: {type: array, items: {type: string}}}
+      properties: {id: {type: string}, name: {type: string}, description: {type: [string, "null"]}, roleAuthorizationLevel: {type: [number, "null"], minimum: 1, maximum: 2147483647, multipleOf: 1, description: "Audit approval sequence level; required when Approve / reject is granted to an Audit role."}, permissions: {type: array, items: {$ref: "#/components/schemas/Permission"}}, active: {type: boolean}, systemDefault: {type: boolean}, scopeType: {type: string, enum: [organization, project, department]}, scopeIds: {type: array, items: {type: string}}}
     RoleAssignment:
       type: object
       required: [roleId, scopeType, scopeIds]
       properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, project]}, scopeIds: {type: array, items: {type: string}}}
+    LessonsRoleAssignment:
+      type: object
+      required: [roleId, scopeType, scopeIds]
+      properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, project, department]}, scopeIds: {type: array, items: {type: string}}}
     SendAuditPlanForExecutionInput:
       type: object
       required: [roleIds]
@@ -4042,7 +4049,7 @@ components:
     LessonsReferenceData:
       type: object
       required: [generatedAt, projects, disciplines, categorisation]
-      properties: {generatedAt: {type: string, format: date-time}, projects: {type: array, items: {$ref: "#/components/schemas/Project"}}, disciplines: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}, categorisation: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}}
+      properties: {generatedAt: {type: string, format: date-time}, projects: {type: array, items: {$ref: "#/components/schemas/Project"}}, departments: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}, disciplines: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}, categorisation: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}}
     LessonApproverOption:
       type: object
       required: [id, fullName, email, roles]
@@ -4079,7 +4086,10 @@ components:
         id: {type: string}
         referenceNumber: {type: string, readOnly: true}
         reference: {type: [string, "null"]}
-        projectId: {type: string}
+        projectId: {type: [string, "null"]}
+        sourceType: {type: string, enum: [Project, Department]}
+        departmentId: {type: [string, "null"]}
+        departmentName: {type: [string, "null"], readOnly: true}
         title: {type: string}
         disciplineId: {type: string}
         categorisationId: {type: string}

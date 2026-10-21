@@ -35,7 +35,9 @@ export const FIELD_CATALOG: Record<AppKey, CatalogForm[]> = {
       formKey: "lesson-form",
       label: "Lesson learned form",
       fields: [
+        f("sourceType", "Project / Department", "Project"),
         f("projectId", "Project", ""),
+        f("departmentId", "Department", ""),
         f("title", "Title", ""),
         f("disciplineId", "Discipline", ""),
         f("categorisationId", "Categorisation", ""),
@@ -391,6 +393,9 @@ export async function assertFieldAccess(
   const form = FIELD_CATALOG[module].find((entry) => entry.formKey === formKey);
   const blocked: string[] = [];
   for (const fieldKey of readOnly) {
+    if (module === "lessons" && formKey === "lesson-form"
+      && ((fieldKey === "projectId" && body.sourceType === "Department") || (fieldKey === "departmentId" && body.sourceType !== "Department"))
+      && isBlank(body[fieldKey]) && (opts.mode === "create" || isBlank(current?.[fieldKey]))) continue;
     if (!(fieldKey in body)) continue;
     const catalogField = form?.fields.find((entry) => entry.fieldKey === fieldKey);
     if (catalogField?.serverManaged) continue;

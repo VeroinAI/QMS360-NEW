@@ -14,6 +14,7 @@ import type { ToParameter } from './toParameter';
 
 export type ExportLessonsLogParams = {
 creatorId?: string;
+departmentId?: string;
 search?: string;
 projectId?: ProjectIdParameter;
 disciplineId?: string;

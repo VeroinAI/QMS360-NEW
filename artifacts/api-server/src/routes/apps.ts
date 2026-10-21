@@ -14,6 +14,7 @@ import { requireAuth } from "../middlewares/auth";
 import { getAuthorizedFullProjectScope, getAuthorizedProjectScope, requireAppAccess } from "../middlewares/rbac";
 import { appDefinitions, userHasAppAccess } from "./platform";
 import { canReadLesson } from "./lessons";
+import { lessonScopeWhere } from "../lib/lessons-source";
 
 const router: IRouter = Router();
 
@@ -89,7 +90,7 @@ router.get("/apps/:appKey/overview", requireAuth, async (req, res, next): Promis
     const lessonWhere = and(
       eq(lessonLearnedForms.organizationId, user.organizationId),
       isNull(lessonLearnedForms.deletedAt),
-      projectFilter(lessonLearnedForms.projectId, lessonScope),
+      lessonScopeWhere(lessonScope),
     );
     const candidateRows = await db.select().from(lessonLearnedForms).where(lessonWhere).orderBy(desc(lessonLearnedForms.updatedAt));
     const visibleRows = (await Promise.all(candidateRows.map(async (row) => await canReadLesson(req, row) ? row : null)))

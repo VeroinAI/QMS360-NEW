@@ -4810,7 +4810,7 @@ export const ListQaqcRolesResponse = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 }))
 }))
@@ -4835,7 +4835,7 @@ export const CreateQaqcRoleBody = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 })
 
@@ -4865,7 +4865,7 @@ export const UpdateQaqcRoleBody = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 })
 
@@ -4920,7 +4920,7 @@ export const ListQaqcUsersResponse = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 })),
   "status": zod.enum(['Not Requested', 'Active', 'Deactivated']),
@@ -5422,6 +5422,13 @@ export const GetLessonsReferenceDataResponse = zod.object({
   "status": zod.string(),
   "location": zod.string().nullish()
 })),
+  "departments": zod.array(zod.object({
+  "id": zod.string(),
+  "code": zod.string().nullish(),
+  "name": zod.string(),
+  "active": zod.boolean(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})).optional(),
   "disciplines": zod.array(zod.object({
   "id": zod.string(),
   "code": zod.string().nullish(),
@@ -5445,6 +5452,7 @@ export const GetLessonsReferenceDataResponse = zod.object({
 export const ListLessonApproversQueryParams = zod.object({
   "projectId": zod.coerce.string().optional(),
   "discipline": zod.coerce.string().optional().describe('Discipline LOV value'),
+  "departmentId": zod.coerce.string().optional(),
   "categorisation": zod.coerce.string().optional().describe('Categorisation LOV value'),
   "includeSelf": zod.enum(['true']).optional()
 })
@@ -5497,7 +5505,10 @@ export const ListLessonFormsResponse = zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
   "reference": zod.string().nullish(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable(),
+  "sourceType": zod.enum(['Project', 'Department']).optional(),
+  "departmentId": zod.string().nullish(),
+  "departmentName": zod.string().nullish(),
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
@@ -5567,7 +5578,9 @@ export const createLessonFormBodyGpsLngMax = 180;
 export const CreateLessonFormBody = zod.object({
   "id": zod.string(),
   "reference": zod.string().nullish(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable(),
+  "sourceType": zod.enum(['Project', 'Department']).optional(),
+  "departmentId": zod.string().nullish(),
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
@@ -5621,7 +5634,10 @@ export const CreateLessonFormResponse = zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
   "reference": zod.string().nullish(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable(),
+  "sourceType": zod.enum(['Project', 'Department']).optional(),
+  "departmentId": zod.string().nullish(),
+  "departmentName": zod.string().nullish(),
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
@@ -5695,7 +5711,10 @@ export const GetLessonFormResponse = zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
   "reference": zod.string().nullish(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable(),
+  "sourceType": zod.enum(['Project', 'Department']).optional(),
+  "departmentId": zod.string().nullish(),
+  "departmentName": zod.string().nullish(),
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
@@ -5768,7 +5787,9 @@ export const updateLessonFormBodyGpsLngMax = 180;
 export const UpdateLessonFormBody = zod.object({
   "id": zod.string(),
   "reference": zod.string().nullish(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable(),
+  "sourceType": zod.enum(['Project', 'Department']).optional(),
+  "departmentId": zod.string().nullish(),
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
@@ -5822,7 +5843,10 @@ export const UpdateLessonFormResponse = zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
   "reference": zod.string().nullish(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable(),
+  "sourceType": zod.enum(['Project', 'Department']).optional(),
+  "departmentId": zod.string().nullish(),
+  "departmentName": zod.string().nullish(),
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
@@ -5999,6 +6023,7 @@ export const searchLessonsLogQueryLimitMax = 200;
 
 export const SearchLessonsLogQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
+  "departmentId": zod.coerce.string().optional(),
   "projectId": zod.coerce.string().optional(),
   "disciplineId": zod.coerce.string().optional(),
   "category": zod.coerce.string().optional(),
@@ -6038,7 +6063,10 @@ export const SearchLessonsLogResponse = zod.object({
   "id": zod.string(),
   "referenceNumber": zod.string(),
   "reference": zod.string().nullish(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable(),
+  "sourceType": zod.enum(['Project', 'Department']).optional(),
+  "departmentId": zod.string().nullish(),
+  "departmentName": zod.string().nullish(),
   "title": zod.string(),
   "disciplineId": zod.string(),
   "categorisationId": zod.string(),
@@ -6297,6 +6325,7 @@ export const GetAuditEscalationsResponse = zod.object({
  */
 export const ExportLessonsLogQueryParams = zod.object({
   "creatorId": zod.coerce.string().optional(),
+  "departmentId": zod.coerce.string().optional(),
   "search": zod.coerce.string().optional(),
   "projectId": zod.coerce.string().optional(),
   "disciplineId": zod.coerce.string().optional(),
@@ -6436,7 +6465,7 @@ export const ListLessonsRolesResponse = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 }))
 }))
@@ -6461,7 +6490,7 @@ export const CreateLessonsRoleBody = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 })
 
@@ -6491,7 +6520,7 @@ export const UpdateLessonsRoleBody = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 })
 
@@ -6546,7 +6575,7 @@ export const ListLessonsUsersResponse = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 })),
   "status": zod.enum(['Not Requested', 'Active', 'Deactivated']),
@@ -6564,7 +6593,7 @@ export const AssignLessonsUserRoleParams = zod.object({
 
 export const AssignLessonsUserRoleBody = zod.object({
   "roleId": zod.string(),
-  "scopeType": zod.enum(['organization', 'project']),
+  "scopeType": zod.enum(['organization', 'project', 'department']),
   "scopeIds": zod.array(zod.string())
 })
 
@@ -8291,7 +8320,7 @@ export const ListAuditPlanNotificationRolesResponseItem = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 })
 export const ListAuditPlanNotificationRolesResponse = zod.array(ListAuditPlanNotificationRolesResponseItem)
@@ -12412,7 +12441,7 @@ export const ListAuditRolesResponse = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 }))
 }))
@@ -12437,7 +12466,7 @@ export const CreateAuditRoleBody = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 })
 
@@ -12467,7 +12496,7 @@ export const UpdateAuditRoleBody = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 })
 
@@ -12522,7 +12551,7 @@ export const ListAuditUsersResponse = zod.object({
 })),
   "active": zod.boolean(),
   "systemDefault": zod.boolean().optional(),
-  "scopeType": zod.enum(['organization', 'project']).optional(),
+  "scopeType": zod.enum(['organization', 'project', 'department']).optional(),
   "scopeIds": zod.array(zod.string()).optional()
 })),
   "status": zod.enum(['Not Requested', 'Active', 'Deactivated']),

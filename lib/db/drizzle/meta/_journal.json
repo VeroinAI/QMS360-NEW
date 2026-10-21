@@ -183,6 +183,13 @@
       "when": 1791894086378,
       "tag": "0025_certain_maggott",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792580446933,
+      "tag": "0026_last_archangel",
+      "breakpoints": true
     }
   ]
 }

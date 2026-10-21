@@ -103,3 +103,4 @@
 - [Monthly dashboard PDF](monthly-dashboard-pdf-policy.md) — separate presentation-style export; workbook mappings preserve real formulas, ageing bands and distinct portfolio coverage policy.
 - [Monthly historical balances](monthly-historical-balances-policy.md) — one opening load per project across all months; atomic Master-backed Excel uploads and protected submitted history.
 - [Monthly report uniqueness](monthly-report-uniqueness.md) — all workflow states block duplicate project/month reports; selection feedback and race-safe save checks are required.
+- [Department Lessons](department-lessons-policy.md) — explicit department role scopes and independent department reference sequences; preserve project behavior and official PDF branding.

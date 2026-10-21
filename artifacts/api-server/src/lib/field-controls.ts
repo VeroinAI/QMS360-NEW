@@ -155,6 +155,9 @@ export async function assertFieldControls(
   const readOnlyWrites: string[] = [];
   const missingMandatory: string[] = [];
   for (const [fieldKey, setting] of Object.entries(form)) {
+    if (appKey === "lessons" && formKey === "lesson-form"
+      && ((fieldKey === "projectId" && body.sourceType === "Department") || (fieldKey === "departmentId" && body.sourceType !== "Department"))
+      && isBlankValue(body[fieldKey]) && (opts.mode === "create" || isBlankValue(current?.[fieldKey]))) continue;
     const spec = resolveFieldSpec(appKey, formKey, fieldKey);
     if (spec.serverManaged) continue;
     const presentIn = (source: Record<string, unknown> | undefined) =>
@@ -178,6 +181,8 @@ export async function assertFieldControls(
     }
 
     if (setting?.requirement === "mandatory") {
+      if (appKey === "lessons" && formKey === "lesson-form"
+        && ((fieldKey === "projectId" && body.sourceType === "Department") || (fieldKey === "departmentId" && body.sourceType !== "Department"))) continue;
       if (spec.mandatoryWhen && !spec.mandatoryWhen(body)) continue;
        const value = valueFrom(presentIn(body) ? body : current);
       const empty = spec.isEmpty ? spec.isEmpty(value) : isBlankValue(value);

@@ -209,6 +209,7 @@ import type {
   LessonsProjectNumberInput,
   LessonsProjectNumbering,
   LessonsReferenceData,
+  LessonsRoleAssignment,
   ListAuditAccessQueueParams,
   ListAuditDelegationsParams,
   ListAuditEvidenceParams,
@@ -17041,14 +17042,14 @@ export const getAssignLessonsUserRoleUrl = (userId: string,) => {
  * @summary Assign role and scope
  */
 export const assignLessonsUserRole = async (userId: string,
-    roleAssignmentBody: RoleAssignmentBody, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    lessonsRoleAssignment: LessonsRoleAssignment, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
 
   return customFetch<void>(getAssignLessonsUserRoleUrl(userId),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(roleAssignmentBody)
+    body: JSON.stringify(lessonsRoleAssignment)
   }
 );}
 
@@ -17057,8 +17058,8 @@ export const assignLessonsUserRole = async (userId: string,
 
 
 export const getAssignLessonsUserRoleMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignLessonsUserRole>>, TError,{userId: string;data: BodyType<RoleAssignmentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof assignLessonsUserRole>>, TError,{userId: string;data: BodyType<RoleAssignmentBody>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignLessonsUserRole>>, TError,{userId: string;data: BodyType<LessonsRoleAssignment>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof assignLessonsUserRole>>, TError,{userId: string;data: BodyType<LessonsRoleAssignment>}, TContext> => {
 
 const mutationKey = ['assignLessonsUserRole'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -17070,7 +17071,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignLessonsUserRole>>, {userId: string;data: BodyType<RoleAssignmentBody>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignLessonsUserRole>>, {userId: string;data: BodyType<LessonsRoleAssignment>}> = (props) => {
           const {userId,data} = props ?? {};
 
           return  assignLessonsUserRole(userId,data,requestOptions)
@@ -17084,18 +17085,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type AssignLessonsUserRoleMutationResult = NonNullable<Awaited<ReturnType<typeof assignLessonsUserRole>>>
-    export type AssignLessonsUserRoleMutationBody = BodyType<RoleAssignmentBody>
+    export type AssignLessonsUserRoleMutationBody = BodyType<LessonsRoleAssignment>
     export type AssignLessonsUserRoleMutationError = ErrorType<unknown>
 
     /**
  * @summary Assign role and scope
  */
 export const useAssignLessonsUserRole = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignLessonsUserRole>>, TError,{userId: string;data: BodyType<RoleAssignmentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignLessonsUserRole>>, TError,{userId: string;data: BodyType<LessonsRoleAssignment>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof assignLessonsUserRole>>,
         TError,
-        {userId: string;data: BodyType<RoleAssignmentBody>},
+        {userId: string;data: BodyType<LessonsRoleAssignment>},
         TContext
       > => {
       return useMutation(getAssignLessonsUserRoleMutationOptions(options));
