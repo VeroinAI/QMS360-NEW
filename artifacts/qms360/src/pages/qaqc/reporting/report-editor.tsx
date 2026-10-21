@@ -76,7 +76,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const pid = report?.projectId ?? projectId;
   const per = report?.period ?? period;
   const ctxParams = { projectId: pid || undefined, reportType, period: reportType === 'csat' && !report ? undefined : per || undefined };
-  const ctxQ = useGetQaqcSowContext(ctxParams, { query: { queryKey: getGetQaqcSowContextQueryKey(ctxParams), enabled: !id || !!report, refetchInterval: reportType === 'monthly' ? 30_000 : false, refetchOnWindowFocus: true } });
+  const ctxQ = useGetQaqcSowContext(ctxParams, { query: { queryKey: getGetQaqcSowContextQueryKey(ctxParams), enabled: !id || !!report, ...(reportType === 'monthly' ? { staleTime: 0, refetchOnMount: 'always' as const } : {}), refetchInterval: reportType === 'monthly' ? 30_000 : false, refetchOnWindowFocus: true } });
   const ctx = (ctxQ.data ?? {}) as Obj;
   useEffect(() => {
     if (reportType === 'csat' && !id && typeof ctx.serverToday === 'string') setPeriod(ctx.serverToday);
@@ -106,12 +106,15 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const [imports, setImports] = useState<string[]>([]);
   const [approverId, setApproverId] = useState(''); const [submitOpen, setSubmitOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
+  const [creationError, setCreationError] = useState('');
+  useEffect(() => setCreationError(''), [pid, per]);
+  const checkingAvailability = !report && reportType === 'monthly' && !!pid && ctxQ.isFetching;
   const [decision, setDecision] = useState<'approve' | 'send_back'>(); const [comments, setComments] = useState('');
 
   const editable = !displayOnly && (!report || (metricsEntry
     ? canEditMetricsDocument(report.state, canEdit)
     : report.state === 'draft' || report.state === 'sent_back'));
-  const blocked = !report && ctx.canStart === false;
+  const blocked = !report && ctx.canStart === false && (reportType !== 'monthly' || !!pid);
   const readOnly = !editable || !canEdit || !canMaintain || blocked || !pid || locked || busy || create.isPending || update.isPending || aiGenerating || (reportType === 'monthly' && (ctxQ.isLoading || !!ctxQ.error));
   const frozen = !!report && !editable;
   const baseline: Obj = (frozen ? report?.baseline : ctx.baseline) ?? {};
@@ -160,9 +163,16 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   };
 
   const save = () => {
+    if (!report && reportType === 'monthly' && (blocked || checkingAvailability || !!ctxQ.error || !pid)) return;
     if (metricsEntry && readOnly) return;
     if (report) update.mutate({ id: report.id, data: updateData() }, { onSuccess: r => { saved(r); invalidate(); toast({ title: 'Draft saved' }); }, onError: fail('Could not save') });
-    else create.mutate({ data: { projectId: pid, reportType, period: per, data: saveData() } }, { onSuccess: r => { dirtyFields.current.clear(); invalidate(); toast({ title: 'Draft created' }); nav(`${base}/${r.id}`); }, onError: fail('Could not create') });
+    else {
+      setCreationError('');
+      create.mutate({ data: { projectId: pid, reportType, period: per, data: saveData() } }, { onSuccess: r => { dirtyFields.current.clear(); invalidate(); toast({ title: 'Draft created' }); nav(`${base}/${r.id}`); }, onError: e => {
+        if (reportType === 'monthly') { setCreationError(errMsg(e)); void ctxQ.refetch(); }
+        fail('Could not create')(e);
+      } });
+    }
   };
   const doSubmit = () => {
     if (!report) return;
@@ -238,6 +248,8 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
           {!metricsEntry && <><ReadOnlyValue label="Project manager" value={details.pmName} /><ReadOnlyValue label="Project engineer" value={details.peName} /><ReadOnlyValue label="Document controller" value={details.dcName} /></>}
         </div>
         {ctxQ.error && <ErrorBox error={ctxQ.error} retry={() => ctxQ.refetch()} />}
+        {checkingAvailability && <p role="status" className="text-sm text-muted-foreground">Checking monthly report availability for this project and reporting period...</p>}
+        {!report && creationError && !blocked && <Alert variant="destructive"><AlertTitle>Could not create monthly report</AlertTitle><AlertDescription>{creationError}</AlertDescription></Alert>}
         {blocked && <Alert variant="destructive"><AlertTitle>Entry is blocked</AlertTitle><AlertDescription>{ctx.blockedReason ?? 'The immediately preceding period must be submitted first.'}</AlertDescription></Alert>}
         {pid && !blocked && !report && reportType !== 'csat' && !baseline?.hasBaseline && <Alert><AlertTitle>First report for this project</AlertTitle><AlertDescription>No earlier submission exists, so the baseline starts from zero.</AlertDescription></Alert>}
         {baseline?.historicalSetup ? <p className="text-xs text-muted-foreground">Opening balances from Historical Balances / Go-live Setup for {String(baseline.historicalSetup.period)}{frozen ? ' (frozen at submission)' : ''}.</p> : baseline?.previousPeriod && <p className="text-xs text-muted-foreground">Baseline taken from the submitted report for {String(baseline.previousPeriod)}{frozen ? ' (frozen at submission)' : ''}.</p>}
@@ -264,10 +276,10 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
             : reportType === 'daily' ? <DailyForm calc={daily} baseline={baseline} /> : <CsatForm projectName={projectName} />}</div>
           <aside className={metricsEntry ? 'grid items-start gap-4 md:grid-cols-2' : 'space-y-4 lg:sticky lg:top-4 lg:self-start'}>
             <Card><CardHeader className="pb-2"><CardTitle className="text-base">Validation</CardTitle></CardHeader><CardContent className="text-sm">{issues.length ? <><p className="mb-2 text-xs text-muted-foreground">{metricsEntry ? 'Select an issue to go to its field.' : 'Resolve the issues below before submission.'}</p><ul className="list-disc space-y-1 pl-4 text-destructive">{issues.map((m, i) => { const path = metricsEntry ? monthlyIssuePath(m) : undefined; return <li key={`${i}-${m}`}>{path ? <button type="button" className="text-left underline underline-offset-2 hover:text-destructive/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" onClick={() => { if (editorRoot.current) jumpToMonthlyIssue(editorRoot.current, path); }}>{m}</button> : m}</li>; })}</ul></> : <p className="text-muted-foreground">No issues found in the live preview. The server validates again on submit.</p>}</CardContent></Card>
-            {!metricsEntry && report && Object.keys(report.computed ?? {}).length > 0 && <Card><CardHeader className="pb-2"><CardTitle className="text-base">Server calculation</CardTitle></CardHeader><CardContent className="max-h-96 overflow-auto text-sm"><DataTree value={report.computed} level={1} /></CardContent></Card>}
+            {!metricsEntry && reportType !== 'daily' && report && Object.keys(report.computed ?? {}).length > 0 && <Card><CardHeader className="pb-2"><CardTitle className="text-base">Server calculation</CardTitle></CardHeader><CardContent className="max-h-96 overflow-auto text-sm"><DataTree value={report.computed} level={1} /></CardContent></Card>}
             <Card><CardContent className="space-y-2 p-4">
               <div className={metricsEntry ? 'flex flex-wrap gap-2' : 'space-y-3'}>
-              {editable && canEdit && canMaintain && <Button className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} disabled={readOnly || create.isPending || update.isPending || !pid || submit.isPending} onClick={save}><Save className="mr-2 size-4" />{report ? 'Save draft' : 'Create draft'}</Button>}
+              {editable && canEdit && canMaintain && <Button className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} disabled={readOnly || checkingAvailability || create.isPending || update.isPending || !pid || submit.isPending} onClick={save}><Save className="mr-2 size-4" />{report ? 'Save draft' : 'Create draft'}</Button>}
               {editable && report && canSubmit && isCreator && <Button className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} variant="outline" disabled={issues.length > 0 || locked || (metricsEntry && (busy || aiGenerating || update.isPending || submit.isPending || ctxQ.isLoading || !!ctxQ.error))} onClick={() => setSubmitOpen(true)}><Send className="mr-2 size-4" />{metricsEntry ? 'Submit for Approval' : 'Submit for approval'}</Button>}
               </div>
               {metricsEntry && issues.length > 0 && <p className="text-xs text-muted-foreground">Drafts can be saved section by section. All required sections must be complete before submission.</p>}

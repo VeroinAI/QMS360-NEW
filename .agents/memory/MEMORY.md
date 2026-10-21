@@ -102,3 +102,4 @@
 - [Daily Submission Word template](daily-submission-word-template-policy.md) — shared Daily downloads use saved data/baselines; omit sample data and reviewer-only instructions.
 - [Monthly dashboard PDF](monthly-dashboard-pdf-policy.md) — separate presentation-style export; workbook mappings preserve real formulas, ageing bands and distinct portfolio coverage policy.
 - [Monthly historical balances](monthly-historical-balances-policy.md) — dedicated project-scoped manual/Excel opening setup; cutover anchors preserve submitted snapshots and current-month movements.
+- [Monthly report uniqueness](monthly-report-uniqueness.md) — all workflow states block duplicate project/month reports; selection feedback and race-safe save checks are required.

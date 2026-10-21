@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
+import { assertNoMonthlyDuplicate, isReportPeriodDuplicate, lockMonthlyCreation, monthlyDuplicateReason } from "../lib/qaqc-report-duplicates";
 import { and, asc, count, desc, eq, getTableColumns, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
   auditPlans, businessUnits, db, organizations, projects, qaqcMetricEntries, materialInspectionEntries, qtbtEntries,
@@ -596,7 +597,8 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
   const last = history.previous;
   const baseline = Object.keys(history.baseline).length ? history.baseline : legacy;
   const targets = await targetsFor(req, project.customFields, settings);
-  const blockedReason = await sequenceBlock(projectId, type, period);
+  const duplicateReason = type === "monthly" ? await monthlyDuplicateReason(org(req), projectId, period) : null;
+  const blockedReason = duplicateReason ?? await sequenceBlock(projectId, type, period);
   const portfolioPqi = await portfolioPqiForContext(req, type, projectsInScope, period);
   const projectUserIds = new Set<string>();
   const selectedApproverIds = new Set<string>();
@@ -674,6 +676,7 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
     data.assessmentConfirmationRequired = true;
   }
   const fieldBody = { projectId, reportType: type, period, data };
+  if (type === "monthly") await assertNoMonthlyDuplicate(org(req), projectId, period);
   await assertFieldAccess(req, "qaqc", "report-envelope", { mode: "create", body: fieldBody });
   await assertFieldControls(req, "qaqc", "report-envelope", { mode: "create", body: fieldBody });
   await assertSequence(projectId, type, period);
@@ -688,7 +691,11 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
     const [row] = await db.transaction(async tx => {
       // Serialize report creation against opening-balance changes for this
       // project, so no new draft can capture a stale opening snapshot.
-      if(type==="monthly") await tx.select({id:projects.id}).from(projects).where(eq(projects.id,projectId)).for("update");
+      if(type==="monthly") {
+        // Recheck after acquiring the shared project lock: a competing creator
+        // may have committed while this request was entering its transaction.
+        await lockMonthlyCreation(org(req), projectId, period, tx);
+      }
       const fresh=type==="monthly"?await historyBaseline(org(req),projectId,type,period,tx):null;
       const opening=fresh&&Object.keys(fresh.baseline).length?fresh.baseline:baseline;
       const check=validateReportData(type,data,opening,false);
@@ -701,7 +708,10 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
     await audit(req, "create", row.id, undefined, row);
     res.status(201).json(await withProject(row));
   } catch (error) {
-    if (error instanceof Error && error.message.includes("qaqc_report_project_type_period_active_idx")) throw new HttpError(409, "A report already exists for this project, type, and period");
+    if (isReportPeriodDuplicate(error)) {
+      const reason = type === "monthly" ? await monthlyDuplicateReason(org(req), projectId, period) : null;
+      throw new HttpError(409, reason ?? "A report already exists for this project, type, and period. Reload the report list before continuing.");
+    }
     throw error;
   }
 }));
