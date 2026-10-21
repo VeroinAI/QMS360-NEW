@@ -123,10 +123,9 @@ describe("Email body rich formatting", () => {
       ruleTemplate: { bodyRichText: document("Hi {recipient_name}", [{ type: "bold" }, { type: "italic" }]) },
       context: { app: "lessons", eventType: "lessons.lesson_form.submit" },
     });
-    expect(queued).toHaveLength(2);
-    expect(queued[0].bodyText).toBe("Hi Ada");
-    expect(queued[0].bodyHtml).toContain("<em><strong>Ada</strong></em>");
-    expect(queued[1].bodyHtml).toContain("<em><strong>Ben</strong></em>");
+    expect(queued).toHaveLength(1);
+    expect(queued[0].bodyText).toBe("Hi Ada, Ben");
+    expect(queued[0].bodyHtml).toContain("<em><strong>Ada, Ben</strong></em>");
     const transport = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "unix" });
     const result = await transport.sendMail({
       from: "qms@example.test", to: queued[0].recipientEmail, subject: queued[0].subject,
@@ -136,7 +135,7 @@ describe("Email body rich formatting", () => {
     expect(mime).toContain("Content-Type: multipart/alternative");
     expect(mime).toContain("Content-Type: text/plain");
     expect(mime).toContain("Content-Type: text/html");
-    expect(mime).toContain("<em><strong>Ada</strong></em>");
+    expect(mime).toContain("<em><strong>Ada, Ben</strong></em>");
     transport.close();
   });
 });

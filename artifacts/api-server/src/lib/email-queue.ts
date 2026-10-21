@@ -33,6 +33,18 @@ function applicationFromContext(context?: Record<string, unknown>): "qaqc" | "le
   return app === "qaqc" || app === "lessons" || app === "audit" ? app : "platform";
 }
 
+/** Old queued messages have only a scalar To address and remain deliverable. */
+export function queuedToRecipients(row: Pick<typeof outboundEmails.$inferSelect, "context" | "recipientEmail" | "recipientName">) {
+  const stored = row.context.emailToRecipients;
+  if (Array.isArray(stored) && stored.length && stored.every(item =>
+    item && typeof item === "object" && typeof item.email === "string"
+    && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.email)
+    && (item.name == null || typeof item.name === "string"))) {
+    return stored as Array<{ email: string; name?: string | null }>;
+  }
+  return [{ email: row.recipientEmail, name: row.recipientName }];
+}
+
 export async function enqueueEmail(database: Database, input: EmailDeliveryInput & {
   ruleTemplate?: EmailRuleTemplate; templateValues?: Record<string, unknown>; placeholderEvent?: PlaceholderEventContext;
 }): Promise<{ queued: number }> {
@@ -56,6 +68,10 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
 
   const policy = await getEmailDeliveryPolicy(database, input.organizationId);
   const context: Record<string, unknown> = { ...(input.context ?? {}) };
+  // Persist the complete MIME audience on one queue item. The scalar columns
+  // remain the primary contact for compatibility with existing queue records.
+  context.emailToRecipients = recipients;
+  delete context.retryEnvelopeRecipients;
   delete context.emailAttachments;
   if (input.attachments?.length) context.emailAttachments = input.attachments;
   const eventType = typeof context.eventType === "string" ? context.eventType : null;
@@ -66,13 +82,17 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
       eventType, entityId, actorId: typeof context.actorId === "string" ? context.actorId : null,
     }, input.ruleTemplate)
     : () => ({});
-  await database.insert(outboundEmails).values(recipients.map((recipient, index) => {
-    const message = renderEmailRuleTemplate(input.ruleTemplate, input, {
-      system_name: "QMS360", ...input.templateValues,
-      recipient_name: recipient.name ?? recipient.email, recipient_email: recipient.email,
-      ...customValues(recipient),
-    });
-    return ({
+  const recipient = recipients[0]!;
+  const audience = {
+    name: recipients.map(item => item.name || item.email).join(", "),
+    email: recipients.map(item => item.email).join(", "),
+  };
+  const message = renderEmailRuleTemplate(input.ruleTemplate, input, {
+    system_name: "QMS360", ...input.templateValues,
+    recipient_name: audience.name, recipient_email: audience.email,
+    ...customValues(audience),
+  });
+  await database.insert(outboundEmails).values([{
     organizationId: input.organizationId,
     app: applicationFromContext(context),
     eventType,
@@ -80,7 +100,7 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
     entityId,
     recipientEmail: recipient.email,
     recipientName: recipient.name,
-    ccRecipients: index === 0 ? ccRecipients : [],
+    ccRecipients,
     senderEmail: input.sender?.email ?? null,
     senderName: input.sender?.name ?? null,
     subject: message.subject,
@@ -91,7 +111,8 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
     attemptCount: 0,
     maxAttempts: policy.maxRetries + 1,
     nextAttemptAt: new Date(),
-  }); }));
+  }]);
+  // Existing callers use this as the number of addressed To recipients.
   return { queued: recipients.length };
 }
 
@@ -122,7 +143,7 @@ async function processClaimedEmail(database: Database, row: typeof outboundEmail
   const result = await deliverEmail(database, {
     organizationId: row.organizationId,
     recipientIds: [],
-    recipients: [{ email: row.recipientEmail, name: row.recipientName }],
+    recipients: queuedToRecipients(row),
     ccRecipients: row.ccRecipients,
     envelopeRecipients: retryEnvelopeRecipients,
     sender: row.senderEmail ? { email: row.senderEmail, name: row.senderName } : undefined,

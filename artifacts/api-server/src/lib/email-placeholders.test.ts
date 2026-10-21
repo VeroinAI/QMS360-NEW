@@ -95,12 +95,12 @@ describe('Activation and rendering', () => {
       context: { eventType, app: 'lessons', entityId },
     };
     await expect(enqueueEmail(fake, input)).resolves.toEqual({ queued: 2 });
-    expect(queued[0]).toMatchObject({ subject: 'Saved lesson title', bodyText: 'Dear Recipient One, Saved lesson title' });
-    expect(queued[1].bodyText).toBe('Dear Recipient Two, Saved lesson title');
+    expect(queued).toHaveLength(1);
+    expect(queued[0]).toMatchObject({ subject: 'Saved lesson title', bodyText: 'Dear Recipient One, Recipient Two, Saved lesson title' });
     title.active = false;
     title.fallback = 'Unavailable title';
     await enqueueEmail(fake, input);
-    expect(queued[2].subject).toBe('Unavailable title');
+    expect(queued[1].subject).toBe('Unavailable title');
     expect(queued[0].subject).toBe('Saved lesson title');
   });
   it('resolves active values in subject and body, but inactive definitions use fallback without reading value', () => {
