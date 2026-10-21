@@ -265,7 +265,6 @@ function NativeMetricsPage() {
   const cap = useQaqcCapabilities(); const M = 'metrics';
   const [open, setOpen] = useState(false); const [seed, setSeed] = useState<Record<string, unknown>>({});
   return <Page title="QA/QC Metrics – Monthly Report" description="Monthly quality reports for your authorized projects." actions={<>{cap.can('monthly_reports', 'create_edit') && <Link href="/qaqc/metrics/new"><Button variant="secondary"><Plus className="mr-2 size-4" />New entry</Button></Link>}</>}>
-    {cap.canAnyRead(M) && cap.can(M, 'create_edit') && cap.can(M, 'ai') && <AiQuickEntry onExtract={data => { setSeed(data); setOpen(true); }} />}
     <MetricsReportList />
     <MetricDialog key={`new-${JSON.stringify(seed)}`} open={open} onOpenChange={setOpen} seed={seed} />
   </Page>;
