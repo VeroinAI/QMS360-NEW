@@ -62,7 +62,7 @@ export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets
     table.row(items.map((text, index) => ({ width: widths[index]!, text: valueText(text) })));
   // Keep the supplied form's actual branding, labels, photos and document controls.
   await table.band([28.9, 83.1, 538.7, 28.5]);
-  await values([lesson.referenceNumber, lesson.title, lesson.disciplineId]);
+  await values([lesson.referenceNumber, lesson.title, lesson.disciplineLabel ?? lesson.disciplineId]);
   await table.band([28.9, 140.1, 538.7, 28.3]);
   await values([lesson.categorisationId, dateText(lesson.capturedAt),
     lesson.repeatLocation || (lesson.gpsLat != null && lesson.gpsLng != null ? `${lesson.gpsLat}, ${lesson.gpsLng}` : null)]);

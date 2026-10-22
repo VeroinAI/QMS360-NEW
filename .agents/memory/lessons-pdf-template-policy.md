@@ -20,3 +20,9 @@ The Description, Reference, Root Cause, Correction and Corrective Action value c
 **Why:** The user explicitly requested Justify alignment for this table section, replacing centered narrative text.
 
 **How to apply:** Preserve paragraph breaks and blank lines, including through page splits. Do not apply this narrative alignment rule to metadata or signature cells.
+
+The Discipline cell displays the selected Discipline Master's Label, not its Value. This applies to downloaded forms and emailed copies; reference numbering continues to use the master Value.
+
+**Why:** The user requested readable discipline labels in the form without requesting a change to reference-number codes.
+
+**How to apply:** Resolve display text within the Lesson's organization. Keep saved discipline identifiers and existing references unchanged, and preserve readable legacy values when no matching label is available.

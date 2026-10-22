@@ -10,6 +10,18 @@ const basicLesson = {
 const normalize = (text: string) => text.replace(/\s/g, "");
 
 describe("Lessons PDF auto-sizing table", () => {
+  it("displays the Discipline Master label without changing the reference code", async () => {
+    const texts = vi.spyOn(PDFPage.prototype, "drawText");
+    try {
+      await createLessonPdf({ ...basicLesson, referenceNumber: "AGH-QAM-123-CIV-000005",
+        disciplineId: "CIV", disciplineLabel: "Civil Engineering" });
+      const rendered = texts.mock.calls.map(([text]) => text);
+      expect(rendered).toContain("Civil Engineering");
+      expect(rendered).not.toContain("CIV");
+      expect(rendered).toContain("AGH-QAM-123-CIV-000005");
+    } finally { texts.mockRestore(); }
+  });
+
   it("justifies narrative lines to both cell margins, leaving paragraph endings left aligned", async () => {
     const texts = vi.spyOn(PDFPage.prototype, "drawText");
     try {

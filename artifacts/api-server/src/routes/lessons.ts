@@ -30,6 +30,7 @@ import {
   ReassignLessonsPendingActionsBody,
 } from "@workspace/api-zod";
 import { createLessonPdf } from "../lib/lesson-pdf";
+import { lessonDisciplineLabel } from "../lib/lesson-discipline-label";
 import { lessonDepartments, lessonInScope, lessonScopeWhere, lessonSourceInput, type LessonSource } from "../lib/lessons-source";
 import { storeEmailPdfAttachment, type EmailPdfAttachment } from "../lib/email-attachments";
 import {
@@ -1271,7 +1272,9 @@ async function lessonReportPdf(
   row: typeof lessonLearnedForms.$inferSelect,
   photos: Array<typeof lessonsEvidenceFiles.$inferSelect>,
 ) {
-  return createLessonPdf(await formJsonNamed(row, photos), await lessonPdfAssets(row, photos));
+  const lesson = await formJsonNamed(row, photos);
+  const disciplineLabel = await lessonDisciplineLabel(db, row.organizationId, lesson.disciplineId);
+  return createLessonPdf({ ...lesson, disciplineLabel }, await lessonPdfAssets(row, photos));
 }
 
 router.get("/forms/:id/report.pdf", asyncHandler(async (req, res) => {
