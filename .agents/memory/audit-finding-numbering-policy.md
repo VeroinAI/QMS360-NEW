@@ -21,8 +21,8 @@ Administrators maintain the **next running number** for a selected finding type,
 
 **How to apply:** Store next minus one as the last-used counter, never move a counter backwards, and do not rewrite existing findings or affect other type/source/year ranges.
 
-Issue the number on successful Save Finding. Derive the source from the linked Plan: Department master Value for department/process audits, Project Cost Center for project audits. Derive the two-digit displayed year from the linked child Audit Schedule From Date, not the current date.
+Issue the number on successful Save Finding. Derive the source from the linked Plan: Department Master Cost ID for department/process audits, Project Master Additional Data Contract / project no. for project audits. Preserve text and leading zeroes; do not fall back to Department Value/label or Project Cost Center. Derive the two-digit displayed year from the linked child Audit Schedule From Date, not the current date.
 
-**Why:** The user specified the source/date linkage and Save Finding as the issuance action. Finding, Plan and Report numbering are independent business ranges.
+**Why:** The user specified the source/date linkage and Save Finding as the issuance action, then explicitly changed Audit source mappings to Contract / project no. and Department Cost ID. Finding, Plan and Report numbering are independent business ranges.
 
 **How to apply:** Commit the counter and finding together, preserve numbers through retries and later updates, and retain historical findings and evidence identities. Missing source data should produce an actionable error, never an invented source.

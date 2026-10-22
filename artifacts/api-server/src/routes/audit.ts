@@ -53,7 +53,7 @@ import { allocatePlanNumber, getPlanNumberDepartments, previewPlanNumber, readPl
 import { allocateReportNumber, readReportNumberState, saveReportNumbering } from "../lib/audit-report-numbering";
 import { lockNumberedCarResponse, readCarNumberState, saveCarNumbering, type CarNumberRange } from "../lib/audit-car-numbering";
 import { allocateFindingNumber, numberedFindingTypes, readFindingNumberState, saveFindingNumbering, type FindingNumberPattern, type FindingNumberRange } from "../lib/audit-finding-numbering";
-import { projectNumberContext } from "@workspace/field-controls";
+import { auditProjectNumberSourceValue, auditDepartmentNumberSourceValue } from "../lib/audit-number-source";
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
 import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-attachments";
@@ -4117,8 +4117,9 @@ async function auditPlanNumberSources(req: Request) {
   const departmentRows = scope.unrestricted ? await getPlanNumberDepartments(db, org) : [];
   return [
     ...projectRows.map(project => ({ key: `project:${project.id}`, kind: "project" as const, label: project.name,
-      sourceValue: String(projectNumberContext(project.customFields).costCentre ?? "") })),
-    ...departmentRows.map(value => ({ key: `department:${value.id}`, kind: "department" as const, label: value.label, sourceValue: value.value })),
+      sourceValue: auditProjectNumberSourceValue(project.customFields) })),
+    ...departmentRows.map(value => ({ key: `department:${value.id}`, kind: "department" as const, label: value.label,
+      sourceValue: auditDepartmentNumberSourceValue(value.metadata) })),
   ];
 }
 router.get("/admin/plan-numbering", asyncHandler(async (req, res) => {

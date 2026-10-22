@@ -28,7 +28,7 @@ export function AuditReportNumberingSettings() {
     lastNumber.trim() !== "" && Number.isSafeInteger(last) && last >= lastUsed && last >= 0 && last < 999_999_999_999;
   const validPattern = Number.isInteger(pattern.padding) && pattern.padding >= 1 && pattern.padding <= 12 &&
     ![pattern.prefix, pattern.middle, pattern.separator].some(value => /[{}\r\n]/.test(value));
-  const preview = [pattern.prefix, source?.sourceValue || "[Department Value / Project Cost Center]", pattern.middle,
+  const preview = [pattern.prefix, source?.sourceValue || "[Department Cost ID / Project Contract no.]", pattern.middle,
     yearNumber >= 1900 && yearNumber <= 9999 ? String(yearNumber).slice(-2) : "YY",
     String(validRange ? last + 1 : lastUsed + 1).padStart(Math.max(1, Math.min(12, pattern.padding || 1)), "0")].filter(Boolean).join(pattern.separator);
   const change = (key: keyof AuditPlanNumberingPattern, value: string) => {
@@ -38,7 +38,7 @@ export function AuditReportNumberingSettings() {
   return <Card data-testid="audit-report-numbering"><CardHeader><CardTitle>Audit Report number range</CardTitle>
     <CardDescription>Separate from Audit Plan, Audit Schedule and QA/QC numbering. Each project or department has its own yearly sequence starting at 1. A report number is issued only on the first successful Save report details and is retained on later saves.</CardDescription></CardHeader>
     <CardContent className="space-y-5">
-      <p className="text-sm">Format: <strong>Prefix + Department Value / Project Cost Center + Middle text + YY + Running number</strong>.
+      <p className="text-sm">Format: <strong>Prefix + Department Cost ID / Project Contract / project no. + Middle text + YY + Running number</strong>.
         The source is determined from the linked audit. YY comes from the linked child Schedule From Date—not the date the report is saved.</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div><Label htmlFor="report-number-prefix">Text before source (prefix)</Label><Input id="report-number-prefix" maxLength={80} value={pattern.prefix} onChange={event => change("prefix", event.target.value)} /></div>
@@ -61,7 +61,7 @@ export function AuditReportNumberingSettings() {
           <div><Label htmlFor="report-number-year">Year (four digits)</Label><Input id="report-number-year" type="number" min={1900} max={9999} value={year} onChange={event => setYear(event.target.value)} /></div>
           <div><Label htmlFor="report-number-last">Last number already used</Label><Input id="report-number-last" type="number" min={lastUsed} max={999999999998} value={lastNumber} onChange={event => { setLastNumber(event.target.value); saveRange.reset(); }} /></div>
         </div>
-        {source && <p className="text-sm">Automatic source value: <strong>{source.sourceValue || "Missing—maintain Project Master → Additional Data → Cost Center"}</strong> · Saved last-used number for {year}: <strong>{lastUsed}</strong></p>}
+        {source && <p className="text-sm">Automatic source value: <strong>{source.sourceValue || (source.kind === "department" ? "Missing—maintain Department Master → Cost ID" : "Missing—maintain Project Master → Additional Data → Contract / project no.")}</strong> · Saved last-used number for {year}: <strong>{lastUsed}</strong></p>}
         {validRange && <p className="text-sm">Next running number after saving: <strong>{last + 1}</strong></p>}
         {!query.data.sources.length && <p className="text-sm text-muted-foreground">No projects or department master values are available in your Audit administrator scope.</p>}
         {saveRange.isError && <p role="alert" className="text-sm text-destructive">{saveRange.error.message}</p>}
@@ -70,6 +70,6 @@ export function AuditReportNumberingSettings() {
         })}>{saveRange.isPending ? "Saving…" : "Save last-used number"}</Button>
       </section>
       <div className="rounded-lg bg-muted/40 p-3"><p className="text-xs uppercase text-muted-foreground">Illustrative next number — does not issue a number</p><p className="break-all font-mono font-semibold" data-testid="audit-report-number-preview">{preview}</p>
-        <p className="mt-1 text-xs text-muted-foreground">For example, prefix AGH, source CC100, middle AR, year 2027 and next number 1 produce AGH-CC100-AR-27-0001. Generation uses the saved format, not unsaved preview edits.</p></div>
+        <p className="mt-1 text-xs text-muted-foreground">For example, prefix AGH, contract number CTR100, middle AR, year 2027 and next number 1 produce AGH-CTR100-AR-27-0001. Department audits use Cost ID instead. Generation uses the saved format, not unsaved preview edits.</p></div>
     </CardContent></Card>;
 }
