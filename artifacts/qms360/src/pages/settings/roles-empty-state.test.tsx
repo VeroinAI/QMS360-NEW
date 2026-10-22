@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router } from "wouter";
 
 const state = vi.hoisted(() => ({
-  items: [] as Array<{ id: string; name: string; active: boolean; permissions: unknown[] }>,
+  items: [] as Array<{ id: string; name: string; active: boolean; permissions: unknown[]; roleAuthorizationLevel?: number | null }>,
   loading: false, error: null as Error | null,
 }));
 vi.mock("@workspace/api-client-react", async original => {
@@ -42,6 +42,18 @@ describe("first role creation remains available", () => {
     const html = render("lessons");
     expect(html).toContain("First custom role");
     expect(html).not.toContain("create the first role");
+  });
+  it.each(["approve_reject", "qaqc.monthly_reports.approve_reject", "qaqc.daily_reports.approve_reject", "qaqc.csat_reports.approve_reject"])("shows saved QA/QC approval level for %s", key => {
+    state.items = [{ id: "approver", name: "Reviewer", active: true, roleAuthorizationLevel: 3, permissions: [{ key, name: "Review" }] }];
+    const html = render("qaqc");
+    expect(html).toContain("Approval Level");
+    expect(html).toMatch(/data-testid="text-role-authorization-level-approver">3</);
+    expect(html).toContain("current QA/QC approval workflow is unchanged");
+  });
+  it("does not expose approval levels in Lessons or show a stale level for a QA/QC non-approver", () => {
+    state.items = [{ id: "non-approver", name: "Contributor", active: true, roleAuthorizationLevel: 3, permissions: [{ key: "submit", name: "Submit" }] }];
+    expect(render("qaqc")).not.toMatch(/data-testid="text-role-authorization-level-non-approver">3</);
+    expect(render("lessons")).not.toContain("Approval Level");
   });
   it("does not render role actions while loading or after a failed request", () => {
     state.items = []; state.loading = true;

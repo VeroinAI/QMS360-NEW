@@ -33,6 +33,12 @@ export const qaqcPermissionCatalog = [
   ...qaqcAdministrativePermissions.map(action => ({ key: `qaqc.${action}`, name: qaqcOperationLabels[action] })),
   ...qaqcGlobalPermissions.map(key => ({ key, name: key === "data_entry" ? "Create / edit (all activities)" : `${qaqcOperationLabels[key]} (all activities)` })),
 ];
+/** Role metadata only; this does not grant access or change approval routing. */
+export function hasQaqcRoleApprovalPermission(permissions: readonly { key: string }[]): boolean {
+  const approvalKeys = new Set(qaqcPermissionCatalog.filter(permission =>
+    permission.key === "approve_reject" || permission.key.endsWith(".approve_reject")).map(permission => permission.key));
+  return permissions.some(permission => approvalKeys.has(permission.key));
+}
 const legacyModule: Record<string, string> = { monthly_reports: "metrics", daily_reports: "document_governance", csat_reports: "customer_satisfaction" };
 export function qaqcPermissionMatches(key: string, module: string, operation: QaqcOperation): boolean {
   const normalized = key.toLowerCase();

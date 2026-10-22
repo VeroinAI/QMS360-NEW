@@ -1,14 +1,22 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db, permissions, workspaceRoles, workspaceRolePermissions } from "@workspace/db";
-import { qaqcPermissionCatalog, qaqcPermissionMatches } from "@workspace/field-controls";
+import { hasQaqcRoleApprovalPermission, qaqcPermissionCatalog, qaqcPermissionMatches } from "@workspace/field-controls";
 import { HttpError } from "./workspace";
 
-type RoleInput = { name: string; description?: string | null; active: boolean; permissions: Array<{ key: string; name: string }> };
+type RoleInput = { name: string; description?: string | null; active: boolean; roleAuthorizationLevel?: number | null; permissions: Array<{ key: string; name: string }> };
+export function qaqcRoleAuthorizationLevel(input: Pick<RoleInput, "permissions" | "roleAuthorizationLevel">): number | null {
+  if (!hasQaqcRoleApprovalPermission(input.permissions)) return null;
+  const level = input.roleAuthorizationLevel;
+  if (typeof level !== "number" || !Number.isInteger(level) || level < 1 || level > 2147483647)
+    throw new HttpError(422, "Approval Level must be a positive whole number when Approve / reject is selected");
+  return level;
+}
 const labels = new Map(qaqcPermissionCatalog.map(p => [p.key, p.name]));
 const legacy = new Set(["create_edit", "view_own", "configure_masters", "manage_ai_settings", "delegate", "manage_integrations", "memo_circulation"]);
 export async function saveQaqcRole(organizationId: string, input: RoleInput, id?: string) {
   const requested = [...new Map(input.permissions.map(p => [p.key, p])).values()];
   if (requested.some(p => !labels.has(p.key) && !legacy.has(p.key))) throw new HttpError(422, "Unsupported QA/QC activity permission");
+  const roleAuthorizationLevel = qaqcRoleAuthorizationLevel(input);
   return db.transaction(async tx => {
     let before: typeof workspaceRoles.$inferSelect | undefined;
     if (id) {
@@ -21,6 +29,7 @@ export async function saveQaqcRole(organizationId: string, input: RoleInput, id?
       }
     }
     const values = { name: before?.isSystem ? before.name : input.name,
+      roleAuthorizationLevel,
       description: before?.isSystem ? before.description : input.description,
       status: before?.isSystem ? before.status : input.active ? "active" : "inactive", updatedAt: new Date() };
     const [role] = before

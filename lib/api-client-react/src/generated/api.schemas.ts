@@ -2117,7 +2117,7 @@ export interface Role {
   /** @nullable */
   description?: string | null;
   /**
-     * Audit approval sequence level; required when Approve / reject is granted to an Audit role.
+     * Positive approval level required when approval permission is granted to an Audit or QA/QC role. QA/QC stores this as role configuration only; its current approval workflow is unchanged.
      * @minimum 1
      * @maximum 2147483647
      * @nullable

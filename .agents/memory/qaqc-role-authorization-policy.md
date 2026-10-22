@@ -43,3 +43,9 @@ landing page while asking not to impact other development.
 **How to apply:** Reuse monthly-report RBAC and existing section/project scope.
 Do not interpret the landing page's Draft-only rule as a global removal of
 sent-back corrections, or as permission to expose legacy metric transactions.
+
+QA/QC approval levels are role configuration only until the user explicitly requests the remaining workflow changes. A role with global or activity-specific approval access must have a positive whole-number level when saved; existing roles without a level remain readable.
+
+**Why:** The user requested the Audit-style approver-level option in QA/QC Roles & Permissions but explicitly limited this phase to roles and responsibilities: “Remaining change will be completed latter.”
+
+**How to apply:** Preserve current approver eligibility, selected-approver routing and report states. Do not introduce sequential approvals, infer levels from names, or retrofit in-flight reports just because level metadata is available. Removing every approval grant clears the level, without changing other role permissions.
