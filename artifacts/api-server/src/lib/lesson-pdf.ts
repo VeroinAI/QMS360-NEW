@@ -83,7 +83,7 @@ export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets
   ] as const) {
     await table.row([
       { width: 120.4, label: [31.9, top + 3, 114.4, rowHeight - 6] },
-      { width: 418.3, text: valueText(text) },
+      { width: 418.3, text: valueText(text), align: "justify" },
     ], rowHeight);
   }
   for (const [category, top] of [["before", 440.2], ["after", 542.2]] as const) {

@@ -7,6 +7,7 @@ export type LessonCell = {
   bold?: boolean;
   label?: LessonBox;
   shade?: boolean;
+  align?: "center" | "justify";
 };
 const BLACK = rgb(0, 0, 0), WHITE = rgb(1, 1, 1);
 const SIZE = 9.5, LEADING = SIZE * 1.15, PADDING = 6;
@@ -35,6 +36,13 @@ export function wrapLessonText(text: string, font: PDFFont, size: number, width:
     lines.push(line);
   }
   return lines;
+}
+
+export function lessonParagraphLines(text: string, font: PDFFont, size: number, width: number) {
+  return text.split(/\r?\n/).flatMap(paragraph => {
+    const lines = wrapLessonText(paragraph, font, size, width);
+    return lines.map((text, index) => ({ text, justify: index < lines.length - 1 }));
+  });
 }
 
 /** Flow the original form's rows, never shrink text or clip it to a fixed cell. */
@@ -81,7 +89,7 @@ export async function lessonTable(
   };
   const row = async (cells: LessonCell[], minimum = 28.5) => {
     const pending = cells.map(cell => cell.text == null ? [] :
-      wrapLessonText(cell.text, cell.bold ? bold : regular, SIZE, cell.width - 2 * PADDING));
+      lessonParagraphLines(cell.text, cell.bold ? bold : regular, SIZE, cell.width - 2 * PADDING));
     const labelHeight = Math.max(minimum, ...cells.map(cell => (cell.label?.[3] ?? 0) + 2));
     const fullHeight = Math.max(labelHeight, ...pending.map(lines => lines.length * LEADING + 2 * PADDING));
     // Keep normal rows together. Exceptionally large rows split at line boundaries.
@@ -105,8 +113,22 @@ export async function lessonTable(
         const font = cell.bold ? bold : regular;
         let baseline = height - top - (rowHeight - lines.length * LEADING) / 2 - SIZE;
         for (const line of lines) {
-          page.drawText(line, { x: x + (cell.width - font.widthOfTextAtSize(line, SIZE)) / 2,
-            y: baseline, font, size: SIZE, color: BLACK });
+          const options = { y: baseline, font, size: SIZE, color: BLACK };
+          const words = line.text.split(" ");
+          if (cell.align === "justify" && line.justify && words.length > 1) {
+            const wordWidths = words.map(word => font.widthOfTextAtSize(word, SIZE));
+            const gap = (cell.width - 2 * PADDING - wordWidths.reduce((sum, width) => sum + width, 0)) / (words.length - 1);
+            let wordX = x + PADDING;
+            words.forEach((word, index) => {
+              page.drawText(word, { ...options, x: wordX });
+              wordX += wordWidths[index]! + gap;
+            });
+          } else {
+            // Word-style justification leaves paragraph endings and single-word
+            // lines flush left. Metadata and signature cells remain centered.
+            page.drawText(line.text, { ...options, x: cell.align === "justify" ? x + PADDING :
+              x + (cell.width - font.widthOfTextAtSize(line.text, SIZE)) / 2 });
+          }
           baseline -= LEADING;
         }
         x += cell.width;
