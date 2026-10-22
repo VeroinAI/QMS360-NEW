@@ -129,5 +129,10 @@ function AuthenticatedRouter() {
 
 export default function App() {
   const dronaBuild = import.meta.env.MODE === 'drona';
+  // Path-based routing + an absolute BASE_PATH (e.g. "/qms360/1.0.11") for
+  // the web build -- this is what 1.0.6 (last confirmed-working version)
+  // shipped, and it only works when BASE_PATH is the real absolute deploy
+  // path, not a relative "./": wouter strips `base` off location.pathname
+  // to match routes, so a relative value there breaks matching.
   return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter hook={dronaBuild ? useHashLocation : undefined} base={dronaBuild ? '' : import.meta.env.BASE_URL.replace(/\/$/, '')}><AuthenticatedRouter /><WorkflowConfirmationHost /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
 }

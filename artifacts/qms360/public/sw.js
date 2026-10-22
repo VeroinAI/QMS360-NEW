@@ -1,5 +1,10 @@
 const CACHE = 'qms360-static-v2';
-const STATIC = ['/manifest.webmanifest', '/favicon.svg'];
+// Relative, not absolute -- this file is served from a versioned path
+// (/qms360/<version>/sw.js on the S3/CloudFront split deploy), and inside
+// a service worker, relative URLs resolve against its own script location,
+// not the page's. An absolute '/manifest.webmanifest' always 403s here
+// since nothing lives at the bucket root.
+const STATIC = ['./manifest.webmanifest', './favicon.svg'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(STATIC)));

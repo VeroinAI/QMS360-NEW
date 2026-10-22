@@ -14,17 +14,28 @@ import './index.css';
 // that's asset loading.
 setBaseUrl(API_BASE || null);
 
-if (import.meta.env.PROD && import.meta.env.MODE !== 'drona' && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    // BASE_URL, not a hardcoded "/sw.js" -- under a versioned S3 subfolder
-    // deploy (base: "/qms360/1.0.0/") the site doesn't live at the domain
-    // root, so an absolute path would 404 / register with the wrong scope.
-    // Skipped entirely in drona mode: the container owns its own caching
-    // lifecycle, and a root-scoped service worker can't register correctly
-    // from a relative-asset, portable-mount build anyway.
-    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { updateViaCache: 'none' })
-      .then((registration) => registration.update());
+// Service worker registration disabled: 1.0.6 (last confirmed-working
+// version on both web and the DronaHQ mobile container) never ran one.
+// Its 'navigate' fetch handler is what actually produced the 404/network
+// error on internal route navigations (e.g. /login) under this versioned
+// S3/CloudFront deploy, where no object exists outside index.html/assets.
+// Revisit if offline support is genuinely needed, with the fetch handler
+// scoped correctly for a non-root, versioned deploy path.
+//
+// Any device/browser that already loaded an earlier build (which did
+// register one) keeps that old registration active indefinitely -- simply
+// no longer registering here doesn't replace or remove it, since nothing
+// prompts the browser to check. Clean it up unconditionally so this can't
+// keep silently breaking the app on devices that hit a prior version.
+if ('serviceWorker' in navigator) {
+  void navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) void registration.unregister();
   });
+  if ('caches' in window) {
+    void caches.keys().then((keys) => {
+      for (const key of keys) void caches.delete(key);
+    });
+  }
 }
 
 createRoot(document.getElementById('root')!, {
