@@ -2975,6 +2975,9 @@ components:
       allOf:
         - type: object
           properties:
+            costId:
+              type: string
+              description: Optional Department Master Cost ID. Send an empty string to clear it.
             assignedRoles:
               type: array
               maxItems: 200

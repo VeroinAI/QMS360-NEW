@@ -8,6 +8,8 @@
 import type { MasterDataRoleAssignment } from './masterDataRoleAssignment';
 
 export type MasterDataValueMetadata = { [key: string]: unknown } & {
+  /** Optional Department Master Cost ID. Send an empty string to clear it. */
+  costId?: string;
   /**
      * Informational role assignments only; do not restrict visibility or grant permissions.
      * @maxItems 200

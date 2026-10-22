@@ -1381,6 +1381,7 @@ export const ListMasterDataResponse = zod.object({
   "sortOrder": zod.number(),
   "active": zod.boolean(),
   "metadata": zod.object({
+  "costId": zod.string().optional().describe('Optional Department Master Cost ID. Send an empty string to clear it.'),
   "assignedRoles": zod.array(zod.object({
   "application": zod.enum(['qaqc', 'lessons', 'audit']),
   "roleId": zod.string().min(1)
@@ -1424,6 +1425,7 @@ export const GetMasterDataLovResponse = zod.object({
   "label": zod.string(),
   "sortOrder": zod.number(),
   "metadata": zod.object({
+  "costId": zod.string().optional().describe('Optional Department Master Cost ID. Send an empty string to clear it.'),
   "assignedRoles": zod.array(zod.object({
   "application": zod.enum(['qaqc', 'lessons', 'audit']),
   "roleId": zod.string().min(1)
@@ -1470,6 +1472,7 @@ export const CreateMasterDataGroupResponse = zod.object({
   "sortOrder": zod.number(),
   "active": zod.boolean(),
   "metadata": zod.object({
+  "costId": zod.string().optional().describe('Optional Department Master Cost ID. Send an empty string to clear it.'),
   "assignedRoles": zod.array(zod.object({
   "application": zod.enum(['qaqc', 'lessons', 'audit']),
   "roleId": zod.string().min(1)
@@ -1517,6 +1520,7 @@ export const UpdateMasterDataGroupResponse = zod.object({
   "sortOrder": zod.number(),
   "active": zod.boolean(),
   "metadata": zod.object({
+  "costId": zod.string().optional().describe('Optional Department Master Cost ID. Send an empty string to clear it.'),
   "assignedRoles": zod.array(zod.object({
   "application": zod.enum(['qaqc', 'lessons', 'audit']),
   "roleId": zod.string().min(1)
@@ -1554,6 +1558,7 @@ export const CreateMasterDataValueBody = zod.object({
   "label": zod.string().optional(),
   "sortOrder": zod.number().default(createMasterDataValueBodySortOrderDefault),
   "metadata": zod.object({
+  "costId": zod.string().optional().describe('Optional Department Master Cost ID. Send an empty string to clear it.'),
   "assignedRoles": zod.array(zod.object({
   "application": zod.enum(['qaqc', 'lessons', 'audit']),
   "roleId": zod.string().min(1)
@@ -1574,6 +1579,7 @@ export const CreateMasterDataValueResponse = zod.object({
   "sortOrder": zod.number(),
   "active": zod.boolean(),
   "metadata": zod.object({
+  "costId": zod.string().optional().describe('Optional Department Master Cost ID. Send an empty string to clear it.'),
   "assignedRoles": zod.array(zod.object({
   "application": zod.enum(['qaqc', 'lessons', 'audit']),
   "roleId": zod.string().min(1)
@@ -1601,6 +1607,7 @@ export const UpdateMasterDataValueBody = zod.object({
   "sortOrder": zod.number().optional(),
   "active": zod.boolean().optional(),
   "metadata": zod.object({
+  "costId": zod.string().optional().describe('Optional Department Master Cost ID. Send an empty string to clear it.'),
   "assignedRoles": zod.array(zod.object({
   "application": zod.enum(['qaqc', 'lessons', 'audit']),
   "roleId": zod.string().min(1)
@@ -1621,6 +1628,7 @@ export const UpdateMasterDataValueResponse = zod.object({
   "sortOrder": zod.number(),
   "active": zod.boolean(),
   "metadata": zod.object({
+  "costId": zod.string().optional().describe('Optional Department Master Cost ID. Send an empty string to clear it.'),
   "assignedRoles": zod.array(zod.object({
   "application": zod.enum(['qaqc', 'lessons', 'audit']),
   "roleId": zod.string().min(1)
