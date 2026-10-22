@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   useGetOrganizationSettings, useListAuditMyActions, useListAuditNotifications, useListLessonsNotifications,
-  useListPlatformProjects, useListQaqcNotifications, useSearchLessonsLog
+  useListPlatformProjects, useListQaqcNotifications, useSearchLessonsLog, useListQaqcSowReports
 } from '@workspace/api-client-react';
 import type { CurrentUser } from '@workspace/api-client-react';
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
@@ -22,9 +22,9 @@ type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{
 
 const appNav = {
   qaqc: [
-    ['Overview', '/qaqc', LayoutDashboard], ['Dashboard', '/qaqc/dashboard', Gauge], ['QA/QC Metrics', '/qaqc/metrics', BarChart3],
+    ['Dashboard', '/qaqc/dashboard', Gauge], ['For my action', '/qaqc/my-actions', ClipboardCheck], ['QA/QC Metrics', '/qaqc/metrics', BarChart3],
     ['Customer Satisfaction (CSAT)', '/qaqc/csat', ClipboardCheck], ['Daily Submission', '/qaqc/daily', ClipboardCheck],
-    ['Report dashboard', '/qaqc/report-dashboard', BarChart3], ['Reporting settings', '/qaqc/settings', LayoutDashboard],
+    ['Reporting settings', '/qaqc/settings', LayoutDashboard],
   ],
   lessons: [
     ['Overview', '/lessons', LayoutDashboard], ['For my Action', '/lessons/approvals', ClipboardCheck],
@@ -47,6 +47,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
   const queryClient = useQueryClient();
   const [location, setLocation] = useLocation();
   const section = applicationSection(location);
+  const cap = useQaqcCapabilities(section === 'qaqc');
   const [lessonsProject, setLessonsProject] = useState({ userId: user.id, projectId: "" });
   const lessonsProjectId = lessonsProject.userId === user.id ? lessonsProject.projectId : "";
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -74,6 +75,10 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
     { page: 1, limit: 1 },
     { query: { enabled: section === 'audit' && !!user.id, refetchInterval: 30000, queryKey: ['/api/audit/my-actions', user.id, { page: 1, limit: 1 }] } }
   );
+  const qaqcPendingQuery = useListQaqcSowReports(
+    { myActions: true, page: 1, limit: 1 },
+    { query: { enabled: section === 'qaqc' && !!user.id && ['monthly_reports', 'daily_reports', 'csat_reports'].some(m => cap.canAnyRead(m)), refetchInterval: 30000, queryKey: ['/api/qaqc/reporting/reports', { myActions: true, page: 1, limit: 1 }, user.id] } }
+  );
 
   useEffect(() => {
     const listener = (event: Event) => { event.preventDefault(); setInstallEvent(event as InstallEvent); };
@@ -81,7 +86,6 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
     return () => window.removeEventListener('beforeinstallprompt', listener);
   }, []);
 
-  const cap = useQaqcCapabilities(section === 'qaqc');
   const reportsRead = ['monthly_reports', 'daily_reports', 'csat_reports'].some(m => cap.canAnyRead(m));
   const qaqcVisible = (href: string) => {
     switch (href) {
@@ -93,6 +97,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
       case '/qaqc/monthly': return cap.canAnyRead('monthly_reports');
       case '/qaqc/report-dashboard': return reportsRead;
       case '/qaqc/dashboard': return reportsRead;
+      case '/qaqc/my-actions': return reportsRead;
       case '/qaqc/settings': return cap.canTask('configure_masters') || cap.can('historical_balances', 'view_all');
       default: return true;
     }
@@ -136,10 +141,11 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
           {nav.map(([label, href, Icon]) => {
             const isLessonsActions = href === '/lessons/approvals';
             const isAuditActions = href === '/audit/my-actions';
-            const isApprovals = isLessonsActions || isAuditActions;
-            const count = isLessonsActions ? userPendingQuery.data?.total : isAuditActions ? auditPendingQuery.data?.total : null;
-            const isError = (isLessonsActions && userPendingQuery.isError) || (isAuditActions && auditPendingQuery.isError);
-            const actionLabel = isAuditActions ? 'audit' : 'lessons';
+            const isQaqcActions = href === '/qaqc/my-actions';
+            const isApprovals = isLessonsActions || isAuditActions || isQaqcActions;
+            const count = isLessonsActions ? userPendingQuery.data?.total : isAuditActions ? auditPendingQuery.data?.total : isQaqcActions ? qaqcPendingQuery.data?.total : null;
+            const isError = (isLessonsActions && userPendingQuery.isError) || (isAuditActions && auditPendingQuery.isError) || (isQaqcActions && qaqcPendingQuery.isError);
+            const actionLabel = isAuditActions ? 'audit' : isQaqcActions ? 'QA/QC' : 'lessons';
             return (
             <Link key={href as string} href={href as string} onClick={() => setMobileOpen(false)}
               className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm ${location === href ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}`}>

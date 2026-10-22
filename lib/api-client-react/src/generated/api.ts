@@ -7325,6 +7325,7 @@ export const getListQaqcSowReportsUrl = (params?: ListQaqcSowReportsParams,) => 
 }
 
 /**
+ * With myActions=true, return only the caller's authorized drafts, corrections and assigned reviews. Final CSAT submissions never require approval.
  * @summary List scoped monthly, daily governance and CSAT report submissions
  */
 export const listQaqcSowReports = async (params?: ListQaqcSowReportsParams, options?: Parameters<typeof customFetch>[1]): Promise<QaqcSowReportPage> => {

@@ -1131,7 +1131,8 @@ paths:
       operationId: listQaqcSowReports
       tags: [qaqc]
       summary: List scoped monthly, daily governance and CSAT report submissions
-      parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/SowReportType"}, {$ref: "#/components/parameters/SowPeriod"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: state, in: query, schema: {type: string, enum: [draft, submitted, approved, sent_back]}}]
+      description: With myActions=true, return only the caller's authorized drafts, corrections and assigned reviews. Final CSAT submissions never require approval.
+      parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/SowReportType"}, {$ref: "#/components/parameters/SowPeriod"}, {$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}, {name: state, in: query, schema: {type: string, enum: [draft, submitted, approved, sent_back]}}, {name: myActions, in: query, schema: {type: boolean}}]
       responses: {"200": {description: Reports, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcSowReportPage"}}}}}
     post:
       operationId: createQaqcSowReport
@@ -2673,7 +2674,7 @@ components:
         data: {$ref: "#/components/schemas/QaqcSowObject"}
     QaqcSowReportSubmitInput:
       type: object
-      required: [approverId]
+      description: CSAT is a final locked submission without an approver. Monthly and Daily reports require an eligible first-level approver.
       properties:
         approverId: {type: string}
     QaqcSowReportReviewInput:

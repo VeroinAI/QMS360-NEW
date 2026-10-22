@@ -29,4 +29,5 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 state?: ListQaqcSowReportsState;
+myActions?: boolean;
 };

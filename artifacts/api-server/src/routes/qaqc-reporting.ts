@@ -12,6 +12,7 @@ import { asyncHandler, HttpError, notifyWithEmail, pagination, writeAuditLog } f
 import { requireAuth } from "../middlewares/auth";
 import { getAppAdminScope, getAuthorizedFullProjectScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
 import { canQaqcUserReview, requireQaqcTask } from "../lib/qaqc-capabilities";
+import { personalReportAction } from "../lib/qaqc-my-actions";
 import { assertProjectInOrg, assertUserInOrg } from "../lib/tenancy";
 import { assertLovValue, getLovValues } from "../lib/lov";
 import { logger } from "../lib/logger";
@@ -667,6 +668,13 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
 
 router.get("/reports", multipleReportAccess(), asyncHandler(async (req, res) => {
   const filters: any[] = [];
+  const myActions = req.query.myActions === "true";
+  if (req.query.myActions !== undefined && !["true", "false"].includes(String(req.query.myActions)))
+    throw new HttpError(422, "myActions must be true or false");
+  if (myActions) filters.push(or(
+    and(eq(qaqcReportSubmissions.createdById, actor(req)), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"])),
+    and(eq(qaqcReportSubmissions.approverId, actor(req)), eq(qaqcReportSubmissions.state, "submitted")),
+  ));
   const access = (req as any).qaqcReportAccess as Map<ReportType, Awaited<ReturnType<typeof reportAccess>>>;
   const reportTypes = [...access.keys()];
   filters.push(inArray(qaqcReportSubmissions.reportType, reportTypes));
@@ -684,7 +692,37 @@ router.get("/reports", multipleReportAccess(), asyncHandler(async (req, res) => 
     || (row.reportType === "monthly" && !!access.get("monthly")?.allowed
       && (access.get("monthly")!.scope.unrestricted || access.get("monthly")!.scope.projectIds.includes(row.projectId))
       && (await monthlySectionAccess(req, row.projectId)).length > 0)));
-  const visible = rows.filter((_, i) => visibility[i]);
+  let visible = rows.filter((_, i) => visibility[i]);
+  if (myActions) {
+    const scopes = new Map<string, Awaited<ReturnType<typeof getAuthorizedProjectScope>>>();
+    for (const type of reportTypes) for (const operation of ["create_edit", "review"] as const) {
+      scopes.set(`${type}:${operation}`, await getAuthorizedProjectScope(req, "qaqc", { module: REPORT_MODULE[type], action: "own", operation }));
+    }
+    const inActionScope = (type: string, operation: string, projectId: string) => {
+      const scope = scopes.get(`${type}:${operation}`);
+      return !!scope && (scope.unrestricted || scope.projectIds.includes(projectId));
+    };
+    const routes = new Map<string, Awaited<ReturnType<typeof loadMonthlyApprovalStages>>>();
+    const actionable: typeof visible = [];
+    for (const row of visible) {
+      if (!personalReportAction(row, actor(req), {
+        edit: inActionScope(row.reportType, "create_edit", row.projectId),
+        review: inActionScope(row.reportType, "review", row.projectId),
+      })) continue;
+      if (row.state === "submitted" && isSequentialReportType(row.reportType)) {
+        const workflow = readMonthlyApproval(row.baseline, row.reportType);
+        if (workflow) {
+          const key = `${row.reportType}:${row.projectId}:${row.submittedById}`;
+          if (!routes.has(key)) routes.set(key, await loadMonthlyApprovalStages(org(req), row.projectId, row.submittedById!, row.reportType));
+          const level = workflow.stages[workflow.currentIndex]?.level;
+          if (!routes.get(key)!.stages.find(stage => stage.level === level)?.candidates.some(candidate => candidate.id === actor(req))) continue;
+        }
+      }
+      if (row.state !== "submitted" && await hasDownstreamSubmission(row.projectId, row.reportType as ReportType, row.period)) continue;
+      actionable.push(row);
+    }
+    visible = actionable;
+  }
   const items = await Promise.all(visible.slice(offset, offset + limit).map(withProject));
   res.json({ items, total: visible.length, page, limit });
 }));
@@ -783,6 +821,7 @@ router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (re
   const targets = await targetsFor(req, project?.customFields as any ?? {}, settings);
   const [row] = await db.update(qaqcReportSubmissions).set({
     data, computed: calculateReport(before.reportType as ReportType, data, before.baseline as any, targets),
+    ...(before.reportType === "csat" && before.state === "sent_back" ? { state: "draft", approverId: null } : {}),
     updatedAt: new Date(),
   }).where(and(eq(qaqcReportSubmissions.id, before.id), exactReportVersion(qaqcReportSubmissions.updatedAt, before.databaseUpdatedAt), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
   if (!row) throw new HttpError(409, "This report changed while you were saving. Reload the latest report before editing again.");
@@ -807,7 +846,9 @@ router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(asy
   const before = await reportRow(req, String(req.params.id));
   if (before.createdById !== actor(req)) throw new HttpError(403, "Only the report creator may submit this report");
   if (!["draft", "sent_back"].includes(before.state)) throw new HttpError(409, "Report is not eligible for submission");
-  const approverId = String(req.body?.approverId ?? before.approverId ?? "");
+  const finalCsat = before.reportType === "csat";
+  const approverId = finalCsat ? null : String(req.body?.approverId ?? before.approverId ?? "");
+  if (!finalCsat) {
   if (!approverId) throw new HttpError(422, "approverId is required");
   if (approverId === actor(req)) throw new HttpError(422, "The approver must be different from the submitter");
   await assertUserInOrg(db, org(req), approverId);
@@ -826,6 +867,7 @@ router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(asy
   const designatedApproverIds = ["qualityRepresentativeId", "projectHeadId", "buHeadId", "corporateQualityManagerId", "dataGovernanceManagerId", "directorId"]
     .map((key) => userId(projectSettings, key));
   if (!designatedApproverIds.includes(approverId)) throw new HttpError(422, "Approver must be assigned in this project's QA/QC reporting settings");
+  }
   }
   await projectAllowed(req, before.projectId);
   const today = await orgLocalToday(req);
@@ -848,7 +890,7 @@ router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(asy
     const approval = await loadMonthlyApprovalStages(org(req), before.projectId, actor(req), before.reportType);
     if (approval.errors.length) throw new HttpError(422, approval.errors.join(" "));
     submissionBaseline = { ...baseline, [reportApprovalKey(before.reportType)]: startMonthlyApproval(
-      approval.stages, approverId, actor(req), submittedAt.toISOString(), readMonthlyApproval(before.baseline, before.reportType),
+      approval.stages, approverId!, actor(req), submittedAt.toISOString(), readMonthlyApproval(before.baseline, before.reportType),
     ) };
   }
   const [row] = await db.update(qaqcReportSubmissions).set({
@@ -859,7 +901,7 @@ router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(asy
   }).where(and(eq(qaqcReportSubmissions.id, before.id), exactReportVersion(qaqcReportSubmissions.updatedAt, before.databaseUpdatedAt), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
   if (!row) throw new HttpError(409, "Report state changed; reload before submitting");
   await audit(req, "submit", row.id, before, row);
-  await notifyWithEmail(db, "qaqc", {
+  if (approverId) await notifyWithEmail(db, "qaqc", {
     organizationId: org(req), userId: approverId, type: "approval", title: "QA/QC report awaiting review",
     body: `${row.reportType} report for ${row.period} is awaiting review.`, entityType: "qaqc_report", entityId: row.id,
   }).catch((error) => logger.error({ error, reportId: row.id }, "Unable to queue QA/QC submission notification"));
@@ -872,6 +914,7 @@ router.post("/reports/:id/review", reportPermissionById("own"), asyncHandler(asy
   if (!["approve", "send_back"].includes(decision)) throw new HttpError(422, "decision must be approve or send_back");
   if (decision === "send_back" && !comments) throw new HttpError(422, "Comments are required when sending back");
   const before = await reportRow(req, String(req.params.id));
+  if (before.reportType === "csat") throw new HttpError(409, "Submitted customer satisfaction surveys are final and cannot be approved, sent back or changed");
   if (before.state !== "submitted") throw new HttpError(409, "Only submitted reports can be reviewed");
   if (before.submittedById === actor(req)) throw new HttpError(403, "You cannot review a report you submitted");
   if (before.approverId !== actor(req)) throw new HttpError(403, "Only the assigned approver may review this report");

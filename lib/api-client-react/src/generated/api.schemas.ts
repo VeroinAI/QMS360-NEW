@@ -340,8 +340,11 @@ export interface QaqcSowReportUpdateInput {
   data: QaqcSowObject;
 }
 
+/**
+ * CSAT is a final locked submission without an approver. Monthly and Daily reports require an eligible first-level approver.
+ */
 export interface QaqcSowReportSubmitInput {
-  approverId: string;
+  approverId?: string;
 }
 
 export type QaqcSowReportReviewInputDecision = typeof QaqcSowReportReviewInputDecision[keyof typeof QaqcSowReportReviewInputDecision];
@@ -5005,6 +5008,7 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 state?: ListQaqcSowReportsState;
+myActions?: boolean;
 };
 
 export type ListQaqcSowReportsState = typeof ListQaqcSowReportsState[keyof typeof ListQaqcSowReportsState];

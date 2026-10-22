@@ -2720,6 +2720,7 @@ export const GetQaqcSowContextResponse = zod.record(zod.string(), zod.unknown())
 
 
 /**
+ * With myActions=true, return only the caller's authorized drafts, corrections and assigned reviews. Final CSAT submissions never require approval.
  * @summary List scoped monthly, daily governance and CSAT report submissions
  */
 export const listQaqcSowReportsQueryPageDefault = 1;
@@ -2735,7 +2736,8 @@ export const ListQaqcSowReportsQueryParams = zod.object({
   "period": zod.coerce.string().optional(),
   "page": zod.coerce.number().min(1).default(listQaqcSowReportsQueryPageDefault),
   "limit": zod.coerce.number().min(1).max(listQaqcSowReportsQueryLimitMax).default(listQaqcSowReportsQueryLimitDefault),
-  "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']).optional()
+  "state": zod.enum(['draft', 'submitted', 'approved', 'sent_back']).optional(),
+  "myActions": zod.coerce.boolean().optional()
 })
 
 export const ListQaqcSowReportsResponse = zod.object({
@@ -2890,8 +2892,8 @@ export const SubmitQaqcSowReportParams = zod.object({
 })
 
 export const SubmitQaqcSowReportBody = zod.object({
-  "approverId": zod.string()
-})
+  "approverId": zod.string().optional()
+}).describe('CSAT is a final locked submission without an approver. Monthly and Daily reports require an eligible first-level approver.')
 
 export const SubmitQaqcSowReportResponse = zod.object({
   "id": zod.string(),

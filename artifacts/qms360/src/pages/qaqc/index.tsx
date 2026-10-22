@@ -3,7 +3,7 @@ import { confirmWorkflowAction, workflowConfirmationMessage } from "@/lib/workfl
 import { importDateOptions } from '@/lib/import-date-options';
 import { parseSpreadsheetDate, type SpreadsheetDateOptions } from "@workspace/spreadsheet-dates";
 import { useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
-import { Link, Route, Switch, useLocation, useRoute } from 'wouter';
+import { Link, Redirect, Route, Switch, useLocation, useRoute } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, PolarAngleAxis, PolarGrid,
@@ -425,7 +425,7 @@ import { reportingRoutes } from './reporting/routes';
 
 export function QaqcRoutes() {
   return <Switch>
-    <Route path="/qaqc" component={DashboardPage} />
+    <Route path="/qaqc">{() => <Redirect to="/qaqc/dashboard" />}</Route>
     <Route path="/qaqc/metrics" component={MetricsPage} />
     <Route path="/qaqc/material-inspections">{() => <SimpleRecordsPage kind="mir" />}</Route>
     <Route path="/qaqc/qtbt">{() => <SimpleRecordsPage kind="qtbt" />}</Route>

@@ -142,7 +142,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const nextApprovalStage = report?.state === 'submitted' ? approvalWorkflow?.stages?.[approvalWorkflow.currentIndex + 1] : undefined;
   const nextCandidates: Obj[] = approvalWorkflow?.nextCandidates ?? nextApprovalStage?.candidates ?? [];
   const selectedNextApprover = nextCandidates.length === 1 ? nextCandidates[0].id : nextApproverId;
-  const isApprover = report?.state === 'submitted' && !!me.data && report.approverId === me.data.id && report.submittedById !== me.data.id;
+  const isApprover = reportType !== 'csat' && report?.state === 'submitted' && !!me.data && report.approverId === me.data.id && report.submittedById !== me.data.id;
   const isCreator = !report || report.createdById === me.data?.id;
   const projectName = report?.projectName ?? projects.find(p => p.id === pid)?.name;
 
@@ -188,6 +188,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     }
   };
   const doSubmit = () => {
+    if (reportType === 'csat') { void persistCsat(true); return; }
     if (!report) return;
     if (metricsEntry && (!editable || !canSubmit || !isCreator || locked || issues.length > 0 || busy || aiGenerating || update.isPending || submit.isPending)) return;
     const send = () => submit.mutate({ id: report.id, data: { approverId } }, { onSuccess: () => { invalidate(); toast({ title: 'Submitted for approval' }); setSubmitOpen(false); }, onError: fail('Could not submit') });
@@ -203,6 +204,24 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     invalidate();
     return r.id;
   };
+  const persistCsat = async (final: boolean) => run(async () => {
+    if (!editable || locked || !pid || busy || update.isPending || create.isPending || submit.isPending) return;
+    let savedId: string | undefined;
+    try {
+      savedId = await saveDraftFirst();
+      if (final) {
+        const result = await submit.mutateAsync({ id: savedId, data: {} });
+        saved(result);
+      }
+      invalidate();
+      setSubmitOpen(false);
+      toast({ title: final ? 'Survey submitted — changes are no longer allowed' : 'Survey saved as draft' });
+    } catch (error) {
+      fail(final ? 'Could not submit survey' : 'Could not save draft')(error);
+    } finally {
+      if (savedId && !id) nav(`${base}/${savedId}`);
+    }
+  });
   const draftAi = () => run(async () => {
     if (readOnly || ai.isPending || !canAi || !canSection('assessment')) return;
     const preflight = metricsEntry ? validateMetricsEntry(clean, baseline, { requireBrief: false }) : [];
@@ -294,24 +313,25 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
             <Card><CardContent className="space-y-2 p-4">
               <div className={metricsEntry ? 'flex flex-wrap gap-2' : 'space-y-3'}>
               {editable && canEdit && canMaintain && <Button className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} disabled={readOnly || checkingAvailability || create.isPending || update.isPending || !pid || submit.isPending} onClick={save}><Save className="mr-2 size-4" />{report ? 'Save draft' : 'Create draft'}</Button>}
-              {editable && report && canSubmit && isCreator && <Button className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} variant="outline" disabled={issues.length > 0 || locked || (metricsEntry && (busy || aiGenerating || update.isPending || submit.isPending || ctxQ.isLoading || !!ctxQ.error))} onClick={() => setSubmitOpen(true)}><Send className="mr-2 size-4" />{metricsEntry ? 'Submit for Approval' : 'Submit for approval'}</Button>}
+              {editable && (report || reportType === 'csat') && canSubmit && (isCreator || !report) && <Button className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} variant="outline" disabled={!pid || issues.length > 0 || locked || busy || create.isPending || update.isPending || submit.isPending || (metricsEntry && (aiGenerating || ctxQ.isLoading || !!ctxQ.error))} onClick={() => setSubmitOpen(true)}><Send className="mr-2 size-4" />{reportType === 'csat' ? 'Submit' : metricsEntry ? 'Submit for Approval' : 'Submit for approval'}</Button>}
               </div>
               {metricsEntry && issues.length > 0 && <p className="text-xs text-muted-foreground">Drafts can be saved section by section. All required sections must be complete before submission.</p>}
               {editable && report && issues.length > 0 && <p className="text-xs text-destructive">Resolve {issues.length} open validation issue(s) to enable submission.</p>}
               {editable && report && canDelete && isCreator && <Button className="w-full" variant="outline" onClick={() => setDelOpen(true)}><Trash2 className="mr-2 size-4 text-destructive" />Delete draft</Button>}
-              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground"><p className="font-medium text-foreground">Who can act</p><p>{metricsEntry ? 'Authorized contributors can maintain their assigned sections while the document is Draft. Display mode and all other statuses are read-only on this screen.' : reportType === 'monthly' ? 'Authorized contributors: maintain assigned sections in shared drafts or sent-back reports. Other sections are read-only. Creator retains submission and deletion responsibilities.' : 'Creator: save, submit and delete while draft or sent back.'}{locked ? ' Editing is locked by field controls.' : ''}</p><p>Reviewer: {assignedReviewer ? (assignedReviewer.name ?? assignedReviewer.fullName) : report?.approverId ? 'assigned approver' : 'chosen at submission'} approves or sends back once submitted.</p></div>
+              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground"><p className="font-medium text-foreground">Who can act</p><p>{metricsEntry ? 'Authorized contributors can maintain their assigned sections while the document is Draft. Display mode and all other statuses are read-only on this screen.' : reportType === 'monthly' ? 'Authorized contributors: maintain assigned sections in shared drafts or sent-back reports. Other sections are read-only. Creator retains submission and deletion responsibilities.' : 'Creator: save, submit and delete while draft or sent back.'}{locked ? ' Editing is locked by field controls.' : ''}</p>{reportType === 'csat' ? <p>Submission is final. Submitted surveys cannot be edited, deleted or sent back.</p> : <p>Reviewer: {assignedReviewer ? (assignedReviewer.name ?? assignedReviewer.fullName) : report?.approverId ? 'assigned approver' : 'chosen at submission'} approves or sends back once submitted.</p>}</div>
               {isApprover && canReview && <><Button className="w-full" onClick={() => setDecision('approve')}>{nextApprovalStage ? 'Approve & forward' : 'Approve'}</Button><Button className="w-full" variant="outline" onClick={() => setDecision('send_back')}>Send back</Button></>}
-              {report?.state === 'submitted' && !(isApprover && canReview) && <p className="text-xs text-muted-foreground">Review actions are disabled for you: only the assigned reviewer can act.</p>}
+              {reportType === 'csat' && report?.state === 'submitted' && <p className="text-xs text-muted-foreground">This survey has been submitted and cannot be changed.</p>}
+              {reportType !== 'csat' && report?.state === 'submitted' && !(isApprover && canReview) && <p className="text-xs text-muted-foreground">Review actions are disabled for you: only the assigned reviewer can act.</p>}
             </CardContent></Card>
           </aside>
         </div></> : null}
 
-      <Dialog open={submitOpen} onOpenChange={setSubmitOpen}><DialogContent><DialogHeader><DialogTitle>{workflowConfirmationMessage(report?.state === 'sent_back' ? 'resubmit' : 'submit', 'this QA/QC report').title}</DialogTitle><DialogDescription>{workflowConfirmationMessage(report?.state === 'sent_back' ? 'resubmit' : 'submit', 'this QA/QC report').description} Choose the approver. After submission the report becomes read-only.</DialogDescription></DialogHeader>
+      <Dialog open={submitOpen} onOpenChange={open => { if (!busy && !submit.isPending && !update.isPending && !create.isPending) setSubmitOpen(open); }}><DialogContent><DialogHeader><DialogTitle>{reportType === 'csat' ? 'Submit this customer satisfaction survey?' : workflowConfirmationMessage(report?.state === 'sent_back' ? 'resubmit' : 'submit', 'this QA/QC report').title}</DialogTitle><DialogDescription>{reportType === 'csat' ? 'Once submitted, this survey is final and cannot be edited or sent back for changes. Choose Yes to submit, or No to save your current answers as a draft so you can continue editing later.' : <>{workflowConfirmationMessage(report?.state === 'sent_back' ? 'resubmit' : 'submit', 'this QA/QC report').description} Choose the approver. After submission the report becomes read-only.</>}</DialogDescription></DialogHeader>
         {sequentialApproval && <MonthlyApprovalPreview reportType={reportType} stages={ctx.approvalStages} errors={ctx.approvalErrors} />}
-        <Select value={approverId} onValueChange={setApproverId}><SelectTrigger><SelectValue placeholder={sequentialApproval ? 'Select first-level approver' : 'Select approver'} /></SelectTrigger><SelectContent>{approvers.map(a => <SelectItem key={a.id} value={a.id}>{a.name ?? a.fullName}</SelectItem>)}</SelectContent></Select>
-        {approvers.length === 0 && <p className="text-sm text-muted-foreground">{sequentialApproval ? `Assign a ${reportType === 'daily' ? 'Daily Submissions' : 'Monthly Reports'} approval role with an Approval Level and project or organization-wide authorization in QA/QC Settings.` : "No eligible approver is configured. Ask a QA/QC administrator to assign an active reviewer in this project's Reporting settings."}</p>}
+        {reportType !== 'csat' && <Select value={approverId} onValueChange={setApproverId}><SelectTrigger><SelectValue placeholder={sequentialApproval ? 'Select first-level approver' : 'Select approver'} /></SelectTrigger><SelectContent>{approvers.map(a => <SelectItem key={a.id} value={a.id}>{a.name ?? a.fullName}</SelectItem>)}</SelectContent></Select>}
+        {reportType !== 'csat' && approvers.length === 0 && <p className="text-sm text-muted-foreground">Assign a {reportType === 'daily' ? 'Daily Submissions' : 'Monthly Reports'} approval role with an Approval Level and project or organization-wide authorization in QA/QC Settings.</p>}
         {issues.length > 0 && <p className="text-xs text-destructive">{issues.length} validation issue(s) are open; the server will reject the submission if they remain.</p>}
-        <DialogFooter><Button variant="outline" onClick={() => setSubmitOpen(false)}>Cancel</Button><Button disabled={!approvers.some(a => a.id === approverId) || (sequentialApproval && (!!ctx.approvalErrors?.length || ctxQ.isLoading || !!ctxQ.error)) || submit.isPending || update.isPending || (metricsEntry && (issues.length > 0 || locked || aiGenerating))} onClick={doSubmit}>{workflowConfirmationMessage(report?.state === 'sent_back' ? 'resubmit' : 'submit', 'this QA/QC report').confirmLabel}</Button></DialogFooter></DialogContent></Dialog>
+        <DialogFooter><Button variant="outline" disabled={busy || create.isPending || submit.isPending || update.isPending} onClick={() => reportType === 'csat' ? void persistCsat(false) : setSubmitOpen(false)}>{reportType === 'csat' ? 'No' : 'Cancel'}</Button><Button disabled={(reportType !== 'csat' && !approvers.some(a => a.id === approverId)) || (sequentialApproval && (!!ctx.approvalErrors?.length || ctxQ.isLoading || !!ctxQ.error)) || busy || create.isPending || submit.isPending || update.isPending || issues.length > 0 || locked || (metricsEntry && aiGenerating)} onClick={doSubmit}>{reportType === 'csat' ? 'Yes' : workflowConfirmationMessage(report?.state === 'sent_back' ? 'resubmit' : 'submit', 'this QA/QC report').confirmLabel}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={delOpen} onOpenChange={setDelOpen}><DialogContent><DialogHeader><DialogTitle>Delete this draft?</DialogTitle><DialogDescription>Only drafts and sent-back reports can be deleted.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDelOpen(false)}>Cancel</Button><Button variant="destructive" onClick={doDelete}>Delete</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={!!decision} onOpenChange={o => !o && setDecision(undefined)}><DialogContent><DialogHeader><DialogTitle>{decision === 'approve' && nextApprovalStage ? 'Approve this level and forward?' : workflowConfirmationMessage(decision === 'approve' ? 'approve' : 'send_back', 'this QA/QC report').title}</DialogTitle><DialogDescription>{decision === 'approve' && nextApprovalStage ? `The report remains Submitted and moves to Approval Level ${nextApprovalStage.level}.` : workflowConfirmationMessage(decision === 'approve' ? 'approve' : 'send_back', 'this QA/QC report').description} Comments are required when sending back.</DialogDescription></DialogHeader>
         {decision === 'approve' && nextApprovalStage && <div className="space-y-2"><Label>Next approver — Level {nextApprovalStage.level}</Label><Select value={selectedNextApprover} onValueChange={setNextApproverId}><SelectTrigger><SelectValue placeholder="Select next-level approver" /></SelectTrigger><SelectContent>{nextCandidates.map(candidate => <SelectItem key={candidate.id} value={candidate.id}>{candidate.name}</SelectItem>)}</SelectContent></Select>{nextCandidates.length === 0 && <p role="alert" className="text-sm text-destructive">No snapshotted reviewer still has approval access at this level. Ask an administrator to restore the reviewer's authorization. Levels cannot be skipped.</p>}</div>}
