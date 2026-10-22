@@ -355,7 +355,7 @@ export const QaqcSowReportReviewInputDecision = {
 export interface QaqcSowReportReviewInput {
   decision: QaqcSowReportReviewInputDecision;
   comments?: string;
-  /** For sequential monthly approvals, choose an eligible reviewer at the next snapshotted approval level. */
+  /** For sequential monthly or daily approvals, choose an eligible reviewer at the next snapshotted approval level. */
   nextApproverId?: string;
 }
 
@@ -2125,7 +2125,7 @@ export interface Role {
   /** @nullable */
   description?: string | null;
   /**
-     * Positive approval level required when approval permission is granted to an Audit or QA/QC role. QA/QC Monthly Reports follow ascending saved levels within the approval role's project or organization scope; Daily and CSAT approval routing is unchanged.
+     * Positive approval level required when approval permission is granted to an Audit or QA/QC role. QA/QC Monthly and Daily Reports follow ascending saved levels within the approval role's project or organization scope; CSAT approval routing is unchanged.
      * @minimum 1
      * @maximum 2147483647
      * @nullable

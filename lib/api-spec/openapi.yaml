@@ -2684,7 +2684,7 @@ components:
         comments: {type: string}
         nextApproverId:
           type: string
-          description: For sequential monthly approvals, choose an eligible reviewer at the next snapshotted approval level.
+          description: For sequential monthly or daily approvals, choose an eligible reviewer at the next snapshotted approval level.
     QaqcSowBriefInput:
       type: object
       properties:
@@ -3769,7 +3769,7 @@ components:
     Role:
       type: object
       required: [id, name, permissions, active]
-      properties: {id: {type: string}, name: {type: string}, description: {type: [string, "null"]}, roleAuthorizationLevel: {type: [number, "null"], minimum: 1, maximum: 2147483647, multipleOf: 1, description: "Positive approval level required when approval permission is granted to an Audit or QA/QC role. QA/QC Monthly Reports follow ascending saved levels within the approval role's project or organization scope; Daily and CSAT approval routing is unchanged."}, permissions: {type: array, items: {$ref: "#/components/schemas/Permission"}}, active: {type: boolean}, systemDefault: {type: boolean}, scopeType: {type: string, enum: [organization, project, department]}, scopeIds: {type: array, items: {type: string}}}
+      properties: {id: {type: string}, name: {type: string}, description: {type: [string, "null"]}, roleAuthorizationLevel: {type: [number, "null"], minimum: 1, maximum: 2147483647, multipleOf: 1, description: "Positive approval level required when approval permission is granted to an Audit or QA/QC role. QA/QC Monthly and Daily Reports follow ascending saved levels within the approval role's project or organization scope; CSAT approval routing is unchanged."}, permissions: {type: array, items: {$ref: "#/components/schemas/Permission"}}, active: {type: boolean}, systemDefault: {type: boolean}, scopeType: {type: string, enum: [organization, project, department]}, scopeIds: {type: array, items: {type: string}}}
     RoleAssignment:
       type: object
       required: [roleId, scopeType, scopeIds]

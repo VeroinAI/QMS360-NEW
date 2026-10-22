@@ -6,6 +6,10 @@ import { HttpError } from "./workspace";
 // Server-owned snapshot, kept with the report's existing JSON baseline so
 // deployment does not depend on adding a column to older production databases.
 export const MONTHLY_APPROVAL_KEY = "__monthlyApproval";
+export const DAILY_APPROVAL_KEY = "__dailyApproval";
+export type SequentialReportType = "monthly" | "daily";
+export const isSequentialReportType = (type: string): type is SequentialReportType => type === "monthly" || type === "daily";
+export const reportApprovalKey = (type: SequentialReportType) => type === "daily" ? DAILY_APPROVAL_KEY : MONTHLY_APPROVAL_KEY;
 export type ApprovalCandidate = { id: string; name: string };
 export type ApprovalStage = { level: number; candidates: ApprovalCandidate[] };
 export type ApprovalEvent = {
@@ -20,12 +24,13 @@ export type ApprovalGrant = {
   key: string; grant?: string; available?: boolean; projectIds: string[] | null; businessUnitIds: string[] | null;
 };
 
-/** Scope must come from the SAME assignment that grants monthly approval. */
-export function monthlyApprovalStages(rows: ApprovalGrant[], projectId: string, submitterId: string) {
+/** Shared monthly/daily engine; legacy export names retain monthly callers.
+ * Scope must come from the SAME assignment that grants this report's approval. */
+export function monthlyApprovalStages(rows: ApprovalGrant[], projectId: string, submitterId: string, reportType: SequentialReportType = "monthly") {
   const stages = new Map<number, Map<string, ApprovalCandidate>>();
   const configurationErrors = new Set<string>();
   for (const row of rows) {
-    if (!qaqcPermissionMatches(row.key, "monthly_reports", "approve_reject")) continue;
+    if (!qaqcPermissionMatches(row.key, `${reportType}_reports`, "approve_reject")) continue;
     if (row.grant === "select") continue;
     const organizationWide = !row.projectIds?.length && !row.businessUnitIds?.length;
     if (!organizationWide && !row.projectIds?.includes(projectId)) continue;
@@ -41,13 +46,13 @@ export function monthlyApprovalStages(rows: ApprovalGrant[], projectId: string, 
   const result = [...stages.entries()].sort(([a], [b]) => a - b).map(([level, candidates]) => ({
     level, candidates: [...candidates.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
   }));
-  if (!result.length && !configurationErrors.size) configurationErrors.add("No monthly approval levels are configured for this project. Assign an active monthly approval role with an Approval Level and project or organization-wide scope.");
+  if (!result.length && !configurationErrors.size) configurationErrors.add(`No ${reportType} approval levels are configured for this project. Assign an active ${reportType} approval role with an Approval Level and project or organization-wide scope.`);
   for (const stage of result) if (!stage.candidates.length)
     configurationErrors.add(`Approval Level ${stage.level} has no active, authorized reviewer other than the submitter. Assign another active reviewer for this project.`);
   return { stages: result, errors: [...configurationErrors] };
 }
 
-export async function loadMonthlyApprovalStages(organizationId: string, projectId: string, submitterId: string) {
+export async function loadMonthlyApprovalStages(organizationId: string, projectId: string, submitterId: string, reportType: SequentialReportType = "monthly") {
   const rows = await db.select({
     userId: users.id, name: users.fullName, roleId: workspaceRoles.id, roleName: workspaceRoles.name,
     level: workspaceRoles.roleAuthorizationLevel, key: permissions.key, grant: workspaceRolePermissions.grant,
@@ -86,17 +91,17 @@ export async function loadMonthlyApprovalStages(organizationId: string, projectI
     const ids = new Set((memberships.rows as { id: string }[]).map(row => row.id));
     eligible = rows.map(row => ({ ...row, available: row.available && ids.has(row.userId) }));
   }
-  return monthlyApprovalStages(eligible, projectId, submitterId);
+  return monthlyApprovalStages(eligible, projectId, submitterId, reportType);
 }
 
-export function readMonthlyApproval(baseline: Record<string, any> | null | undefined): MonthlyApproval | undefined {
-  const value = baseline?.[MONTHLY_APPROVAL_KEY];
+export function readMonthlyApproval(baseline: Record<string, any> | null | undefined, reportType: SequentialReportType = "monthly"): MonthlyApproval | undefined {
+  const value = baseline?.[reportApprovalKey(reportType)];
   return value?.version === 1 && Array.isArray(value.stages) && Array.isArray(value.history) ? value : undefined;
 }
 
 /** Participation preserves own-record reading, never approval or project access. */
 export function hasMonthlyReviewHistory(row: { reportType: string; baseline?: Record<string, any> | null }, userId: string) {
-  return row.reportType === "monthly" && !!readMonthlyApproval(row.baseline)?.history.some(event =>
+  return isSequentialReportType(row.reportType) && !!readMonthlyApproval(row.baseline, row.reportType)?.history.some(event =>
     event.userId === userId && (event.decision === "approve" || event.decision === "send_back"));
 }
 

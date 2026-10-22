@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceMonthlyApproval, monthlyApprovalStages, readMonthlyApproval, startMonthlyApproval, MONTHLY_APPROVAL_KEY, hasMonthlyReviewHistory, type ApprovalGrant } from "./qaqc-monthly-approval";
+import { advanceMonthlyApproval, monthlyApprovalStages, readMonthlyApproval, startMonthlyApproval, MONTHLY_APPROVAL_KEY, DAILY_APPROVAL_KEY, reportApprovalKey, hasMonthlyReviewHistory, type ApprovalGrant } from "./qaqc-monthly-approval";
 import { calculateReport, validateReportData } from "./qaqc-reporting-model";
 import { ReviewQaqcSowReportBody } from "@workspace/api-zod";
 
@@ -7,6 +7,65 @@ const grant = (overrides: Partial<ApprovalGrant> = {}): ApprovalGrant => ({
   userId: "reviewer", name: "Reviewer", roleId: "role", roleName: "Review role", level: 1,
   key: "qaqc.monthly_reports.approve_reject", projectIds: ["project"], businessUnitIds: [],
   ...overrides,
+});
+
+describe("daily sequential approval", () => {
+  const dailyGrant = (overrides: Partial<ApprovalGrant> = {}) => grant({ key: "qaqc.daily_reports.approve_reject", ...overrides });
+  const build = (rows: ApprovalGrant[]) => monthlyApprovalStages(rows, "project", "creator", "daily");
+  it("builds project and organization-authorized daily levels in order", () => {
+    const result = build([dailyGrant({ level: 2, userId: "senior", projectIds: [] }), dailyGrant()]);
+    expect(result.errors).toEqual([]);
+    expect(result.stages.map(stage => stage.level)).toEqual([1, 2]);
+  });
+  it.each(["qaqc.monthly_reports.approve_reject", "qaqc.csat_reports.approve_reject", "qaqc.daily_reports.view_all"])("does not borrow unrelated permission %s", key => {
+    expect(build([grant({ key })]).stages).toEqual([]);
+  });
+  it("does not borrow broader scope from another role", () => {
+    expect(build([dailyGrant({ projectIds: ["other"] }), grant({ projectIds: [] })]).stages).toEqual([]);
+    expect(build([dailyGrant({ projectIds: [], businessUnitIds: ["unit"] })]).stages).toEqual([]);
+  });
+  it("requires levels and eligible non-submitter reviewers without skipping unavailable levels", () => {
+    expect(build([dailyGrant({ level: null })]).errors.join(" ")).toContain("Set an Approval Level");
+    const result = build([dailyGrant(), dailyGrant({ level: 2, userId: "creator" }), dailyGrant({ level: 3, available: false })]);
+    expect(result.stages.map(stage => stage.level)).toEqual([1, 2, 3]);
+    expect(result.errors).toHaveLength(2);
+  });
+  it("select-only grants cannot approve, while compatible global grants retain their scope", () => {
+    expect(build([dailyGrant({ grant: "select" })]).stages).toEqual([]);
+    expect(build([dailyGrant({ key: "approve_reject" })]).stages).toHaveLength(1);
+  });
+  it("forwards one saved level, completes only after the last, and restarts on resubmission", () => {
+    const stages = build([dailyGrant(), dailyGrant({ level: 2, userId: "senior" })]).stages;
+    const initial = startMonthlyApproval(stages, "reviewer", "creator", "submitted");
+    const { next, ...forwarded } = advanceMonthlyApproval(initial, "approve", "reviewer", "reviewed", "Checked");
+    expect(next?.level).toBe(2);
+    expect(forwarded.currentIndex).toBe(1);
+    expect(advanceMonthlyApproval(forwarded, "approve", "senior", "final", "").next).toBeUndefined();
+    expect(() => advanceMonthlyApproval(initial, "approve", "senior", "early", "")).toThrow();
+    const { next: sentBackNext, ...sentBack } = advanceMonthlyApproval(forwarded, "send_back", "senior", "returned", "Correct counts");
+    expect(sentBackNext).toBeUndefined();
+    const restart = startMonthlyApproval(stages, "reviewer", "creator", "resubmitted", sentBack);
+    expect(restart.currentIndex).toBe(0);
+    expect(restart.cycle).toBe(2);
+    expect(restart.history).toHaveLength(4);
+  });
+  it("keeps daily snapshots separate from monthly snapshots and leaves legacy reports single-stage", () => {
+    const workflow = startMonthlyApproval(build([dailyGrant()]).stages, "reviewer", "creator", "now");
+    expect(reportApprovalKey("daily")).toBe(DAILY_APPROVAL_KEY);
+    expect(readMonthlyApproval({}, "daily")).toBeUndefined();
+    expect(readMonthlyApproval({ [MONTHLY_APPROVAL_KEY]: workflow }, "daily")).toBeUndefined();
+    const baseline = { [DAILY_APPROVAL_KEY]: workflow };
+    expect(readMonthlyApproval(baseline, "daily")).toEqual(workflow);
+    expect(readMonthlyApproval(baseline)).toBeUndefined();
+  });
+  it("retains daily reviewer read participation, not future candidates or CSAT rights", () => {
+    const initial = startMonthlyApproval(build([dailyGrant(), dailyGrant({ level: 2, userId: "senior" })]).stages, "reviewer", "creator", "now");
+    const { next, ...forwarded } = advanceMonthlyApproval(initial, "approve", "reviewer", "then", "");
+    const row = { reportType: "daily", baseline: { [DAILY_APPROVAL_KEY]: forwarded } };
+    expect(hasMonthlyReviewHistory(row, "reviewer")).toBe(true);
+    expect(hasMonthlyReviewHistory(row, "senior")).toBe(false);
+    expect(hasMonthlyReviewHistory({ ...row, reportType: "csat" }, "reviewer")).toBe(false);
+  });
 });
 
 describe("monthly approval capability-coupled scope", () => {

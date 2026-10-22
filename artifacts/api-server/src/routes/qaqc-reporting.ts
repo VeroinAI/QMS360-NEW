@@ -20,7 +20,7 @@ import { monthlySectionAccess, mergeMonthlySections } from "../lib/qaqc-monthly-
 import { monthlySectionForField } from "@workspace/field-controls";
 import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import { exactReportVersion } from "../lib/qaqc-report-version";
-import { MONTHLY_APPROVAL_KEY, readMonthlyApproval, loadMonthlyApprovalStages, startMonthlyApproval, advanceMonthlyApproval, hasMonthlyReviewHistory } from "../lib/qaqc-monthly-approval";
+import { MONTHLY_APPROVAL_KEY, reportApprovalKey, isSequentialReportType, readMonthlyApproval, loadMonthlyApprovalStages, startMonthlyApproval, advanceMonthlyApproval, hasMonthlyReviewHistory } from "../lib/qaqc-monthly-approval";
 import { getHistoricalSetup, historicalBaseline as historicalOpeningBaseline } from "../lib/qaqc-historical-balances";
 import {
   buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, DAILY_DOCUMENT_TYPES, DAILY_REJECTED_SUBMISSION_TYPES, type CsatReportComputed, type DailyReportComputed,
@@ -379,7 +379,7 @@ function reportDto(row: any, projectName?: string, approverName: string | null =
     id: row.id, organizationId: row.organizationId, projectId: row.projectId, projectName, createdById: row.createdById,
     reportType: row.reportType, period: row.period, state: row.state, data: row.data,
     computed: row.computed, baseline: row.baseline, approverId: row.approverId, approverName,
-    approvalWorkflow: row.reportType === "monthly" ? readMonthlyApproval(row.baseline) : undefined,
+    approvalWorkflow: isSequentialReportType(row.reportType) ? readMonthlyApproval(row.baseline, row.reportType) : undefined,
     submittedById: row.submittedById, submittedAt: row.submittedAt, approvedAt: row.approvedAt,
     reviewComments: row.reviewComments, referenceNumber: row.referenceNumber,
     createdAt: row.createdAt, updatedAt: row.updatedAt,
@@ -397,7 +397,7 @@ async function withProject(row: any) {
     const workflow = result.approvalWorkflow;
     const next = workflow.stages[workflow.currentIndex + 1];
     if (next) {
-      const live = await loadMonthlyApprovalStages(row.organizationId, row.projectId, row.submittedById);
+      const live = await loadMonthlyApprovalStages(row.organizationId, row.projectId, row.submittedById, row.reportType);
       const eligible = new Set(live.stages.find(stage => stage.level === next.level)?.candidates.map(candidate => candidate.id) ?? []);
       return { ...result, approvalWorkflow: { ...workflow, nextCandidates: next.candidates.filter(candidate => eligible.has(candidate.id)) } };
     }
@@ -655,8 +655,8 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
     portfolioPqi,
     initialPeriod: last ? shiftPeriod(last.period, type, 1) : period,
   };
-  if (type === "monthly") {
-    const approval = await loadMonthlyApprovalStages(org(req), projectId, actor(req));
+  if (isSequentialReportType(type)) {
+    const approval = await loadMonthlyApprovalStages(org(req), projectId, actor(req), type);
     Object.assign(result, {
       approvalStages: approval.stages, approvalErrors: approval.errors,
       approvers: approval.stages[0]?.candidates ?? [],
@@ -818,7 +818,7 @@ router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(asy
     eq(users.id, approverId), eq(users.organizationId, org(req)), eq(users.accessStatus, "active"), isNull(users.deletedAt),
   )).limit(1);
   if (!approver) throw new HttpError(422, "Approver must be an active user in this organization");
-  if (before.reportType !== "monthly") {
+  if (!isSequentialReportType(before.reportType)) {
   const [projectForApproval] = await db.select({ customFields: projects.customFields }).from(projects).where(and(
     eq(projects.id, before.projectId), eq(projects.organizationId, org(req)), isNull(projects.deletedAt),
   )).limit(1);
@@ -844,11 +844,11 @@ router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(asy
   const targets = await targetsFor(req, project?.customFields as any ?? {}, settings);
   const submittedAt = new Date();
   let submissionBaseline = baseline;
-  if (before.reportType === "monthly") {
-    const approval = await loadMonthlyApprovalStages(org(req), before.projectId, actor(req));
+  if (isSequentialReportType(before.reportType)) {
+    const approval = await loadMonthlyApprovalStages(org(req), before.projectId, actor(req), before.reportType);
     if (approval.errors.length) throw new HttpError(422, approval.errors.join(" "));
-    submissionBaseline = { ...baseline, [MONTHLY_APPROVAL_KEY]: startMonthlyApproval(
-      approval.stages, approverId, actor(req), submittedAt.toISOString(), readMonthlyApproval(before.baseline),
+    submissionBaseline = { ...baseline, [reportApprovalKey(before.reportType)]: startMonthlyApproval(
+      approval.stages, approverId, actor(req), submittedAt.toISOString(), readMonthlyApproval(before.baseline, before.reportType),
     ) };
   }
   const [row] = await db.update(qaqcReportSubmissions).set({
@@ -879,14 +879,14 @@ router.post("/reports/:id/review", reportPermissionById("own"), asyncHandler(asy
   if (decision === "send_back" && await hasDownstreamSubmission(before.projectId, before.reportType as ReportType, before.period))
     throw new HttpError(409, `Cannot send back ${before.period}; a later report has already been submitted`);
   const reviewedAt = new Date(Math.max(Date.now(), before.updatedAt.getTime() + 1));
-  const workflow = before.reportType === "monthly" ? readMonthlyApproval(before.baseline) : undefined;
+  const workflow = isSequentialReportType(before.reportType) ? readMonthlyApproval(before.baseline, before.reportType) : undefined;
   let state = decision === "approve" ? "approved" : "sent_back";
   let nextApproverId = before.approverId;
   let reviewBaseline = before.baseline;
   if (!(await canQaqcUserReview(org(req), actor(req), REPORT_MODULE[before.reportType as ReportType], before.projectId)))
     throw new HttpError(403, "You no longer have active QA/QC review permission for this report and project");
   if (workflow) {
-    const live = await loadMonthlyApprovalStages(org(req), before.projectId, before.submittedById!);
+    const live = await loadMonthlyApprovalStages(org(req), before.projectId, before.submittedById!, before.reportType as "monthly" | "daily");
     const current = workflow.stages[workflow.currentIndex];
     if (!live.stages.find(stage => stage.level === current?.level)?.candidates.some(candidate => candidate.id === actor(req)))
       throw new HttpError(403, "Your role no longer authorizes the current approval level for this project");
@@ -899,7 +899,7 @@ router.post("/reports/:id/review", reportPermissionById("own"), asyncHandler(asy
         throw new HttpError(422, `Select an active, authorized reviewer at Approval Level ${next.level}. If none are eligible, restore the snapshotted reviewer's project approval access before continuing.`);
       state = "submitted";
     }
-    reviewBaseline = { ...before.baseline, [MONTHLY_APPROVAL_KEY]: updatedWorkflow };
+    reviewBaseline = { ...before.baseline, [reportApprovalKey(before.reportType as "monthly" | "daily")]: updatedWorkflow };
   }
   const row = await db.transaction(async (tx) => {
     const [updated] = await tx.update(qaqcReportSubmissions).set({
@@ -912,7 +912,7 @@ router.post("/reports/:id/review", reportPermissionById("own"), asyncHandler(asy
   });
   if (state === "submitted" && nextApproverId) await notifyWithEmail(db, "qaqc", {
     organizationId: org(req), userId: nextApproverId, type: "approval", title: "QA/QC report awaiting next-level review",
-    body: `Monthly report for ${row.period} is awaiting your approval.`, entityType: "qaqc_report", entityId: row.id,
+    body: `${row.reportType === "daily" ? "Daily" : "Monthly"} report for ${row.period} is awaiting your approval.`, entityType: "qaqc_report", entityId: row.id,
   }).catch((error) => logger.error({ error, reportId: row.id }, "Unable to queue next-level QA/QC notification"));
   if (before.submittedById) await notifyWithEmail(db, "qaqc", {
     organizationId: org(req), userId: before.submittedById, type: "decision", title: state === "submitted" ? "QA/QC approval level completed" : `QA/QC report ${state}`,

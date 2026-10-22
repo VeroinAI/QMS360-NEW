@@ -8,6 +8,12 @@ const stages = [
   { level: 2, candidates: [{ id: 'two', name: 'Organization Reviewer' }] },
 ];
 describe('monthly sequential approval UI', () => {
+  it('explains daily sequential approval without monthly branding', () => {
+    const html = renderToStaticMarkup(<MonthlyApprovalPreview reportType="daily" stages={stages} />);
+    expect(html).toContain('Sequential daily approval');
+    expect(html).not.toContain('Sequential monthly approval');
+    expect(html).toContain('Only the last level completes approval');
+  });
   it('explains configured stages and missing authorization', () => {
     const html = renderToStaticMarkup(<MonthlyApprovalPreview stages={stages} errors={['Assign another Level 2 reviewer']} />);
     expect(html).toContain('Level 1');

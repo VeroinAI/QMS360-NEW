@@ -1,9 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Obj } from './reporting-types';
 
-export function MonthlyApprovalPreview({ stages = [], errors = [] }: { stages?: Obj[]; errors?: string[] }) {
+export function MonthlyApprovalPreview({ stages = [], errors = [], reportType = 'monthly' }: { stages?: Obj[]; errors?: string[]; reportType?: 'monthly' | 'daily' }) {
   return <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-sm">
-    <p className="font-medium">Sequential monthly approval</p>
+    <p className="font-medium">Sequential {reportType} approval</p>
     <p className="text-muted-foreground">Select a reviewer at the first level. Each approver selects the next level’s reviewer. Only the last level completes approval. Sending back restarts approval after correction.</p>
     {stages.map(stage => <p key={stage.level}><strong>Level {stage.level}:</strong> {stage.candidates.map((candidate: Obj) => candidate.name).join(', ') || 'No eligible reviewer'}</p>)}
     {errors.map(error => <p key={error} role="alert" className="text-destructive">{error}</p>)}

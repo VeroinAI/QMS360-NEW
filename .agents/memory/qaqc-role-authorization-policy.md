@@ -44,8 +44,8 @@ landing page while asking not to impact other development.
 Do not interpret the landing page's Draft-only rule as a global removal of
 sent-back corrections, or as permission to expose legacy metric transactions.
 
-QA/QC approval roles require a positive whole-number level when saved; existing roles without a level remain readable. Monthly Metrics now uses sequential approval; Daily and CSAT still use their existing single-stage workflows.
+QA/QC approval roles require a positive whole-number level when saved; existing roles without a level remain readable. Monthly Metrics and Daily Submissions use sequential approval; CSAT retains its existing single-stage workflow.
 
-**Why:** The initial metadata-only phase was explicitly superseded by the user's request to implement sequential QA/QC Metrics approval, considering both project and organization-level authorization.
+**Why:** The user requested sequential QA/QC Metrics approval with project and organization-level authorization, then explicitly requested the same approval process for Daily Submissions.
 
-**How to apply:** Determine monthly levels only from assignments that themselves grant Monthly Reports approval and cover that project or the organization. Never borrow wider scope from an unrelated role or infer levels from role names. Snapshot each submission's route, recheck live approval access at handoff and review, and preserve already-submitted legacy single-stage reports. A sent-back report restarts all levels on resubmission. Keep Daily, CSAT, Lessons and Audit unchanged.
+**How to apply:** Determine levels separately for each activity: Monthly Reports approval grants do not authorize Daily Submissions, or vice versa, except deliberately shared global grants. The same role assignment must grant that activity's approval and cover the project or organization. Never borrow wider scope from an unrelated role or infer levels from role names. Snapshot each submission's route, recheck live approval access at handoff and review, and preserve already-submitted legacy single-stage reports. A sent-back report restarts all levels on resubmission. Later role assignments do not retrofit an in-progress route. Keep CSAT, Lessons and Audit unchanged.

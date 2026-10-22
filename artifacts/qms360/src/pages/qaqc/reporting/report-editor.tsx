@@ -57,6 +57,7 @@ function PlainCard({ children }: { children: React.ReactNode }) {
 function ProjectTile({ children }: { children: React.ReactNode }) { return <Tile index={1} title="Project Details"><div className="space-y-4">{children}</div></Tile>; }
 
 export function ReportEditor({ reportType, id, metricsEntry = false }: { reportType: ReportType; id?: string; metricsEntry?: boolean }) {
+  const sequentialApproval = reportType === 'monthly' || reportType === 'daily';
   const search = useSearch();
   const displayOnly = metricsEntry && new URLSearchParams(search).get('mode') === 'view';
   const Wrap = metricsEntry || reportType === 'daily' ? ProjectTile : PlainCard;
@@ -71,14 +72,14 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const canEdit = cap.can(mod, 'create_edit'); const canSubmit = cap.can(mod, 'submit'); const canReview = cap.can(mod, 'approve_reject'); const canDelete = cap.can(mod, 'delete'); const canAi = cap.can(mod, 'ai'); const canImport = cap.can(mod, 'import'); const canExport = cap.can(mod, 'export');
   const fc = useFieldControls('qaqc', 'report-envelope');
   const locked = fc.fieldProps('data').disabled;
-  const reportQ = useGetQaqcSowReport(id ?? '', { query: { enabled: !!id, queryKey: getGetQaqcSowReportQueryKey(id ?? '') } });
+  const reportQ = useGetQaqcSowReport(id ?? '', { query: { enabled: !!id, queryKey: getGetQaqcSowReportQueryKey(id ?? ''), ...(sequentialApproval ? { staleTime: 0, refetchOnMount: 'always' as const, refetchInterval: 30_000 } : {}) } });
   const report = reportQ.data;
   const [projectId, setProjectId] = useState('');
   const [period, setPeriod] = useState(defaultPeriod(reportType));
   const pid = report?.projectId ?? projectId;
   const per = report?.period ?? period;
   const ctxParams = { projectId: pid || undefined, reportType, period: reportType === 'csat' && !report ? undefined : per || undefined };
-  const ctxQ = useGetQaqcSowContext(ctxParams, { query: { queryKey: getGetQaqcSowContextQueryKey(ctxParams), enabled: !id || !!report, ...(reportType === 'monthly' ? { staleTime: 0, refetchOnMount: 'always' as const } : {}), refetchInterval: reportType === 'monthly' ? 30_000 : false, refetchOnWindowFocus: true } });
+  const ctxQ = useGetQaqcSowContext(ctxParams, { query: { queryKey: getGetQaqcSowContextQueryKey(ctxParams), enabled: !id || !!report, ...(sequentialApproval ? { staleTime: 0, refetchOnMount: 'always' as const } : {}), refetchInterval: sequentialApproval ? 30_000 : false, refetchOnWindowFocus: true } });
   const ctx = (ctxQ.data ?? {}) as Obj;
   useEffect(() => {
     if (reportType === 'csat' && !id && typeof ctx.serverToday === 'string') setPeriod(ctx.serverToday);
@@ -133,8 +134,8 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const [monthlyApproverId, setMonthlyApproverId] = useMonthlyApproverSelection(
     approvers.map(a => a.id), `${report?.id ?? pid}:${per}:${submitOpen}`,
   );
-  const approverId = reportType === 'monthly' ? monthlyApproverId : legacyApproverId;
-  const setApproverId = reportType === 'monthly' ? setMonthlyApproverId : setLegacyApproverId;
+  const approverId = sequentialApproval ? monthlyApproverId : legacyApproverId;
+  const setApproverId = sequentialApproval ? setMonthlyApproverId : setLegacyApproverId;
   const details: Obj = ctx.projectDetails ?? {};
   const assignedReviewer = approvers.find(a => a.id === report?.approverId);
   const approvalWorkflow = report?.approvalWorkflow as Obj | undefined;
@@ -306,11 +307,11 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
         </div></> : null}
 
       <Dialog open={submitOpen} onOpenChange={setSubmitOpen}><DialogContent><DialogHeader><DialogTitle>{workflowConfirmationMessage(report?.state === 'sent_back' ? 'resubmit' : 'submit', 'this QA/QC report').title}</DialogTitle><DialogDescription>{workflowConfirmationMessage(report?.state === 'sent_back' ? 'resubmit' : 'submit', 'this QA/QC report').description} Choose the approver. After submission the report becomes read-only.</DialogDescription></DialogHeader>
-        {reportType === 'monthly' && <MonthlyApprovalPreview stages={ctx.approvalStages} errors={ctx.approvalErrors} />}
-        <Select value={approverId} onValueChange={setApproverId}><SelectTrigger><SelectValue placeholder={reportType === 'monthly' ? 'Select first-level approver' : 'Select approver'} /></SelectTrigger><SelectContent>{approvers.map(a => <SelectItem key={a.id} value={a.id}>{a.name ?? a.fullName}</SelectItem>)}</SelectContent></Select>
-        {approvers.length === 0 && <p className="text-sm text-muted-foreground">{reportType === 'monthly' ? 'Assign a Monthly Reports approval role with an Approval Level and project or organization-wide authorization in QA/QC Settings.' : "No eligible approver is configured. Ask a QA/QC administrator to assign an active reviewer in this project's Reporting settings."}</p>}
+        {sequentialApproval && <MonthlyApprovalPreview reportType={reportType} stages={ctx.approvalStages} errors={ctx.approvalErrors} />}
+        <Select value={approverId} onValueChange={setApproverId}><SelectTrigger><SelectValue placeholder={sequentialApproval ? 'Select first-level approver' : 'Select approver'} /></SelectTrigger><SelectContent>{approvers.map(a => <SelectItem key={a.id} value={a.id}>{a.name ?? a.fullName}</SelectItem>)}</SelectContent></Select>
+        {approvers.length === 0 && <p className="text-sm text-muted-foreground">{sequentialApproval ? `Assign a ${reportType === 'daily' ? 'Daily Submissions' : 'Monthly Reports'} approval role with an Approval Level and project or organization-wide authorization in QA/QC Settings.` : "No eligible approver is configured. Ask a QA/QC administrator to assign an active reviewer in this project's Reporting settings."}</p>}
         {issues.length > 0 && <p className="text-xs text-destructive">{issues.length} validation issue(s) are open; the server will reject the submission if they remain.</p>}
-        <DialogFooter><Button variant="outline" onClick={() => setSubmitOpen(false)}>Cancel</Button><Button disabled={!approvers.some(a => a.id === approverId) || (reportType === 'monthly' && !!ctx.approvalErrors?.length) || submit.isPending || update.isPending || (metricsEntry && (issues.length > 0 || locked || aiGenerating))} onClick={doSubmit}>{workflowConfirmationMessage(report?.state === 'sent_back' ? 'resubmit' : 'submit', 'this QA/QC report').confirmLabel}</Button></DialogFooter></DialogContent></Dialog>
+        <DialogFooter><Button variant="outline" onClick={() => setSubmitOpen(false)}>Cancel</Button><Button disabled={!approvers.some(a => a.id === approverId) || (sequentialApproval && (!!ctx.approvalErrors?.length || ctxQ.isLoading || !!ctxQ.error)) || submit.isPending || update.isPending || (metricsEntry && (issues.length > 0 || locked || aiGenerating))} onClick={doSubmit}>{workflowConfirmationMessage(report?.state === 'sent_back' ? 'resubmit' : 'submit', 'this QA/QC report').confirmLabel}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={delOpen} onOpenChange={setDelOpen}><DialogContent><DialogHeader><DialogTitle>Delete this draft?</DialogTitle><DialogDescription>Only drafts and sent-back reports can be deleted.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDelOpen(false)}>Cancel</Button><Button variant="destructive" onClick={doDelete}>Delete</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={!!decision} onOpenChange={o => !o && setDecision(undefined)}><DialogContent><DialogHeader><DialogTitle>{decision === 'approve' && nextApprovalStage ? 'Approve this level and forward?' : workflowConfirmationMessage(decision === 'approve' ? 'approve' : 'send_back', 'this QA/QC report').title}</DialogTitle><DialogDescription>{decision === 'approve' && nextApprovalStage ? `The report remains Submitted and moves to Approval Level ${nextApprovalStage.level}.` : workflowConfirmationMessage(decision === 'approve' ? 'approve' : 'send_back', 'this QA/QC report').description} Comments are required when sending back.</DialogDescription></DialogHeader>
         {decision === 'approve' && nextApprovalStage && <div className="space-y-2"><Label>Next approver — Level {nextApprovalStage.level}</Label><Select value={selectedNextApprover} onValueChange={setNextApproverId}><SelectTrigger><SelectValue placeholder="Select next-level approver" /></SelectTrigger><SelectContent>{nextCandidates.map(candidate => <SelectItem key={candidate.id} value={candidate.id}>{candidate.name}</SelectItem>)}</SelectContent></Select>{nextCandidates.length === 0 && <p role="alert" className="text-sm text-destructive">No snapshotted reviewer still has approval access at this level. Ask an administrator to restore the reviewer's authorization. Levels cannot be skipped.</p>}</div>}

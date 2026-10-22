@@ -15,6 +15,8 @@ import { Empty, ErrorBox, Loading, StateBadge, errMsg, saveFile } from './shell'
 import { canEditMetricsDocument, canSubmitMetricsDocument, metricsDocumentHref } from './metrics-report-policy';
 import { MetricsReportSubmitDialog } from './metrics-report-submit-dialog';
 import { exportMonthlyReportPdf } from './monthly-report-download';
+import { pendingReportApproval as pendingMonthlyApproval } from './approval-summary';
+export { pendingMonthlyApproval };
 
 const ALL = '__all__';
 const LIMIT = 20;
@@ -38,18 +40,6 @@ export const formatDate = (v: unknown) => {
   if (typeof v !== 'string' || !v) return '-';
   return organizationDate(v);
 };
-
-export function pendingMonthlyApproval(report: Pick<QaqcSowReport, 'state' | 'approverId' | 'approverName' | 'approvalWorkflow'>) {
-  if (report.state !== 'submitted') return { level: '—', approver: '—' };
-  const workflow = report.approvalWorkflow;
-  const stages = Array.isArray(workflow?.stages) ? workflow.stages as { level: number; candidates?: { id: string; name?: string }[] }[] : [];
-  const stage = stages[typeof workflow?.currentIndex === 'number' ? workflow.currentIndex : -1];
-  const candidate = stage?.candidates?.find(item => item.id === report.approverId);
-  return {
-    level: stage ? `Level ${stage.level}` : workflow ? 'Not available' : 'Single-stage (legacy)',
-    approver: report.approverName?.trim() || candidate?.name?.trim() || 'Not available',
-  };
-}
 
 export function MetricsReportList() {
   const cap = useQaqcCapabilities();
