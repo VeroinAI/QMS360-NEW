@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  LESSON_NUMBER_FIELDS, projectNumberContext, referencePrefixError, ReferencePrefixError, resolveReferencePrefix,
+  LESSON_NUMBER_FIELDS, projectNumberContext, departmentNumberContext, lessonSourcePrefixError, referencePrefixError, ReferencePrefixError, resolveReferencePrefix,
 } from "@workspace/field-controls";
 
 const mocks = vi.hoisted(() => ({
@@ -24,10 +24,99 @@ vi.mock("@workspace/db", () => {
   return { db: { transaction: mocks.transaction }, organizationSettings: { id: "id", organizationId: "organization_id", deletedAt: "deleted_at" },
     lessonLearnedForms: { id: "form-id", organizationId: "org", projectId: "project", referenceNumber: "reference" } };
 });
-import { allocateReferenceNumber, formatReferenceNumber, resetNumberingPattern, saveNumberingPattern, saveLessonProjectCounter, lessonProjectCounter } from "./numbering";
+import { allocateReferenceNumber, allocateDepartmentLessonReference, effectiveDepartmentPattern, lessonDepartmentCounter, formatReferenceNumber, resetNumberingPattern, saveNumberingPattern, saveLessonProjectCounter, lessonProjectCounter } from "./numbering";
 
 const prefix = "AGH-QAM-LL-{Project->Cost Center}-{Discipline Master->Value}";
 const pattern = { prefix, suffix: "", separator: "-", position: "after_prefix" as const, padding: 6, startingNumber: 1 };
+
+describe("Separate Project and Department Lessons settings", () => {
+  const departmentPattern = { ...pattern, prefix: "AGH-{Department Master->Cost ID}-{Discipline Master->Value}" };
+
+  it("resolves Contract / project no. from Additional Data, not Contractor", () => {
+    const context = projectNumberContext({ qmsAdditionalData: { contractProjectNumber: "001-XYZ", contractor: "Wrong" } }, "CIV");
+    expect(resolveReferencePrefix("{Project->Contract}-{Discipline Master->Value}", context)).toBe("001-XYZ-CIV");
+  });
+
+  it("resolves the Department Cost ID as text, preserving leading zeros", () => {
+    expect(resolveReferencePrefix(departmentPattern.prefix, departmentNumberContext({ costId: "0042" }, "QA", "CIV")))
+      .toBe("AGH-0042-CIV");
+  });
+
+  it.each(["Project", "Department"] as const)("rejects incompatible master fields for %s", source => {
+    const token = source === "Project" ? "{Department Master->Cost ID}" : "{Project->Contract}";
+    expect(lessonSourcePrefixError(token, source)).toMatch(/cannot be used/);
+    expect(lessonSourcePrefixError("{Discipline Master->Value}", source)).toBeNull();
+  });
+
+  it("keeps the old Department default until a separate pattern is maintained", async () => {
+    expect(await allocateDepartmentLessonReference("org", "department-a", "Civil Department")).toBe("Civil-Department-LL-000001");
+    expect(lessonDepartmentCounter(mocks.row.documentNumbering, "department-a").nextNumber).toBe(2);
+    expect(lessonProjectCounter(mocks.row.documentNumbering, "department-a").nextNumber).toBe(1);
+    expect(mocks.row.documentNumbering.lessons.prefix).toBe(prefix);
+  });
+
+  it("continues legacy numeric department counters when configuring a new pattern", async () => {
+    mocks.row.documentNumbering.lessons.departmentCounters = { "department-a": 9 };
+    await saveNumberingPattern("org", "lessons", departmentPattern, "Department");
+    expect(await allocateDepartmentLessonReference("org", "department-a", "QA",
+      departmentNumberContext({ costId: "0042" }, "QA", "CIV"))).toBe("AGH-0042-CIV-000009");
+    expect(lessonDepartmentCounter(mocks.row.documentNumbering, "department-a")).toMatchObject({ nextNumber: 10, lastIssued: 9 });
+    expect(mocks.row.documentNumbering.lessons.prefix).toBe(prefix);
+  });
+
+  it("maintains independent next numbers for each department and each project", async () => {
+    await saveLessonProjectCounter("org", "a", 100, "Department");
+    await saveLessonProjectCounter("org", "b", 200, "Department");
+    await saveLessonProjectCounter("org", "a", 300);
+    expect(await allocateDepartmentLessonReference("org", "a", "QA")).toBe("QA-LL-000100");
+    expect(await allocateDepartmentLessonReference("org", "b", "HR")).toBe("HR-LL-000200");
+    expect(lessonProjectCounter(mocks.row.documentNumbering, "a").nextNumber).toBe(300);
+    await expect(saveLessonProjectCounter("org", "a", 100, "Department")).rejects.toThrow(/greater than the last issued/);
+  });
+
+  it("does not consume a number if a required Department Cost ID is missing", async () => {
+    await saveNumberingPattern("org", "lessons", departmentPattern, "Department");
+    mocks.update.mockClear();
+    await expect(allocateDepartmentLessonReference("org", "a", "QA", departmentNumberContext({}, "QA", "CIV"))).rejects.toThrow(/Cost ID is missing/);
+    expect(mocks.update).not.toHaveBeenCalled();
+    expect(lessonDepartmentCounter(mocks.row.documentNumbering, "a").nextNumber).toBe(1);
+  });
+
+  it("does not consume a project number when Contract / project no. is missing", async () => {
+    await saveNumberingPattern("org", "lessons", { ...pattern, prefix: "{Project->Contract}" });
+    mocks.update.mockClear();
+    await expect(allocateReferenceNumber("org", "lessons", {}, "a")).rejects.toThrow(/Contract.*missing/);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("preserves Department patterns and counters on Project save and reset", async () => {
+    await saveNumberingPattern("org", "lessons", departmentPattern, "Department");
+    await saveLessonProjectCounter("org", "a", 42, "Department");
+    await saveNumberingPattern("org", "lessons", { ...pattern, prefix: "NEW-PROJECT" });
+    await resetNumberingPattern("org", "lessons");
+    expect(effectiveDepartmentPattern(mocks.row.documentNumbering).prefix).toBe(departmentPattern.prefix);
+    expect(lessonDepartmentCounter(mocks.row.documentNumbering, "a").nextNumber).toBe(42);
+  });
+
+  it("preserves both counters and the Project pattern when resetting Department settings", async () => {
+    await saveNumberingPattern("org", "lessons", departmentPattern, "Department");
+    await saveLessonProjectCounter("org", "a", 42, "Department");
+    await saveLessonProjectCounter("org", "p", 51);
+    await resetNumberingPattern("org", "lessons", "Department");
+    expect(effectiveDepartmentPattern(mocks.row.documentNumbering).prefix).toBe("{Department Master->Value}-LL");
+    expect(mocks.row.documentNumbering.lessons.prefix).toBe(prefix);
+    expect(lessonDepartmentCounter(mocks.row.documentNumbering, "a").nextNumber).toBe(42);
+    expect(lessonProjectCounter(mocks.row.documentNumbering, "p").nextNumber).toBe(51);
+  });
+
+  it("skips existing Department references without advancing any project counter", async () => {
+    mocks.collision = true;
+    mocks.highest = 70;
+    expect(await allocateDepartmentLessonReference("org", "a", "QA")).toBe("QA-LL-000071");
+    expect(lessonDepartmentCounter(mocks.row.documentNumbering, "a").nextNumber).toBe(72);
+    expect(lessonProjectCounter(mocks.row.documentNumbering, "a").nextNumber).toBe(1);
+  });
+});
 
 beforeEach(() => {
   mocks.row.documentNumbering = { lessons: { ...pattern, nextNumber: 13, custom: true } };

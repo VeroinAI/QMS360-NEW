@@ -16,6 +16,7 @@
 - [Lessons overview counts](lessons-overview-policy.md) — all tiles follow the selected project; personal totals cover all accessible records while the recent tile retains recent-record semantics.
 - [Wouter :rest* wildcard limitation](wouter-rest-wildcard.md) — :rest* matches one segment only; deep nested routes need explicit App.tsx routes.
 - [Orval zod export naming](openapi-zod-naming.md) — zod consts get operationId-derived names; component schemas are types only; `<OperationId>Body` schema names collide with TS2308.
+- [Orval query serialization](orval-query-serialization.md) — declare queries on operations; inherited path-level queries may type-check but disappear from generated URLs.
 - [SSRF policy for outbound URLs](egress-ssrf-policy.md) — tenant-configured URLs with credentials need pinned DNS + SOURCE_SYNC_ALLOWED_HOSTS allowlist; never plain fetch; classify IPs on 16-byte form.
 - [SheetJS secure releases](sheetjs-secure-releases.md) — npm xlsx stops at a vulnerable release; use the official SheetJS CDN tarball for patched versions.
 - [Video scaffold controls & tsconfig](video-scaffold-controls.md) — video-js scaffold ships workspace-driven controls (supersedes scene-selectors.md); artifact tsconfig needs DOM lib override or typecheck is red.

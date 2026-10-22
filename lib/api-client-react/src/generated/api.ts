@@ -203,6 +203,7 @@ import type {
   LessonFormPageResponse,
   LessonLearnedForm,
   LessonPhotoIntentBody,
+  LessonsDepartmentNumbering,
   LessonsEscalationReportJob,
   LessonsEscalationReportJobUpdate,
   LessonsNumberingPreview,
@@ -348,6 +349,7 @@ import type {
   RegisterInput,
   RephraseBody,
   ReportFileResponse,
+  ResetNumberingPatternParams,
   Role,
   RoleAssignmentBody,
   RoleBody,
@@ -368,6 +370,7 @@ import type {
   UpdateAuditReportNumberRange200,
   UpdateMasterDataGroupInput,
   UpdateMasterDataValueInput,
+  UpdateNumberingPatternParams,
   UploadIntent,
   UserEmailUpdate,
   UserEmailUpdateResult,
@@ -3406,21 +3409,167 @@ export const usePreviewLessonsNumbering = <TError = ErrorType<void>,
       return useMutation(getPreviewLessonsNumberingMutationOptions(options));
     }
 
-export const getUpdateNumberingPatternUrl = (module: 'qaqc' | 'lessons' | 'audit',) => {
+export const getGetLessonsDepartmentNumberingUrl = (departmentId: string,) => {
 
 
 
 
-  return `/api/platform/numbering/${module}`
+  return `/api/platform/numbering/lessons/departments/${departmentId}`
+}
+
+export const getLessonsDepartmentNumbering = async (departmentId: string, options?: Parameters<typeof customFetch>[1]): Promise<LessonsDepartmentNumbering> => {
+
+  return customFetch<LessonsDepartmentNumbering>(getGetLessonsDepartmentNumberingUrl(departmentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLessonsDepartmentNumberingQueryKey = (departmentId: string,) => {
+    return [
+    `/api/platform/numbering/lessons/departments/${departmentId}`
+    ] as const;
+    }
+
+
+export const getGetLessonsDepartmentNumberingQueryOptions = <TData = Awaited<ReturnType<typeof getLessonsDepartmentNumbering>>, TError = ErrorType<void>>(departmentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsDepartmentNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLessonsDepartmentNumberingQueryKey(departmentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLessonsDepartmentNumbering>>> = ({ signal }) => getLessonsDepartmentNumbering(departmentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: departmentId !== null && departmentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLessonsDepartmentNumbering>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLessonsDepartmentNumberingQueryResult = NonNullable<Awaited<ReturnType<typeof getLessonsDepartmentNumbering>>>
+export type GetLessonsDepartmentNumberingQueryError = ErrorType<void>
+
+
+
+export function useGetLessonsDepartmentNumbering<TData = Awaited<ReturnType<typeof getLessonsDepartmentNumbering>>, TError = ErrorType<void>>(
+ departmentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonsDepartmentNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLessonsDepartmentNumberingQueryOptions(departmentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateLessonsDepartmentNumberingUrl = (departmentId: string,) => {
+
+
+
+
+  return `/api/platform/numbering/lessons/departments/${departmentId}`
+}
+
+export const updateLessonsDepartmentNumbering = async (departmentId: string,
+    lessonsProjectNumberInput: LessonsProjectNumberInput, options?: Parameters<typeof customFetch>[1]): Promise<LessonsDepartmentNumbering> => {
+
+  return customFetch<LessonsDepartmentNumbering>(getUpdateLessonsDepartmentNumberingUrl(departmentId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(lessonsProjectNumberInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateLessonsDepartmentNumberingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLessonsDepartmentNumbering>>, TError,{departmentId: string;data: BodyType<LessonsProjectNumberInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLessonsDepartmentNumbering>>, TError,{departmentId: string;data: BodyType<LessonsProjectNumberInput>}, TContext> => {
+
+const mutationKey = ['updateLessonsDepartmentNumbering'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLessonsDepartmentNumbering>>, {departmentId: string;data: BodyType<LessonsProjectNumberInput>}> = (props) => {
+          const {departmentId,data} = props ?? {};
+
+          return  updateLessonsDepartmentNumbering(departmentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLessonsDepartmentNumberingMutationResult = NonNullable<Awaited<ReturnType<typeof updateLessonsDepartmentNumbering>>>
+    export type UpdateLessonsDepartmentNumberingMutationBody = BodyType<LessonsProjectNumberInput>
+    export type UpdateLessonsDepartmentNumberingMutationError = ErrorType<void>
+
+    export const useUpdateLessonsDepartmentNumbering = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLessonsDepartmentNumbering>>, TError,{departmentId: string;data: BodyType<LessonsProjectNumberInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLessonsDepartmentNumbering>>,
+        TError,
+        {departmentId: string;data: BodyType<LessonsProjectNumberInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateLessonsDepartmentNumberingMutationOptions(options));
+    }
+
+export const getUpdateNumberingPatternUrl = (module: 'qaqc' | 'lessons' | 'audit',
+    params?: UpdateNumberingPatternParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/platform/numbering/${module}?${stringifiedParams}` : `/api/platform/numbering/${module}`
 }
 
 /**
  * @summary Save a module reference numbering pattern (admin)
  */
 export const updateNumberingPattern = async (module: 'qaqc' | 'lessons' | 'audit',
-    numberingPatternInput: NumberingPatternInput, options?: Parameters<typeof customFetch>[1]): Promise<NumberingModuleConfig> => {
+    numberingPatternInput: NumberingPatternInput,
+    params?: UpdateNumberingPatternParams, options?: Parameters<typeof customFetch>[1]): Promise<NumberingModuleConfig> => {
 
-  return customFetch<NumberingModuleConfig>(getUpdateNumberingPatternUrl(module),
+  return customFetch<NumberingModuleConfig>(getUpdateNumberingPatternUrl(module,params),
   {
     ...options,
     method: 'PUT',
@@ -3434,8 +3583,8 @@ export const updateNumberingPattern = async (module: 'qaqc' | 'lessons' | 'audit
 
 
 export const getUpdateNumberingPatternMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>;params?: UpdateNumberingPatternParams}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>;params?: UpdateNumberingPatternParams}, TContext> => {
 
 const mutationKey = ['updateNumberingPattern'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -3447,10 +3596,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateNumberingPattern>>, {module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>}> = (props) => {
-          const {module,data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateNumberingPattern>>, {module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>;params?: UpdateNumberingPatternParams}> = (props) => {
+          const {module,data,params} = props ?? {};
 
-          return  updateNumberingPattern(module,data,requestOptions)
+          return  updateNumberingPattern(module,data,params,requestOptions)
         }
 
 
@@ -3468,30 +3617,39 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  * @summary Save a module reference numbering pattern (admin)
  */
 export const useUpdateNumberingPattern = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>;params?: UpdateNumberingPatternParams}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateNumberingPattern>>,
         TError,
-        {module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>},
+        {module: 'qaqc' | 'lessons' | 'audit';data: BodyType<NumberingPatternInput>;params?: UpdateNumberingPatternParams},
         TContext
       > => {
       return useMutation(getUpdateNumberingPatternMutationOptions(options));
     }
 
-export const getResetNumberingPatternUrl = (module: 'qaqc' | 'lessons' | 'audit',) => {
+export const getResetNumberingPatternUrl = (module: 'qaqc' | 'lessons' | 'audit',
+    params?: ResetNumberingPatternParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/platform/numbering/${module}`
+  return stringifiedParams.length > 0 ? `/api/platform/numbering/${module}?${stringifiedParams}` : `/api/platform/numbering/${module}`
 }
 
 /**
  * @summary Reset a module numbering pattern to the default (admin)
  */
-export const resetNumberingPattern = async (module: 'qaqc' | 'lessons' | 'audit', options?: Parameters<typeof customFetch>[1]): Promise<NumberingModuleConfig> => {
+export const resetNumberingPattern = async (module: 'qaqc' | 'lessons' | 'audit',
+    params?: ResetNumberingPatternParams, options?: Parameters<typeof customFetch>[1]): Promise<NumberingModuleConfig> => {
 
-  return customFetch<NumberingModuleConfig>(getResetNumberingPatternUrl(module),
+  return customFetch<NumberingModuleConfig>(getResetNumberingPatternUrl(module,params),
   {
     ...options,
     method: 'DELETE'
@@ -3505,8 +3663,8 @@ export const resetNumberingPattern = async (module: 'qaqc' | 'lessons' | 'audit'
 
 
 export const getResetNumberingPatternMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit'}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof resetNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit'}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';params?: ResetNumberingPatternParams}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';params?: ResetNumberingPatternParams}, TContext> => {
 
 const mutationKey = ['resetNumberingPattern'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -3518,10 +3676,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetNumberingPattern>>, {module: 'qaqc' | 'lessons' | 'audit'}> = (props) => {
-          const {module} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetNumberingPattern>>, {module: 'qaqc' | 'lessons' | 'audit';params?: ResetNumberingPatternParams}> = (props) => {
+          const {module,params} = props ?? {};
 
-          return  resetNumberingPattern(module,requestOptions)
+          return  resetNumberingPattern(module,params,requestOptions)
         }
 
 
@@ -3539,11 +3697,11 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  * @summary Reset a module numbering pattern to the default (admin)
  */
 export const useResetNumberingPattern = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit'}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetNumberingPattern>>, TError,{module: 'qaqc' | 'lessons' | 'audit';params?: ResetNumberingPatternParams}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof resetNumberingPattern>>,
         TError,
-        {module: 'qaqc' | 'lessons' | 'audit'},
+        {module: 'qaqc' | 'lessons' | 'audit';params?: ResetNumberingPatternParams},
         TContext
       > => {
       return useMutation(getResetNumberingPatternMutationOptions(options));

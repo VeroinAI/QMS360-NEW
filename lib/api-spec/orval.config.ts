@@ -62,6 +62,8 @@ export default defineConfig({
           listAuditProgrammeActivity: { zod: { generate: { param: false }, coerce: { query: ["number"] } } },
           listAuditScheduleActivity: { zod: { generate: { param: false }, coerce: { query: ["number"] } } },
           listCarActivity: { zod: { generate: { param: false }, coerce: { query: ["number"] } } },
+          updateNumberingPattern: { zod: { generate: { param: false } } },
+          resetNumberingPattern: { zod: { generate: { param: false } } },
         },
         zod: {
           coerce: {

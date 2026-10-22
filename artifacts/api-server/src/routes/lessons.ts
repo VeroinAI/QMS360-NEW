@@ -59,7 +59,7 @@ import {
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { allocateReferenceNumber, allocateDepartmentLessonReference, LessonProjectNumberingError } from "../lib/numbering";
-import { projectNumberContext, ReferencePrefixError } from "@workspace/field-controls";
+import { projectNumberContext, departmentNumberContext, ReferencePrefixError } from "@workspace/field-controls";
 import { assertCanManageAssignmentScope, assertOwnerOrFull, assertProjectAccess, canManageAssignmentScope, getAppAdminScope, getAuthorizedFullProjectScope, getAuthorizedProjectScope, projectScopeFromRows, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
@@ -683,7 +683,8 @@ router.post("/forms", asyncHandler(async (req, res) => {
     let referenceNumber: string;
     try {
       referenceNumber = department
-        ? await allocateDepartmentLessonReference(user.organizationId, department.id, department.code)
+        ? await allocateDepartmentLessonReference(user.organizationId, department.id, department.code,
+          departmentNumberContext(department.metadata, department.code, body.disciplineId))
         : await allocateReferenceNumber(user.organizationId, "lessons", projectNumberContext(project!.customFields, body.disciplineId), source.projectId!);
     } catch (error) {
       // Only master-field validation is a user error; infrastructure failures remain server errors.

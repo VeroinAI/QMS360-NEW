@@ -19,4 +19,6 @@ Inline request-body objects also infer the colliding `<OperationId>Body` TypeScr
 
 When a path-plus-query contract is necessary, explicitly prefer the generated runtime validator from the server Zod barrel instead of changing generated files. The frontend client barrel can still expose its generated query-parameter type.
 
+For routes that already validate path parameters themselves, the existing per-operation `zod.generate.param: false` override is another supported solution to this collision. Retain necessary query coercions when adding overrides.
+
 **Why:** Orval exports operation-derived Zod values alongside inferred TypeScript names through the same barrel, and TypeScript reports TS2308 even though each generated module is individually valid.

@@ -8,7 +8,7 @@ import {
   UpdateUserEmailBody, UpdateUserEmailResponse,
   UpdateFieldSettingsBody, UpdateFieldSettingsResponse, UpdateNumberingPatternBody, UpdateNumberingPatternResponse, UpdateOrganizationSettingsBody,
   UpdateOrganizationSettingsResponse,
-  PreviewLessonsNumberingBody, PreviewLessonsNumberingResponse, UpdateLessonsProjectNumberingBody,
+  PreviewLessonsNumberingBody, PreviewLessonsNumberingResponse, UpdateLessonsProjectNumberingBody, UpdateLessonsDepartmentNumberingBody,
 } from "@workspace/api-zod";
 import { businessUnits, db, moduleFieldSettings, organizations, organizationSettings, platformRoles, projects, users } from "@workspace/db";
 import { requireAdmin, requireAuth, requirePlatformRole } from "../middlewares/auth";
@@ -19,11 +19,12 @@ import { paginated, pagination, writeAuditLog, type AppKey } from "../lib/worksp
 import { catalogKeys, FIELD_CATALOG } from "../lib/field-access";
 import {
   effectivePattern, formatReferenceNumber, getNumberingMap, isConfigured, NUMBERING_MODULES,
-  lessonProjectCounter, saveLessonProjectCounter, LessonProjectNumberingError, availableLessonNumber,
+  lessonProjectCounter, lessonDepartmentCounter, effectiveDepartmentPattern, saveLessonProjectCounter, LessonProjectNumberingError, availableLessonNumber,
   resetNumberingPattern, saveNumberingPattern, type NumberingModule,
 } from "../lib/numbering";
 import { getAuthorizedProjectScope, getPlatformEffectiveProjectScope, getRoleAssignmentProjectScope, getRoleBasedApplicationAccess } from "../middlewares/rbac";
-import { projectNumberContext, referencePrefixError, ReferencePrefixError, resolveReferencePrefix } from "@workspace/field-controls";
+import { projectNumberContext, departmentNumberContext, lessonSourcePrefixError, ReferencePrefixError, resolveReferencePrefix } from "@workspace/field-controls";
+import { lessonDepartments, lessonInScope } from "../lib/lessons-source";
 import { assertLovValue } from "../lib/lov";
 import { getDateFormat } from "@workspace/spreadsheet-dates";
 import { UpdatePlatformDateFormatBody, GetPlatformDateFormatResponse } from "@workspace/api-zod";
@@ -553,10 +554,11 @@ router.put("/platform/organization-settings", requireAuth, requireAdmin, async (
   res.json(UpdateOrganizationSettingsResponse.parse(settingsResponse(org!, settings)));
 });
 
-const moduleConfigDto = (map: Awaited<ReturnType<typeof getNumberingMap>>, module: NumberingModule) => {
-  const pattern = effectivePattern(map, module);
+const moduleConfigDto = (map: Awaited<ReturnType<typeof getNumberingMap>>, module: NumberingModule, sourceType: "Project" | "Department" = "Project") => {
+  const pattern = module === "lessons" && sourceType === "Department" ? effectiveDepartmentPattern(map) : effectivePattern(map, module);
   const displayed = module === "lessons" ? { ...pattern, startingNumber: 1, nextNumber: 1 } : pattern;
-  return { pattern: displayed, configured: isConfigured(map, module), preview: formatReferenceNumber(displayed, displayed.nextNumber) };
+  return { pattern: displayed, configured: module === "lessons" && sourceType === "Department"
+    ? map.lessons?.departmentPattern?.custom === true : isConfigured(map, module), preview: formatReferenceNumber(displayed, displayed.nextNumber) };
 };
 
 async function requireLessonsNumberingProject(req: import("express").Request, projectId: string) {
@@ -568,6 +570,34 @@ async function requireLessonsNumberingProject(req: import("express").Request, pr
   )).limit(1);
   return project ?? null;
 }
+
+async function requireLessonsNumberingDepartment(req: import("express").Request, departmentId: string) {
+  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(departmentId)) return null;
+  const scope = await getAuthorizedProjectScope(req, "lessons");
+  if (!lessonInScope(scope, { projectId: null, departmentId })) return null;
+  return (await lessonDepartments(req.currentUser!.organizationId)).find(department => department.id === departmentId) ?? null;
+}
+
+router.get("/platform/numbering/lessons/departments/:departmentId", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const departmentId = String(req.params.departmentId);
+  if (!await requireLessonsNumberingDepartment(req, departmentId)) { res.status(404).json({ error: "Department not found in your Lessons department scope" }); return; }
+  res.json({ departmentId, ...lessonDepartmentCounter(await getNumberingMap(req.currentUser!.organizationId), departmentId) });
+}));
+
+router.put("/platform/numbering/lessons/departments/:departmentId", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const departmentId = String(req.params.departmentId);
+  if (!await requireLessonsNumberingDepartment(req, departmentId)) { res.status(404).json({ error: "Department not found in your Lessons department scope" }); return; }
+  const parsed = UpdateLessonsDepartmentNumberingBody.safeParse(req.body);
+  if (!parsed.success || Object.keys(req.body ?? {}).some(key => key !== "nextNumber")) {
+    res.status(422).json({ error: "Enter a valid department next number." }); return;
+  }
+  try {
+    res.json({ departmentId, ...await saveLessonProjectCounter(req.currentUser!.organizationId, departmentId, parsed.data.nextNumber, "Department") });
+  } catch (error) {
+    if (!(error instanceof LessonProjectNumberingError)) throw error;
+    res.status(422).json({ error: error.message });
+  }
+}));
 
 router.get("/platform/numbering/lessons/projects/:projectId", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const projectId = String(req.params.projectId);
@@ -593,34 +623,39 @@ router.put("/platform/numbering/lessons/projects/:projectId", requireAuth, requi
 router.get("/platform/numbering", requireAuth, async (req, res): Promise<void> => {
   const map = await getNumberingMap(req.currentUser!.organizationId);
   const modules = Object.fromEntries(NUMBERING_MODULES.map((module) => [module, moduleConfigDto(map, module)]));
-  res.json(GetNumberingConfigResponse.parse({ modules }));
+  res.json(GetNumberingConfigResponse.parse({ modules: { ...modules, lessonsDepartment: moduleConfigDto(map, "lessons", "Department") } }));
 });
 
 router.post("/platform/numbering/lessons/preview", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const parsed = PreviewLessonsNumberingBody.safeParse(req.body);
   if (!parsed.success) { res.status(422).json({ error: parsed.error.issues[0]?.message ?? "Invalid preview" }); return; }
-  const { pattern, projectId, disciplineValue } = parsed.data;
-  if (!projectId) { res.status(422).json({ error: "Select a project to preview its Lessons number range." }); return; }
+  const { pattern, projectId, departmentId, disciplineValue, sourceType = "Project" } = parsed.data;
+  if (sourceType === "Project" ? !projectId || !!departmentId : !departmentId || !!projectId) {
+    res.status(422).json({ error: `Select a ${sourceType.toLowerCase()} only to preview its Lessons number range.` }); return;
+  }
+  const prefixError = lessonSourcePrefixError(pattern.prefix, sourceType);
+  if (prefixError) { res.status(422).json({ error: prefixError }); return; }
   if (!Number.isInteger(pattern.padding) || !Number.isInteger(pattern.startingNumber)) {
     res.status(422).json({ error: "Padding and starting number must be whole numbers" }); return;
   }
   const organizationId = req.currentUser!.organizationId;
-  let customFields: Record<string, unknown> = {};
-  if (projectId) {
-    const scope = await getAuthorizedProjectScope(req, "lessons");
-    const [project] = await db.select().from(projects).where(and(
-      eq(projects.organizationId, organizationId), eq(projects.id, projectId),
-      isNull(projects.deletedAt), scope.unrestricted ? undefined : inArray(projects.id, scope.projectIds),
-    )).limit(1);
+  let context;
+  if (sourceType === "Project") {
+    const project = await requireLessonsNumberingProject(req, projectId!);
     if (!project) { res.status(404).json({ error: "Project not found in your Lessons project scope" }); return; }
-    customFields = project.customFields;
+    context = projectNumberContext(project.customFields, disciplineValue);
+  } else {
+    const department = await requireLessonsNumberingDepartment(req, departmentId!);
+    if (!department) { res.status(404).json({ error: "Department not found in your Lessons department scope" }); return; }
+    context = departmentNumberContext(department.metadata, department.code, disciplineValue);
   }
   if (disciplineValue) await assertLovValue(db, organizationId, "disciplines", disciplineValue);
   try {
-    const prefix = resolveReferencePrefix(pattern.prefix, projectNumberContext(customFields, disciplineValue));
+    const prefix = resolveReferencePrefix(pattern.prefix, context);
     const map = await getNumberingMap(organizationId);
-    const nextNumber = await availableLessonNumber(db, organizationId, projectId,
-      { ...pattern, prefix }, lessonProjectCounter(map, projectId).nextNumber);
+    const sourceId = sourceType === "Department" ? departmentId! : projectId!;
+    const counter = sourceType === "Department" ? lessonDepartmentCounter(map, sourceId) : lessonProjectCounter(map, sourceId);
+    const nextNumber = await availableLessonNumber(db, organizationId, sourceId, { ...pattern, prefix }, counter.nextNumber, sourceType);
     res.json(PreviewLessonsNumberingResponse.parse({
       nextNumber, preview: formatReferenceNumber({ ...pattern, prefix }, nextNumber),
     }));
@@ -633,6 +668,10 @@ router.post("/platform/numbering/lessons/preview", requireAuth, requireAdmin, as
 router.put("/platform/numbering/:module", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const module = String(req.params.module) as NumberingModule;
   if (!NUMBERING_MODULES.includes(module)) { res.status(404).json({ error: "Unknown module" }); return; }
+  const sourceType = req.query.sourceType ?? "Project";
+  if ((sourceType !== "Project" && sourceType !== "Department") || (module !== "lessons" && sourceType === "Department")) {
+    res.status(422).json({ error: "Choose Project or Department for Lessons numbering." }); return;
+  }
   const parsed = UpdateNumberingPatternBody.safeParse(req.body);
   if (!parsed.success) { res.status(422).json({ error: parsed.error.issues[0]?.message ?? "Invalid numbering pattern" }); return; }
   // zod here accepts any bounded number (orval cannot emit .int()); counters must be integers.
@@ -640,10 +679,10 @@ router.put("/platform/numbering/:module", requireAuth, requireAdmin, async (req,
     res.status(422).json({ error: "Padding and starting number must be whole numbers" });
     return;
   }
-  const prefixError = module === "lessons" ? referencePrefixError(parsed.data.prefix)
+  const prefixError = module === "lessons" ? lessonSourcePrefixError(parsed.data.prefix, sourceType)
     : parsed.data.prefix.length > 20 ? "Prefix must be no longer than 20 characters" : null;
   if (prefixError) { res.status(422).json({ error: prefixError }); return; }
-  const pattern = await saveNumberingPattern(req.currentUser!.organizationId, module, parsed.data);
+  const pattern = await saveNumberingPattern(req.currentUser!.organizationId, module, parsed.data, sourceType);
   res.json(UpdateNumberingPatternResponse.parse({
     pattern, configured: true, preview: formatReferenceNumber(pattern, pattern.nextNumber),
   }));
@@ -652,9 +691,13 @@ router.put("/platform/numbering/:module", requireAuth, requireAdmin, async (req,
 router.delete("/platform/numbering/:module", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const module = String(req.params.module) as NumberingModule;
   if (!NUMBERING_MODULES.includes(module)) { res.status(404).json({ error: "Unknown module" }); return; }
-  await resetNumberingPattern(req.currentUser!.organizationId, module);
+  const sourceType = req.query.sourceType ?? "Project";
+  if ((sourceType !== "Project" && sourceType !== "Department") || (module !== "lessons" && sourceType === "Department")) {
+    res.status(422).json({ error: "Choose Project or Department for Lessons numbering." }); return;
+  }
+  await resetNumberingPattern(req.currentUser!.organizationId, module, sourceType);
   const map = await getNumberingMap(req.currentUser!.organizationId);
-  res.json(ResetNumberingPatternResponse.parse(moduleConfigDto(map, module)));
+  res.json(ResetNumberingPatternResponse.parse(moduleConfigDto(map, module, sourceType)));
 });
 
 async function fieldSettingsCatalogResponse(organizationId: string) {

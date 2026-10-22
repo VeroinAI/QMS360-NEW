@@ -1039,6 +1039,19 @@ export const GetNumberingConfigResponse = zod.object({
   "configured": zod.boolean(),
   "preview": zod.string()
 }),
+  "lessonsDepartment": zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string(),
+  "suffix": zod.string(),
+  "separator": zod.string(),
+  "position": zod.enum(['after_prefix', 'after_suffix', 'before_prefix']),
+  "padding": zod.number(),
+  "startingNumber": zod.number(),
+  "nextNumber": zod.number()
+}),
+  "configured": zod.boolean(),
+  "preview": zod.string()
+}).optional(),
   "audit": zod.object({
   "pattern": zod.object({
   "prefix": zod.string(),
@@ -1118,6 +1131,7 @@ export const previewLessonsNumberingBodyPatternStartingNumberMin = 0;
 export const previewLessonsNumberingBodyPatternStartingNumberMax = 1000000000000;
 
 export const previewLessonsNumberingBodyProjectIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+export const previewLessonsNumberingBodyDepartmentIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
 
 
 export const PreviewLessonsNumberingBody = zod.object({
@@ -1130,6 +1144,8 @@ export const PreviewLessonsNumberingBody = zod.object({
   "startingNumber": zod.number().min(previewLessonsNumberingBodyPatternStartingNumberMin).max(previewLessonsNumberingBodyPatternStartingNumberMax)
 }),
   "projectId": zod.string().regex(previewLessonsNumberingBodyProjectIdRegExp).optional(),
+  "sourceType": zod.enum(['Project', 'Department']).optional(),
+  "departmentId": zod.string().regex(previewLessonsNumberingBodyDepartmentIdRegExp).optional(),
   "disciplineValue": zod.string().optional()
 })
 
@@ -1139,11 +1155,51 @@ export const PreviewLessonsNumberingResponse = zod.object({
 })
 
 
+export const getLessonsDepartmentNumberingPathDepartmentIdRegExp = new RegExp('^[0-9a-fA-F-]{36}$');
+
+
+export const GetLessonsDepartmentNumberingParams = zod.object({
+  "departmentId": zod.coerce.string().regex(getLessonsDepartmentNumberingPathDepartmentIdRegExp)
+})
+
+export const GetLessonsDepartmentNumberingResponse = zod.object({
+  "departmentId": zod.string(),
+  "startingNumber": zod.number(),
+  "nextNumber": zod.number(),
+  "lastIssued": zod.number().nullable(),
+  "configured": zod.boolean()
+})
+
+
+export const updateLessonsDepartmentNumberingPathDepartmentIdRegExp = new RegExp('^[0-9a-fA-F-]{36}$');
+
+
+export const UpdateLessonsDepartmentNumberingParams = zod.object({
+  "departmentId": zod.coerce.string().regex(updateLessonsDepartmentNumberingPathDepartmentIdRegExp)
+})
+
+export const updateLessonsDepartmentNumberingBodyNextNumberMax = 999999999999;
+
+
+
+export const UpdateLessonsDepartmentNumberingBody = zod.object({
+  "nextNumber": zod.number().min(1).max(updateLessonsDepartmentNumberingBodyNextNumberMax)
+})
+
+export const UpdateLessonsDepartmentNumberingResponse = zod.object({
+  "departmentId": zod.string(),
+  "startingNumber": zod.number(),
+  "nextNumber": zod.number(),
+  "lastIssued": zod.number().nullable(),
+  "configured": zod.boolean()
+})
+
+
 /**
  * @summary Save a module reference numbering pattern (admin)
  */
-export const UpdateNumberingPatternParams = zod.object({
-  "module": zod.enum(['qaqc', 'lessons', 'audit'])
+export const UpdateNumberingPatternQueryParams = zod.object({
+  "sourceType": zod.enum(['Project', 'Department']).optional()
 })
 
 export const updateNumberingPatternBodyPrefixMax = 200;
@@ -1187,8 +1243,8 @@ export const UpdateNumberingPatternResponse = zod.object({
 /**
  * @summary Reset a module numbering pattern to the default (admin)
  */
-export const ResetNumberingPatternParams = zod.object({
-  "module": zod.enum(['qaqc', 'lessons', 'audit'])
+export const ResetNumberingPatternQueryParams = zod.object({
+  "sourceType": zod.enum(['Project', 'Department']).optional()
 })
 
 export const ResetNumberingPatternResponse = zod.object({

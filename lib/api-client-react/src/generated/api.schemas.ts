@@ -1778,6 +1778,14 @@ export interface LessonsProjectNumbering {
   configured: boolean;
 }
 
+export interface LessonsDepartmentNumbering {
+  departmentId: string;
+  startingNumber: number;
+  nextNumber: number;
+  lastIssued: number | null;
+  configured: boolean;
+}
+
 export type NumberingPatternPosition = typeof NumberingPatternPosition[keyof typeof NumberingPatternPosition];
 
 
@@ -1826,10 +1834,21 @@ export interface NumberingPatternInput {
   startingNumber: number;
 }
 
+export type LessonsNumberingPreviewInputSourceType = typeof LessonsNumberingPreviewInputSourceType[keyof typeof LessonsNumberingPreviewInputSourceType];
+
+
+export const LessonsNumberingPreviewInputSourceType = {
+  Project: 'Project',
+  Department: 'Department',
+} as const;
+
 export interface LessonsNumberingPreviewInput {
   pattern: NumberingPatternInput;
   /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
   projectId?: string;
+  sourceType?: LessonsNumberingPreviewInputSourceType;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  departmentId?: string;
   disciplineValue?: string;
 }
 
@@ -1847,6 +1866,7 @@ export interface NumberingModuleConfig {
 export type NumberingConfigModules = {
   qaqc: NumberingModuleConfig;
   lessons: NumberingModuleConfig;
+  lessonsDepartment?: NumberingModuleConfig;
   audit: NumberingModuleConfig;
 };
 
@@ -4811,6 +4831,30 @@ export type ListRoleAssignmentProjects200Item = {
 export type GetPlatformReferenceDataParams = {
 since?: SinceParameter;
 };
+
+export type UpdateNumberingPatternParams = {
+sourceType?: UpdateNumberingPatternSourceType;
+};
+
+export type UpdateNumberingPatternSourceType = typeof UpdateNumberingPatternSourceType[keyof typeof UpdateNumberingPatternSourceType];
+
+
+export const UpdateNumberingPatternSourceType = {
+  Project: 'Project',
+  Department: 'Department',
+} as const;
+
+export type ResetNumberingPatternParams = {
+sourceType?: ResetNumberingPatternSourceType;
+};
+
+export type ResetNumberingPatternSourceType = typeof ResetNumberingPatternSourceType[keyof typeof ResetNumberingPatternSourceType];
+
+
+export const ResetNumberingPatternSourceType = {
+  Project: 'Project',
+  Department: 'Department',
+} as const;
 
 export type ListIntegrationConnectorsParams = {
 /**

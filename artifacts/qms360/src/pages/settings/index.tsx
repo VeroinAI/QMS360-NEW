@@ -595,13 +595,16 @@ function AuditLog({ app }: { app: AppKey }) {
 }
 
 function NumberingTab({ app }: { app: AppKey }) {
+  const [sourceType, setSourceType] = useState<'Project' | 'Department'>('Project');
   const config = useGetNumberingConfig();
   const { toast } = useToast();
   const notify = (title: string) => { toast({ title }); config.refetch(); };
   if (config.isLoading) return <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Loading numbering settings…</CardContent></Card>;
-  const module = config.data?.modules?.[app];
+  const module = app === 'lessons' && sourceType === 'Department' ? config.data?.modules?.lessonsDepartment : config.data?.modules?.[app];
   if (!module) return <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Numbering settings unavailable.</CardContent></Card>;
-  return <div className="space-y-5"><NumberingForm key={`${app}-${config.dataUpdatedAt}`} app={app} displayName={names[app]} module={module} onSaved={notify} />
+  return <div className="space-y-5">
+    {app === 'lessons' && <div className="max-w-sm space-y-2"><Label>Numbering for Project / Department</Label><Select value={sourceType} onValueChange={value => setSourceType(value as 'Project' | 'Department')}><SelectTrigger aria-label="Numbering source"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Project">Project</SelectItem><SelectItem value="Department">Department</SelectItem></SelectContent></Select></div>}
+    <NumberingForm key={`${app}-${sourceType}-${config.dataUpdatedAt}`} app={app} sourceType={sourceType} displayName={names[app]} module={module} onSaved={notify} />
     {app === 'audit' && <><AuditPlanNumberingSettings /><AuditScheduleNumberingSettings /><AuditReportNumberingSettings /><AuditFindingNumberingSettings /><AuditCarNumberingSettings /></>}
   </div>;
 }

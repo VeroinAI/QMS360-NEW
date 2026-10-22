@@ -1,10 +1,10 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, organizationSettings, lessonLearnedForms } from "@workspace/db";
-import { resolveReferencePrefix, type LessonNumberContext } from "@workspace/field-controls";
+import { resolveReferencePrefix, departmentNumberContext, type LessonNumberContext } from "@workspace/field-controls";
 
 /**
- * Per-module reference numbering. Lessons share a pattern but use independent
- * projectCounters; legacy Lessons nextNumber is retained but no longer allocated.
+ * Per-module reference numbering. Lessons have separate Project/Department
+ * patterns and independent counters for each source; legacy Lessons nextNumber is retained but no longer allocated.
  * QA/QC and Audit retain organization-level counters. Patterns live in
  * shared.organization_settings.document_numbering keyed by module ("qaqc",
  * "lessons", "audit"). Allocation is serialized by a SELECT ... FOR UPDATE on
@@ -36,7 +36,9 @@ export interface NumberingPattern {
 
 export type NumberingPatternInput = Omit<NumberingPattern, "nextNumber">;
 export type LessonProjectCounter = { startingNumber: number; nextNumber: number; lastIssued: number | null; configured: boolean };
-type StoredNumbering = NumberingPattern & { custom?: boolean; projectCounters?: Record<string, LessonProjectCounter>; departmentCounters?: Record<string, number> };
+type StoredNumbering = NumberingPattern & { custom?: boolean; projectCounters?: Record<string, LessonProjectCounter>;
+  departmentCounters?: Record<string, number | LessonProjectCounter>;
+  departmentPattern?: NumberingPattern & { custom?: boolean } };
 export type NumberingMap = Record<string, StoredNumbering>;
 
 export const NUMBERING_MODULES: NumberingModule[] = ["qaqc", "lessons", "audit"];
@@ -46,6 +48,18 @@ export const DEFAULT_PATTERNS: Record<NumberingModule, NumberingPatternInput> = 
   lessons: { prefix: "LL", suffix: "", separator: "-", position: "after_prefix", padding: 4, startingNumber: 1 },
   audit: { prefix: "AUD", suffix: "", separator: "-", position: "after_prefix", padding: 4, startingNumber: 1 },
 };
+
+export const DEFAULT_DEPARTMENT_PATTERN: NumberingPattern = {
+  prefix: "{Department Master->Value}-LL", suffix: "", separator: "-", position: "after_prefix",
+  padding: 6, startingNumber: 1, nextNumber: 1,
+};
+
+export function effectiveDepartmentPattern(map: NumberingMap): NumberingPattern {
+  const stored = map.lessons?.departmentPattern;
+  if (!stored) return { ...DEFAULT_DEPARTMENT_PATTERN };
+  const { custom: _, ...pattern } = stored;
+  return { ...pattern };
+}
 
 export function formatReferenceNumber(pattern: NumberingPatternInput, n: number): string {
   const running = String(n).padStart(pattern.padding, "0");
@@ -139,10 +153,18 @@ export function lessonProjectCounter(map: NumberingMap, projectId: string): Less
   return map.lessons?.projectCounters?.[projectId] ?? { startingNumber: 1, nextNumber: 1, lastIssued: null, configured: false };
 }
 
+export function lessonDepartmentCounter(map: NumberingMap, departmentId: string): LessonProjectCounter {
+  const stored = map.lessons?.departmentCounters?.[departmentId];
+  if (typeof stored === "number") return { startingNumber: 1, nextNumber: stored,
+    lastIssued: stored > 1 ? stored - 1 : null, configured: false };
+  return stored ?? { startingNumber: 1, nextNumber: 1, lastIssued: null, configured: false };
+}
+
 /** Read-only collision protection preserves historical references, including deleted forms. */
-export async function availableLessonNumber(query: Pick<Tx, "select" | "execute">, organizationId: string, projectId: string, pattern: NumberingPatternInput, next: number): Promise<number> {
+export async function availableLessonNumber(query: Pick<Tx, "select" | "execute">, organizationId: string, projectId: string, pattern: NumberingPatternInput, next: number, sourceType: "Project" | "Department" = "Project"): Promise<number> {
+  const sourceColumn = sourceType === "Department" ? lessonLearnedForms.departmentId : lessonLearnedForms.projectId;
   const [collision] = await query.select({ id: lessonLearnedForms.id }).from(lessonLearnedForms).where(and(
-    eq(lessonLearnedForms.organizationId, organizationId), eq(lessonLearnedForms.projectId, projectId),
+    eq(lessonLearnedForms.organizationId, organizationId), eq(sourceColumn, projectId),
     eq(lessonLearnedForms.referenceNumber, formatReferenceNumber(pattern, next)),
   )).limit(1);
   if (!collision) return next;
@@ -153,27 +175,28 @@ export async function availableLessonNumber(query: Pick<Tx, "select" | "execute"
     : [escape(pattern.prefix), running, escape(pattern.suffix)];
   const regex = `^${parts.filter(Boolean).join(escape(pattern.separator))}$`;
   const result = await query.execute(sql`SELECT MAX((substring(reference_number FROM ${regex}))::numeric) AS highest
-    FROM app2_lessons.lesson_learned_forms WHERE organization_id = ${organizationId}::uuid AND project_id = ${projectId}::uuid
+    FROM app2_lessons.lesson_learned_forms WHERE organization_id = ${organizationId}::uuid AND ${sourceColumn} = ${projectId}::uuid
     AND reference_number ~ ${regex}`);
   const highest = Number(result.rows[0]?.highest ?? 0);
-  if (!Number.isSafeInteger(highest) || highest >= MAX_LESSON_NUMBER) throw new LessonProjectNumberingError("The project number range is exhausted.");
+  if (!Number.isSafeInteger(highest) || highest >= MAX_LESSON_NUMBER) throw new LessonProjectNumberingError(`The ${sourceType.toLowerCase()} number range is exhausted.`);
   return Math.max(next, highest + 1);
 }
 
-export async function saveLessonProjectCounter(organizationId: string, projectId: string, nextNumber: number): Promise<LessonProjectCounter> {
+export async function saveLessonProjectCounter(organizationId: string, projectId: string, nextNumber: number, sourceType: "Project" | "Department" = "Project"): Promise<LessonProjectCounter> {
   if (!Number.isSafeInteger(nextNumber) || nextNumber < 1 || nextNumber >= MAX_LESSON_NUMBER) {
     throw new LessonProjectNumberingError("Enter a whole next number between 1 and 999999999999.");
   }
   return db.transaction(async tx => {
     const row = await ensureSettingsRow(tx, organizationId);
     const map = { ...((row.documentNumbering ?? {}) as NumberingMap) };
-    const current = lessonProjectCounter(map, projectId);
+    const current = sourceType === "Department" ? lessonDepartmentCounter(map, projectId) : lessonProjectCounter(map, projectId);
     if (current.lastIssued !== null && nextNumber <= current.lastIssued) {
       throw new LessonProjectNumberingError(`The next number must be greater than the last issued number (${current.lastIssued}). Existing references cannot be reused.`);
     }
     const counter = { ...current, startingNumber: current.lastIssued === null ? nextNumber : current.startingNumber, nextNumber, configured: true };
+    const key = sourceType === "Department" ? "departmentCounters" : "projectCounters";
     map.lessons = { ...map.lessons, ...effectivePattern(map, "lessons"), custom: map.lessons?.custom,
-      projectCounters: { ...map.lessons?.projectCounters, [projectId]: counter } };
+      [key]: { ...map.lessons?.[key], [projectId]: counter } };
     await tx.update(organizationSettings).set({ documentNumbering: map, updatedAt: new Date() }).where(eq(organizationSettings.id, row.id));
     return counter;
   });
@@ -181,11 +204,17 @@ export async function saveLessonProjectCounter(organizationId: string, projectId
 
 /** Persists an admin-edited pattern, preserving the counter once numbers were issued. */
 export async function saveNumberingPattern(
-  organizationId: string, module: NumberingModule, input: NumberingPatternInput,
+  organizationId: string, module: NumberingModule, input: NumberingPatternInput, sourceType: "Project" | "Department" = "Project",
 ): Promise<NumberingPattern> {
   return db.transaction(async (tx) => {
     const row = await ensureSettingsRow(tx, organizationId);
     const map = { ...((row.documentNumbering ?? {}) as NumberingMap) };
+    if (module === "lessons" && sourceType === "Department") {
+      const pattern = { ...input, startingNumber: 1, nextNumber: 1 };
+      map.lessons = { ...effectivePattern(map, "lessons"), ...map.lessons, departmentPattern: { ...pattern, custom: true } };
+      await tx.update(organizationSettings).set({ documentNumbering: map, updatedAt: new Date() }).where(eq(organizationSettings.id, row.id));
+      return pattern;
+    }
     const existing = map[module];
     // Once numbers have been issued the counter keeps running untouched;
     // startingNumber only seeds a pattern that has never been used.
@@ -206,13 +235,19 @@ export async function saveNumberingPattern(
  * Restores the module default under the same row lock as allocation. The
  * counter carries over so a reset can never reissue an existing reference.
  */
-export async function resetNumberingPattern(organizationId: string, module: NumberingModule): Promise<void> {
+export async function resetNumberingPattern(organizationId: string, module: NumberingModule, sourceType: "Project" | "Department" = "Project"): Promise<void> {
   await db.transaction(async (tx) => {
     const [row] = await tx.select().from(organizationSettings)
       .where(and(eq(organizationSettings.organizationId, organizationId), isNull(organizationSettings.deletedAt)))
       .for("update").limit(1);
     if (!row) return;
     const map = { ...((row.documentNumbering ?? {}) as NumberingMap) };
+    if (module === "lessons" && sourceType === "Department") {
+      if (!map.lessons?.departmentPattern) return;
+      map.lessons = { ...map.lessons, departmentPattern: { ...DEFAULT_DEPARTMENT_PATTERN, custom: false } };
+      await tx.update(organizationSettings).set({ documentNumbering: map, updatedAt: new Date() }).where(eq(organizationSettings.id, row.id));
+      return;
+    }
     const existing = map[module];
     if (!existing?.custom) return;
     const fallback = DEFAULT_PATTERNS[module];
@@ -225,28 +260,19 @@ export async function resetNumberingPattern(organizationId: string, module: Numb
 }
 
 /** Department counters never consume or reset a project's reference sequence. */
-export async function allocateDepartmentLessonReference(organizationId: string, departmentId: string, departmentCode: string): Promise<string> {
-  const prefix = departmentCode.trim().replace(/[^\p{L}\p{N}._-]+/gu, "-").replace(/^-+|-+$/g, "");
-  if (!prefix) throw new LessonProjectNumberingError("Department Master must have a usable value for reference numbering.");
+export async function allocateDepartmentLessonReference(organizationId: string, departmentId: string, departmentCode: string, context?: LessonNumberContext): Promise<string> {
   return db.transaction(async tx => {
     const row = await ensureSettingsRow(tx, organizationId);
     const map = { ...((row.documentNumbering ?? {}) as NumberingMap) };
     const existing = map.lessons;
-    let next = existing?.departmentCounters?.[departmentId] ?? 1;
-    let reference = "";
-    for (;;) {
-      if (!Number.isSafeInteger(next) || next >= MAX_LESSON_NUMBER) throw new LessonProjectNumberingError("The department number range is exhausted.");
-      reference = `${prefix}-LL-${String(next).padStart(6, "0")}`;
-      const [collision] = await tx.select({ id: lessonLearnedForms.id }).from(lessonLearnedForms).where(and(
-        eq(lessonLearnedForms.organizationId, organizationId), eq(lessonLearnedForms.departmentId, departmentId),
-        eq(lessonLearnedForms.referenceNumber, reference),
-      )).limit(1);
-      if (!collision) break;
-      next++;
-    }
+    const pattern = effectiveDepartmentPattern(map);
+    const resolved = { ...pattern, prefix: resolveReferencePrefix(pattern.prefix, context ?? departmentNumberContext({}, departmentCode)) };
+    const counter = lessonDepartmentCounter(map, departmentId);
+    const next = await availableLessonNumber(tx, organizationId, departmentId, resolved, counter.nextNumber, "Department");
+    if (!Number.isSafeInteger(next + 1) || next >= MAX_LESSON_NUMBER) throw new LessonProjectNumberingError("The department number range is exhausted.");
     map.lessons = { ...effectivePattern(map, "lessons"), ...existing,
-      departmentCounters: { ...existing?.departmentCounters, [departmentId]: next + 1 } };
+      departmentCounters: { ...existing?.departmentCounters, [departmentId]: { ...counter, nextNumber: next + 1, lastIssued: next } } };
     await tx.update(organizationSettings).set({ documentNumbering: map, updatedAt: new Date() }).where(eq(organizationSettings.id, row.id));
-    return reference;
+    return formatReferenceNumber(resolved, next);
   });
 }

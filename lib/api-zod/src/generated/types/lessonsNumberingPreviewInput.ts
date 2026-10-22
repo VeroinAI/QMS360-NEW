@@ -5,11 +5,15 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { LessonsNumberingPreviewInputSourceType } from './lessonsNumberingPreviewInputSourceType';
 import type { NumberingPatternInput } from './numberingPatternInput';
 
 export interface LessonsNumberingPreviewInput {
   pattern: NumberingPatternInput;
   /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
   projectId?: string;
+  sourceType?: LessonsNumberingPreviewInputSourceType;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  departmentId?: string;
   disciplineValue?: string;
 }

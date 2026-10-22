@@ -646,19 +646,34 @@ paths:
       responses:
         "200": {description: Resolved preview, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsNumberingPreview"}}}}
         "422": {description: Invalid pattern or missing source value}
+  /platform/numbering/lessons/departments/{departmentId}:
+    parameters: [{name: departmentId, in: path, required: true, schema: {type: string, pattern: "^[0-9a-fA-F-]{36}$"}}]
+    get:
+      operationId: getLessonsDepartmentNumbering
+      tags: [platform]
+      responses:
+        "200": {description: Department counter, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsDepartmentNumbering"}}}}
+        "404": {description: Department not found in scope}
+    put:
+      operationId: updateLessonsDepartmentNumbering
+      tags: [platform]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsProjectNumberInput"}}}}
+      responses:
+        "200": {description: Saved department counter, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsDepartmentNumbering"}}}}
+        "404": {description: Department not found in scope}
   /platform/numbering/{module}:
     put:
       operationId: updateNumberingPattern
       tags: [platform]
       summary: Save a module reference numbering pattern (admin)
-      parameters: [{name: module, in: path, required: true, schema: {type: string, enum: [qaqc, lessons, audit]}}]
+      parameters: [{name: module, in: path, required: true, schema: {type: string, enum: [qaqc, lessons, audit]}}, {name: sourceType, in: query, schema: {type: string, enum: [Project, Department]}}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/NumberingPatternInput"}}}}
       responses: {"200": {description: Saved pattern, content: {application/json: {schema: {$ref: "#/components/schemas/NumberingModuleConfig"}}}}}
     delete:
       operationId: resetNumberingPattern
       tags: [platform]
       summary: Reset a module numbering pattern to the default (admin)
-      parameters: [{name: module, in: path, required: true, schema: {type: string, enum: [qaqc, lessons, audit]}}]
+      parameters: [{name: module, in: path, required: true, schema: {type: string, enum: [qaqc, lessons, audit]}}, {name: sourceType, in: query, schema: {type: string, enum: [Project, Department]}}]
       responses: {"200": {description: Reset pattern, content: {application/json: {schema: {$ref: "#/components/schemas/NumberingModuleConfig"}}}}}
   /platform/audit-memo-defaults:
     get:
@@ -3609,6 +3624,15 @@ components:
         nextNumber: {type: number}
         lastIssued: {type: number, nullable: true}
         configured: {type: boolean}
+    LessonsDepartmentNumbering:
+      type: object
+      required: [departmentId, startingNumber, nextNumber, lastIssued, configured]
+      properties:
+        departmentId: {type: string}
+        startingNumber: {type: number}
+        nextNumber: {type: number}
+        lastIssued: {type: number, nullable: true}
+        configured: {type: boolean}
     NumberingPattern:
       type: object
       required: [prefix, suffix, separator, position, padding, startingNumber, nextNumber]
@@ -3636,6 +3660,8 @@ components:
       properties:
         pattern: {$ref: "#/components/schemas/NumberingPatternInput"}
         projectId: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+        sourceType: {type: string, enum: [Project, Department]}
+        departmentId: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
         disciplineValue: {type: string}
     LessonsNumberingPreview:
       type: object
@@ -3660,6 +3686,7 @@ components:
           properties:
             qaqc: {$ref: "#/components/schemas/NumberingModuleConfig"}
             lessons: {$ref: "#/components/schemas/NumberingModuleConfig"}
+            lessonsDepartment: {$ref: "#/components/schemas/NumberingModuleConfig"}
             audit: {$ref: "#/components/schemas/NumberingModuleConfig"}
     AIDraft:
       type: object
