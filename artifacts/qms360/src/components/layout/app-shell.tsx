@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   BarChart3, Bell, Blocks, ChevronDown, ClipboardCheck, Download, FileText,
-  Globe2, LayoutDashboard, Lightbulb, LogOut, Menu, MessageSquarePlus, Network,
+  Gauge, Globe2, LayoutDashboard, Lightbulb, LogOut, Menu, MessageSquarePlus, Network,
   PanelLeftClose, PanelLeftOpen, Settings, X,
 } from 'lucide-react';
 import {
@@ -22,10 +22,8 @@ type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{
 
 const appNav = {
   qaqc: [
-    ['Overview', '/qaqc', LayoutDashboard], ['QA/QC Metrics', '/qaqc/metrics', BarChart3],
+    ['Overview', '/qaqc', LayoutDashboard], ['Dashboard', '/qaqc/dashboard', Gauge], ['QA/QC Metrics', '/qaqc/metrics', BarChart3],
     ['Customer Satisfaction (CSAT)', '/qaqc/csat', ClipboardCheck], ['Daily Submission', '/qaqc/daily', ClipboardCheck],
-    ['Inspections', '/qaqc/material-inspections', ClipboardCheck], ['Documents', '/qaqc/documents', FileText],
-    ['Monthly reports', '/qaqc/monthly', FileText],
     ['Report dashboard', '/qaqc/report-dashboard', BarChart3], ['Reporting settings', '/qaqc/settings', LayoutDashboard],
   ],
   lessons: [
@@ -94,7 +92,8 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
       case '/qaqc/documents': return cap.canAnyRead('document_governance');
       case '/qaqc/monthly': return cap.canAnyRead('monthly_reports');
       case '/qaqc/report-dashboard': return reportsRead;
-      case '/qaqc/settings': return cap.canTask('configure_masters');
+      case '/qaqc/dashboard': return reportsRead;
+      case '/qaqc/settings': return cap.canTask('configure_masters') || cap.can('historical_balances', 'view_all');
       default: return true;
     }
   };

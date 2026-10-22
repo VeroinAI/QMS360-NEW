@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { and, eq, isNull } from "drizzle-orm";
-import { db, applicationAccess, users, permissions, userWorkspaceRoles, workspaceRoles, workspaceRolePermissions } from "@workspace/db";
+import { db, users, permissions, userWorkspaceRoles, workspaceRoles, workspaceRolePermissions } from "@workspace/db";
 import { qaqcActivityGroups, qaqcPermissionMatches, type QaqcOperation } from "@workspace/field-controls";
 import { getAuthorizedProjectScope, requirePermission } from "../middlewares/rbac";
 import { getUserContext } from "./auth";
@@ -10,13 +10,6 @@ export async function canQaqcUserReview(organizationId: string, userId: string, 
   const [active] = await db.select({ status: users.accessStatus }).from(users)
     .where(and(eq(users.id, userId), isNull(users.deletedAt), eq(users.accessStatus, "active")));
   if (!active) return false;
-  const administrator = ["Super Admin", "Org Admin"].includes(user.platformRole);
-  if (!administrator) {
-    const [access] = await db.select({ id: applicationAccess.id }).from(applicationAccess)
-      .where(and(eq(applicationAccess.organizationId, organizationId), eq(applicationAccess.username, user.username),
-        eq(applicationAccess.canOpenQaqc, true), isNull(applicationAccess.deletedAt)));
-    if (!access) return false;
-  }
   const scope = await getAuthorizedProjectScope({ currentUser: user } as Request, "qaqc", { module, action: "own", operation: "review" });
   return scope.unrestricted || scope.projectIds.includes(projectId);
 }

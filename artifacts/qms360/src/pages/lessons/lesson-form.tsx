@@ -45,7 +45,7 @@ import { useFieldAccess } from "@/lib/use-field-access";
 
 type FieldName = "description" | "rootCause" | "correction" | "correctiveAction";
 type Draft = {
-  title: string; projectId: string; disciplineId: string; categorisationId: string; reference: string;
+  title: string; projectId: string; sourceType: "Project" | "Department"; departmentId: string; disciplineId: string; categorisationId: string; reference: string;
   issueCategory: string; impact: string; approverId: string;
   isRepeatedIssue: boolean; repeatCount: number; repeatLocation: string; remarks: string;
   description: string; rootCause: string; correction: string; correctiveAction: string;
@@ -59,7 +59,7 @@ function toDatetimeLocal(value: Date) {
 }
 
 const initialDraft = (): Draft => {
-  const empty: Draft = { title: "", projectId: "", disciplineId: "", categorisationId: "", reference: "", issueCategory: "Minor", impact: "Positive", approverId: "", isRepeatedIssue: false, repeatCount: 0, repeatLocation: "", remarks: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: toDatetimeLocal(new Date()) };
+  const empty: Draft = { title: "", projectId: "", sourceType: "Project", departmentId: "", disciplineId: "", categorisationId: "", reference: "", issueCategory: "Minor", impact: "Positive", approverId: "", isRepeatedIssue: false, repeatCount: 0, repeatLocation: "", remarks: "", description: "", rootCause: "", correction: "", correctiveAction: "", capturedAt: toDatetimeLocal(new Date()) };
   if (typeof window === "undefined") return empty;
   const raw = sessionStorage.getItem("verionai-lessons-draft");
   if (!raw) return empty;
@@ -196,7 +196,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   // Scope-aware: once the org defines approver scopes (Settings → Users &
   // Access), only approvers matching this lesson's project/discipline/
   // categorisation are offered.
-  const approverParams = { projectId: draft.projectId || undefined, discipline: draft.disciplineId || undefined, categorisation: draft.categorisationId || undefined };
+  const approverParams = { projectId: draft.sourceType !== "Department" ? draft.projectId || undefined : undefined, departmentId: draft.sourceType === "Department" ? draft.departmentId || undefined : undefined, discipline: draft.disciplineId || undefined, categorisation: draft.categorisationId || undefined };
   const approvers = useListLessonApprovers(approverParams, { query: { queryKey: getListLessonApproversQueryKey(approverParams), staleTime: 0, refetchInterval: 30000 } });
   const disciplines = useLov("disciplines");
   const categorisations = useLov("lesson_categorisations");
@@ -239,7 +239,7 @@ export function LessonFormPage({ id }: { id?: string }) {
   useEffect(() => {
     if (!detail.data) return;
     const x = detail.data;
-    setDraft({ title: x.title, projectId: x.projectId, disciplineId: x.disciplineId, categorisationId: x.categorisationId, reference: x.reference ?? "", issueCategory: x.issueCategory, impact: x.impact, approverId: x.approverId ?? "", isRepeatedIssue: x.isRepeatedIssue ?? false, repeatCount: x.repeatCount ?? 0, repeatLocation: x.repeatLocation ?? "", remarks: x.remarks ?? "", description: x.description, rootCause: x.rootCause, correction: x.correction, correctiveAction: x.correctiveAction, capturedAt: toDatetimeLocal(new Date(x.capturedAt)), gpsLat: x.gpsLat ?? undefined, gpsLng: x.gpsLng ?? undefined });
+    setDraft({ title: x.title, projectId: x.projectId ?? "", sourceType: x.departmentId ? "Department" : "Project", departmentId: x.departmentId ?? "", disciplineId: x.disciplineId, categorisationId: x.categorisationId, reference: x.reference ?? "", issueCategory: x.issueCategory, impact: x.impact, approverId: x.approverId ?? "", isRepeatedIssue: x.isRepeatedIssue ?? false, repeatCount: x.repeatCount ?? 0, repeatLocation: x.repeatLocation ?? "", remarks: x.remarks ?? "", description: x.description, rootCause: x.rootCause, correction: x.correction, correctiveAction: x.correctiveAction, capturedAt: toDatetimeLocal(new Date(x.capturedAt)), gpsLat: x.gpsLat ?? undefined, gpsLng: x.gpsLng ?? undefined });
   }, [detail.data]);
 
   const readOnly = Boolean(detail.data && !["Draft", "Sent Back"].includes(detail.data.workflowState));
@@ -258,7 +258,9 @@ export function LessonFormPage({ id }: { id?: string }) {
   function set<K extends keyof Draft>(key: K, value: Draft[K]) { setDraft((d) => ({ ...d, [key]: value })); setErrors((e) => ({ ...e, [key]: "" })); }
   function validate(requireApprover = true) {
     const next: Record<string, string> = {};
-    (["title","projectId","disciplineId","categorisationId","description","rootCause","correction","correctiveAction"] as const).forEach((key) => { if (!draft[key]?.trim()) next[key] = "This field is required."; });
+    (["title","disciplineId","categorisationId","description","rootCause","correction","correctiveAction"] as const).forEach((key) => { if (!draft[key]?.trim()) next[key] = "This field is required."; });
+    const sourceKey = draft.sourceType === "Department" ? "departmentId" : "projectId";
+    if (!draft[sourceKey]?.trim()) next[sourceKey] = "This field is required.";
     if (requireApprover && !draft.approverId) next.approverId = "Choose an approver before submitting.";
     if (!draft.capturedAt) next.capturedAt = "Enter when this lesson was captured.";
     else if (Number.isNaN(new Date(draft.capturedAt).valueOf())) next.capturedAt = "Enter a valid date and time.";
@@ -266,6 +268,7 @@ export function LessonFormPage({ id }: { id?: string }) {
     if (draft.isRepeatedIssue && draft.repeatCount < 1) next.repeatCount = "Enter how many times this issue was repeated.";
     if (draft.isRepeatedIssue && !draft.repeatLocation.trim()) next.repeatLocation = "Enter where this issue was repeated.";
     for (const key of fieldControls.mandatoryFieldKeys()) {
+      if ((key === "projectId" && draft.sourceType === "Department") || (key === "departmentId" && draft.sourceType !== "Department")) continue;
       if (next[key]) continue;
       if ((key === "repeatCount" || key === "repeatLocation") && !draft.isRepeatedIssue) continue;
       const value = draft[key as keyof Draft];
@@ -281,6 +284,9 @@ export function LessonFormPage({ id }: { id?: string }) {
   function body(): LessonLearnedForm {
     return {
       ...draft,
+      sourceType: draft.sourceType ?? "Project",
+      projectId: draft.sourceType === "Department" ? null : draft.projectId,
+      departmentId: draft.sourceType === "Department" ? draft.departmentId : null,
       approverId: draft.approverId || null,
       id: detail.data?.id ?? clientReference,
       version: detail.data?.version ?? 1,
@@ -485,7 +491,10 @@ export function LessonFormPage({ id }: { id?: string }) {
       <div className="grid gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2"><CardHeader><CardTitle>Lesson details</CardTitle></CardHeader><CardContent className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Project Name" error={errors.projectId} required={fp("projectId").required}><Select value={draft.projectId} onValueChange={(v) => set("projectId", v)} disabled={disabled("projectId")}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger><SelectContent>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></Field>
+            <Field label="Project / Department" required error={errors.sourceType}><Select value={draft.sourceType ?? "Project"} disabled={disabled("sourceType")} onValueChange={value => { setDraft(d => ({ ...d, sourceType: value as Draft["sourceType"], projectId: "", departmentId: "", approverId: "" })); setErrors({}); }}><SelectTrigger aria-label="Project / Department"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Project">Project</SelectItem><SelectItem value="Department">Department</SelectItem></SelectContent></Select></Field>
+            {draft.sourceType === "Department"
+              ? <Field label="Department" error={errors.departmentId} required><Select value={draft.departmentId} onValueChange={v => { set("departmentId", v); set("approverId", ""); }} disabled={disabled("departmentId")}><SelectTrigger aria-label="Department"><SelectValue placeholder="Select department" /></SelectTrigger><SelectContent>{(refs.data?.departments ?? []).map(x => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}{draft.departmentId && !refs.data?.departments?.some(d => d.id === draft.departmentId) && detail.data?.departmentId === draft.departmentId && <SelectItem value={draft.departmentId}>{detail.data.departmentName ?? "Previously selected department"}</SelectItem>}</SelectContent></Select></Field>
+              : <Field label="Project Name" error={errors.projectId} required><Select value={draft.projectId} onValueChange={(v) => set("projectId", v)} disabled={disabled("projectId")}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger><SelectContent>{refs.data?.projects.map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}</SelectContent></Select></Field>}
             <Field label="Reference Number"><Input value={record?.referenceNumber ?? "Generated after first save"} disabled /></Field>
             <Field label="Title" error={errors.title} required={fp("title").required} className="sm:col-span-2"><Input value={draft.title} onChange={(e) => set("title", e.target.value)} disabled={disabled("title")} /></Field>
             <Field label="Discipline" error={errors.disciplineId} required={fp("disciplineId").required}><Select value={draft.disciplineId} onValueChange={(v) => set("disciplineId", v)} disabled={disabled("disciplineId") || disciplines.isLoading}><SelectTrigger><SelectValue placeholder="Select discipline" /></SelectTrigger><SelectContent>{withLegacyOption(disciplines.options, draft.disciplineId).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>

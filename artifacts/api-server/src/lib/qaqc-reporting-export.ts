@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { applyExcelDateFormats } from "./excel-date-cells";
 import { formatSpreadsheetData, formatPresentationData } from "@workspace/spreadsheet-dates";
 import type { ReportingType } from "./qaqc-reporting-excel";
+import type { PortfolioPqi } from "./qaqc-portfolio-pqi";
 
 export type QaqcReportExport = {
   id: string;
@@ -10,6 +11,17 @@ export type QaqcReportExport = {
   projectId: string;
   projectName?: string | null;
   projectCode?: string | null;
+  costCentre?: string | null;
+  submittedByName?: string | null;
+  submittedByDesignation?: string | null;
+  createdByName?: string | null;
+  projectTeam?: { pmName?: string | null; peName?: string | null; dcName?: string | null };
+  organizationTimezone?: string | null;
+  monthlyDownloadPqi?: { average: number | null; projectCount: number };
+  monthlyDashboardPortfolio?: PortfolioPqi;
+  dailyReportPdfUrl?: string;
+  projectLocation?: string | null;
+  projectAdditionalData?: Record<string, unknown> | null;
   reportType: ReportingType | string;
   period: string;
   state: string;
@@ -184,6 +196,28 @@ async function makePdf(title: string, sections: Array<[string, unknown]>) {
 }
 
 export async function exportQaqcReportPdf(report: QaqcReportExport, options: { templateId?: string } = {}): Promise<Buffer> {
+  if (report.reportType === "daily" && options.templateId === "daily-dashboard") {
+    const { exportDailyDashboardPdf } = await import("./qaqc-daily-dashboard-pdf");
+    return exportDailyDashboardPdf(report);
+  }
+  if (report.reportType === "monthly" && options.templateId === "monthly-dashboard") {
+    const { exportMonthlyDashboardPdf } = await import("./qaqc-monthly-dashboard-pdf");
+    return exportMonthlyDashboardPdf(report);
+  }
+  if (report.reportType === "daily" && options.templateId === "daily-submission") {
+    const { exportDailySubmissionPdf } = await import("./qaqc-daily-report-pdf");
+    return exportDailySubmissionPdf(report);
+  }
+  if (report.reportType === "csat" && options.templateId === "csat-form") {
+    const { exportCsatReportPdf } = await import("./qaqc-csat-report-pdf");
+    return exportCsatReportPdf(report);
+  }
+  // Opt-in from the Metrics landing page only. Other downloads, managed PDF
+  // templates and scheduled email attachments keep their existing behavior.
+  if (report.reportType === "monthly" && options.templateId === "monthly-metrics") {
+    const { exportMonthlyMetricsPdf } = await import("./qaqc-monthly-report-pdf");
+    return exportMonthlyMetricsPdf(report);
+  }
   report = formatPresentationData(report);
   const title = `${report.reportType.toUpperCase()} QA/QC Report`;
   const metadata = {

@@ -5,7 +5,7 @@ description: Organization-selected date presentation, strict spreadsheet parsing
 
 QMS360 dates use the organization's configured format across platform, Lessons,
 QA/QC and Audit displays, date entry, PDF/Word reports and Excel/CSV boundaries.
-DD/MM/YYYY is the default, not a mandatory fixed policy.
+DD/MM/YYYY is the default, not a mandatory fixed policy. This explicitly includes Historical Balances / Go-live Setup workbooks and their upload parsing, as reinforced by the user on 2026-10-21.
 
 Date-only fields must use a date-only calendar picker. Fields requiring both
 date and time must show a combined calendar and time picker; displaying a time

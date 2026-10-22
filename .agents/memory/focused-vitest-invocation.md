@@ -18,3 +18,9 @@ which are absent in an ordinary shell. Vitest is installed in leaf packages,
 not as a workspace-root executable.
 
 **How to apply:** Use `pnpm --filter @workspace/api-server exec vitest run --root ../.. artifacts/qms360/<focused-test-path>`.
+
+Keep server-rendered HTML assertions tolerant of extra instrumentation attributes.
+
+**Why:** Loading the frontend development Vite config in this environment injects Replit metadata into JSX elements, so exact opening-tag comparisons can fail despite correct behavior.
+
+**How to apply:** Assert the relevant attributes or control state without requiring an exact attribute list or ordering; prefer the isolated test invocation above when development plugins are unnecessary.

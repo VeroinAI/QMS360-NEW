@@ -13,6 +13,7 @@ projectId?: string;
  * Discipline LOV value
  */
 discipline?: string;
+departmentId?: string;
 /**
  * Categorisation LOV value
  */

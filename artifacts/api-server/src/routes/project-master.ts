@@ -48,11 +48,11 @@ router.patch("/integrations/project-master/:projectId/cost-centre", requireAuth,
 router.patch("/integrations/project-master/:projectId/additional-data", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const params = UpdateProjectAdditionalDataParams.safeParse(req.params);
   const body = UpdateProjectAdditionalDataBody.safeParse(req.body);
-  const keys = ["client", "contractor", "contractProjectNumber", "contractSigned", "contractPeriod", "tcc", "pac", "fac"];
+  const keys = Object.keys(UpdateProjectAdditionalDataBody.shape.additionalData.shape);
   if (!params.success || !body.success ||
       Object.keys(req.body ?? {}).some(key => !["costCentre", "additionalData"].includes(key)) ||
       Object.keys(req.body?.additionalData ?? {}).some(key => !keys.includes(key))) {
-    res.status(400).json({ error: "Provide valid additional project data using only the listed fields." });
+    res.status(400).json({ error: "Provide valid additional project data. Email address must be valid; Phone must include + and a country code with 7–15 digits in total (e.g. +91 9876543210)." });
     return;
   }
   const values = [body.data.costCentre, ...Object.values(body.data.additionalData)];

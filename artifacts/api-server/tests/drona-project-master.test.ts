@@ -241,6 +241,7 @@ describe("administrator-only QMS project cost centers", () => {
 const additionalValues = {
   client: "Client A", contractor: "Contractor B", contractProjectNumber: "CT-001",
   contractSigned: "2026-10-13", contractPeriod: "24 months", tcc: "TCC-1", pac: "PAC-1", fac: "FAC-1",
+  name: "Project Contact", email: "quality@example.test", phone: "+91 9234567890",
 };
 async function patchAdditional(projectId: string, body: unknown, role = "Org Admin") {
   const response = await fetch(`${base}/api/integrations/project-master/${projectId}/additional-data`, {
@@ -281,13 +282,19 @@ describe("QMS project additional data", () => {
     await query("UPDATE shared.projects SET custom_fields=$2 WHERE id=$1", [legacy, { cost_centre: "LEGACY-CC" }]);
     const record = (await get()).body.items.find(item => item.id === legacy) as any;
     expect(record.costCentre).toBe("LEGACY-CC");
-    expect(Object.values(record.additionalData)).toEqual(Array(8).fill(null));
+    expect(record.additionalData).toEqual(Object.fromEntries(Object.keys(additionalValues).map(key => [key, null])));
     expect((await patchAdditional(legacy, { costCentre: record.costCentre, additionalData: additionalValues })).body.costCentre).toBe("LEGACY-CC");
   });
   it("does not require Drona link metadata", async () => {
     await query("DROP TABLE shared.drona_project_links");
     expect((await patchAdditional(ordinary, { costCentre: null, additionalData: additionalValues })).status).toBe(200);
     expect((await get()).body.items.find(item => item.id === ordinary)).toMatchObject({ additionalData: additionalValues });
+  });
+  it("still accepts older clients that omit the optional contact fields", async () => {
+    const { name: _name, email: _email, phone: _phone, ...legacyValues } = additionalValues;
+    const result = await patchAdditional(ordinary, { costCentre: null, additionalData: legacyValues });
+    expect(result.status).toBe(200);
+    expect(result.body.additionalData).toMatchObject({ ...legacyValues, name: null, email: null, phone: null });
   });
   it("handles an explicitly null additional-data container", async () => {
     await query("UPDATE shared.projects SET custom_fields=$2 WHERE id=$1", [ordinary, { qmsAdditionalData: null, retained: true }]);
@@ -316,6 +323,9 @@ describe("QMS project additional data", () => {
     {}, { costCentre: null, additionalData: {} },
     { costCentre: "x".repeat(101), additionalData: additionalValues },
     { costCentre: null, additionalData: { ...additionalValues, client: "x".repeat(501) } },
+    { costCentre: null, additionalData: { ...additionalValues, name: "x".repeat(501) } },
+    { costCentre: null, additionalData: { ...additionalValues, email: "invalid-address" } },
+    { costCentre: null, additionalData: { ...additionalValues, phone: "9234567890" } },
     { costCentre: null, additionalData: { ...additionalValues, contractor: "bad\nvalue" } },
     { costCentre: null, additionalData: { ...additionalValues, contractSigned: "2026-02-30" } },
     { costCentre: null, additionalData: { ...additionalValues, contractSigned: "13-10-2026" } },

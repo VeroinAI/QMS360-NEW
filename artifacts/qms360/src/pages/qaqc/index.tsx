@@ -259,48 +259,14 @@ async function xlsxToMetricRows(file: File): Promise<QAQCMetricEntry[]> {
 function MetricsPage() {
   const cap = useQaqcCapabilities();
   if (cap.isLoading) return <Page title="QA/QC metrics" description="Monthly quality reports and metric details."><p>Loading permissions…</p></Page>;
-  if (!cap.canAnyRead('metrics')) return <Page title="QA/QC metrics" description="Monthly quality reports and metric details.">
-    {cap.canAnyRead('monthly_reports') ? <MetricsReportList /> : <p>No metric or monthly-report viewing activity is assigned to your role.</p>}
-  </Page>;
   return <NativeMetricsPage />;
 }
 function NativeMetricsPage() {
   const cap = useQaqcCapabilities(); const M = 'metrics';
-  const queryClient = useQueryClient(); const { toast } = useToast();
-  const [page, setPage] = useState(1); const [projectId, setProjectId] = useState(''); const [period, setPeriod] = useState(''); const [category, setCategory] = useState('External NCR'); const [open, setOpen] = useState(false); const [seed, setSeed] = useState<Record<string, unknown>>({}); const [editing, setEditing] = useState<QAQCMetricEntry>();
-  const query = useListQaqcMetrics({ page, limit, projectId: projectId || undefined, period: period || undefined });
-  const categories = useLov('metric_categories');
-  const rows = (query.data?.items || []).filter(r => r.category === category);
-  const del = useDeleteQaqcMetric(); const submit = useSubmitQaqcMetric(); const review = useReviewQaqcMetric(); const importer = useImportQaqcMetrics();
-  const [reviewing, setReviewing] = useState<{ id: string; decision: 'approve' | 'send_back' }>(); const [comments, setComments] = useState('');
-  const done = (message: string) => { invalidate(queryClient); toast({ title: message }); };
-  const importFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    try {
-      const rows = /\.xlsx$/i.test(file.name) ? await xlsxToMetricRows(file) : csvToMetricRows(await file.text());
-      if (!rows.length) { toast({ title: 'No data rows found', description: 'Use the downloaded template and keep the header row.', variant: 'destructive' }); return; }
-      importer.mutate({ data: rows }, {
-        onSuccess: r => { done(`Import finished: ${r.created} created, ${r.updated} updated`); if (r.errors?.length) toast({ title: `${r.rejected} rows rejected`, description: r.errors.map(x => x.error).join(', '), variant: 'destructive' }); },
-        onError: err => toast({ title: 'Import failed', description: errorText(err), variant: 'destructive' }),
-      });
-    } catch { toast({ title: 'Could not read the file', description: 'Use the downloaded CSV or Excel template and try again.', variant: 'destructive' }); }
-  };
-  return <Page title="QA/QC Metrics – Monthly Report" description="Monthly quality transactions, closure performance and ageing analysis." actions={<>{cap.can(M, 'create_edit') && <Link href="/qaqc/metrics/new"><Button variant="secondary"><Plus className="mr-2 size-4" />New entry</Button></Link>}</>}>
-    {cap.can(M, 'create_edit') && cap.can(M, 'ai') && <AiQuickEntry onExtract={data => { setEditing(undefined); setSeed(data); setOpen(true); }} />}
-    <Card><CardContent className="flex flex-col gap-3 p-4 sm:flex-row"><SearchBox value={projectId} onChange={v => { setProjectId(v); setPage(1); }} placeholder="Filter by project ID" /><Input className="w-full sm:w-44" type="month" value={period} onChange={e => { setPeriod(e.target.value); setPage(1); }} />{cap.can(M, 'import') && <Label className="hidden"><Upload className="size-4" />{importer.isPending ? 'Importing…' : 'Import Excel / CSV'}<input className="hidden" type="file" accept=".csv,.xlsx" onChange={importFile} /></Label>}</CardContent></Card>
-    {cap.canAnyRead('monthly_reports') && <MetricsReportList />}
-    <Tabs value={category} onValueChange={setCategory}><TabsList className="h-auto flex-wrap">{withLegacyOption(categories.options, category).map(c => <TabsTrigger key={c.value} value={c.value}>{c.label}</TabsTrigger>)}</TabsList></Tabs>
-    <QueryState loading={query.isLoading} error={query.error} empty={!rows.length}><Card className="overflow-hidden"><Table><TableHeader><TableRow><TableHead>Ref</TableHead><TableHead>Project / period</TableHead><TableHead>Issued</TableHead><TableHead>Closed</TableHead><TableHead>Ageing 0–15 / 15–45 / &gt;45</TableHead><TableHead>Closure</TableHead><TableHead>Variance</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{rows.map(row => {
-      const rate = row.issuedCount === 0 && row.closedCount === 0 ? 100 : row.issuedCount ? row.closedCount / row.issuedCount * 100 : 0;
-      return <TableRow key={row.id}><TableCell className="font-mono text-xs">{row.referenceNumber ?? '—'}</TableCell><TableCell><p className="font-medium">{row.projectId}</p><p className="text-xs text-muted-foreground">{row.period}</p></TableCell><TableCell>{row.issuedCount}</TableCell><TableCell>{row.closedCount}</TableCell><TableCell>{row.ageing0To15} / {row.ageing15To45} / {row.ageingOver45}</TableCell><TableCell>{(row.closureRate ?? rate).toFixed(1)}%</TableCell><TableCell>{(row.variance ?? 0).toFixed(1)}</TableCell><TableCell><StateBadge state={row.workflowState} /></TableCell><TableCell><div className="flex justify-end gap-1">{cap.can(M, 'create_edit') && (row.workflowState === 'Draft' || row.workflowState === 'Sent Back') && <Button size="sm" variant="ghost" onClick={() => { setEditing(row); setOpen(true); }}>Edit</Button>}{cap.can(M, 'submit') && row.workflowState === 'Draft' && <SubmitForReviewButton label="Submit" size="sm" disabled={submit.isPending} onSubmit={(approverId) => submit.mutate({ id: row.id, data: { approverId } }, { onSuccess: () => done('Metric submitted') })} />}{cap.can(M, 'approve_reject') && row.workflowState === 'Submitted' && <><Button size="sm" onClick={() => setReviewing({ id: row.id, decision: 'approve' })}>Approve</Button><Button size="sm" variant="outline" onClick={() => setReviewing({ id: row.id, decision: 'send_back' })}>Send back</Button></>}{cap.can(M, 'delete') && <ConfirmDelete busy={del.isPending} onConfirm={() => del.mutate({ id: row.id }, { onSuccess: () => done('Metric deleted') })} />}</div></TableCell></TableRow>;
-    })}</TableBody></Table><Pager page={page} total={query.data?.total || 0} onPage={setPage} /></Card></QueryState>
-    <MetricDialog key={`${editing?.id || 'new'}-${JSON.stringify(seed)}`} open={open} onOpenChange={setOpen} seed={seed} existing={editing} />
-    <Dialog open={!!reviewing} onOpenChange={() => setReviewing(undefined)}><DialogContent><DialogHeader>
-      <DialogTitle>{workflowConfirmationMessage(reviewing?.decision === 'approve' ? 'approve' : 'send_back', 'this quality metric').title}</DialogTitle>
-      <DialogDescription>{workflowConfirmationMessage(reviewing?.decision === 'approve' ? 'approve' : 'send_back', 'this quality metric').description} Add review remarks. Remarks are required when sending back.</DialogDescription>
-    </DialogHeader><Textarea value={comments} onChange={e => setComments(e.target.value)} placeholder="Review remarks" /><DialogFooter><Button variant="outline" onClick={() => setReviewing(undefined)}>Cancel</Button><Button disabled={!reviewing || (reviewing.decision === 'send_back' && !comments.trim()) || review.isPending} onClick={() => reviewing && review.mutate({ id: reviewing.id, data: { decision: reviewing.decision, comments } }, { onSuccess: () => { done(reviewing.decision === 'approve' ? 'Metric approved' : 'Metric sent back'); setReviewing(undefined); setComments(''); } })}>{workflowConfirmationMessage(reviewing?.decision === 'approve' ? 'approve' : 'send_back', 'this quality metric').confirmLabel}</Button></DialogFooter></DialogContent></Dialog>
+  const [open, setOpen] = useState(false); const [seed, setSeed] = useState<Record<string, unknown>>({});
+  return <Page title="QA/QC Metrics – Monthly Report" description="Monthly quality reports for your authorized projects." actions={<>{cap.can('monthly_reports', 'create_edit') && <Link href="/qaqc/metrics/new"><Button variant="secondary"><Plus className="mr-2 size-4" />New entry</Button></Link>}</>}>
+    <MetricsReportList />
+    <MetricDialog key={`new-${JSON.stringify(seed)}`} open={open} onOpenChange={setOpen} seed={seed} />
   </Page>;
 }
 

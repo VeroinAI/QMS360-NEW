@@ -4,7 +4,9 @@ import { organizations, projects, users } from "./shared";
 import { createAppAdministration } from "./app-common";
 
 export const app2LessonsSchema = pgSchema("app2_lessons");
-const admin = createAppAdministration(app2LessonsSchema);
+const admin = createAppAdministration(app2LessonsSchema, {
+  departmentIds: uuid("department_ids").array().notNull().default(sql`ARRAY[]::uuid[]`),
+});
 export const lessonsEvidenceStatus = admin.evidenceStatus;
 export const lessonsNotificationChannel = admin.notificationChannel;
 export const lessonsPlatformRoles = admin.platformRoles;
@@ -77,7 +79,8 @@ export const lessonApproverScopes = app2LessonsSchema.table("lesson_approver_sco
 export const lessonLearnedForms = app2LessonsSchema.table("lesson_learned_forms", {
   id: uuid("id").defaultRandom().primaryKey(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
-  projectId: uuid("project_id").notNull().references(() => projects.id),
+  projectId: uuid("project_id").references(() => projects.id),
+  departmentId: uuid("department_id"),
   disciplineId: uuid("discipline_id").references(() => lessonsDisciplines.id),
   referenceNumber: text("reference_number").notNull(),
   title: text("title").notNull(),
@@ -113,6 +116,7 @@ export const lessonLearnedForms = app2LessonsSchema.table("lesson_learned_forms"
   ...auditColumns,
 }, (table) => [
   uniqueIndex("lesson_project_reference_active_idx").on(table.organizationId, table.projectId, table.referenceNumber).where(sql`${table.deletedAt} IS NULL`),
+  uniqueIndex("lesson_department_reference_active_idx").on(table.organizationId, table.departmentId, table.referenceNumber).where(sql`${table.deletedAt} IS NULL AND ${table.departmentId} IS NOT NULL`),
   uniqueIndex("lesson_client_reference_active_idx").on(table.organizationId, table.clientReference).where(sql`${table.deletedAt} IS NULL AND ${table.clientReference} IS NOT NULL`),
 ]);
 

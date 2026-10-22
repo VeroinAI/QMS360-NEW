@@ -35,6 +35,134 @@ tags:
   - name: audit-admin
     description: QMS Audit workspace administration
 paths:
+  /qaqc/reporting/historical-balances/bulk-template:
+    get:
+      operationId: getQaqcHistoricalBulkTemplate
+      tags: [qaqc]
+      parameters:
+        - {in: query, name: period, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: One project per row, with all 14 historical balances in columns
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: {type: string, format: binary}
+  /qaqc/reporting/historical-balances/bulk-preview:
+    post:
+      operationId: previewQaqcHistoricalBulkWorkbook
+      tags: [qaqc]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/QaqcHistoricalBulkUpload'}
+      responses:
+        '200':
+          description: Authorized per-project preview; no balances have been saved
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/QaqcHistoricalBulkPreview'}
+        '403': {description: At least one project is outside import scope}
+        '422': {description: "Workbook errors, including Excel row numbers"}
+  /qaqc/reporting/historical-balances/bulk-apply:
+    post:
+      operationId: applyQaqcHistoricalBulkBalances
+      tags: [qaqc]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/QaqcHistoricalBulkApply'}
+      responses:
+        '200':
+          description: All projects applied atomically with draft refreshes and per-project audit history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results, updatedProjects, updatedDrafts]
+                properties:
+                  updatedProjects: {type: number}
+                  updatedDrafts: {type: number}
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      required: [projectId, version, updatedDrafts]
+                      properties:
+                        projectId: {type: string}
+                        version: {type: number}
+                        updatedDrafts: {type: number}
+        '403': {description: Missing per-project historical import or edit permission}
+        '409': {description: Stale version or submitted history; the entire batch was rolled back}
+        '422': {description: Invalid balances or incompatible draft; the entire batch was rolled back}
+  /qaqc/reporting/historical-balances/projects:
+    get:
+      operationId: getQaqcHistoricalProjects
+      tags: [qaqc]
+      responses:
+        '200':
+          description: Projects authorized for historical balance maintenance
+          content:
+            application/json:
+              schema: {type: array, items: {type: object, additionalProperties: true}}
+  /qaqc/reporting/historical-balances:
+    get:
+      operationId: getQaqcHistoricalBalances
+      tags: [qaqc]
+      parameters:
+        - {in: query, name: projectId, required: true, schema: {type: string}}
+        - {in: query, name: period, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Opening balances, derived values, impact and retained audit history
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: true}
+    put:
+      operationId: saveQaqcHistoricalBalances
+      tags: [qaqc]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/QaqcHistoricalBalanceInput'}
+      responses:
+        '200':
+          description: Saved with draft recalculations and audit record
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: true}
+        '409': {description: Stale version or submitted reporting period}
+  /qaqc/reporting/historical-balances/preview:
+    post:
+      operationId: previewQaqcHistoricalWorkbook
+      tags: [qaqc]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/QaqcHistoricalWorkbookInput'}
+      responses:
+        '200':
+          description: Validated workbook without persisting changes
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: true}
+        '422': {description: Invalid workbook}
+  /qaqc/reporting/historical-balances/template:
+    get:
+      operationId: getQaqcHistoricalTemplate
+      tags: [qaqc]
+      parameters:
+        - {in: query, name: projectId, required: true, schema: {type: string}}
+        - {in: query, name: period, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Project and period specific Excel workbook
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: {type: string, format: binary}
   /healthz:
     get:
       operationId: healthCheck
@@ -1352,14 +1480,18 @@ paths:
     put: {operationId: updateQaqcRole, tags: [qaqc-admin], summary: Update workspace role, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Role"}, responses: {"200": {description: Updated}}}
   /qaqc/admin/users:
     get: {operationId: listQaqcUsers, tags: [qaqc-admin], summary: List workspace users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
+  /qaqc/admin/users/{userId}/profile:
+    put: {operationId: updateQaqcUserProfile, tags: [qaqc-admin], summary: Update a user's designation and signature, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/UserProfileUpdate"}}}}, responses: {"200": {description: Updated profile, content: {application/json: {schema: {$ref: "#/components/schemas/QaqcUserProfileResult"}}}}, "403": {description: Role management access required}, "404": {description: User not found}, "422": {description: Invalid profile or signature}}}
+  /qaqc/admin/users/{userId}/signature:
+    get: {operationId: getQaqcUserSignature, tags: [qaqc-admin], summary: Retrieve a managed user's signature image, parameters: [{$ref: "#/components/parameters/UserId"}], responses: {"200": {description: Signature image, content: {image/png: {schema: {type: string, format: binary}}, image/jpeg: {schema: {type: string, format: binary}}, image/webp: {schema: {type: string, format: binary}}}}, "403": {description: Role management access required}, "404": {description: Signature not found}}}
   /qaqc/admin/users/{userId}/roles:
     post: {operationId: assignQaqcUserRole, tags: [qaqc-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
   /qaqc/admin/users/{userId}/roles/{id}:
     delete: {operationId: removeQaqcUserRole, tags: [qaqc-admin], summary: Remove an assigned role, parameters: [{$ref: "#/components/parameters/UserId"}, {$ref: "#/components/parameters/Id"}], responses: {"204": {description: Removed}}}
   /qaqc/admin/access-queue:
-    get: {operationId: listQaqcAccessQueue, tags: [qaqc-admin], summary: List pending access requests, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
+    get: {operationId: listQaqcAccessQueue, deprecated: true, tags: [qaqc-admin], summary: Retired access queue (always empty; active roles grant entry), parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
   /qaqc/admin/access-queue/{id}/decision:
-    post: {operationId: decideQaqcAccessRequest, tags: [qaqc-admin], summary: Decide an access request, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"200": {description: Decided}}}
+    post: {operationId: decideQaqcAccessRequest, deprecated: true, tags: [qaqc-admin], summary: Retired application approval, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"410": {description: Application entry now follows active role assignments}}}
   /qaqc/admin/delegations:
     get: {operationId: listQaqcDelegations, tags: [qaqc-admin], summary: List delegations, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/DelegationPage"}}}
     post: {operationId: createQaqcDelegation, tags: [qaqc-admin], summary: Create delegation, requestBody: {$ref: "#/components/requestBodies/Delegation"}, responses: {"201": {description: Created}}}
@@ -1394,6 +1526,7 @@ paths:
       parameters:
         - {name: projectId, in: query, schema: {type: string}}
         - {name: discipline, in: query, schema: {type: string}, description: Discipline LOV value}
+        - {name: departmentId, in: query, schema: {type: string}}
         - {name: categorisation, in: query, schema: {type: string}, description: Categorisation LOV value}
         - {name: includeSelf, in: query, schema: {type: string, enum: ["true"]}}
       responses: {"200": {description: Approvers, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/LessonApproverOption"}}}}}}
@@ -1423,6 +1556,7 @@ paths:
       summary: Search the lesson learned knowledge base
       parameters:
         - {name: search, in: query, schema: {type: string}}
+        - {name: departmentId, in: query, schema: {type: string}}
         - {$ref: "#/components/parameters/ProjectId"}
         - {name: disciplineId, in: query, schema: {type: string}}
         - {name: category, in: query, schema: {type: string}}
@@ -1490,6 +1624,7 @@ paths:
       summary: Export every lesson matching the lesson-log filters
       parameters:
         - {name: creatorId, in: query, schema: {type: string}}
+        - {name: departmentId, in: query, schema: {type: string}}
         - {name: search, in: query, schema: {type: string}}
         - {$ref: "#/components/parameters/ProjectId"}
         - {name: disciplineId, in: query, schema: {type: string}}
@@ -1520,7 +1655,7 @@ paths:
   /lessons/admin/users:
     get: {operationId: listLessonsUsers, tags: [lessons-admin], summary: List users, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/WorkspaceUserPage"}}}
   /lessons/admin/users/{userId}/roles:
-    post: {operationId: assignLessonsUserRole, tags: [lessons-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {$ref: "#/components/requestBodies/RoleAssignment"}, responses: {"200": {description: Assigned}}}
+    post: {operationId: assignLessonsUserRole, tags: [lessons-admin], summary: Assign role and scope, parameters: [{$ref: "#/components/parameters/UserId"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonsRoleAssignment"}}}}, responses: {"200": {description: Assigned}}}
   /lessons/admin/users/{userId}/roles/{id}:
     delete: {operationId: removeLessonsUserRole, tags: [lessons-admin], summary: Remove an assigned role, parameters: [{$ref: "#/components/parameters/UserId"}, {$ref: "#/components/parameters/Id"}], responses: {"204": {description: Removed}}}
   /lessons/admin/users/{userId}/profile:
@@ -1528,9 +1663,9 @@ paths:
   /lessons/users/{userId}/signature:
     get: {operationId: getUserSignature, tags: [lessons], summary: Stream a user's signature image, parameters: [{$ref: "#/components/parameters/UserId"}], responses: {"200": {description: Signature image, content: {image/png: {}, image/jpeg: {}, image/webp: {}}}}}
   /lessons/admin/access-queue:
-    get: {operationId: listLessonsAccessQueue, tags: [lessons-admin], summary: List access queue, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
+    get: {operationId: listLessonsAccessQueue, deprecated: true, tags: [lessons-admin], summary: Retired access queue (always empty; active roles grant entry), parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
   /lessons/admin/access-queue/{id}/decision:
-    post: {operationId: decideLessonsAccessRequest, tags: [lessons-admin], summary: Decide access request, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"200": {description: Decided}}}
+    post: {operationId: decideLessonsAccessRequest, deprecated: true, tags: [lessons-admin], summary: Retired application approval, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"410": {description: Application entry now follows active role assignments}}}
   /lessons/admin/delegations:
     get: {operationId: listLessonsDelegations, tags: [lessons-admin], summary: List lesson delegations, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {description: Paginated lesson delegations, content: {application/json: {schema: {$ref: "#/components/schemas/LessonDelegationPage"}}}}}}
     post: {operationId: createLessonsDelegation, tags: [lessons-admin], summary: Create a selected-form lesson delegation, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/LessonDelegationInput"}}}}, responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/LessonDelegation"}}}}}}
@@ -1954,7 +2089,7 @@ paths:
   /audit/admin/users/{userId}/roles/{id}:
     delete: {operationId: removeAuditUserRole, tags: [audit-admin], summary: Remove an assigned role, parameters: [{$ref: "#/components/parameters/UserId"}, {$ref: "#/components/parameters/Id"}], responses: {"204": {description: Removed}}}
   /audit/admin/access-queue:
-    get: {operationId: listAuditAccessQueue, tags: [audit-admin], summary: List access queue, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
+    get: {operationId: listAuditAccessQueue, deprecated: true, tags: [audit-admin], summary: Retired access queue (always empty; active roles grant entry), parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AccessRequestPage"}}}
   /audit/admin/plan-numbering:
     get: {operationId: getAuditPlanNumbering, tags: [audit-admin], summary: Read Audit Plan yearly project and department numbering, responses: {"200": {description: Numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingSettings"}}}}}}
     put: {operationId: updateAuditPlanNumbering, tags: [audit-admin], summary: Save Audit Plan number format without resetting counters, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}, responses: {"200": {description: Saved pattern, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanNumberingPattern"}}}}}}
@@ -2033,7 +2168,7 @@ paths:
     get: {operationId: getAuditScheduleNumbering, tags: [audit-admin], summary: Get separate Audit Schedule field numbering settings, responses: {"200": {description: Schedule numbering settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}}}
     put: {operationId: updateAuditScheduleNumbering, tags: [audit-admin], summary: Set Audit Schedule field prefixes and ranges, requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}, responses: {"200": {description: Saved settings, content: {application/json: {schema: {$ref: "#/components/schemas/AuditScheduleNumbering"}}}}}}
   /audit/admin/access-queue/{id}/decision:
-    post: {operationId: decideAuditAccessRequest, tags: [audit-admin], summary: Decide access request, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"200": {description: Decided}}}
+    post: {operationId: decideAuditAccessRequest, deprecated: true, tags: [audit-admin], summary: Retired application approval, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/AdminDecision"}, responses: {"410": {description: Application entry now follows active role assignments}}}
   /audit/admin/delegations:
     get: {operationId: listAuditDelegations, tags: [audit-admin], summary: List delegations, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/DelegationPage"}}}
     post: {operationId: createAuditDelegation, tags: [audit-admin], summary: Create delegation, requestBody: {$ref: "#/components/requestBodies/Delegation"}, responses: {"201": {description: Created}}}
@@ -2272,6 +2407,78 @@ components:
     FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    QaqcHistoricalBulkUpload:
+      type: object
+      additionalProperties: false
+      required: [period, fileBase64]
+      properties:
+        period: {type: string}
+        fileBase64: {type: string, maxLength: 2800000}
+    QaqcHistoricalBulkApply:
+      type: object
+      additionalProperties: false
+      required: [period, items]
+      properties:
+        period: {type: string}
+        items:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items: {$ref: '#/components/schemas/QaqcHistoricalBalanceInput'}
+    QaqcHistoricalBalanceChange:
+      type: object
+      required: [key, label, before, after]
+      properties:
+        key: {type: string}
+        label: {type: string}
+        before: {type: number}
+        after: {type: number}
+    QaqcHistoricalBulkPreview:
+      type: object
+      required: [period, rows, canApply]
+      properties:
+        period: {type: string}
+        canApply: {type: boolean}
+        rows:
+          type: array
+          items:
+            type: object
+            required: [projectId, projectCode, projectName, period, version, reason, balances, rowNumber, errors, affectedDrafts, changes]
+            properties:
+              projectId: {type: string}
+              projectCode: {type: string}
+              projectName: {type: string}
+              period: {type: string}
+              version: {type: number}
+              reason: {type: string}
+              balances: {type: object, additionalProperties: {type: number}}
+              rowNumber: {type: number}
+              errors: {type: array, items: {type: string}}
+              affectedDrafts: {type: number}
+              changes: {type: array, items: {$ref: '#/components/schemas/QaqcHistoricalBalanceChange'}}
+    QaqcHistoricalBalanceInput:
+      type: object
+      additionalProperties: false
+      required: [projectId, period, version, reason, balances]
+      properties:
+        projectId: {type: string}
+        period: {type: string}
+        version: {type: number, minimum: 0}
+        rowNumber:
+          type: number
+          minimum: 1
+          maximum: 502
+          description: Original Excel row reference, carried internally from workbook preview to atomic apply.
+        reason: {type: string}
+        balances: {type: object, additionalProperties: {type: number}}
+    QaqcHistoricalWorkbookInput:
+      type: object
+      additionalProperties: false
+      required: [projectId, period, fileBase64]
+      properties:
+        projectId: {type: string}
+        period: {type: string}
+        fileBase64: {type: string}
     DronaUserSearch:
       type: object
       required: [email]
@@ -2544,6 +2751,7 @@ components:
       properties:
         roleName: {type: string}
         roleNames: {type: array, items: {type: string}, uniqueItems: true}
+        ccRoleNames: {type: array, items: {type: string, minLength: 1, maxLength: 200}, uniqueItems: true, maxItems: 100}
         projectIds: {type: array, items: {type: string}}
         senderMode: {type: string, enum: [form_creator, approving_user]}
         subjectTemplate: {type: string, maxLength: 250}
@@ -2948,6 +3156,7 @@ components:
       additionalProperties: false
       required: [client, contractor, contractProjectNumber, contractSigned, contractPeriod, tcc, pac, fac]
       properties:
+        name: {type: ["string", "null"], maxLength: 500}
         client: {type: ["string", "null"], maxLength: 500}
         contractor: {type: ["string", "null"], maxLength: 500}
         contractProjectNumber: {type: ["string", "null"], maxLength: 500}
@@ -2956,6 +3165,14 @@ components:
         tcc: {type: ["string", "null"], maxLength: 500}
         pac: {type: ["string", "null"], maxLength: 500}
         fac: {type: ["string", "null"], maxLength: 500}
+        email:
+          type: ["string", "null"]
+          maxLength: 254
+          pattern: '^[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$'
+        phone:
+          type: ["string", "null"]
+          maxLength: 32
+          pattern: '^\+[1-9](?:[ -]?[0-9]){6,14}$'
     ProjectAdditionalDataInput:
       type: object
       additionalProperties: false
@@ -3483,6 +3700,7 @@ components:
             qaqc.quality_briefs.submit, qaqc.quality_briefs.approve_reject, qaqc.quality_briefs.ai,
             qaqc.monthly_reports.view_own_scope, qaqc.monthly_reports.view_all, qaqc.monthly_reports.create_edit, qaqc.monthly_reports.delete,
             qaqc.monthly_reports.submit, qaqc.monthly_reports.approve_reject, qaqc.monthly_reports.import, qaqc.monthly_reports.export, qaqc.monthly_reports.ai,
+            qaqc.historical_balances.view_all, qaqc.historical_balances.create_edit, qaqc.historical_balances.import, qaqc.historical_balances.export,
             qaqc.monthly_sections.configured,
             qaqc.monthly_section_project.create_edit,
             qaqc.monthly_section_pqp.create_edit,
@@ -3513,11 +3731,15 @@ components:
     Role:
       type: object
       required: [id, name, permissions, active]
-      properties: {id: {type: string}, name: {type: string}, description: {type: [string, "null"]}, roleAuthorizationLevel: {type: [number, "null"], minimum: 1, maximum: 2147483647, multipleOf: 1, description: "Audit approval sequence level; required when Approve / reject is granted to an Audit role."}, permissions: {type: array, items: {$ref: "#/components/schemas/Permission"}}, active: {type: boolean}, systemDefault: {type: boolean}, scopeType: {type: string, enum: [organization, project]}, scopeIds: {type: array, items: {type: string}}}
+      properties: {id: {type: string}, name: {type: string}, description: {type: [string, "null"]}, roleAuthorizationLevel: {type: [number, "null"], minimum: 1, maximum: 2147483647, multipleOf: 1, description: "Audit approval sequence level; required when Approve / reject is granted to an Audit role."}, permissions: {type: array, items: {$ref: "#/components/schemas/Permission"}}, active: {type: boolean}, systemDefault: {type: boolean}, scopeType: {type: string, enum: [organization, project, department]}, scopeIds: {type: array, items: {type: string}}}
     RoleAssignment:
       type: object
       required: [roleId, scopeType, scopeIds]
       properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, project]}, scopeIds: {type: array, items: {type: string}}}
+    LessonsRoleAssignment:
+      type: object
+      required: [roleId, scopeType, scopeIds]
+      properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, project, department]}, scopeIds: {type: array, items: {type: string}}}
     SendAuditPlanForExecutionInput:
       type: object
       required: [roleIds]
@@ -3565,6 +3787,10 @@ components:
       properties:
         designation: {type: [string, "null"]}
         signatureDataUrl: {type: [string, "null"], description: "data:image/... base64 payload; null clears the signature"}
+    QaqcUserProfileResult:
+      type: object
+      required: [id, designation, signatureUrl]
+      properties: {id: {type: string}, designation: {type: [string, "null"]}, signatureUrl: {type: [string, "null"], format: uri-reference}}
     AuditUserProfileUpdateResult:
       type: object
       required: [id, designation, signatureUrl]
@@ -3823,7 +4049,7 @@ components:
     LessonsReferenceData:
       type: object
       required: [generatedAt, projects, disciplines, categorisation]
-      properties: {generatedAt: {type: string, format: date-time}, projects: {type: array, items: {$ref: "#/components/schemas/Project"}}, disciplines: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}, categorisation: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}}
+      properties: {generatedAt: {type: string, format: date-time}, projects: {type: array, items: {$ref: "#/components/schemas/Project"}}, departments: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}, disciplines: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}, categorisation: {type: array, items: {$ref: "#/components/schemas/ReferenceItem"}}}
     LessonApproverOption:
       type: object
       required: [id, fullName, email, roles]
@@ -3860,7 +4086,10 @@ components:
         id: {type: string}
         referenceNumber: {type: string, readOnly: true}
         reference: {type: [string, "null"]}
-        projectId: {type: string}
+        projectId: {type: [string, "null"]}
+        sourceType: {type: string, enum: [Project, Department]}
+        departmentId: {type: [string, "null"]}
+        departmentName: {type: [string, "null"], readOnly: true}
         title: {type: string}
         disciplineId: {type: string}
         categorisationId: {type: string}

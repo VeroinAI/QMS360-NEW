@@ -236,6 +236,7 @@ export const emailEventRules = sharedSchema.table("email_event_rules", {
   recipientConfig: jsonb("recipient_config").$type<{
     roleName?: string;
     roleNames?: string[];
+    ccRoleNames?: string[];
     projectIds?: string[];
     senderMode?: "form_creator" | "approving_user";
     subjectTemplate?: string;

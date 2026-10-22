@@ -1,0 +1,39 @@
+import { readFileSync } from 'node:fs';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { exportMonthlyDashboardPdf, exportMonthlyReportPdf } from './monthly-report-download';
+
+const api = vi.hoisted(() => vi.fn());
+vi.mock('@workspace/api-client-react', () => ({ exportQaqcSowReport: api }));
+beforeEach(() => vi.clearAllMocks());
+
+describe('Shared monthly report PDF export', () => {
+  it('keeps the new dashboard PDF separate from the existing monthly report', async () => {
+    api.mockResolvedValueOnce({ blob: new Blob(['dashboard']) });
+    await exportMonthlyDashboardPdf('monthly-1');
+    expect(api).toHaveBeenCalledWith('monthly-1', { templateId: 'monthly-dashboard' }, { headers: { Accept: 'application/pdf' } });
+    const editor = readFileSync(new URL('./report-editor.tsx', import.meta.url), 'utf8');
+    expect(editor).toContain('Monthly Report PDF');
+    expect(editor).toContain('Monthly Dashboard PDF');
+    expect(editor).toContain('exportMonthlyDashboardPdf(report.id)');
+  });
+  it('requests the approved monthly PDF layout for the saved report', async () => {
+    const response = { blob: new Blob(['pdf'], { type: 'application/pdf' }) };
+    api.mockResolvedValueOnce(response);
+    expect(await exportMonthlyReportPdf('monthly-1')).toBe(response);
+    expect(api).toHaveBeenCalledWith('monthly-1', { templateId: 'monthly-metrics' }, { headers: { Accept: 'application/pdf' } });
+  });
+  it('propagates export errors to the callers instead of downloading another layout', async () => {
+    api.mockRejectedValueOnce(new Error('Export denied'));
+    await expect(exportMonthlyReportPdf('monthly-1')).rejects.toThrow('Export denied');
+    expect(api).toHaveBeenCalledTimes(1);
+  });
+  it('keeps monthly PDF downloads and limits the editor XLSX button to CSAT', () => {
+    const editor = readFileSync(new URL('./report-editor.tsx', import.meta.url), 'utf8');
+    const list = readFileSync(new URL('./metrics-report-list.tsx', import.meta.url), 'utf8');
+    expect(editor).toContain('exportMonthlyReportPdf(report.id)');
+    expect(list).toContain('exportMonthlyReportPdf(r.id)');
+    expect(editor).not.toContain('PdfTemplatePicker');
+    expect(editor).toContain("exportQaqcSowReport(report.id, undefined, { headers: { Accept: XLSX_MIME } })");
+    expect(editor).toContain("{reportType === 'csat' && <Button");
+  });
+});

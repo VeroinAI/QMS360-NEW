@@ -1,0 +1,4 @@
+ALTER TABLE "app2_lessons"."lesson_learned_forms" ALTER COLUMN "project_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "app2_lessons"."lesson_learned_forms" ADD COLUMN "department_id" uuid;--> statement-breakpoint
+ALTER TABLE "app2_lessons"."user_workspace_roles" ADD COLUMN "department_ids" uuid[] DEFAULT ARRAY[]::uuid[] NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "lesson_department_reference_active_idx" ON "app2_lessons"."lesson_learned_forms" USING btree ("organization_id","department_id","reference_number") WHERE "app2_lessons"."lesson_learned_forms"."deleted_at" IS NULL AND "app2_lessons"."lesson_learned_forms"."department_id" IS NOT NULL;

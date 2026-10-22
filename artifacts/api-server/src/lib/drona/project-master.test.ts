@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ListDronaProjectMasterResponse, UpdateDronaProjectCostCentreResponse } from "@workspace/api-zod";
+import { ListDronaProjectMasterResponse, UpdateDronaProjectCostCentreResponse, UpdateProjectAdditionalDataBody, UpdateProjectAdditionalDataResponse } from "@workspace/api-zod";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 const { execute } = vi.hoisted(() => ({ execute: vi.fn() }));
 vi.mock("@workspace/db", () => ({ db: { execute } }));
 
-import { readDronaProjectMaster, saveDronaProjectCostCentre, type ProjectMasterInput } from "./project-master";
+import { readDronaProjectMaster, saveDronaProjectCostCentre, saveProjectAdditionalData, type ProjectMasterInput } from "./project-master";
 
 const input: ProjectMasterInput = {
   organizationId: "00000000-0000-4000-8000-000000000001",
@@ -27,6 +27,39 @@ function mockList(createdAt: unknown, updatedAt: unknown, linkedAt: unknown = is
 }
 
 beforeEach(() => execute.mockReset());
+
+describe("Project Additional Data contacts", () => {
+  const additionalData = { client: null, contractor: null, contractProjectNumber: null, contractSigned: null, contractPeriod: null, tcc: null, pac: null, fac: null };
+  const payload = (email: string | null, phone: string | null) => ({ costCentre: "CC01", additionalData: { ...additionalData, email, phone } });
+  it.each(["not-an-email", "a@@example.com", "a@invalid", "a..b@example.com", "a@-example.com"])("rejects an invalid email (%s)", email => {
+    expect(UpdateProjectAdditionalDataBody.safeParse(payload(email, null)).success).toBe(false);
+  });
+  it.each(["9876543210", "+091 9876543210", "+1 abcdefgh", "+1", "+1234567890123456"])("rejects an invalid international phone (%s)", phone => {
+    expect(UpdateProjectAdditionalDataBody.safeParse(payload(null, phone)).success).toBe(false);
+  });
+  it("accepts optional, empty-by-null contacts and older clients omitting the new fields", () => {
+    expect(UpdateProjectAdditionalDataBody.safeParse(payload(null, null)).success).toBe(true);
+    expect(UpdateProjectAdditionalDataBody.safeParse({ costCentre: null, additionalData }).success).toBe(true);
+  });
+  it("persists contacts in existing scoped metadata and returns them for reopening", async () => {
+    const contacts = payload("quality+project@example.com", "+91 9876543210");
+    const data = { ...contacts, additionalData: { ...contacts.additionalData, name: "Project Contact" } };
+    execute.mockResolvedValueOnce({ rows: [{ available: false }] })
+      .mockResolvedValueOnce({ rows: [{ id: projectId, costCentre: data.costCentre, additionalData: data.additionalData, updatedAt: iso }] });
+    const result = await saveProjectAdditionalData(input, projectId, data);
+    expect(result?.additionalData).toMatchObject({ name: "Project Contact", email: data.additionalData.email, phone: data.additionalData.phone });
+    expect(UpdateProjectAdditionalDataResponse.safeParse(result).success).toBe(true);
+    const query = new PgDialect().sqlToQuery(execute.mock.calls[1][0]);
+    expect(query.params).toContain(JSON.stringify(data.additionalData));
+    expect(query.params).toContain(input.organizationId);
+    expect(query.sql).toContain("qmsAdditionalData");
+    expect(query.sql).toContain("p.deleted_at IS NULL");
+  });
+  it("returns null contacts for projects that predate these fields", async () => {
+    mockList(iso, iso);
+    expect((await readDronaProjectMaster(input)).items[0].additionalData).toMatchObject({ name: null, email: null, phone: null });
+  });
+});
 
 describe("Project Master timestamp serialization", () => {
   it.each([

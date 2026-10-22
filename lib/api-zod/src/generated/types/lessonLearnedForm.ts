@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EvidenceFile } from './evidenceFile';
+import type { LessonLearnedFormSourceType } from './lessonLearnedFormSourceType';
 import type { WorkflowState } from './workflowState';
 
 export interface LessonLearnedForm {
@@ -13,7 +14,13 @@ export interface LessonLearnedForm {
   readonly referenceNumber: string;
   /** @nullable */
   reference?: string | null;
-  projectId: string;
+  /** @nullable */
+  projectId: string | null;
+  sourceType?: LessonLearnedFormSourceType;
+  /** @nullable */
+  departmentId?: string | null;
+  /** @nullable */
+  readonly departmentName?: string | null;
   title: string;
   disciplineId: string;
   categorisationId: string;

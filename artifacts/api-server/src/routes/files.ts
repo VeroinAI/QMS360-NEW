@@ -5,7 +5,7 @@ import { Readable } from "node:stream";
 import express, { Router, type IRouter } from "express";
 import { and, eq, isNull } from "drizzle-orm";
 import {
-  applicationAccess, auditFindings, auditPlans, auditSchedules, audits, correctiveActionReports, customerSatisfactionEntries,
+  auditFindings, auditPlans, auditSchedules, audits, correctiveActionReports, customerSatisfactionEntries,
   db, documentGovernanceLogEntries, lessonLearnedForms, materialInspectionEntries, qaqcMetricEntries,
   qualityAssessmentBriefs, qtbtEntries,
 } from "@workspace/db";
@@ -34,13 +34,9 @@ async function findEvidence(id: string, organizationId: string) {
   return null;
 }
 
-const appAccessColumns = {
-  qaqc: applicationAccess.canOpenQaqc,
-  lessons: applicationAccess.canOpenLessons,
-  audit: applicationAccess.canOpenAudit,
-};
 type EvidenceParent = {
   projectId: string | null;
+  departmentId?: string | null;
   projectIds?: string[];
   module: string;
   allowProjectless?: boolean;
@@ -64,11 +60,11 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
   const { app, row } = found;
   if (app === "lessons") {
     const [lesson] = await db.select({
-      projectId: lessonLearnedForms.projectId, creatorId: lessonLearnedForms.creatorId, approverId: lessonLearnedForms.approverId,
+      projectId: lessonLearnedForms.projectId, departmentId: lessonLearnedForms.departmentId, creatorId: lessonLearnedForms.creatorId, approverId: lessonLearnedForms.approverId,
     }).from(lessonLearnedForms).where(and(
       eq(lessonLearnedForms.id, row.recordId), eq(lessonLearnedForms.organizationId, organizationId), isNull(lessonLearnedForms.deletedAt),
     ));
-    return lesson ? { projectId: lesson.projectId, module: "lessons", creatorId: lesson.creatorId, approverId: lesson.approverId } : null;
+    return lesson ? { projectId: lesson.projectId, departmentId: lesson.departmentId, module: "lessons", creatorId: lesson.creatorId, approverId: lesson.approverId } : null;
   }
   if (app === "audit") {
     if (row.recordType === "audit_schedule") {
@@ -139,18 +135,12 @@ async function evidenceProject(found: Awaited<ReturnType<typeof findEvidence>>, 
 
 async function authorizeEvidence(req: express.Request, found: NonNullable<Awaited<ReturnType<typeof findEvidence>>>, action: PermissionAction) {
   const user = req.currentUser!;
-  if (!["Super Admin", "Org Admin"].includes(user.platformRole)) {
-    const column = appAccessColumns[found.app];
-    const [access] = await db.select({ allowed: column }).from(applicationAccess).where(and(
-      eq(applicationAccess.organizationId, user.organizationId), eq(applicationAccess.username, user.username),
-      eq(column, true), isNull(applicationAccess.deletedAt),
-    )).limit(1);
-    if (!access) return false;
-  }
   const parent = await evidenceProject(found, user.organizationId);
   if (!parent) return false;
   const scope = await getAuthorizedProjectScope(req, found.app as RbacAppKey, { module: parent.module, action });
-  if (parent.allowProjectless) {
+  if (found.app === "lessons" && parent.departmentId) {
+    if (!scope.unrestricted && !scope.allDepartmentsAllowed && !scope.departmentIds?.includes(parent.departmentId)) return false;
+  } else if (parent.allowProjectless) {
     if (!scope.unrestricted && !scope.projectIds.length && !scope.processAuditsAllowed) return false;
   } else if (!scope.unrestricted && (parent.projectIds ?? [parent.projectId!]).some((projectId) => !scope.projectIds.includes(projectId))) return false;
   if (found.app === "audit" && ["car", "corrective_action_report"].includes(found.row.recordType)) {

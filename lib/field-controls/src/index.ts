@@ -117,7 +117,9 @@ export const fieldControlRegistry: Record<FieldControlAppKey, FormDefinition[]> 
       key: "lesson-form",
       label: "Lesson Learned Form",
       fields: [
+        { key: "sourceType", label: "Project / Department" },
         { key: "projectId", label: "Project Name" },
+        { key: "departmentId", label: "Department" },
         { key: "title", label: "Title" },
         { key: "disciplineId", label: "Discipline" },
         { key: "categorisationId", label: "Categorization" },

@@ -2,12 +2,12 @@ import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import type { DronaProjectMasterRecord, ProjectAdditionalData, ProjectAdditionalDataInput } from "@workspace/api-zod";
 
-const additionalDataKeys = ["client", "contractor", "contractProjectNumber", "contractSigned", "contractPeriod", "tcc", "pac", "fac"] as const;
+const additionalDataKeys = ["name", "client", "contractor", "contractProjectNumber", "contractSigned", "contractPeriod", "tcc", "pac", "fac", "email", "phone"] as const;
 function additionalData(value: unknown): ProjectAdditionalData {
   const fields = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const result: ProjectAdditionalData = {
     client: null, contractor: null, contractProjectNumber: null, contractSigned: null,
-    contractPeriod: null, tcc: null, pac: null, fac: null,
+    contractPeriod: null, tcc: null, pac: null, fac: null, email: null, phone: null, name: null,
   };
   for (const key of additionalDataKeys) {
     const field = fields[key];

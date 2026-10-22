@@ -21,6 +21,31 @@ const sections = () => buildConsolidatedAuditReport({
 });
 
 describe("Original Audit PowerPoint report template", () => {
+  it.each([false, true])("keeps DrawingML paragraph children in schema order (continuations: %s)", async (continuations) => {
+    const data = sections();
+    // Exercise originally empty template cells, multiline values, layout
+    // footers and cloned continuation slides, not only populated text boxes.
+    data.find(s => s.key === "cover")!.fields.push({ label: "Audit Report Number", value: "QAM-IA-26-0001" });
+    if (continuations) {
+      data.find(s => s.key === "non-conformities")!.tables[0]!.rows =
+        Array.from({ length: 13 }, (_, i) => [`NC-${i}`, "", `Finding ${i}\nRecorded details`, "", "", "Major"]);
+    }
+    const result = unzipSync(await renderConsolidatedAuditPptx({ sections: data }));
+    let paragraphs = 0;
+    for (const [path, bytes] of Object.entries(result)) {
+      if (!path.endsWith(".xml")) continue;
+      const doc = parse(bytes);
+      for (const paragraph of Array.from(doc.getElementsByTagNameNS(A, "p"))) {
+        paragraphs++;
+        const children = Array.from(paragraph.childNodes).filter(n => n.nodeType === 1);
+        const end = children.find(n => n.namespaceURI === A && n.localName === "endParaRPr");
+        if (end) expect(children.at(-1), `${path}: endParaRPr must be the final paragraph child`).toBe(end);
+        const props = children.find(n => n.namespaceURI === A && n.localName === "pPr");
+        if (props) expect(children[0], `${path}: pPr must be the first paragraph child`).toBe(props);
+      }
+    }
+    expect(paragraphs).toBeGreaterThan(100);
+  });
   it("preserves original masters, theme, branding, shape geometry and table formatting", async () => {
     const original = unzipSync(await readFile(new URL("../src/assets/audit-report-template.pptx", import.meta.url)));
     const result = unzipSync(await renderConsolidatedAuditPptx({ sections: sections() }));
@@ -77,6 +102,19 @@ describe("Original Audit PowerPoint report template", () => {
     const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lZkAAAAASUVORK5CYII=", "base64");
     const result = unzipSync(await renderConsolidatedAuditPptx({ sections: data, photos: new Map(photos.map(p => [p.id, png])) }));
     expect(Object.keys(result).filter(n => n.startsWith("ppt/media/audit-photo-"))).toHaveLength(3);
+    const photoTargets: string[] = [];
+    for (const [path, bytes] of Object.entries(result)) {
+      if (!/^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(path)) continue;
+      const relationships = Array.from(parse(bytes).getElementsByTagName("Relationship"));
+      const ids = relationships.map(r => r.getAttribute("Id"));
+      expect(new Set(ids).size, `${path}: relationship IDs must be unique`).toBe(ids.length);
+      photoTargets.push(...relationships.map(r => r.getAttribute("Target") ?? "")
+        .filter(target => target.startsWith("../media/audit-photo-")));
+    }
+    // Continuations must clone the untouched template, not the first rendered
+    // page with its photo references already attached.
+    expect(photoTargets).toHaveLength(photos.length);
+    expect(new Set(photoTargets).size).toBe(photos.length);
     const allText = Object.entries(result).filter(([n]) => /^ppt\/slides\/slide\d+\.xml$/.test(n)).map(([, b]) => text(b)).join("\n");
     for (let i = 0; i < 3; i++) expect(allText).toContain(`Recorded photograph ${i}`);
     expect(allText).toContain("Date: To be mapped");

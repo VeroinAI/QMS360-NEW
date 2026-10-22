@@ -49,8 +49,7 @@
 - [AWS client handoff](aws-client-handoff.md) — use the user's private GitHub handoff; cloning does not configure environments, and manually run SQL needs migration tracking.
 - [Drona container build](drona-container-build.md) — isolate relative assets and hash navigation from Replit builds; portable assets do not configure the API bridge.
 - [Workspace package installation](workspace-package-installation.md) — package installer targets root; pnpm rejects unscoped root installs, so use artifact-filtered pnpm for leaf-only dependencies.
-- [Audit application approval policy](audit-application-approval-policy.md) — Audit role assignment must not itself unlock the application; keep a separate administrator approval step.
-- [Shared application approval recovery](shared-application-approval-recovery.md) — shared active status can hide an unapproved app; recover requests without changing unrelated access.
+- [Role-based application entry](role-based-application-entry.md) — active roles grant entry in all three modules; no separate application approval; preserve RBAC and report approvals.
 - [Audit type-category links](audit-type-category-links.md) — administrators maintain category-to-type links in master data; do not infer a hardcoded mapping from existing schedules.
 - [Task rebase verification](task-rebase-verification.md) — after resolving overlapping task edits, rerun focused tests against the final rebased tree; semantic merging can scramble test bodies.
 - [Audit Team Lead marker](audit-team-lead-marker.md) — assigned leads review CARs with scoped read access; acceptance closes immediately; the marker grants no unrelated rights.
@@ -97,3 +96,11 @@
 - [Lessons dynamic numbering](lessons-dynamic-numbering-requirement.md) — requested configurable prefix fields, initially Project Cost Center and selected Discipline master Value.
 - [Email browser drafts](email-browser-draft-visibility.md) — hide already registered local copies without deleting drafts or changing active email placeholders.
 - [PowerPoint import destinations](pptx-import-destination.md) — reference imports can replace an existing slides manifest; isolate the destination and preserve unrelated decks.
+- [PowerPoint package integrity](pptx-package-integrity.md) — enforce DrawingML paragraph order and clone continuations from pristine parts; XML parsing alone misses invalid PowerPoint structure.
+- [Monthly metrics Word template](monthly-metrics-word-template-policy.md) — Word-styled landing-page downloads use saved data and exact “To be mapped” gaps; keep other exports independent.
+- [CSAT Word report policy](csat-word-template-policy.md) — both Download entry points share the branded form; preserve actual answers, optional-data gaps and long feedback.
+- [Daily Submission Word template](daily-submission-word-template-policy.md) — shared Daily downloads use saved data/baselines; omit sample data and reviewer-only instructions.
+- [Monthly dashboard PDF](monthly-dashboard-pdf-policy.md) — separate presentation-style export; workbook mappings preserve real formulas, ageing bands and distinct portfolio coverage policy.
+- [Monthly historical balances](monthly-historical-balances-policy.md) — one opening load per project across all months; atomic Master-backed Excel uploads and protected submitted history.
+- [Monthly report uniqueness](monthly-report-uniqueness.md) — all workflow states block duplicate project/month reports; selection feedback and race-safe save checks are required.
+- [Department Lessons](department-lessons-policy.md) — explicit department role scopes and independent department reference sequences; preserve project behavior and official PDF branding.

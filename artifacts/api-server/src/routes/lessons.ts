@@ -16,7 +16,6 @@ import {
   CreateLessonsDelegationBody,
   CreateLessonsEvidenceIntentBody,
   CreateLessonsRoleBody,
-  DecideLessonsAccessRequestBody,
   RephraseLessonFieldBody,
   ReviewLessonFormBody,
   UpdateLessonFormBody,
@@ -30,9 +29,8 @@ import {
   CreateApproverScopeBody,
   ReassignLessonsPendingActionsBody,
 } from "@workspace/api-zod";
-import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
-import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../lib/application-access-requests";
 import { createLessonPdf } from "../lib/lesson-pdf";
+import { lessonDepartments, lessonInScope, lessonScopeWhere, lessonSourceInput, type LessonSource } from "../lib/lessons-source";
 import { storeEmailPdfAttachment, type EmailPdfAttachment } from "../lib/email-attachments";
 import {
   applicationAccess,
@@ -54,13 +52,14 @@ import {
   lessonsWorkspaceRoles,
   platformRoles,
   organizationSettings,
+  masterDataValues,
   projects,
   users,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
-import { allocateReferenceNumber, LessonProjectNumberingError } from "../lib/numbering";
+import { allocateReferenceNumber, allocateDepartmentLessonReference, LessonProjectNumberingError } from "../lib/numbering";
 import { projectNumberContext, ReferencePrefixError } from "@workspace/field-controls";
-import { assertCanManageAssignmentScope, assertOwnerOrFull, assertProjectAccess, canManageAssignmentScope, getAppAdminScope, getAuthorizedFullProjectScope, getAuthorizedProjectScope, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
+import { assertCanManageAssignmentScope, assertOwnerOrFull, assertProjectAccess, canManageAssignmentScope, getAppAdminScope, getAuthorizedFullProjectScope, getAuthorizedProjectScope, projectScopeFromRows, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
@@ -132,6 +131,8 @@ function formJson(row: typeof lessonLearnedForms.$inferSelect, photos?: Array<ty
     referenceNumber: row.referenceNumber,
     reference: row.reference,
     projectId: row.projectId,
+    sourceType: row.departmentId ? "Department" : "Project",
+    departmentId: row.departmentId,
     title: row.title,
     // Clients bind discipline to the LOV value (name), not the internal UUID.
     disciplineId: disciplineName ?? row.disciplineId ?? "",
@@ -228,7 +229,10 @@ async function approvalPeopleJson(row: typeof lessonLearnedForms.$inferSelect) {
 
 async function formJsonNamed(row: typeof lessonLearnedForms.$inferSelect, photos?: Array<typeof lessonsEvidenceFiles.$inferSelect>) {
   const [disciplineName, approval] = await Promise.all([disciplineNameById(row.disciplineId), approvalPeopleJson(row)]);
-  return { ...formJson(row, photos, disciplineName), ...approval };
+  const [source] = row.departmentId
+    ? await db.select({ name: masterDataValues.label }).from(masterDataValues).where(and(eq(masterDataValues.id, row.departmentId), eq(masterDataValues.organizationId, row.organizationId))).limit(1)
+    : await db.select({ name: projects.name }).from(projects).where(and(eq(projects.id, row.projectId!), eq(projects.organizationId, row.organizationId))).limit(1);
+  return { ...formJson(row, photos, disciplineName), ...approval, departmentName: row.departmentId ? source?.name ?? null : null, sourceName: source?.name ?? null };
 }
 
 async function lessonPdfAssets(
@@ -294,8 +298,14 @@ async function disciplineNameMap(organizationId: string): Promise<Map<string, st
 }
 
 /** formJson for list endpoints: resolves discipline UUIDs to LOV names with one query. */
-function formJsonList(rows: Array<typeof lessonLearnedForms.$inferSelect>, names: Map<string, string>) {
-  return rows.map((row) => formJson(row, undefined, row.disciplineId ? names.get(row.disciplineId) : undefined));
+async function formJsonList(rows: Array<typeof lessonLearnedForms.$inferSelect>, names: Map<string, string>) {
+  if (!rows.length) return [];
+  const departmentIds = rows.flatMap(row => row.departmentId ? [row.departmentId] : []);
+  const departments = departmentIds.length ? await db.select({ id: masterDataValues.id, name: masterDataValues.label })
+    .from(masterDataValues).where(and(eq(masterDataValues.organizationId, rows[0]!.organizationId), inArray(masterDataValues.id, departmentIds))) : [];
+  const byId = new Map(departments.map(d => [d.id, d.name]));
+  return rows.map((row) => ({ ...formJson(row, undefined, row.disciplineId ? names.get(row.disciplineId) : undefined),
+    departmentName: row.departmentId ? byId.get(row.departmentId) ?? null : null }));
 }
 
 async function audit(req: any, action: string, entityType: string, entityId?: string, before?: Record<string, unknown>, after?: Record<string, unknown>, emailAttachments?: () => Promise<EmailPdfAttachment[]>) {
@@ -346,6 +356,7 @@ router.get("/reference-data", asyncHandler(async (req, res) => {
   ]);
   res.json({
     generatedAt: new Date(),
+    departments: (await lessonDepartments(user.organizationId)).filter(d => scope.unrestricted || scope.allDepartmentsAllowed || scope.departmentIds?.includes(d.id)).map(d => ({ ...d, active: true })),
     projects: projectRows.map((p) => ({ id: p.id, code: p.code, name: p.name, businessUnit: "Unassigned", status: p.status, location: p.location })),
     disciplines: disciplineRows.map((d) => ({ id: d.id, code: d.code, name: d.name, active: d.status === "active" })),
     categorisation: categoryRows.map((c) => ({ id: c.id, code: null, name: c.category, active: c.status === "active", metadata: { impact: c.impact, riskLevel: c.riskLevel } })),
@@ -354,13 +365,16 @@ router.get("/reference-data", asyncHandler(async (req, res) => {
 
 type EligibleApprover = { id: string; fullName: string; email: string; roles: string[] };
 
-async function eligibleApprovers(organizationId: string): Promise<EligibleApprover[]> {
+async function eligibleApprovers(organizationId: string, source?: LessonSource): Promise<EligibleApprover[]> {
   const rows = await db.select({
     id: users.id,
     fullName: users.fullName,
     email: users.email,
     workspaceRole: lessonsWorkspaceRoles.name,
     approvalPermission: lessonsPermissions.key,
+    projectIds: lessonsUserWorkspaceRoles.projectIds,
+    departmentIds: lessonsUserWorkspaceRoles.departmentIds,
+    businessUnitIds: lessonsUserWorkspaceRoles.businessUnitIds,
   })
     .from(users)
     .leftJoin(lessonsUserWorkspaceRoles, and(
@@ -396,7 +410,7 @@ async function eligibleApprovers(organizationId: string): Promise<EligibleApprov
   for (const row of rows) {
     const entry = byUser.get(row.id) ?? { fullName: row.fullName, email: row.email, canApprove: false, roles: new Set<string>() };
     if (row.workspaceRole) entry.roles.add(row.workspaceRole);
-    if (row.approvalPermission) entry.canApprove = true;
+    if (row.approvalPermission && (!source || lessonInScope(projectScopeFromRows([row]), source))) entry.canApprove = true;
     byUser.set(row.id, entry);
   }
   return [...byUser.entries()]
@@ -411,19 +425,15 @@ async function eligibleLessonDelegateIds(organizationId: string): Promise<Set<st
   const rows = await db.select({
     id: users.id,
     platformRole: platformRoles.name,
-    canOpenLessons: applicationAccess.canOpenLessons,
     workspaceRole: lessonsWorkspaceRoles.name,
     permissionKey: lessonsPermissions.key,
   })
     .from(users)
     .leftJoin(platformRoles, eq(users.platformRoleId, platformRoles.id))
-    .leftJoin(applicationAccess, and(
-      eq(applicationAccess.organizationId, organizationId),
-      eq(applicationAccess.username, users.username),
-      isNull(applicationAccess.deletedAt),
-    ))
     .leftJoin(lessonsUserWorkspaceRoles, and(
       eq(lessonsUserWorkspaceRoles.userId, users.id),
+      eq(lessonsUserWorkspaceRoles.organizationId, organizationId),
+      eq(lessonsUserWorkspaceRoles.status, "active"),
       isNull(lessonsUserWorkspaceRoles.deletedAt),
     ))
     .leftJoin(lessonsWorkspaceRoles, and(
@@ -448,7 +458,7 @@ async function eligibleLessonDelegateIds(organizationId: string): Promise<Set<st
   for (const row of rows) {
     const current = state.get(row.id) ?? { platformAdmin: false, appAccess: false, workspaceAdmin: false, view: false, approve: false };
     current.platformAdmin ||= ["Super Admin", "Org Admin"].includes(row.platformRole ?? "");
-    current.appAccess ||= row.canOpenLessons === true;
+    current.appAccess ||= !!row.workspaceRole;
     current.workspaceAdmin ||= /\b(admin|administrator)\b/i.test(row.workspaceRole ?? "");
     const key = String(row.permissionKey ?? "").toLowerCase();
     current.view ||= ["view_all", "view_own", "view_own_scope", "lessons"].includes(key)
@@ -462,7 +472,7 @@ async function eligibleLessonDelegateIds(organizationId: string): Promise<Set<st
     .map(([id]) => id));
 }
 
-type ApproverScopeCtx = { projectId?: string | null; disciplineId?: string | null; categorisation?: string | null };
+type ApproverScopeCtx = { projectId?: string | null; departmentId?: string | null; disciplineId?: string | null; categorisation?: string | null };
 
 function scopeMatches(rule: { projectId: string | null; disciplineId: string | null; categorisation: string | null }, ctx: ApproverScopeCtx) {
   return (!rule.projectId || rule.projectId === (ctx.projectId ?? null))
@@ -513,9 +523,9 @@ async function delegatedFromForLesson(organizationId: string, delegateId: string
 export async function canReadLesson(req: any, row: typeof lessonLearnedForms.$inferSelect): Promise<boolean> {
   const target = { module: "lessons", action: "select" as const };
   const scope = await getAuthorizedProjectScope(req, "lessons", target);
-  if (!scope.unrestricted && !scope.projectIds.includes(row.projectId)) return false;
+  if (!lessonInScope(scope, row)) return false;
   const fullScope = await getAuthorizedFullProjectScope(req, "lessons", target);
-  if (req.permissionAdminBypass || fullScope.unrestricted || fullScope.projectIds.includes(row.projectId)) return true;
+  if (req.permissionAdminBypass || lessonInScope(fullScope, row)) return true;
   const user = req.currentUser!;
   if (row.creatorId === user.id) return true;
   const delegatedFrom = await delegatedFromForLesson(row.organizationId, user.id, row.id, row.approverId);
@@ -528,6 +538,7 @@ export async function canReadLesson(req: any, row: typeof lessonLearnedForms.$in
 
 async function canReviewLesson(req: any, row: typeof lessonLearnedForms.$inferSelect): Promise<boolean> {
   if (row.workflowState !== "submitted" || row.creatorId === req.currentUser!.id || !row.approverId) return false;
+  if (!(await eligibleApprovers(row.organizationId, row)).some(u => u.id === req.currentUser!.id)) return false;
   const delegatedFrom = await delegatedFromForLesson(row.organizationId, req.currentUser!.id, row.id, row.approverId);
   if (row.approverId !== req.currentUser!.id && row.approverId !== delegatedFrom) return false;
   const scoped = await scopedApproverIds(row.organizationId, {
@@ -537,7 +548,18 @@ async function canReviewLesson(req: any, row: typeof lessonLearnedForms.$inferSe
 }
 
 async function assertLessonProject(req: any, row: typeof lessonLearnedForms.$inferSelect) {
-  await assertProjectAccess(req, row.projectId);
+  if (!lessonInScope(await getAuthorizedProjectScope(req, "lessons"), row)) throw new HttpError(403, "You do not have access to this lesson's project or department");
+}
+
+async function validateLessonSource(req: any, body: Parameters<typeof lessonSourceInput>[0], before?: LessonSource) {
+  const source = lessonSourceInput(body);
+  if (!lessonInScope(await getAuthorizedProjectScope(req, "lessons"), source)) throw new HttpError(403, "You do not have access to this project or department");
+  if (source.departmentId) {
+    if (before?.departmentId !== source.departmentId && !(await lessonDepartments(req.currentUser.organizationId)).some(d => d.id === source.departmentId)) {
+      throw new HttpError(422, "Select an active Department from this organization's Department Master");
+    }
+  } else await assertProjectInOrg(db, req.currentUser.organizationId, source.projectId!);
+  return source;
 }
 
 async function lessonVisibilityWhere(req: any, base: any, requireApproverScope = false) {
@@ -568,7 +590,7 @@ async function lessonVisibilityWhere(req: any, base: any, requireApproverScope =
       matchingScopeFor(new Set([row.delegatorId])),
     ) : sql`false`;
   })) ?? sql`false`;
-  const fullProjects = fullScope.projectIds.length ? inArray(lessonLearnedForms.projectId, fullScope.projectIds) : sql`false`;
+  const fullProjects = lessonScopeWhere(fullScope) ?? sql`true`;
   return and(base, requireApproverScope
     ? or(assigned, delegated)
     : or(fullProjects, eq(lessonLearnedForms.creatorId, user.id), assigned, delegated));
@@ -578,13 +600,14 @@ router.get("/approvers", asyncHandler(async (req, res) => {
   const organizationId = req.currentUser!.organizationId;
   const ctx: ApproverScopeCtx = {
     projectId: typeof req.query.projectId === "string" && req.query.projectId ? req.query.projectId : null,
+    departmentId: typeof req.query.departmentId === "string" && req.query.departmentId ? req.query.departmentId : null,
     categorisation: typeof req.query.categorisation === "string" && req.query.categorisation ? req.query.categorisation : null,
     disciplineId: typeof req.query.discipline === "string" && req.query.discipline
       ? await findLessonsDisciplineId(organizationId, req.query.discipline)
       : null,
   };
   const scoped = await scopedApproverIds(organizationId, ctx);
-  let approvers = await eligibleApprovers(organizationId);
+  let approvers = await eligibleApprovers(organizationId, ctx.projectId || ctx.departmentId ? { projectId: ctx.projectId ?? null, departmentId: ctx.departmentId ?? null } : undefined);
   if (req.query.includeSelf !== "true") approvers = approvers.filter((approver) => approver.id !== req.currentUser!.id);
   if (scoped) approvers = approvers.filter((approver) => scoped.has(approver.id));
   res.json(approvers);
@@ -597,7 +620,7 @@ async function assertEligibleApprover(req: any, approverId: string, creatorId: s
   if (creatorId && approverId === creatorId) {
     throw new HttpError(422, "The approver must be different from the creator");
   }
-  const approvers = await eligibleApprovers(req.currentUser!.organizationId);
+  const approvers = await eligibleApprovers(req.currentUser!.organizationId, ctx.projectId || ctx.departmentId ? { projectId: ctx.projectId ?? null, departmentId: ctx.departmentId ?? null } : undefined);
   if (!approvers.some((approver) => approver.id === approverId)) {
     throw new HttpError(422, "Selected approver is not an active Lesson approver");
   }
@@ -612,14 +635,14 @@ async function assertEligibleApprover(req: any, approverId: string, creatorId: s
 router.get("/forms", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const scope = await getAuthorizedProjectScope(req, "lessons");
-  const where = and(eq(lessonLearnedForms.organizationId, req.currentUser!.organizationId), isNull(lessonLearnedForms.deletedAt), scope.unrestricted ? undefined : inArray(lessonLearnedForms.projectId, scope.projectIds));
+  const where = and(eq(lessonLearnedForms.organizationId, req.currentUser!.organizationId), isNull(lessonLearnedForms.deletedAt), lessonScopeWhere(scope));
   const visibleWhere = await lessonVisibilityWhere(req, where);
   const [rows, count] = await Promise.all([
     db.select().from(lessonLearnedForms).where(visibleWhere).orderBy(desc(lessonLearnedForms.createdAt), asc(lessonLearnedForms.id)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(lessonLearnedForms).where(visibleWhere),
   ]);
   const names = await disciplineNameMap(req.currentUser!.organizationId);
-  res.json(paginated(formJsonList(rows, names), Number(count[0]?.count ?? 0), page, limit));
+  res.json(paginated(await formJsonList(rows, names), Number(count[0]?.count ?? 0), page, limit));
 }));
 
 router.post("/forms", asyncHandler(async (req, res) => {
@@ -627,6 +650,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
   if (!body) return;
   const user = req.currentUser!;
   const capturedAt = new Date(body.capturedAt);
+  const source = await validateLessonSource(req, body);
   if (Number.isNaN(capturedAt.valueOf())) throw new HttpError(422, "Captured at must be a valid date and time");
   if (capturedAt.getTime() > Date.now()) throw new HttpError(422, "Captured at cannot be in the future");
   await assertFieldAccess(req, "lessons", "lesson-form", { mode: "create" });
@@ -638,7 +662,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
     assertLovValue(db, user.organizationId, "lesson_impacts", body.impact),
   ]);
   const disciplineId = await resolveLessonsDisciplineId(user.organizationId, body.disciplineId);
-  if (body.approverId) await assertEligibleApprover(req, body.approverId, user.id, { projectId: body.projectId, disciplineId, categorisation: body.categorisationId });
+  if (body.approverId) await assertEligibleApprover(req, body.approverId, user.id, { ...source, disciplineId, categorisation: body.categorisationId });
   const clientReference = body.id;
   const [existing] = await db.select().from(lessonLearnedForms).where(and(
     eq(lessonLearnedForms.organizationId, user.organizationId),
@@ -648,16 +672,18 @@ router.post("/forms", asyncHandler(async (req, res) => {
     if (!await canReadLesson(req, existing)) throw new HttpError(403, "You do not have permission to view this lesson");
     res.status(200).json(await formJsonNamed(existing)); return;
   }
-  const [project] = await db.select().from(projects).where(and(
-    eq(projects.id, body.projectId), eq(projects.organizationId, user.organizationId), isNull(projects.deletedAt),
-  )).limit(1);
-  if (!project) notFound("Project not found");
+  const [project] = source.projectId ? await db.select().from(projects).where(and(
+    eq(projects.id, source.projectId), eq(projects.organizationId, user.organizationId), isNull(projects.deletedAt),
+  )).limit(1) : [];
+  const department = source.departmentId ? (await lessonDepartments(user.organizationId)).find(d => d.id === source.departmentId) : undefined;
   let created: typeof lessonLearnedForms.$inferSelect | undefined;
   for (let attempt = 0; attempt < 5 && !created; attempt++) {
     // Reference numbers come from the org's lessons numbering pattern (Admin Settings → Numbering).
     let referenceNumber: string;
     try {
-      referenceNumber = await allocateReferenceNumber(user.organizationId, "lessons", projectNumberContext(project.customFields, body.disciplineId), body.projectId);
+      referenceNumber = department
+        ? await allocateDepartmentLessonReference(user.organizationId, department.id, department.code)
+        : await allocateReferenceNumber(user.organizationId, "lessons", projectNumberContext(project!.customFields, body.disciplineId), source.projectId!);
     } catch (error) {
       // Only master-field validation is a user error; infrastructure failures remain server errors.
       if (error instanceof ReferencePrefixError || error instanceof LessonProjectNumberingError) {
@@ -667,7 +693,7 @@ router.post("/forms", asyncHandler(async (req, res) => {
     }
     try {
       [created] = await db.insert(lessonLearnedForms).values({
-        organizationId: user.organizationId, projectId: body.projectId,
+        organizationId: user.organizationId, ...source,
         disciplineId, referenceNumber, title: body.title,
         categorisation: body.categorisationId, issueCategory: body.issueCategory, impact: body.impact,
         capturedAt, gpsLat: body.gpsLat?.toString(), gpsLng: body.gpsLng?.toString(),
@@ -703,6 +729,7 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
   if (!before) notFound("Lesson form not found");
   await assertLessonProject(req, before);
   const capturedAt = new Date(body.capturedAt);
+  const source = await validateLessonSource(req, body, before);
   if (Number.isNaN(capturedAt.valueOf())) throw new HttpError(422, "Captured at must be a valid date and time");
   if (capturedAt.getTime() > Date.now()) throw new HttpError(422, "Captured at cannot be in the future");
   assertOwnerOrFull(req, before.creatorId);
@@ -719,9 +746,9 @@ router.put("/forms/:id", asyncHandler(async (req, res) => {
   const disciplineId = body.disciplineId === before.disciplineId
     ? before.disciplineId
     : await resolveLessonsDisciplineId(req.currentUser!.organizationId, body.disciplineId);
-  if (body.approverId) await assertEligibleApprover(req, body.approverId, before.creatorId, { projectId: body.projectId, disciplineId, categorisation: body.categorisationId });
+  if (body.approverId) await assertEligibleApprover(req, body.approverId, before.creatorId, { ...source, disciplineId, categorisation: body.categorisationId });
   const [row] = await db.update(lessonLearnedForms).set({
-    projectId: body.projectId, disciplineId, title: body.title, reference: body.reference,
+    ...source, disciplineId, title: body.title, reference: body.reference,
     categorisation: body.categorisationId, issueCategory: body.issueCategory, impact: body.impact,
     description: body.description, rootCause: body.rootCause, correction: body.correction,
     correctiveAction: body.correctiveAction, isRepeated: body.isRepeatedIssue ?? false,
@@ -759,7 +786,7 @@ router.post("/forms/:id/submit", asyncHandler(async (req, res) => {
   if (before.workflowState !== "draft") throw new HttpError(409, "Only draft forms may be submitted");
   if (!before.approverId) throw new HttpError(422, "An approver is required before submission");
   await assertEligibleApprover(req, before.approverId, before.creatorId, {
-    projectId: before.projectId, disciplineId: before.disciplineId, categorisation: before.categorisation,
+    projectId: before.projectId, departmentId: before.departmentId, disciplineId: before.disciplineId, categorisation: before.categorisation,
   });
   // Before/after evidence photos are mandatory for submission.
   const evidence = await listEvidence(db, "lessons", before.organizationId, "lesson_form", before.id);
@@ -969,6 +996,7 @@ async function logWhere(req: any) {
       ilike(lessonLearnedForms.correctiveAction, term),
     ) : undefined,
     typeof q.projectId === "string" ? eq(lessonLearnedForms.projectId, q.projectId) : undefined,
+    typeof q.departmentId === "string" ? eq(lessonLearnedForms.departmentId, q.departmentId) : undefined,
     typeof q.creatorId === "string" ? eq(lessonLearnedForms.creatorId, q.creatorId) : undefined,
     typeof q.approverId === "string" ? eq(lessonLearnedForms.approverId, q.approverId) : undefined,
     disciplineId ? eq(lessonLearnedForms.disciplineId, disciplineId) : undefined,
@@ -1012,7 +1040,7 @@ router.get("/log/creators", requirePermission("lessons", "lessons", "select"), a
   const baseWhere = and(
     eq(lessonLearnedForms.organizationId, req.currentUser!.organizationId),
     isNull(lessonLearnedForms.deletedAt),
-    scope.unrestricted ? undefined : inArray(lessonLearnedForms.projectId, scope.projectIds),
+    lessonScopeWhere(scope),
   );
   const visibleWhere = await lessonVisibilityWhere(req, baseWhere, false);
   const creators = await db.selectDistinct({ id: users.id, fullName: users.fullName })
@@ -1030,7 +1058,7 @@ router.get("/log", requirePermission("lessons", "lessons", "select"), asyncHandl
   const { page, limit, offset } = pagination(req);
   const where = await logWhere(req);
   const scope = await lessonLogScope(req);
-  const scopedWhere = and(where, scope.unrestricted ? undefined : inArray(lessonLearnedForms.projectId, scope.projectIds));
+  const scopedWhere = and(where, lessonScopeWhere(scope));
   const pending = req.query.pendingApproval === "true";
   const visibleWhere = req.query.allPendingActions === "true" ? scopedWhere : await lessonVisibilityWhere(req, scopedWhere, false);
   const order = pending
@@ -1041,7 +1069,7 @@ router.get("/log", requirePermission("lessons", "lessons", "select"), asyncHandl
     db.select({ count: sql<number>`count(*)` }).from(lessonLearnedForms).where(visibleWhere),
   ]);
   const names = await disciplineNameMap(req.currentUser!.organizationId);
-  res.json(paginated(formJsonList(rows, names), Number(count[0]?.count ?? 0), page, limit));
+  res.json(paginated(await formJsonList(rows, names), Number(count[0]?.count ?? 0), page, limit));
 }));
 
 router.post("/admin/pending-actions/reassign", requireAppAdmin("lessons"), asyncHandler(async (req, res) => {
@@ -1065,11 +1093,12 @@ router.post("/admin/pending-actions/reassign", requireAppAdmin("lessons"), async
       eq(lessonLearnedForms.organizationId, orgId), inArray(lessonLearnedForms.id, ids), isNull(lessonLearnedForms.deletedAt),
     ));
     if (rows.length !== ids.length) throw new HttpError(409, "One or more selected lessons no longer exists");
-    if (!scope.unrestricted && rows.some((r) => !scope.projectIds.includes(r.projectId))) throw new HttpError(403, "A selected lesson is outside your project scope");
+    if (rows.some((r) => !lessonInScope(scope, r))) throw new HttpError(403, "A selected lesson is outside your project or department scope");
     if (rows.some((r) => r.workflowState !== "submitted" || !r.approverId)) throw new HttpError(409, "One or more selected lessons is no longer pending");
     if (rows.some((r) => r.creatorId === target.id)) throw new HttpError(422, "The target approver cannot be a creator of a selected lesson");
     if (rows.some((r) => r.approverId === target.id)) throw new HttpError(422, "Target approver must differ from every current assignee");
     for (const row of rows) {
+      if (!(await eligibleApprovers(orgId, row)).some(u => u.id === target.id)) throw new HttpError(422, "Target approver needs review permission for every selected project or department");
       const scoped = await scopedApproverIds(orgId, { projectId: row.projectId, disciplineId: row.disciplineId, categorisation: row.categorisation });
       if (scoped && !scoped.has(target.id)) throw new HttpError(422, "Target approver is not scoped to every selected lesson");
     }
@@ -1188,7 +1217,7 @@ router.get("/escalations", asyncHandler(async (req, res) => {
   const scope = await getAuthorizedProjectScope(req, "lessons", { module: "lessons", action: "select" });
   const scopedRecordIds = scope.unrestricted ? null : await db.select({ id: lessonLearnedForms.id }).from(lessonLearnedForms).where(and(
     eq(lessonLearnedForms.organizationId, req.currentUser!.organizationId),
-    inArray(lessonLearnedForms.projectId, scope.projectIds),
+    lessonScopeWhere(scope),
     isNull(lessonLearnedForms.deletedAt),
   ));
   const where = and(
@@ -1225,7 +1254,7 @@ router.get("/reports/log", requirePermission("lessons", "lessons", "select"), as
   if (format !== "csv" && format !== "json") throw new HttpError(422, "Only CSV and JSON exports are supported");
   const where = await logWhere(req);
   const scope = await lessonLogScope(req);
-  const scopedWhere = and(where, scope.unrestricted ? undefined : inArray(lessonLearnedForms.projectId, scope.projectIds));
+  const scopedWhere = and(where, lessonScopeWhere(scope));
   const pending = req.query.pendingApproval === "true";
   const visibleWhere = req.query.allPendingActions === "true" ? scopedWhere : await lessonVisibilityWhere(req, scopedWhere, false);
   const rows = await db.select().from(lessonLearnedForms).where(visibleWhere).orderBy(
@@ -1233,7 +1262,7 @@ router.get("/reports/log", requirePermission("lessons", "lessons", "select"), as
   );
   const fileName = `lessons-log.${format}`;
   const names = await disciplineNameMap(req.currentUser!.organizationId);
-  const json = formJsonList(rows, names);
+  const json = await formJsonList(rows, names);
   const content = format === "csv" ? csv(json) : JSON.stringify(json, null, 2);
   res.json({ delivery: "download", fileName, downloadUrl: `data:${format === "csv" ? "text/csv" : "application/json"};charset=utf-8,${encodeURIComponent(content)}`, message: null });
 }));
@@ -1364,7 +1393,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
   const visibleRows = await visibleAdminUsers(req, allRows, assignments);
   const rows = visibleRows.slice(offset, offset + limit);
   const rolePayload = new Map((await Promise.all(roles.map(roleJson))).map((r) => [r.id, r]));
-  res.json(paginated(rows.map((u) => ({ id: u.id, username: u.username, fullName: u.fullName, email: u.email, designation: u.designation, signatureUrl: u.signaturePath ? `/api/lessons/users/${u.id}/signature` : null, platformRole: platform.find((p) => p.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: assignments.filter((a) => a.userId === u.id && canManageAssignmentScope(req, a.projectIds, a.businessUnitIds)).map((a) => ({ ...rolePayload.get(a.workspaceRoleId)!, scopeType: a.projectIds?.length ? "project" as const : "organization" as const, scopeIds: a.projectIds ?? [] })).filter(Boolean), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt })), visibleRows.length, page, limit));
+  res.json(paginated(rows.map((u) => ({ id: u.id, username: u.username, fullName: u.fullName, email: u.email, designation: u.designation, signatureUrl: u.signaturePath ? `/api/lessons/users/${u.id}/signature` : null, platformRole: platform.find((p) => p.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: assignments.filter((a) => a.userId === u.id && canManageAssignmentScope(req, a.projectIds, a.businessUnitIds, a.departmentIds)).map((a) => ({ ...rolePayload.get(a.workspaceRoleId)!, scopeType: a.departmentIds?.length ? "department" as const : a.projectIds?.length ? "project" as const : "organization" as const, scopeIds: a.departmentIds?.length ? a.departmentIds : a.projectIds ?? [] })).filter(Boolean), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt })), visibleRows.length, page, limit));
 }));
 
 /** Admin: update a user's designation and signature image (used on lesson approval records). */
@@ -1415,9 +1444,14 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   if (!target[0] || !role[0]) notFound("User or role not found");
   const [existing] = await db.select().from(lessonsUserWorkspaceRoles).where(and(eq(lessonsUserWorkspaceRoles.userId, target[0]!.id), eq(lessonsUserWorkspaceRoles.workspaceRoleId, role[0]!.id), isNull(lessonsUserWorkspaceRoles.deletedAt))).limit(1);
   if ((body as any).scopeType === "business_unit") throw new HttpError(422, "Business-unit scope is not supported; choose organization or project");
-  const scope = { businessUnitIds: [], projectIds: body.scopeType === "project" ? await assertProjectScopeInOrg(db, req.currentUser!.organizationId, body.scopeIds) : [] };
-  assertCanManageAssignmentScope(req, scope.projectIds, scope.businessUnitIds);
-  // Assignment renews the request; only an explicit access decision opens the app.
+  const departmentIds = body.scopeType === "department" ? [...new Set(body.scopeIds)] : [];
+  if (body.scopeType !== "organization" && !body.scopeIds.length) throw new HttpError(422, "Select at least one project or department");
+  const validDepartments = await lessonDepartments(req.currentUser!.organizationId);
+  if (departmentIds.some(id => !validDepartments.some(d => d.id === id))) throw new HttpError(422, "Select valid departments from Department Master");
+  const scope = { businessUnitIds: [], departmentIds, projectIds: body.scopeType === "project" ? await assertProjectScopeInOrg(db, req.currentUser!.organizationId, body.scopeIds) : [] };
+  assertCanManageAssignmentScope(req, scope.projectIds, scope.businessUnitIds, scope.departmentIds);
+  if (existing) assertCanManageAssignmentScope(req, existing.projectIds, existing.businessUnitIds, existing.departmentIds);
+  // An active role assignment grants entry immediately; record permissions remain scoped.
   const [row] = existing ? await db.update(lessonsUserWorkspaceRoles).set({ ...scope, status: "active", updatedAt: new Date() }).where(eq(lessonsUserWorkspaceRoles.id, existing.id)).returning() : await db.insert(lessonsUserWorkspaceRoles).values({ organizationId: req.currentUser!.organizationId, userId: target[0]!.id, workspaceRoleId: role[0]!.id, ...scope }).returning();
   await audit(req, "assign_role", "user_role", row!.id, undefined, { userId: target[0]!.id, ...body });
   res.json(row);
@@ -1431,7 +1465,7 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
     db.select().from(lessonsUserWorkspaceRoles).where(and(eq(lessonsUserWorkspaceRoles.organizationId, req.currentUser!.organizationId), eq(lessonsUserWorkspaceRoles.userId, userId), eq(lessonsUserWorkspaceRoles.workspaceRoleId, roleId), isNull(lessonsUserWorkspaceRoles.deletedAt))).limit(1),
   ]);
   if (!target[0] || !assignment[0]) notFound("Role assignment not found");
-  assertCanManageAssignmentScope(req, assignment[0]!.projectIds, assignment[0]!.businessUnitIds);
+  assertCanManageAssignmentScope(req, assignment[0]!.projectIds, assignment[0]!.businessUnitIds, assignment[0]!.departmentIds);
   const now = new Date();
   await db.update(lessonsUserWorkspaceRoles).set({ deletedAt: now, status: "deleted", updatedAt: now }).where(eq(lessonsUserWorkspaceRoles.id, assignment[0]!.id));
   const remaining = await db.select({ id: lessonsUserWorkspaceRoles.id }).from(lessonsUserWorkspaceRoles).where(and(eq(lessonsUserWorkspaceRoles.organizationId, req.currentUser!.organizationId), eq(lessonsUserWorkspaceRoles.userId, userId), isNull(lessonsUserWorkspaceRoles.deletedAt))).limit(1);
@@ -1443,21 +1477,12 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
 }));
 
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
-  const { page, limit, offset } = pagination(req);
-  const pending = await loadPendingApplicationRequestPage(req, "lessons", offset, limit);
-  const usernames = pending.items.map(row => row.username);
-  const userRows = usernames.length ? await db.select().from(users).where(and(eq(users.organizationId, req.currentUser!.organizationId),
-    isNull(users.deletedAt), inArray(users.username, usernames))) : [];
-  const byUsername = activeUserIdentityByUsername(userRows, req.currentUser!.organizationId);
-  res.json(paginated(pending.items.map(r => ({
-    id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: r.requestedRoleId,
-    status: "pending", requestedAt: r.requestedAt,
-  })), pending.total, page, limit));
+  const { page, limit } = pagination(req);
+  res.json(paginated([], 0, page, limit));
 }));
 
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
-  const body = parseBody(DecideLessonsAccessRequestBody, req, res); if (!body) return;
-  res.json(await decideApplicationAccess(req, "lessons", body.decision, body.comments));
+  res.status(410).json({ error: "Separate application approval is no longer required. Manage access through active role assignments." });
 }));
 
 router.get("/admin/delegations", asyncHandler(async (req, res) => {

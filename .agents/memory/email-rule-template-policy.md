@@ -26,6 +26,15 @@ Protected Audit approval emails must use the workflow queue only, not a second g
 
 **How to apply:** Apply content templates inside the existing participant-scoped approval queue. Do not copy the example document's To/CC lists into new recipient rules.
 
+Administrators may now explicitly select CC workspace roles independently of
+the To mode. Resolve them in the event's application and tenant, using active
+roles, assignments and users. Apply them in both generic and protected Audit
+queues, without changing To recipients or duplicating workflow dispatch.
+
+**Why:** The user requested CC-role maintenance in Edit Rule and actual delivery
+for triggered emails. This explicitly configured audience is distinct from
+automatically copying sample-document recipients.
+
 Lessons Learned submission emails must include the form PDF as an actual
 attachment, using the same report as the form's Download PDF action.
 

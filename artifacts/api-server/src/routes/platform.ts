@@ -10,7 +10,7 @@ import {
   UpdateOrganizationSettingsResponse,
   PreviewLessonsNumberingBody, PreviewLessonsNumberingResponse, UpdateLessonsProjectNumberingBody,
 } from "@workspace/api-zod";
-import { applicationAccess, businessUnits, db, moduleFieldSettings, organizations, organizationSettings, platformRoles, projects, users } from "@workspace/db";
+import { businessUnits, db, moduleFieldSettings, organizations, organizationSettings, platformRoles, projects, users } from "@workspace/db";
 import { requireAdmin, requireAuth, requirePlatformRole } from "../middlewares/auth";
 import { hashPassword } from "../lib/auth";
 import { runEscalationSweep } from "../lib/escalation";
@@ -22,7 +22,7 @@ import {
   lessonProjectCounter, saveLessonProjectCounter, LessonProjectNumberingError, availableLessonNumber,
   resetNumberingPattern, saveNumberingPattern, type NumberingModule,
 } from "../lib/numbering";
-import { getAuthorizedProjectScope, getPlatformEffectiveProjectScope, getRoleAssignmentProjectScope } from "../middlewares/rbac";
+import { getAuthorizedProjectScope, getPlatformEffectiveProjectScope, getRoleAssignmentProjectScope, getRoleBasedApplicationAccess } from "../middlewares/rbac";
 import { projectNumberContext, referencePrefixError, ReferencePrefixError, resolveReferencePrefix } from "@workspace/field-controls";
 import { assertLovValue } from "../lib/lov";
 import { getDateFormat } from "@workspace/spreadsheet-dates";
@@ -275,18 +275,8 @@ router.get("/platform/context", requireAuth, async (req, res): Promise<void> => 
     return;
   }
   const [organization] = await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, user.organizationId)).limit(1);
-  const [access] = await db.select().from(applicationAccess)
-    .where(and(
-      eq(applicationAccess.organizationId, user.organizationId),
-      eq(applicationAccess.username, user.username),
-    ))
-    .limit(1);
   const roleNames = user.workspaceRoles;
-  const accessByApp = {
-    qaqc: access?.canOpenQaqc ?? false,
-    lessons: access?.canOpenLessons ?? false,
-    audit: access?.canOpenAudit ?? false,
-  };
+  const accessByApp = await getRoleBasedApplicationAccess(user);
   const scope = restrictDronaProjects(req.dronaProjectIds, ["Super Admin", "Org Admin"].includes(user.platformRole)
     ? { unrestricted: true, projectIds: [] }
     : await getPlatformEffectiveProjectScope(user.id, user.organizationId));
@@ -388,21 +378,7 @@ router.get("/platform/business-units", requireAuth, async (req, res): Promise<vo
 
 router.get("/platform/application-access", requireAuth, async (req, res): Promise<void> => {
   const user = req.currentUser!;
-  // Match requireAppAccess: platform administrators may enter all applications
-  // to administer them, without changing ordinary users' approval gates.
-  if (["Super Admin", "Org Admin"].includes(user.platformRole)) {
-    res.json(GetApplicationAccessResponse.parse({ qaqc: true, lessons: true, audit: true }));
-    return;
-  }
-  const rows = await db.select().from(applicationAccess).where(and(
-    eq(applicationAccess.organizationId, user.organizationId),
-    eq(applicationAccess.username, user.username), isNull(applicationAccess.deletedAt),
-  ));
-  res.json(GetApplicationAccessResponse.parse({
-    qaqc: rows.some((row) => row.canOpenQaqc),
-    lessons: rows.some((row) => row.canOpenLessons),
-    audit: rows.some((row) => row.canOpenAudit),
-  }));
+  res.json(GetApplicationAccessResponse.parse(await getRoleBasedApplicationAccess(user)));
 });
 
 router.get("/platform/reference-data", requireAuth, async (req, res): Promise<void> => {

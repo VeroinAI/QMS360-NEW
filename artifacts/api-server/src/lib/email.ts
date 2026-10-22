@@ -78,7 +78,7 @@ export type EmailDeliveryInput = {
   recipientIds: string[];
   /** Explicit external recipients, used by organization email rules. */
   recipients?: Array<{ email: string; name?: string | null }>;
-  /** CC recipients included on the same message as the primary recipient. */
+  /** CC recipients included on the same message as all To recipients. */
   ccRecipients?: Array<{ email: string; name?: string | null }>;
   /** Optional retry-only SMTP envelope targets; MIME To/CC headers remain unchanged. */
   envelopeRecipients?: string[];
@@ -256,7 +256,7 @@ export async function deliverEmail(
     // Embedded in every recorded failure so the Cockpit sync-job retry action
     // can resend the exact original email without the caller reconstructing it.
     const explicitCcRecipients = (input.ccRecipients ?? []).filter((r) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email));
-    const retryPayload = { recipientIds, recipients: explicitRecipients, ccRecipients: explicitCcRecipients, sender: input.sender, subject: input.subject, text: input.text, html: input.html, attachments: input.attachments };
+    const retryPayload = { recipientIds, recipients: explicitRecipients, ccRecipients: explicitCcRecipients, envelopeRecipients: input.envelopeRecipients, sender: input.sender, subject: input.subject, text: input.text, html: input.html, attachments: input.attachments };
 
     const connector = await findEmailConnector(database, input.organizationId);
     if (!connector) return { attempted: false, reason: "no_connector" };
@@ -273,19 +273,26 @@ export async function deliverEmail(
       return { attempted: false, reason: "incomplete_config" };
     }
 
-    const recipients = await database.select({ id: users.id, email: users.email }).from(users).where(and(
+    const recipients = await database.select({ id: users.id, email: users.email, name: users.fullName }).from(users).where(and(
       eq(users.organizationId, input.organizationId),
       inArray(users.id, recipientIds),
       eq(users.accessStatus, "active"),
       isNull(users.deletedAt),
     ));
-    const allRecipients = [
-      ...recipients.map((recipient) => ({ email: recipient.email, name: null as string | null })),
+    const allRecipients = [...new Map([
+      ...recipients,
       ...explicitRecipients,
-    ];
+    ].map(recipient => [recipient.email.trim().toLowerCase(), {
+      email: recipient.email.trim().toLowerCase(), name: recipient.name,
+    }])).values()];
+    const toAddresses = new Set(allRecipients.map(recipient => recipient.email));
+    const ccRecipients = [...new Map(explicitCcRecipients.map(recipient =>
+      [recipient.email.trim().toLowerCase(), { ...recipient, email: recipient.email.trim().toLowerCase() }]
+    )).values()].filter(recipient => !toAddresses.has(recipient.email));
     if (!allRecipients.length) return { attempted: false, reason: "no_recipients" };
     const allRecipientRetryPayload = {
-      recipientIds: [] as string[], recipients: allRecipients, ccRecipients: explicitCcRecipients, sender: input.sender, subject: input.subject, text: input.text, html: input.html, attachments: input.attachments,
+      recipientIds: [] as string[], recipients: allRecipients, ccRecipients, envelopeRecipients: input.envelopeRecipients,
+      sender: input.sender, subject: input.subject, text: input.text, html: input.html, attachments: input.attachments,
     };
     const attachments = await loadEmailPdfAttachments(input.organizationId, input.attachments ?? []);
 
@@ -304,51 +311,44 @@ export async function deliverEmail(
     if (target) {
       const transporter = createTransporter(config, target);
       const { from, replyTo } = smtpMessageHeaders(config, input.sender);
-      const results = await Promise.allSettled(allRecipients.map((recipient) =>
+      const results = await Promise.allSettled([
         transporter.sendMail({
           from,
           envelope: {
             from: config.fromAddress,
             to: input.envelopeRecipients?.length
               ? input.envelopeRecipients
-              : [recipient.email, ...explicitCcRecipients.map((cc) => cc.email)],
+              : [...allRecipients.map(recipient => recipient.email), ...ccRecipients.map(cc => cc.email)],
           },
           replyTo,
-          to: recipient.name ? `"${recipient.name.replaceAll('"', "")}" <${recipient.email}>` : recipient.email,
-          cc: explicitCcRecipients.map((cc) => cc.name ? `"${cc.name.replaceAll('"', "")}" <${cc.email}>` : cc.email),
+          to: allRecipients.map(recipient => ({ name: recipient.name ?? "", address: recipient.email })),
+          cc: ccRecipients.map(cc => ({ name: cc.name ?? "", address: cc.email })),
           subject: input.subject,
           text: input.text,
           html: input.html,
           attachments,
-        })));
+        })]);
       transporter.close();
-      for (const [index, result] of results.entries()) {
+      for (const result of results) {
         const rejected = result.status === "fulfilled" && Array.isArray(result.value.rejected)
           ? result.value.rejected.map(String) : [];
         if (result.status === "fulfilled" && rejected.length === 0) {
-          sent++;
+          sent = allRecipients.length;
         } else if (result.status === "fulfilled") {
-          failedRecipients.push(allRecipients[index]!);
+          failedRecipients.push(...allRecipients);
           rejectedEnvelopeRecipients.push(...rejected);
           errors.push({
-            recipient: allRecipients[index]!.email,
             message: `SMTP rejected: ${rejected.join(", ")}`,
             ...input.context,
-            recipientIds: [], recipients: [allRecipients[index]!],
-            ccRecipients: explicitCcRecipients,
-            sender: input.sender,
-            subject: input.subject, text: input.text, html: input.html, attachments: input.attachments,
+            ...allRecipientRetryPayload,
+            envelopeRecipients: rejected,
           });
         } else {
-          failedRecipients.push(allRecipients[index]!);
+          failedRecipients.push(...allRecipients);
           errors.push({
-            recipient: allRecipients[index]!.email,
             message: result.reason instanceof Error ? result.reason.message : String(result.reason),
             ...input.context,
-            recipientIds: [], recipients: [allRecipients[index]!],
-            ccRecipients: explicitCcRecipients,
-            sender: input.sender,
-            subject: input.subject, text: input.text, html: input.html, attachments: input.attachments,
+            ...allRecipientRetryPayload,
           });
         }
       }

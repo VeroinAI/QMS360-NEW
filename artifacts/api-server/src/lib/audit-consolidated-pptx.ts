@@ -45,7 +45,10 @@ function setText(container: Element, value: string) {
         run.appendChild(rp);
       }
       run.appendChild(doc.createElementNS(A, "a:t"));
-      paragraph.appendChild(run);
+      // DrawingML requires pPr?, then runs/fields/breaks, then endParaRPr?.
+      // Empty template cells often contain only endParaRPr; appending a run
+      // after it produces well-formed XML that PowerPoint cannot safely open.
+      paragraph.insertBefore(run, props ?? null);
       texts = elements(paragraph, A, "t");
     }
     texts.forEach((t, i) => { t.textContent = i === 0 ? line : ""; });
@@ -155,7 +158,12 @@ export async function renderConsolidatedAuditPptx(input: {
   for (let slideNumber = 1; slideNumber <= 18; slideNumber++) {
     if (slideNumber === 16 && input.skipPriorityActions) continue;
     const path = `ppt/slides/slide${slideNumber}.xml`;
-    const base = parse(files[path]!);
+    // Capture pristine source parts before writing page zero back to files.
+    // Otherwise photo continuations inherit its image relationships and append
+    // the same relationship IDs again, producing an invalid PowerPoint package.
+    const sourceSlide = files[path]!;
+    const sourceRels = files[`ppt/slides/_rels/slide${slideNumber}.xml.rels`]!;
+    const base = parse(sourceSlide);
     const tables = elements(base, A, "tbl");
     const mapping = mappings.get(slideNumber);
     const pages = mapping?.tables.map((rows, i) => {
@@ -196,7 +204,7 @@ export async function renderConsolidatedAuditPptx(input: {
       slideNumber === 13 ? photos.length : 1, slideNumber === 7 ? themes.length : 1,
       ...(slideNumber === 5 ? participation.map(p => p.length) : [1]));
     for (let page = 0; page < count; page++) {
-      const doc = parse(files[path]!);
+      const doc = parse(sourceSlide);
       // Clean template instructions before inserting record data; brackets in
       // actual audit text are valid content and must never be mistaken for prompts.
       for (const s of elements(doc, P, "sp")) {
@@ -231,7 +239,6 @@ export async function renderConsolidatedAuditPptx(input: {
       }
       const target = page ? nextSlide++ : slideNumber;
       const targetPath = `ppt/slides/slide${target}.xml`;
-      const sourceRels = files[`ppt/slides/_rels/slide${slideNumber}.xml.rels`]!;
       let slideRels = parse(sourceRels);
       if (page) {
         // A notes slide belongs to exactly one presentation slide.

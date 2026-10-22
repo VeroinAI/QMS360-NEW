@@ -15,6 +15,7 @@ import type { ToParameter } from './toParameter';
 
 export type SearchLessonsLogParams = {
 search?: string;
+departmentId?: string;
 projectId?: ProjectIdParameter;
 disciplineId?: string;
 category?: string;

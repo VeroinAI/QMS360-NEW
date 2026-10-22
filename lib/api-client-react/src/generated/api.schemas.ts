@@ -5,6 +5,73 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export interface QaqcHistoricalBulkUpload {
+  period: string;
+  /** @maxLength 2800000 */
+  fileBase64: string;
+}
+
+export type QaqcHistoricalBalanceInputBalances = {[key: string]: number};
+
+export interface QaqcHistoricalBalanceInput {
+  projectId: string;
+  period: string;
+  /** @minimum 0 */
+  version: number;
+  /**
+     * Original Excel row reference, carried internally from workbook preview to atomic apply.
+     * @minimum 1
+     * @maximum 502
+     */
+  rowNumber?: number;
+  reason: string;
+  balances: QaqcHistoricalBalanceInputBalances;
+}
+
+export interface QaqcHistoricalBulkApply {
+  period: string;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  items: QaqcHistoricalBalanceInput[];
+}
+
+export interface QaqcHistoricalBalanceChange {
+  key: string;
+  label: string;
+  before: number;
+  after: number;
+}
+
+export type QaqcHistoricalBulkPreviewRowsItemBalances = {[key: string]: number};
+
+export type QaqcHistoricalBulkPreviewRowsItem = {
+  projectId: string;
+  projectCode: string;
+  projectName: string;
+  period: string;
+  version: number;
+  reason: string;
+  balances: QaqcHistoricalBulkPreviewRowsItemBalances;
+  rowNumber: number;
+  errors: string[];
+  affectedDrafts: number;
+  changes: QaqcHistoricalBalanceChange[];
+};
+
+export interface QaqcHistoricalBulkPreview {
+  period: string;
+  canApply: boolean;
+  rows: QaqcHistoricalBulkPreviewRowsItem[];
+}
+
+export interface QaqcHistoricalWorkbookInput {
+  projectId: string;
+  period: string;
+  fileBase64: string;
+}
+
 export interface DronaUserSearch {
   /**
      * @minLength 3
@@ -405,6 +472,12 @@ export type EmailRecipientConfigBodyRichText = { [key: string]: unknown } | null
 export interface EmailRecipientConfig {
   roleName?: string;
   roleNames?: string[];
+  /**
+     * @maxItems 100
+     * @items.minLength 1
+     * @items.maxLength 200
+     */
+  ccRoleNames?: string[];
   projectIds?: string[];
   senderMode?: EmailRecipientConfigSenderMode;
   /** @maxLength 250 */
@@ -916,6 +989,11 @@ export interface ProjectAdditionalData {
      * @maxLength 500
      * @nullable
      */
+  name?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
   client: string | null;
   /**
      * @maxLength 500
@@ -952,6 +1030,18 @@ export interface ProjectAdditionalData {
      * @nullable
      */
   fac: string | null;
+  /**
+     * @maxLength 254
+     * @nullable
+     * @pattern ^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$
+     */
+  email?: string | null;
+  /**
+     * @maxLength 32
+     * @nullable
+     * @pattern ^\+[1-9](?:[ -]?[0-9]){6,14}$
+     */
+  phone?: string | null;
 }
 
 export interface DronaProjectMasterRecord {
@@ -1908,6 +1998,10 @@ export const PermissionKey = {
   qaqcmonthly_reportsimport: 'qaqc.monthly_reports.import',
   qaqcmonthly_reportsexport: 'qaqc.monthly_reports.export',
   qaqcmonthly_reportsai: 'qaqc.monthly_reports.ai',
+  qaqchistorical_balancesview_all: 'qaqc.historical_balances.view_all',
+  qaqchistorical_balancescreate_edit: 'qaqc.historical_balances.create_edit',
+  qaqchistorical_balancesimport: 'qaqc.historical_balances.import',
+  qaqchistorical_balancesexport: 'qaqc.historical_balances.export',
   qaqcmonthly_sectionsconfigured: 'qaqc.monthly_sections.configured',
   qaqcmonthly_section_projectcreate_edit: 'qaqc.monthly_section_project.create_edit',
   qaqcmonthly_section_pqpcreate_edit: 'qaqc.monthly_section_pqp.create_edit',
@@ -1978,6 +2072,7 @@ export type RoleScopeType = typeof RoleScopeType[keyof typeof RoleScopeType];
 export const RoleScopeType = {
   organization: 'organization',
   project: 'project',
+  department: 'department',
 } as const;
 
 export interface Role {
@@ -2010,6 +2105,21 @@ export const RoleAssignmentScopeType = {
 export interface RoleAssignment {
   roleId: string;
   scopeType: RoleAssignmentScopeType;
+  scopeIds: string[];
+}
+
+export type LessonsRoleAssignmentScopeType = typeof LessonsRoleAssignmentScopeType[keyof typeof LessonsRoleAssignmentScopeType];
+
+
+export const LessonsRoleAssignmentScopeType = {
+  organization: 'organization',
+  project: 'project',
+  department: 'department',
+} as const;
+
+export interface LessonsRoleAssignment {
+  roleId: string;
+  scopeType: LessonsRoleAssignmentScopeType;
   scopeIds: string[];
 }
 
@@ -2087,6 +2197,14 @@ export interface UserProfileUpdate {
      * @nullable
      */
   signatureDataUrl?: string | null;
+}
+
+export interface QaqcUserProfileResult {
+  id: string;
+  /** @nullable */
+  designation: string | null;
+  /** @nullable */
+  signatureUrl: string | null;
 }
 
 export interface AuditUserProfileUpdateResult {
@@ -2784,6 +2902,7 @@ export interface AISuggestionLog {
 export interface LessonsReferenceData {
   generatedAt: string;
   projects: Project[];
+  departments?: ReferenceItem[];
   disciplines: ReferenceItem[];
   categorisation: ReferenceItem[];
 }
@@ -2819,12 +2938,26 @@ export interface ApproverScopeInput {
   categorisation?: string;
 }
 
+export type LessonLearnedFormSourceType = typeof LessonLearnedFormSourceType[keyof typeof LessonLearnedFormSourceType];
+
+
+export const LessonLearnedFormSourceType = {
+  Project: 'Project',
+  Department: 'Department',
+} as const;
+
 export interface LessonLearnedForm {
   id: string;
   readonly referenceNumber: string;
   /** @nullable */
   reference?: string | null;
-  projectId: string;
+  /** @nullable */
+  projectId: string | null;
+  sourceType?: LessonLearnedFormSourceType;
+  /** @nullable */
+  departmentId?: string | null;
+  /** @nullable */
+  readonly departmentName?: string | null;
   title: string;
   disciplineId: string;
   categorisationId: string;
@@ -4534,6 +4667,40 @@ export const ReportFormatParameter = {
   xlsx: 'xlsx',
 } as const;
 
+export type GetQaqcHistoricalBulkTemplateParams = {
+period: string;
+};
+
+export type ApplyQaqcHistoricalBulkBalances200ResultsItem = {
+  projectId: string;
+  version: number;
+  updatedDrafts: number;
+};
+
+export type ApplyQaqcHistoricalBulkBalances200 = {
+  updatedProjects: number;
+  updatedDrafts: number;
+  results: ApplyQaqcHistoricalBulkBalances200ResultsItem[];
+};
+
+export type GetQaqcHistoricalProjects200Item = { [key: string]: unknown };
+
+export type GetQaqcHistoricalBalancesParams = {
+projectId: string;
+period: string;
+};
+
+export type GetQaqcHistoricalBalances200 = { [key: string]: unknown };
+
+export type SaveQaqcHistoricalBalances200 = { [key: string]: unknown };
+
+export type PreviewQaqcHistoricalWorkbook200 = { [key: string]: unknown };
+
+export type GetQaqcHistoricalTemplateParams = {
+projectId: string;
+period: string;
+};
+
 export type ListPlatformProjectsParams = {
 /**
  * @minimum 1
@@ -5203,6 +5370,7 @@ projectId?: string;
  * Discipline LOV value
  */
 discipline?: string;
+departmentId?: string;
 /**
  * Categorisation LOV value
  */
@@ -5231,6 +5399,7 @@ limit?: LimitParameter;
 
 export type SearchLessonsLogParams = {
 search?: string;
+departmentId?: string;
 projectId?: ProjectIdParameter;
 disciplineId?: string;
 category?: string;
@@ -5320,6 +5489,7 @@ limit?: LimitParameter;
 
 export type ExportLessonsLogParams = {
 creatorId?: string;
+departmentId?: string;
 search?: string;
 projectId?: ProjectIdParameter;
 disciplineId?: string;

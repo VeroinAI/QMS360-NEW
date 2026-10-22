@@ -17,3 +17,16 @@ Master list to fail, even though the stored timestamp was valid.
 Cover string and Date representations, including timezone offsets, in response
 serialization tests. Do not change global database parsers or stored data to
 fix an API formatting assumption.
+
+For optimistic locking, preserve the database's exact timestamp separately from
+the API's JavaScript Date. Compare-and-save predicates must bind the original
+database timestamp, not the Date converted back to ISO.
+
+**Why:** PostgreSQL retains microseconds while JavaScript Dates retain only
+milliseconds. An unchanged QA/QC draft was rejected as a concurrent edit because
+the atomic update compared a microsecond timestamp against its truncated Date.
+Rounding stored values or weakening the guard would lose real conflict protection.
+
+**How to apply:** Keep the API timestamp contract unchanged, select a raw timestamp
+for the internal atomic update, and test both unchanged microsecond values and
+genuine changes within the same millisecond.

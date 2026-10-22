@@ -1,0 +1,12 @@
+External NCR – ageing 0–15 days	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> External NCR --> Open NCR ageing --> [ageing row: 0–15 days]
+External NCR – ageing 16–30 days	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> External NCR --> Open NCR ageing --> [ageing row: 16–30 days]
+External NCR – ageing 31–60 days	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> External NCR --> Open NCR ageing --> [ageing row: 31–60 days]
+External NCR – ageing > 60 days	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> External NCR --> Open NCR ageing --> [ageing row: > 60 days]
+External NCR – Total aged	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> External NCR --> Open NCR ageing --> [all ageing rows]
+External NCR – Total vs Open (✔ 3 / 3)	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> External NCR --> Ageing total vs Open NCRs
+Internal NCR – ageing 0–15 days	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> Internal NCR --> Open NCR ageing --> [ageing row: 0–15 days]
+Internal NCR – ageing 16–30 days	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> Internal NCR --> Open NCR ageing --> [ageing row: 16–30 days]
+Internal NCR – ageing 31–60 days	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> Internal NCR --> Open NCR ageing --> [ageing row: 31–60 days]
+Internal NCR – ageing > 60 days	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> Internal NCR --> Open NCR ageing --> [ageing row: > 60 days]
+Internal NCR – Total aged	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> Internal NCR --> Open NCR ageing --> [all ageing rows]
+Internal NCR – Total vs Open (✔ 3 / 3)	QAQC Metrics --> New Entry --> 7. QA/QC Metric Details Section (Ext NCR, Int NCR, RFI & RMI) --> Internal NCR --> Ageing total vs Open NCRs

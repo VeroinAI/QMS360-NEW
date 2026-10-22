@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Grid, Section, TextField, getIn, useForm } from './form-kit';
 import { CSAT_QUESTIONS, CSAT_SCALE, OUTCOMES, fmt } from './reporting-types';
 
@@ -33,6 +34,10 @@ function SurveyRadio({ path, label, numeric = false }: { path: string[]; label: 
 
 export function CsatForm({ projectName }: { projectName?: string }) {
   const f = useForm();
+  const followUpId = useId();
+  const wantsFollowUp = f.data.followUp === 'Yes';
+  const followUpDisabled = f.readOnly || f.fc('followUp').disabled;
+  const contactDisabled = f.readOnly || f.fc('preferredContactMethod').disabled;
   const filled = CSAT_QUESTIONS.map(([key]) => Number(getIn(f.data, ['ratings', key])))
     .filter(value => Number.isInteger(value) && value >= 1 && value <= 5);
   const avg = filled.length ? filled.reduce((sum, value) => sum + value, 0) / filled.length : 0;
@@ -56,6 +61,31 @@ export function CsatForm({ projectName }: { projectName?: string }) {
     </Grid></Section>
     <Section title="Additional Comments / Recommendations" description="Optional comments or recommendations.">
       <TextField path={['comments']} label="Additional Comments / Recommendations" multiline />
+    </Section>
+    <Section title="Feedback follow-up">
+      <fieldset disabled={followUpDisabled} className="space-y-3">
+        <legend className="text-sm font-medium">Would you like us to follow up on your feedback?</legend>
+        <div className="flex gap-6">
+          {(['Yes', 'No'] as const).map(option => <label key={option} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="size-4 accent-primary" aria-label={`Follow up on feedback: ${option}`}
+              data-testid={`checkbox-csat-follow-up-${option}`} disabled={followUpDisabled}
+              checked={f.data.followUp === option} onChange={e => {
+                const value = e.target.checked ? option : undefined;
+                f.set(['followUp'], value);
+                if (value !== 'Yes') f.set(['preferredContactMethod'], '');
+              }} />
+            {option}
+          </label>)}
+        </div>
+      </fieldset>
+      {wantsFollowUp && <div className="space-y-1">
+        <Label htmlFor={followUpId}>Preferred contact method <span className="text-destructive" aria-hidden="true">*</span></Label>
+        <Input id={followUpId} aria-label="Preferred contact method" data-testid="input-csat-preferred-contact-method"
+          required aria-required="true" disabled={contactDisabled} value={f.data.preferredContactMethod ?? ''}
+          onChange={e => f.set(['preferredContactMethod'], e.target.value)}
+          placeholder="e.g. Email or phone, with your contact details" />
+        {!String(f.data.preferredContactMethod ?? '').trim() && <p className="text-xs text-destructive" role="status">Enter your preferred contact method when follow-up is Yes.</p>}
+      </div>}
     </Section>
   </div>;
 }

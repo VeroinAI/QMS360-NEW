@@ -7,6 +7,7 @@ type Assignment = {
   userId: string;
   projectIds: string[] | null;
   businessUnitIds?: string[] | null;
+  departmentIds?: string[] | null;
 };
 
 /** Discover identities, not privileges. Existing role and approval writes retain
@@ -48,7 +49,7 @@ export async function visibleAdminUsers<T extends { id: string }>(
     const existing = assignments.filter(a => a.userId === user.id);
     // Do not use discovery to expose users whose existing assignments are outside scope.
     return existing.length
-      ? existing.some(a => canManageAssignmentScope(req, a.projectIds, a.businessUnitIds))
+      ? existing.some(a => canManageAssignmentScope(req, a.projectIds, a.businessUnitIds, a.departmentIds))
       : discoverable.has(user.id);
   });
 }

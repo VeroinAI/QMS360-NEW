@@ -218,3 +218,17 @@ mtime_ms = 1792132362912
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/9ebb9e8f-b9dc-4509-8c99-12b604d7a567/27dc3edb-300c-4a35-bd32-125bb1aa2e6f"
 storage_version_token = "1792132444799178"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "b0HiIvek8YqjjpKBeNzot"
+uri = "file://generated-artifacts/audit-report-repaired.pptx"
+type = "slides"
+title = "Repaired Audit Report PowerPoint"
+description = "Corrected the invalid paragraph ordering and duplicate photo references in your attached report. Report text, images and template styling are preserved."
+logical_id = "1f8efede-e485-4576-bc26-c6287d6f4453"
+content_hash = "sha256:5d14d42c98abfca781f75db34be727b2b8a814729dd03c03d8d5ef310b7ec5df"
+size = 674021
+mtime_ms = 1792377060474
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/1f8efede-e485-4576-bc26-c6287d6f4453/8b1e4ccf-940f-4397-94b5-ff4b82ccbac7"
+storage_version_token = "1792377133586364"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"

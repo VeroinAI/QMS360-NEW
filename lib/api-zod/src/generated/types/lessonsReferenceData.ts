@@ -11,6 +11,7 @@ import type { ReferenceItem } from './referenceItem';
 export interface LessonsReferenceData {
   generatedAt: Date;
   projects: Project[];
+  departments?: ReferenceItem[];
   disciplines: ReferenceItem[];
   categorisation: ReferenceItem[];
 }

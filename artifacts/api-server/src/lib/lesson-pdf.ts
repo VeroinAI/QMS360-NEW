@@ -151,6 +151,15 @@ export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets
   field("Prepared by — Date", dateText(lesson.submittedAt), [113.9, 770.5, 188.6, 25.5]);
   field("Approved by — Date", dateText(lesson.reviewedAt), [381.9, 770.5, 184.4, 25.5]);
 
+  const sourceRows = [
+    { label: "Project / Department", value: lesson.departmentId ? "Department" : "Project" },
+    { label: lesson.departmentId ? "Department" : "Project", value: valueText(lesson.sourceName ?? lesson.departmentName ?? lesson.projectName) },
+  ].map(row => {
+    const lines = wrap(row.value, regular, 9.5, 408);
+    if (lines.length > 2) overflow.push({ label: row.label, text: row.value });
+    return { ...row, lines: lines.length > 2 ? [lines[0]!, "(See continuation)"] : lines };
+  });
+
   // Keep the fixed Word form readable without silently losing unusually long data.
   if (overflow.length) {
     const header = await document.embedPage(page, { left: 24, bottom: page.getHeight() - 78, right: 572, top: page.getHeight() - 24 });
@@ -177,5 +186,39 @@ export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets
       drawLines(sheet, [`${index + 1} of ${pages.length}`], regular, 6, [532, 807, 32, 8.5]);
     });
   }
+  // Insert two source rows after Location. Embed rather than redraw the approved
+  // template so its logo, fields, photos, signatures and document control survive.
+  const width = page.getWidth(), height = page.getHeight(), split = 196.9, added = 56;
+  const scale = height / (height + added), left = (width - width * scale) / 2;
+  const [upper, lower] = await Promise.all([
+    document.embedPage(page, { left: 0, bottom: height - split, right: width, top: height }),
+    document.embedPage(page, { left: 0, bottom: 0, right: width, top: height - split }),
+  ]);
+  const expanded = document.insertPage(0, [width, height]);
+  expanded.drawPage(upper, { x: left, y: height - split * scale, width: width * scale, height: split * scale });
+  expanded.drawPage(lower, { x: left, y: 0, width: width * scale, height: (height - split) * scale });
+  sourceRows.forEach((row, index) => {
+    const y = height - (split + (index + 1) * 28) * scale;
+    expanded.drawRectangle({ x: left + 28.9 * scale, y, width: 120.4 * scale, height: 28 * scale,
+      color: rgb(0.9, 0.9, 0.9), borderColor: BLACK, borderWidth: 0.4 });
+    expanded.drawRectangle({ x: left + 149.3 * scale, y, width: 418.3 * scale, height: 28 * scale,
+      color: WHITE, borderColor: BLACK, borderWidth: 0.4 });
+    drawLines(expanded, wrap(row.label, bold, 9.5 * scale, 111 * scale), bold, 9.5 * scale,
+      [left + 28.9 * scale, (split + index * 28) * scale, 120.4 * scale, 28 * scale], false);
+    drawLines(expanded, row.lines, regular, 9.5 * scale,
+      [left + 149.3 * scale, (split + index * 28) * scale, 418.3 * scale, 28 * scale]);
+  });
+  // The cropped template's outer frame stops at the insertion seam. Continue
+  // both original sides through the new rows, with a small overlap to avoid
+  // hairline gaps at either join. Keep the template's 0.5 pt stroke.
+  for (const x of [24.25, 571]) {
+    expanded.drawLine({
+      start: { x: left + x * scale, y: height - (split - 0.5) * scale },
+      end: { x: left + x * scale, y: height - (split + added + 0.5) * scale },
+      thickness: 0.5 * scale,
+      color: BLACK,
+    });
+  }
+  document.removePage(1);
   return Buffer.from(await document.save({ useObjectStreams: false }));
 }

@@ -9,13 +9,14 @@ import {
   uuid,
   varchar,
   index,
+  type PgColumnBuilderBase,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { businessUnits, organizations, projects, users } from "./shared";
 
 type AppSchema = ReturnType<typeof pgSchema>;
 
-export function createAppAdministration(schema: AppSchema) {
+export function createAppAdministration<T extends Record<string, PgColumnBuilderBase> = {}>(schema: AppSchema, assignmentColumns?: T) {
   const evidenceStatus = schema.enum("evidence_status", ["uploading", "stored", "failed"]);
   const notificationChannel = schema.enum("notification_channel", ["in_app", "email"]);
   const auditColumns = {
@@ -84,6 +85,7 @@ export function createAppAdministration(schema: AppSchema) {
   ]);
 
   const userWorkspaceRoles = schema.table("user_workspace_roles", {
+    ...assignmentColumns as T,
     id: uuid("id").defaultRandom().primaryKey(),
     organizationId: uuid("organization_id").notNull().references(() => organizations.id),
     userId: uuid("user_id").notNull().references(() => users.id),

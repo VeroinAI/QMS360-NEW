@@ -96,8 +96,24 @@ describe('Daily discipline submission layout', () => {
     expect(html.match(/<option[^>]*value="submittals"/g)).toHaveLength(2);
     expect(html).toMatch(/aria-label="Drawing revision 1 yesterday approved"[^>]*readOnly=""[^>]*value="12"/);
     expect(html).toMatch(/aria-label="Submittal revision 1 yesterday approved"[^>]*readOnly=""[^>]*value="10"/);
-    expect(html).toContain('20.0%');
-    expect(html).toContain('15.0%');
+    expect(html).toContain('33.3%');
+    expect(html).toContain('37.5%');
+    expect(html).toContain('Drawing revision percentages use total cumulative Drawings');
+    expect(html).not.toContain('Drawings + Submittals Total');
+  });
+
+  it('keeps revision denominators independent when the other category changes or its own total is zero', () => {
+    const revisions = { drawings: [{ name: 'A', value: 25 }], submittals: [{ name: 'A', value: 15 }] };
+    const data = { disciplines: { drawings: { Civil: { approved: 100 } }, submittals: { Civil: { approved: 60 } } }, revisions };
+    const html = render(data);
+    expect(html.match(/>25\.0%<\/td>/g)).toHaveLength(2);
+    const changed = render({ ...data, disciplines: { ...data.disciplines, submittals: { Civil: { approved: 30 } } } });
+    expect(changed).toContain('25.0%');
+    expect(changed).toContain('50.0%');
+    const zero = render({ ...data, disciplines: { submittals: data.disciplines.submittals } });
+    expect(zero).toContain('0.0%');
+    expect(zero).toContain('25.0%');
+    expect(zero).not.toMatch(/NaN|Infinity/);
   });
 
   it('preserves prior-only revisions, handles zero totals, and respects revision field locks', () => {

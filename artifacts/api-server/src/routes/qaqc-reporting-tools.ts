@@ -21,6 +21,8 @@ import {
 } from "../lib/qaqc-reporting-excel";
 import { buildQaqcReportingDashboard } from "./qaqc-reporting";
 import { safeTemplateMetadata } from "../lib/qaqc-pdf-templates";
+import { monthlyDownloadAverage } from "../lib/qaqc-monthly-download-average";
+import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import type { QaqcOperation } from "@workspace/field-controls";
 
 const router: IRouter = Router();
@@ -116,7 +118,7 @@ async function getReport(req: any, id: string) {
   if (!safeType(report.reportType)) throw new HttpError(404, "QA/QC report type is invalid");
   const access = await reportAccess(req, report.reportType);
   if (!canReadReport(req, access, report)) throw new HttpError(404, "QA/QC report was not found in your authorized project scope");
-  const [project] = await db.select({ name: projects.name, code: projects.code }).from(projects)
+  const [project] = await db.select({ name: projects.name, code: projects.code, location: projects.location, customFields: projects.customFields }).from(projects)
     .where(and(eq(projects.id, report.projectId), eq(projects.organizationId, organizationId(req)), isNull(projects.deletedAt))).limit(1);
   const audit = await db.select({
     id: auditLogEntries.id, action: auditLogEntries.action, actorId: auditLogEntries.actorId,
@@ -125,16 +127,38 @@ async function getReport(req: any, id: string) {
     eq(auditLogEntries.organizationId, organizationId(req)), eq(auditLogEntries.entityType, "qaqc_report"),
     eq(auditLogEntries.entityId, report.id),
   )).orderBy(auditLogEntries.createdAt);
-  const actorIds = [...new Set(audit.map((entry) => entry.actorId).filter((id): id is string => !!id))];
-  const actors = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName }).from(users)
+  const dailySettings = report.reportType === "daily" ? jsonObject(jsonObject(project?.customFields).qaqcReporting) : {};
+  const teamId = (key:string) => typeof dailySettings[key] === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dailySettings[key]) ? dailySettings[key] as string : null;
+  const actorIds = [...new Set([...audit.map((entry) => entry.actorId), report.submittedById, report.createdById,
+    ...["pmId","peId","dcId"].map(teamId)].filter((id): id is string => !!id))];
+  const actors = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
     .where(and(eq(users.organizationId, organizationId(req)), inArray(users.id, actorIds))) : [];
   const actorNames = new Map(actors.map((user) => [user.id, user.fullName]));
+  const [dailyOrganization] = report.reportType === "daily"
+    ? await db.select({timezone:organizations.timezone}).from(organizations).where(eq(organizations.id,organizationId(req))).limit(1)
+    : [];
   const templates = await db.select({ name: reportTemplates.name, template: reportTemplates.template })
     .from(reportTemplates).where(and(
       eq(reportTemplates.organizationId, organizationId(req)), isNull(reportTemplates.deletedAt),
     )).orderBy(asc(reportTemplates.name));
   return {
     ...report, projectName: project?.name ?? null, projectCode: project?.code ?? null,
+    projectLocation: project?.location ?? null,
+    projectAdditionalData: jsonObject(jsonObject(project?.customFields).qmsAdditionalData),
+    costCentre: (() => {
+      const fields = jsonObject(project?.customFields);
+      const value = fields.costCentre ?? fields.cost_centre;
+      return typeof value === "string" || typeof value === "number" ? String(value) : null;
+    })(),
+    submittedByName: report.submittedById ? actorNames.get(report.submittedById) ?? null : null,
+    submittedByDesignation: report.submittedById ? actors.find(user => user.id === report.submittedById)?.designation ?? null : null,
+    ...(report.reportType === "daily" ? {
+      createdByName:actorNames.get(report.createdById) ?? null,
+      organizationTimezone:dailyOrganization?.timezone ?? null,
+      projectTeam:Object.fromEntries([["pmName","pmId"],["peName","peId"],["dcName","dcId"]]
+        .map(([name,key])=>[name,actorNames.get(teamId(key!) ?? "") ?? null])),
+    } : {}),
     reportTemplates: templates.map((template) => ({ name: template.name, template: safeTemplateMetadata(jsonObject(template.template)) })),
     history: audit.map(({ after, ...entry }) => ({
       ...entry, actorName: entry.actorId ? actorNames.get(entry.actorId) ?? "Former or unavailable user" : "System",
@@ -251,8 +275,63 @@ router.get("/reports/:id/export", asyncHandler(async (req, res) => {
   const exportAccess = await reportAccess(req, report.reportType as ReportingType, "export");
   if (!canReadReport(req, exportAccess, report)) throw new HttpError(403, "Export is not permitted for this report");
   const name = `qaqc-${report.reportType}-${report.period}-${report.referenceNumber ?? report.id}`;
-  const bytes = format === "pdf" ? await exportQaqcReportPdf(report, { templateId: selectedTemplateId(req) }) : exportQaqcReportExcel(report);
-  download(res, `${name}.${format}`, format === "pdf" ? "application/pdf" : qaqcReportingWorkbookMimeType, bytes);
+  const templateId = selectedTemplateId(req);
+  if (format === "pdf" && report.reportType === "daily" && templateId === "daily-dashboard") {
+    // Use the current request origin, not a fixed development or production host.
+    // This is a clickable link only; no outbound request is made.
+    const referrer = req.get("referer");
+    if (referrer) {
+      try {
+        const url = new URL(req.originalUrl.split("?")[0]!, referrer);
+        if (url.protocol === "https:" || url.protocol === "http:") {
+          url.searchParams.set("format", "pdf");
+          url.searchParams.set("templateId", "daily-submission");
+          report.dailyReportPdfUrl = url.toString();
+        }
+      } catch { /* A non-browser export can still render with an explicit unmapped link. */ }
+    }
+  }
+  if (format === "pdf" && report.reportType === "monthly" && ["monthly-metrics", "monthly-dashboard"].includes(templateId ?? "")) {
+    // Read live snapshots at download time, never a cached form portfolio average.
+    const access = await reportAccess(req, "monthly");
+    const snapshots = await db.select({
+      id: qaqcReportSubmissions.id,
+      organizationId: qaqcReportSubmissions.organizationId,
+      reportType: qaqcReportSubmissions.reportType,
+      period: qaqcReportSubmissions.period,
+      state: qaqcReportSubmissions.state,
+      createdAt: qaqcReportSubmissions.createdAt,
+      projectId: qaqcReportSubmissions.projectId,
+      createdById: qaqcReportSubmissions.createdById,
+      approverId: qaqcReportSubmissions.approverId,
+      computed: qaqcReportSubmissions.computed,
+    }).from(qaqcReportSubmissions).innerJoin(projects, and(
+      eq(projects.id, qaqcReportSubmissions.projectId),
+      eq(projects.organizationId, organizationId(req)), isNull(projects.deletedAt),
+    )).where(and(
+      eq(qaqcReportSubmissions.organizationId, organizationId(req)),
+      eq(qaqcReportSubmissions.reportType, "monthly"),
+      eq(qaqcReportSubmissions.period, report.period),
+      inArray(qaqcReportSubmissions.state, ["submitted", "approved"]),
+      isNull(qaqcReportSubmissions.deletedAt),
+      !access.scope.unrestricted ? inArray(qaqcReportSubmissions.projectId, access.scope.projectIds) : undefined,
+    ));
+    report.monthlyDownloadPqi = monthlyDownloadAverage(snapshots.filter(row => canReadReport(req, access, row)));
+    if (templateId === "monthly-dashboard") {
+      // The supplied dashboard mapping uses the form's portfolio completeness rule.
+      // Keep the existing Monthly Report PDF's available-report average unchanged.
+      const active = await db.select({ id: projects.id }).from(projects).where(and(
+        eq(projects.organizationId, organizationId(req)), eq(projects.status, "active"), isNull(projects.deletedAt),
+      ));
+      report.monthlyDashboardPortfolio = calculatePortfolioPqi({
+        organizationId: organizationId(req), period: report.period,
+        projects: active.filter(project => canSeeProject(access, project.id)),
+        reports: snapshots, canReadReport: row => canReadReport(req, access, row),
+      });
+    }
+  }
+  const bytes = format === "pdf" ? await exportQaqcReportPdf(report, { templateId }) : exportQaqcReportExcel(report);
+  download(res, `${name}${format === "pdf" && ["monthly-dashboard", "daily-dashboard"].includes(templateId ?? "") ? "-dashboard" : ""}.${format}`, format === "pdf" ? "application/pdf" : qaqcReportingWorkbookMimeType, bytes);
 }));
 
 function requestedFormat(req: any) {

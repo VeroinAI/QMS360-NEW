@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { applyExcelDateFormats } from "../lib/excel-date-cells";
 import { formatSpreadsheetDate, isSpreadsheetDateField } from "@workspace/spreadsheet-dates";
 import { visibleAdminUsers } from "../lib/admin-user-discovery";
+import qaqcUserProfileRouter from "./qaqc-user-profile";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql,
@@ -20,11 +21,9 @@ import { assertProjectInOrg, assertProjectScopeInOrg } from "../lib/tenancy";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess, filterReadOnlyValues, readOnlyFields } from "../lib/field-access";
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
-import { accessRequestIdentity, activeUserIdentityByUsername } from "../lib/access-request-identity";
 import { saveQaqcRole } from "../lib/qaqc-role-permissions";
 import { activeQaqcCapabilities, qaqcAdminTask } from "../lib/qaqc-capabilities";
 import { qaqcOwnedRecordClause, qaqcRecordReadClauses } from "../lib/qaqc-record-scope";
-import { decideApplicationAccess, loadPendingApplicationRequestPage } from "../lib/application-access-requests";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
@@ -784,6 +783,7 @@ router.get("/field-controls", asyncHandler(async (req, res) => {
 
 // Per-application administration
 router.use("/admin", asyncHandler(qaqcAdminTask));
+router.use("/admin/users", qaqcUserProfileRouter);
 router.get("/admin/field-controls", asyncHandler(async (req, res) => {
   res.json(await readFieldControls(org(req), "qaqc"));
 }));
@@ -826,7 +826,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
   const items = await Promise.all(rows.map(async (u) => {
     const assigned = await db.select({ role: workspaceRoles, assignment: userWorkspaceRoles }).from(userWorkspaceRoles).innerJoin(workspaceRoles, eq(userWorkspaceRoles.workspaceRoleId, workspaceRoles.id)).where(and(eq(userWorkspaceRoles.userId, u.id), isNull(userWorkspaceRoles.deletedAt), isNull(workspaceRoles.deletedAt)));
     const visibleAssigned = assigned.filter((r) => canManageAssignmentScope(req, r.assignment.projectIds, r.assignment.businessUnitIds));
-    return { id: u.id, username: u.username, fullName: u.fullName, email: u.email, platformRole: availablePlatformRoles.find((role) => role.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: await Promise.all(visibleAssigned.map(async (r) => ({ ...(await roleResponse(r.role)), scopeType: r.assignment.projectIds?.length ? "project" as const : "organization" as const, scopeIds: r.assignment.projectIds ?? [] }))), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt };
+    return { id: u.id, username: u.username, fullName: u.fullName, email: u.email, designation: u.designation, signatureUrl: u.signaturePath ? `/api/qaqc/admin/users/${u.id}/signature` : null, platformRole: availablePlatformRoles.find((role) => role.id === u.platformRoleId)?.name ?? "Employee", workspaceRoles: await Promise.all(visibleAssigned.map(async (r) => ({ ...(await roleResponse(r.role)), scopeType: r.assignment.projectIds?.length ? "project" as const : "organization" as const, scopeIds: r.assignment.projectIds ?? [] }))), status: u.accessStatus === "active" ? "Active" : "Deactivated", lastAccessAt: u.lastAccessAt };
   }));
   res.json(paginated(items, visibleRows.length, page, limit));
 }));
@@ -864,20 +864,11 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
   res.status(204).end();
 }));
 router.get("/admin/access-queue", asyncHandler(async (req, res) => {
-  const { page, limit, offset } = pagination(req);
-  const pending = await loadPendingApplicationRequestPage(req, "qaqc", offset, limit);
-  const usernames = pending.items.map(row => row.username);
-  const userRows = usernames.length ? await db.select().from(users).where(and(eq(users.organizationId, org(req)),
-    isNull(users.deletedAt), inArray(users.username, usernames))) : [];
-  const byUsername = activeUserIdentityByUsername(userRows, org(req));
-  res.json(paginated(pending.items.map(r => ({
-    id: r.id, ...accessRequestIdentity(r.username, byUsername), requestedRoleId: r.requestedRoleId,
-    status: "pending", requestedAt: r.requestedAt,
-  })), pending.total, page, limit));
+  const { page, limit } = pagination(req);
+  res.json(paginated([], 0, page, limit));
 }));
 router.post("/admin/access-queue/:id/decision", asyncHandler(async (req, res) => {
-  const v: any = body(api.DecideQaqcAccessRequestBody, req);
-  res.json(await decideApplicationAccess(req, "qaqc", v.decision, v.comments));
+  res.status(410).json({ error: "Separate application approval is no longer required. Manage access through active role assignments." });
 }));
 router.get("/admin/delegations", asyncHandler(async (req, res) => {
   const result = await pageTable(req, delegations);

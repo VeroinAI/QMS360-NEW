@@ -10,7 +10,7 @@ import {
 } from "@workspace/api-zod";
 import { connectorFieldMappings, db, importTemplates, integrationConnectors, organizationSettings, outboundEmails, syncJobs } from "@workspace/db";
 import { deliverEmail, sendConnectorTestEmail, type EmailPdfAttachment } from "../lib/email";
-import { getEmailDeliveryPolicy } from "../lib/email-queue";
+import { getEmailDeliveryPolicy, queuedToRecipients } from "../lib/email-queue";
 import { encryptConfigSecrets, encryptSecret } from "../lib/secrets";
 import {
   CUSTOM_FIELD_PATTERN, ENTITY_CATALOG, applyEntityRows, buildTemplateFile, ensureDefaultTemplates,
@@ -68,12 +68,14 @@ function syncDto(row: typeof syncJobs.$inferSelect) {
 }
 
 function outboundEmailDto(row: typeof outboundEmails.$inferSelect) {
+  const toRecipients = queuedToRecipients(row);
   const app = ["qaqc", "lessons", "audit"].includes(row.app) ? row.app : "platform";
   const status = ["queued", "sending", "retrying", "sent", "failed"].includes(row.deliveryStatus)
     ? row.deliveryStatus : "failed";
   return {
     id: row.id, app, eventType: row.eventType, entityId: row.entityId,
-    recipientEmail: row.recipientEmail, recipientName: row.recipientName,
+    recipientEmail: toRecipients.map(recipient => recipient.email).join(", "),
+    recipientName: toRecipients.map(recipient => recipient.name || recipient.email).join(", "),
     ccRecipients: row.ccRecipients,
     senderEmail: row.senderEmail, senderName: row.senderName,
     subject: row.subject, status, attemptCount: row.attemptCount, maxAttempts: row.maxAttempts,
@@ -202,6 +204,10 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
       return [{ email: value.email, name: typeof value.name === "string" ? value.name : null }];
     }) : [];
   const startedAt = Date.now();
+  const envelopeRecipients = Array.isArray(payload.envelopeRecipients)
+    ? payload.envelopeRecipients.filter((email): email is string =>
+      typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    : undefined;
   const result = await deliverEmail(db, {
     organizationId: orgId,
     recipientIds: [...new Set(payloads.flatMap((entry) => entry.recipientIds as string[]))],
@@ -209,6 +215,7 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
       entry.recipients as Array<{ email: string; name?: string | null }>)
       .map((recipient) => [recipient.email.toLowerCase(), recipient])).values()],
     ccRecipients,
+    envelopeRecipients,
     sender,
     subject: payload.subject as string,
     text: typeof payload.text === "string" ? payload.text : "",
@@ -228,6 +235,8 @@ router.post("/integrations/sync-jobs/:id/retry", requireAuth, requireAdmin, asyn
         .map((recipient) => [recipient.email.toLowerCase(), recipient])).values()],
       sender,
       ccRecipients,
+      envelopeRecipients: result.attempted && result.rejectedEnvelopeRecipients?.length
+        ? result.rejectedEnvelopeRecipients : envelopeRecipients,
       subject: payload.subject, text: typeof payload.text === "string" ? payload.text : "", html: typeof payload.html === "string" ? payload.html : undefined,
       attachments,
     }],
@@ -271,6 +280,7 @@ router.get("/integrations/email-queue", requireAuth, superAdmin, async (req, res
     params.app && params.app !== "all" ? eq(outboundEmails.app, params.app) : undefined,
     params.search?.trim() ? or(
       ilike(outboundEmails.recipientEmail, `%${params.search.trim()}%`),
+      sql`${outboundEmails.context}->>'emailToRecipients' ILIKE ${`%${params.search.trim()}%`}`,
       ilike(outboundEmails.subject, `%${params.search.trim()}%`),
       ilike(outboundEmails.eventType, `%${params.search.trim()}%`),
     ) : undefined,

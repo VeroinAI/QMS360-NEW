@@ -36,7 +36,7 @@ export interface NumberingPattern {
 
 export type NumberingPatternInput = Omit<NumberingPattern, "nextNumber">;
 export type LessonProjectCounter = { startingNumber: number; nextNumber: number; lastIssued: number | null; configured: boolean };
-type StoredNumbering = NumberingPattern & { custom?: boolean; projectCounters?: Record<string, LessonProjectCounter> };
+type StoredNumbering = NumberingPattern & { custom?: boolean; projectCounters?: Record<string, LessonProjectCounter>; departmentCounters?: Record<string, number> };
 export type NumberingMap = Record<string, StoredNumbering>;
 
 export const NUMBERING_MODULES: NumberingModule[] = ["qaqc", "lessons", "audit"];
@@ -121,7 +121,7 @@ export async function allocateReferenceNumber(organizationId: string, module: Nu
       : pattern.nextNumber;
     if (counter && (!Number.isSafeInteger(issued + 1) || issued >= MAX_LESSON_NUMBER)) throw new LessonProjectNumberingError("The project number range is exhausted.");
     map[module] = counter
-      ? { ...pattern, custom: existing?.custom, projectCounters: {
+      ? { ...existing, ...pattern, custom: existing?.custom, projectCounters: {
         ...existing?.projectCounters, [projectId!]: { ...counter, nextNumber: issued + 1, lastIssued: issued },
       } }
       : { ...pattern, custom: existing?.custom, nextNumber: issued + 1 };
@@ -172,7 +172,7 @@ export async function saveLessonProjectCounter(organizationId: string, projectId
       throw new LessonProjectNumberingError(`The next number must be greater than the last issued number (${current.lastIssued}). Existing references cannot be reused.`);
     }
     const counter = { ...current, startingNumber: current.lastIssued === null ? nextNumber : current.startingNumber, nextNumber, configured: true };
-    map.lessons = { ...effectivePattern(map, "lessons"), custom: map.lessons?.custom,
+    map.lessons = { ...map.lessons, ...effectivePattern(map, "lessons"), custom: map.lessons?.custom,
       projectCounters: { ...map.lessons?.projectCounters, [projectId]: counter } };
     await tx.update(organizationSettings).set({ documentNumbering: map, updatedAt: new Date() }).where(eq(organizationSettings.id, row.id));
     return counter;
@@ -194,7 +194,7 @@ export async function saveNumberingPattern(
     // Keep the original seed after issuance, otherwise increasing startingNumber
     // can make a used counter look unused on a later edit.
     const pattern: NumberingPattern = { ...input, startingNumber: issuedBefore ? existing.startingNumber : input.startingNumber, nextNumber };
-    map[module] = { ...pattern, custom: true, ...(module === "lessons" ? { projectCounters: existing?.projectCounters } : {}) };
+    map[module] = { ...existing, ...pattern, custom: true, ...(module === "lessons" ? { projectCounters: existing?.projectCounters } : {}) };
     await tx.update(organizationSettings)
       .set({ documentNumbering: map, updatedAt: new Date() })
       .where(eq(organizationSettings.id, row.id));
@@ -216,10 +216,37 @@ export async function resetNumberingPattern(organizationId: string, module: Numb
     const existing = map[module];
     if (!existing?.custom) return;
     const fallback = DEFAULT_PATTERNS[module];
-    map[module] = { ...fallback, custom: false, nextNumber: Math.max(existing.nextNumber, fallback.startingNumber),
+    map[module] = { ...existing, ...fallback, custom: false, nextNumber: Math.max(existing.nextNumber, fallback.startingNumber),
       ...(module === "lessons" ? { projectCounters: existing.projectCounters } : {}) };
     await tx.update(organizationSettings)
       .set({ documentNumbering: map, updatedAt: new Date() })
       .where(eq(organizationSettings.id, row.id));
+  });
+}
+
+/** Department counters never consume or reset a project's reference sequence. */
+export async function allocateDepartmentLessonReference(organizationId: string, departmentId: string, departmentCode: string): Promise<string> {
+  const prefix = departmentCode.trim().replace(/[^\p{L}\p{N}._-]+/gu, "-").replace(/^-+|-+$/g, "");
+  if (!prefix) throw new LessonProjectNumberingError("Department Master must have a usable value for reference numbering.");
+  return db.transaction(async tx => {
+    const row = await ensureSettingsRow(tx, organizationId);
+    const map = { ...((row.documentNumbering ?? {}) as NumberingMap) };
+    const existing = map.lessons;
+    let next = existing?.departmentCounters?.[departmentId] ?? 1;
+    let reference = "";
+    for (;;) {
+      if (!Number.isSafeInteger(next) || next >= MAX_LESSON_NUMBER) throw new LessonProjectNumberingError("The department number range is exhausted.");
+      reference = `${prefix}-LL-${String(next).padStart(6, "0")}`;
+      const [collision] = await tx.select({ id: lessonLearnedForms.id }).from(lessonLearnedForms).where(and(
+        eq(lessonLearnedForms.organizationId, organizationId), eq(lessonLearnedForms.departmentId, departmentId),
+        eq(lessonLearnedForms.referenceNumber, reference),
+      )).limit(1);
+      if (!collision) break;
+      next++;
+    }
+    map.lessons = { ...effectivePattern(map, "lessons"), ...existing,
+      departmentCounters: { ...existing?.departmentCounters, [departmentId]: next + 1 } };
+    await tx.update(organizationSettings).set({ documentNumbering: map, updatedAt: new Date() }).where(eq(organizationSettings.id, row.id));
+    return reference;
   });
 }

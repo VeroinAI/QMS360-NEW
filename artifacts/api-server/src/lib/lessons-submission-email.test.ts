@@ -75,6 +75,24 @@ describe("Lessons submission email PDF", () => {
     expect(removeEmailPdfAttachment).not.toHaveBeenCalled();
   });
 
+  it("passes configured role members to CC while retaining the submission PDF and approver", async () => {
+    select.mockReturnValueOnce(query([{
+      id: "cc-rule", eventType: "lessons.lesson_form.submit", enabled: true,
+      recipientMode: "external_email", receiverEmail: "approver@example.test",
+      recipientConfig: { ccRoleNames: ["Reviewer"] },
+    }]));
+    select.mockReturnValueOnce({ from: () => ({
+      innerJoin: () => ({ innerJoin: () => ({ where: async () => [{ userId: "reviewer" }] }) }),
+    }) });
+    select.mockReturnValueOnce({ from: () => ({ where: async () => [{ email: "reviewer@example.test", name: "Reviewer" }] }) });
+    await dispatchEmailRule(event, { emailAttachments: async () => [attachment] });
+    expect(enqueueEmail).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      recipients: [{ email: "approver@example.test", name: undefined }],
+      ccRecipients: [{ email: "reviewer@example.test", name: "Reviewer" }],
+      attachments: [attachment],
+    }));
+  });
+
   it("does not generate a PDF or queue email when no enabled matching rule exists", async () => {
     select.mockReturnValueOnce(query([]));
     const generate = vi.fn();

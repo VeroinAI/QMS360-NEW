@@ -3,7 +3,6 @@ import { restrictDronaProjects } from "../lib/drona/session";
 import { qaqcPermissionMatches, auditModulePermissionMatches, auditModuleReadMatches, type AuditOperation, type QaqcOperation } from "@workspace/field-controls";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import {
-  applicationAccess,
   auditPermissions,
   auditUserWorkspaceRoles,
   auditWorkspaceRolePermissions,
@@ -36,10 +35,16 @@ declare global {
 const platformAdmins = new Set(["Super Admin", "Org Admin"]);
 const isAdminName = (name: string) => /\b(admin|administrator)\b/i.test(name);
 
-export type EffectiveProjectScope = { unrestricted: boolean; projectIds: string[]; processAuditsAllowed?: boolean };
+export type EffectiveProjectScope = { unrestricted: boolean; projectIds: string[]; departmentIds?: string[]; allDepartmentsAllowed?: boolean; processAuditsAllowed?: boolean };
 type PermissionTarget = { module: string; action: PermissionAction; operation?: "review" | QaqcOperation | AuditOperation };
-const restrictScope = (req: Request, appKey: AppKey, scope: EffectiveProjectScope) =>
-  restrictDronaProjects(req.dronaProjectIds, scope, appKey === "audit");
+export const restrictScope = (req: Request, appKey: AppKey, scope: EffectiveProjectScope): EffectiveProjectScope => {
+  const restricted = restrictDronaProjects(req.dronaProjectIds, scope, appKey === "audit");
+  // External project membership must not erase explicit QMS department roles
+  // or widen the external user's allowed project list.
+  return appKey === "lessons" && req.dronaProjectIds !== undefined
+    ? { ...restricted, ...(scope.unrestricted ? { allDepartmentsAllowed: true } : scope.departmentIds?.length ? { departmentIds: scope.departmentIds } : {}) }
+    : restricted;
+};
 
 function appTables(appKey: AppKey) {
   if (appKey === "lessons") return {
@@ -60,16 +65,28 @@ export async function getEffectiveProjectScope(userId: string, organizationId: s
   const rows = await db.select({
     roleName: t.roles.name, roleStatus: t.roles.status,
     projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
+    departmentIds: appKey === "lessons" ? t.userRoles.departmentIds : sql<string[]>`ARRAY[]::uuid[]`,
   }).from(t.userRoles)
     .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
     .where(and(
-      eq(t.userRoles.userId, userId), eq(t.userRoles.organizationId, organizationId),
+      eq(t.userRoles.userId, userId), eq(t.userRoles.organizationId, organizationId), eq(t.roles.organizationId, organizationId),
       isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt), eq(t.roles.status, "active"),
     ));
-  if (rows.some((row: any) => !(row.projectIds?.length) && !(row.businessUnitIds?.length))) {
+  if (rows.some((row: any) => !(row.projectIds?.length) && !(row.businessUnitIds?.length) && !(row.departmentIds?.length))) {
     return { unrestricted: true, projectIds: [] };
   }
-  return { unrestricted: false, projectIds: [...new Set(rows.flatMap((row: any) => row.projectIds ?? []))] };
+  return projectScopeFromRows(rows);
+}
+
+/** Application entry follows active role assignments, never legacy access reviews. */
+export async function getRoleBasedApplicationAccess(user: { id: string; organizationId: string; platformRole: string }) {
+  const apps = ["qaqc", "lessons", "audit"] as const;
+  const allowed = await Promise.all(apps.map(async app => {
+    if (platformAdmins.has(user.platformRole)) return true;
+    const scope = await getEffectiveProjectScope(user.id, user.organizationId, app);
+    return scope.unrestricted || scope.projectIds.length > 0 || !!scope.departmentIds?.length;
+  }));
+  return { qaqc: allowed[0]!, lessons: allowed[1]!, audit: allowed[2]! };
 }
 
 /** Platform project pickers combine all three application assignments. */
@@ -101,10 +118,11 @@ function grantFor(appKey: AppKey, action: PermissionAction, row: any): Permissio
   return (isOwnView ? "own" : ["full", "own", "select"].includes(row.grant) ? row.grant : inferred) as PermissionAction;
 }
 
-function projectScopeFromRows(rows: any[]): EffectiveProjectScope {
-  return rows.some((row) => !(row.projectIds?.length) && !(row.businessUnitIds?.length))
+export function projectScopeFromRows(rows: any[]): EffectiveProjectScope {
+  const departments = [...new Set(rows.flatMap(row => row.departmentIds ?? []))] as string[];
+  return rows.some((row) => !(row.projectIds?.length) && !(row.businessUnitIds?.length) && !(row.departmentIds?.length))
     ? { unrestricted: true, projectIds: [] }
-    : { unrestricted: false, projectIds: [...new Set(rows.flatMap((row) => row.projectIds ?? []))] as string[] };
+    : { unrestricted: false, projectIds: [...new Set(rows.flatMap((row) => row.projectIds ?? []))] as string[], ...(departments.length ? { departmentIds: departments } : {}) };
 }
 
 export function isSuperAdminRoleAdministration(req: Request): boolean {
@@ -112,8 +130,13 @@ export function isSuperAdminRoleAdministration(req: Request): boolean {
     && /\/admin\/users(?:\/[^/]+\/roles(?:\/[^/]+)?)?\/?$/.test(`${req.baseUrl}${req.path}`);
 }
 
-export function canManageAssignmentScope(req: Request, projectIds: string[] | null | undefined, businessUnitIds?: string[] | null): boolean {
+export function canManageAssignmentScope(req: Request, projectIds: string[] | null | undefined, businessUnitIds?: string[] | null, departmentIds?: string[] | null): boolean {
   if (isSuperAdminRoleAdministration(req)) return true;
+  if (departmentIds?.length) {
+    if (projectIds?.length || businessUnitIds?.length) return false;
+    const scope = req.permissionProjectScope;
+    return (req.permissionAdminBypass && req.dronaProjectIds === undefined) || !!scope && (scope.unrestricted || scope.allDepartmentsAllowed === true || departmentIds.every(id => scope.departmentIds?.includes(id)));
+  }
   if (req.dronaProjectIds !== undefined && (businessUnitIds?.length || !projectIds?.length
     || projectIds.some(id => !req.dronaProjectIds!.includes(id)))) return false;
   if (req.permissionAdminBypass) return true;
@@ -124,8 +147,8 @@ export function canManageAssignmentScope(req: Request, projectIds: string[] | nu
   return projectIds.every((id) => scope.projectIds.includes(id));
 }
 
-export function assertCanManageAssignmentScope(req: Request, projectIds: string[] | null | undefined, businessUnitIds?: string[] | null): void {
-  if (!canManageAssignmentScope(req, projectIds, businessUnitIds)) {
+export function assertCanManageAssignmentScope(req: Request, projectIds: string[] | null | undefined, businessUnitIds?: string[] | null, departmentIds?: string[] | null): void {
+  if (!canManageAssignmentScope(req, projectIds, businessUnitIds, departmentIds)) {
     const error = new Error("You may only manage role assignments within your assigned projects") as Error & { status?: number };
     error.status = 403;
     throw error;
@@ -150,6 +173,7 @@ export function requireAppAdmin(appKey: AppKey) {
     const t = appTables(appKey) as any;
     const rows = await db.select({
       projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
+      departmentIds: appKey === "lessons" ? t.userRoles.departmentIds : sql<string[]>`ARRAY[]::uuid[]`,
     }).from(t.userRoles)
       .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
       .where(and(
@@ -177,7 +201,8 @@ export async function getAppAdminScope(req: Request, appKey: AppKey): Promise<Ef
     return rows.length ? restrictScope(req, appKey, projectScopeFromRows(rows)) : null;
   }
   const t = appTables(appKey) as any;
-  const rows = await db.select({ projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds })
+  const rows = await db.select({ projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
+    departmentIds: appKey === "lessons" ? t.userRoles.departmentIds : sql<string[]>`ARRAY[]::uuid[]` })
     .from(t.userRoles).innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
     .where(and(eq(t.userRoles.userId, user.id), eq(t.userRoles.organizationId, user.organizationId),
       isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt),
@@ -203,6 +228,7 @@ async function matchingPermissionRows(req: Request, appKey: AppKey, target: Perm
   const load = () => db.select({
     roleId: t.roles.id, roleName: t.roles.name, key: t.permissions.key, grant: t.rolePermissions.grant,
     projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
+    departmentIds: appKey === "lessons" ? t.userRoles.departmentIds : sql<string[]>`ARRAY[]::uuid[]`,
   }).from(t.userRoles)
     .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
     .leftJoin(t.rolePermissions, and(eq(t.rolePermissions.workspaceRoleId, t.roles.id), isNull(t.rolePermissions.deletedAt), appKey === "qaqc" ? eq(t.rolePermissions.status, "active") : undefined))
@@ -281,22 +307,12 @@ export function requireAppAccess(appKey: AppKey) {
       }
       return next();
     }
-    // Application approval and active QMS assignments are independent of Drona
-    // project membership. Each record operation applies the intersection below.
-    // In particular, an approved department-only Process Audit must remain usable.
+    // Entry follows active assignments. Record operations still apply Drona and
+    // capability-specific scope, including department-only Process Audits.
     const scope = await getEffectiveProjectScope(user.id, user.organizationId, appKey);
-    if (!scope.unrestricted && !scope.projectIds.length) {
+    if (!scope.unrestricted && !scope.projectIds.length && !scope.departmentIds?.length && !scope.allDepartmentsAllowed) {
       return void res.status(403).json({ error: "You do not have access to any projects in this application" });
     }
-    const column = appKey === "qaqc" ? applicationAccess.canOpenQaqc
-      : appKey === "lessons" ? applicationAccess.canOpenLessons : applicationAccess.canOpenAudit;
-    const [access] = await db.select({ allowed: column }).from(applicationAccess).where(and(
-      eq(applicationAccess.organizationId, user.organizationId),
-      eq(applicationAccess.username, user.username),
-      eq(column, true),
-      isNull(applicationAccess.deletedAt),
-    )).limit(1);
-    if (!access) return void res.status(403).json({ error: "You do not have access to this application" });
     next();
   };
 }
@@ -323,6 +339,7 @@ export function requirePermission(
     const rows = await db.select({
       roleName: t.roles.name, key: t.permissions.key, grant: t.rolePermissions.grant,
       projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
+      departmentIds: appKey === "lessons" ? t.userRoles.departmentIds : sql<string[]>`ARRAY[]::uuid[]`,
     })
       .from(t.userRoles)
       .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
