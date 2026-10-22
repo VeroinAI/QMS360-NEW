@@ -31,7 +31,7 @@ RUN pnpm --filter @workspace/api-server run build
 # nodemailer, etc. as real requires, not bundled -- see build.mjs's
 # `external` list). deploy resolves everything into a flat, relocatable
 # node_modules instead.
-RUN pnpm --filter @workspace/api-server deploy --prod /deploy
+RUN pnpm --filter @workspace/api-server deploy --prod --legacy /deploy
 
 FROM node:22-slim AS runtime
 # Mirrors the build stage's own path (not /app) -- esbuild-plugin-pino
