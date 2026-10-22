@@ -48,7 +48,8 @@ describe("first role creation remains available", () => {
     const html = render("qaqc");
     expect(html).toContain("Approval Level");
     expect(html).toMatch(/data-testid="text-role-authorization-level-approver">3</);
-    expect(html).toContain("current QA/QC approval workflow is unchanged");
+    expect(html).toContain("Monthly Reports approvals follow ascending Approval Levels");
+    expect(html).toContain("Daily and CSAT approval routing is unchanged");
   });
   it("does not expose approval levels in Lessons or show a stale level for a QA/QC non-approver", () => {
     state.items = [{ id: "non-approver", name: "Contributor", active: true, roleAuthorizationLevel: 3, permissions: [{ key: "submit", name: "Submit" }] }];

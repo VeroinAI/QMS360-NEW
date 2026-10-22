@@ -20,3 +20,9 @@ unrelated migrations.
 verified missing objects. The operator must confirm the production target and
 reconcile the migration ledger after application. Do not execute production
 writes through the read-only query callback or infer that the manual SQL ran.
+
+Reconcile migration history independently of a targeted schema repair; do not automatically record only the newest repaired migration or blindly mark the entire baseline applied.
+
+**Why:** Manually applied schema changes can leave the ledger behind the real catalog. Advancing a timestamp-based migration ledger to its newest entry can silently skip missing intermediate migrations, while replaying everything can collide with objects already present.
+
+**How to apply:** First compare the catalog with the complete source journal. A narrowly scoped incident repair can leave the ledger untouched until an operator verifies which intervening migrations are genuinely applied. Never infer historical completion from the success of the latest repair.

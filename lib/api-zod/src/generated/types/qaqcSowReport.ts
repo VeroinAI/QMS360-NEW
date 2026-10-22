@@ -21,6 +21,7 @@ export interface QaqcSowReport {
   data: QaqcSowObject;
   computed: QaqcSowObject;
   baseline: QaqcSowObject;
+  approvalWorkflow?: QaqcSowObject;
   approverId?: string | null;
   submittedById?: string | null;
   submittedAt?: string | null;

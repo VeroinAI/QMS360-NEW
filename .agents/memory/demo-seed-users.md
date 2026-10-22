@@ -32,3 +32,9 @@ authenticated API requests from the same shell process worked normally.
 authentication boundaries. Do not add a public token bridge or change login
 configuration merely to enable a test; verify API guards independently and
 report any unverified signed-in UI behavior plainly.
+
+The browser tester's built-in database connection can target a provisioning-only database instead of the application's database.
+
+**Why:** A tester saw only a provisioning probe table although the running API successfully used the full QMS360 schema. This was a test-context mismatch, not missing application data.
+
+**How to apply:** If that happens, verify schema presence through the existing server package's database client from a shell script, without printing environment variables or connection strings. Use that client for isolated synthetic fixtures, not external connectors, reseeding, credential resets or changes to real users.

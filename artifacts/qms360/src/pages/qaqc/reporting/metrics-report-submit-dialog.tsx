@@ -16,6 +16,7 @@ import { normaliseMetricsEntry, validateMetricsEntry } from './metrics-entry-val
 import { canSubmitMetricsDocument, metricsDocumentHref } from './metrics-report-policy';
 import { ErrorBox, Loading, errMsg, useInvalidate } from './shell';
 import type { Obj } from './reporting-types';
+import { MonthlyApprovalPreview } from './monthly-approval';
 
 /** Submit the saved document through the same endpoint as the individual report. */
 export function MetricsReportSubmitDialog({ id, onClose, onSubmitted }: {
@@ -47,7 +48,7 @@ export function MetricsReportSubmitDialog({ id, onClose, onSubmitted }: {
   const approvers = (ctx.approvers ?? []) as { id: string; name?: string; fullName?: string }[];
   const candidates = approvers.filter(a => a.id !== me.data?.id);
   const ready = !!report && eligible && !loading && !reportQ.error && !ctxQ.error && !me.error && !locked &&
-    issues.length === 0 && candidates.some(a => a.id === approverId) && !submit.isPending;
+    issues.length === 0 && !(ctx.approvalErrors?.length) && candidates.some(a => a.id === approverId) && !submit.isPending;
   const message = workflowConfirmationMessage('submit', 'this QA/QC report');
   const send = () => {
     if (!ready) return;
@@ -66,7 +67,7 @@ export function MetricsReportSubmitDialog({ id, onClose, onSubmitted }: {
     <DialogContent className="max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>{message.title}</DialogTitle>
-        <DialogDescription>{message.description} Choose the approver. After submission the report becomes read-only. This submits the saved report.</DialogDescription>
+        <DialogDescription>{message.description} Choose the first-level approver. After submission the report becomes read-only. This submits the saved report.</DialogDescription>
       </DialogHeader>
       {loading ? <Loading /> : reportQ.error || ctxQ.error || me.error ?
         <ErrorBox error={reportQ.error ?? ctxQ.error ?? me.error} retry={() => { void reportQ.refetch(); void ctxQ.refetch(); }} /> :
@@ -80,11 +81,12 @@ export function MetricsReportSubmitDialog({ id, onClose, onSubmitted }: {
           </div>}
           <Link href={metricsDocumentHref(id, report?.state ?? '', cap.can('monthly_reports', 'create_edit'))} aria-disabled={submit.isPending} onClick={e => { if (submit.isPending) e.preventDefault(); else onClose(); }} className="text-sm text-primary underline">Open monthly report</Link>
           <Label htmlFor="monthly-row-approver">Approver</Label>
+          <MonthlyApprovalPreview stages={ctx.approvalStages} errors={ctx.approvalErrors} />
           <Select value={approverId} onValueChange={v => { setApproverId(v); setError(''); }} disabled={submit.isPending || !eligible}>
             <SelectTrigger id="monthly-row-approver"><SelectValue placeholder="Select approver" /></SelectTrigger>
             <SelectContent>{candidates.map(a => <SelectItem key={a.id} value={a.id}>{a.name ?? a.fullName ?? a.id}</SelectItem>)}</SelectContent>
           </Select>
-          {candidates.length === 0 && <p className="text-sm text-muted-foreground">No eligible approver is configured. Ask a QA/QC administrator to assign an active reviewer in this project's Reporting settings.</p>}
+          {candidates.length === 0 && <p className="text-sm text-muted-foreground">Ask a QA/QC administrator to assign a role with Monthly Reports approval permission, an Approval Level, and authorization for this project or the organization.</p>}
         </>}
       {error && <p role="alert" className="text-sm text-destructive">Could not submit: {error}</p>}
       <DialogFooter>
