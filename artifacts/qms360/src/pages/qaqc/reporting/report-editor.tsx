@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { canEditMetricsDocument } from './metrics-report-policy';
 import { MonthlyApprovalPreview, MonthlyApprovalProgress } from './monthly-approval';
+import { useMonthlyApproverSelection } from './monthly-approver-selection';
 import { jumpToMonthlyIssue, monthlyIssuePath } from './monthly-validation-navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useFieldControls } from '@/lib/field-controls';
@@ -105,7 +106,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const [aiError, setAiError] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [imports, setImports] = useState<string[]>([]);
-  const [approverId, setApproverId] = useState(''); const [submitOpen, setSubmitOpen] = useState(false);
+  const [legacyApproverId, setLegacyApproverId] = useState(''); const [submitOpen, setSubmitOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [creationError, setCreationError] = useState('');
   useEffect(() => setCreationError(''), [pid, per]);
@@ -129,6 +130,11 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const issues = metricsEntry ? [...metricsIssues, ...(clean.assessmentConfirmed !== true ? ['Review and confirm the quality assessment before submission.'] : [])] : reportType === 'monthly' ? monthly.issues : reportType === 'daily' ? daily.issues : csatIssues;
   const projects: Obj[] = ctx.projects ?? [];
   const approvers: Obj[] = ctx.approvers ?? [];
+  const [monthlyApproverId, setMonthlyApproverId] = useMonthlyApproverSelection(
+    approvers.map(a => a.id), `${report?.id ?? pid}:${per}:${submitOpen}`,
+  );
+  const approverId = reportType === 'monthly' ? monthlyApproverId : legacyApproverId;
+  const setApproverId = reportType === 'monthly' ? setMonthlyApproverId : setLegacyApproverId;
   const details: Obj = ctx.projectDetails ?? {};
   const assignedReviewer = approvers.find(a => a.id === report?.approverId);
   const approvalWorkflow = report?.approvalWorkflow as Obj | undefined;

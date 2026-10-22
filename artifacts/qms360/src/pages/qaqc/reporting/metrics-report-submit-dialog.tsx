@@ -17,12 +17,12 @@ import { canSubmitMetricsDocument, metricsDocumentHref } from './metrics-report-
 import { ErrorBox, Loading, errMsg, useInvalidate } from './shell';
 import type { Obj } from './reporting-types';
 import { MonthlyApprovalPreview } from './monthly-approval';
+import { useMonthlyApproverSelection } from './monthly-approver-selection';
 
 /** Submit the saved document through the same endpoint as the individual report. */
 export function MetricsReportSubmitDialog({ id, onClose, onSubmitted }: {
   id: string; onClose: () => void; onSubmitted: () => void;
 }) {
-  const [approverId, setApproverId] = useState('');
   const [error, setError] = useState('');
   const me = useGetCurrentUser();
   const cap = useQaqcCapabilities();
@@ -47,6 +47,7 @@ export function MetricsReportSubmitDialog({ id, onClose, onSubmitted }: {
   ] : [];
   const approvers = (ctx.approvers ?? []) as { id: string; name?: string; fullName?: string }[];
   const candidates = approvers.filter(a => a.id !== me.data?.id);
+  const [approverId, setApproverId] = useMonthlyApproverSelection(candidates.map(a => a.id), id);
   const ready = !!report && eligible && !loading && !reportQ.error && !ctxQ.error && !me.error && !locked &&
     issues.length === 0 && !(ctx.approvalErrors?.length) && candidates.some(a => a.id === approverId) && !submit.isPending;
   const message = workflowConfirmationMessage('submit', 'this QA/QC report');
