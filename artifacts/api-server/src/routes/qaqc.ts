@@ -798,7 +798,7 @@ async function roleResponse(role: any) {
   const rows = await db.select({ key: permissions.key, name: permissions.label }).from(workspaceRolePermissions)
     .innerJoin(permissions, eq(workspaceRolePermissions.permissionId, permissions.id))
     .where(and(eq(workspaceRolePermissions.workspaceRoleId, role.id), isNull(workspaceRolePermissions.deletedAt), isNull(permissions.deletedAt)));
-  return { id: role.id, name: role.name, description: role.description, permissions: rows, active: role.status === "active", systemDefault: role.isSystem, scopeType: "organization" as const, scopeIds: [] };
+  return { id: role.id, name: role.name, description: role.description, roleAuthorizationLevel: role.roleAuthorizationLevel ?? null, permissions: rows, active: role.status === "active", systemDefault: role.isSystem, scopeType: "organization" as const, scopeIds: [] };
 }
 router.get("/admin/roles", asyncHandler(async (req, res) => {
   const result = await pageTable(req, workspaceRoles);

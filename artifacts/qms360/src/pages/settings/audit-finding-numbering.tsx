@@ -39,7 +39,7 @@ export function AuditFindingNumberingSettings() {
   const codes = types.map(t => (pattern.codes[t] ?? "").trim());
   const codesValid = codes.every(c => c && !invalidText(c));
   const validPattern = codesValid && Number.isInteger(pattern.padding) && pattern.padding >= 1 && pattern.padding <= 12 && !invalidText(pattern.prefix) && !invalidText(pattern.separator);
-  const preview = [saved.prefix, source?.sourceValue || "[Department Value / Project Cost Center]", saved.codes[type] || "[code]",
+  const preview = [saved.prefix, source?.sourceValue || "[Department Cost ID / Project Contract no.]", saved.codes[type] || "[code]",
     validYear ? String(yearNumber).slice(-2) : "YY", String(validRange ? next : lastUsed + 1).padStart(Math.max(1, Math.min(12, saved.padding || 1)), "0")].filter(Boolean).join(saved.separator);
   const change = (key: "prefix" | "separator" | "padding", value: string) => {
     setPattern(current => ({ ...current!, [key]: key === "padding" ? Number(value) : value }));
@@ -49,7 +49,7 @@ export function AuditFindingNumberingSettings() {
   return <Card data-testid="audit-finding-numbering"><CardHeader><CardTitle>Audit Finding number range</CardTitle>
     <CardDescription>Separate counters for each finding type, project or department and full Schedule From Date year, each starting at 1 annually. A number is issued only on a successful Save Finding. Saved numbers are never rewritten, and format changes do not reset counters.</CardDescription></CardHeader>
     <CardContent className="space-y-5">
-      <p className="text-sm">Format: <strong>Prefix + Department Value / Project Cost Center + Finding type code + YY + Running number</strong>.
+      <p className="text-sm">Format: <strong>Prefix + Department Cost ID / Project Contract / project no. + Finding type code + YY + Running number</strong>.
         The source is derived from the linked Plan. YY comes from the linked child Schedule From Date, not the date the finding is saved.</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div><Label htmlFor="finding-number-prefix">Prefix</Label><Input id="finding-number-prefix" maxLength={80} value={pattern.prefix} onChange={e => change("prefix", e.target.value)} /></div>
@@ -78,7 +78,7 @@ export function AuditFindingNumberingSettings() {
           <div><Label htmlFor="finding-number-year">Schedule From Date year (four digits)</Label><Input id="finding-number-year" type="number" min={1900} max={9999} value={year} disabled={saveRange.isPending} onChange={e => setYear(e.target.value)} /></div>
           <div><Label htmlFor="finding-number-next">Next running number for {type}</Label><Input id="finding-number-next" type="number" min={lastUsed + 1} max={999999999999} value={nextNumber} disabled={saveRange.isPending} onChange={e => { setNextNumber(e.target.value); saveRange.reset(); }} /></div>
         </div>
-        {source && <p className="text-sm">Source value: <strong>{source.sourceValue || "Missing — maintain Project Master Cost Center"}</strong> · Last-used {type} number for {year}: <strong>{lastUsed}</strong></p>}
+        {source && <p className="text-sm">Source value: <strong>{source.sourceValue || (source.kind === "department" ? "Missing—maintain Department Master → Cost ID" : "Missing—maintain Project Master → Additional Data → Contract / project no.")}</strong> · Last-used {type} number for {year}: <strong>{lastUsed}</strong></p>}
         {source && !validRange && <p role="alert" className="text-sm text-destructive">Maintain a source value, a year from 1900 to 9999 and a whole next number from {lastUsed + 1} to 999999999999. The counter cannot move backwards.</p>}
         {saveRange.isError && <p role="alert" className="text-sm text-destructive">{saveRange.error.message}</p>}
         <Button type="button" disabled={!validRange || saveRange.isPending} onClick={() => saveRange.mutate({ data: { findingType: type as "Minor NC" | "Moderate NC" | "Major NC" | "OFI", scope, year: yearNumber, nextNumber: next } }, {
@@ -87,6 +87,6 @@ export function AuditFindingNumberingSettings() {
         {!query.data.sources.length && <p className="text-sm text-muted-foreground">No projects or department master values are available in your Audit administrator scope.</p>}
       </section>
       <div className="rounded-lg bg-muted/40 p-3"><p className="text-xs uppercase text-muted-foreground">Illustrative next number — does not issue a number</p><p className="break-all font-mono font-semibold" data-testid="audit-finding-number-preview">{preview}</p>
-        <p className="mt-1 text-xs text-muted-foreground">For example, prefix AGH, source CC100, code MNC, year 2027 and next number 1 produce AGH-CC100-MNC-27-0001. Uses the saved format and the entered valid next number. Save the next running number to apply it.</p></div>
+        <p className="mt-1 text-xs text-muted-foreground">For example, prefix AGH, contract number CTR100, code MNC, year 2027 and next number 1 produce AGH-CTR100-MNC-27-0001. Department audits use Cost ID instead. Uses the saved format and the entered valid next number. Save the next running number to apply it.</p></div>
     </CardContent></Card>;
 }

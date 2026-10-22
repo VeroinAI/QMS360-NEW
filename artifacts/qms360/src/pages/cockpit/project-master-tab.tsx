@@ -1,8 +1,8 @@
 import { formatDateTime } from '@workspace/spreadsheet-dates';
 import { useEffect, useState } from 'react';
-import { getListDronaProjectMasterQueryKey, useListDronaProjectMaster, useGetCurrentUser } from '@workspace/api-client-react';
-import type { DronaProjectMasterRecord, ListDronaProjectMaster200, ProjectAdditionalDataResult } from '@workspace/api-client-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
+import { getListDronaProjectMasterQueryKey, useListDronaProjectMaster } from '@workspace/api-client-react';
+import type { DronaProjectMasterRecord } from '@workspace/api-client-react';
 import { AlertCircle, ChevronLeft, ChevronRight, Info, RefreshCw, Search } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -12,8 +12,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
-import { ProjectAdditionalDataEditor } from './project-additional-data-editor';
 
 const LIMIT = 20;
 const dash = '—';
@@ -30,16 +28,11 @@ function dronaIds(r: DronaProjectMasterRecord) {
 }
 
 export function ProjectMasterTab() {
-  const currentUser = useGetCurrentUser();
-  const canEditAdditionalData = ['Super Admin', 'Org Admin'].includes(currentUser.data?.platformRole ?? '');
-  const client = useQueryClient();
-  const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [input, setInput] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<DronaProjectMasterRecord | null>(null);
-  const [additionalProject, setAdditionalProject] = useState<DronaProjectMasterRecord | null>(null);
-  const [savingAdditionalData, setSavingAdditionalData] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => { setSearch(input.trim()); setPage(1); }, 350);
     return () => clearTimeout(t);
@@ -58,14 +51,6 @@ export function ProjectMasterTab() {
   useEffect(() => {
     if (data) setSelected(record => record ? data.items.find(item => item.id === record.id) ?? null : null);
   }, [data]);
-  const savedAdditionalData = (result: ProjectAdditionalDataResult) => {
-    setAdditionalProject(null);
-    setSelected(record => record?.id === result.id ? { ...record, ...result } : record);
-    client.setQueriesData<ListDronaProjectMaster200>({ queryKey: getListDronaProjectMasterQueryKey() }, previous =>
-      previous ? { ...previous, items: previous.items.map(record => record.id === result.id ? { ...record, ...result } : record) } : previous);
-    void client.invalidateQueries({ queryKey: getListDronaProjectMasterQueryKey() });
-    toast({ title: 'Additional project data saved' });
-  };
 
   return <div className="space-y-4" data-testid="project-master-tab">
     <Card>
@@ -87,7 +72,7 @@ export function ProjectMasterTab() {
             <TableCell className="whitespace-nowrap font-medium">{show(r.code)}</TableCell><TableCell>{show(r.name)}</TableCell><TableCell>{show(r.businessUnit)}</TableCell><TableCell>{show(r.location)}</TableCell>
             <TableCell><Badge variant={r.status === 'active' ? 'default' : 'secondary'}>{show(r.status)}</Badge></TableCell>
             <TableCell className="whitespace-nowrap font-mono text-xs">{ids.length ? ids.join(', ') : dash}</TableCell><TableCell>{show(r.recordSource)}</TableCell>
-            <TableCell><Button variant="outline" size="sm" className="whitespace-nowrap" aria-label={`Additional Data for ${r.code}`} onClick={event => { event.stopPropagation(); setAdditionalProject(r); }} data-testid={`button-project-additional-data-${r.id}`}>Additional Data</Button></TableCell></TableRow>; })}
+            <TableCell><Button variant="outline" size="sm" className="whitespace-nowrap" aria-label={`Additional Data for ${r.code}`} onClick={event => { event.stopPropagation(); setLocation(`/cockpit/project-master/${encodeURIComponent(r.id)}/additional-data`); }} data-testid={`button-project-additional-data-${r.id}`}>Additional Data</Button></TableCell></TableRow>; })}
         </TableBody></Table></div>}
         {data && total > 0 && <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <span data-testid="text-project-master-range">Showing {from}–{to} of {total}</span>
@@ -110,17 +95,5 @@ export function ProjectMasterTab() {
             </TableBody></Table></div>; })()}
         </div></>}
     </DialogContent></Dialog>
-    <Dialog open={!!additionalProject} onOpenChange={open => { if (!open && !savingAdditionalData) setAdditionalProject(null); }}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto"
-        onEscapeKeyDown={event => { if (savingAdditionalData) event.preventDefault(); }}
-        onPointerDownOutside={event => { if (savingAdditionalData) event.preventDefault(); }}>
-        {additionalProject && <>
-          <DialogHeader><DialogTitle>Additional Data — {show(additionalProject.code)}</DialogTitle>
-            <DialogDescription>{show(additionalProject.name)}. Maintain additional project information and cost center.</DialogDescription></DialogHeader>
-          <ProjectAdditionalDataEditor key={additionalProject.id} record={additionalProject} canEdit={canEditAdditionalData}
-            onSaved={savedAdditionalData} onPendingChange={setSavingAdditionalData} onCancel={() => setAdditionalProject(null)} />
-        </>}
-      </DialogContent>
-    </Dialog>
   </div>;
 }

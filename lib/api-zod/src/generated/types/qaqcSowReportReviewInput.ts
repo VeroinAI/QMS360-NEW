@@ -10,4 +10,6 @@ import type { QaqcSowReportReviewInputDecision } from './qaqcSowReportReviewInpu
 export interface QaqcSowReportReviewInput {
   decision: QaqcSowReportReviewInputDecision;
   comments?: string;
+  /** For sequential monthly or daily approvals, choose an eligible reviewer at the next snapshotted approval level. */
+  nextApproverId?: string;
 }

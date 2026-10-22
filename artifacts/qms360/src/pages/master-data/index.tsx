@@ -24,6 +24,8 @@ import { MasterDataRolePicker } from './role-picker';
 
 const scopes = ['global', 'qaqc', 'lessons', 'audit'] as const;
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'The request could not be completed.';
+const isDepartmentGroup = (code: string) => ['departments', 'department', 'department master'].includes(code.trim().toLowerCase());
+const costIdText = (value: MasterDataValue) => typeof value.metadata?.costId === 'string' ? value.metadata.costId : '';
 
 function MasterDataPage() {
   const query = useListMasterData();
@@ -60,7 +62,7 @@ function MasterDataPage() {
         {!groups.length && <p className="py-8 text-center text-sm text-muted-foreground">No groups match these filters.</p>}
       </CardContent></Card>
       {selected && <Card><CardHeader className="flex-row items-start justify-between"><div><CardTitle>{selected.name}</CardTitle><CardDescription>{selected.description || selected.code}</CardDescription></div><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setGroupEditor(selected)}><Pencil className="mr-2 size-4" />Edit group</Button>{!selected.isSystem && <Button size="icon" variant="outline" onClick={() => setDeleteTarget({ kind: 'group', id: selected.id, name: selected.name })}><Trash2 className="size-4 text-destructive" /></Button>}<Button size="sm" onClick={() => setValueEditor(null)}><Plus className="mr-2 size-4" />Add value</Button></div></CardHeader><CardContent>
-         {selected.values.length ? <Table><TableHeader><TableRow><TableHead>Value</TableHead><TableHead>Label</TableHead>{selected.code.toLowerCase() === 'audit_categories' && <TableHead>Linked Audit Types</TableHead>}<TableHead>Sort order</TableHead><TableHead>Active</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{selected.values.map(value => <TableRow key={value.id}><TableCell className="font-medium">{value.value}</TableCell><TableCell>{value.label}</TableCell>{selected.code.toLowerCase() === 'audit_categories' && <TableCell className="text-xs text-muted-foreground">{Array.isArray(value.metadata?.auditTypeValues) && value.metadata.auditTypeValues.length ? value.metadata.auditTypeValues.join(', ') : 'Not linked'}</TableCell>}<TableCell>{value.sortOrder}</TableCell><TableCell><Toggle checked={value.active} disabled={updateValue.isPending} onCheckedChange={active => updateValue.mutate({ id: value.id, data: { active } }, { onSuccess: () => { client.invalidateQueries(); toast({ title: active ? 'Value activated' : 'Value deactivated' }); }, onError: e => toast({ title: 'Could not update value', description: errorText(e), variant: 'destructive' }) })} aria-label={`Toggle ${value.label}`} /></TableCell><TableCell><div className="flex justify-end gap-1"><Button size="icon" variant="ghost" onClick={() => setValueEditor(value)}><Pencil className="size-4" /></Button><Button size="icon" variant="ghost" onClick={() => setDeleteTarget({ kind: 'value', id: value.id, name: value.label })}><Trash2 className="size-4 text-destructive" /></Button></div></TableCell></TableRow>)}</TableBody></Table> : <div className="py-14 text-center"><p className="font-semibold">No values in this group</p><p className="text-sm text-muted-foreground">Add the first selectable value.</p></div>}
+         {selected.values.length ? <Table><TableHeader><TableRow><TableHead>Value</TableHead><TableHead>Label</TableHead>{isDepartmentGroup(selected.code) && <TableHead>Cost ID</TableHead>}{selected.code.toLowerCase() === 'audit_categories' && <TableHead>Linked Audit Types</TableHead>}<TableHead>Sort order</TableHead><TableHead>Active</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{selected.values.map(value => <TableRow key={value.id}><TableCell className="font-medium">{value.value}</TableCell><TableCell>{value.label}</TableCell>{isDepartmentGroup(selected.code) && <TableCell>{costIdText(value) || '—'}</TableCell>}{selected.code.toLowerCase() === 'audit_categories' && <TableCell className="text-xs text-muted-foreground">{Array.isArray(value.metadata?.auditTypeValues) && value.metadata.auditTypeValues.length ? value.metadata.auditTypeValues.join(', ') : 'Not linked'}</TableCell>}<TableCell>{value.sortOrder}</TableCell><TableCell><Toggle checked={value.active} disabled={updateValue.isPending} onCheckedChange={active => updateValue.mutate({ id: value.id, data: { active } }, { onSuccess: () => { client.invalidateQueries(); toast({ title: active ? 'Value activated' : 'Value deactivated' }); }, onError: e => toast({ title: 'Could not update value', description: errorText(e), variant: 'destructive' }) })} aria-label={`Toggle ${value.label}`} /></TableCell><TableCell><div className="flex justify-end gap-1"><Button size="icon" variant="ghost" onClick={() => setValueEditor(value)}><Pencil className="size-4" /></Button><Button size="icon" variant="ghost" onClick={() => setDeleteTarget({ kind: 'value', id: value.id, name: value.label })}><Trash2 className="size-4 text-destructive" /></Button></div></TableCell></TableRow>)}</TableBody></Table> : <div className="py-14 text-center"><p className="font-semibold">No values in this group</p><p className="text-sm text-muted-foreground">Add the first selectable value.</p></div>}
       </CardContent></Card>}
     </div>}
     {groupEditor !== undefined && <GroupDialog group={groupEditor} close={() => setGroupEditor(undefined)} />}
@@ -76,12 +78,14 @@ function GroupDialog({ group, close }: { group: MasterDataGroup | null; close: (
   return <Dialog open onOpenChange={open => !open && close()}><DialogContent><DialogHeader><DialogTitle>{group ? 'Edit group' : 'Add master-data group'}</DialogTitle><DialogDescription>Define a reusable list and its application scope.</DialogDescription></DialogHeader><div className="space-y-4"><div><Label>Code</Label><Input disabled={!!group} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></div><div><Label>Name</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div><div><Label>Description</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div><div><Label>Application scope</Label><Select value={form.appScope} onValueChange={appScope => setForm({ ...form, appScope: appScope as typeof form.appScope })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{scopes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div><div><Label>Sort order</Label><Input type="number" value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: Number(e.target.value) })} /></div></div><DialogFooter><Button variant="outline" onClick={close}>Cancel</Button><Button disabled={!form.name.trim() || !form.code.trim() || create.isPending || update.isPending} onClick={save}>Save group</Button></DialogFooter></DialogContent></Dialog>;
 }
 
-function ValueDialog({ groupId, groupCode, groupScope, auditTypes, value, close }: { groupId: string; groupCode: string; groupScope: string; auditTypes: { value: string; label: string }[]; value: MasterDataValue | null; close: () => void }) {
+export function ValueDialog({ groupId, groupCode, groupScope, auditTypes, value, close }: { groupId: string; groupCode: string; groupScope: string; auditTypes: { value: string; label: string }[]; value: MasterDataValue | null; close: () => void }) {
   const isActivitiesGroup = groupCode.trim().toLowerCase() === 'activities';
   const isAuditCategory = groupCode.trim().toLowerCase() === 'audit_categories';
+  const isDepartment = isDepartmentGroup(groupCode);
   const existingMetadata = value?.metadata ?? {};
   const [form, setForm] = useState({
     value: value?.value ?? '', label: value?.label ?? '', sortOrder: value?.sortOrder ?? 0, active: value?.active ?? true,
+    costId: value ? costIdText(value) : '',
     defaultRemarks: isActivitiesGroup && typeof existingMetadata.activityDefaultRemarks === 'string'
       ? existingMetadata.activityDefaultRemarks : '',
     auditTypeValues: isAuditCategory && Array.isArray(existingMetadata.auditTypeValues)
@@ -96,6 +100,7 @@ function ValueDialog({ groupId, groupCode, groupScope, auditTypes, value, close 
       value: form.value, label: form.label, sortOrder: form.sortOrder, active: form.active,
       metadata: {
         ...existingMetadata, assignedRoles: form.assignedRoles,
+        ...(isDepartment ? { costId: form.costId.trim() } : {}),
         ...(isActivitiesGroup ? { activityDefaultRemarks: form.defaultRemarks } : {}),
         ...(isAuditCategory ? { auditTypeValues: form.auditTypeValues } : {}),
       },
@@ -110,6 +115,7 @@ function ValueDialog({ groupId, groupCode, groupScope, auditTypes, value, close 
       <div className="space-y-4">
         <div><Label>Value</Label><Input value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} /></div>
         <div><Label>Label</Label><Input value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} /></div>
+        {isDepartment && <div><Label htmlFor="department-cost-id">Cost ID</Label><Input id="department-cost-id" type="text" value={form.costId} onChange={e => setForm({ ...form, costId: e.target.value })} /></div>}
         <MasterDataRolePicker scope={groupScope} value={form.assignedRoles}
           onChange={assignedRoles => setForm(current => ({ ...current, assignedRoles }))} />
         {isActivitiesGroup && <div>

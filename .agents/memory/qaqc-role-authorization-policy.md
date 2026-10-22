@@ -43,3 +43,9 @@ landing page while asking not to impact other development.
 **How to apply:** Reuse monthly-report RBAC and existing section/project scope.
 Do not interpret the landing page's Draft-only rule as a global removal of
 sent-back corrections, or as permission to expose legacy metric transactions.
+
+QA/QC approval roles require a positive whole-number level when saved; existing roles without a level remain readable. Monthly Metrics and Daily Submissions use sequential approval. CSAT instead uses final locked submission without approval, per [CSAT policy](csat-submission-origin-policy.md).
+
+**Why:** The user requested sequential QA/QC Metrics approval with project and organization-level authorization, then explicitly requested the same approval process for Daily Submissions.
+
+**How to apply:** Determine levels separately for each activity: Monthly Reports approval grants do not authorize Daily Submissions, or vice versa, except deliberately shared global grants. The same role assignment must grant that activity's approval and cover the project or organization. Never borrow wider scope from an unrelated role or infer levels from role names. Snapshot each submission's route, recheck live approval access at handoff and review, and preserve already-submitted legacy single-stage Monthly/Daily reports. A sent-back report restarts all levels on resubmission. Later role assignments do not retrofit an in-progress route. Keep CSAT final submission, Lessons and Audit independent.

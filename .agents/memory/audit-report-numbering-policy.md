@@ -2,7 +2,7 @@
 name: Audit Report numbering policy
 description: Report number issuance, source/year selection, go-live last-used counters and completion gate.
 ---
-Audit Reports have independent per-project/department, per-year sequences, separate from Plan and Schedule numbering. Use the linked Plan's project Cost Center, or the Department master Value for process audits, and the linked child Schedule From Date's two-digit year. New ranges start at 1. Go-live input means **last used**, so the next number is last used + 1; never rewind issued numbers.
+Audit Reports have independent per-project/department, per-year sequences, separate from Plan and Schedule numbering. Use the linked Plan's Project Master Additional Data Contract / project no., or Department Master Cost ID for process audits, and the linked child Schedule From Date's two-digit year. Preserve text/leading zeroes and never fall back to Cost Center or Department Value/label. New ranges start at 1. Go-live input means **last used**, so the next number is last used + 1; never rewind issued numbers.
 
 Issue a Report Number only on the **first successful Save Report Details**, never on execution creation, preview, completion or download. Subsequent saves retain it. Reject Mark Complete if no number exists. Do not renumber previously issued reports when configuration changes or move a numbered execution to a different Plan.
 

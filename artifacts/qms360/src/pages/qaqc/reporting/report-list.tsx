@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { useGetQaqcSowContext, useListQaqcSowReports } from '@workspace/api-client-react';
+import { getListQaqcSowReportsQueryKey, useGetQaqcSowContext, useListQaqcSowReports, type ListQaqcSowReportsParams } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import type { Obj, ReportType } from './reporting-types';
 import { Empty, ErrorBox, Loading, PageFrame, REPORT_MODULE, StateBadge } from './shell';
 import { CsatDownloadButton } from './csat-download-button';
 import { DailyDownloadButton } from './daily-download-button';
+import { pendingReportApproval } from './approval-summary';
 
 const LIMIT = 10;
 const NAMES: Record<ReportType, [string, string]> = { monthly: ['Monthly reports', 'Project quality reports submitted for management review.'], daily: ['Daily reports', 'Daily document governance snapshots by project.'], csat: ['Customer Satisfaction (CSAT)', 'Customer survey ratings and outcomes by project.'] };
@@ -25,7 +26,9 @@ export function ReportList({ reportType }: { reportType: ReportType }) {
   const [page, setPage] = useState(1); const [projectId, setProjectId] = useState(ALL); const [state, setState] = useState(ALL); const [period, setPeriod] = useState('');
   const ctx = useGetQaqcSowContext({ reportType });
   const projects: Obj[] = ((ctx.data ?? {}) as Obj).projects ?? [];
-  const q = useListQaqcSowReports({ reportType, page, limit: LIMIT, ...(projectId !== ALL ? { projectId } : {}), ...(period ? { period: reportType === 'daily' ? period : `${period}-01` } : {}), ...(state !== ALL ? { state } : {}) } as never);
+  const selectedState = state === 'draft' || state === 'submitted' || state === 'approved' || state === 'sent_back' ? state : undefined;
+  const params: ListQaqcSowReportsParams = { reportType, page, limit: LIMIT, ...(projectId !== ALL ? { projectId } : {}), ...(period ? { period: reportType === 'daily' ? period : `${period}-01` } : {}), ...(selectedState ? { state: selectedState } : {}) };
+  const q = useListQaqcSowReports(params, { query: { queryKey: getListQaqcSowReportsQueryKey(params), staleTime: 30_000, refetchOnMount: 'always', refetchOnWindowFocus: true, refetchInterval: reportType === 'daily' ? 30_000 : false } });
   const items = q.data?.items ?? [];
   const pages = Math.max(1, Math.ceil((q.data?.total ?? 0) / LIMIT));
   const names = Object.fromEntries(projects.map(p => [p.id, p.name]));
@@ -36,8 +39,11 @@ export function ReportList({ reportType }: { reportType: ReportType }) {
       <Input className="sm:w-44" type={reportType === 'daily' ? 'date' : 'month'} value={period} onChange={e => { setPeriod(e.target.value); setPage(1); }} />
     </Card>
     {q.isLoading ? <Loading /> : q.error ? <ErrorBox error={q.error} retry={() => q.refetch()} /> : !items.length ? <Empty text="No reports match these filters" /> :
-      <Card className="overflow-hidden"><Table><TableHeader><TableRow><TableHead>Reference</TableHead><TableHead>Project</TableHead><TableHead>Period</TableHead><TableHead>State</TableHead><TableHead>Submitted</TableHead><TableHead className="text-right">Open</TableHead>{(showCsatDownload || showDailyDownload) && <TableHead className="text-right">Download</TableHead>}</TableRow></TableHeader><TableBody>
-        {items.map(r => <TableRow key={r.id}><TableCell className="font-mono text-xs">{r.referenceNumber ?? '-'}</TableCell><TableCell className="font-medium">{r.projectName ?? names[r.projectId] ?? r.projectId}</TableCell><TableCell>{r.period}</TableCell><TableCell><StateBadge state={r.state} /></TableCell><TableCell>{r.submittedAt ? formatDate(r.submittedAt) : '-'}</TableCell><TableCell className="text-right"><Link href={`/qaqc/${reportType}/${r.id}`}><Button size="sm" variant="outline">{r.state === 'draft' || r.state === 'sent_back' ? 'Edit' : 'View'}</Button></Link></TableCell>{showCsatDownload && <TableCell className="text-right"><CsatDownloadButton report={r} /></TableCell>}{showDailyDownload && <TableCell className="text-right"><DailyDownloadButton report={r} /></TableCell>}</TableRow>)}
+      <Card className="overflow-hidden"><Table><TableHeader><TableRow><TableHead>Reference</TableHead><TableHead>Project</TableHead><TableHead>Period</TableHead><TableHead>State</TableHead><TableHead>Submitted</TableHead>{reportType === 'daily' && <><TableHead>Pending Approval Level</TableHead><TableHead>Pending Approver</TableHead></>}<TableHead className="text-right">Open</TableHead>{(showCsatDownload || showDailyDownload) && <TableHead className="text-right">Download</TableHead>}</TableRow></TableHeader><TableBody>
+        {items.map(r => {
+          const pending = pendingReportApproval(r);
+          return <TableRow key={r.id}><TableCell className="font-mono text-xs">{r.referenceNumber ?? '-'}</TableCell><TableCell className="font-medium">{r.projectName ?? names[r.projectId] ?? r.projectId}</TableCell><TableCell>{r.period}</TableCell><TableCell><StateBadge state={r.state} /></TableCell><TableCell>{r.submittedAt ? formatDate(r.submittedAt) : '-'}</TableCell>{reportType === 'daily' && <><TableCell className="whitespace-nowrap">{pending.level}</TableCell><TableCell>{pending.approver}</TableCell></>}<TableCell className="text-right"><Link href={`/qaqc/${reportType}/${r.id}`}><Button size="sm" variant="outline">{r.state === 'draft' || r.state === 'sent_back' ? 'Edit' : 'View'}</Button></Link></TableCell>{showCsatDownload && <TableCell className="text-right"><CsatDownloadButton report={r} /></TableCell>}{showDailyDownload && <TableCell className="text-right"><DailyDownloadButton report={r} /></TableCell>}</TableRow>;
+        })}
       </TableBody></Table>
       <div className="flex items-center justify-between border-t px-4 py-3 text-sm"><span className="text-muted-foreground">Page {page} of {pages} - {q.data?.total ?? 0} reports</span><div className="flex gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="size-4" /></Button><Button size="sm" variant="outline" disabled={page >= pages} onClick={() => setPage(page + 1)}><ChevronRight className="size-4" /></Button></div></div></Card>}
   </PageFrame>;

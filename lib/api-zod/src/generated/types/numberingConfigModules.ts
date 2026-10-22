@@ -10,5 +10,6 @@ import type { NumberingModuleConfig } from './numberingModuleConfig';
 export type NumberingConfigModules = {
   qaqc: NumberingModuleConfig;
   lessons: NumberingModuleConfig;
+  lessonsDepartment?: NumberingModuleConfig;
   audit: NumberingModuleConfig;
 };

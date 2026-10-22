@@ -2,7 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db, organizationSettings, projects, masterDataValues } from "@workspace/db";
 import { HttpError } from "./workspace";
 import { lockScheduleNumbering } from "./audit-schedule-numbering";
-import { projectNumberContext } from "@workspace/field-controls";
+import { auditProjectNumberSourceValue, auditDepartmentNumberSourceValue } from "./audit-number-source";
 import { resolveMasterDataGroupId } from "./lov";
 
 export type PlanNumberPattern = { prefix: string; middle: string; separator: string; padding: number };
@@ -27,7 +27,7 @@ export function validatePlanNumberPattern(pattern: PlanNumberPattern) {
 export async function getPlanNumberDepartments(reader: Reader, organizationId: string) {
   const groupId = await resolveMasterDataGroupId(reader, organizationId, "departments");
   if (!groupId) return [];
-  return reader.select({ id: masterDataValues.id, value: masterDataValues.value, label: masterDataValues.label })
+  return reader.select({ id: masterDataValues.id, value: masterDataValues.value, label: masterDataValues.label, metadata: masterDataValues.metadata })
     .from(masterDataValues).where(and(
       eq(masterDataValues.organizationId, organizationId), eq(masterDataValues.groupId, groupId),
       isNull(masterDataValues.deletedAt), eq(masterDataValues.active, true), eq(masterDataValues.status, "active")));
@@ -35,8 +35,8 @@ export async function getPlanNumberDepartments(reader: Reader, organizationId: s
 export async function planNumberSource(reader: Reader, organizationId: string, projectId: string | null, department?: string, document = "Audit Plan") {
   if (projectId) {
     const [project] = await reader.select().from(projects).where(and(eq(projects.organizationId, organizationId), eq(projects.id, projectId), isNull(projects.deletedAt))).limit(1);
-    const sourceValue = projectNumberContext(project?.customFields ?? {}).costCentre;
-    if (typeof sourceValue !== "string" || !sourceValue.trim()) throw new HttpError(422, `Maintain the project's Cost Center in Integration Cockpit → Project Master → Additional Data before generating this ${document} number.`);
+    const sourceValue = auditProjectNumberSourceValue(project?.customFields);
+    if (!sourceValue) throw new HttpError(422, `Maintain the project's Contract / project no. in Integration Cockpit → Project Master → Additional Data before generating this ${document} number.`);
     return { key: `project:${projectId}`, kind: "project" as const, label: project!.name, sourceValue: sourceValue.trim() };
   }
   const selected = department?.trim();
@@ -47,7 +47,9 @@ export async function planNumberSource(reader: Reader, organizationId: string, p
   if (!exact && matches.length > 1) throw new HttpError(422, "The department label is ambiguous. Select its Department master Value in the Audit Schedule.");
   const value = exact ?? matches[0];
   if (!value?.value.trim()) throw new HttpError(422, "The department selected in the Audit Schedule must match an active Department master Value.");
-  return { key: `department:${value.id}`, kind: "department" as const, label: value.label, sourceValue: value.value };
+  const sourceValue = auditDepartmentNumberSourceValue(value.metadata);
+  if (!sourceValue) throw new HttpError(422, `Maintain Cost ID in the selected Department Master before generating this ${document} number.`);
+  return { key: `department:${value.id}`, kind: "department" as const, label: value.label, sourceValue };
 }
 export function planNumberYear(fromDate: unknown, document = "Audit Plan"): number {
   if (typeof fromDate !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(fromDate)) throw new HttpError(422, `A valid From Date is required on the linked Audit Schedule for ${document} numbering.`);

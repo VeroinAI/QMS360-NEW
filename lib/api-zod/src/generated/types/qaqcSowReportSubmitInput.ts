@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * CSAT is a final locked submission without an approver. Monthly and Daily reports require an eligible first-level approver.
+ */
 export interface QaqcSowReportSubmitInput {
-  approverId: string;
+  approverId?: string;
 }

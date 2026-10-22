@@ -38,3 +38,9 @@ changes or alter quoted literal content.
 **How to apply:** Require the column's confirmed text type and an exact literal
 list shape. Preserve grouping, literal values, unknown casts and non-equality
 operators; do not rebuild an index solely to match the source SQL spelling.
+
+Keep live development/production parity separate from source-to-live coverage.
+
+**Why:** Both live databases can omit source-declared constraints or indexes. Copying development exactly would preserve those omissions; replaying an entire source migration can add unreviewed changes beyond the verified production drift.
+
+**How to apply:** Report shared source-to-live gaps separately. Limit targeted incident SQL to verified differences, and label any source-aligned integrity additions as a separate review scope rather than claiming they merely match live development.

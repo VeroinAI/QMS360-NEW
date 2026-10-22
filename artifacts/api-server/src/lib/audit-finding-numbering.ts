@@ -93,7 +93,7 @@ export async function allocateFindingNumber(
     ) item where item->>'findingNumber' = ${number}
       and coalesce(item->>'findingNumberType', item->>'auditFinding') = ${type})`,
   )).limit(1);
-  if (duplicate) throw new HttpError(409, "This Audit Finding Number already exists for this finding type. Maintain distinct Cost Centers or correct the numbering format; existing numbers will not be overwritten.");
+  if (duplicate) throw new HttpError(409, "This Audit Finding Number already exists for this finding type. Maintain distinct Project Contract / project no. or Department Cost ID values, or correct the numbering format; existing numbers will not be overwritten.");
   state.ranges = { ...state.ranges, [type]: {
     ...state.ranges[type], [source.key]: { ...state.ranges[type]?.[source.key], [String(year)]: sequence },
   } };

@@ -11,6 +11,20 @@ const record = { id: 'project-1', additionalData: { email: 'quality@example.com'
 const props = { record, canEdit: true, onSaved: vi.fn(), onPendingChange: vi.fn(), onCancel: vi.fn() };
 
 describe('Project Additional Data contact fields', () => {
+  it('renders all five project closure targets with saved zero and decimal values', () => {
+    const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} record={{ ...record, closureTargets: { external_ncr: 0, internal_ncr: 100, rfi: 97.5, rmi: null, pqi: 80 } }} />);
+    expect(html).toContain('Closure Target (%)');
+    for (const key of ['external_ncr', 'internal_ncr', 'rfi', 'rmi', 'pqi']) {
+      expect(html).toContain(`id="project-target-${key}"`);
+    }
+    expect(html).toMatch(/id="project-target-external_ncr"[^>]*value="0"/);
+    expect(html).toMatch(/id="project-target-rfi"[^>]*value="97.5"/);
+  });
+  it('blocks saving an out-of-range closure target', () => {
+    const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} record={{ ...record, closureTargets: { external_ncr: 101 } }} />);
+    expect(html).toContain('Enter a number from 0 to 100');
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*data-testid="button-save-project-additional-data"/);
+  });
   it('renders the optional Name field and reopens its saved value', () => {
     const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} record={{ ...record, additionalData: { ...record.additionalData!, name: 'Project Contact' } }} />);
     expect(html).toContain('for="project-additional-name">Name');

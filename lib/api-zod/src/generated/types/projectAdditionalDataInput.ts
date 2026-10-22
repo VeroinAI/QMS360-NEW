@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProjectAdditionalData } from './projectAdditionalData';
+import type { ProjectClosureTargets } from './projectClosureTargets';
 
 export interface ProjectAdditionalDataInput {
   /**
@@ -14,4 +15,5 @@ export interface ProjectAdditionalDataInput {
      */
   costCentre: string | null;
   additionalData: ProjectAdditionalData;
+  closureTargets?: ProjectClosureTargets;
 }

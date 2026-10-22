@@ -36,7 +36,7 @@ export function AuditCarNumberingSettings() {
     Number.isSafeInteger(next) && next > lastUsed && next >= 1 && next <= 999999999999;
   const validPattern = Number.isInteger(pattern.padding) && pattern.padding >= 1 && pattern.padding <= 12 &&
     !invalidText(pattern.prefix) && !invalidText(pattern.middle) && !invalidText(pattern.separator);
-  const preview = [saved.prefix, source?.sourceValue || "[Department Value / Project Cost Center]", saved.middle,
+  const preview = [saved.prefix, source?.sourceValue || "[Department Cost ID / Project Contract no.]", saved.middle,
     validYear ? String(yearNumber).slice(-2) : "YY", String(validRange ? next : lastUsed + 1).padStart(Math.max(1, Math.min(12, saved.padding || 1)), "0")].filter(Boolean).join(saved.separator);
   const change = (key: keyof AuditPlanNumberingPattern, value: string) => {
     setPattern(current => ({ ...current!, [key]: key === "padding" ? Number(value) : value }));
@@ -45,7 +45,7 @@ export function AuditCarNumberingSettings() {
   return <Card data-testid="audit-car-numbering"><CardHeader><CardTitle>Audit CAR number range</CardTitle>
     <CardDescription>Separate counters for each project or department and full Schedule From Date year, each starting at 1 annually. A CAR Number is issued only on the first successful Save response or Save & submit. Retries and later edits keep the same number, and format changes do not reset counters.</CardDescription></CardHeader>
     <CardContent className="space-y-5">
-      <p className="text-sm">Format: <strong>Prefix + Department Value / Project Cost Center + Middle text + YY + Running number</strong>.
+      <p className="text-sm">Format: <strong>Prefix + Department Cost ID / Project Contract / project no. + Middle text + YY + Running number</strong>.
         The source is derived from the linked Plan. YY comes from the linked child Schedule From Date, not the date the CAR is saved.</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div><Label htmlFor="car-number-prefix">Prefix</Label><Input id="car-number-prefix" data-testid="input-car-number-prefix" maxLength={80} value={pattern.prefix} onChange={e => change("prefix", e.target.value)} /></div>
@@ -68,7 +68,7 @@ export function AuditCarNumberingSettings() {
           <div><Label htmlFor="car-number-year">Schedule From Date year (four digits)</Label><Input id="car-number-year" data-testid="input-car-number-year" type="number" min={1900} max={9999} value={year} disabled={saveRange.isPending} onChange={e => setYear(e.target.value)} /></div>
           <div><Label htmlFor="car-number-next">Next running number</Label><Input id="car-number-next" data-testid="input-car-number-next" type="number" min={lastUsed + 1} max={999999999999} value={nextNumber} disabled={saveRange.isPending} onChange={e => { setNextNumber(e.target.value); saveRange.reset(); }} /></div>
         </div>
-        {source && <p className="text-sm">Source value: <strong>{source.sourceValue || "Missing — maintain Project Master Cost Center"}</strong> · Last-used CAR number for {year}: <strong data-testid="text-car-number-last-used">{lastUsed}</strong></p>}
+        {source && <p className="text-sm">Source value: <strong>{source.sourceValue || (source.kind === "department" ? "Missing—maintain Department Master → Cost ID" : "Missing—maintain Project Master → Additional Data → Contract / project no.")}</strong> · Last-used CAR number for {year}: <strong data-testid="text-car-number-last-used">{lastUsed}</strong></p>}
         {source && !validRange && <p role="alert" className="text-sm text-destructive">Enter a year from 1900 to 9999 and a whole next number from {lastUsed + 1} to 999999999999. The counter cannot move backwards.</p>}
         {saveRange.isError && <p role="alert" className="text-sm text-destructive">{saveRange.error.message}</p>}
         <Button type="button" data-testid="button-save-car-range" disabled={!validRange || saveRange.isPending} onClick={() => saveRange.mutate({ data: { scope, year: yearNumber, nextNumber: next } }, {
@@ -77,6 +77,6 @@ export function AuditCarNumberingSettings() {
         {!query.data.sources.length && <p className="text-sm text-muted-foreground">No projects or department master values are available in your Audit administrator scope.</p>}
       </section>
       <div className="rounded-lg bg-muted/40 p-3"><p className="text-xs uppercase text-muted-foreground">Illustrative next number — does not issue a number</p><p className="break-all font-mono font-semibold" data-testid="audit-car-number-preview">{preview}</p>
-        <p className="mt-1 text-xs text-muted-foreground">For example, prefix AGH, source CC100, middle CAR, year 2027 and next number 1 produce AGH-CC100-CAR-27-0001. Uses the saved format and the entered valid next number. Save the next running number to apply it.</p></div>
+        <p className="mt-1 text-xs text-muted-foreground">For example, prefix AGH, contract number CTR100, middle CAR, year 2027 and next number 1 produce AGH-CTR100-CAR-27-0001. Department audits use Cost ID instead. Uses the saved format and the entered valid next number. Save the next running number to apply it.</p></div>
     </CardContent></Card>;
 }

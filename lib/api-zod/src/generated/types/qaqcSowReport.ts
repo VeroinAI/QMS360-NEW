@@ -21,7 +21,13 @@ export interface QaqcSowReport {
   data: QaqcSowObject;
   computed: QaqcSowObject;
   baseline: QaqcSowObject;
+  approvalWorkflow?: QaqcSowObject;
   approverId?: string | null;
+  /**
+     * Display name of the assigned report reviewer
+     * @nullable
+     */
+  readonly approverName?: string | null;
   submittedById?: string | null;
   submittedAt?: string | null;
   approvedAt?: string | null;

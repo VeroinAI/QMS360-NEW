@@ -6,6 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { projectContactErrors } from './project-contact-validation';
 
+export const CLOSURE_TARGET_FIELDS = [['external_ncr', 'External NCR'], ['internal_ncr', 'Internal NCR'], ['rfi', 'RFI'], ['rmi', 'RMI'], ['pqi', 'PQI']] as const;
+type TargetKey = typeof CLOSURE_TARGET_FIELDS[number][0];
+type ClosureTargets = Record<TargetKey, number | null>;
+function targetError(raw: string) {
+  const t = raw.trim();
+  if (!t) return '';
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? '' : 'Enter a number from 0 to 100, or leave blank.';
+}
+
 const fields: Array<[keyof ProjectAdditionalData, string]> = [
   ['client', 'Client'], ['contractor', 'Contractor'],
   ['contractProjectNumber', 'Contract / project no.'], ['contractSigned', 'Contract signed'],
@@ -23,6 +33,12 @@ export function ProjectAdditionalDataEditor({ record, canEdit, onSaved, onPendin
 }) {
   const [values, setValues] = useState(() => Object.fromEntries(fields.map(([key]) => [key, record.additionalData?.[key] ?? ''])) as Record<keyof ProjectAdditionalData, string>);
   const [costCentre, setCostCentre] = useState(record.costCentre ?? '');
+  const savedTargets = record.closureTargets ?? {};
+  const [targets, setTargets] = useState(() => Object.fromEntries(CLOSURE_TARGET_FIELDS.map(([key]) => [key, savedTargets[key] == null ? '' : String(savedTargets[key])])) as Record<TargetKey, string>);
+  const targetErrors = Object.fromEntries(CLOSURE_TARGET_FIELDS.map(([key]) => [key, targetError(targets[key])])) as Record<TargetKey, string>;
+  const invalidTargets = Object.values(targetErrors).some(Boolean);
+  const normalizedTargets = Object.fromEntries(CLOSURE_TARGET_FIELDS.map(([key]) => [key, targets[key].trim() === '' ? null : Number(targets[key])])) as ClosureTargets;
+  const targetsChanged = CLOSURE_TARGET_FIELDS.some(([key]) => normalizedTargets[key] !== (savedTargets[key] ?? null));
   const update = useUpdateProjectAdditionalData();
   useEffect(() => {
     onPendingChange(update.isPending);
@@ -38,13 +54,13 @@ export function ProjectAdditionalDataEditor({ record, canEdit, onSaved, onPendin
   };
   const contactErrors = projectContactErrors(values.email, values.phone);
   const invalidContact = !!(contactErrors.email || contactErrors.phone);
-  const changed = (costCentre.trim() || null) !== (record.costCentre ?? null) ||
+  const changed = targetsChanged || (costCentre.trim() || null) !== (record.costCentre ?? null) ||
     fields.some(([key]) => normalized[key] !== (record.additionalData?.[key] ?? null));
 
   return <form className="space-y-5" onSubmit={event => {
     event.preventDefault();
-    if (!canEdit || !changed || update.isPending || invalidContact) return;
-    update.mutate({ projectId: record.id, data: { costCentre: costCentre.trim() || null, additionalData: normalized } }, { onSuccess: onSaved });
+    if (!canEdit || !changed || update.isPending || invalidContact || invalidTargets) return;
+    update.mutate({ projectId: record.id, data: { costCentre: costCentre.trim() || null, additionalData: normalized, closureTargets: normalizedTargets } }, { onSuccess: onSaved });
   }}>
     <div className="grid gap-4 sm:grid-cols-2">
       {fields.map(([key, label]) => <div key={key} className="space-y-2">
@@ -71,11 +87,26 @@ export function ProjectAdditionalDataEditor({ record, canEdit, onSaved, onPendin
         <p className="text-xs text-muted-foreground">Used for new Lessons Learned reference numbers. Existing references keep their numbers.</p>
       </div>
     </div>
+    <fieldset className="rounded-lg border p-4" data-testid="tile-closure-target">
+      <legend className="px-1 text-sm font-semibold">Closure Target (%)</legend>
+      <p className="mb-3 text-xs text-muted-foreground">Project-level closure targets used by QA/QC reporting. Leave a field blank to clear the project override.</p>
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {CLOSURE_TARGET_FIELDS.map(([key, label]) => <div key={key} className="space-y-1">
+          <Label htmlFor={`project-target-${key}`}>{label}</Label>
+          <Input id={`project-target-${key}`} type="number" inputMode="decimal" min={0} max={100} step="any" value={targets[key]}
+            aria-invalid={!!targetErrors[key]} aria-describedby={targetErrors[key] ? `project-target-${key}-error` : undefined}
+            disabled={update.isPending || !canEdit}
+            onChange={event => { setTargets(previous => ({ ...previous, [key]: event.target.value })); update.reset(); }}
+            data-testid={`input-project-target-${key}`} />
+          {targetErrors[key] && <p id={`project-target-${key}-error`} role="alert" className="text-xs text-destructive">{targetErrors[key]}</p>}
+        </div>)}
+      </div>
+    </fieldset>
     <p className="text-xs text-muted-foreground">All fields are optional. Leave a field blank and save to clear its value. These are QMS360-managed values; source project records are not changed.</p>
     {update.isError && <p role="alert" className="text-sm text-destructive">{update.error instanceof Error ? update.error.message : 'Additional data could not be saved. Your entries are retained; try again.'}</p>}
     <div className="flex justify-end gap-2">
       <Button type="button" variant="outline" onClick={onCancel} disabled={update.isPending}>{canEdit ? 'Cancel' : 'Close'}</Button>
-      {canEdit && <Button type="submit" disabled={!changed || update.isPending || invalidContact} data-testid="button-save-project-additional-data">
+      {canEdit && <Button type="submit" disabled={!changed || update.isPending || invalidContact || invalidTargets} data-testid="button-save-project-additional-data">
         {update.isPending ? 'Saving…' : 'Save additional data'}
       </Button>}
     </div>

@@ -1,6 +1,23 @@
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import type { DronaProjectMasterRecord, ProjectAdditionalData, ProjectAdditionalDataInput } from "@workspace/api-zod";
+import type { DronaProjectMasterRecord, ProjectAdditionalData, ProjectAdditionalDataInput, ProjectClosureTargets } from "@workspace/api-zod";
+
+const closureTargetKeys = ["external_ncr", "internal_ncr", "rfi", "rmi", "pqi"] as const;
+function closureTargets(value: unknown): ProjectClosureTargets {
+  const fields = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return Object.fromEntries(closureTargetKeys.flatMap(key => {
+    const value = fields[key];
+    return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100 ? [[key, value]] : [];
+  }));
+}
+
+// Reuse existing project-owned targets, including older reporting-only saves.
+// Do not migrate or reset any responsible-person / distribution settings.
+function projectTargetsSql() {
+  return sql`CASE WHEN jsonb_typeof(p.custom_fields->'targets') = 'object' THEN p.custom_fields->'targets'
+    WHEN jsonb_typeof(p.custom_fields->'qaqcReporting'->'targets') = 'object'
+      THEN p.custom_fields->'qaqcReporting'->'targets' ELSE '{}'::jsonb END`;
+}
 
 const additionalDataKeys = ["name", "client", "contractor", "contractProjectNumber", "contractSigned", "contractPeriod", "tcc", "pac", "fac", "email", "phone"] as const;
 function additionalData(value: unknown): ProjectAdditionalData {
@@ -21,6 +38,7 @@ export type ProjectMasterInput = {
   page: number;
   limit: number;
   search?: string;
+  projectId?: string;
   scope: { unrestricted: boolean; projectIds: string[] };
   environment?: string;
 };
@@ -54,6 +72,7 @@ async function projectMasterWhere(input: ProjectMasterInput) {
     ${input.scope.unrestricted ? sql`` : input.scope.projectIds.length
       ? sql`AND p.id IN (${sql.join(input.scope.projectIds.map(id => sql`${id}::uuid`), sql`, `)})`
       : sql`AND false`}
+    ${input.projectId ? sql`AND p.id = ${input.projectId}::uuid` : sql``}
     ${matches}`;
   return { linkMetadataAvailable, linkWhere, where };
 }
@@ -72,6 +91,7 @@ export async function readDronaProjectMaster(input: ProjectMasterInput) {
     db.execute(sql`SELECT p.id, p.code, p.name, p.location, p.status,
         COALESCE(p.custom_fields->>'costCentre', p.custom_fields->>'cost_centre') AS "costCentre",
         p.custom_fields->'qmsAdditionalData' AS "additionalData",
+        ${projectTargetsSql()} AS "closureTargets",
         p.source AS "recordSource", p.external_id AS "externalId",
         p.created_at AS "createdAt", p.updated_at AS "updatedAt",
         b.name AS "businessUnit", ${links} AS "dronaLinks"
@@ -86,6 +106,7 @@ export async function readDronaProjectMaster(input: ProjectMasterInput) {
   }>).map(row => ({
     ...row,
     additionalData: additionalData(row.additionalData),
+    closureTargets: closureTargets(row.closureTargets),
     createdAt: timestampIso(row.createdAt, "createdAt"),
     updatedAt: timestampIso(row.updatedAt, "updatedAt"),
     dronaLinks: row.dronaLinks.map(link => ({ ...link, linkedAt: timestampIso(link.linkedAt, "linkedAt") })),
@@ -111,15 +132,25 @@ export async function saveDronaProjectCostCentre(input: ProjectMasterInput, proj
 /** QMS-owned data only; one atomic merge preserves source fields and unrelated JSON metadata. */
 export async function saveProjectAdditionalData(input: ProjectMasterInput, projectId: string, data: ProjectAdditionalDataInput) {
   const { where } = await projectMasterWhere(input);
+  // A blank target removes only that override. Preserve unknown existing target
+  // keys and merge under the UPDATE row lock so unrelated settings survive.
+  const mergedTargets = sql`jsonb_strip_nulls((${projectTargetsSql()}) || ${JSON.stringify(data.closureTargets ?? {})}::jsonb)`;
+  const targetPatch = data.closureTargets === undefined ? sql`` : sql`
+    || jsonb_build_object('targets', ${mergedTargets},
+      'qaqcReporting', (CASE WHEN jsonb_typeof(p.custom_fields->'qaqcReporting') = 'object'
+        THEN p.custom_fields->'qaqcReporting' ELSE '{}'::jsonb END)
+        || jsonb_build_object('targets', ${mergedTargets}))`;
   const result = await db.execute(sql`UPDATE shared.projects p
     SET custom_fields = (COALESCE(p.custom_fields, '{}'::jsonb) - 'cost_centre')
       || jsonb_build_object('costCentre', ${data.costCentre}::text,
         'qmsAdditionalData', (CASE WHEN jsonb_typeof(p.custom_fields->'qmsAdditionalData') = 'object'
-          THEN p.custom_fields->'qmsAdditionalData' ELSE '{}'::jsonb END) || ${JSON.stringify(data.additionalData)}::jsonb),
+          THEN p.custom_fields->'qmsAdditionalData' ELSE '{}'::jsonb END) || ${JSON.stringify(data.additionalData)}::jsonb)
+      ${targetPatch},
       updated_at = now()
     WHERE ${where} AND p.id = ${projectId}::uuid
     RETURNING p.id, p.custom_fields->>'costCentre' AS "costCentre",
-      p.custom_fields->'qmsAdditionalData' AS "additionalData", p.updated_at AS "updatedAt"`);
-  const record = result.rows[0] as { id: string; costCentre: string | null; additionalData: unknown; updatedAt: Date | string } | undefined;
-  return record ? { ...record, additionalData: additionalData(record.additionalData), updatedAt: timestampIso(record.updatedAt, "updatedAt") } : null;
+      p.custom_fields->'qmsAdditionalData' AS "additionalData",
+      ${projectTargetsSql()} AS "closureTargets", p.updated_at AS "updatedAt"`);
+  const record = result.rows[0] as { id: string; costCentre: string | null; additionalData: unknown; closureTargets?: unknown; updatedAt: Date | string } | undefined;
+  return record ? { ...record, additionalData: additionalData(record.additionalData), closureTargets: closureTargets(record.closureTargets), updatedAt: timestampIso(record.updatedAt, "updatedAt") } : null;
 }

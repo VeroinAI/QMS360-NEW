@@ -30,6 +30,7 @@ import {
   ReassignLessonsPendingActionsBody,
 } from "@workspace/api-zod";
 import { createLessonPdf } from "../lib/lesson-pdf";
+import { lessonDisciplineLabel } from "../lib/lesson-discipline-label";
 import { lessonDepartments, lessonInScope, lessonScopeWhere, lessonSourceInput, type LessonSource } from "../lib/lessons-source";
 import { storeEmailPdfAttachment, type EmailPdfAttachment } from "../lib/email-attachments";
 import {
@@ -58,7 +59,7 @@ import {
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 import { allocateReferenceNumber, allocateDepartmentLessonReference, LessonProjectNumberingError } from "../lib/numbering";
-import { projectNumberContext, ReferencePrefixError } from "@workspace/field-controls";
+import { projectNumberContext, departmentNumberContext, ReferencePrefixError } from "@workspace/field-controls";
 import { assertCanManageAssignmentScope, assertOwnerOrFull, assertProjectAccess, canManageAssignmentScope, getAppAdminScope, getAuthorizedFullProjectScope, getAuthorizedProjectScope, projectScopeFromRows, requireAppAccess, requireAppAdmin, requirePermission } from "../middlewares/rbac";
 import { assertLovValue } from "../lib/lov";
 import { assertFieldAccess } from "../lib/field-access";
@@ -682,7 +683,8 @@ router.post("/forms", asyncHandler(async (req, res) => {
     let referenceNumber: string;
     try {
       referenceNumber = department
-        ? await allocateDepartmentLessonReference(user.organizationId, department.id, department.code)
+        ? await allocateDepartmentLessonReference(user.organizationId, department.id, department.code,
+          departmentNumberContext(department.metadata, department.code, body.disciplineId))
         : await allocateReferenceNumber(user.organizationId, "lessons", projectNumberContext(project!.customFields, body.disciplineId), source.projectId!);
     } catch (error) {
       // Only master-field validation is a user error; infrastructure failures remain server errors.
@@ -1271,7 +1273,9 @@ async function lessonReportPdf(
   row: typeof lessonLearnedForms.$inferSelect,
   photos: Array<typeof lessonsEvidenceFiles.$inferSelect>,
 ) {
-  return createLessonPdf(await formJsonNamed(row, photos), await lessonPdfAssets(row, photos));
+  const lesson = await formJsonNamed(row, photos);
+  const disciplineLabel = await lessonDisciplineLabel(db, row.organizationId, lesson.disciplineId);
+  return createLessonPdf({ ...lesson, disciplineLabel }, await lessonPdfAssets(row, photos));
 }
 
 router.get("/forms/:id/report.pdf", asyncHandler(async (req, res) => {

@@ -14,7 +14,7 @@ export interface Role {
   /** @nullable */
   description?: string | null;
   /**
-     * Audit approval sequence level; required when Approve / reject is granted to an Audit role.
+     * Positive approval level required when approval permission is granted to an Audit or QA/QC role. QA/QC Monthly and Daily Reports follow ascending saved levels within the approval role's project or organization scope; CSAT approval routing is unchanged.
      * @minimum 1
      * @maximum 2147483647
      * @nullable

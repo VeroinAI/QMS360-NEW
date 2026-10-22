@@ -232,3 +232,17 @@ mtime_ms = 1792377060474
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/1f8efede-e485-4576-bc26-c6287d6f4453/8b1e4ccf-940f-4397-94b5-ff4b82ccbac7"
 storage_version_token = "1792377133586364"
 content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+[[outputs]]
+id = "ffjznUdoPHCv1IDHAkZFf"
+uri = "file://generated-artifacts/qms360-schema-review-2026-10-22.html"
+type = "html"
+title = "Dev vs Replit Production — Schema Comparison & SQL"
+description = "Confirmed schema differences, targeted Lessons repair SQL, separately scoped Drona SQL for review, and read-only verification queries. No production changes were made."
+logical_id = "f6044f13-297e-440b-91c9-794384bf064b"
+content_hash = "sha256:576070e0ede6c7baa36bf81c369827d165dc76a616225e82c93bdddad6392fbe"
+size = 21059
+mtime_ms = 1792676532564
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:7a6ad7d9-a9e4-4447-9fd0-44c00478190b/f6044f13-297e-440b-91c9-794384bf064b/c27a6cc1-f2c2-44a6-a23d-d761f5c02482"
+storage_version_token = "1792676595300192"
+content_type = "text/html"

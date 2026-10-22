@@ -6,11 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProjectAdditionalData } from './projectAdditionalData';
+import type { ProjectClosureTargets } from './projectClosureTargets';
 
 export interface ProjectAdditionalDataResult {
   id: string;
   /** @nullable */
   costCentre: string | null;
   additionalData: ProjectAdditionalData;
+  closureTargets?: ProjectClosureTargets;
   updatedAt: Date;
 }

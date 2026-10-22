@@ -21,7 +21,7 @@ export function lessonScopeWhere(scope: EffectiveProjectScope) {
 export async function lessonDepartments(organizationId: string) {
   const groupId = await resolveMasterDataGroupId(db, organizationId, "departments");
   if (!groupId) return [];
-  return db.select({ id: masterDataValues.id, name: masterDataValues.label, code: masterDataValues.value })
+  return db.select({ id: masterDataValues.id, name: masterDataValues.label, code: masterDataValues.value, metadata: masterDataValues.metadata })
     .from(masterDataValues).where(and(eq(masterDataValues.organizationId, organizationId),
       eq(masterDataValues.groupId, groupId), eq(masterDataValues.active, true),
       eq(masterDataValues.status, "active"), isNull(masterDataValues.deletedAt)))

@@ -16,6 +16,7 @@
 - [Lessons overview counts](lessons-overview-policy.md) — all tiles follow the selected project; personal totals cover all accessible records while the recent tile retains recent-record semantics.
 - [Wouter :rest* wildcard limitation](wouter-rest-wildcard.md) — :rest* matches one segment only; deep nested routes need explicit App.tsx routes.
 - [Orval zod export naming](openapi-zod-naming.md) — zod consts get operationId-derived names; component schemas are types only; `<OperationId>Body` schema names collide with TS2308.
+- [Orval query serialization](orval-query-serialization.md) — declare queries on operations; inherited path-level queries may type-check but disappear from generated URLs.
 - [SSRF policy for outbound URLs](egress-ssrf-policy.md) — tenant-configured URLs with credentials need pinned DNS + SOURCE_SYNC_ALLOWED_HOSTS allowlist; never plain fetch; classify IPs on 16-byte form.
 - [SheetJS secure releases](sheetjs-secure-releases.md) — npm xlsx stops at a vulnerable release; use the official SheetJS CDN tarball for patched versions.
 - [Video scaffold controls & tsconfig](video-scaffold-controls.md) — video-js scaffold ships workspace-driven controls (supersedes scene-selectors.md); artifact tsconfig needs DOM lib override or typecheck is red.
@@ -85,7 +86,7 @@
 - [PDF library normalization](pdf-library-normalization.md) — form access and fixture saves can remove XFA before validation; check source structures before normalization.
 - [Monthly quality assessment](quality-assessment-policy.md) — >45-day open NCRs are critical; AI suggestions require human review and confirmation before submission.
 - [Audit Plan PDF policy](audit-plan-pdf-policy.md) — retain the supplied PDF's branding; use each audit's records, mark unavailable values exactly “To Be Mapped”, and never copy sample signatures.
-- [QA/QC role authorization policy](qaqc-role-authorization-policy.md) — edit default-role permissions in place; preserve other apps and legacy ownership semantics.
+- [QA/QC role authorization policy](qaqc-role-authorization-policy.md) — scoped monthly approval levels; preserve default-role editing, other apps and legacy ownership.
 - [Audit consolidated report policy](audit-consolidated-report-policy.md) — reports require completion; CARs remain separate; missing template data is editable, never fabricated.
 - [Focused Vitest invocation](focused-vitest-invocation.md) — invoke filtered Vitest directly; passing a literal -- through pnpm test can ignore the intended file filter.
 - [Drona environment boundaries](drona-environment-boundaries.md) — AWS owns public masters; preserve DEV/QA and QMS approvals; email-only login is an explicit unverified exception.
@@ -104,3 +105,6 @@
 - [Monthly historical balances](monthly-historical-balances-policy.md) — one opening load per project across all months; atomic Master-backed Excel uploads and protected submitted history.
 - [Monthly report uniqueness](monthly-report-uniqueness.md) — all workflow states block duplicate project/month reports; selection feedback and race-safe save checks are required.
 - [Department Lessons](department-lessons-policy.md) — explicit department role scopes and independent department reference sequences; preserve project behavior and official PDF branding.
+- [Project closure target ownership](project-closure-target-ownership.md) — edit targets in Project Master; keep Reporting Settings read-only and preserve hidden workflow configuration.
+- [Calculation tile visibility](qaqc-calculation-tile-policy.md) — no technical Server calculation tile on Daily or CSAT forms; preserve calculations and validation.
+- [CSAT final submission](csat-submission-origin-policy.md) — Yes submits and locks; No persists a draft; submitted surveys have no approval/send-back workflow.

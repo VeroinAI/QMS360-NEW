@@ -15,6 +15,8 @@ import { Empty, ErrorBox, Loading, StateBadge, errMsg, saveFile } from './shell'
 import { canEditMetricsDocument, canSubmitMetricsDocument, metricsDocumentHref } from './metrics-report-policy';
 import { MetricsReportSubmitDialog } from './metrics-report-submit-dialog';
 import { exportMonthlyReportPdf } from './monthly-report-download';
+import { pendingReportApproval as pendingMonthlyApproval } from './approval-summary';
+export { pendingMonthlyApproval };
 
 const ALL = '__all__';
 const LIMIT = 20;
@@ -63,7 +65,7 @@ export function MetricsReportList() {
 
   const period = monthInputToPeriod(month);
   const params: ListQaqcSowReportsParams = { reportType: 'monthly', page, limit: LIMIT, ...(projectId !== ALL ? { projectId } : {}), ...(period ? { period } : {}) };
-  const q = useListQaqcSowReports(params, { query: { enabled: canRead, queryKey: getListQaqcSowReportsQueryKey(params), placeholderData: prev => prev, ...FRESH } });
+  const q = useListQaqcSowReports(params, { query: { enabled: canRead, queryKey: getListQaqcSowReportsQueryKey(params), placeholderData: prev => prev, ...FRESH, refetchInterval: 30_000 } });
 
   const items: QaqcSowReport[] = q.data?.items ?? [];
   const total = q.data?.total ?? 0;
@@ -119,16 +121,19 @@ export function MetricsReportList() {
       <CardContent>
         {q.isLoading ? <Loading /> : q.error ? <ErrorBox error={q.error} retry={() => q.refetch()} /> : !items.length ? <Empty text={filtered ? 'No reports match these filters.' : 'No monthly reports yet. Use New entry to create one.'} /> :
           <div className={q.isFetching ? 'opacity-70 transition-opacity' : 'transition-opacity'}>
-            <Table><TableHeader><TableRow><TableHead>Project Name</TableHead><TableHead>Month / Year</TableHead><TableHead>PQP Status</TableHead><TableHead>PQP Submission Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
+            <Table><TableHeader><TableRow><TableHead>Project Name</TableHead><TableHead>Month / Year</TableHead><TableHead>PQP Status</TableHead><TableHead>PQP Submission Date</TableHead><TableHead>Status</TableHead><TableHead>Pending Approval Level</TableHead><TableHead>Pending Approver</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
               {items.map(r => {
                 const editable = canEditMetricsDocument(r.state, canEdit);
                 const data = r.data as Record<string, unknown> | undefined;
+                const pending = pendingMonthlyApproval(r);
                 return <TableRow key={r.id} data-testid={`row-report-${r.id}`}>
                   <TableCell className="font-medium">{r.projectName ?? r.projectId}</TableCell>
                   <TableCell>{formatMonthYear(r.period)}</TableCell>
                   <TableCell>{pqpStatusLabel(data)}</TableCell>
                   <TableCell>{formatDate(data?.pqpSubmittedDate)}</TableCell>
                   <TableCell><StateBadge state={r.state} /></TableCell>
+                  <TableCell className="whitespace-nowrap" data-testid={`pending-level-${r.id}`}>{pending.level}</TableCell>
+                  <TableCell data-testid={`pending-approver-${r.id}`}>{pending.approver}</TableCell>
                   <TableCell className="text-right"><div className="flex justify-end gap-2">
                     <Link href={metricsDocumentHref(r.id, r.state, canEdit)} className="inline-flex" data-testid={`link-${editable ? 'edit' : 'display'}-report-${r.id}`}>
                       <span className="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium hover:bg-muted">{editable ? <Pencil className="size-3.5" /> : <Eye className="size-3.5" />}{editable ? 'Edit' : 'Display'}</span>

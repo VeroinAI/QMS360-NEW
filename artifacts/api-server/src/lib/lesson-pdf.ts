@@ -1,7 +1,8 @@
 import { readFile } from "node:fs/promises";
 import fontkit from "@pdf-lib/fontkit";
 import { formatDateInTimeZone } from "@workspace/spreadsheet-dates";
-import { PDFDocument, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
+import { PDFDocument, rgb, type PDFImage, type PDFPage } from "pdf-lib";
+import { lessonTable, type LessonBox } from "./lesson-pdf-table";
 
 type PdfLesson = Record<string, unknown>;
 export type LessonPdfImage = { mimeType: string; imageBytes: Uint8Array };
@@ -11,9 +12,8 @@ export type LessonPdfAssets = {
   preparedSignature?: LessonPdfImage;
   approvedSignature?: LessonPdfImage;
 };
-type Box = readonly [x: number, top: number, width: number, height: number];
+type Box = LessonBox;
 const BLACK = rgb(0, 0, 0);
-const WHITE = rgb(1, 1, 1);
 
 async function asset(name: string) {
   try { return await readFile(new URL(`./${name}`, import.meta.url)); }
@@ -31,43 +31,6 @@ function dateText(value: unknown) {
   if (!value) return "—";
   const date = new Date(String(value));
   return Number.isNaN(date.getTime()) ? valueText(value) : formatDateInTimeZone(date, "UTC");
-}
-
-function wrap(text: string, font: PDFFont, size: number, width: number) {
-  const lines: string[] = [];
-  for (const paragraph of text.split(/\r?\n/)) {
-    let line = "";
-    for (const word of paragraph.trim().split(/\s+/)) {
-      const candidate = line ? `${line} ${word}` : word;
-      if (font.widthOfTextAtSize(candidate, size) <= width) {
-        line = candidate;
-        continue;
-      }
-      if (line) lines.push(line);
-      line = word;
-      while (font.widthOfTextAtSize(line, size) > width && line.length > 1) {
-        let cut = line.length - 1;
-        while (cut > 1 && font.widthOfTextAtSize(line.slice(0, cut), size) > width) cut--;
-        lines.push(line.slice(0, cut));
-        line = line.slice(cut);
-      }
-    }
-    lines.push(line);
-  }
-  return lines;
-}
-
-function drawLines(page: PDFPage, lines: string[], font: PDFFont, size: number, box: Box, center = true) {
-  const [x, top, width, height] = box;
-  const leading = size * 1.15;
-  let baseline = page.getHeight() - top - (height - lines.length * leading) / 2 - size;
-  for (const line of lines) {
-    page.drawText(line, {
-      x: center ? x + (width - font.widthOfTextAtSize(line, size)) / 2 : x + 5,
-      y: baseline, font, size, color: BLACK,
-    });
-    baseline -= leading;
-  }
 }
 
 async function embedImage(document: PDFDocument, image: LessonPdfImage) {
@@ -92,41 +55,39 @@ export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets
   document.setSubject(`APPROVAL STATUS: ${valueText(lesson.workflowState).toUpperCase()}`);
   const regular = await document.embedFont(regularBytes, { subset: true });
   const bold = await document.embedFont(boldBytes, { subset: true });
-  const page = document.getPages()[0]!;
-  const overflow: { label: string; text: string }[] = [];
-  const field = (label: string, value: unknown, box: Box) => {
-    const text = valueText(value);
-    let size = 9.5, lines = wrap(text, regular, size, box[2] - 10);
-    while (lines.length * size * 1.15 > box[3] - 6 && size > 7) {
-      size -= 0.5;
-      lines = wrap(text, regular, size, box[2] - 10);
-    }
-    if (lines.length * size * 1.15 > box[3] - 6) {
-      overflow.push({ label, text });
-      const count = Math.max(1, Math.floor((box[3] - 6) / (size * 1.15)));
-      lines = [...lines.slice(0, count - 1), "(See continuation)"];
-    }
-    drawLines(page, lines, regular, size, box);
-  };
-  // Exact cell coordinates from the supplied Word form. Its embedded logo,
-  // small-cap title, Quality band, colours, borders and control footer stay intact.
-  field("Reference # (LL)", lesson.referenceNumber, [28.9, 111.6, 179.4, 28.5]);
-  field("Title", lesson.title, [208.4, 111.6, 179.4, 28.5]);
-  field("Discipline", lesson.disciplineId, [387.9, 111.6, 179.6, 28.5]);
-  field("Categorization (LL)", lesson.categorisationId, [28.9, 168.4, 179.4, 28.5]);
-  field("Date", dateText(lesson.capturedAt), [208.4, 168.4, 179.4, 28.5]);
-  field("Location", lesson.repeatLocation || (lesson.gpsLat != null && lesson.gpsLng != null ? `${lesson.gpsLat}, ${lesson.gpsLng}` : null), [387.9, 168.4, 179.6, 28.5]);
+  const templatePage = document.getPages()[0]!;
+  const table = await lessonTable(document, templatePage, regular, bold);
+  const threeColumns = [179.5, 179.5, 179.7];
+  const values = async (items: unknown[], widths = threeColumns) =>
+    table.row(items.map((text, index) => ({ width: widths[index]!, text: valueText(text) })));
+  // Keep the supplied form's actual branding, labels, photos and document controls.
+  await table.band([28.9, 83.1, 538.7, 28.5]);
+  await values([lesson.referenceNumber, lesson.title, lesson.disciplineLabel ?? lesson.disciplineId]);
+  await table.band([28.9, 140.1, 538.7, 28.3]);
+  await values([lesson.categorisationId, dateText(lesson.capturedAt),
+    lesson.repeatLocation || (lesson.gpsLat != null && lesson.gpsLng != null ? `${lesson.gpsLat}, ${lesson.gpsLng}` : null)]);
+  const department = Boolean(lesson.departmentId);
+  for (const [label, text] of [
+    ["Project / Department", department ? "Department" : "Project"],
+    [department ? "Department" : "Project", valueText(lesson.sourceName ?? lesson.departmentName ?? lesson.projectName)],
+  ]) await table.row([{ width: 120.4, text: label, bold: true, shade: true }, { width: 418.3, text }]);
+  const impactBand = await table.band([28.9, 196.9, 538.7, 25.5]);
   const impact = String(lesson.impact).toLowerCase();
   if (impact === "positive" || impact === "negative") {
-    page.drawText("X", { x: impact === "positive" ? 204.8 : 382, y: page.getHeight() - 213.4, font: bold, size: 9, color: BLACK });
+    impactBand.page.drawText("X", { x: impact === "positive" ? 204.8 : 382,
+      y: impactBand.page.getHeight() - impactBand.top - 16.5, font: bold, size: 9, color: BLACK });
   }
-  field("Description", lesson.description, [149.3, 222.4, 418.3, 28.7]);
-  field("Reference", lesson.reference, [149.3, 251.1, 418.3, 28.7]);
-  field("Why Did It Happen? (Root cause)", lesson.rootCause, [149.3, 279.8, 418.3, 51]);
-  field("How can we rectify? (Correction)", lesson.correction, [149.3, 330.8, 418.3, 51]);
-  field("How It can Be Avoided in Future? (Corrective action)", lesson.correctiveAction, [149.3, 381.8, 418.3, 51]);
-
+  for (const [text, top, rowHeight] of [
+    [lesson.description, 222.4, 28.7], [lesson.reference, 251.1, 28.7],
+    [lesson.rootCause, 279.8, 51], [lesson.correction, 330.8, 51], [lesson.correctiveAction, 381.8, 51],
+  ] as const) {
+    await table.row([
+      { width: 120.4, label: [31.9, top + 3, 114.4, rowHeight - 6] },
+      { width: 418.3, text: valueText(text), align: "justify" },
+    ], rowHeight);
+  }
   for (const [category, top] of [["before", 440.2], ["after", 542.2]] as const) {
+    const position = await table.band([28.9, top - 5.7, 538.7, 102]);
     const photos = (assets.photos ?? []).filter(photo => photo.category === category).slice(0, 2);
     const embedded: PDFImage[] = [];
     for (const photo of photos) {
@@ -134,91 +95,38 @@ export async function createLessonPdf(lesson: PdfLesson, assets: LessonPdfAssets
     }
     embedded.forEach((image, index) => {
       const slot = 406 / embedded.length;
-      drawContainedImage(page, image, [154 + index * slot + 3, top + 3, slot - 6, 85.2]);
+      drawContainedImage(position.page, image, [154 + index * slot + 3, position.top + 8.7, slot - 6, 85.2]);
     });
   }
-  field("Prepared by — Designation", lesson.submittedByDesignation, [113.9, 688, 188.6, 28.5]);
-  field("Approved by — Designation", lesson.reviewedByDesignation, [381.9, 688, 184.4, 28.5]);
-  field("Prepared by — Name", lesson.submittedByName, [113.9, 716.5, 188.6, 28.5]);
-  field("Approved by — Name", lesson.reviewedByName, [381.9, 716.5, 184.4, 28.5]);
+  // Avoid separating the approval heading from a normal-sized signature block.
+  table.reserve(156.1);
+  await table.band([28.9, 642.9, 538.7, 45.1]);
+  for (const [prepared, approved, top] of [
+    [lesson.submittedByDesignation, lesson.reviewedByDesignation, 688],
+    [lesson.submittedByName, lesson.reviewedByName, 716.5],
+  ] as const) {
+    await table.row([
+      { width: 85, label: [29.9, top + 1, 83, 26.5] },
+      { width: 188.6, text: valueText(prepared) },
+      { width: 79.4, label: [303.5, top + 1, 77.4, 26.5] },
+      { width: 185.7, text: valueText(approved) },
+    ]);
+  }
+  const signatures = await table.band([28.9, 745, 538.7, 25.5]);
   for (const [signature, x, width] of [
     [assets.preparedSignature, 117.9, 180.6], [assets.approvedSignature, 385.9, 176.4],
   ] as const) {
     if (!signature) continue;
-    try { drawContainedImage(page, await embedImage(document, signature), [x, 748, width, 19.5]); }
+    try { drawContainedImage(signatures.page, await embedImage(document, signature), [x, signatures.top + 3, width, 19.5]); }
     catch { /* Never substitute or fabricate a signature. */ }
   }
-  field("Prepared by — Date", dateText(lesson.submittedAt), [113.9, 770.5, 188.6, 25.5]);
-  field("Approved by — Date", dateText(lesson.reviewedAt), [381.9, 770.5, 184.4, 25.5]);
-
-  const sourceRows = [
-    { label: "Project / Department", value: lesson.departmentId ? "Department" : "Project" },
-    { label: lesson.departmentId ? "Department" : "Project", value: valueText(lesson.sourceName ?? lesson.departmentName ?? lesson.projectName) },
-  ].map(row => {
-    const lines = wrap(row.value, regular, 9.5, 408);
-    if (lines.length > 2) overflow.push({ label: row.label, text: row.value });
-    return { ...row, lines: lines.length > 2 ? [lines[0]!, "(See continuation)"] : lines };
-  });
-
-  // Keep the fixed Word form readable without silently losing unusually long data.
-  if (overflow.length) {
-    const header = await document.embedPage(page, { left: 24, bottom: page.getHeight() - 78, right: 572, top: page.getHeight() - 24 });
-    const footer = await document.embedPage(page, { left: 24, bottom: 25, right: 572, top: 37 });
-    let continuation: PDFPage;
-    let top = 0;
-    const addContinuation = () => {
-      continuation = document.addPage([page.getWidth(), page.getHeight()]);
-      continuation.drawPage(header, { x: 24, y: page.getHeight() - 78, width: 548, height: 54 });
-      continuation.drawPage(footer, { x: 24, y: 25, width: 548, height: 12 });
-      drawLines(continuation, [`Additional lesson details — ${valueText(lesson.referenceNumber)}`], bold, 9, [29, 90, 538, 20]);
-      top = 120;
-    };
-    addContinuation();
-    for (const entry of overflow) {
-      for (const line of [...wrap(entry.label, bold, 10, 528), ...wrap(entry.text, regular, 9.5, 528), ""]) {
-        if (top > 780) addContinuation();
-        drawLines(continuation!, [line], regular, 9.5, [29, top, 538, 14], false);
-        top += 14;
-      }
-    }
-    document.getPages().forEach((sheet, index, pages) => {
-      sheet.drawRectangle({ x: 531.5, y: sheet.getHeight() - 815.4, width: 33.5, height: 8.5, color: WHITE });
-      drawLines(sheet, [`${index + 1} of ${pages.length}`], regular, 6, [532, 807, 32, 8.5]);
-    });
-  }
-  // Insert two source rows after Location. Embed rather than redraw the approved
-  // template so its logo, fields, photos, signatures and document control survive.
-  const width = page.getWidth(), height = page.getHeight(), split = 196.9, added = 56;
-  const scale = height / (height + added), left = (width - width * scale) / 2;
-  const [upper, lower] = await Promise.all([
-    document.embedPage(page, { left: 0, bottom: height - split, right: width, top: height }),
-    document.embedPage(page, { left: 0, bottom: 0, right: width, top: height - split }),
-  ]);
-  const expanded = document.insertPage(0, [width, height]);
-  expanded.drawPage(upper, { x: left, y: height - split * scale, width: width * scale, height: split * scale });
-  expanded.drawPage(lower, { x: left, y: 0, width: width * scale, height: (height - split) * scale });
-  sourceRows.forEach((row, index) => {
-    const y = height - (split + (index + 1) * 28) * scale;
-    expanded.drawRectangle({ x: left + 28.9 * scale, y, width: 120.4 * scale, height: 28 * scale,
-      color: rgb(0.9, 0.9, 0.9), borderColor: BLACK, borderWidth: 0.4 });
-    expanded.drawRectangle({ x: left + 149.3 * scale, y, width: 418.3 * scale, height: 28 * scale,
-      color: WHITE, borderColor: BLACK, borderWidth: 0.4 });
-    drawLines(expanded, wrap(row.label, bold, 9.5 * scale, 111 * scale), bold, 9.5 * scale,
-      [left + 28.9 * scale, (split + index * 28) * scale, 120.4 * scale, 28 * scale], false);
-    drawLines(expanded, row.lines, regular, 9.5 * scale,
-      [left + 149.3 * scale, (split + index * 28) * scale, 418.3 * scale, 28 * scale]);
-  });
-  // The cropped template's outer frame stops at the insertion seam. Continue
-  // both original sides through the new rows, with a small overlap to avoid
-  // hairline gaps at either join. Keep the template's 0.5 pt stroke.
-  for (const x of [24.25, 571]) {
-    expanded.drawLine({
-      start: { x: left + x * scale, y: height - (split - 0.5) * scale },
-      end: { x: left + x * scale, y: height - (split + added + 0.5) * scale },
-      thickness: 0.5 * scale,
-      color: BLACK,
-    });
-  }
-  document.removePage(1);
+  await table.row([
+    { width: 85, label: [29.9, 771.5, 83, 23.5] },
+    { width: 188.6, text: dateText(lesson.submittedAt) },
+    { width: 79.4, label: [303.5, 771.5, 77.4, 23.5] },
+    { width: 185.7, text: dateText(lesson.reviewedAt) },
+  ], 25.5);
+  table.finish();
+  document.removePage(0);
   return Buffer.from(await document.save({ useObjectStreams: false }));
 }

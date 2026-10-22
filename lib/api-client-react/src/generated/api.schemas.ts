@@ -340,8 +340,11 @@ export interface QaqcSowReportUpdateInput {
   data: QaqcSowObject;
 }
 
+/**
+ * CSAT is a final locked submission without an approver. Monthly and Daily reports require an eligible first-level approver.
+ */
 export interface QaqcSowReportSubmitInput {
-  approverId: string;
+  approverId?: string;
 }
 
 export type QaqcSowReportReviewInputDecision = typeof QaqcSowReportReviewInputDecision[keyof typeof QaqcSowReportReviewInputDecision];
@@ -355,6 +358,8 @@ export const QaqcSowReportReviewInputDecision = {
 export interface QaqcSowReportReviewInput {
   decision: QaqcSowReportReviewInputDecision;
   comments?: string;
+  /** For sequential monthly or daily approvals, choose an eligible reviewer at the next snapshotted approval level. */
+  nextApproverId?: string;
 }
 
 export interface QaqcSowBriefInput {
@@ -424,7 +429,13 @@ export interface QaqcSowReport {
   data: QaqcSowObject;
   computed: QaqcSowObject;
   baseline: QaqcSowObject;
+  approvalWorkflow?: QaqcSowObject;
   approverId?: string | null;
+  /**
+     * Display name of the assigned report reviewer
+     * @nullable
+     */
+  readonly approverName?: string | null;
   submittedById?: string | null;
   submittedAt?: string | null;
   approvedAt?: string | null;
@@ -784,6 +795,8 @@ export interface MasterDataRoleOptions {
 }
 
 export type MasterDataValueMetadata = { [key: string]: unknown } & {
+  /** Optional Department Master Cost ID. Send an empty string to clear it. */
+  costId?: string;
   /**
      * Informational role assignments only; do not restrict visibility or grant permissions.
      * @maxItems 200
@@ -1044,6 +1057,39 @@ export interface ProjectAdditionalData {
   phone?: string | null;
 }
 
+export interface ProjectClosureTargets {
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  external_ncr?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  internal_ncr?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  rfi?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  rmi?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  pqi?: number | null;
+}
+
 export interface DronaProjectMasterRecord {
   id: string;
   code: string;
@@ -1053,6 +1099,7 @@ export interface DronaProjectMasterRecord {
   /** @nullable */
   costCentre: string | null;
   additionalData?: ProjectAdditionalData;
+  closureTargets?: ProjectClosureTargets;
   /** @nullable */
   location: string | null;
   status: string;
@@ -1071,6 +1118,7 @@ export interface ProjectAdditionalDataInput {
      */
   costCentre: string | null;
   additionalData: ProjectAdditionalData;
+  closureTargets?: ProjectClosureTargets;
 }
 
 export interface ProjectAdditionalDataResult {
@@ -1078,6 +1126,7 @@ export interface ProjectAdditionalDataResult {
   /** @nullable */
   costCentre: string | null;
   additionalData: ProjectAdditionalData;
+  closureTargets?: ProjectClosureTargets;
   updatedAt: string;
 }
 
@@ -1729,6 +1778,14 @@ export interface LessonsProjectNumbering {
   configured: boolean;
 }
 
+export interface LessonsDepartmentNumbering {
+  departmentId: string;
+  startingNumber: number;
+  nextNumber: number;
+  lastIssued: number | null;
+  configured: boolean;
+}
+
 export type NumberingPatternPosition = typeof NumberingPatternPosition[keyof typeof NumberingPatternPosition];
 
 
@@ -1777,10 +1834,21 @@ export interface NumberingPatternInput {
   startingNumber: number;
 }
 
+export type LessonsNumberingPreviewInputSourceType = typeof LessonsNumberingPreviewInputSourceType[keyof typeof LessonsNumberingPreviewInputSourceType];
+
+
+export const LessonsNumberingPreviewInputSourceType = {
+  Project: 'Project',
+  Department: 'Department',
+} as const;
+
 export interface LessonsNumberingPreviewInput {
   pattern: NumberingPatternInput;
   /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
   projectId?: string;
+  sourceType?: LessonsNumberingPreviewInputSourceType;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  departmentId?: string;
   disciplineValue?: string;
 }
 
@@ -1798,6 +1866,7 @@ export interface NumberingModuleConfig {
 export type NumberingConfigModules = {
   qaqc: NumberingModuleConfig;
   lessons: NumberingModuleConfig;
+  lessonsDepartment?: NumberingModuleConfig;
   audit: NumberingModuleConfig;
 };
 
@@ -2081,7 +2150,7 @@ export interface Role {
   /** @nullable */
   description?: string | null;
   /**
-     * Audit approval sequence level; required when Approve / reject is granted to an Audit role.
+     * Positive approval level required when approval permission is granted to an Audit or QA/QC role. QA/QC Monthly and Daily Reports follow ascending saved levels within the approval role's project or organization scope; CSAT approval routing is unchanged.
      * @minimum 1
      * @maximum 2147483647
      * @nullable
@@ -4763,6 +4832,30 @@ export type GetPlatformReferenceDataParams = {
 since?: SinceParameter;
 };
 
+export type UpdateNumberingPatternParams = {
+sourceType?: UpdateNumberingPatternSourceType;
+};
+
+export type UpdateNumberingPatternSourceType = typeof UpdateNumberingPatternSourceType[keyof typeof UpdateNumberingPatternSourceType];
+
+
+export const UpdateNumberingPatternSourceType = {
+  Project: 'Project',
+  Department: 'Department',
+} as const;
+
+export type ResetNumberingPatternParams = {
+sourceType?: ResetNumberingPatternSourceType;
+};
+
+export type ResetNumberingPatternSourceType = typeof ResetNumberingPatternSourceType[keyof typeof ResetNumberingPatternSourceType];
+
+
+export const ResetNumberingPatternSourceType = {
+  Project: 'Project',
+  Department: 'Department',
+} as const;
+
 export type ListIntegrationConnectorsParams = {
 /**
  * @minimum 1
@@ -4961,6 +5054,7 @@ page?: PageParameter;
  */
 limit?: LimitParameter;
 state?: ListQaqcSowReportsState;
+myActions?: boolean;
 };
 
 export type ListQaqcSowReportsState = typeof ListQaqcSowReportsState[keyof typeof ListQaqcSowReportsState];
