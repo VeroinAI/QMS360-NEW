@@ -521,6 +521,7 @@ export * from './project';
 export * from './projectAdditionalData';
 export * from './projectAdditionalDataInput';
 export * from './projectAdditionalDataResult';
+export * from './projectClosureTargets';
 export * from './projectCostCentreInput';
 export * from './projectCostCentreResult';
 export * from './projectIdParameter';

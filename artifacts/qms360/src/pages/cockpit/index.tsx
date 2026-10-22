@@ -1,7 +1,7 @@
 import { formatDate, formatDateTime } from '@workspace/spreadsheet-dates';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link } from 'wouter';
+import { Link, useSearch } from 'wouter';
 import {
   getGetConnectorFieldMappingsQueryKey, useCreateImportTemplate, useCreateIntegrationConnector,
   useDeleteImportTemplate, useDeleteIntegrationConnector,
@@ -401,6 +401,8 @@ function ImportTab() {
 // ---------------------------------------------------------------------------
 
 export function CockpitPage() {
+  const search = useSearch();
+  const initialTab = new URLSearchParams(search).get('tab') || 'connections';
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<IntegrationConnector>();
   const [password, setPassword] = useState('');
@@ -447,7 +449,7 @@ export function CockpitPage() {
     <div className="mx-auto max-w-7xl px-5 py-7 md:px-10">
       {loading && <Card><CardContent className="space-y-3 py-12"><div className="h-6 w-1/3 animate-pulse rounded bg-muted" /><div className="h-28 animate-pulse rounded bg-muted" /><p className="text-sm text-muted-foreground">Checking connector health…</p></CardContent></Card>}
       {error && <Card className="border-destructive"><CardContent className="flex items-center gap-4 py-8"><ServerCog className="text-destructive" /><div className="flex-1"><p className="font-semibold">Cockpit data unavailable</p><p className="text-sm text-muted-foreground">{message(error)}</p></div><Button variant="outline" onClick={() => { connectors.refetch(); health.refetch(); jobs.refetch(); }}>Retry</Button></CardContent></Card>}
-      {!loading && !error && <Tabs defaultValue="connections" className="space-y-6">
+      {!loading && !error && <Tabs key={initialTab} defaultValue={initialTab} className="space-y-6">
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="connections">Connections</TabsTrigger>
           <TabsTrigger value="email">Email rules</TabsTrigger>

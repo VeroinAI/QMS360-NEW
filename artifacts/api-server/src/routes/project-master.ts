@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { UpdateProjectAdditionalDataBody, UpdateProjectAdditionalDataParams, UpdateProjectAdditionalDataResponse } from "@workspace/api-zod";
+import { GetProjectAdditionalDataParams, GetProjectAdditionalDataResponse, UpdateProjectAdditionalDataBody, UpdateProjectAdditionalDataParams, UpdateProjectAdditionalDataResponse } from "@workspace/api-zod";
 import { ListDronaProjectMasterQueryParams, ListDronaProjectMasterResponse, UpdateDronaProjectCostCentreBody, UpdateDronaProjectCostCentreParams, UpdateDronaProjectCostCentreResponse } from "@workspace/api-zod";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { restrictDronaProjects } from "../lib/drona/session";
@@ -7,6 +7,23 @@ import { readDronaProjectMaster, saveDronaProjectCostCentre, saveProjectAddition
 import { pagination } from "../lib/workspace";
 
 const router = Router();
+router.get("/integrations/project-master/:projectId/additional-data", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const params = GetProjectAdditionalDataParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Provide a valid project identifier." });
+    return;
+  }
+  const result = await readDronaProjectMaster({
+    organizationId: req.currentUser!.organizationId, page: 1, limit: 1, projectId: params.data.projectId,
+    scope: restrictDronaProjects(req.dronaProjectIds, { unrestricted: true, projectIds: [] }),
+    environment: process.env.AUTH_STRATEGY === "drona" ? process.env.DRONA_ENVIRONMENT : undefined,
+  });
+  if (!result.items[0]) {
+    res.status(404).json({ error: "Project is not available within your current project access." });
+    return;
+  }
+  res.json(GetProjectAdditionalDataResponse.parse(result.items[0]));
+});
 router.get("/integrations/project-master", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const { page, limit } = pagination(req);
   const parsed = ListDronaProjectMasterQueryParams.safeParse({ page, limit, search: req.query.search });
@@ -50,9 +67,14 @@ router.patch("/integrations/project-master/:projectId/additional-data", requireA
   const body = UpdateProjectAdditionalDataBody.safeParse(req.body);
   const keys = Object.keys(UpdateProjectAdditionalDataBody.shape.additionalData.shape);
   if (!params.success || !body.success ||
-      Object.keys(req.body ?? {}).some(key => !["costCentre", "additionalData"].includes(key)) ||
+      Object.keys(req.body ?? {}).some(key => !["costCentre", "additionalData", "closureTargets"].includes(key)) ||
       Object.keys(req.body?.additionalData ?? {}).some(key => !keys.includes(key))) {
-    res.status(400).json({ error: "Provide valid additional project data. Email address must be valid; Phone must include + and a country code with 7–15 digits in total (e.g. +91 9876543210)." });
+    res.status(400).json({ error: "Provide valid additional project data. Closure targets must be numbers from 0 to 100. Email address must be valid; Phone must include + and a country code with 7–15 digits in total (e.g. +91 9876543210)." });
+    return;
+  }
+  if (req.body?.closureTargets && Object.keys(req.body.closureTargets)
+    .some(key => !["external_ncr", "internal_ncr", "rfi", "rmi", "pqi"].includes(key))) {
+    res.status(400).json({ error: "Unknown closure target field." });
     return;
   }
   const values = [body.data.costCentre, ...Object.values(body.data.additionalData)];
@@ -66,6 +88,7 @@ router.patch("/integrations/project-master/:projectId/additional-data", requireA
     return;
   }
   const data = {
+    ...(body.data.closureTargets === undefined ? {} : { closureTargets: body.data.closureTargets }),
     costCentre: body.data.costCentre?.trim() || null,
     additionalData: Object.fromEntries(Object.entries(body.data.additionalData).map(([key, value]) => [key, value?.trim() || null])) as typeof body.data.additionalData,
   };

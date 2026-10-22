@@ -7,6 +7,7 @@
  */
 import type { DronaProjectMasterRecordDronaLinksItem } from './dronaProjectMasterRecordDronaLinksItem';
 import type { ProjectAdditionalData } from './projectAdditionalData';
+import type { ProjectClosureTargets } from './projectClosureTargets';
 
 export interface DronaProjectMasterRecord {
   id: string;
@@ -17,6 +18,7 @@ export interface DronaProjectMasterRecord {
   /** @nullable */
   costCentre: string | null;
   additionalData?: ProjectAdditionalData;
+  closureTargets?: ProjectClosureTargets;
   /** @nullable */
   location: string | null;
   status: string;

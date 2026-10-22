@@ -119,6 +119,7 @@ function AuthenticatedRouter() {
     <Route path="/audit/schedules/:parentId"><AuditRoutes /></Route>
     <Route path="/audit/cars/:id"><AuditRoutes /></Route>
     <Route path="/audit"><AuditRoutes /></Route><Route path="/audit/:rest*"><AuditRoutes /></Route>
+    <Route path="/cockpit/project-master/:projectId/additional-data">{isAdmin ? <AdminRoutes /> : <NotFound />}</Route>
     <Route path="/cockpit">{isAdmin ? <AdminRoutes /> : <NotFound />}</Route><Route path="/cockpit/:rest*">{isAdmin ? <AdminRoutes /> : <NotFound />}</Route>
     <Route path="/settings/:app/:tab">{isAdmin ? <AdminRoutes /> : <NotFound />}</Route><Route path="/settings/:rest*">{isAdmin ? <AdminRoutes /> : <NotFound />}</Route>
     <Route path="/master-data"><MasterDataRoutes /></Route>

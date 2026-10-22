@@ -111,6 +111,7 @@ import type {
   DownloadQaqcPdfTemplateParams,
   DownloadQaqcSowTemplateParams,
   DraftQaqcSowBrief200,
+  DronaProjectMasterRecord,
   DronaSessionInput,
   DronaUserCandidate,
   DronaUserImport,
@@ -2130,6 +2131,83 @@ export const useUpdateDronaProjectCostCentre = <TError = ErrorType<void>,
       > => {
       return useMutation(getUpdateDronaProjectCostCentreMutationOptions(options));
     }
+
+export const getGetProjectAdditionalDataUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/integrations/project-master/${projectId}/additional-data`
+}
+
+/**
+ * @summary Read a project and its QMS-managed additional data within administrator project scope
+ */
+export const getProjectAdditionalData = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<DronaProjectMasterRecord> => {
+
+  return customFetch<DronaProjectMasterRecord>(getGetProjectAdditionalDataUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProjectAdditionalDataQueryKey = (projectId: string,) => {
+    return [
+    `/api/integrations/project-master/${projectId}/additional-data`
+    ] as const;
+    }
+
+
+export const getGetProjectAdditionalDataQueryOptions = <TData = Awaited<ReturnType<typeof getProjectAdditionalData>>, TError = ErrorType<void>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectAdditionalData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectAdditionalDataQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjectAdditionalData>>> = ({ signal }) => getProjectAdditionalData(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProjectAdditionalData>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProjectAdditionalDataQueryResult = NonNullable<Awaited<ReturnType<typeof getProjectAdditionalData>>>
+export type GetProjectAdditionalDataQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read a project and its QMS-managed additional data within administrator project scope
+ */
+
+export function useGetProjectAdditionalData<TData = Awaited<ReturnType<typeof getProjectAdditionalData>>, TError = ErrorType<void>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectAdditionalData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProjectAdditionalDataQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getUpdateProjectAdditionalDataUrl = (projectId: string,) => {
 

@@ -470,6 +470,21 @@ export const listDronaProjectMasterResponseItemsItemAdditionalDataPhoneMax = 32;
 
 
 export const listDronaProjectMasterResponseItemsItemAdditionalDataPhoneRegExp = new RegExp('^\\+[1-9](?:[ -]?[0-9]){6,14}$');
+export const listDronaProjectMasterResponseItemsItemClosureTargetsExternalNcrMin = 0;
+export const listDronaProjectMasterResponseItemsItemClosureTargetsExternalNcrMax = 100;
+
+export const listDronaProjectMasterResponseItemsItemClosureTargetsInternalNcrMin = 0;
+export const listDronaProjectMasterResponseItemsItemClosureTargetsInternalNcrMax = 100;
+
+export const listDronaProjectMasterResponseItemsItemClosureTargetsRfiMin = 0;
+export const listDronaProjectMasterResponseItemsItemClosureTargetsRfiMax = 100;
+
+export const listDronaProjectMasterResponseItemsItemClosureTargetsRmiMin = 0;
+export const listDronaProjectMasterResponseItemsItemClosureTargetsRmiMax = 100;
+
+export const listDronaProjectMasterResponseItemsItemClosureTargetsPqiMin = 0;
+export const listDronaProjectMasterResponseItemsItemClosureTargetsPqiMax = 100;
+
 
 
 export const ListDronaProjectMasterResponse = zod.object({
@@ -491,6 +506,13 @@ export const ListDronaProjectMasterResponse = zod.object({
   "fac": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataFacMax).nullable(),
   "email": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataEmailMax).regex(listDronaProjectMasterResponseItemsItemAdditionalDataEmailRegExp).nullish(),
   "phone": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataPhoneMax).regex(listDronaProjectMasterResponseItemsItemAdditionalDataPhoneRegExp).nullish()
+}).optional(),
+  "closureTargets": zod.object({
+  "external_ncr": zod.number().min(listDronaProjectMasterResponseItemsItemClosureTargetsExternalNcrMin).max(listDronaProjectMasterResponseItemsItemClosureTargetsExternalNcrMax).nullish(),
+  "internal_ncr": zod.number().min(listDronaProjectMasterResponseItemsItemClosureTargetsInternalNcrMin).max(listDronaProjectMasterResponseItemsItemClosureTargetsInternalNcrMax).nullish(),
+  "rfi": zod.number().min(listDronaProjectMasterResponseItemsItemClosureTargetsRfiMin).max(listDronaProjectMasterResponseItemsItemClosureTargetsRfiMax).nullish(),
+  "rmi": zod.number().min(listDronaProjectMasterResponseItemsItemClosureTargetsRmiMin).max(listDronaProjectMasterResponseItemsItemClosureTargetsRmiMax).nullish(),
+  "pqi": zod.number().min(listDronaProjectMasterResponseItemsItemClosureTargetsPqiMin).max(listDronaProjectMasterResponseItemsItemClosureTargetsPqiMax).nullish()
 }).optional(),
   "location": zod.string().nullable(),
   "status": zod.string(),
@@ -537,6 +559,98 @@ export const UpdateDronaProjectCostCentreResponse = zod.object({
 
 
 /**
+ * @summary Read a project and its QMS-managed additional data within administrator project scope
+ */
+export const getProjectAdditionalDataPathProjectIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+
+export const GetProjectAdditionalDataParams = zod.object({
+  "projectId": zod.coerce.string().regex(getProjectAdditionalDataPathProjectIdRegExp)
+})
+
+export const getProjectAdditionalDataResponseAdditionalDataNameMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataClientMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataContractorMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataContractProjectNumberMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataContractSignedRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const getProjectAdditionalDataResponseAdditionalDataContractPeriodMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataTccMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataPacMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataFacMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataEmailMax = 254;
+
+
+export const getProjectAdditionalDataResponseAdditionalDataEmailRegExp = new RegExp('^[A-Za-z0-9!#$%&\'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&\'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$');
+export const getProjectAdditionalDataResponseAdditionalDataPhoneMax = 32;
+
+
+export const getProjectAdditionalDataResponseAdditionalDataPhoneRegExp = new RegExp('^\\+[1-9](?:[ -]?[0-9]){6,14}$');
+export const getProjectAdditionalDataResponseClosureTargetsExternalNcrMin = 0;
+export const getProjectAdditionalDataResponseClosureTargetsExternalNcrMax = 100;
+
+export const getProjectAdditionalDataResponseClosureTargetsInternalNcrMin = 0;
+export const getProjectAdditionalDataResponseClosureTargetsInternalNcrMax = 100;
+
+export const getProjectAdditionalDataResponseClosureTargetsRfiMin = 0;
+export const getProjectAdditionalDataResponseClosureTargetsRfiMax = 100;
+
+export const getProjectAdditionalDataResponseClosureTargetsRmiMin = 0;
+export const getProjectAdditionalDataResponseClosureTargetsRmiMax = 100;
+
+export const getProjectAdditionalDataResponseClosureTargetsPqiMin = 0;
+export const getProjectAdditionalDataResponseClosureTargetsPqiMax = 100;
+
+
+
+export const GetProjectAdditionalDataResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "businessUnit": zod.string().nullable(),
+  "costCentre": zod.string().nullable(),
+  "additionalData": zod.object({
+  "name": zod.string().max(getProjectAdditionalDataResponseAdditionalDataNameMax).nullish(),
+  "client": zod.string().max(getProjectAdditionalDataResponseAdditionalDataClientMax).nullable(),
+  "contractor": zod.string().max(getProjectAdditionalDataResponseAdditionalDataContractorMax).nullable(),
+  "contractProjectNumber": zod.string().max(getProjectAdditionalDataResponseAdditionalDataContractProjectNumberMax).nullable(),
+  "contractSigned": zod.string().regex(getProjectAdditionalDataResponseAdditionalDataContractSignedRegExp).nullable(),
+  "contractPeriod": zod.string().max(getProjectAdditionalDataResponseAdditionalDataContractPeriodMax).nullable(),
+  "tcc": zod.string().max(getProjectAdditionalDataResponseAdditionalDataTccMax).nullable(),
+  "pac": zod.string().max(getProjectAdditionalDataResponseAdditionalDataPacMax).nullable(),
+  "fac": zod.string().max(getProjectAdditionalDataResponseAdditionalDataFacMax).nullable(),
+  "email": zod.string().max(getProjectAdditionalDataResponseAdditionalDataEmailMax).regex(getProjectAdditionalDataResponseAdditionalDataEmailRegExp).nullish(),
+  "phone": zod.string().max(getProjectAdditionalDataResponseAdditionalDataPhoneMax).regex(getProjectAdditionalDataResponseAdditionalDataPhoneRegExp).nullish()
+}).optional(),
+  "closureTargets": zod.object({
+  "external_ncr": zod.number().min(getProjectAdditionalDataResponseClosureTargetsExternalNcrMin).max(getProjectAdditionalDataResponseClosureTargetsExternalNcrMax).nullish(),
+  "internal_ncr": zod.number().min(getProjectAdditionalDataResponseClosureTargetsInternalNcrMin).max(getProjectAdditionalDataResponseClosureTargetsInternalNcrMax).nullish(),
+  "rfi": zod.number().min(getProjectAdditionalDataResponseClosureTargetsRfiMin).max(getProjectAdditionalDataResponseClosureTargetsRfiMax).nullish(),
+  "rmi": zod.number().min(getProjectAdditionalDataResponseClosureTargetsRmiMin).max(getProjectAdditionalDataResponseClosureTargetsRmiMax).nullish(),
+  "pqi": zod.number().min(getProjectAdditionalDataResponseClosureTargetsPqiMin).max(getProjectAdditionalDataResponseClosureTargetsPqiMax).nullish()
+}).optional(),
+  "location": zod.string().nullable(),
+  "status": zod.string(),
+  "recordSource": zod.string(),
+  "externalId": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "dronaLinks": zod.array(zod.object({
+  "externalProjectId": zod.string(),
+  "environment": zod.string(),
+  "linkedAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary Save QMS-managed additional project data within administrator project scope
  */
 export const updateProjectAdditionalDataPathProjectIdRegExp = new RegExp('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
@@ -573,6 +687,21 @@ export const updateProjectAdditionalDataBodyAdditionalDataPhoneMax = 32;
 
 
 export const updateProjectAdditionalDataBodyAdditionalDataPhoneRegExp = new RegExp('^\\+[1-9](?:[ -]?[0-9]){6,14}$');
+export const updateProjectAdditionalDataBodyClosureTargetsExternalNcrMin = 0;
+export const updateProjectAdditionalDataBodyClosureTargetsExternalNcrMax = 100;
+
+export const updateProjectAdditionalDataBodyClosureTargetsInternalNcrMin = 0;
+export const updateProjectAdditionalDataBodyClosureTargetsInternalNcrMax = 100;
+
+export const updateProjectAdditionalDataBodyClosureTargetsRfiMin = 0;
+export const updateProjectAdditionalDataBodyClosureTargetsRfiMax = 100;
+
+export const updateProjectAdditionalDataBodyClosureTargetsRmiMin = 0;
+export const updateProjectAdditionalDataBodyClosureTargetsRmiMax = 100;
+
+export const updateProjectAdditionalDataBodyClosureTargetsPqiMin = 0;
+export const updateProjectAdditionalDataBodyClosureTargetsPqiMax = 100;
+
 
 
 export const UpdateProjectAdditionalDataBody = zod.object({
@@ -589,7 +718,14 @@ export const UpdateProjectAdditionalDataBody = zod.object({
   "fac": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataFacMax).nullable(),
   "email": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataEmailMax).regex(updateProjectAdditionalDataBodyAdditionalDataEmailRegExp).nullish(),
   "phone": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataPhoneMax).regex(updateProjectAdditionalDataBodyAdditionalDataPhoneRegExp).nullish()
-})
+}),
+  "closureTargets": zod.object({
+  "external_ncr": zod.number().min(updateProjectAdditionalDataBodyClosureTargetsExternalNcrMin).max(updateProjectAdditionalDataBodyClosureTargetsExternalNcrMax).nullish(),
+  "internal_ncr": zod.number().min(updateProjectAdditionalDataBodyClosureTargetsInternalNcrMin).max(updateProjectAdditionalDataBodyClosureTargetsInternalNcrMax).nullish(),
+  "rfi": zod.number().min(updateProjectAdditionalDataBodyClosureTargetsRfiMin).max(updateProjectAdditionalDataBodyClosureTargetsRfiMax).nullish(),
+  "rmi": zod.number().min(updateProjectAdditionalDataBodyClosureTargetsRmiMin).max(updateProjectAdditionalDataBodyClosureTargetsRmiMax).nullish(),
+  "pqi": zod.number().min(updateProjectAdditionalDataBodyClosureTargetsPqiMin).max(updateProjectAdditionalDataBodyClosureTargetsPqiMax).nullish()
+}).optional()
 })
 
 export const updateProjectAdditionalDataResponseAdditionalDataNameMax = 500;
@@ -617,6 +753,21 @@ export const updateProjectAdditionalDataResponseAdditionalDataPhoneMax = 32;
 
 
 export const updateProjectAdditionalDataResponseAdditionalDataPhoneRegExp = new RegExp('^\\+[1-9](?:[ -]?[0-9]){6,14}$');
+export const updateProjectAdditionalDataResponseClosureTargetsExternalNcrMin = 0;
+export const updateProjectAdditionalDataResponseClosureTargetsExternalNcrMax = 100;
+
+export const updateProjectAdditionalDataResponseClosureTargetsInternalNcrMin = 0;
+export const updateProjectAdditionalDataResponseClosureTargetsInternalNcrMax = 100;
+
+export const updateProjectAdditionalDataResponseClosureTargetsRfiMin = 0;
+export const updateProjectAdditionalDataResponseClosureTargetsRfiMax = 100;
+
+export const updateProjectAdditionalDataResponseClosureTargetsRmiMin = 0;
+export const updateProjectAdditionalDataResponseClosureTargetsRmiMax = 100;
+
+export const updateProjectAdditionalDataResponseClosureTargetsPqiMin = 0;
+export const updateProjectAdditionalDataResponseClosureTargetsPqiMax = 100;
+
 
 
 export const UpdateProjectAdditionalDataResponse = zod.object({
@@ -635,6 +786,13 @@ export const UpdateProjectAdditionalDataResponse = zod.object({
   "email": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataEmailMax).regex(updateProjectAdditionalDataResponseAdditionalDataEmailRegExp).nullish(),
   "phone": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataPhoneMax).regex(updateProjectAdditionalDataResponseAdditionalDataPhoneRegExp).nullish()
 }),
+  "closureTargets": zod.object({
+  "external_ncr": zod.number().min(updateProjectAdditionalDataResponseClosureTargetsExternalNcrMin).max(updateProjectAdditionalDataResponseClosureTargetsExternalNcrMax).nullish(),
+  "internal_ncr": zod.number().min(updateProjectAdditionalDataResponseClosureTargetsInternalNcrMin).max(updateProjectAdditionalDataResponseClosureTargetsInternalNcrMax).nullish(),
+  "rfi": zod.number().min(updateProjectAdditionalDataResponseClosureTargetsRfiMin).max(updateProjectAdditionalDataResponseClosureTargetsRfiMax).nullish(),
+  "rmi": zod.number().min(updateProjectAdditionalDataResponseClosureTargetsRmiMin).max(updateProjectAdditionalDataResponseClosureTargetsRmiMax).nullish(),
+  "pqi": zod.number().min(updateProjectAdditionalDataResponseClosureTargetsPqiMin).max(updateProjectAdditionalDataResponseClosureTargetsPqiMax).nullish()
+}).optional(),
   "updatedAt": zod.coerce.date()
 })
 

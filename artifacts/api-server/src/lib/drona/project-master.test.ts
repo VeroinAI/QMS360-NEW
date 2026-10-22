@@ -61,6 +61,52 @@ describe("Project Additional Data contacts", () => {
   });
 });
 
+describe("Project Master closure targets", () => {
+  const additionalData = { client: null, contractor: null, contractProjectNumber: null, contractSigned: null, contractPeriod: null, tcc: null, pac: null, fac: null };
+  const payload = { costCentre: null, additionalData };
+  it.each([-1, 100.01, Infinity, NaN, "90", true])("rejects invalid target %s", value => {
+    expect(UpdateProjectAdditionalDataBody.safeParse({ ...payload, closureTargets: { external_ncr: value } }).success).toBe(false);
+  });
+  it("accepts zero, percentage boundaries, decimals and cleared targets", () => {
+    expect(UpdateProjectAdditionalDataBody.safeParse({
+      ...payload, closureTargets: { external_ncr: 0, internal_ncr: 100, rfi: 98.5, rmi: null, pqi: 75 },
+    }).success).toBe(true);
+  });
+  it("atomically merges targets while preserving unrelated master and reporting configuration", async () => {
+    const data = { ...payload, closureTargets: { external_ncr: 0, internal_ncr: 95, rfi: null } };
+    execute.mockResolvedValueOnce({ rows: [{ available: false }] })
+      .mockResolvedValueOnce({ rows: [{ id: projectId, costCentre: null, additionalData, closureTargets: { external_ncr: 0, internal_ncr: 95 }, updatedAt: iso }] });
+    const result = await saveProjectAdditionalData(input, projectId, data);
+    expect(result?.closureTargets).toEqual({ external_ncr: 0, internal_ncr: 95 });
+    expect(UpdateProjectAdditionalDataResponse.safeParse(result).success).toBe(true);
+    const query = new PgDialect().sqlToQuery(execute.mock.calls[1][0]);
+    expect(query.params).toContain(JSON.stringify(data.closureTargets));
+    expect(query.sql).toContain("jsonb_strip_nulls");
+    expect(query.sql).toContain("'qaqcReporting'");
+    expect(query.sql).toContain("THEN p.custom_fields->'qaqcReporting' ELSE '{}'::jsonb END)");
+    expect(query.sql).toContain("p.custom_fields->'qaqcReporting'->'targets'");
+    expect(query.sql).not.toContain("SET source");
+    expect(query.sql).toContain("p.deleted_at IS NULL");
+  });
+  it("does not write target configuration for older clients that omit it", async () => {
+    execute.mockResolvedValueOnce({ rows: [{ available: false }] }).mockResolvedValueOnce({ rows: [] });
+    await saveProjectAdditionalData(input, projectId, payload);
+    const query = new PgDialect().sqlToQuery(execute.mock.calls[1][0]);
+    expect(query.sql.slice(0, query.sql.indexOf("RETURNING"))).not.toContain("'qaqcReporting'");
+  });
+  it("reads existing project targets and retains project and organization scope on direct-page reads", async () => {
+    mockList(iso, iso, iso, false);
+    const result = await readDronaProjectMaster({ ...input, projectId, limit: 1, scope: { unrestricted: false, projectIds: [projectId] } });
+    expect(result.items[0].closureTargets).toEqual({});
+    for (const query of execute.mock.calls.slice(1).map(([statement]) => new PgDialect().sqlToQuery(statement))) {
+      expect(query.params).toContain(projectId);
+      expect(query.params).toContain(input.organizationId);
+      expect(query.sql).toContain("AND p.id =");
+      expect(query.sql).toContain("AND p.id IN");
+    }
+  });
+});
+
 describe("Project Master timestamp serialization", () => {
   it.each([
     ["Date objects", new Date(iso), new Date(iso)],

@@ -421,6 +421,26 @@ paths:
         "403": {description: Administrator access required}
         "404": {description: Project not available within current project access}
   /integrations/project-master/{projectId}/additional-data:
+    get:
+      operationId: getProjectAdditionalData
+      tags: [integrations]
+      summary: Read a project and its QMS-managed additional data within administrator project scope
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: {type: string, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'}
+      responses:
+        "200":
+          description: Project Additional Data
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/DronaProjectMasterRecord"}
+        "400": {description: Invalid project identifier}
+        "401": {description: Authentication required}
+        "403": {description: Administrator access required}
+        "404": {description: Project not available within current project access}
     patch:
       operationId: updateProjectAdditionalData
       tags: [integrations]
@@ -3136,6 +3156,7 @@ components:
         businessUnit: {type: ["string", "null"]}
         costCentre: {type: ["string", "null"]}
         additionalData: {$ref: "#/components/schemas/ProjectAdditionalData"}
+        closureTargets: {$ref: "#/components/schemas/ProjectClosureTargets"}
         location: {type: ["string", "null"]}
         status: {type: string}
         recordSource: {type: string}
@@ -3173,6 +3194,15 @@ components:
           type: ["string", "null"]
           maxLength: 32
           pattern: '^\+[1-9](?:[ -]?[0-9]){6,14}$'
+    ProjectClosureTargets:
+      type: object
+      additionalProperties: false
+      properties:
+        external_ncr: {type: ["number", "null"], minimum: 0, maximum: 100}
+        internal_ncr: {type: ["number", "null"], minimum: 0, maximum: 100}
+        rfi: {type: ["number", "null"], minimum: 0, maximum: 100}
+        rmi: {type: ["number", "null"], minimum: 0, maximum: 100}
+        pqi: {type: ["number", "null"], minimum: 0, maximum: 100}
     ProjectAdditionalDataInput:
       type: object
       additionalProperties: false
@@ -3180,6 +3210,7 @@ components:
       properties:
         costCentre: {type: ["string", "null"], maxLength: 100}
         additionalData: {$ref: "#/components/schemas/ProjectAdditionalData"}
+        closureTargets: {$ref: "#/components/schemas/ProjectClosureTargets"}
     ProjectAdditionalDataResult:
       type: object
       required: [id, costCentre, additionalData, updatedAt]
@@ -3187,6 +3218,7 @@ components:
         id: {type: string}
         costCentre: {type: ["string", "null"]}
         additionalData: {$ref: "#/components/schemas/ProjectAdditionalData"}
+        closureTargets: {$ref: "#/components/schemas/ProjectClosureTargets"}
         updatedAt: {type: string, format: date-time}
     ProjectCostCentreInput:
       type: object

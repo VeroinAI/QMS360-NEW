@@ -1044,6 +1044,39 @@ export interface ProjectAdditionalData {
   phone?: string | null;
 }
 
+export interface ProjectClosureTargets {
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  external_ncr?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  internal_ncr?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  rfi?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  rmi?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100
+     * @nullable
+     */
+  pqi?: number | null;
+}
+
 export interface DronaProjectMasterRecord {
   id: string;
   code: string;
@@ -1053,6 +1086,7 @@ export interface DronaProjectMasterRecord {
   /** @nullable */
   costCentre: string | null;
   additionalData?: ProjectAdditionalData;
+  closureTargets?: ProjectClosureTargets;
   /** @nullable */
   location: string | null;
   status: string;
@@ -1071,6 +1105,7 @@ export interface ProjectAdditionalDataInput {
      */
   costCentre: string | null;
   additionalData: ProjectAdditionalData;
+  closureTargets?: ProjectClosureTargets;
 }
 
 export interface ProjectAdditionalDataResult {
@@ -1078,6 +1113,7 @@ export interface ProjectAdditionalDataResult {
   /** @nullable */
   costCentre: string | null;
   additionalData: ProjectAdditionalData;
+  closureTargets?: ProjectClosureTargets;
   updatedAt: string;
 }
 

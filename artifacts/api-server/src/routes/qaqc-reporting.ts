@@ -1036,9 +1036,7 @@ router.patch("/projects/:projectId/settings", requireQaqcTask("configure_masters
   const next = { ...settings };
   if (!Array.isArray(next.dailyDistributionDays)) next.dailyDistributionDays = [1, 15];
   if (body.targets !== undefined) {
-    if (!isObject(body.targets) || Object.values(body.targets).some((v) => typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 100))
-      throw new HttpError(422, "targets must contain percentages from 0 through 100");
-    next.targets = body.targets;
+    throw new HttpError(422, "Closure targets are read-only in Reporting Settings. Maintain them in Integration cockpit > Project Master > Additional Data.");
   }
   const userFields = ["pmId", "peId", "dcId", "qualityRepresentativeId", "projectHeadId", "buHeadId", "corporateQualityManagerId", "dataGovernanceManagerId", "directorId"];
   for (const key of userFields) if (body[key] !== undefined) {
@@ -1085,7 +1083,6 @@ router.patch("/projects/:projectId/settings", requireQaqcTask("configure_masters
     next.reportingStartDate = body.reportingStartDate;
   }
   const nextCustomFields: Record<string, any> = { ...project.customFields, qaqcReporting: next };
-  if (body.targets !== undefined) nextCustomFields.targets = body.targets;
   const [updated] = await db.update(projects).set({
     customFields: nextCustomFields, updatedAt: new Date(),
   }).where(and(eq(projects.id, projectId), eq(projects.organizationId, org(req)))).returning();

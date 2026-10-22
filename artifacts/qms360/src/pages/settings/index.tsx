@@ -50,6 +50,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { CockpitPage } from '../cockpit';
+import { ProjectAdditionalDataPage } from '../cockpit/project-additional-data-page';
 import type { AISettings, AuditScheduleNumbering, EscalationRule, FieldControlSetting, NotificationTemplate, Permission, Role, RoleAssignment } from '@workspace/api-client-react';
 import { AlertCircle, ArrowLeft, Bell, Sparkles, Check, ChevronDown, ChevronLeft, ChevronRight, Clock, FileClock, Hash, KeyRound, Plus, Save, Search, Settings2, ShieldCheck, SlidersHorizontal, Trash2, Users } from 'lucide-react';
 import { fieldControlRegistry } from '@/lib/field-controls';
@@ -643,7 +644,7 @@ function SettingsPage() {
 }
 
 export function AdminRoutes() {
-  return <Switch><Route path="/settings/:app/:tab"><SettingsPage /></Route><Route path="/settings/:app"><SettingsPage /></Route><Route path="/cockpit"><CockpitPage /></Route></Switch>;
+  return <Switch><Route path="/settings/:app/:tab"><SettingsPage /></Route><Route path="/settings/:app"><SettingsPage /></Route><Route path="/cockpit/project-master/:projectId/additional-data"><ProjectAdditionalDataPage /></Route><Route path="/cockpit"><CockpitPage /></Route></Switch>;
 }
 
 const requirementOptions = [{ value: 'optional', label: 'Optional' }, { value: 'mandatory', label: 'Mandatory' }] as const;
