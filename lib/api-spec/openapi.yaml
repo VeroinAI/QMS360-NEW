@@ -2726,6 +2726,7 @@ components:
         approvalWorkflow:
           $ref: "#/components/schemas/QaqcSowObject"
         approverId: {type: string, nullable: true}
+        approverName: {type: [string, "null"], readOnly: true, description: Display name of the assigned report reviewer}
         submittedById: {type: string, nullable: true}
         submittedAt: {type: string, nullable: true}
         approvedAt: {type: string, nullable: true}

@@ -374,11 +374,11 @@ async function hasDownstreamSubmission(projectId: string, type: ReportType, peri
   return !!downstream;
 }
 
-function reportDto(row: any, projectName?: string) {
+function reportDto(row: any, projectName?: string, approverName: string | null = null) {
   return {
     id: row.id, organizationId: row.organizationId, projectId: row.projectId, projectName, createdById: row.createdById,
     reportType: row.reportType, period: row.period, state: row.state, data: row.data,
-    computed: row.computed, baseline: row.baseline, approverId: row.approverId,
+    computed: row.computed, baseline: row.baseline, approverId: row.approverId, approverName,
     approvalWorkflow: row.reportType === "monthly" ? readMonthlyApproval(row.baseline) : undefined,
     submittedById: row.submittedById, submittedAt: row.submittedAt, approvedAt: row.approvedAt,
     reviewComments: row.reviewComments, referenceNumber: row.referenceNumber,
@@ -387,10 +387,12 @@ function reportDto(row: any, projectName?: string) {
 }
 
 async function withProject(row: any) {
-  const [project] = await db.select({ name: projects.name }).from(projects).where(and(
+  const [project] = await db.select({ name: projects.name, approverName: users.fullName }).from(projects)
+    .leftJoin(users, and(eq(users.id, row.approverId), eq(users.organizationId, row.organizationId)))
+    .where(and(
     eq(projects.id, row.projectId), eq(projects.organizationId, row.organizationId),
   )).limit(1);
-  const result = reportDto(row, project?.name);
+  const result = reportDto(row, project?.name, project?.approverName ?? null);
   if (result.approvalWorkflow && row.state === "submitted") {
     const workflow = result.approvalWorkflow;
     const next = workflow.stages[workflow.currentIndex + 1];
