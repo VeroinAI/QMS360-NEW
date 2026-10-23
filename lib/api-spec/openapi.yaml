@@ -1940,6 +1940,17 @@ paths:
     post: {operationId: importAuditChecklistItems, tags: [audit], summary: Update existing checklist items and append new ones atomically from a spreadsheet, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {type: array, minItems: 1, maxItems: 500, items: {$ref: "#/components/schemas/AuditChecklistImportItem"}}}}}, responses: {"201": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/audits/{id}/finding-items:
     post: {operationId: createAuditFindingItem, tags: [audit], summary: Add a finding-only row to this audit, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingItemInput"}}}}, responses: {"201": {description: Updated audit with new finding, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
+  /audit/audits/{id}/finding-items/{itemId}/number:
+    post:
+      operationId: generateMissingAuditFindingNumber
+      tags: [audit]
+      summary: Generate a missing number for a saved finding without changing its content or audit status
+      parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string, minLength: 1}}]
+      responses:
+        "200": {description: Audit with the issued or previously assigned finding number, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
+        "403": {description: Finding edit permission in the audit scope is required}
+        "404": {description: Audit or finding not found}
+        "422": {description: Finding type or required numbering master data is missing}
   /audit/audits/{id}/finding-items/{itemId}/action-taker:
     patch: {operationId: assignAuditFindingActionTaker, tags: [audit], summary: Assign an active QMS Audit user to a finding, parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string}}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingActionTakerInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
   /audit/audits/{id}/additional-documents/organization-chart:

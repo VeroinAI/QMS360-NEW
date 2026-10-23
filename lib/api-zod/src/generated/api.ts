@@ -10772,6 +10772,156 @@ export const CreateAuditFindingItemResponse = zod.object({
 
 
 /**
+ * @summary Generate a missing number for a saved finding without changing its content or audit status
+ */
+
+
+
+export const GenerateMissingAuditFindingNumberParams = zod.object({
+  "id": zod.coerce.string(),
+  "itemId": zod.coerce.string().min(1)
+})
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const generateMissingAuditFindingNumberResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
+export const generateMissingAuditFindingNumberResponseReportDetailsValuesMaxOne = 10000;
+
+export const generateMissingAuditFindingNumberResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const generateMissingAuditFindingNumberResponseReportDetailsRowsMaxOne = 200;
+
+
+
+export const GenerateMissingAuditFindingNumberResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemValueMin).max(generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "designRemarks": zod.string().optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(generateMissingAuditFindingNumberResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(generateMissingAuditFindingNumberResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(generateMissingAuditFindingNumberResponseAdditionalDocumentsProcurementStatusItemValueMin).max(generateMissingAuditFindingNumberResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(generateMissingAuditFindingNumberResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(generateMissingAuditFindingNumberResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(generateMissingAuditFindingNumberResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(generateMissingAuditFindingNumberResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(generateMissingAuditFindingNumberResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(generateMissingAuditFindingNumberResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(generateMissingAuditFindingNumberResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(generateMissingAuditFindingNumberResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(generateMissingAuditFindingNumberResponseReportDetailsRowsItemMaxOne))).max(generateMissingAuditFindingNumberResponseReportDetailsRowsMaxOne))
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
  * @summary Assign an active QMS Audit user to a finding
  */
 export const AssignAuditFindingActionTakerParams = zod.object({

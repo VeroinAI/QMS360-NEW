@@ -54,6 +54,7 @@ import { allocateReportNumber, readReportNumberState, saveReportNumbering } from
 import { lockNumberedCarResponse, readCarNumberState, saveCarNumbering, type CarNumberRange } from "../lib/audit-car-numbering";
 import { carDueDate, hasSavedCarResponse } from "../lib/car-dates";
 import { allocateFindingNumber, numberedFindingTypes, readFindingNumberState, saveFindingNumbering, type FindingNumberPattern, type FindingNumberRange } from "../lib/audit-finding-numbering";
+import { findingForNumberRepair, preserveFindingNumber } from "../lib/audit-finding-number-repair";
 import { auditProjectNumberSourceValue, auditDepartmentNumberSourceValue } from "../lib/audit-number-source";
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
@@ -2740,7 +2741,8 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
     const findingRows = currentChecklist.filter(item => item.source === "finding");
     const findingIds = new Set(findingRows.map(item => item.id));
     values.checklistState = data.checklist ? [
-      ...data.checklist.filter((item: AnyRow) => item.source !== "finding" && !findingIds.has(item.id)).map(withoutFindingNumber),
+      ...data.checklist.filter((item: AnyRow) => item.source !== "finding" && !findingIds.has(item.id))
+        .map((item: AnyRow) => preserveFindingNumber(item, currentChecklist.find(previous => previous.id === item.id))),
       ...findingRows,
     ] : currentChecklist;
     if (auditIsComplete(data.status) !== auditIsComplete(locked.workflowState)) {
@@ -2832,7 +2834,7 @@ router.put("/audits/:id/checklist", asyncHandler(async (req, res) => {
   }));
   const merged = data.filter(item => item.source !== "finding" && existingItems.get(item.id)?.source !== "finding").map(item => {
     const previous = existingItems.get(item.id);
-    return previous ? { ...withoutFindingNumber(item), source: previous.source, actionTakerId: previous.actionTakerId } : withoutFindingNumber(item);
+    return previous ? { ...preserveFindingNumber(item, previous), source: previous.source, actionTakerId: previous.actionTakerId } : withoutFindingNumber(item);
   });
   merged.push(...[...existingItems.values()].filter(item => item.source === "finding"));
   const [row] = await tx.update(audits).set({ checklistState: merged as any, updatedAt: new Date() }).where(eq(audits.id, before.id)).returning();
@@ -3011,6 +3013,42 @@ router.post("/audits/:id/finding-items", asyncHandler(async (req, res) => {
   });
   if (created) await auditLog(req, "add_finding_item", "audit", auditId, before, row);
   res.status(201).json(auditDto(row));
+}));
+
+router.post("/audits/:id/finding-items/:itemId/number", asyncHandler(async (req, res) => {
+  const { id: auditId, itemId } = Api.GenerateMissingAuditFindingNumberParams.parse(req.params);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(auditId)) throw new HttpError(422, "A valid audit identifier is required");
+  const organizationId = actor(req).organizationId;
+  const scope = await getAuthorizedProjectScope(req, "audit", { module: "findings", action: "full" });
+  const result = await db.transaction(async tx => {
+    // Same lock order as normal Save Finding: counter first, then audit.
+    const { settings } = await lockScheduleNumbering(tx, organizationId);
+    const [before] = await tx.select().from(audits).where(and(
+      active(audits, organizationId), eq(audits.id, auditId),
+      await auditProjectCondition(req, scope),
+    )).for("update");
+    if (!before) throw new HttpError(404, "Audit not found or outside your authorized scope");
+    const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
+    const item = findingForNumberRepair(checklist, itemId);
+    // Repeated clicks/retries must not consume another sequence or log a second repair.
+    if (typeof item.findingNumber === "string" && item.findingNumber.trim()) return before;
+    const [plan] = before.auditPlanId ? await tx.select().from(auditPlans).where(and(
+      active(auditPlans, organizationId), eq(auditPlans.id, before.auditPlanId))) : [];
+    if (!plan?.auditScheduleId) throw new HttpError(422, "A linked Audit Plan and Audit Schedule are required to generate the Audit Finding Number.");
+    const [schedule] = await tx.select().from(auditSchedules).where(and(
+      active(auditSchedules, organizationId), eq(auditSchedules.id, plan.auditScheduleId)));
+    await assertChildSchedule(schedule);
+    const meta = scheduleMeta(schedule);
+    const numbering = await allocateFindingNumber(tx, settings, item.auditFinding,
+      isProcessAuditSchedule(schedule) ? null : plan.projectId, meta.departmentProject, meta.plannedStartDate);
+    const [row] = await tx.update(audits).set({
+      checklistState: checklist.map(entry => entry.id === itemId ? { ...entry, ...numbering } : entry) as any,
+      updatedAt: new Date(),
+    }).where(eq(audits.id, before.id)).returning();
+    await auditLog(req, "generate_missing_finding_number", "audit", auditId, before, row, tx as unknown as typeof db);
+    return row;
+  });
+  res.json(auditDto(result));
 }));
 
 router.patch("/audits/:id/finding-items/:itemId/action-taker", asyncHandler(async (req, res) => {

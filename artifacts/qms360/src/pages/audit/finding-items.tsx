@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLov } from "@/lib/use-lov";
 import { checklistFindings } from "./checklist-workbook";
 import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
+import { canRepairFindingNumber, FindingNumberRepair } from "./finding-number-repair";
 
 const findingOptions = checklistFindings.filter(value => value !== "Not applicable");
 const findingSchema = z.object({
@@ -217,7 +218,9 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
           </TableRow></TableHeader>
           <TableBody>
             {findings.map(item => <TableRow key={item.id} data-testid={`row-finding-${item.id}`} className="hover:bg-muted/30">
-              <TableCell data-testid={`text-finding-number-${item.id}`} className="w-40 whitespace-nowrap border-r border-b border-border/60 px-3 align-top font-mono text-xs">{item.findingNumber || <span className="text-muted-foreground">Not numbered</span>}</TableCell>
+              <TableCell data-testid={`text-finding-number-${item.id}`} className="w-40 whitespace-nowrap border-r border-b border-border/60 px-3 align-top font-mono text-xs">{item.findingNumber?.trim() || <span className="text-muted-foreground">Not numbered</span>}
+                {!readOnly && canRepairFindingNumber(item.auditFinding, item.findingNumber) && <FindingNumberRepair auditId={auditId} itemId={item.id}/>}
+              </TableCell>
               <TableCell data-testid={`text-clause-${item.id}`} className="w-28 border-r border-b border-border/60 px-3 align-top font-medium">{item.clause || "—"}</TableCell>
               <TableCell data-testid={`text-audit-area-${item.id}`} className="w-44 border-r border-b border-border/60 px-3 align-top">{areas.options.find(area => area.value === item.auditArea)?.label ?? item.auditArea ?? "—"}</TableCell>
               <TableCell data-testid={`text-description-${item.id}`} className="min-w-64 max-w-sm whitespace-pre-wrap border-r border-b border-border/60 px-3 align-top">{item.description || item.notes || "—"}</TableCell>
