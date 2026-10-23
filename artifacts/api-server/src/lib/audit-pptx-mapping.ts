@@ -50,7 +50,9 @@ export function auditPptxMappings(sections: ReportSectionData[]): Map<number, Pp
   }, [rows("project-progress")]);
   put(9, { 5: "", 12: `Comment: ${field("design-procurement", "Design comment")}`, 16: `Comment: ${field("design-procurement", "Procurement comment")}` },
     [rows("design-procurement"), rows("design-procurement", 1)]);
-  put(10, { 9: rows("conforming", 1).map(r => r.join(" · ")).join("\n") || PPTX_UNMAPPED }, [rows("conforming")]);
+  put(10, { 9: rows("conforming", 1).map(r => r.join(" · ")).join("\n")
+    || (rows("conforming").length ? "No good practices or positive observations recorded."
+      : "No conforming areas or good practices recorded.") }, [rows("conforming")]);
   for (const [slide, key] of [[11, "non-conformities"], [12, "ofi"]] as const) {
     put(slide, {}, [rows(key).map(r => [r[0]!, `${r[1]}\n${r[2]}`, r[3]!, r[4]!, r[5]!])]);
   }

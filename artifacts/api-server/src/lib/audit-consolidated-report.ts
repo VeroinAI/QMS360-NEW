@@ -1,6 +1,6 @@
 import { formatDate, formatDateInTimeZone } from "@workspace/spreadsheet-dates";
 import { auditReportDetailGroups, datedActivities, plannedDate, type AuditReportDetailsData } from "@workspace/field-controls";
-import { fillAuditPptxWorkbookFields } from "./audit-pptx-workbook-fields";
+import { fillAuditPptxWorkbookFields, recordedGoodPractice } from "./audit-pptx-workbook-fields";
 
 type Row = Record<string, any>;
 export type ReportSectionData = {
@@ -175,7 +175,8 @@ export function buildConsolidatedAuditReport(input: {
     rows: checklist.filter(row => /^(pass|conform|satisfactory|compliant)$/i.test(row.result ?? "") && !row.auditFinding)
       .map(row => [value(row.auditArea), value(row.description ?? row.question), (row.evidenceIds ?? []).map((id: string) => value(evidence.find(e => e.id === id)?.fileName)).join(", ") || missing]) });
   conforming.tables.push({ title: "Good practices and positive observations", columns: ["Area / process", "What was verified and found conforming", "Record / evidence reference", "Reference number"],
-    rows: (documents.goodPractices ?? []).map((row: Row) => [value(row.areaProcess), value(row.verifiedConforming), value(row.evidenceReference), value(row.referenceNumber)]) });
+    rows: (documents.goodPractices ?? []).filter((row: Row) => !input.pptxWorkbookMappings || recordedGoodPractice(row))
+      .map((row: Row) => [value(row.areaProcess), value(row.verifiedConforming), value(row.evidenceReference), value(row.referenceNumber)]) });
   const register = (key: string, title: string, items: Row[]) => {
     const s = section(key, title);
     const ofiPptx = input.pptxWorkbookMappings && key === "ofi";

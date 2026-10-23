@@ -104,3 +104,17 @@ remain unchanged.
 number, which varies with preceding continuations. Preserve ordinary long
 entries in taller rows; exceptional prose may continue as labelled text rather
 than additional finding rows. Do not spread the OFI hyphen policy to other tables.
+
+Conforming Areas in the PowerPoint report must distinguish unused source rows
+from missing cells in actual entries. Ignore wholly blank good-practice inputs,
+including whitespace-only rows, in both the table and positive-observations
+panel. Keep partial entries and factual conforming checklist results.
+
+**Why:** The user identified unused template slots showing “To be mapped” as
+invented conforming entries, while explicitly retaining that missing-value
+treatment within actual records.
+
+**How to apply:** Render only retained data rows, including on the last
+continuation page. Empty sections keep branded headers with a conforming-specific
+empty state, never CAR wording. This policy is PPTX-only; do not change saved
+data, PDF/JSON mapping, or the separate Technical Architecture slide artifact.

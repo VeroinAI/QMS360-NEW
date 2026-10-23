@@ -98,9 +98,9 @@ function programmeBox(doc: Document, id: number, text: string, size: number, lin
     for (const tag of ["rPr", "endParaRPr"]) for (const r of elements(p, A, tag)) r.setAttribute("sz", String(size));
   }
 }
-function setTable(table: Element, rows: string[][], start: number, capacity: number, trimUnused = false) {
+function setTable(table: Element, rows: string[][], start: number, capacity: number, trimUnused = false, emptyRow?: string[]) {
   const templateRows = elements(table, A, "tr").slice(start, start + capacity);
-  if (trimUnused && !rows.length) rows = [["No CAR responses recorded", "—", "—", "—", "—", "—", "—", "—"]];
+  if (trimUnused && !rows.length && emptyRow) rows = [emptyRow];
   templateRows.forEach((row, index) => {
     if (trimUnused && index >= rows.length) { table.removeChild(row); return; }
     elements(row, A, "tc").forEach((cell, col) => setText(cell, mappedText(rows[index]?.[col])));
@@ -222,7 +222,8 @@ export async function renderConsolidatedAuditPptx(input: {
       for (const [id, text] of Object.entries(mapping?.shapes ?? {})) setShape(doc, Number(id), text);
       if (ofi) renderOfiPage(doc, slideTables[0]!, ofi[page]!, setText);
       else mapping?.tables.forEach((_, i) => setTable(slideTables[i]!, pages[i]?.[page] ?? [], tableStarts[slideNumber] ?? 1,
-        elements(slideTables[i]!, A, "tr").length - (tableStarts[slideNumber] ?? 1), slideNumber === 15));
+        elements(slideTables[i]!, A, "tr").length - (tableStarts[slideNumber] ?? 1), [10, 15].includes(slideNumber),
+        slideNumber === 15 ? ["No CAR responses recorded", "—", "—", "—", "—", "—", "—", "—"] : undefined));
       if ([11, 12].includes(slideNumber)) {
         const group = elements(slideTables[0]!, A, "tr")[1]!;
         const cells = elements(group, A, "tc");

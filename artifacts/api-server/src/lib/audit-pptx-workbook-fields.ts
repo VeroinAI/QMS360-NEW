@@ -5,6 +5,11 @@ import { mappedText, PPTX_UNMAPPED } from "./audit-pptx-mapping";
 
 type Row = Record<string, any>;
 
+/** Ignore unused form rows before missing cells are converted to report placeholders. */
+export const recordedGoodPractice = (row: Row) =>
+  ["areaProcess", "verifiedConforming", "evidenceReference", "referenceNumber"]
+    .some(key => row[key] != null && String(row[key]).trim() !== "");
+
 /** Workbook-driven enrichment is exclusive to PPTX. Preserve recorded values except explicit workbook source changes. */
 export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input: {
   audit: Row; plan?: Row | null; schedule?: Row | null; project?: Row | null;
@@ -93,7 +98,7 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
   }
   const conforming = sections.find(section => section.key === "conforming")?.tables[0];
   if (conforming) {
-    const practices = (documents.goodPractices ?? []).map((row: Row) => [
+    const practices = (documents.goodPractices ?? []).filter(recordedGoodPractice).map((row: Row) => [
       row.areaProcess, row.verifiedConforming, row.evidenceReference,
     ].map(value => empty(value) ? "Not recorded" : String(value)));
     for (const row of practices) {
