@@ -51,6 +51,23 @@ later in the same migration.
 **How to apply:** Reorder the generated SQL statements so prerequisite indexes
 precede foreign keys, without changing the generated schema snapshot/journal.
 Validate the entire migration in a rollback-only transaction before handoff.
+Unattended additive setup must also install prerequisite unique indexes before
+foreign keys, instead of trusting the raw order emitted by introspection.
+
+## Preserve the schema-tool compatibility guard when upgrading
+
+Keep the pinned schema-tool compatibility fix until both composite-primary-key
+introspection and repeatable FK-backed unique-index introspection pass.
+
+**Why:** The upstream push API discarded bound introspection parameters, causing
+PostgreSQL's “there is no parameter $1”; it also mistook indexes referenced by
+foreign keys for constraint-owned indexes and proposed recreating them on the
+next push. Bypassing either error would make future merges unreliable.
+
+**How to apply:** Before upgrading the tool or removing its compatibility patch,
+run the rollback-only live integration test and full post-merge setup. Require
+the repeated run to make no additive changes. Keep destructive-change rejection
+and normal parameter binding; never fall back to a broad force push.
 
 ## Who owns which database
 

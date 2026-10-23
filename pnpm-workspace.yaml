@@ -66,10 +66,6 @@ overrides:
   '@tailwindcss/oxide>@tailwindcss/oxide-win32-x64-msvc': '-'
   brace-expansion: 5.0.9
   esbuild: 0.28.2
-  fast-uri: 3.1.6
-  js-yaml: 4.3.1
-  nanoid: 3.3.18
-  qs: 6.16.0
   esbuild>@esbuild/aix-ppc64: '-'
   esbuild>@esbuild/android-arm: '-'
   esbuild>@esbuild/android-arm64: '-'
@@ -95,6 +91,8 @@ overrides:
   esbuild>@esbuild/win32-arm64: '-'
   esbuild>@esbuild/win32-ia32: '-'
   esbuild>@esbuild/win32-x64: '-'
+  fast-uri: 3.1.6
+  js-yaml: 4.3.1
   lightningcss>lightningcss-android-arm64: '-'
   lightningcss>lightningcss-darwin-arm64: '-'
   lightningcss>lightningcss-darwin-x64: '-'
@@ -105,6 +103,8 @@ overrides:
   lightningcss>lightningcss-linux-x64-musl: '-'
   lightningcss>lightningcss-win32-arm64-msvc: '-'
   lightningcss>lightningcss-win32-x64-msvc: '-'
+  nanoid: 3.3.18
+  qs: 6.16.0
   rollup>@rollup/rollup-android-arm-eabi: '-'
   rollup>@rollup/rollup-android-arm64: '-'
   rollup>@rollup/rollup-darwin-arm64: '-'
@@ -129,3 +129,6 @@ overrides:
   rollup>@rollup/rollup-win32-ia32-msvc: '-'
   rollup>@rollup/rollup-win32-x64-gnu: '-'
   rollup>@rollup/rollup-win32-x64-msvc: '-'
+
+patchedDependencies:
+  drizzle-kit@0.31.10: patches/drizzle-kit@0.31.10.patch
