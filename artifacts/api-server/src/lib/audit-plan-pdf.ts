@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { TO_BE_MAPPED, type AuditPlanReportData } from "./audit-plan-report-data";
+import { NO_DATA, type AuditPlanReportData } from "./audit-plan-report-data";
 
 async function asset(name: string) {
   try { return await readFile(new URL(`./${name}`, import.meta.url)); }
@@ -72,7 +72,7 @@ export async function renderAuditPlanPdf(data: AuditPlanReportData): Promise<Uin
     text(cover, label, x, top, width, 29, 10, true);
     text(cover, value, x === 41 ? 127 : 390, top, x === 41 ? 140 : 164, 29, 9, false, black, false, label);
   }
-  text(cover, `Revision: ${TO_BE_MAPPED}`, 370, 630, 189, 16, 8, false, black, true);
+  text(cover, `Revision: ${data.revision}`, 370, 630, 189, 16, 8, false, black, true);
 
   const header = (page: PDFPage) => {
     text(page, "PROJECT AUDIT PLAN", 154, 53, 283, 24, 17, true, black, true);
@@ -91,11 +91,12 @@ export async function renderAuditPlanPdf(data: AuditPlanReportData): Promise<Uin
   header(page);
   text(page, "Start Times and Date of Audit:", 41, 152, 335, 18, 11, true, purple);
   text(page, "Remarks", 392, 152, 160, 18, 11, true, purple);
-  [["Start Date:", data.start], ["End Date:", data.end], ["Opening Meeting:", data.opening], ["Closing Meeting:", data.closing]].forEach(([label, value], i) => {
+  [["Start Date:", data.start, data.startRemark], ["End Date:", data.end, data.endRemark],
+    ["Opening Meeting:", data.opening, data.openingRemark], ["Closing Meeting:", data.closing, data.closingRemark]].forEach(([label, value, remark], i) => {
     const top = 175 + i * 25;
     text(page, label!, 41, top, 165, 23, 11, true, purple);
     text(page, value!, 216, top, 160, 23, 10, false, black, false, label);
-    text(page, TO_BE_MAPPED, 392, top, 159, 23, 9);
+    text(page, remark!, 392, top, 159, 23, 9, false, black, false, `${label!.replace(":", "")} Remarks`);
   });
   text(page, "Project Details", 41, 296, 512, 18, 11, true, purple, true);
   let top = 322;
@@ -138,8 +139,22 @@ export async function renderAuditPlanPdf(data: AuditPlanReportData): Promise<Uin
   };
   for (const row of data.activities) await activity(row.section, row.remarks, row.auditee, row.dateTime);
   // Fixed-size fields that exceed their template cell remain available in full.
-  const continuations = overflow.splice(0);
-  for (const [label, value] of continuations) await activity(`${label} (continuation)`, value, TO_BE_MAPPED, TO_BE_MAPPED);
+  const flushContinuations = async () => {
+    // Repeated headers can overflow too; include each distinct field once.
+    const seen = new Set<string>();
+    while (overflow.length) {
+      const [label, value] = overflow.shift()!;
+      const key = JSON.stringify([label, value]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      await activity(`${label} (continuation)`, value, "", "");
+    }
+  };
+  // Signer names also use fixed cells. Capture their overflow before flushing.
+  for (const [label, value] of [["Prepared by", data.lead], ["Audit Program Manager", data.programManager]]) {
+    if (wrap(value!, 225, 7, normal).length * 7 * 1.25 > 65) overflow.push([label!, value!]);
+  }
+  await flushContinuations();
   if (y + 250 > 806) await newActivityPage(false);
   const signatureTop = Math.max(y + 90, 560);
   const signature = async (bytes: Uint8Array | undefined, x: number, width: number) => {
@@ -153,7 +168,7 @@ export async function renderAuditPlanPdf(data: AuditPlanReportData): Promise<Uin
         width: imageWidth, height: imageHeight,
       });
     }
-    text(page, bytes ? "Signature" : `Signature: ${TO_BE_MAPPED}`, x, signatureTop, width, 23, 10, false, black, true);
+    text(page, bytes ? "Signature" : `Signature: ${NO_DATA}`, x, signatureTop, width, 23, 10, false, black, true);
   };
   await signature(data.preparedBySignature, 36, 235);
   await signature(data.programManagerSignature, 330, 225);
