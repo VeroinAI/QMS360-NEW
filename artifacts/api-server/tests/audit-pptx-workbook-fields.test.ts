@@ -163,7 +163,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     expect(mapped[1]).toContain(PPTX_UNMAPPED);
     expect(mapped[1]).not.toContain("A checklist question");
     expect(mapped[3]).toBe("Construction");
-    expect(mapped[2]).toBe(PPTX_UNMAPPED);
+    expect(mapped[2]).toBe("-");
     expect(auditPptxMappings(buildConsolidatedAuditReport(data)).get(11)!.tables[0]![0]![3]).toBe("8");
   });
   it("uses Plan Auditee Roles even when meeting attendee names have been saved", () => {

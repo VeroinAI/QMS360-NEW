@@ -189,7 +189,9 @@ export async function renderConsolidatedAuditPptx(input: {
         const maxLength = slideNumber === 15 ? 110 : 160;
         const count = Math.max(1, ...row.map(cell => Math.ceil(cell.length / maxLength)));
         return Array.from({ length: count }, (_, part) => row.map((cell, col) =>
-          col === 0 ? (part ? `${cell} (continued)` : cell) : cell.slice(part * maxLength, (part + 1) * maxLength) || (part ? "" : cell)));
+          col === 0 ? (part ? `${cell} (continued)` : cell)
+            : slideNumber === 11 && col === 2 && cell === "-" ? "-"
+            : cell.slice(part * maxLength, (part + 1) * maxLength) || (part ? "" : cell)));
       });
       return chunks(expanded, capacity);
     }) ?? [];

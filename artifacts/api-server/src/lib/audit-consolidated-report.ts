@@ -180,7 +180,13 @@ export function buildConsolidatedAuditReport(input: {
   const register = (key: string, title: string, items: Row[]) => {
     const s = section(key, title);
     const ofiPptx = input.pptxWorkbookMappings && key === "ofi";
+    const ncrPptx = input.pptxWorkbookMappings && key === "non-conformities";
     const objectiveEvidence = (row: Row) => {
+      if (ncrPptx) {
+        // Only explicitly linked uploads are NCR objective evidence, never general notes.
+        return (row.evidenceIds ?? []).map((id: string) =>
+          evidence.find(e => e.id === id)?.fileName?.trim() || `File unavailable (${id})`).join(", ") || "-";
+      }
       if (!ofiPptx) return (row.evidenceIds ?? []).map((id: string) => value(evidence.find(e => e.id === id)?.fileName)).join(", ") || value(row.notes);
       // An unavailable attachment is still a recorded reference, not absent evidence.
       const references = (row.evidenceIds ?? []).map((id: string) =>
@@ -189,7 +195,7 @@ export function buildConsolidatedAuditReport(input: {
     };
     s.tables.push({ title, columns: ["Ref", "Audit area", "Finding", "Objective evidence", "Requirement", "Grade"],
       // Never substitute an internal/client reference or a CAR number for an issued finding number.
-      rows: items.map(row => [ofiPptx ? value(row.findingNumber?.trim()) : input.pptxWorkbookMappings ? missing : row.reference, row.area, value(input.pptxWorkbookMappings && !row.legacy ? row.description : row.description ?? row.question ?? row.title),
+      rows: items.map(row => [input.pptxWorkbookMappings ? value(row.findingNumber?.trim()) : row.reference, row.area, value(input.pptxWorkbookMappings && !row.legacy ? row.description : row.description ?? row.question ?? row.title),
         objectiveEvidence(row),
         value(input.pptxWorkbookMappings ? row.area : row.clause), row.grade]) });
   };

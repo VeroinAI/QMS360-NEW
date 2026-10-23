@@ -103,7 +103,19 @@ remain unchanged.
 **How to apply:** Find the section by OFI content, not its displayed slide
 number, which varies with preceding continuations. Preserve ordinary long
 entries in taller rows; exceptional prose may continue as labelled text rather
-than additional finding rows. Do not spread the OFI hyphen policy to other tables.
+than additional finding rows. Do not spread the OFI hyphen policy to unrelated tables.
+
+The NCR PowerPoint register also uses saved Finding References and exactly `-`
+when no evidence is linked. Unlike OFI, NCR objective evidence excludes generic
+finding notes; use linked uploaded file references only.
+
+**Why:** The user separately corrected the NCR register's reference and evidence
+semantics, while explicitly excluding table resizing, unused-row changes,
+number issuance and PDF/JSON changes.
+
+**How to apply:** Identify NCR by section content (template slide 11), not its
+displayed page number. Preserve historical unnumbered findings as unmapped,
+legacy/checklist coexistence and OFI's independent notes-as-evidence behavior.
 
 Conforming Areas in the PowerPoint report must distinguish unused source rows
 from missing cells in actual entries. Ignore wholly blank good-practice inputs,

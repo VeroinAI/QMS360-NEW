@@ -57,10 +57,10 @@ describe("OFI report mapping and actual-row layout", () => {
     expect(baseline.find(s => s.key === "ofi")!.tables[0]!.rows[0]![0]).toBe("DO-NOT-USE-0");
     expect(baseline.find(s => s.key === "ofi")!.tables[0]!.rows[0]![3]).toBe("Not recorded");
     expect(JSON.stringify(data)).toBe(before);
-    // The NC register and other sections keep their pre-existing missing-value policy.
+    // NCR also uses issued numbers, but unlike OFI it excludes notes from evidence.
     data.audit.checklist[0]!.auditFinding = "Major NC";
     const nc = auditPptxMappings(build(data)).get(11)!.tables[0]![0]!;
-    expect(nc[0]).toBe("To be mapped"); expect(nc[2]).toBe("To be mapped");
+    expect(nc[0]).toBe("AF-CTR-OFI-26-0001"); expect(nc[2]).toBe("-");
   });
 
   it.each([0, 1, 5, 23])("renders exactly %i finding rows, with no spare rows on any page", async count => {
