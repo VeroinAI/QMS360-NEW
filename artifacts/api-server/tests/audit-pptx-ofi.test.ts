@@ -48,7 +48,7 @@ describe("OFI report mapping and actual-row layout", () => {
     const sections = build(data), rows = auditPptxMappings(sections).get(12)!.tables[0]!;
     expect(rows).toHaveLength(6);
     expect(rows.map(r => r[0])).toEqual([
-      "AF-CTR-OFI-26-0001", "To be mapped", "To be mapped", "AF-CTR-OFI-26-0004", "AF-CTR-OFI-26-0005", "To be mapped",
+      "AF-CTR-OFI-26-0001", "-", "-", "AF-CTR-OFI-26-0004", "AF-CTR-OFI-26-0005", "-",
     ]);
     expect(rows.map(r => r[2])).toEqual(["-", "Recorded interview with auditee", "Actual record.pdf",
       "File unavailable (unavailable)", "Actual record.pdf\nAdditional factual evidence", "Legacy recorded evidence"]);

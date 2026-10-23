@@ -27,7 +27,7 @@ Report Details no longer exposes Document Control, Project Profile, Objective/sc
 
 **How to apply:** Treat this as editor-only scope. Preserve existing stored values, shared report definitions, and consolidated PDF behavior unless separately requested.
 
-The Audits workspace Report button downloads a PowerPoint report using the supplied consolidated-report PPTX's original branding, colours, tables and slide layouts. Unavailable values read exactly **To be mapped**.
+The Audits workspace Report button downloads a PowerPoint report using the supplied consolidated-report PPTX's original branding, colours, tables and slide layouts. Mapped fields without data read exactly **-**; only fields without mapping logic read **To be mapped**.
 
 **Why:** The user explicitly requested a matching PowerPoint report, not a redesigned deck or a PDF. Template sample people, references, dates and conclusions are not audit data.
 
@@ -74,7 +74,7 @@ including instructions in its “Unused slots” sheet.
 
 **How to apply:** Check every worksheet for instructions. Read saved values only;
 keep empty source data distinct from unused template slots in the review workbook.
-Genuinely unissued business reference numbers remain “To be mapped”; internal
+Genuinely unissued business reference numbers remain “-”; internal
 B.x links and client idempotency keys are not substitutes for issued numbers.
 A mapping to the classification field cannot supply a photograph capture date.
 
@@ -87,7 +87,7 @@ requesting the Additional Data popup. Old report-entry or source-master values
 must not reappear when an administrator clears the supplementary value.
 
 **How to apply:** Apply this source override only to the PPTX Slide 3 profile.
-Keep missing supplementary values exactly “To be mapped”; preserve the cover,
+Keep missing supplementary values exactly “-”; preserve the cover,
 other export formats and department-based audits without a project. Format
 Contract signed as a calendar date using the organization's date format.
 
@@ -103,7 +103,8 @@ remain unchanged.
 **How to apply:** Find the section by OFI content, not its displayed slide
 number, which varies with preceding continuations. Preserve ordinary long
 entries in taller rows; exceptional prose may continue as labelled text rather
-than additional finding rows. Do not spread the OFI hyphen policy to unrelated tables.
+than additional finding rows. The later all-slide missing-data policy below
+supersedes the original OFI-only hyphen restriction.
 
 The NCR PowerPoint register also uses saved Finding References and exactly `-`
 when no evidence is linked. Unlike OFI, NCR objective evidence excludes generic
@@ -114,7 +115,7 @@ semantics, while explicitly excluding table resizing, unused-row changes,
 number issuance and PDF/JSON changes.
 
 **How to apply:** Identify NCR by section content (template slide 11), not its
-displayed page number. Preserve historical unnumbered findings as unmapped,
+displayed page number. Preserve historical unnumbered findings as missing data,
 legacy/checklist coexistence and OFI's independent notes-as-evidence behavior.
 
 Conforming Areas in the PowerPoint report must distinguish unused source rows
@@ -123,10 +124,22 @@ including whitespace-only rows, in both the table and positive-observations
 panel. Keep partial entries and factual conforming checklist results.
 
 **Why:** The user identified unused template slots showing “To be mapped” as
-invented conforming entries, while explicitly retaining that missing-value
-treatment within actual records.
+invented conforming entries. The later all-slide missing-data rule now applies
+within actual retained records too.
 
 **How to apply:** Render only retained data rows, including on the last
 continuation page. Empty sections keep branded headers with a conforming-specific
 empty state, never CAR wording. This policy is PPTX-only; do not change saved
 data, PDF/JSON mapping, or the separate Technical Architecture slide artifact.
+
+All Audit PowerPoint slides distinguish absent transaction data from absent
+mapping logic: show exactly `-` for the former and `To be mapped` only for the
+latter. This supersedes earlier section-specific missing-value wording.
+
+**Why:** The user needs to distinguish records requiring data correction from
+unsupported fields that require IT support.
+
+**How to apply:** Apply the distinction at mapped source boundaries, including
+numbers, dates, project profile, sign-offs, findings, CARs and photographs.
+Never globally replace placeholder-like words in filenames or entered prose.
+Preserve zero/false values, PDF/JSON semantics, source records and numbering.

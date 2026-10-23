@@ -1,7 +1,7 @@
 import { projectProgressPhases } from "@workspace/field-controls";
 import { formatDate } from "@workspace/spreadsheet-dates";
 import type { ReportSectionData } from "./audit-consolidated-report";
-import { mappedText, PPTX_UNMAPPED } from "./audit-pptx-mapping";
+import { mappedText, PPTX_EMPTY, PPTX_UNMAPPED } from "./audit-pptx-mapping";
 
 type Row = Record<string, any>;
 
@@ -17,7 +17,7 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
   cars: Row[]; findingReferences: Map<string, { reference: string; grade: string }>;
 }) {
   const { audit, plan, schedule, project, evidence, names, roleNames } = input;
-  const empty = (value: unknown) => mappedText(value) === PPTX_UNMAPPED;
+  const empty = (value: unknown) => [PPTX_EMPTY, PPTX_UNMAPPED].includes(mappedText(value));
   const field = (key: string, label: string) => sections.find(section => section.key === key)?.fields.find(field => field.label === label);
   const fill = (key: string, label: string, value: unknown) => {
     const target = field(key, label);
@@ -57,7 +57,7 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
     }
   }
   // Slide 3's profile explicitly uses this audit project's QMS Additional Data.
-  // A cleared value must stay unmapped, not revert to old report or source-master text.
+  // A cleared mapped value stays empty, never reverting to old report/source-master text.
   const additional = project?.customFields?.qmsAdditionalData ?? {};
   for (const [label, key] of [
     ["Client", "client"], ["Contractor", "contractor"],
@@ -67,7 +67,7 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
     const target = field("audit-overview", label);
     if (!target) continue;
     const saved = typeof additional[key] === "string" ? additional[key].trim() : "";
-    target.value = saved ? (key === "contractSigned" ? formatDate(saved) : saved) : PPTX_UNMAPPED;
+    target.value = saved ? (key === "contractSigned" ? formatDate(saved) : saved) : PPTX_EMPTY;
   }
   fill("cover", "Contract / project number", projectField("contractNumber", "projectNumber", "contractProjectNo", "projectNo", "code"));
   fill("scope", "Objective", plan?.description);
@@ -109,7 +109,7 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
   tracker?.rows.forEach((row, index) => {
     const finding = input.findingReferences.get(input.cars[index]?.findingId);
     // CAR reference is issued independently from the underlying finding.
-    row[0] = input.cars[index]?.carNumber || "Not numbered";
+    row[0] = input.cars[index]?.carNumber || PPTX_EMPTY;
     if (finding && empty(row[1])) row[1] = finding.grade;
   });
 }

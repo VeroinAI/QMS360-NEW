@@ -44,8 +44,8 @@ describe("NCR PowerPoint references and uploaded evidence", () => {
     const rows = auditPptxMappings(sections).get(11)!.tables[0]!;
     expect(rows).toHaveLength(16);
     expect(rows.map(row => row[0])).toEqual([
-      ...input.audit.checklist.map(item => item.findingNumber.trim() || "To be mapped"),
-      "To be mapped", "To be mapped",
+      ...input.audit.checklist.map(item => item.findingNumber.trim() || "-"),
+      "-", "-",
     ]);
     expect(rows.map(row => row[2])).toEqual([
       "Inspection record.pdf", "-", "-", "File unavailable (unavailable)",
@@ -82,14 +82,14 @@ describe("NCR PowerPoint references and uploaded evidence", () => {
     for (const item of input.audit.checklist) {
       const row = rows.find(row => row[1]!.includes(item.description.slice(0, 20)))!;
       expect(row).toBeTruthy();
-      expect(row[0]).toBe(item.findingNumber.trim() || "To be mapped");
+      expect(row[0]).toBe(item.findingNumber.trim() || "-");
       if (!item.evidenceIds.length) expect(row[2]).toBe("-");
     }
     const continued = rows.filter(row => row[0] === "AF-CTR-MIN-26-0005 (continued)");
     expect(continued.length).toBeGreaterThan(0);
     continued.forEach(row => expect(row[2]).toBe("-"));
     expect(rows.find(row => row[1]!.includes("Historical finding"))?.slice(0, 3))
-      .toEqual(["To be mapped", "To be mappedHistorical finding", "Historical record.pdf"]);
+      .toEqual(["-", "-Historical finding", "Historical record.pdf"]);
     expect(slides.map(text).join("\n")).not.toMatch(/IDEMPOTENCY|CAR-NOT|General notes|Unrelated attachment|Must not duplicate/);
     const original = unzipSync(await readFile(new URL("../src/assets/audit-report-template.pptx", import.meta.url)));
     const template = parse(original["ppt/slides/slide11.xml"]!);

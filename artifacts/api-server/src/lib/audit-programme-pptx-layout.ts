@@ -1,4 +1,4 @@
-import { mappedText, PPTX_UNMAPPED } from "./audit-pptx-mapping";
+import { mappedText, PPTX_EMPTY } from "./audit-pptx-mapping";
 
 /** Format the saved wall-clock value, without shifting its date/time by timezone. */
 export function programmeDate(value?: string): string {
@@ -37,7 +37,7 @@ export function programmeEntries(rows: string[][]): Array<{ times: string; detai
       `Activity: ${mappedText(row[2])}`, `Remarks: ${mappedText(row[3])}`, `Auditee: ${mappedText(row[4])}`,
     ].join("\n"), 30);
     return Array.from({ length: Math.ceil(lines.length / 3) }, (_, i) => ({
-      times, details: lines.slice(i * 3, i * 3 + 3).join("\n") || PPTX_UNMAPPED,
+      times, details: lines.slice(i * 3, i * 3 + 3).join("\n") || PPTX_EMPTY,
     }));
   });
 }

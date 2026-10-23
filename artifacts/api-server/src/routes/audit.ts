@@ -4089,21 +4089,21 @@ router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
   const reviewers = [...new Set(report.cars.map(car => carMeta(car).reviewedBy).filter((id): id is string => !!id))];
   const reviewerRows = reviewers.length ? await db.select({ id: users.id, name: users.fullName }).from(users).where(and(
     eq(users.organizationId, actor(req).organizationId), inArray(users.id, reviewers), isNull(users.deletedAt))) : [];
-  const date = (value?: string | Date | null) => value ? formatDateInTimeZone(value, "Asia/Riyadh") : "To be mapped";
+  const date = (value?: string | Date | null) => value ? formatDateInTimeZone(value, "Asia/Riyadh") : "-";
   tracker?.rows.forEach((row, i) => {
     const car = report.cars[i]!;
     const meta = carMeta(car);
-    row[0] = meta.carNumber || "Not numbered";
+    row[0] = meta.carNumber || "-";
     const due = carDueDate(report.findings.find(f => f.id === car.auditFindingId)?.classification, car.createdAt, car.dueDate);
-    row[5] = car.extensionStatus === "approved" && car.extensionDueDate ? date(car.extensionDueDate) : due ? date(due) : "Not configured";
+    row[5] = car.extensionStatus === "approved" && car.extensionDueDate ? date(car.extensionDueDate) : due ? date(due) : "-";
     row[6] = carDto(car).status;
     row[7] = meta.reviewedAt && (meta.reviewOutcome === "accept" || car.workflowState === "closed" || car.workflowState === "accepted")
-      ? `${reviewerRows.find(u => u.id === meta.reviewedBy)?.name || "Reviewer not recorded"} / ${date(meta.reviewedAt)}`
+      ? `${reviewerRows.find(u => u.id === meta.reviewedBy)?.name || "-"} / ${date(meta.reviewedAt)}`
       : "Pending verification";
-    row[1] = row[1] === "Not recorded" ? report.findings.find(f => f.id === car.auditFindingId)?.classification || "Not recorded" : row[1]!;
-    row[2] = car.rootCause?.trim() || "Not recorded";
-    row[3] = [car.correction, car.correctiveAction].filter(value => value?.trim()).join("\n") || "Not recorded";
-    if (row[4] === "Not recorded" || row[4] === "To be mapped") row[4] = "Not assigned";
+    row[1] = ["Not recorded", "-"].includes(row[1]!) ? report.findings.find(f => f.id === car.auditFindingId)?.classification || "-" : row[1]!;
+    row[2] = car.rootCause?.trim() || "-";
+    row[3] = [car.correction, car.correctiveAction].filter(value => value?.trim()).join("\n") || "-";
+    if (row[4] === "Not recorded" || row[4] === "To be mapped") row[4] = "-";
   });
   const images = new Map<string, Uint8Array>();
   for (const photo of report.sections.flatMap(s => s.photos)) {

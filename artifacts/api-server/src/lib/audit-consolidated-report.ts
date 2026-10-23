@@ -12,7 +12,6 @@ export type ReportSectionData = {
     findingId?: string; findingCreatedDate?: string; grade?: string; location?: string; captionDescription?: string;
   }>;
 };
-const missing = "Not recorded";
 export const auditIsComplete = (state: string) => ["complete", "completed", "closed"].includes(state.toLowerCase());
 export function buildConsolidatedAuditReport(input: {
   audit: Row; plan?: Row | null; schedule?: Row | null; project?: Row | null;
@@ -21,6 +20,8 @@ export function buildConsolidatedAuditReport(input: {
   pptxWorkbookMappings?: boolean;
 }): ReportSectionData[] {
   const { audit, plan, project, names, roleNames, evidence, legacyFindings, cars } = input;
+  // All these report fields have a source mapping. Keep PDF/JSON wording unchanged.
+  const missing = input.pptxWorkbookMappings ? "-" : "Not recorded";
   const details: AuditReportDetailsData = audit.reportDetails ?? { values: {}, rows: {} };
   const value = (v: unknown) => v === null || v === undefined || v === "" ? missing : String(v);
   const recorded = (key: string, fallback?: unknown) => value(details.values[key]?.trim() || fallback);
@@ -100,11 +101,11 @@ export function buildConsolidatedAuditReport(input: {
     section: plan.activitySection, remarks: plan.activityRemarks, auditeeId: plan.activityAuditeeId,
   }] : [], plan?.activityDateTime);
   const planned = (dateTime: unknown) => plannedDate(dateTime) && typeof dateTime === "string" && dateTime.includes("T")
-    ? dateTime : "To Be Mapped";
+    ? dateTime : input.pptxWorkbookMappings ? "-" : "To Be Mapped";
   programme.tables.push({ title: "Audit programme", columns: ["Planned Start", "Planned End", "Activity", "Remarks", "Auditee"],
     rows: activities.map((a: Row) => [
-      `${planned(a.plannedStartDateTime)}${a.legacyDateTimeDerived && planned(a.plannedStartDateTime) !== "To Be Mapped" ? " (derived legacy)" : ""}`,
-      `${planned(a.plannedEndDateTime)}${a.legacyDateTimeDerived && planned(a.plannedEndDateTime) !== "To Be Mapped" ? " (derived legacy)" : ""}`,
+      `${planned(a.plannedStartDateTime)}${a.legacyDateTimeDerived && !["-", "To Be Mapped"].includes(planned(a.plannedStartDateTime)) ? " (derived legacy)" : ""}`,
+      `${planned(a.plannedEndDateTime)}${a.legacyDateTimeDerived && !["-", "To Be Mapped"].includes(planned(a.plannedEndDateTime)) ? " (derived legacy)" : ""}`,
       value(a.section), value(a.remarks), a.auditeeIds !== undefined ? namesOf(a.auditeeIds) : name(a.auditeeId)]) });
   fields(programme, [
     ["Opening meeting", date(audit.openingMeeting?.heldAt)], ["Opening minutes", audit.openingMeeting?.minutes],
@@ -235,7 +236,7 @@ export function buildConsolidatedAuditReport(input: {
   const tracker = section("corrective-actions", "Corrective action tracker");
   tracker.tables.push({ title: "Corrective actions", columns: ["Ref", "Grade", "Root cause", "Correction and corrective action", "Owner", "Due date", "Status", "Verified by / date"],
     rows: cars.map(car => { const f = findings.find(f => f.id === car.findingId);
-      return [car.carNumber || "Not numbered", f?.grade ?? missing, value(car.rootCause),
+      return [car.carNumber || (input.pptxWorkbookMappings ? missing : "Not numbered"), f?.grade ?? missing, value(car.rootCause),
         [car.correction, car.correctiveAction].filter(Boolean).join("\n") || missing, name(car.ownerId), date(car.dueDate),
         value(car.status), car.effectivenessVerified ? `Effectiveness verified; ${date(car.closedAt)}; verifier ${missing}` : missing]; }) });
   const actions = section("priority-actions", "Recommended priority actions");

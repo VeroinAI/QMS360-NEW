@@ -146,10 +146,10 @@ describe("Factual finding metadata, exclusively for PPTX", () => {
       expect(a.reference).toBe("FN-SAVED-009");
       expect(a.findingCreatedDate).toBe(formatDateInTimeZone(createdAt, "Asia/Riyadh"));
       const b = photos.find(p => p.findingId === "checklist:b")!;
-      expect(b.reference).toBe("Not recorded"); expect(b.findingCreatedDate).toBe("Not recorded");
+      expect(b.reference).toBe("-"); expect(b.findingCreatedDate).toBe("-");
       const legacy = photos.find(p => p.findingId === "legacy:legacy-finding")!;
       expect(legacy.findingCreatedDate).toBe(formatDateInTimeZone("2026-08-15T10:00:00Z", "Asia/Riyadh"));
-      expect(legacy.reference).toBe("Not recorded");
+      expect(legacy.reference).toBe("-");
       expect(normal.find(s => s.key === "photographs")!.photos).toHaveLength(4);
       expect(normal.find(s => s.key === "photographs")!.photos.find(p => p.id === "one")!.description).toContain("Requirement: Stored Requirement");
       expect(normal.find(s => s.key === "photographs")!.photos[0]).not.toHaveProperty("findingId");

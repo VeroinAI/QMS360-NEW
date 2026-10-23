@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { unzipSync, strFromU8 } from "fflate";
 import { buildConsolidatedAuditReport } from "../src/lib/audit-consolidated-report";
-import { auditPptxMappings, PPTX_UNMAPPED } from "../src/lib/audit-pptx-mapping";
+import { auditPptxMappings, PPTX_EMPTY } from "../src/lib/audit-pptx-mapping";
 import { renderConsolidatedAuditPptx } from "../src/lib/audit-consolidated-pptx";
 import { formatDate } from "@workspace/spreadsheet-dates";
 
@@ -37,9 +37,9 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     expect(field(sections, "document-control", "Form number")).toBe("QAM-IA/26-001");
     expect(field(sections, "document-control", "Process owner")).toBe("Selected owner");
     const table = auditPptxMappings(sections).get(2)!.tables[0]!;
-    expect(table[0]).toEqual(["Prepared by", "Selected lead", PPTX_UNMAPPED, PPTX_UNMAPPED]);
-    expect(table[1]).toEqual(["Reviewed by", PPTX_UNMAPPED, PPTX_UNMAPPED, PPTX_UNMAPPED]);
-    expect(table[2]).toEqual(["Approved by", PPTX_UNMAPPED, PPTX_UNMAPPED, PPTX_UNMAPPED]);
+    expect(table[0]).toEqual(["Prepared by", "Selected lead", PPTX_EMPTY, PPTX_EMPTY]);
+    expect(table[1]).toEqual(["Reviewed by", PPTX_EMPTY, PPTX_EMPTY, PPTX_EMPTY]);
+    expect(table[2]).toEqual(["Approved by", PPTX_EMPTY, PPTX_EMPTY, PPTX_EMPTY]);
   });
   it("maps missing scope, submitted file names, checklist areas and auditee roles", () => {
     const sections = build();
@@ -54,7 +54,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     expect(field(sections, "audit-overview", "Client")).toBe("Recorded client");
     expect(field(sections, "audit-overview", "Contractor")).toBe("Recorded contractor");
     expect(field(sections, "audit-overview", "Contract period")).toBe("24 months");
-    expect(auditPptxMappings(sections).get(3)!.shapes[35]).toBe(PPTX_UNMAPPED);
+    expect(auditPptxMappings(sections).get(3)!.shapes[35]).toBe(PPTX_EMPTY);
   });
   it("maps all eight Slide 3 profile fields only from the audit project's Additional Data", async () => {
     const data = fixture();
@@ -77,7 +77,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     // No change to the Audit details, cover or non-PPTX export mapping.
     const otherExport = buildConsolidatedAuditReport(enriched);
     expect(field(otherExport, "audit-overview", "Client")).toBe("Old report client");
-    expect(sections.find(section => section.key === "cover")).toEqual(otherExport.find(section => section.key === "cover"));
+    expect(sections.find(section => section.key === "cover")).toEqual(JSON.parse(JSON.stringify(otherExport.find(section => section.key === "cover")).replaceAll("Not recorded", "-")));
     const output = unzipSync(await renderConsolidatedAuditPptx({ sections, skipPriorityActions: true }));
     const slide = strFromU8(output["ppt/slides/slide3.xml"]!);
     for (const value of Object.values(shapes)) expect(slide).toContain(String(value).replaceAll("&", "&amp;"));
@@ -85,7 +85,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     expect(JSON.stringify(enriched)).toBe(original);
   });
   it.each([undefined, {}, { client: null, contractor: "  ", contractProjectNumber: "" }])(
-    "keeps empty Additional Data unmapped without falling back to legacy project/report values (%j)", profile => {
+    "keeps empty Additional Data as a dash without falling back to legacy project/report values (%j)", profile => {
     const data = { ...fixture(), audit: { ...fixture().audit, checklist: [{ ...fixture().audit.checklist[0], evidenceIds: ["linked"] }] },
       evidence: [
         { id: "linked", fileName: "finding.png", mimeType: "image/png", createdAt: "2026-10-12" },
@@ -93,9 +93,9 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
       ] };
       (data.project.customFields as Record<string, unknown>).qmsAdditionalData = profile;
       const shapes = auditPptxMappings(build(data)).get(3)!.shapes;
-      for (const id of [25, 27, 29, 31, 33, 35, 37, 41]) expect(shapes[id]).toBe(PPTX_UNMAPPED);
+      for (const id of [25, 27, 29, 31, 33, 35, 37, 41]) expect(shapes[id]).toBe(PPTX_EMPTY);
       const projectless = build({ ...data, project: undefined } as unknown as ReturnType<typeof fixture>);
-      expect(auditPptxMappings(projectless).get(3)!.shapes[25]).toBe(PPTX_UNMAPPED);
+      expect(auditPptxMappings(projectless).get(3)!.shapes[25]).toBe(PPTX_EMPTY);
     });
   it("does not guess a contractor from contract details or a report approver from unrelated users", () => {
     const data = { ...fixture(), audit: { ...fixture().audit, checklist: [{ ...fixture().audit.checklist[0], evidenceIds: ["linked"] }] },
@@ -105,26 +105,26 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
       ] };
     delete (data.project.customFields.qmsAdditionalData as Record<string, unknown>).contractor;
     const sections = build(data);
-    expect(auditPptxMappings(sections).get(3)!.shapes[27]).toBe(PPTX_UNMAPPED);
-    expect(auditPptxMappings(sections).get(2)!.tables[0]![2]![1]).toBe(PPTX_UNMAPPED);
+    expect(auditPptxMappings(sections).get(3)!.shapes[27]).toBe(PPTX_EMPTY);
+    expect(auditPptxMappings(sections).get(2)!.tables[0]![2]![1]).toBe(PPTX_EMPTY);
   });
   it("does not promote a legacy first-team-member default into a selected report preparer", () => {
     const sections = build({ ...fixture(), plan: { ...fixture().plan, pptxPreparedById: null } } as ReturnType<typeof fixture>);
-    expect(auditPptxMappings(sections).get(2)!.tables[0]![0]![1]).toBe(PPTX_UNMAPPED);
+    expect(auditPptxMappings(sections).get(2)!.tables[0]![0]![1]).toBe(PPTX_EMPTY);
     expect(field(sections, "audit-overview", "Lead auditor")).toBe("Selected lead");
   });
   it("reads manually saved Additional Documents progress with zero and blank values intact, without an invented weighted total", () => {
     const table = auditPptxMappings(build()).get(8)!.tables[0]!;
     expect(table).toEqual([
-      ["Engineering & Design", "25%", "10", "0", "-10", PPTX_UNMAPPED],
-      ["Construction", PPTX_UNMAPPED, PPTX_UNMAPPED, "12", PPTX_UNMAPPED, "8"],
+      ["Engineering & Design", "25%", "10", "0", "-10", PPTX_EMPTY],
+      ["Construction", PPTX_EMPTY, PPTX_EMPTY, "12", PPTX_EMPTY, "8"],
     ]);
     expect(table.some(row => row[0] === "Overall")).toBe(false);
   });
   it("maps conforming records and resolves CAR references and grades through linked checklist findings", () => {
     const mapped = auditPptxMappings(build());
     expect(mapped.get(10)!.tables[0]).toEqual([["Design", "Actual verified practice", "Record X"]]);
-    expect(mapped.get(15)!.tables[0]![0]!.slice(0, 3)).toEqual(["Not numbered", "Moderate", "Actual root cause"]);
+    expect(mapped.get(15)!.tables[0]![0]!.slice(0, 3)).toEqual(["-", "Moderate", "Actual root cause"]);
   });
   it("uses the independently issued CAR number", () => {
     const data = { ...fixture(), audit: { ...fixture().audit, checklist: [{ ...fixture().audit.checklist[0], evidenceIds: ["linked"] }] },
@@ -152,7 +152,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     const optedOut = buildConsolidatedAuditReport({ ...data, pptxWorkbookMappings: false });
     expect(optedOut).toEqual(unchanged);
     for (const key of ["executive-summary", "findings-summary", "ofi", "photographs", "grading", "conclusion"]) {
-      expect(sections.find(row => row.key === key)).toEqual(unchanged.find(row => row.key === key));
+      expect(sections.find(row => row.key === key)).toEqual(JSON.parse(JSON.stringify(unchanged.find(row => row.key === key)).replaceAll("Not recorded", "-")));
     }
     expect(JSON.stringify(data)).toBe(before);
   });
@@ -160,7 +160,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     const data = fixture();
     data.audit.checklist[0] = { ...data.audit.checklist[0]!, description: "", question: "A checklist question" } as typeof data.audit.checklist[0];
     const mapped = auditPptxMappings(build(data)).get(11)!.tables[0]![0]!;
-    expect(mapped[1]).toContain(PPTX_UNMAPPED);
+    expect(mapped[1]).toContain(PPTX_EMPTY);
     expect(mapped[1]).not.toContain("A checklist question");
     expect(mapped[3]).toBe("Construction");
     expect(mapped[2]).toBe("-");
@@ -188,7 +188,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
       ] };
     const photos = build(data).find(section => section.key === "photographs")!.photos;
     expect(photos.map(photo => photo.fileName)).toEqual(["finding.png"]);
-    expect(photos[0]!.description).toContain("Date captured: Not recorded");
+    expect(photos[0]!.description).toContain("Date captured: -");
     expect(buildConsolidatedAuditReport(data).find(section => section.key === "photographs")!.photos).toHaveLength(2);
     expect(auditPptxMappings(build(data)).get(11)!.tables[0]![0]![2]).toBe("finding.png");
   });

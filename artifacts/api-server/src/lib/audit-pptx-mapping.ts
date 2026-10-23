@@ -1,16 +1,22 @@
 import type { ReportSectionData } from "./audit-consolidated-report";
 
 export const PPTX_UNMAPPED = "To be mapped";
+export const PPTX_EMPTY = "-";
 export const mappedText = (value: unknown): string => {
-  if (value == null || String(value).trim() === "") return PPTX_UNMAPPED;
-  return String(value).replace(/\bNot recorded\b|\bTo Be Mapped\b/gi, PPTX_UNMAPPED);
+  if (value == null || String(value).trim() === "" || /^Not recorded$/i.test(String(value).trim())) return PPTX_EMPTY;
+  if (/^To be mapped$/i.test(String(value).trim())) return PPTX_UNMAPPED;
+  // Never rewrite words inside filenames, evidence references or entered prose.
+  return String(value);
 };
 export type PptxSlideValues = { shapes: Record<number, string>; tables: string[][][] };
 
 /** Only factual values from the existing consolidated report; no template sample data. */
 export function auditPptxMappings(sections: ReportSectionData[]): Map<number, PptxSlideValues> {
   const section = (key: string) => sections.find(s => s.key === key);
-  const field = (key: string, label: string) => mappedText(section(key)?.fields.find(f => f.label === label)?.value);
+  const field = (key: string, label: string) => {
+    const source = section(key)?.fields.find(f => f.label === label);
+    return source ? mappedText(source.value) : PPTX_UNMAPPED;
+  };
   const rows = (key: string, index = 0) => section(key)?.tables[index]?.rows.map(row => row.map(mappedText)) ?? [];
   const f = (key: string, labels: string[]) => labels.map(label => field(key, label));
   const result = new Map<number, PptxSlideValues>();
@@ -41,8 +47,8 @@ export function auditPptxMappings(sections: ReportSectionData[]): Map<number, Pp
     27: field("executive-summary", "Overall rating") === "Not effective" ? "☑" : "☐",
   });
   const themes = rows("findings-summary", 1);
-  put(7, Object.fromEntries([0, 1, 2].flatMap(i => [[10 + i * 4, themes[i]?.[0] ?? PPTX_UNMAPPED],
-    [11 + i * 4, themes[i]?.slice(1).join(" · ") || PPTX_UNMAPPED]])),
+  put(7, Object.fromEntries([0, 1, 2].flatMap(i => [[10 + i * 4, themes[i]?.[0] ?? PPTX_EMPTY],
+    [11 + i * 4, themes[i]?.slice(1).join(" · ") || PPTX_EMPTY]])),
     [rows("findings-summary").map(r => [r[0]!, r[1]!, r[2]!, r[3]!, r[4]!, r[6]!])]);
   put(8, {
     5: "", 7: `Data as at: ${field("project-progress", "Data as at")}    Source: ${field("project-progress", "Source")}`,
@@ -54,10 +60,11 @@ export function auditPptxMappings(sections: ReportSectionData[]): Map<number, Pp
     || (rows("conforming").length ? "No good practices or positive observations recorded."
       : "No conforming areas or good practices recorded.") }, [rows("conforming")]);
   for (const [slide, key] of [[11, "non-conformities"], [12, "ofi"]] as const) {
-    put(slide, {}, [rows(key).map(r => [r[0]!, `${r[1]}\n${r[2]}`, r[3]!, r[4]!, r[5]!])]);
+    // Slide 11's shape 5 is a template authoring instruction, not a data field.
+    put(slide, slide === 11 ? { 5: "" } : {}, [rows(key).map(r => [r[0]!, `${r[1]}\n${r[2]}`, r[3]!, r[4]!, r[5]!])]);
   }
   put(15, {}, [rows("corrective-actions")]);
-  put(16, Object.fromEntries([7, 11, 15].map((id, i) => [id, rows("priority-actions", i).map(r => r.join(" · ")).join("\n") || PPTX_UNMAPPED])));
+  put(16, Object.fromEntries([7, 11, 15].map((id, i) => [id, rows("priority-actions", i).map(r => r.join(" · ")).join("\n") || PPTX_EMPTY])));
   const signOff = rows("conclusion");
   const signer = (role: string) => signOff.find(r => r[0]?.toLowerCase() === role.toLowerCase());
   put(17, {

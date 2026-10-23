@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { DOMParser, XMLSerializer, type Document, type Element, type Node } from "@xmldom/xmldom";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { ReportSectionData } from "./audit-consolidated-report";
-import { auditPptxMappings, mappedText, PPTX_UNMAPPED } from "./audit-pptx-mapping";
+import { auditPptxMappings, mappedText, PPTX_EMPTY, PPTX_UNMAPPED } from "./audit-pptx-mapping";
 import { programmeEntries, programmeLines } from "./audit-programme-pptx-layout";
 import { photographicPages, renderPhotographicPage } from "./audit-pptx-photo-layout";
 import { ofiPages, renderOfiPage } from "./audit-pptx-ofi-layout";
@@ -129,7 +129,7 @@ export async function renderConsolidatedAuditPptx(input: {
   const files = unzipSync(await template());
   const cover = input.sections.find(section => section.key === "cover");
   const reportNumber = cover?.fields.find(field => field.label === "Audit Report Number")?.value;
-  if (reportNumber && !["Not recorded", PPTX_UNMAPPED].includes(reportNumber)) {
+  {
     // The supplied template inherits this footer from its layout. Preserve
     // branding and the separate Audit reference; only add the issued report ID.
     const auditReference = mappedText(cover?.fields.find(field => field.label === "Audit reference")?.value);
@@ -140,7 +140,7 @@ export async function renderConsolidatedAuditPptx(input: {
       for (const container of elements(layout, P, "sp")) {
         const text = elements(container, A, "t").map(run => run.textContent ?? "").join("");
         if (text.includes("Quality Internal Audit Report") && text.includes("[Audit Ref]")) {
-          setText(container, `Report No: ${reportNumber}  |  Audit Ref: ${auditReference}`);
+          setText(container, `Report No: ${mappedText(reportNumber)}  |  Audit Ref: ${auditReference}`);
           changed = true;
         }
       }
@@ -200,12 +200,12 @@ export async function renderConsolidatedAuditPptx(input: {
     for (const meeting of ["Opening", "Closing"]) {
       const held = programmeField(`${meeting} meeting`);
       const minutes = programmeField(`${meeting} minutes`);
-      if (held !== PPTX_UNMAPPED || minutes !== PPTX_UNMAPPED) activityRows.push([
-        held, PPTX_UNMAPPED, `${meeting} meeting (recorded)`, minutes, programmeField("Auditees present"),
+      if (![PPTX_EMPTY, PPTX_UNMAPPED].includes(held) || ![PPTX_EMPTY, PPTX_UNMAPPED].includes(minutes)) activityRows.push([
+        held, PPTX_EMPTY, `${meeting} meeting (recorded)`, minutes, programmeField("Auditees present"),
       ]);
     }
     const activities = chunks(programmeEntries(activityRows), 5);
-    const participation = [28, 33, 38].map(id => chunks(programmeLines(mapping?.shapes[id] ?? PPTX_UNMAPPED, 26), id === 33 ? 5 : 4));
+    const participation = [28, 33, 38].map(id => chunks(programmeLines(mapping?.shapes[id] ?? PPTX_EMPTY, 26), id === 33 ? 5 : 4));
     const themeRows = section("findings-summary")?.tables[1]?.rows ?? [];
     const themes = chunks(themeRows, 3);
     const count = Math.max(1, ...pages.map(p => p.length), slideNumber === 5 ? activities.length : 1,
@@ -235,10 +235,10 @@ export async function renderConsolidatedAuditPptx(input: {
         for (let i = 0; i < 5; i++) {
           const row = activities[page]?.[i];
           const top = 1892808 + i * 868680;
-          programmeBox(doc, 10 + i * 3, row?.times ?? PPTX_UNMAPPED, 1100, 1200, { y: top, width: 4480560, height: 330200 });
-          programmeBox(doc, 11 + i * 3, row?.details ?? PPTX_UNMAPPED, 1050, 1150, { y: top + 360200, width: 4480560, height: 480000 });
+          programmeBox(doc, 10 + i * 3, row?.times ?? PPTX_EMPTY, 1100, 1200, { y: top, width: 4480560, height: 330200 });
+          programmeBox(doc, 11 + i * 3, row?.details ?? PPTX_EMPTY, 1050, 1150, { y: top + 360200, width: 4480560, height: 480000 });
         }
-        [28, 33, 38].forEach((id, i) => programmeBox(doc, id, participation[i]?.[page]?.join("\n") ?? PPTX_UNMAPPED, 1100, 1250));
+        [28, 33, 38].forEach((id, i) => programmeBox(doc, id, participation[i]?.[page]?.join("\n") ?? PPTX_EMPTY, 1100, 1250));
         setShape(doc, 6, String(outputSlides.length + 1));
       }
       if (slideNumber === 7) {

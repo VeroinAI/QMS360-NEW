@@ -5,7 +5,7 @@ import { strFromU8, unzipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { buildConsolidatedAuditReport } from "../src/lib/audit-consolidated-report";
 import { renderConsolidatedAuditPptx } from "../src/lib/audit-consolidated-pptx";
-import { auditPptxMappings, PPTX_UNMAPPED } from "../src/lib/audit-pptx-mapping";
+import { auditPptxMappings, PPTX_UNMAPPED, PPTX_EMPTY } from "../src/lib/audit-pptx-mapping";
 
 const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
 const P = "http://schemas.openxmlformats.org/presentationml/2006/main";
@@ -100,9 +100,9 @@ describe("Conforming areas actual-row PowerPoint rendering", () => {
     const sections = build(rows);
     const mapped = auditPptxMappings(sections).get(10)!;
     expect(mapped.tables[0]).toEqual([
-      ["Construction", "Co-ordination", PPTX_UNMAPPED],
-      [PPTX_UNMAPPED, PPTX_UNMAPPED, "Record-only practice"],
-      [PPTX_UNMAPPED, PPTX_UNMAPPED, PPTX_UNMAPPED],
+      ["Construction", "Co-ordination", PPTX_EMPTY],
+      [PPTX_EMPTY, PPTX_EMPTY, "Record-only practice"],
+      [PPTX_EMPTY, PPTX_EMPTY, PPTX_EMPTY],
     ]);
     expect(sections.find(s => s.key === "conforming")!.tables[1]!.rows).toHaveLength(3);
     expect(mapped.shapes[9]!.split("\n")).toHaveLength(3);
@@ -121,12 +121,12 @@ describe("Conforming areas actual-row PowerPoint rendering", () => {
     const data = build([{ verifiedConforming: "Recorded practice" }, {}], checklist);
     expect(auditPptxMappings(data).get(10)!.tables[0]).toEqual([
       ["Checklist area", "Verified question", "Verified record.pdf"],
-      ["Partial area", PPTX_UNMAPPED, PPTX_UNMAPPED],
-      [PPTX_UNMAPPED, "Recorded practice", PPTX_UNMAPPED],
+      ["Partial area", PPTX_EMPTY, PPTX_EMPTY],
+      [PPTX_EMPTY, "Recorded practice", PPTX_EMPTY],
     ]);
     const doc = conformingDocs(unzipSync(await renderConsolidatedAuditPptx({ sections: data })))[0]!;
     expect(doc.getElementsByTagNameNS(A, "tr")).toHaveLength(4);
-    expect(text(doc)).toContain(PPTX_UNMAPPED);
+    expect(text(doc)).toContain(PPTX_EMPTY);
     expect(text(doc)).toContain("Recorded practice");
   });
 

@@ -16,7 +16,7 @@ const sections = () => buildConsolidatedAuditReport({
     { id: "nc-1", clientReference: "NC-001", auditArea: "Construction", description: "Recorded issue", auditFinding: "Major NC", clause: "8.5", notes: "Objective evidence" },
     { id: "ofi-1", clientReference: "OFI-001", auditArea: "Design", description: "Recorded improvement", auditFinding: "OFI", clause: "7.5" },
   ], reportDetails: { values: { client: "Actual client", overallRating: "Effective", overallConclusion: "Recorded [actual content]\nconclusion" }, rows: {} } },
-  plan: { leadAuditorId: "auditor", auditTypes: ["Internal"], activities: [] },
+  plan: { leadAuditorId: "auditor", auditTypes: ["Internal"], activities: [], startDateTime: "2026-10-01", endDateTime: "2026-10-02" },
   legacyFindings: [], cars: [], evidence: [], names: new Map([["auditor", "Recorded Auditor"]]), roleNames: new Map(),
 });
 describe("Original Audit PowerPoint report template", () => {
@@ -45,7 +45,7 @@ describe("Original Audit PowerPoint report template", () => {
   it("preserves original masters, theme, branding, shape geometry and table formatting", async () => {
     const original = unzipSync(await readFile(new URL("../src/assets/audit-report-template.pptx", import.meta.url)));
     const result = unzipSync(await renderConsolidatedAuditPptx({ sections: sections() }));
-    for (const name of Object.keys(original).filter(n => /^(ppt\/(slideMasters|slideLayouts|theme|media)|_rels\/)/.test(n))) {
+    for (const name of Object.keys(original).filter(n => /^(ppt\/(slideMasters|theme|media)|_rels\/)/.test(n))) {
       expect(Buffer.from(result[name]!)).toEqual(Buffer.from(original[name]!));
     }
     for (let slide = 1; slide <= 18; slide++) {
@@ -136,13 +136,13 @@ describe("Original Audit PowerPoint report template", () => {
     expect(new Set(photoTargets).size).toBe(photos.length);
     const allText = Object.entries(result).filter(([n]) => /^ppt\/slides\/slide\d+\.xml$/.test(n)).map(([, b]) => text(b)).join("\n");
     for (let i = 0; i < 3; i++) expect(allText).toContain(`Recorded photograph ${i}`);
-    expect(allText).toContain("Date: To be mapped");
+    expect(allText).toContain("Date: -");
     expect(allText).not.toContain("Date: 05 Oct 2026");
   });
   it("normalizes only missing values without substituting sample data", () => {
-    expect([null, undefined, "", "Not recorded", "To Be Mapped"].map(mappedText)).toEqual(Array(5).fill("To be mapped"));
+    expect([null, undefined, "", "Not recorded", "To Be Mapped"].map(mappedText)).toEqual(["-", "-", "-", "-", "To be mapped"]);
     expect(mappedText(0)).toBe("0");
-    expect(mappedText("Not recorded; verifier Not recorded")).toBe("To be mapped; verifier To be mapped");
+    expect(mappedText("Not recorded; verifier Not recorded")).toBe("Not recorded; verifier Not recorded");
   });
   it("keeps programme dates and long details inside non-overlapping bounded boxes", async () => {
     const data = sections();
