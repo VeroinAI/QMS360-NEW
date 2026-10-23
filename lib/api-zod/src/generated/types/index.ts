@@ -83,6 +83,7 @@ export * from './auditMyActionKind';
 export * from './auditMyActionsPage';
 export * from './auditNumberingSource';
 export * from './auditNumberingSourceKind';
+export * from './auditOpeningMeetingBounds';
 export * from './auditOrganizationChartInput';
 export * from './auditPage';
 export * from './auditPageResponse';

@@ -9,21 +9,21 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 
 export function NotRepresentedClosingAttendees({ opening, closing, users, loading = false, error = false }: {
   opening?: readonly string[];
-  closing: readonly string[];
+  closing?: readonly string[];
   users: ReadonlyArray<{ id: string; fullName: string; designation?: string | null }>;
   loading?: boolean;
   error?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const missing = notRepresentedClosingAttendees(opening, closing);
+  const missing = opening && closing ? notRepresentedClosingAttendees(opening, closing) : [];
   return <div className="space-y-2">
-    <Label id="closing-meeting-not-represented">Not Represented in closing meeting</Label>
+    <Label id="closing-meeting-not-represented">Not represented in Closing meeting</Label>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" role="combobox" aria-readonly="true"
           aria-labelledby="closing-meeting-not-represented" aria-describedby="closing-meeting-not-represented-help"
           aria-expanded={open} disabled={loading || error} className="w-full justify-between font-normal">
-          {loading ? "Loading Audit users…" : missing.length ? `${missing.length} automatically selected` : "None"}
+          {loading ? "Loading Audit users…" : error ? "Unable to load attendee names" : !opening ? "Opening attendance not recorded" : !closing ? "Closing attendance not recorded" : missing.length ? `${missing.length} automatically selected` : "None"}
           <ChevronDown className="ml-2 size-4 opacity-50"/>
         </Button>
       </PopoverTrigger>

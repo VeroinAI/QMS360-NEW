@@ -11,7 +11,7 @@ import sharp from "sharp";
 import * as Api from "@workspace/api-zod";
 import { allocateReferenceNumber, hasNumberingPattern } from "../lib/numbering";
 import { scheduleActivityEntry } from "../lib/audit-schedule-activity";
-import { auditPlanDateFields, validateAuditPlanDates } from "@workspace/field-controls";
+import { auditPlanDateFields, validateAuditPlanDates, openingMeetingDateError } from "@workspace/field-controls";
 import {
   applicationAccess,
   auditAuditLogEntries,
@@ -2431,6 +2431,11 @@ const auditValues = (data: AnyRow) => ({
     startedAt: data.startedAt?.toISOString?.() ?? data.startedAt ?? null, closedAt: data.closedAt?.toISOString?.() ?? data.closedAt ?? null,
   }),
 });
+async function assertOpeningMeetingWrite(database: Pick<typeof db, "select">, req: Request, planId: string | null, rawHeldAt: unknown) {
+  const bounds = await openingMeetingBounds(database, actor(req).organizationId, planId, true);
+  const error = openingMeetingDateError(rawHeldAt, bounds.fromDate, bounds.toDate);
+  if (error) throw new HttpError(422, error);
+}
 router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.SendAuditPlanForExecutionBody, req);
   const planId = String(req.params.id);
@@ -2582,7 +2587,15 @@ router.post("/audits", asyncHandler(async (req, res) => {
       values.referenceGenerated = true;
     }
     try {
-      [row] = await db.insert(audits).values({ organizationId: actor(req).organizationId, ...values }).returning();
+      [row] = await db.transaction(async tx => {
+        if (data.openingMeeting) {
+          await assertOpeningMeetingWrite(tx, req, plan.id, req.body.openingMeeting?.heldAt);
+          values.status = JSON.stringify({ ...parseJson(values.status, {}), openingMeeting: {
+            ...data.openingMeeting, heldAtLocal: req.body.openingMeeting.heldAt,
+          } });
+        }
+        return tx.insert(audits).values({ organizationId: actor(req).organizationId, ...values }).returning();
+      });
     } catch (error: any) {
       if (error?.code === "23505" && usePattern && String(error?.message ?? "").includes("audit_reference_active_idx")) continue;
       if (error?.code === "23505") throw new HttpError(409, "An active audit with this title already exists");
@@ -2592,11 +2605,25 @@ router.post("/audits", asyncHandler(async (req, res) => {
   if (!row) throw new HttpError(409, "Unable to allocate a unique audit reference number");
   await auditLog(req, "create", "audit", row.id, undefined, row); res.status(201).json(auditDto(row));
 }));
+// Read actual child metadata, never scheduleDto's synthesized year defaults.
+async function openingMeetingBounds(database: Pick<typeof db, "select">, organizationId: string, planId: string | null, lock = false) {
+  if (!planId) return { fromDate: null, toDate: null };
+  const query = database.select({ status: auditSchedules.status }).from(auditPlans)
+    .innerJoin(auditSchedules, eq(auditSchedules.id, auditPlans.auditScheduleId))
+    .where(and(active(auditPlans, organizationId), active(auditSchedules, organizationId), eq(auditPlans.id, planId)));
+  const [source] = await (lock ? query.for("share") : query);
+  const meta = source ? scheduleMeta(source) : null;
+  return {
+    fromDate: !meta?.programme && typeof meta?.plannedStartDate === "string" ? meta.plannedStartDate : null,
+    toDate: !meta?.programme && typeof meta?.plannedEndDate === "string" ? meta.plannedEndDate : null,
+  };
+}
 router.get("/audits/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!row) throw new HttpError(404, "Audit not found");
   const editScope = await getAuthorizedProjectScope(req, "audit", { module: "audits", action: "full" });
-  res.json(auditDto(row, editScope.unrestricted || (row.projectId ? editScope.projectIds.includes(row.projectId) : editScope.projectIds.length > 0 || editScope.processAuditsAllowed === true)));
+  res.json({ ...auditDto(row, editScope.unrestricted || (row.projectId ? editScope.projectIds.includes(row.projectId) : editScope.projectIds.length > 0 || editScope.processAuditsAllowed === true)),
+    openingMeetingBounds: await openingMeetingBounds(db, actor(req).organizationId, row.auditPlanId) });
 }));
 router.post("/audits/:id/complete", asyncHandler(async (req, res) => {
   const result = await db.transaction(async tx => {
@@ -2695,6 +2722,12 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
     const [locked] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, before.id))).for("update");
     if (!locked) throw new HttpError(404, "Audit not found");
     const currentChecklist = Array.isArray(locked.checklistState) ? locked.checklistState as AnyRow[] : [];
+    if (data.openingMeeting) {
+      await assertOpeningMeetingWrite(tx, req, plan.id, req.body.openingMeeting?.heldAt);
+      values.status = JSON.stringify({ ...parseJson(values.status, {}), openingMeeting: {
+        ...data.openingMeeting, heldAtLocal: req.body.openingMeeting.heldAt,
+      } });
+    }
     if ((auditMeta(locked).reportNumber || currentChecklist.some(item => item.findingNumber)) && locked.auditPlanId !== plan.id) {
       throw new HttpError(409, "An audit with an issued Report or Finding Number cannot be moved to a different Audit Plan.");
     }
@@ -2734,7 +2767,15 @@ router.delete("/audits/:id", asyncHandler(async (req, res) => {
 router.get("/audits/:id/attendee-options", asyncHandler(async (req, res) => {
   const auditId = String(req.params.id);
   await assertAuditRecordAccess(req, "audit", auditId);
-  res.json(await eligibleMeetingAttendees(actor(req).organizationId));
+  const eligible = await eligibleMeetingAttendees(actor(req).organizationId);
+  const [row] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, auditId)));
+  const meta = row ? auditMeta(row) : {};
+  const savedIds = [...(meta.openingMeeting?.attendees ?? []), ...(meta.closingMeeting?.attendees ?? [])]
+    .filter((id: string) => /^[0-9a-f-]{36}$/i.test(id) && !eligible.some(user => user.id.toLowerCase() === id.toLowerCase()));
+  // Retained names remain visible even after a role is removed or a user is deleted.
+  const retained = savedIds.length ? await db.select({ id: users.id, fullName: users.fullName, designation: users.designation })
+    .from(users).where(and(eq(users.organizationId, actor(req).organizationId), inArray(users.id, savedIds))) : [];
+  res.json([...eligible, ...retained.map(user => ({ ...user, canSelect: false }))]);
 }));
 
 async function updateMeeting(req: Request, kind: "opening" | "closing", schema: { safeParse: (value: unknown) => any }) {
@@ -2756,7 +2797,11 @@ async function updateMeeting(req: Request, kind: "opening" | "closing", schema: 
     const [locked] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId),
       eq(audits.id, before.id))).for("update");
     if (!locked) throw new HttpError(404, "Audit not found");
+    if (kind === "opening") {
+      await assertOpeningMeetingWrite(tx, req, locked.auditPlanId, req.body.heldAt);
+    }
     const meta = auditMeta(locked); meta[`${kind}Meeting`] = { ...data, heldAt: data.heldAt.toISOString() };
+    if (kind === "opening" && meta.openingMeeting) meta.openingMeeting.heldAtLocal = req.body.heldAt;
     if (kind === "opening" && !meta.startedAt) meta.startedAt = data.heldAt.toISOString();
     const [row] = await tx.update(audits).set({
       status: JSON.stringify(meta), [kind === "opening" ? "openingMeetingMinutes" : "closingMeetingMinutes"]: data.minutes,
@@ -4057,7 +4102,7 @@ async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
     ...(auditMeta(audit).openingMeeting?.attendees ?? []), ...(auditMeta(audit).closingMeeting?.attendees ?? []), ...cars.map(c => c.ownerId),
   ].filter((id): id is string => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)))];
   const nameRows = userIds.length ? await db.select({ id: users.id, name: users.fullName, designation: users.designation }).from(users).where(and(
-    eq(users.organizationId, actor(req).organizationId), inArray(users.id, userIds), isNull(users.deletedAt))) : [];
+    eq(users.organizationId, actor(req).organizationId), inArray(users.id, userIds))) : [];
   const roleIds = mappedPlan?.auditeeRoleIds ?? [];
   const roleRows = roleIds.length ? await db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles).where(and(
     active(auditWorkspaceRoles, actor(req).organizationId), inArray(auditWorkspaceRoles.id, roleIds))) : [];

@@ -12,6 +12,15 @@ function validDay(value: unknown): value is string {
     && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
 }
 const displayDay = (value: string) => `${value.slice(8, 10)}/${value.slice(5, 7)}/${value.slice(0, 4)}`;
+/** Validate raw wall-clock input before any Date coercion changes its calendar day. */
+export function openingMeetingDateError(heldAt: unknown, from: unknown, to: unknown): string | null {
+  const range = getAuditPlanDateRange(from, to);
+  if (!range) return "The linked individual audit must have valid From Date and To Date values. Correct the Audit schedule dates before saving the Opening meeting.";
+  const day = plannedDate(heldAt);
+  if (!day || typeof heldAt !== "string" || !heldAt.includes("T")) return `Opening meeting Held at: enter a valid date and time within ${range.label}.`;
+  if (day < range.from || day > range.to) return `Opening meeting Held at must be within ${range.label}, using the linked individual audit's From Date and To Date.`;
+  return null;
+}
 export function getAuditPlanDateRange(from: unknown, to: unknown) {
   const sourceDay = (value: unknown) => {
     if (value instanceof Date) return Number.isFinite(value.getTime()) ? value.toISOString().slice(0, 10) : null;

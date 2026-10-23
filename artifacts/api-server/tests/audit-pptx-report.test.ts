@@ -19,7 +19,41 @@ const sections = () => buildConsolidatedAuditReport({
   plan: { leadAuditorId: "auditor", auditTypes: ["Internal"], activities: [], startDateTime: "2026-10-01", endDateTime: "2026-10-02" },
   legacyFindings: [], cars: [], evidence: [], names: new Map([["auditor", "Recorded Auditor"]]), roleNames: new Map(),
 });
+
 describe("Original Audit PowerPoint report template", () => {
+  it.each([false, true])("derives missing closing attendees, never manual participation text (PPTX: %s)", pptxWorkbookMappings => {
+    const a = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa", b = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
+    const build = (openingMeeting?: unknown, closingMeeting?: unknown) => buildConsolidatedAuditReport({
+      audit: { title: "Audit", openingMeeting, closingMeeting, reportDetails: { values: { notRepresented: "Example manager" }, rows: {} } },
+      names: new Map([[a, "Same Name"], [b, "Same Name"]]), roleNames: new Map(), legacyFindings: [], cars: [], evidence: [], pptxWorkbookMappings,
+    }).find(s => s.key === "programme")!.fields.find(f => f.label === "Not represented in Closing meeting")!.value;
+    expect(build({ attendees: [a, b, b.toUpperCase(), "", "Legacy attendee"] }, { attendees: [a] })).toBe("Same Name, Legacy attendee");
+    expect(build({ attendees: [a, b] }, { attendees: [a, b] })).toBe("None");
+    expect(build({ attendees: [] }, { attendees: [] })).toBe("None");
+    expect(build(undefined, { attendees: [] })).toBe(pptxWorkbookMappings ? "-" : "Not recorded");
+    expect(build({ attendees: [a] }, undefined)).toBe(pptxWorkbookMappings ? "-" : "Not recorded");
+    expect(build({ attendees: ["cccccccc-cccc-4ccc-cccc-cccccccccccc"] }, { attendees: [] })).toBe("Former Audit user");
+  });
+  it("continues real missing-attendee names under the exact card heading, preserving branding", async () => {
+    const data = sections();
+    const programme = data.find(s => s.key === "programme")!;
+    const names = Array.from({ length: 30 }, (_, i) => `Recorded attendee ${String(i).padStart(2, "0")}`);
+    programme.fields.find(f => f.label === "Not represented in Closing meeting")!.value = names.join("\n");
+    const result = unzipSync(await renderConsolidatedAuditPptx({ sections: data }));
+    const docs = Object.entries(result).filter(([path]) => /^ppt\/slides\/slide\d+\.xml$/.test(path))
+      .map(([, bytes]) => parse(bytes)).filter(doc => Array.from(doc.getElementsByTagNameNS(A, "t")).some(t => t.textContent === "Audit programme and participation"));
+    expect(docs.length).toBeGreaterThan(1);
+    let output = "";
+    for (const doc of docs) {
+      const shape = (id: number) => Array.from(doc.getElementsByTagNameNS(P, "sp")).find(s => s.getElementsByTagNameNS(P, "cNvPr")[0]?.getAttribute("id") === String(id))!;
+      const strings = (id: number) => Array.from(shape(id).getElementsByTagNameNS(A, "t")).map(t => t.textContent ?? "");
+      expect(strings(37).join(" ")).toBe("Not represented in Closing meeting");
+      expect(shape(38).getElementsByTagNameNS(A, "p").length).toBeLessThanOrEqual(4);
+      output += strings(38).join(" ") + " ";
+    }
+    for (const name of names) expect(output).toContain(name);
+    expect(output).not.toMatch(/Example|Project Manager/);
+  });
   it.each([false, true])("keeps DrawingML paragraph children in schema order (continuations: %s)", async (continuations) => {
     const data = sections();
     data.find(s => s.key === "non-conformities")!.tables[0]!.rows =
@@ -152,6 +186,7 @@ describe("Original Audit PowerPoint report template", () => {
   it("keeps programme dates and long details inside non-overlapping bounded boxes", async () => {
     const data = sections();
     const programme = data.find(s => s.key === "programme")!;
+
     const details = "A long activity description with important details that must be preserved in the downloaded report. ".repeat(15);
     programme.tables[0]!.rows = [[
       "2026-10-12T10:10:00.000Z (derived legacy)", "2026-10-12T10:10:00.000Z (derived legacy)",
@@ -166,6 +201,7 @@ describe("Original Audit PowerPoint report template", () => {
     for (const doc of docs) {
       const shape = (id: number) => Array.from(doc.getElementsByTagNameNS(P, "sp")).find(s =>
         s.getElementsByTagNameNS(P, "cNvPr")[0]?.getAttribute("id") === String(id))!;
+
       for (let i = 0; i < 5; i++) {
         const header = shape(10 + i * 3), body = shape(11 + i * 3);
         const box = (node: typeof header) => ({

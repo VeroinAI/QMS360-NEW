@@ -380,8 +380,89 @@ describe("Audit checklist items", () => {
   });
 });
 
+describe("Opening meeting authoritative schedule bounds", () => {
+  it("resolves retained former users for display without making them selectable or exposing UUIDs", async () => {
+    const [former] = await db.insert(users).values({
+      organizationId: orgId, username: `former.meeting.${suffix}`, email: `former.meeting.${suffix}@example.test`,
+      fullName: "Retained former attendee", deletedAt: new Date(),
+    }).returning();
+    const [audit] = await db.insert(audits).values({
+      organizationId: orgId, projectId, referenceNumber: `FORMER-${suffix}`, workflowState: "complete",
+      status: JSON.stringify({
+        openingMeeting: { heldAt: "2026-10-04T10:00Z", attendees: [former!.id], minutes: "Opening" },
+        closingMeeting: { heldAt: "2026-10-04T15:00Z", attendees: [], minutes: "Closing" },
+        reportDetails: { values: { notRepresented: "Old manual roles" }, rows: {} },
+      }),
+    }).returning();
+    const options = await api("GET", `/audit/audits/${audit!.id}/attendee-options`, { token: admin.token });
+    expect(options.json.find((u: any) => u.id === former!.id)).toMatchObject({ fullName: "Retained former attendee", canSelect: false });
+    const report = await api("GET", `/audit/audits/${audit!.id}/report`, { token: admin.token });
+    expect(report.status).toBe(200);
+    const programme = report.json.sections.find((s: any) => s.key === "programme");
+    expect(programme.fields.find((f: any) => f.label === "Not represented in Closing meeting")?.value).toBe("Retained former attendee");
+    expect(programme.fields.some((f: any) => String(f.value).includes(former!.id))).toBe(false);
+  });
+  it("rejects direct API bypasses, includes both boundary days, and preserves invalid history until corrected", async () => {
+    const [schedule] = await db.insert(auditSchedules).values({
+      organizationId: orgId, projectId, title: "Authoritative date source", year: 2026,
+      status: JSON.stringify({ plannedStartDate: "2026-10-04", plannedEndDate: "2026-10-06" }),
+    }).returning();
+    const [plan] = await db.insert(auditPlans).values({ organizationId: orgId, projectId, auditScheduleId: schedule!.id }).returning();
+    const [audit] = await db.insert(audits).values({
+      organizationId: orgId, projectId, auditPlanId: plan!.id, referenceNumber: `BOUNDS-${suffix}`,
+      status: JSON.stringify({ openingMeeting: { heldAt: "2026-10-01T10:00:00.000Z", attendees: [], minutes: "Historical" } }),
+    }).returning();
+    const path = `/audit/audits/${audit!.id}`;
+    const save = (heldAt: string) => api("PUT", `${path}/opening-meeting`, {
+      token: admin.token, body: { heldAt, attendees: [], minutes: "Recorded minutes" },
+    });
+    const old = await api("GET", path, { token: admin.token });
+    expect(old.json.openingMeeting.heldAt).toBe("2026-10-01T10:00:00.000Z");
+    expect(old.json.openingMeetingBounds).toEqual({ fromDate: "2026-10-04", toDate: "2026-10-06" });
+    for (const value of ["2026-10-01T10:00", "2026-10-03T23:59-12:00", "2026-10-07T00:00+14:00"]) {
+      await expectUnprocessable(await save(value), "04/10/2026 to 06/10/2026 (inclusive)");
+    }
+    const legacyPayload = {
+      id: audit!.id, planId: plan!.id, projectId, title: "Boundary audit", status: "Planned",
+      openingMeeting: { heldAt: "2026-10-03T23:59", heldAtLocal: "2026-10-04T00:00", attendees: [], minutes: "Bypass attempt" },
+    };
+    await expectUnprocessable(await api("PUT", path, { token: admin.token, body: legacyPayload }), "04/10/2026 to 06/10/2026");
+    await expectUnprocessable(await api("POST", "/audit/audits", { token: admin.token,
+      body: { ...legacyPayload, id: crypto.randomUUID() } }), "04/10/2026 to 06/10/2026");
+    const unchanged = await api("GET", path, { token: admin.token });
+    expect(unchanged.json.openingMeeting).toEqual(old.json.openingMeeting);
+    for (const value of ["2026-10-04T00:00", "2026-10-06T23:59:59.999", "2026-10-04T00:01+14:00", "2026-10-06T23:59-12:00"]) {
+      const result = await save(value);
+      expect(result.status, JSON.stringify(result.json)).toBe(200);
+      expect(result.json.openingMeeting.heldAtLocal).toBe(value);
+      expect(result.json.openingMeeting.heldAt).toBe(new Date(value).toISOString());
+    }
+    for (const meta of [
+      { plannedStartDate: "2026-10-04" },
+      { plannedStartDate: "2026-02-30", plannedEndDate: "2026-10-06" },
+      { programme: true, plannedStartDate: "2026-01-01", plannedEndDate: "2026-12-31" },
+      {},
+    ]) {
+      await db.update(auditSchedules).set({ status: JSON.stringify(meta) }).where(eq(auditSchedules.id, schedule!.id));
+      await expectUnprocessable(await save("2026-10-04T10:00"), "Correct the Audit schedule dates");
+    }
+    await db.update(auditSchedules).set({ status: JSON.stringify({ plannedStartDate: "2026-10-04", plannedEndDate: "2026-10-04" }) }).where(eq(auditSchedules.id, schedule!.id));
+    for (const value of ["2026-10-04T00:00", "2026-10-04T23:59:59.999"]) expect((await save(value)).status).toBe(200);
+    await expectUnprocessable(await save("2026-10-05T00:00"), "04/10/2026 to 04/10/2026");
+    // Closing meeting rules are deliberately unchanged.
+    expect((await api("PUT", `${path}/closing-meeting`, { token: admin.token,
+      body: { heldAt: "2026-12-31T12:00", attendees: [], minutes: "Closing" } })).status).toBe(200);
+  });
+});
+
 describe("Audit meeting attendee selection", () => {
   it("offers active Audit users and preserves selected IDs and legacy names in both meetings", async () => {
+    const [schedule] = await db.insert(auditSchedules).values({
+      organizationId: orgId, projectId, title: "Meeting audit", year: 2026,
+      status: JSON.stringify({ plannedStartDate: "2026-10-10", plannedEndDate: "2026-10-10" }),
+    }).returning();
+    const [plan] = await db.insert(auditPlans).values({ organizationId: orgId, projectId, auditScheduleId: schedule!.id }).returning();
+    await db.update(audits).set({ auditPlanId: plan!.id }).where(eq(audits.id, auditId));
     const [role] = await db.select().from(auditWorkspaceRoles).where(eq(auditWorkspaceRoles.organizationId, orgId)).limit(1);
     const [attendee] = await db.insert(users).values({
       organizationId: orgId, username: `meeting.attendee.${suffix}`,

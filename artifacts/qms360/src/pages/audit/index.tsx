@@ -6,10 +6,11 @@ import { activityRoleDefaults, activityAuditeeDefaults, activityAuditeeIds, with
 import { ActivityMultiSelect, ScheduleActivityRoleFields } from "./activity-role-fields";
 import { auditTeamLeadLabel } from "./team-lead-label";
 import { ScheduleActivityButton } from "./schedule-activity";
-import { getAuditPlanDateRange, hasAuditActivityAuditeeSelection } from "@workspace/field-controls";
+import { getAuditPlanDateRange, hasAuditActivityAuditeeSelection, openingMeetingDateError } from "@workspace/field-controls";
 import { appendChecklistEvidence, uploadChecklistEvidence, type PendingChecklistEvidence } from "./checklist-evidence-uploads";
 import { CarRegister, CarResponseDialog, CarReviewDialog } from "./car-register";
 import { PlanDateTimeField } from "./plan-date-time-field";
+import { MeetingHeldAt } from "./meeting-held-at";
 import { useEffect, useRef, useState } from "react";
 import { Link, Route, Switch, useLocation, useParams } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2016,38 +2017,50 @@ function Audits() {
 }
 
 function MeetingEditor({ auditId, kind, value, openingAttendees }: { auditId: string; kind: "opening" | "closing"; value?: MeetingMinutes; openingAttendees?: readonly string[] }) {
-  const [form, setForm] = useState<MeetingMinutes>(value ?? { heldAt: "", attendees: [], minutes: "" });
+  const [form, setForm] = useState<MeetingMinutes>(value ? { ...value,
+    heldAt: kind === "opening" ? value.heldAtLocal ?? value.heldAt : value.heldAt,
+  } : { heldAt: "", attendees: [], minutes: "" });
   const [attendeePickerOpen, setAttendeePickerOpen] = useState(false);
   const qc = useQueryClient(); const { toast } = useToast();
   const permissions = useAuditCapabilities();
   const fa = useFieldAccess("audit"); const locked = !permissions.can("audits", "create_edit") || fa.readOnly("audit-execution", `${kind}Meeting`);
   const opening = useUpdateAuditOpeningMeeting(); const closing = useUpdateAuditClosingMeeting();
   const attendeeOptions = useListAuditMeetingAttendees(auditId);
+  const auditContext = useGetAudit(auditId);
+  const bounds = auditContext.data?.openingMeetingBounds;
+  const dateError = kind === "opening" ? openingMeetingDateError(form.heldAt, bounds?.fromDate, bounds?.toDate) : null;
   const users = attendeeOptions.data ?? [];
+  const selectableUsers = users.filter(user => user.canSelect !== false);
   const toggleAttendee = (id: string) => setForm(current => ({
     ...current, attendees: current.attendees.includes(id)
       ? current.attendees.filter(value => value !== id) : [...current.attendees, id],
   }));
   const save = () => {
+    if (dateError) { toast({ title: "Unable to save Opening meeting", description: dateError, variant: "destructive" }); return; }
     if (!form.heldAt || !form.minutes) { toast({ title: "Date and minutes are required", variant: "destructive" }); return; }
     const mutation = kind === "opening" ? opening : closing;
     mutation.mutate({ id: auditId, data: form }, {
-      onSuccess: () => { void qc.invalidateQueries({ queryKey: [`/api/audit/audits/${auditId}`] }); toast({ title: `${kind === "opening" ? "Opening" : "Closing"} minutes saved` }); },
+      onSuccess: () => {
+        void qc.invalidateQueries({ queryKey: [`/api/audit/audits/${auditId}`] });
+        void qc.invalidateQueries({ queryKey: [`/api/audit/audits/${auditId}/report`] });
+        toast({ title: `${kind === "opening" ? "Opening" : "Closing"} minutes saved` });
+      },
       onError: error => toast({ title: "Unable to save meeting minutes", description: errorText(error), variant: "destructive" }),
     });
   };
   return <Card><CardHeader><CardTitle className="capitalize">{kind} meeting minutes</CardTitle></CardHeader><CardContent className="space-y-4">
-    <div><Label>Held at</Label><Input type="datetime-local" value={form.heldAt?.slice(0,16)} disabled={locked} onChange={e=>setForm(v=>({...v,heldAt:e.target.value}))}/></div>
+    <MeetingHeldAt kind={kind} value={form.heldAt ?? ""} locked={locked} loading={auditContext.isLoading}
+      from={bounds?.fromDate} to={bounds?.toDate} onChange={heldAt => setForm(v => ({ ...v, heldAt }))}/>
     <div className="space-y-2">
       <Label id={`${kind}-meeting-attendees`}>Attendees</Label>
       <Popover open={attendeePickerOpen} onOpenChange={setAttendeePickerOpen}>
         <PopoverTrigger asChild><Button type="button" variant="outline" role="combobox" aria-labelledby={`${kind}-meeting-attendees`} aria-expanded={attendeePickerOpen} disabled={locked || attendeeOptions.isLoading || !!attendeeOptions.error} className="w-full justify-between font-normal">{attendeeOptions.isLoading ? "Loading Audit users…" : `Select Audit users${form.attendees.length ? ` (${form.attendees.length} selected)` : ""}`}<ChevronDown className="ml-2 size-4 opacity-50"/></Button></PopoverTrigger>
-        <PopoverContent align="start" className="w-[min(28rem,calc(100vw-2rem))] p-0"><Command><CommandInput placeholder="Search Audit users…"/><CommandList><CommandEmpty>No matching Audit users.</CommandEmpty><CommandGroup>{users.map(user => <CommandItem key={user.id} value={`${user.fullName} ${user.designation ?? ""} ${user.id}`} onSelect={() => toggleAttendee(user.id)}><Check className={`mr-2 size-4 ${form.attendees.includes(user.id) ? "opacity-100" : "opacity-0"}`}/><span>{user.fullName}{user.designation ? <span className="text-muted-foreground"> — {user.designation}</span> : null}</span></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent>
+        <PopoverContent align="start" className="w-[min(28rem,calc(100vw-2rem))] p-0"><Command><CommandInput placeholder="Search Audit users…"/><CommandList><CommandEmpty>No matching Audit users.</CommandEmpty><CommandGroup>{selectableUsers.map(user => <CommandItem key={user.id} value={`${user.fullName} ${user.designation ?? ""} ${user.id}`} onSelect={() => toggleAttendee(user.id)}><Check className={`mr-2 size-4 ${form.attendees.includes(user.id) ? "opacity-100" : "opacity-0"}`}/><span>{user.fullName}{user.designation ? <span className="text-muted-foreground"> — {user.designation}</span> : null}</span></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent>
       </Popover>
       {attendeeOptions.error && <p className="text-sm text-destructive">Unable to load Audit users. <button type="button" className="underline" onClick={() => void attendeeOptions.refetch()}>Retry</button></p>}
       {form.attendees.length > 0 && <div className="flex flex-wrap gap-2">{form.attendees.map(id => <Badge key={id} variant="secondary" className="gap-1.5 py-1">{meetingAttendeeLabel(id, users)}{!locked && <button type="button" aria-label={`Remove ${meetingAttendeeLabel(id, users)}`} onClick={() => toggleAttendee(id)}><XCircle className="size-3.5"/></button>}</Badge>)}</div>}
     </div>
-    {kind === "closing" && <NotRepresentedClosingAttendees opening={openingAttendees} closing={form.attendees}
+    {kind === "closing" && <NotRepresentedClosingAttendees opening={openingAttendees} closing={value || form.heldAt || form.minutes || form.attendees.length ? form.attendees : undefined}
       users={users} loading={attendeeOptions.isLoading} error={!!attendeeOptions.error}/>}
     <div><Label>Minutes</Label><Textarea rows={8} value={form.minutes} disabled={locked} onChange={e=>setForm(v=>({...v,minutes:e.target.value}))}/></div><Button onClick={save} disabled={locked || opening.isPending || closing.isPending || attendeeOptions.isLoading || !!attendeeOptions.error}>Save minutes</Button>
   </CardContent></Card>;

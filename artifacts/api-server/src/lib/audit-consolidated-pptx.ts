@@ -236,6 +236,8 @@ export async function renderConsolidatedAuditPptx(input: {
         cells.forEach((cell, col) => setText(cell, col === 0 ? (slideNumber === 11 ? "Non-conformities" : "Opportunities for improvement") : ""));
       }
       if (slideNumber === 5) {
+        programmeBox(doc, 37, "Not represented in\nClosing meeting", 1100, 1250,
+          { y: 5010912, width: 3657600, height: 317500 });
         for (let i = 0; i < 5; i++) {
           const row = activities[page]?.[i];
           const top = 1892808 + i * 868680;

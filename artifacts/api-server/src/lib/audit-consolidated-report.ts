@@ -1,6 +1,7 @@
 import { formatDate, formatDateInTimeZone } from "@workspace/spreadsheet-dates";
 import { auditReportDetailGroups, datedActivities, plannedDate, type AuditReportDetailsData } from "@workspace/field-controls";
 import { fillAuditPptxWorkbookFields, recordedGoodPractice } from "./audit-pptx-workbook-fields";
+import { meetingAttendeeLabel, notRepresentedClosingAttendees, NOT_REPRESENTED_CLOSING } from "@workspace/field-controls";
 
 type Row = Record<string, any>;
 export type ReportSectionData = {
@@ -110,7 +111,10 @@ export function buildConsolidatedAuditReport(input: {
   fields(programme, [
     ["Opening meeting", date(audit.openingMeeting?.heldAt)], ["Opening minutes", audit.openingMeeting?.minutes],
     ["Audit team", namesOf(plan?.teamMemberIds)], ["Auditees present", namesOf(audit.openingMeeting?.attendees)],
-    ["Not represented", recorded("notRepresented")], ["Closing meeting", date(audit.closingMeeting?.heldAt)],
+    [NOT_REPRESENTED_CLOSING, Array.isArray(audit.openingMeeting?.attendees) && Array.isArray(audit.closingMeeting?.attendees)
+      ? notRepresentedClosingAttendees(audit.openingMeeting.attendees, audit.closingMeeting.attendees)
+        .map(id => meetingAttendeeLabel(id, Array.from(names, ([id, fullName]) => ({ id, fullName })))).join(", ") || "None"
+      : missing], ["Closing meeting", date(audit.closingMeeting?.heldAt)],
     ["Closing minutes", audit.closingMeeting?.minutes],
   ]);
   const checklist: Row[] = audit.checklist ?? [];

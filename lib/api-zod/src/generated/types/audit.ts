@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AuditAdditionalDocuments } from './auditAdditionalDocuments';
+import type { AuditOpeningMeetingBounds } from './auditOpeningMeetingBounds';
 import type { AuditReportDetails } from './auditReportDetails';
 import type { AuditStatus } from './auditStatus';
 import type { ChecklistItem } from './checklistItem';
@@ -31,6 +32,7 @@ export interface Audit {
   canEdit?: boolean;
   openingMeeting?: MeetingMinutes;
   closingMeeting?: MeetingMinutes;
+  readonly openingMeetingBounds?: AuditOpeningMeetingBounds;
   checklist?: ChecklistItem[];
   additionalDocuments?: AuditAdditionalDocuments;
   reportDetails?: AuditReportDetails;

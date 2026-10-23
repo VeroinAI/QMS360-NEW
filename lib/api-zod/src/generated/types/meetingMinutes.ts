@@ -8,6 +8,8 @@
 
 export interface MeetingMinutes {
   heldAt: Date;
+  /** Original Opening meeting wall-clock input retained without shifting its calendar day */
+  readonly heldAtLocal?: string;
   attendees: string[];
   minutes: string;
   evidenceIds?: string[];

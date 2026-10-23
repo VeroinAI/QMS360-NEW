@@ -37,7 +37,8 @@ export function auditPptxMappings(sections: ReportSectionData[]): Map<number, Pp
   put(5, {
     5: `${field("cover", "Audit reference")} | ${field("cover", "Project / process / site")}`,
     7: `Daily programme (${field("cover", "Audit dates")})`,
-    28: field("programme", "Audit team"), 33: field("programme", "Auditees present"), 38: field("programme", "Not represented"),
+    28: field("programme", "Audit team"), 33: field("programme", "Auditees present"),
+    37: "Not represented in Closing meeting", 38: field("programme", "Not represented in Closing meeting"),
   });
   put(6, {
     ...keyed("executive-summary", [5, 8, 11, 14, 17, 32, 35], ["Non-conformities", "Opportunities for improvement", "Major", "Moderate", "Minor", "Overall conclusion", "Key messages"]),

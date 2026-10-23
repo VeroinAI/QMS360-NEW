@@ -4349,6 +4349,7 @@ components:
       type: object
       required: [id, fullName]
       properties:
+        canSelect: {type: boolean, description: False for retained former meeting attendees shown for display only}
         id: {type: string}
         fullName: {type: string}
         designation: {type: [string, "null"]}
@@ -4495,7 +4496,12 @@ components:
     MeetingMinutes:
       type: object
       required: [heldAt, attendees, minutes]
-      properties: {heldAt: {type: string, format: date-time}, attendees: {type: array, items: {type: string}}, minutes: {type: string}, evidenceIds: {type: array, items: {type: string}}}
+      properties:
+        heldAt: {type: string, format: date-time}
+        heldAtLocal: {type: string, readOnly: true, description: Original Opening meeting wall-clock input retained without shifting its calendar day}
+        attendees: {type: array, items: {type: string}}
+        minutes: {type: string}
+        evidenceIds: {type: array, items: {type: string}}
     ChecklistItem:
       type: object
       required: [id, question]
@@ -4617,7 +4623,29 @@ components:
     Audit:
       type: object
       required: [id, planId, projectId, title, status]
-      properties: {id: {type: string}, planId: {type: string}, planNumber: {type: [string, "null"], readOnly: true, description: Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable}, reportNumber: {type: [string, "null"], readOnly: true, description: Immutable server-generated Audit Report number issued on first successful report-details save}, projectId: {type: string}, title: {type: string}, status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Complete, Closed, Deleted]}, canEdit: {type: boolean, description: Whether the current user has Audit edit access in this record scope}, openingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}, checklist: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}, additionalDocuments: {$ref: "#/components/schemas/AuditAdditionalDocuments"}, reportDetails: {$ref: "#/components/schemas/AuditReportDetails"}, startedAt: {type: [string, "null"], format: date-time}, closedAt: {type: [string, "null"], format: date-time}}
+      properties:
+        id: {type: string}
+        planId: {type: string}
+        planNumber: {type: [string, "null"], readOnly: true, description: Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable}
+        reportNumber: {type: [string, "null"], readOnly: true, description: Immutable server-generated Audit Report number issued on first successful report-details save}
+        projectId: {type: string}
+        title: {type: string}
+        status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Complete, Closed, Deleted]}
+        canEdit: {type: boolean, description: Whether the current user has Audit edit access in this record scope}
+        openingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}
+        closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}
+        openingMeetingBounds:
+          type: object
+          readOnly: true
+          required: [fromDate, toDate]
+          properties:
+            fromDate: {type: [string, "null"]}
+            toDate: {type: [string, "null"]}
+        checklist: {type: array, items: {$ref: "#/components/schemas/ChecklistItem"}}
+        additionalDocuments: {$ref: "#/components/schemas/AuditAdditionalDocuments"}
+        reportDetails: {$ref: "#/components/schemas/AuditReportDetails"}
+        startedAt: {type: [string, "null"], format: date-time}
+        closedAt: {type: [string, "null"], format: date-time}
     AuditReportDetails:
       type: object
       required: [values, rows]

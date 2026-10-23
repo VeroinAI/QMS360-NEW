@@ -3150,6 +3150,8 @@ export interface AuditActivityRoleOption {
 }
 
 export interface AuditPlanUserOption {
+  /** False for retained former meeting attendees shown for display only */
+  canSelect?: boolean;
   id: string;
   fullName: string;
   /** @nullable */
@@ -3667,6 +3669,8 @@ export interface AuditPlan {
 
 export interface MeetingMinutes {
   heldAt: string;
+  /** Original Opening meeting wall-clock input retained without shifting its calendar day */
+  readonly heldAtLocal?: string;
   attendees: string[];
   minutes: string;
   evidenceIds?: string[];
@@ -3964,6 +3968,13 @@ export const AuditStatus = {
   Deleted: 'Deleted',
 } as const;
 
+export type AuditOpeningMeetingBounds = {
+  /** @nullable */
+  readonly fromDate: string | null;
+  /** @nullable */
+  readonly toDate: string | null;
+};
+
 export type AuditReportDetailsValues = {[key: string]: string};
 
 export type AuditReportDetailsRowsItem = {[key: string]: string};
@@ -3995,6 +4006,7 @@ export interface Audit {
   canEdit?: boolean;
   openingMeeting?: MeetingMinutes;
   closingMeeting?: MeetingMinutes;
+  readonly openingMeetingBounds?: AuditOpeningMeetingBounds;
   checklist?: ChecklistItem[];
   additionalDocuments?: AuditAdditionalDocuments;
   reportDetails?: AuditReportDetails;
