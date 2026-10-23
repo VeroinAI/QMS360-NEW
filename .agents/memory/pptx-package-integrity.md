@@ -43,3 +43,13 @@ DrawingML even when paragraph runs themselves are correctly ordered.
 
 **How to apply:** Check both paragraph and paragraph-property ordering whenever
 adding explicit line layout to template text boxes.
+
+When cloning table body rows, use an interior-row prototype rather than the
+first body row, unless the first-row border exceptions are intentionally wanted.
+
+**Why:** The Audit summary template suppresses the first body's top border.
+Repeating that prototype caused Office rendering to suppress separators between
+actual entries even though each cloned row retained a bottom border.
+
+**How to apply:** Keep the header, ordinary body and grand Total styling distinct;
+check row separators in an office-rendered export after rebuilding dynamic tables.

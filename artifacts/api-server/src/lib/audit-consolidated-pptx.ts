@@ -6,6 +6,7 @@ import { auditPptxMappings, mappedText, PPTX_EMPTY, PPTX_UNMAPPED } from "./audi
 import { programmeEntries, programmeLines } from "./audit-programme-pptx-layout";
 import { photographicPages, renderPhotographicPage } from "./audit-pptx-photo-layout";
 import { ofiPages, renderOfiPage } from "./audit-pptx-ofi-layout";
+import { summaryPages, renderSummaryPage } from "./audit-pptx-summary-layout";
 
 export const AUDIT_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -179,8 +180,9 @@ export async function renderConsolidatedAuditPptx(input: {
     const tables = elements(base, A, "tbl");
     const mapping = mappings.get(slideNumber);
     const ofi = slideNumber === 12 ? ofiPages(tables[0]!, mapping?.tables[0] ?? []) : undefined;
+    const summary = slideNumber === 7 ? summaryPages(tables[0]!, mapping?.tables[0] ?? []) : undefined;
     const pages = mapping?.tables.map((rows, i) => {
-      if (slideNumber === 12) return [];
+      if (slideNumber === 12 || slideNumber === 7) return [];
       const start = tableStarts[slideNumber] ?? 1;
       const capacity = elements(tables[i]!, A, "tr").length - start;
       if (capacity < 1) throw new Error("PowerPoint template has no table data rows");
@@ -210,6 +212,7 @@ export async function renderConsolidatedAuditPptx(input: {
     const themes = chunks(themeRows, 3);
     const count = Math.max(1, ...pages.map(p => p.length), slideNumber === 5 ? activities.length : 1,
       ofi?.length ?? 1,
+      summary?.length ?? 1,
       slideNumber === 13 ? photos.length : 1, slideNumber === 7 ? themes.length : 1,
       ...(slideNumber === 5 ? participation.map(p => p.length) : [1]));
     for (let page = 0; page < count; page++) {
@@ -222,7 +225,8 @@ export async function renderConsolidatedAuditPptx(input: {
       }
       const slideTables = elements(doc, A, "tbl");
       for (const [id, text] of Object.entries(mapping?.shapes ?? {})) setShape(doc, Number(id), text);
-      if (ofi) renderOfiPage(doc, slideTables[0]!, ofi[page]!, setText);
+      if (summary) renderSummaryPage(slideTables[0]!, summary[page], setText);
+      else if (ofi) renderOfiPage(doc, slideTables[0]!, ofi[page]!, setText);
       else mapping?.tables.forEach((_, i) => setTable(slideTables[i]!, pages[i]?.[page] ?? [], tableStarts[slideNumber] ?? 1,
         elements(slideTables[i]!, A, "tr").length - (tableStarts[slideNumber] ?? 1), [10, 15].includes(slideNumber),
         slideNumber === 15 ? ["No CAR responses recorded", "—", "—", "—", "—", "—", "—", "—"] : undefined));

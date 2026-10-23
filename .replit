@@ -29,3 +29,23 @@ packages = ["glib", "nss", "nspr", "atk", "at-spi2-atk", "dbus", "mesa", "libxkb
 
 [objectStorage]
 defaultBucketID = "replit-objstore-097341e0-ad10-4a0b-b540-eb56803c5c6c"
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 18287
+externalPort = 80
+
+[[ports]]
+localPort = 22845
+externalPort = 3001
+
+[[ports]]
+localPort = 23479
+externalPort = 3000

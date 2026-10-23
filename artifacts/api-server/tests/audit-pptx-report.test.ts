@@ -53,12 +53,17 @@ describe("Original Audit PowerPoint report template", () => {
       const source = parse(original[path]!); const output = parse(result[path]!);
       for (const tag of ["xfrm", "tblPr", "tblGrid", "tcPr"]) {
         // Programme text boxes are intentionally widened/repositioned to fix overflow.
-        if ([5, 10, 12, 13, 15].includes(slide) && tag === "xfrm") continue;
+        if ([5, 7, 10, 12, 13, 15].includes(slide) && tag === "xfrm") continue;
         const rendered = Array.from(output.getElementsByTagNameNS(A, tag)).map(n => n.toString());
         const originalParts = Array.from(source.getElementsByTagNameNS(A, tag)).map(n => n.toString());
         // CAR rows now follow the actual response count; retained rows keep the template styling.
         // OFI keeps cell styling, but explicitly top-aligns and pads actual rows.
-        if (slide === 12 && tag === "tcPr") {
+        if (slide === 7 && tag === "tcPr") {
+          // Summary body rows all use the body prototype; Total uses the branded final row.
+          const cells = Array.from(source.getElementsByTagNameNS(A, "tr"));
+          const cellProps = (index: number) => Array.from(cells[index]!.getElementsByTagNameNS(A, "tcPr")).map(n => n.toString());
+          expect(rendered).toEqual([...cellProps(0), ...cellProps(2), ...cellProps(2), ...cellProps(cells.length - 1)]);
+        } else if (slide === 12 && tag === "tcPr") {
           const normalize = (part: string) => part.replace(/marT="\d+"|marB="\d+"|anchor="[^"]+"/g, "");
           expect(rendered.map(normalize)).toEqual(originalParts.slice(0, rendered.length).map(normalize));
         } else expect(rendered).toEqual([10, 13, 15].includes(slide) && tag === "tcPr" ? originalParts.slice(0, rendered.length) : originalParts);
