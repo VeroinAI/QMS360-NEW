@@ -5,10 +5,12 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { EmailCcRecipient } from './emailCcRecipient';
 import type { EmailRecipientConfigBodyRichText } from './emailRecipientConfigBodyRichText';
 import type { EmailRecipientConfigSenderMode } from './emailRecipientConfigSenderMode';
 
 export interface EmailRecipientConfig {
+  ccRecipient?: EmailCcRecipient;
   roleName?: string;
   roleNames?: string[];
   /**

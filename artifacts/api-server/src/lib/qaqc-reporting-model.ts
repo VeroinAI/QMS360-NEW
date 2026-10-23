@@ -57,11 +57,11 @@ export type ReportComputed = MonthlyReportComputed | DailyReportComputed | CsatR
 
 const METRICS = ["external_ncr", "internal_ncr", "rfi", "rmi"] as const;
 export const QMS_DEPARTMENTS = ["HSSE", "Quality", "Finance", "Fleet & Facilities Management", "Human Resources", "Group Digital & Technology", "Operations"] as const;
-const DISCIPLINES = ["Civil", "Mechanical", "Structural", "Electrical", "Instrumentation"] as const;
-const DAILY_STATUSES = ["approved", "resubmit", "rejected", "underReview"] as const;
-const ENTITIES = ["Client", "Algihaz", "Supplier"] as const;
-const PENDING_STATUSES = ["underReview", "A", "B", "C", "D", "E"] as const;
-const BUCKETS = ["upTo7", "days8To30", "over30"] as const;
+export const DISCIPLINES = ["Civil", "Mechanical", "Structural", "Electrical", "Instrumentation"] as const;
+export const DAILY_STATUSES = ["approved", "resubmit", "rejected", "underReview"] as const;
+export const ENTITIES = ["Client", "Algihaz", "Supplier"] as const;
+export const PENDING_STATUSES = ["underReview", "A", "B", "C", "D", "E"] as const;
+export const BUCKETS = ["upTo7", "days8To30", "over30"] as const;
 export const DAILY_DOCUMENT_TYPES = ["Drawings", "Material Submittals", "Method Statements", "ITPs", "RFIs", "Procedures", "Calculations", "Vendors"] as const;
 export const DAILY_REJECTED_SUBMISSION_TYPES = ["drawing", "materials", "calculation", "general"] as const;
 const LEGACY_DOCUMENT_TYPES = ["CVs", "PQP", "IFR"] as const;

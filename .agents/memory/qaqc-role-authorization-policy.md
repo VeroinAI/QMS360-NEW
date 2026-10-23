@@ -2,6 +2,17 @@
 name: QA/QC role authorization policy
 description: Default-role editing, legacy compatibility and QA/QC-only scope boundaries
 ---
+QA/QC Metrics and Daily landing-page assignment highlighting identifies only
+the selected current approver of a submitted report, not all eligible users in
+that approval level or later levels. Other report states have no pending-action
+highlight, even if an old approver remains recorded.
+
+**Why:** The user requested the same “Assigned to you” behavior as Lessons Learned
+for the logged-in person whose approval is currently pending.
+
+**How to apply:** Keep the indicator separate from access grants and the approval
+workflow; highlighting must never widen project or organization visibility.
+
 Keep QA/QC default role identities and protected metadata stable while allowing administrators to change their activity permissions in place.
 
 **Why:** The user needs to configure the existing QAQC Representative role, not clone it or replace existing user assignments when saving permissions.

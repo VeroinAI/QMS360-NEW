@@ -5,6 +5,55 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+export interface DailyOpeningProject {
+  id: string;
+  name: string;
+  label: string;
+  loaded: boolean;
+  blocked: boolean;
+  /** @nullable */
+  goLiveDate: string | null;
+  reason?: string;
+}
+
+export interface DailyOpeningUpload {
+  /** @maxLength 2800000 */
+  fileBase64: string;
+}
+
+export type DailyOpeningRowData = { [key: string]: unknown };
+
+export interface DailyOpeningRow {
+  projectId: string;
+  projectName?: string;
+  goLiveDate: string;
+  reason: string;
+  rowNumber: number;
+  data: DailyOpeningRowData;
+  errors?: string[];
+}
+
+export type DailyOpeningPreviewFieldsItem = {
+  key: string;
+  label: string;
+};
+
+export interface DailyOpeningPreview {
+  valid: boolean;
+  rows: DailyOpeningRow[];
+  errors: string[];
+  fields: DailyOpeningPreviewFieldsItem[];
+}
+
+export interface DailyOpeningApply {
+  confirmed: true;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  items: DailyOpeningRow[];
+}
+
 export interface QaqcHistoricalBulkUpload {
   period: string;
   /** @maxLength 2800000 */
@@ -466,6 +515,43 @@ export const EmailEventRuleRecipientMode = {
   linked_creator: 'linked_creator',
 } as const;
 
+export type EmailCcRecipientMode = typeof EmailCcRecipientMode[keyof typeof EmailCcRecipientMode];
+
+
+export const EmailCcRecipientMode = {
+  all_users: 'all_users',
+  internal_user: 'internal_user',
+  external_email: 'external_email',
+  workspace_role: 'workspace_role',
+  project_members: 'project_members',
+  project_role: 'project_role',
+  linked_approver: 'linked_approver',
+  linked_creator: 'linked_creator',
+} as const;
+
+export interface EmailCcRecipient {
+  mode: EmailCcRecipientMode;
+  /** @pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ */
+  userId?: string;
+  /** @maxLength 200 */
+  name?: string;
+  /** @maxLength 320 */
+  email?: string;
+  /** @maxLength 200 */
+  roleName?: string;
+  /**
+     * @maxItems 100
+     * @items.minLength 1
+     * @items.maxLength 200
+     */
+  roleNames?: string[];
+  /**
+     * @maxItems 100
+     * @items.pattern ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+     */
+  projectIds?: string[];
+}
+
 export type EmailRecipientConfigSenderMode = typeof EmailRecipientConfigSenderMode[keyof typeof EmailRecipientConfigSenderMode];
 
 
@@ -481,6 +567,7 @@ export const EmailRecipientConfigSenderMode = {
 export type EmailRecipientConfigBodyRichText = { [key: string]: unknown } | null;
 
 export interface EmailRecipientConfig {
+  ccRecipient?: EmailCcRecipient;
   roleName?: string;
   roleNames?: string[];
   /**
@@ -4752,6 +4839,18 @@ export const ReportFormatParameter = {
   csv: 'csv',
   xlsx: 'xlsx',
 } as const;
+
+export type GetDailyOpeningProjects200 = {
+  items?: DailyOpeningProject[];
+};
+
+export type DownloadDailyOpeningTemplateParams = {
+goLiveDate: string;
+};
+
+export type ApplyDailyOpeningWorkbook200 = {
+  applied?: number;
+};
 
 export type GetQaqcHistoricalBulkTemplateParams = {
 period: string;

@@ -23,6 +23,7 @@ import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import { exactReportVersion } from "../lib/qaqc-report-version";
 import { MONTHLY_APPROVAL_KEY, reportApprovalKey, isSequentialReportType, readMonthlyApproval, loadMonthlyApprovalStages, startMonthlyApproval, advanceMonthlyApproval, hasMonthlyReviewHistory } from "../lib/qaqc-monthly-approval";
 import { getHistoricalSetup, historicalBaseline as historicalOpeningBaseline } from "../lib/qaqc-historical-balances";
+import { getDailyOpening, assertDailyOpeningDate } from "../lib/qaqc-daily-historical";
 import {
   buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, DAILY_DOCUMENT_TYPES, DAILY_REJECTED_SUBMISSION_TYPES, type CsatReportComputed, type DailyReportComputed,
   type MonthlyReportComputed, type ReportType,
@@ -250,6 +251,15 @@ async function latestPrior(organizationId: string, projectId: string, type: Repo
 export async function historyBaseline(organizationId: string, projectId: string, type: ReportType, period: string, database: Pick<typeof db,"select"> = db) {
   if (type === "csat") return { baseline: {}, previous: null };
   const previous = await latestPrior(organizationId, projectId, type, period, database);
+  if(type==="daily"){
+    const [project]=await database.select({customFields:projects.customFields}).from(projects)
+      .where(and(eq(projects.id,projectId),eq(projects.organizationId,organizationId),isNull(projects.deletedAt))).limit(1);
+    const setup=getDailyOpening(project?.customFields);
+    if(setup){
+      assertDailyOpeningDate(setup.goLiveDate,period);
+      if(!previous)return {baseline:{...setup.data,dailyHistoricalSetup:{goLiveDate:setup.goLiveDate}},previous:null};
+    }
+  }
   if (type === "monthly") {
     const [project] = await database.select({customFields:projects.customFields}).from(projects)
       .where(and(eq(projects.id,projectId),eq(projects.organizationId,organizationId),isNull(projects.deletedAt))).limit(1);
@@ -648,7 +658,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
       peName: allUsers.find((u) => u.id === userId(settings, "peId"))?.fullName ?? null,
       dcName: allUsers.find((u) => u.id === userId(settings, "dcId"))?.fullName ?? null,
     },
-    baseline: { ...baseline, previousPeriod: last?.period ?? null, hasBaseline: !!(baseline as Record<string,unknown>).historicalSetup || !!last || Object.keys(legacy).length > 0, legacyFallback: Object.keys(legacy).length > 0 },
+    baseline: { ...baseline, previousPeriod: last?.period ?? null, hasBaseline: !!(baseline as Record<string,unknown>).historicalSetup || !!(baseline as Record<string,unknown>).dailyHistoricalSetup || !!last || Object.keys(legacy).length > 0, legacyFallback: Object.keys(legacy).length > 0 },
     canStart: !blockedReason,
     blockedReason,
     targets,
@@ -763,7 +773,8 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
         // may have committed while this request was entering its transaction.
         await lockMonthlyCreation(org(req), projectId, period, tx);
       }
-      const fresh=type==="monthly"?await historyBaseline(org(req),projectId,type,period,tx):null;
+      if(type==="daily")await tx.select({id:projects.id}).from(projects).where(and(eq(projects.id,projectId),eq(projects.organizationId,org(req)))).for("update");
+      const fresh=type==="monthly"||type==="daily"?await historyBaseline(org(req),projectId,type,period,tx):null;
       const opening=fresh&&Object.keys(fresh.baseline).length?fresh.baseline:baseline;
       const check=validateReportData(type,data,opening,false);
       if(!check.valid)throw new HttpError(422,check.errors.join("; "));

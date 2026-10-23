@@ -51,7 +51,7 @@ export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
               onChange={e => f.set(['revisions'], moveRevision(revisions, cat, i, e.target.value as Category))}>
               <option value="drawings">Drawing</option><option value="submittals">Submittal</option>
             </select></td>
-            <td className="px-2 py-2"><Input aria-label={`${label} number`} disabled={disabled} value={row.name ?? ''} placeholder="0"
+            <td className="px-2 py-2"><Input data-report-field={`revisions.${cat}.${i}.name`} aria-label={`${label} number`} disabled={disabled} value={row.name ?? ''} placeholder="0"
               onChange={e => f.set(['revisions', cat, i, 'name'], e.target.value)} /></td>
             <td className="px-2 py-2"><Input aria-label={`${label} yesterday approved`} readOnly className="bg-muted/50 text-muted-foreground" value={priorValue(cat, row.name)} /></td>
             <td className="px-2 py-2 [&_input]:h-9 [&_input]:w-full"><NumField bare path={['revisions', cat, i, 'value']} label={`${label} current approved`} /></td>

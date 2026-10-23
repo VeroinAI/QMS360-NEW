@@ -4,6 +4,7 @@ import { Link } from 'wouter';
 import { getGetCurrentUserQueryKey, getGetQaqcSowContextQueryKey, getListQaqcSowReportsQueryKey, useGetCurrentUser, useGetQaqcSowContext, useListQaqcSowReports, type ListQaqcSowReportsParams, type QaqcSowReport } from '@workspace/api-client-react';
 import { Download, Eye, Lock, Pencil, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +16,7 @@ import { Empty, ErrorBox, Loading, StateBadge, errMsg, saveFile } from './shell'
 import { canEditMetricsDocument, canSubmitMetricsDocument, metricsDocumentHref } from './metrics-report-policy';
 import { MetricsReportSubmitDialog } from './metrics-report-submit-dialog';
 import { exportMonthlyReportPdf } from './monthly-report-download';
-import { pendingReportApproval as pendingMonthlyApproval } from './approval-summary';
+import { pendingReportApproval as pendingMonthlyApproval, isReportAssignedToUser } from './approval-summary';
 export { pendingMonthlyApproval };
 
 const ALL = '__all__';
@@ -126,8 +127,9 @@ export function MetricsReportList() {
                 const editable = canEditMetricsDocument(r.state, canEdit);
                 const data = r.data as Record<string, unknown> | undefined;
                 const pending = pendingMonthlyApproval(r);
-                return <TableRow key={r.id} data-testid={`row-report-${r.id}`}>
-                  <TableCell className="font-medium">{r.projectName ?? r.projectId}</TableCell>
+                const assigned = isReportAssignedToUser(r, me.data?.id);
+                return <TableRow key={r.id} className={assigned ? 'bg-accent/5' : undefined} data-testid={`row-report-${r.id}`}>
+                  <TableCell className="font-medium">{r.projectName ?? r.projectId}{assigned && <Badge variant="secondary" className="ml-2 border-accent text-accent">Assigned to you</Badge>}</TableCell>
                   <TableCell>{formatMonthYear(r.period)}</TableCell>
                   <TableCell>{pqpStatusLabel(data)}</TableCell>
                   <TableCell>{formatDate(data?.pqpSubmittedDate)}</TableCell>

@@ -26,10 +26,20 @@ Protected Audit approval emails must use the workflow queue only, not a second g
 
 **How to apply:** Apply content templates inside the existing participant-scoped approval queue. Do not copy the example document's To/CC lists into new recipient rules.
 
-Administrators may now explicitly select CC workspace roles independently of
-the To mode. Resolve them in the event's application and tenant, using active
-roles, assignments and users. Apply them in both generic and protected Audit
-queues, without changing To recipients or duplicating workflow dispatch.
+Administrators may explicitly select CC recipients using the same recipient
+modes as To, but must choose a different mode for CC. This is a mode-level
+restriction, even when two role selections would resolve to different people.
+Existing role-only CC rules retain delivery until edited; flag conflicts on
+edit instead of silently deleting their CC audience. Resolve CC in the event's
+application and tenant, using active roles, assignments and users. Apply CC in
+both generic and protected Audit queues without changing To, Reply-To or
+duplicating workflow dispatch.
+
+**Why:** The user expanded CC beyond workspace roles and explicitly prohibited
+selecting the same Recipient mode for To and CC.
+
+**How to apply:** Enforce this on both the editor and new/updated rules. Preserve
+stored legacy delivery, organization isolation and To-over-CC address deduplication.
 
 **Why:** The user requested CC-role maintenance in Edit Rule and actual delivery
 for triggered emails. This explicitly configured audience is distinct from

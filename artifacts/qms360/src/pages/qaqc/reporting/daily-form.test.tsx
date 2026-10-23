@@ -142,7 +142,7 @@ describe('Daily discipline submission layout', () => {
     expect(original.drawings).toHaveLength(2);
     expect(moveRevision(original, 'drawings', 0, 'drawings')).toBe(original);
     expect(calcDaily({ revisions: { drawings: [{ name: '0', value: 1 }, { name: '0', value: 2 }] } }).issues)
-      .toContain('Duplicate drawings revision name: 0.');
+      .toContain('Approved Status by Revision → Drawing row 2: revision "0" is duplicated. Use a unique revision number.');
   });
 
   it('places correspondence and rejected submissions immediately after revisions in the requested order', () => {

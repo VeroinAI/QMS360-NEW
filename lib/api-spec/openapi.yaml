@@ -35,6 +35,34 @@ tags:
   - name: audit-admin
     description: QMS Audit workspace administration
 paths:
+  /qaqc/reporting/daily-historical-balances/projects:
+    get:
+      operationId: getDailyOpeningProjects
+      tags: [qaqc]
+      responses:
+        "200": {description: Authorized project opening-load eligibility, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/DailyOpeningProject'}}}}}}}
+  /qaqc/reporting/daily-historical-balances/template:
+    get:
+      operationId: downloadDailyOpeningTemplate
+      tags: [qaqc]
+      parameters: [{name: goLiveDate, in: query, required: true, schema: {type: string}}]
+      responses:
+        "200": {description: Column-wise multi-project Excel template, content: {application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: {schema: {type: string, format: binary}}}}
+  /qaqc/reporting/daily-historical-balances/preview:
+    post:
+      operationId: previewDailyOpeningWorkbook
+      tags: [qaqc]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DailyOpeningUpload'}}}}
+      responses:
+        "200": {description: Read-only workbook preview, content: {application/json: {schema: {$ref: '#/components/schemas/DailyOpeningPreview'}}}}
+  /qaqc/reporting/daily-historical-balances/apply:
+    post:
+      operationId: applyDailyOpeningWorkbook
+      tags: [qaqc]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DailyOpeningApply'}}}}
+      responses:
+        "200": {description: All projects saved atomically, content: {application/json: {schema: {type: object, properties: {applied: {type: number}}}}}}
+        "409": {description: A project is already loaded or has Daily Submissions; nothing saved}
   /qaqc/reporting/historical-balances/bulk-template:
     get:
       operationId: getQaqcHistoricalBulkTemplate
@@ -2464,6 +2492,47 @@ components:
     FeedbackAttachmentUpload: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FeedbackAttachmentInput"}}}}
     SaveFieldMappings: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/SaveFieldMappingsInput"}}}}
   schemas:
+    DailyOpeningProject:
+      type: object
+      required: [id, name, label, loaded, blocked, goLiveDate]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        label: {type: string}
+        loaded: {type: boolean}
+        blocked: {type: boolean}
+        goLiveDate: {type: [string, "null"]}
+        reason: {type: string}
+    DailyOpeningUpload:
+      type: object
+      required: [fileBase64]
+      properties:
+        fileBase64: {type: string, maxLength: 2800000}
+    DailyOpeningRow:
+      type: object
+      required: [projectId, goLiveDate, reason, data, rowNumber]
+      properties:
+        projectId: {type: string}
+        projectName: {type: string}
+        goLiveDate: {type: string}
+        reason: {type: string}
+        rowNumber: {type: number}
+        data: {type: object, additionalProperties: true}
+        errors: {type: array, items: {type: string}}
+    DailyOpeningPreview:
+      type: object
+      required: [valid, rows, errors, fields]
+      properties:
+        valid: {type: boolean}
+        rows: {type: array, items: {$ref: '#/components/schemas/DailyOpeningRow'}}
+        errors: {type: array, items: {type: string}}
+        fields: {type: array, items: {type: object, required: [key, label], properties: {key: {type: string}, label: {type: string}}}}
+    DailyOpeningApply:
+      type: object
+      required: [confirmed, items]
+      properties:
+        confirmed: {type: boolean, const: true}
+        items: {type: array, minItems: 1, maxItems: 500, items: {$ref: '#/components/schemas/DailyOpeningRow'}}
     QaqcHistoricalBulkUpload:
       type: object
       additionalProperties: false
@@ -2812,6 +2881,7 @@ components:
     EmailRecipientConfig:
       type: object
       properties:
+        ccRecipient: {$ref: "#/components/schemas/EmailCcRecipient"}
         roleName: {type: string}
         roleNames: {type: array, items: {type: string}, uniqueItems: true}
         ccRoleNames: {type: array, items: {type: string, minLength: 1, maxLength: 200}, uniqueItems: true, maxItems: 100}
@@ -2823,6 +2893,17 @@ components:
           type: [object, "null"]
           additionalProperties: true
           description: Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
+    EmailCcRecipient:
+      type: object
+      required: [mode]
+      properties:
+        mode: {type: string, enum: [all_users, internal_user, external_email, workspace_role, project_members, project_role, linked_approver, linked_creator]}
+        userId: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"}
+        name: {type: string, maxLength: 200}
+        email: {type: string, maxLength: 320}
+        roleName: {type: string, maxLength: 200}
+        roleNames: {type: array, items: {type: string, minLength: 1, maxLength: 200}, uniqueItems: true, maxItems: 100}
+        projectIds: {type: array, items: {type: string, pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"}, uniqueItems: true, maxItems: 100}
     EmailRuleRoleOption:
       type: object
       required: [id, name]

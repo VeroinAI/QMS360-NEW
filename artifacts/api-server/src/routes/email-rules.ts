@@ -2,12 +2,13 @@ import { Router } from "express";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   auditAuditLogEntries, auditLogEntries, auditWorkspaceRoles, db, emailEventRules,
-  lessonsAuditLogEntries, lessonsWorkspaceRoles, users, workspaceRoles,
+  lessonsAuditLogEntries, lessonsWorkspaceRoles, users, workspaceRoles, projects,
 } from "@workspace/db";
 import { CreateEmailRuleBody, ReorderEmailRulesBody, SimulateEmailRuleBody, UpdateEmailRuleBody } from "@workspace/api-zod";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
 import { asyncHandler, HttpError, writeAuditLog } from "../lib/workspace";
 import { resolveEmailRule } from "../lib/email-rules";
+import { emailCcTargetError } from "../lib/email-cc-validation";
 import { listPlaceholderDefinitions, mutatePlaceholderRegistry, validateCustomRuleTemplate } from "../lib/email-placeholder-registry";
 import { CreateEmailPlaceholderBody, UpdateEmailPlaceholderBody, SetEmailPlaceholderActivationBody } from "@workspace/api-zod";
 import { emailRichTextToPlain } from "@workspace/field-controls";
@@ -74,6 +75,21 @@ async function validate(input: any, organizationId: string) {
   if (input.recipientMode === "workspace_role" && !roleNames.length) throw new HttpError(422, "Select at least one workspace role");
   if (input.recipientMode === "project_role" && !input.recipientConfig?.roleName?.trim()) throw new HttpError(422, "Enter a workspace role name");
   if (["project_members", "project_role"].includes(input.recipientMode) && !input.recipientConfig?.projectIds?.length) throw new HttpError(422, "Select at least one project");
+  const cc = template.ccRecipient ?? (template.ccRoleNames?.length ? {mode: "workspace_role", roleNames: template.ccRoleNames} : undefined);
+  const ccError = emailCcTargetError(input.recipientMode, cc, input.eventType);
+  if (ccError) throw new HttpError(422, ccError);
+  if (cc) {
+    if (cc.mode === "internal_user") await ensureUsers(organizationId, [cc.userId]);
+    if (["workspace_role", "project_role"].includes(cc.mode))
+      await ensureWorkspaceRoles(organizationId, input.eventType.split(".")[0], cc.mode === "workspace_role" ? cc.roleNames ?? [] : [cc.roleName]);
+    if (["project_members", "project_role"].includes(cc.mode)) {
+      const ids = [...new Set<string>(cc.projectIds ?? [])];
+      const rows = await db.select({id: projects.id}).from(projects).where(and(
+        eq(projects.organizationId, organizationId), isNull(projects.deletedAt), inArray(projects.id, ids),
+      ));
+      if (rows.length !== ids.length) throw new HttpError(422, "CC projects must belong to this organization.");
+    }
+  }
 }
 async function ensureUsers(org: string, ids: Array<string | null | undefined>) {
   const wanted = [...new Set(ids.filter((id): id is string => Boolean(id)))];

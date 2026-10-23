@@ -111,16 +111,44 @@ export function calcDaily(d: Obj) {
   }
   const pending: Record<string, number> = {};
   for (const e of ENTITIES) pending[e] = sum(PEND_STATUSES.flatMap(([s]) => PEND_BUCKETS.map(([b]) => d.pending?.[e]?.[s]?.[b])));
-  const issues: string[] = [];
-  const names = [...(d.revisions?.drawings ?? []), ...(d.revisions?.submittals ?? [])];
-  for (const cat of ['drawings', 'submittals']) {
+  const validationIssues = dailyValidationIssues(d);
+  return { disc, pending, pendingTotal: sum(Object.values(pending)), issues: validationIssues.map(issue => issue.message), validationIssues };
+}
+
+export type DailyValidationIssue = { path: string; message: string };
+/** Keep exact field paths separate from labels so links never depend on parsing messages. */
+export function dailyValidationIssues(d: Obj): DailyValidationIssue[] {
+  const issues: DailyValidationIssue[] = [];
+  const valueAt = (path: (string | number)[]) => path.reduce<any>((value, key) => value?.[key], d);
+  const count = (path: (string | number)[], label: string) => {
+    const value = valueAt(path);
+    const missing = value === undefined || value === null || value === '';
+    if (missing || typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value) || value < 0)
+      issues.push({ path: path.join('.'), message: `${label}: ${missing ? 'enter a value for Current Date (0 if none)' : 'Current Date must be a non-negative whole number'}.` });
+  };
+  for (const category of ['drawings', 'submittals']) for (const discipline of DISCIPLINES)
+    for (const [status, label] of DISC_STATUSES)
+      count(['disciplines', category, discipline, status], `${category === 'drawings' ? 'Drawings' : 'Submittals'} → ${discipline} → ${label}`);
+  const documentTypes = [...DOC_TYPES, ...LEGACY_DOC_TYPES.filter(type => d.documentTypes?.[type] !== undefined)];
+  for (const type of documentTypes) count(['documentTypes', type], `Document Types → ${DOC_TYPE_LABELS[type] ?? type}`);
+  for (const category of ['drawings', 'submittals']) {
     const seen = new Set<string>();
-    for (const r of d.revisions?.[cat] ?? []) { const n = String(r.name ?? '').trim().toLowerCase(); if (!n) issues.push(`A ${cat} revision needs a name.`); else if (seen.has(n)) issues.push(`Duplicate ${cat} revision name: ${r.name}.`); seen.add(n); }
+    (d.revisions?.[category] ?? []).forEach((row: Obj, index: number) => {
+      const label = `Approved Status by Revision → ${category === 'drawings' ? 'Drawing' : 'Submittal'} row ${index + 1}`;
+      const name = String(row.name ?? '').trim().toLowerCase();
+      if (!name) issues.push({path: `revisions.${category}.${index}.name`, message: `${label}: enter a revision number.`});
+      else if (seen.has(name)) issues.push({path: `revisions.${category}.${index}.name`, message: `${label}: revision "${row.name}" is duplicated. Use a unique revision number.`});
+      seen.add(name);
+      count(['revisions', category, index, 'value'], `${label} → Current Approved`);
+    });
   }
-  void names;
-  const missing = dailyPaths().filter(p => p.reduce<any>((a, k) => (a == null ? undefined : a[k]), d) === undefined).length;
-  if (missing) issues.push(`${missing} current numeric fields are still blank. Enter values or use Zero-fill.`);
-  return { disc, pending, pendingTotal: sum(Object.values(pending)), issues };
+  for (const [key, label] of [['outgoing', 'Outgoing'], ['incoming', 'Incoming']])
+    count(['correspondence', key], `Correspondence → ${label}`);
+  for (const [key, label] of REJECTED_SUBMISSION_TYPES)
+    count(['rejectedSubmissions', key], `Rejected Submissions → ${label}`);
+  for (const entity of ENTITIES) for (const [status, label] of PEND_STATUSES) for (const [bucket, bucketLabel] of PEND_BUCKETS)
+    count(['pending', entity, status, bucket], `Submission Review — Pending Days → ${entity} → ${status === 'underReview' ? 'Under Review' : `Status ${label}`} → ${bucketLabel}`);
+  return issues;
 }
 
 export function dailyPaths(): (string | number)[][] {

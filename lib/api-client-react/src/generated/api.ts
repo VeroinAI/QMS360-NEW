@@ -29,6 +29,7 @@ import type {
   AppOverview,
   AppSettings,
   ApplicationAccess,
+  ApplyDailyOpeningWorkbook200,
   ApplyQaqcHistoricalBulkBalances200,
   ApprovalItemPageResponse,
   ApprovalReviewBody,
@@ -101,12 +102,16 @@ import type {
   CurrentUser,
   CustomerSatisfactionEntry,
   CustomerSatisfactionPageResponse,
+  DailyOpeningApply,
+  DailyOpeningPreview,
+  DailyOpeningUpload,
   Dashboard,
   DelegationBody,
   DelegationPageResponse,
   DocumentGovernanceLogEntry,
   DocumentGovernancePageResponse,
   DownloadCarWordReportParams,
+  DownloadDailyOpeningTemplateParams,
   DownloadQaqcMetricsTemplateParams,
   DownloadQaqcPdfTemplateParams,
   DownloadQaqcSowTemplateParams,
@@ -168,6 +173,7 @@ import type {
   GetAuditOpenVsClosedReportParams,
   GetAuditPlanNumberPreview200,
   GetAuditPlanNumberPreviewParams,
+  GetDailyOpeningProjects200,
   GetLessonsEscalationsParams,
   GetLessonsReferenceDataParams,
   GetPlatformReferenceDataParams,
@@ -431,6 +437,285 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetDailyOpeningProjectsUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/daily-historical-balances/projects`
+}
+
+export const getDailyOpeningProjects = async ( options?: Parameters<typeof customFetch>[1]): Promise<GetDailyOpeningProjects200> => {
+
+  return customFetch<GetDailyOpeningProjects200>(getGetDailyOpeningProjectsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDailyOpeningProjectsQueryKey = () => {
+    return [
+    `/api/qaqc/reporting/daily-historical-balances/projects`
+    ] as const;
+    }
+
+
+export const getGetDailyOpeningProjectsQueryOptions = <TData = Awaited<ReturnType<typeof getDailyOpeningProjects>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDailyOpeningProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDailyOpeningProjectsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDailyOpeningProjects>>> = ({ signal }) => getDailyOpeningProjects({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDailyOpeningProjects>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDailyOpeningProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof getDailyOpeningProjects>>>
+export type GetDailyOpeningProjectsQueryError = ErrorType<unknown>
+
+
+
+export function useGetDailyOpeningProjects<TData = Awaited<ReturnType<typeof getDailyOpeningProjects>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDailyOpeningProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDailyOpeningProjectsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDownloadDailyOpeningTemplateUrl = (params: DownloadDailyOpeningTemplateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/daily-historical-balances/template?${stringifiedParams}` : `/api/qaqc/reporting/daily-historical-balances/template`
+}
+
+export const downloadDailyOpeningTemplate = async (params: DownloadDailyOpeningTemplateParams, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadDailyOpeningTemplateUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadDailyOpeningTemplateQueryKey = (params?: DownloadDailyOpeningTemplateParams,) => {
+    return [
+    `/api/qaqc/reporting/daily-historical-balances/template`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getDownloadDailyOpeningTemplateQueryOptions = <TData = Awaited<ReturnType<typeof downloadDailyOpeningTemplate>>, TError = ErrorType<unknown>>(params: DownloadDailyOpeningTemplateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadDailyOpeningTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadDailyOpeningTemplateQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadDailyOpeningTemplate>>> = ({ signal }) => downloadDailyOpeningTemplate(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadDailyOpeningTemplate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadDailyOpeningTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof downloadDailyOpeningTemplate>>>
+export type DownloadDailyOpeningTemplateQueryError = ErrorType<unknown>
+
+
+
+export function useDownloadDailyOpeningTemplate<TData = Awaited<ReturnType<typeof downloadDailyOpeningTemplate>>, TError = ErrorType<unknown>>(
+ params: DownloadDailyOpeningTemplateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadDailyOpeningTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadDailyOpeningTemplateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPreviewDailyOpeningWorkbookUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/daily-historical-balances/preview`
+}
+
+export const previewDailyOpeningWorkbook = async (dailyOpeningUpload: DailyOpeningUpload, options?: Parameters<typeof customFetch>[1]): Promise<DailyOpeningPreview> => {
+
+  return customFetch<DailyOpeningPreview>(getPreviewDailyOpeningWorkbookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dailyOpeningUpload)
+  }
+);}
+
+
+
+
+
+export const getPreviewDailyOpeningWorkbookMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewDailyOpeningWorkbook>>, TError,{data: BodyType<DailyOpeningUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewDailyOpeningWorkbook>>, TError,{data: BodyType<DailyOpeningUpload>}, TContext> => {
+
+const mutationKey = ['previewDailyOpeningWorkbook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewDailyOpeningWorkbook>>, {data: BodyType<DailyOpeningUpload>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewDailyOpeningWorkbook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewDailyOpeningWorkbookMutationResult = NonNullable<Awaited<ReturnType<typeof previewDailyOpeningWorkbook>>>
+    export type PreviewDailyOpeningWorkbookMutationBody = BodyType<DailyOpeningUpload>
+    export type PreviewDailyOpeningWorkbookMutationError = ErrorType<unknown>
+
+    export const usePreviewDailyOpeningWorkbook = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewDailyOpeningWorkbook>>, TError,{data: BodyType<DailyOpeningUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewDailyOpeningWorkbook>>,
+        TError,
+        {data: BodyType<DailyOpeningUpload>},
+        TContext
+      > => {
+      return useMutation(getPreviewDailyOpeningWorkbookMutationOptions(options));
+    }
+
+export const getApplyDailyOpeningWorkbookUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/daily-historical-balances/apply`
+}
+
+export const applyDailyOpeningWorkbook = async (dailyOpeningApply: DailyOpeningApply, options?: Parameters<typeof customFetch>[1]): Promise<ApplyDailyOpeningWorkbook200> => {
+
+  return customFetch<ApplyDailyOpeningWorkbook200>(getApplyDailyOpeningWorkbookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dailyOpeningApply)
+  }
+);}
+
+
+
+
+
+export const getApplyDailyOpeningWorkbookMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyDailyOpeningWorkbook>>, TError,{data: BodyType<DailyOpeningApply>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyDailyOpeningWorkbook>>, TError,{data: BodyType<DailyOpeningApply>}, TContext> => {
+
+const mutationKey = ['applyDailyOpeningWorkbook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyDailyOpeningWorkbook>>, {data: BodyType<DailyOpeningApply>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  applyDailyOpeningWorkbook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyDailyOpeningWorkbookMutationResult = NonNullable<Awaited<ReturnType<typeof applyDailyOpeningWorkbook>>>
+    export type ApplyDailyOpeningWorkbookMutationBody = BodyType<DailyOpeningApply>
+    export type ApplyDailyOpeningWorkbookMutationError = ErrorType<void>
+
+    export const useApplyDailyOpeningWorkbook = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyDailyOpeningWorkbook>>, TError,{data: BodyType<DailyOpeningApply>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applyDailyOpeningWorkbook>>,
+        TError,
+        {data: BodyType<DailyOpeningApply>},
+        TContext
+      > => {
+      return useMutation(getApplyDailyOpeningWorkbookMutationOptions(options));
+    }
 
 export const getGetQaqcHistoricalBulkTemplateUrl = (params: GetQaqcHistoricalBulkTemplateParams,) => {
   const normalizedParams = new URLSearchParams();

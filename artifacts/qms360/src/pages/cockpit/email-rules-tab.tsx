@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { EmailRuleCcEditor, initialCcDraft, ccRecipientFromDraft, ccModeError, recipientModeForDraft } from './email-rule-cc-editor';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getListEmailRulesQueryKey,
@@ -310,7 +311,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
     receiverEmail: rule?.receiverEmail ?? '',
     roleName: rule?.recipientConfig?.roleName ?? '',
     roleNames: [...new Set([...(rule?.recipientConfig?.roleNames ?? []), ...(rule?.recipientConfig?.roleName ? [rule.recipientConfig.roleName] : [])])],
-    ccRoleNames: rule?.recipientConfig?.ccRoleNames ?? [],
+    cc: initialCcDraft(rule?.recipientConfig),
     projectId: rule?.recipientConfig?.projectIds?.[0] ?? '',
     subjectTemplate: rule?.recipientConfig?.subjectTemplate ?? '',
     bodyTemplate: rule?.recipientConfig?.bodyTemplate ?? '',
@@ -326,6 +327,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
   );
 
   const save = () => {
+    if (ccModeError(draft.cc.mode, recipientModeForDraft(draft.receiverMode), draft.eventType)) return;
     const payload = {
       name: draft.name.trim(),
       enabled: draft.enabled,
@@ -343,7 +345,8 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
       receiverName: draft.receiverMode === 'external' ? draft.receiverName.trim() : null,
       receiverEmail: draft.receiverMode === 'external' ? draft.receiverEmail.trim() : null,
       recipientConfig: {
-        ccRoleNames: [...new Set(draft.ccRoleNames)],
+        ccRoleNames: [],
+        ccRecipient: ccRecipientFromDraft(draft.cc),
         subjectTemplate: draft.subjectTemplate,
         bodyTemplate: draft.bodyTemplate,
         bodyRichText: draft.bodyRichText,
@@ -439,7 +442,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                     const linkedModeSelected = draft.receiverMode === 'linked_approver' || draft.receiverMode === 'linked_creator';
                     set({
                       eventType,
-                      ...(eventType.split('.')[0] !== eventApp ? { roleNames: [], roleName: '', ccRoleNames: [] } : {}),
+                      ...(eventType.split('.')[0] !== eventApp ? { roleNames: [], roleName: '', cc: {...draft.cc, roleNames: [], roleName: ''} } : {}),
                       ...(eventType === FINAL_AUDIT_SCHEDULE_EVENT
                         ? { receiverMode: 'role' as const }
                         : (isAuditApprovalEvent(eventType) || (linkedModeSelected && !eventType.startsWith('lessons.lesson_form.')))
@@ -577,29 +580,14 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
               )}
             </div>
           </div>
-          <div className="space-y-2 rounded-xl border p-4">
-            <Label>CC — Application workspace roles (optional)</Label>
-            <p className="text-xs text-muted-foreground">Active users assigned any selected role will receive a copy. Existing To recipients stay unchanged. Selected CC roles also receive approval and send-back emails, including their review comments.</p>
-            {roleOptionsQuery.isLoading && <p className="text-sm text-muted-foreground">Loading roles...</p>}
-            {roleOptionsQuery.error && <p role="alert" className="text-sm text-destructive">{message(roleOptionsQuery.error)}</p>}
-            <div className="grid gap-2 sm:grid-cols-2">
-              {roleOptionsQuery.data?.map(role => (
-                <label key={role.id} className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm">
-                  <input type="checkbox" checked={draft.ccRoleNames.includes(role.name)} onChange={event => set({
-                    ccRoleNames: event.target.checked ? [...new Set([...draft.ccRoleNames, role.name])] : draft.ccRoleNames.filter(name => name !== role.name),
-                  })} />
-                  {role.name}
-                </label>
-              ))}
-            </div>
-            {!roleOptionsQuery.isLoading && !roleOptionsQuery.error && !roleOptionsQuery.data?.length && <p className="text-sm text-muted-foreground">No active roles are available for this application.</p>}
-            {draft.ccRoleNames.length > 0 && <Button type="button" variant="ghost" size="sm" onClick={() => set({ ccRoleNames: [] })}>Clear CC roles</Button>}
-          </div>
+          <EmailRuleCcEditor value={draft.cc} onChange={patch=>set({cc:{...draft.cc,...patch}})}
+            toMode={recipientModeForDraft(draft.receiverMode)} eventType={draft.eventType} users={users} projects={projects}
+            roles={roleOptionsQuery.data??[]} rolesLoading={roleOptionsQuery.isLoading} rolesError={roleOptionsQuery.error?message(roleOptionsQuery.error):undefined}/>
           <EmailRuleTemplateEditor template={draft} onChange={set} eventType={draft.eventType} definitions={placeholdersQuery.data ?? []} definitionsLoading={placeholdersQuery.isLoading} definitionsError={!!placeholdersQuery.error} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button disabled={!draft.name.trim() || !draft.eventType || busy} onClick={save}>
+          <Button disabled={!draft.name.trim() || !draft.eventType || busy || !!ccModeError(draft.cc.mode, recipientModeForDraft(draft.receiverMode), draft.eventType)} onClick={save}>
             <Save className="mr-2 h-4 w-4" />
             {draft.subjectTemplate.trim() || draft.bodyTemplate.trim() ? 'Save rule & template' : isNew ? 'Create rule' : 'Save changes'}
           </Button>

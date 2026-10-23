@@ -66,6 +66,15 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
     canonicalEmailEventType(candidate.eventType) === canonicalEmailEventType(`${event.app}.${event.entityType}.${event.action}`) &&
     (!candidate.createdByUserId || candidate.createdByUserId === event.actorId));
   if (!rule) return { rule: null, recipients: [] as Array<{ email: string; name?: string | null }>, sender: null as { email: string; name?: string | null } | null };
+  const { recipients, sender } = await resolveEmailTarget(database, event, rule);
+  const ccRecipients = await resolveEmailRuleCc(database, event, rule.recipientConfig);
+  return { rule, recipients, sender, ccRecipients };
+}
+
+type RecipientTarget = Pick<typeof emailEventRules.$inferSelect, "recipientMode" | "receiverEmail" | "receiverName" | "receiverUserId" | "recipientConfig">;
+type RecipientEvent = Pick<AuditEvent, "organizationId" | "app"> & Partial<AuditEvent>;
+/** Resolve To and explicit CC targets identically; only To can determine Reply-To. */
+async function resolveEmailTarget(database: typeof db, event: RecipientEvent, rule: RecipientTarget) {
   let recipients: Array<{ email: string; name?: string | null }> = [];
   let sender: { email: string; name?: string | null } | null = null;
   if (rule.recipientMode === "external_email" && rule.receiverEmail && emailPattern.test(rule.receiverEmail)) {
@@ -143,7 +152,7 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
       const roleNames = rule.recipientMode === "workspace_role"
         ? configuredWorkspaceRoleNames(config)
         : configuredWorkspaceRoleNames({ roleName: config.roleName });
-      if (!roleNames.length) return { rule, recipients: [], sender };
+      if (!roleNames.length) return { recipients: [], sender };
       const appTables = event.app === "lessons"
         ? { assignments: lessonsUserWorkspaceRoles, roles: lessonsWorkspaceRoles }
         : event.app === "audit"
@@ -157,7 +166,7 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
         eq(appTables.assignments.status, "active"), isNull(appTables.assignments.deletedAt),
       ];
       if (rule.recipientMode === "project_role") {
-        if (!projectIds.length) return { rule, recipients: [], sender };
+        if (!projectIds.length) return { recipients: [], sender };
         conditions.push(inArray(users.projectId, projectIds));
       }
       const rows = await database.select({ email: users.email, name: users.fullName }).from(appTables.assignments)
@@ -167,16 +176,26 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
       recipients = rows.map((row) => ({ email: row.email, name: row.name }));
     }
   }
-  const ccRecipients = await resolveEmailRuleCc(database, event, rule.recipientConfig);
-  return { rule, recipients: [...new Map(recipients.map((item) => [item.email.toLowerCase(), item])).values()], sender, ccRecipients };
+  return { recipients: [...new Map(recipients.map((item) => [item.email.toLowerCase(), item])).values()], sender };
 }
 
 /** Resolve explicit CC grants in the event's application, never another tenant/app. */
 export async function resolveEmailRuleCc(
   database: typeof db,
-  event: Pick<AuditEvent, "organizationId" | "app">,
-  config: { ccRoleNames?: string[] } | null | undefined,
+  event: RecipientEvent,
+  config: { ccRoleNames?: string[]; ccRecipient?: NonNullable<RecipientTarget["recipientConfig"]>["ccRecipient"] } | null | undefined,
 ) {
+  if (config?.ccRecipient) {
+    const cc = config.ccRecipient;
+    if (["workspace_role", "project_role"].includes(cc.mode) && !["audit", "lessons", "qaqc"].includes(event.app)) return [];
+    const result = await resolveEmailTarget(database, event, {
+      recipientMode: cc.mode, receiverUserId: cc.userId ?? null, receiverName: cc.name ?? null,
+      receiverEmail: cc.email ?? null, recipientConfig: {
+        roleName: cc.roleName, roleNames: cc.roleNames, projectIds: cc.projectIds,
+      },
+    });
+    return result.recipients;
+  }
   const names = [...new Set((config?.ccRoleNames ?? []).map(name => name.trim()).filter(Boolean))];
   if (!names.length || !["audit", "lessons", "qaqc"].includes(event.app)) return [];
   const ids = await resolveWorkspaceRoleUserIds(database, event.organizationId, event.app, names);
@@ -281,7 +300,10 @@ export async function queueAuditApprovalEmail(
   return enqueueEmail(database, {
     organizationId: input.organizationId,
     recipientIds,
-    ccRecipients: [...ccRecipients, ...await resolveEmailRuleCc(database, { organizationId: input.organizationId, app: "audit" }, rule?.recipientConfig)],
+    ccRecipients: [...ccRecipients, ...await resolveEmailRuleCc(database, {
+      organizationId: input.organizationId, app: "audit", actorId: input.actorId,
+      entityType: input.entityType, entityId: input.entityId, action: input.action,
+    }, rule?.recipientConfig)],
     subject: input.subject,
     text: input.text,
     ruleTemplate: rule?.recipientConfig,

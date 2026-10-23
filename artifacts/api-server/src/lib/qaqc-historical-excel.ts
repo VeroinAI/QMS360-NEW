@@ -30,7 +30,7 @@ export function historicalWorkbook(input:HistoricalInput,projectName:string) {
   return XLSX.write(wb,{type:"buffer",bookType:"xlsx"}) as Buffer;
 }
 
-function readWorkbook(fileBase64:string) {
+export function readWorkbook(fileBase64:string, sheetName="Opening balances", maxColumns=legacyHistoricalBulkColumns.length) {
   if(!fileBase64||fileBase64.length>2_800_000||!/^[A-Za-z0-9+/]*={0,2}$/.test(fileBase64))
     throw new Error("Upload an Excel .xlsx workbook no larger than 2 MB");
   const buffer=Buffer.from(fileBase64,"base64");
@@ -63,9 +63,9 @@ function readWorkbook(fileBase64:string) {
   }
   if(!files||expanded>15*1024*1024)throw new Error("Workbook is too large after decompression");
   const wb=XLSX.read(buffer,{type:"buffer",cellFormula:true,sheetRows:503});
-  const sheet=wb.Sheets["Opening balances"];
+  const sheet=wb.Sheets[sheetName];
   // Bound the declared width before sheet_to_json allocates a dense row matrix.
-   if(sheet&&XLSX.utils.decode_range(sheet["!fullref"]??sheet["!ref"]??"A1").e.c>=legacyHistoricalBulkColumns.length)
+   if(sheet&&XLSX.utils.decode_range(sheet["!fullref"]??sheet["!ref"]??"A1").e.c>=maxColumns)
     throw new Error("Unexpected extra columns. Keep the downloaded template headers unchanged");
   return wb;
 }
