@@ -103,8 +103,8 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
   const tracker = sections.find(section => section.key === "corrective-actions")?.tables[0];
   tracker?.rows.forEach((row, index) => {
     const finding = input.findingReferences.get(input.cars[index]?.findingId);
-    // The workbook requests CAR Register Ref no (to be added), not a generated finding reference.
-    row[0] = "Not recorded";
+    // CAR reference is issued independently from the underlying finding.
+    row[0] = input.cars[index]?.carNumber || "Not numbered";
     if (finding && empty(row[1])) row[1] = finding.grade;
   });
 }

@@ -1,4 +1,9 @@
 import { responseFieldLabel } from "@/lib/response-field-labels";
+import { formatDate } from "@workspace/spreadsheet-dates";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useGenerateMissingCarNumber, getListCarRegisterQueryKey, getGetAuditCarNumberingQueryKey, getGetCorrectiveActionReportQueryKey, getListCarActivityQueryKey } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 import type { ReactNode } from "react";
 import { CircleCheck } from "lucide-react";
 import type { CarRegisterEntry } from "@workspace/api-client-react";
@@ -7,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { CarWordDownloadButton } from "./car-word-download";
 
 export const CAR_REGISTER_COLUMNS = [
-  "CAR Number", "Audit Schedule", "Audit Title", "Audit Type", "Project / Department", "Audit Area", "Description",
+  "CAR Number", "Created Date", "Due Date", "Audit Schedule", "Audit Title", "Audit Type", "Project / Department", "Audit Area", "Description",
   "Audit Findings", "Evidence", "Action Taker", "Corrective Action Recorded", "Edit", "Display", "Close / Resent CAR", "Download", "Log",
 ] as const;
 
@@ -31,6 +36,29 @@ export interface CarRegisterTableProps {
   onLog: (entry: CarRegisterEntry) => void;
 }
 
+function CarNumberRepair({ entry, busy }: { entry: CarRegisterEntry; busy: boolean }) {
+  const generate = useGenerateMissingCarNumber();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [numberingError, setNumberingError] = useState("");
+  const issueNumber = (entry: CarRegisterEntry) => {
+    if (!entry.car || !window.confirm("Generate the missing CAR number using the saved number range? Response content and approval status will remain unchanged. An issued number cannot be reset.")) return;
+    setNumberingError("");
+    generate.mutate({ id: entry.car.id }, {
+      onSuccess: result => {
+        toast({ title: "CAR number generated", description: result.carNumber || undefined });
+        void queryClient.invalidateQueries({ queryKey: getListCarRegisterQueryKey() });
+        void queryClient.invalidateQueries({ queryKey: getGetAuditCarNumberingQueryKey() });
+        void queryClient.invalidateQueries({ queryKey: getGetCorrectiveActionReportQueryKey(entry.car!.id) });
+        void queryClient.invalidateQueries({ queryKey: getListCarActivityQueryKey(entry.car!.id) });
+      },
+      onError: error => setNumberingError(error instanceof Error ? error.message : "Could not generate the CAR number."),
+    });
+  };
+  return <><Button size="sm" variant="outline" className="mt-2 font-sans" disabled={busy || generate.isPending} onClick={() => issueNumber(entry)}>Generate CAR number</Button>
+    {numberingError && <p role="alert" className="mt-2 font-sans text-destructive">{numberingError}</p>}</>;
+}
+
 export function CarRegisterTable({ entries, auditAreaOptions = [], auditAreasLoading = false, page, limit, busy, renderEvidence, onEdit, onOpenResponse, onDisplay, onReview, onLog }: CarRegisterTableProps) {
   const cell = "border border-border px-2 py-1.5 align-top text-xs whitespace-normal break-words";
   return <div className="max-h-[70dvh] overflow-auto rounded-md border border-border" data-testid="table-car-register">
@@ -47,7 +75,11 @@ export function CarRegisterTable({ entries, auditAreaOptions = [], auditAreasLoa
           const canReview = !!e.canReview && car?.status === "Submitted";
           const done = !!car?.correctiveAction?.trim();
           return <tr key={e.id} data-testid={`row-car-${e.id}`} className="odd:bg-background even:bg-muted/30">
-            <td className={`${cell} font-mono`} data-testid={`text-car-number-${e.id}`}>{car?.carNumber || <span className="font-sans text-muted-foreground">Not numbered</span>}</td>
+            <td className={`${cell} font-mono`} data-testid={`text-car-number-${e.id}`}>{car?.carNumber || <span className="font-sans text-muted-foreground">{car ? "Not numbered" : "Assigned on first response save"}</span>}
+              {e.canNumber && <CarNumberRepair entry={e} busy={busy} />}
+            </td>
+            <td className={cell}>{e.createdAt ? formatDate(e.createdAt) : "—"}</td>
+            <td className={cell} data-testid={`text-car-due-date-${e.id}`}>{e.dueDate ? formatDate(e.dueDate) : car ? "Not configured for this finding type" : "Set when CAR is created"}</td>
             <td className={cell}><button type="button" className="text-left font-medium text-primary underline underline-offset-2 hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
               data-testid={`link-car-schedule-${e.id}`} aria-haspopup="dialog" aria-label={`Open CAR Response for ${e.scheduleName || "unlinked schedule"} — ${e.auditTitle}`} disabled={busy} onClick={() => onOpenResponse(e)}>{e.scheduleName || "No linked schedule"}</button></td>
             <td className={cell}>{e.auditTitle}</td>

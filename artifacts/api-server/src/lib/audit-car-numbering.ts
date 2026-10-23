@@ -4,6 +4,7 @@ import { HttpError } from "./workspace";
 import { lockScheduleNumbering } from "./audit-schedule-numbering";
 import { nextPlanNumber, planNumberSource, planNumberYear, validatePlanNumberPattern, type PlanNumberPattern, type PlanNumberState } from "./audit-plan-numbering";
 import { actionableFinding, carJson } from "./car-register";
+import { hasSavedCarResponse } from "./car-dates";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type CarNumberRange = { scope: string; year: number; nextNumber: number };
@@ -39,7 +40,7 @@ export async function saveCarNumbering(organizationId: string, pattern?: PlanNum
 }
 
 /** Caller holds the organization numbering lock. Lock audit before CAR, consistent with finding/start flows. */
-export async function lockNumberedCarResponse(tx: Tx, settings: typeof organizationSettings.$inferSelect, carId: string, userId: string) {
+export async function lockNumberedCarResponse(tx: Tx, settings: typeof organizationSettings.$inferSelect, carId: string, userId: string, authorizedRepair = false) {
   const org = settings.organizationId;
   const [parent] = await tx.select({ auditId: auditFindings.auditId }).from(correctiveActionReports)
     .innerJoin(auditFindings, eq(auditFindings.id, correctiveActionReports.auditFindingId))
@@ -51,11 +52,13 @@ export async function lockNumberedCarResponse(tx: Tx, settings: typeof organizat
   const [car] = await tx.select().from(correctiveActionReports).where(and(eq(correctiveActionReports.id, carId),
     eq(correctiveActionReports.organizationId, org), isNull(correctiveActionReports.deletedAt))).for("update");
   if (!audit || !car) throw new HttpError(404, "CAR or Audit not found");
+  if (authorizedRepair && !hasSavedCarResponse(car)) throw new HttpError(422, "Save the CAR response before generating a missing number.");
   const [finding] = await tx.select().from(auditFindings).where(eq(auditFindings.id, car.auditFindingId));
   const sourceId = (finding?.evidence as any)?.sourceChecklistItemId;
   const item = Array.isArray(audit.checklistState) ? audit.checklistState.find((entry: any) => entry.id === sourceId) as any : undefined;
   if (sourceId && (!item || !actionableFinding(item))) throw new HttpError(409, "The linked finding changed. Reload the CAR register before saving.");
-  if ((item?.actionTakerId || car.ownerId) !== userId) throw new HttpError(403, "Only the assigned action taker may save this response");
+  // Repair is an explicit, separately authorized action; never enabled by response payloads.
+  if (!authorizedRepair && (item?.actionTakerId || car.ownerId) !== userId) throw new HttpError(403, "Only the assigned action taker may save this response");
   const meta = carJson(car.effectivenessNotes);
   if (car.effectivenessNotes?.trim() && !Object.keys(meta).length && car.effectivenessNotes.trim() !== "{}") {
     meta.legacyEffectivenessNotes = car.effectivenessNotes;

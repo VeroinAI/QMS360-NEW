@@ -57,9 +57,11 @@ describe("Original Audit PowerPoint report template", () => {
       const source = parse(original[path]!); const output = parse(result[path]!);
       for (const tag of ["xfrm", "tblPr", "tblGrid", "tcPr"]) {
         // Programme text boxes are intentionally widened/repositioned to fix overflow.
-        if (slide === 5 && tag === "xfrm") continue;
-        expect(Array.from(output.getElementsByTagNameNS(A, tag)).map(n => n.toString()))
-          .toEqual(Array.from(source.getElementsByTagNameNS(A, tag)).map(n => n.toString()));
+        if ((slide === 5 || slide === 15) && tag === "xfrm") continue;
+        const rendered = Array.from(output.getElementsByTagNameNS(A, tag)).map(n => n.toString());
+        const originalParts = Array.from(source.getElementsByTagNameNS(A, tag)).map(n => n.toString());
+        // CAR rows now follow the actual response count; retained rows keep the template styling.
+        expect(rendered).toEqual(slide === 15 && tag === "tcPr" ? originalParts.slice(0, rendered.length) : originalParts);
       }
     }
     const allText = Object.entries(result).filter(([n]) => /^ppt\/slides\/slide\d+\.xml$/.test(n)).map(([, b]) => text(b)).join("\n");
@@ -69,6 +71,23 @@ describe("Original Audit PowerPoint report template", () => {
     expect(allText).not.toMatch(/Abdulkarim|Attaullah|Al-Zahrani|Tabarjal|QAM-IA-26-009|\[Project|\[What|Not recorded|To Be Mapped/);
     const count = parse(result["ppt/presentation.xml"]!).getElementsByTagNameNS(P, "sldId").length;
     expect(count).toBe(18);
+  });
+  it("sizes the CAR slide to its actual rows and continues when responses exceed one slide", async () => {
+    const data = sections();
+    const tracker = data.find(section => section.key === "corrective-actions")!.tables[0]!;
+    tracker.rows = [["CAR-001", "Major NC", "Cause", "Corrective action", "Owner", "24-10-2026", "Submitted", "Pending verification"]];
+    const one = unzipSync(await renderConsolidatedAuditPptx({ sections: data }));
+    const table = parse(one["ppt/slides/slide15.xml"]!).getElementsByTagNameNS(A, "tbl")[0]!;
+    expect(table.getElementsByTagNameNS(A, "tr").length).toBe(2);
+    expect(text(one["ppt/slides/slide15.xml"]!)).toContain("CAR-001");
+    tracker.rows = Array.from({ length: 26 }, (_, i) => [
+      `CAR-${String(i + 1).padStart(3, "0")}`, "Major NC", "Cause", "Corrective action",
+      "Owner", "24-10-2026", "Submitted", "Pending verification",
+    ]);
+    const many = unzipSync(await renderConsolidatedAuditPptx({ sections: data }));
+    const slideText = Object.entries(many).filter(([name]) => /^ppt\/slides\/slide\d+\.xml$/.test(name)).map(([, bytes]) => text(bytes)).join("\n");
+    expect(slideText).toContain("CAR-026");
+    expect(Object.keys(many).filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name)).length).toBeGreaterThan(18);
   });
   it("continues every finding and CAR row on identically styled slides", async () => {
     const data = sections();

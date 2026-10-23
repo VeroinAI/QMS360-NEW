@@ -24604,6 +24604,77 @@ export const useUpdateCorrectiveActionReport = <TError = ErrorType<unknown>,
       return useMutation(getUpdateCorrectiveActionReportMutationOptions(options));
     }
 
+export const getGenerateMissingCarNumberUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/cars/${id}/number`
+}
+
+/**
+ * @summary Issue a missing number for an existing saved CAR without changing its workflow
+ */
+export const generateMissingCarNumber = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<CorrectiveActionReport> => {
+
+  return customFetch<CorrectiveActionReport>(getGenerateMissingCarNumberUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getGenerateMissingCarNumberMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateMissingCarNumber>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateMissingCarNumber>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['generateMissingCarNumber'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateMissingCarNumber>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  generateMissingCarNumber(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateMissingCarNumberMutationResult = NonNullable<Awaited<ReturnType<typeof generateMissingCarNumber>>>
+
+    export type GenerateMissingCarNumberMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Issue a missing number for an existing saved CAR without changing its workflow
+ */
+export const useGenerateMissingCarNumber = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateMissingCarNumber>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateMissingCarNumber>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getGenerateMissingCarNumberMutationOptions(options));
+    }
+
 export const getSubmitCorrectiveActionReportUrl = (id: string,) => {
 
 

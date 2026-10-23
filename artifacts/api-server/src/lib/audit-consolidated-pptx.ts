@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { DOMParser, XMLSerializer, type Document, type Element } from "@xmldom/xmldom";
+import { DOMParser, XMLSerializer, type Document, type Element, type Node } from "@xmldom/xmldom";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { ReportSectionData } from "./audit-consolidated-report";
 import { auditPptxMappings, mappedText, PPTX_UNMAPPED } from "./audit-pptx-mapping";
@@ -96,11 +96,19 @@ function programmeBox(doc: Document, id: number, text: string, size: number, lin
     for (const tag of ["rPr", "endParaRPr"]) for (const r of elements(p, A, tag)) r.setAttribute("sz", String(size));
   }
 }
-function setTable(table: Element, rows: string[][], start: number, capacity: number) {
+function setTable(table: Element, rows: string[][], start: number, capacity: number, trimUnused = false) {
   const templateRows = elements(table, A, "tr").slice(start, start + capacity);
+  if (trimUnused && !rows.length) rows = [["No CAR responses recorded", "—", "—", "—", "—", "—", "—", "—"]];
   templateRows.forEach((row, index) => {
+    if (trimUnused && index >= rows.length) { table.removeChild(row); return; }
     elements(row, A, "tc").forEach((cell, col) => setText(cell, mappedText(rows[index]?.[col])));
   });
+  if (trimUnused) {
+    let frame: Node | null = table.parentNode;
+    while (frame && frame.nodeName !== "p:graphicFrame") frame = frame.parentNode;
+    const extent = frame ? elements(frame as Element, A, "ext")[0] : undefined;
+    if (extent) extent.setAttribute("cy", String(elements(table, A, "tr").reduce((sum, row) => sum + Number(row.getAttribute("h") || 0), 0)));
+  }
 }
 
 async function template() {
@@ -214,7 +222,7 @@ export async function renderConsolidatedAuditPptx(input: {
       const slideTables = elements(doc, A, "tbl");
       for (const [id, text] of Object.entries(mapping?.shapes ?? {})) setShape(doc, Number(id), text);
       mapping?.tables.forEach((_, i) => setTable(slideTables[i]!, pages[i]?.[page] ?? [], tableStarts[slideNumber] ?? 1,
-        elements(slideTables[i]!, A, "tr").length - (tableStarts[slideNumber] ?? 1)));
+        elements(slideTables[i]!, A, "tr").length - (tableStarts[slideNumber] ?? 1), slideNumber === 15));
       if ([11, 12].includes(slideNumber)) {
         const group = elements(slideTables[0]!, A, "tr")[1]!;
         const cells = elements(group, A, "tc");

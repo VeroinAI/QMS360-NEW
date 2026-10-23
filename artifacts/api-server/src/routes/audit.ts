@@ -52,6 +52,7 @@ import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockSched
 import { allocatePlanNumber, getPlanNumberDepartments, previewPlanNumber, readPlanNumberState, savePlanNumbering, type PlanNumberPattern } from "../lib/audit-plan-numbering";
 import { allocateReportNumber, readReportNumberState, saveReportNumbering } from "../lib/audit-report-numbering";
 import { lockNumberedCarResponse, readCarNumberState, saveCarNumbering, type CarNumberRange } from "../lib/audit-car-numbering";
+import { carDueDate, hasSavedCarResponse } from "../lib/car-dates";
 import { allocateFindingNumber, numberedFindingTypes, readFindingNumberState, saveFindingNumbering, type FindingNumberPattern, type FindingNumberRange } from "../lib/audit-finding-numbering";
 import { auditProjectNumberSourceValue, auditDepartmentNumberSourceValue } from "../lib/audit-number-source";
 import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
@@ -3336,6 +3337,7 @@ router.post("/car-register/start", asyncHandler(async (req, res) => {
     const [created] = await tx.insert(correctiveActionReports).values({
       organizationId, auditFindingId: finding!.id, ownerId: item.actionTakerId,
       responsibleDepartment: item.auditArea || "Audit finding", workflowState: "open",
+      dueDate: carDueDate(item.auditFinding || item.result, new Date()),
       effectivenessNotes: JSON.stringify({ sourceChecklistItemId: item.id }),
     }).returning();
     await tx.insert(auditAuditLogEntries).values({ organizationId, actorId: actor(req).id,
@@ -3582,7 +3584,7 @@ router.post("/findings/:id/cars", asyncHandler(async (req, res) => {
   if (!finding) throw new HttpError(404, "Audit finding not found");
   const existing = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.auditFindingId, finding.id), inArray(correctiveActionReports.responsibleDepartment, departments)));
   if (existing.length) throw new HttpError(409, `CAR already exists for: ${existing.map((x) => x.responsibleDepartment).join(", ")}`);
-  const dueDate = new Date(Date.now() + (prioritySla[finding.priority ?? "P6"] ?? 3) * 86400000).toISOString().slice(0, 10);
+  const dueDate = carDueDate(finding.classification, new Date());
   const rows = await db.insert(correctiveActionReports).values(departments.map((department) => ({
     organizationId: actor(req).organizationId, auditFindingId: finding.id, responsibleDepartment: department,
     ownerId: actor(req).id, workflowState: "open", dueDate,
@@ -3610,7 +3612,7 @@ router.get("/cars/:id/activity", asyncHandler(async (req, res) => {
     eq(auditAuditLogEntries.organizationId, actor(req).organizationId),
     eq(auditAuditLogEntries.entityType, "corrective_action_report"),
     eq(auditAuditLogEntries.entityId, context.car.id),
-    inArray(auditAuditLogEntries.action, ["update", "submit"]),
+    inArray(auditAuditLogEntries.action, ["update", "submit", "generate_missing_car_number"]),
   );
   const [events, [count]] = await Promise.all([
     db.select({ event: auditAuditLogEntries, actorName: users.fullName }).from(auditAuditLogEntries)
@@ -3670,7 +3672,7 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
     if (current.workflowState !== before.workflowState) throw new HttpError(409, "CAR changed while saving. Reload and retry.");
     const [saved] = await tx.update(correctiveActionReports).set({
       rootCause: data.rootCause, correction: data.correction, correctiveAction: data.correctiveAction,
-      ownerId: context.ownerId, dueDate: current.dueDate, workflowState: saveAndSubmit ? "submitted" : "draft",
+      ownerId: context.ownerId, dueDate: carDueDate(context.item?.auditFinding || context.finding.classification, current.createdAt, current.dueDate), workflowState: saveAndSubmit ? "submitted" : "draft",
       effectivenessNotes: JSON.stringify(meta), updatedAt: new Date(),
     }).where(and(eq(correctiveActionReports.id, before.id), eq(correctiveActionReports.workflowState, before.workflowState))).returning();
     if (!saved) throw new HttpError(409, "CAR changed while saving. Reload and retry.");
@@ -3681,6 +3683,39 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
     type: "car_submitted", title: "CAR response awaiting your review", body: "The action taker submitted a response to an Audit finding.",
     entityType: "corrective_action_report", entityId: row.id });
   res.json(carDto(row));
+}));
+router.post("/cars/:id/number", asyncHandler(async (req, res) => {
+  const carId = String(req.params.id);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(carId)) throw new HttpError(422, "A valid CAR identifier is required");
+  const org = actor(req).organizationId;
+  const [candidate] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, org), eq(correctiveActionReports.id, carId)));
+  if (!candidate) throw new HttpError(404, "CAR not found");
+  const [linkedFinding] = await db.select().from(auditFindings).where(and(active(auditFindings, org), eq(auditFindings.id, candidate.auditFindingId)));
+  const [linkedAudit] = linkedFinding ? await db.select().from(audits).where(and(active(audits, org), eq(audits.id, linkedFinding.auditId))) : [];
+  if (!linkedFinding || !linkedAudit) throw new HttpError(404, "Linked finding or Audit not found");
+  const scope = await getAppAdminScope(req, "audit");
+  const adminAllowed = !!scope && (scope.unrestricted || !!linkedAudit.projectId && scope.projectIds.includes(linkedAudit.projectId)
+    || !linkedAudit.projectId && scope.processAuditsAllowed === true);
+  const sourceId = (linkedFinding.evidence as AnyRow)?.sourceChecklistItemId;
+  const sourceItem = sourceId && Array.isArray(linkedAudit.checklistState) ? linkedAudit.checklistState.find((item: AnyRow) => item.id === sourceId) as AnyRow : undefined;
+  if (adminAllowed && sourceId && (!sourceItem || !actionableFinding(sourceItem))) throw new HttpError(409, "The linked finding is no longer actionable");
+  const context = adminAllowed
+    ? { car: candidate, audit: linkedAudit, finding: linkedFinding, item: sourceItem, canEditResponse: false }
+    : await carContext(req, carId);
+  if (!context.canEditResponse && !adminAllowed) throw new HttpError(403, "An authorized Audit administrator or the assigned action taker must generate a missing CAR number.");
+  if (!hasSavedCarResponse(context.car)) throw new HttpError(422, "Save the CAR response first. Opening an unanswered CAR does not issue a number.");
+  const saved = await db.transaction(async tx => {
+    const { settings } = await lockScheduleNumbering(tx, actor(req).organizationId);
+    const { car, meta } = await lockNumberedCarResponse(tx, settings, context.car.id, actor(req).id, Boolean(adminAllowed));
+    if (carMeta(car).carNumber) return car;
+    const dueDate = carDueDate(context.item?.auditFinding || context.finding.classification, car.createdAt, car.dueDate);
+    const [row] = await tx.update(correctiveActionReports).set({
+      effectivenessNotes: JSON.stringify(meta), dueDate, updatedAt: new Date(),
+    }).where(eq(correctiveActionReports.id, car.id)).returning();
+    await auditLog(req, "generate_missing_car_number", "corrective_action_report", car.id, car, row, tx as unknown as typeof db);
+    return row;
+  });
+  res.json(carDto(saved));
 }));
 router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
@@ -3696,7 +3731,8 @@ router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
     if (current.workflowState !== before.workflowState) throw new HttpError(409, "CAR changed while submitting. Reload and retry.");
     if (!current.rootCause?.trim() || !current.correction?.trim() || !current.correctiveAction?.trim()) throw new HttpError(422, "Root cause, correction, and corrective action are required");
     const [saved] = await tx.update(correctiveActionReports).set({
-      workflowState: "submitted", effectivenessNotes: JSON.stringify(meta), updatedAt: new Date(),
+      workflowState: "submitted", effectivenessNotes: JSON.stringify(meta),
+      dueDate: carDueDate(context.item?.auditFinding || context.finding.classification, current.createdAt, current.dueDate), updatedAt: new Date(),
     }).where(eq(correctiveActionReports.id, current.id)).returning();
     await auditLog(req, "submit", "corrective_action_report", current.id, current, saved, tx as unknown as typeof db);
     return saved!;
@@ -4011,7 +4047,8 @@ async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
     pptxWorkbookMappings,
     audit: { ...mappedAudit, referenceNumber: audit.referenceNumber }, plan: mappedPlan, project,
     schedule: schedule ? { ...scheduleMeta(schedule), department: scheduleMeta(schedule).departmentProject, ownerId: schedule.ownerId } : null,
-    legacyFindings: findings.filter(row => !(row.evidence as AnyRow)?.sourceChecklistItemId).map(findingDto), cars: cars.map(carDto), evidence,
+    legacyFindings: findings.filter(row => !(row.evidence as AnyRow)?.sourceChecklistItemId).map(findingDto),
+    cars: cars.map(car => carDto({ ...car, dueDate: carDueDate(findings.find(f => f.id === car.auditFindingId)?.classification, car.createdAt, car.dueDate) })), evidence,
     names: new Map(nameRows.map(u => [u.id, [u.name, u.designation].filter(Boolean).join(" / ")])),
     roleNames: new Map(roleRows.map(r => [r.id, r.name])),
   });
@@ -4027,8 +4064,7 @@ router.get("/audits/:id/report", asyncHandler(async (req, res) => {
 }));
 router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
   const report = await consolidatedReport(req, true);
-  // The legacy DTO defaults a missing due date to creation time. That is not
-  // a real deadline; this export must use the stored date/approved extension.
+  // Use the same CAR reference, classification deadline and workflow as the register.
   const tracker = report.sections.find(s => s.key === "corrective-actions")?.tables[0];
   const reviewers = [...new Set(report.cars.map(car => carMeta(car).reviewedBy).filter((id): id is string => !!id))];
   const reviewerRows = reviewers.length ? await db.select({ id: users.id, name: users.fullName }).from(users).where(and(
@@ -4037,11 +4073,17 @@ router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
   tracker?.rows.forEach((row, i) => {
     const car = report.cars[i]!;
     const meta = carMeta(car);
-    row[5] = date(car.extensionStatus === "approved" && car.extensionDueDate ? car.extensionDueDate : car.dueDate);
-    row[6] = ["closed", "accepted"].includes(car.workflowState.toLowerCase()) ? "Closed" : "Open";
+    row[0] = meta.carNumber || "Not numbered";
+    const due = carDueDate(report.findings.find(f => f.id === car.auditFindingId)?.classification, car.createdAt, car.dueDate);
+    row[5] = car.extensionStatus === "approved" && car.extensionDueDate ? date(car.extensionDueDate) : due ? date(due) : "Not configured";
+    row[6] = carDto(car).status;
     row[7] = meta.reviewedAt && (meta.reviewOutcome === "accept" || car.workflowState === "closed" || car.workflowState === "accepted")
-      ? `${reviewerRows.find(u => u.id === meta.reviewedBy)?.name || "To be mapped"} / ${date(meta.reviewedAt)}`
-      : "To be mapped";
+      ? `${reviewerRows.find(u => u.id === meta.reviewedBy)?.name || "Reviewer not recorded"} / ${date(meta.reviewedAt)}`
+      : "Pending verification";
+    row[1] = row[1] === "Not recorded" ? report.findings.find(f => f.id === car.auditFindingId)?.classification || "Not recorded" : row[1]!;
+    row[2] = car.rootCause?.trim() || "Not recorded";
+    row[3] = [car.correction, car.correctiveAction].filter(value => value?.trim()).join("\n") || "Not recorded";
+    if (row[4] === "Not recorded" || row[4] === "To be mapped") row[4] = "Not assigned";
   });
   const images = new Map<string, Uint8Array>();
   for (const photo of report.sections.flatMap(s => s.photos)) {

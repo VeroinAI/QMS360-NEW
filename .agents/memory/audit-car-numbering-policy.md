@@ -5,6 +5,12 @@ description: CAR source/year linkage, first response-save issuance and independe
 
 Issue an Audit CAR Number on the first successful **Save response** or **Save & submit** in CAR Response. Opening Edit, starting a CAR shell, viewing, or downloading must not allocate a number. Later saves, retries, reviews and returned responses retain that number.
 
+Previously saved CAR responses that predate numbering may have no reference even when submitted. An authorized scoped repair can issue a missing number atomically and idempotently without changing the response, approval status, owner or original creation date. Never number an unanswered shell just because it appears in the register.
+
+**Why:** Historical production CARs predated numbering; merely configuring a number range does not backfill stored records.
+
+**How to apply:** Scope repairs by Audit administrator or assigned Action Taker access; keep the organization counter transaction and audit history, and block issuance until the relevant Contract / project no. or Department Cost ID exists. Do not bulk-rewrite production or mutate old responses on read.
+
 **Why:** The user explicitly specified the two response buttons as the issuance events, not creation of the underlying CAR shell.
 
 **How to apply:** Allocate and persist the number with the successful response transaction. Keep strict current Action Taker authorization; administrator visibility does not grant response ownership. Preserve existing metadata and historical CAR/finding identities.

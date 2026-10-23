@@ -4206,6 +4206,11 @@ export interface CarRegisterEntry {
   auditArea: string;
   description: string;
   classification: string;
+  /** @nullable */
+  createdAt?: string | null;
+  /** @nullable */
+  dueDate?: string | null;
+  canNumber?: boolean;
   actionTakerName: string;
   evidenceIds: string[];
   status: string;

@@ -2037,6 +2037,16 @@ paths:
   /audit/cars/{id}:
     get: {operationId: getCorrectiveActionReport, tags: [audit], summary: Get a corrective action report, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Corrective action report, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}, "403": {description: CAR is outside the caller's organization or scope}, "404": {description: CAR not found}}}
     put: {operationId: updateCorrectiveActionReport, tags: [audit], summary: "Save CAR response, optionally submitting in the same action", parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CarResponseInput"}}}}, responses: {"200": {description: Saved or submitted, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}}}
+  /audit/cars/{id}/number:
+    post:
+      operationId: generateMissingCarNumber
+      tags: [audit]
+      summary: Issue a missing number for an existing saved CAR without changing its workflow
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200":
+          description: Existing or newly assigned CAR number
+          content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}
   /audit/cars/{id}/submit:
     post: {operationId: submitCorrectiveActionReport, tags: [audit], summary: Submit CAR, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
   /audit/cars/{id}/review:
@@ -4717,6 +4727,9 @@ components:
         auditArea: {type: string}
         description: {type: string}
         classification: {type: string}
+        createdAt: {type: [string, "null"], format: date-time}
+        dueDate: {type: [string, "null"], format: date}
+        canNumber: {type: boolean}
         actionTakerName: {type: string}
         evidenceIds: {type: array, items: {type: string}}
         status: {type: string}

@@ -206,7 +206,7 @@ export function buildConsolidatedAuditReport(input: {
   const tracker = section("corrective-actions", "Corrective action tracker");
   tracker.tables.push({ title: "Corrective actions", columns: ["Ref", "Grade", "Root cause", "Correction and corrective action", "Owner", "Due date", "Status", "Verified by / date"],
     rows: cars.map(car => { const f = findings.find(f => f.id === car.findingId);
-      return [f?.reference ?? missing, f?.grade ?? missing, value(car.rootCause),
+      return [car.carNumber || "Not numbered", f?.grade ?? missing, value(car.rootCause),
         [car.correction, car.correctiveAction].filter(Boolean).join("\n") || missing, name(car.ownerId), date(car.dueDate),
         value(car.status), car.effectivenessVerified ? `Effectiveness verified; ${date(car.closedAt)}; verifier ${missing}` : missing]; }) });
   const actions = section("priority-actions", "Recommended priority actions");

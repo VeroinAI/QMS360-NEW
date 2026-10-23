@@ -11760,6 +11760,9 @@ export const ListCarRegisterResponse = zod.object({
   "auditArea": zod.string(),
   "description": zod.string(),
   "classification": zod.string(),
+  "createdAt": zod.coerce.date().nullish(),
+  "dueDate": zod.coerce.date().nullish(),
+  "canNumber": zod.boolean().optional(),
   "actionTakerName": zod.string(),
   "evidenceIds": zod.array(zod.string()),
   "status": zod.string(),
@@ -11972,6 +11975,40 @@ export const UpdateCorrectiveActionReportBody = zod.object({
 })
 
 export const UpdateCorrectiveActionReportResponse = zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Issue a missing number for an existing saved CAR without changing its workflow
+ */
+export const GenerateMissingCarNumberParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GenerateMissingCarNumberResponse = zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
   "id": zod.string(),
   "findingId": zod.string(),

@@ -21,10 +21,12 @@ vi.mock("@workspace/db", () => ({
   }) },
 }));
 vi.mock("../middlewares/rbac", () => ({
+  getAppAdminScope: async () => null,
   getAuthorizedProjectScope: async () => ({ unrestricted: true, projectIds: [] }),
   getAuthorizedFullProjectScope: async () => ({ unrestricted: true, projectIds: [] }),
 }));
 vi.mock("./workspace", () => ({ HttpError: class extends Error {} }));
+vi.mock("./audit-capabilities", () => ({ activeAuditCapabilities: async () => ({ keys: [] }) }));
 import { carRegister } from "./car-register";
 
 const request = (query: Record<string, string> = {}) => ({

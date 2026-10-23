@@ -118,8 +118,14 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
   it("maps conforming records and resolves CAR references and grades through linked checklist findings", () => {
     const mapped = auditPptxMappings(build());
     expect(mapped.get(10)!.tables[0]).toEqual([["Design", "Actual verified practice", "Record X"]]);
-    expect(mapped.get(15)!.tables[0]![0]!.slice(0, 3)).toEqual([PPTX_UNMAPPED, "Moderate", "Actual root cause"]);
+    expect(mapped.get(15)!.tables[0]![0]!.slice(0, 3)).toEqual(["Not numbered", "Moderate", "Actual root cause"]);
     expect(mapped.get(11)!.tables[0]![0]![0]).toBe(PPTX_UNMAPPED);
+  });
+  it("uses the issued CAR number rather than a finding reference on the CAR slide", () => {
+    const data = fixture();
+    (data.cars[0] as typeof data.cars[0] & { carNumber: string }).carNumber = "QAM-CTR-CAR-26-0007";
+    const table = auditPptxMappings(build(data)).get(15)!.tables[0]!;
+    expect(table[0]?.slice(0, 3)).toEqual(["QAM-CTR-CAR-26-0007", "Moderate", "Actual root cause"]);
   });
   it("does not overwrite existing report values or mutate the source audit, plan or other export sections", () => {
     const data = {

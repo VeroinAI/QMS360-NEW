@@ -68,6 +68,7 @@
 - [Audit Report numbering policy](audit-report-numbering-policy.md) — issue on first successful Save Report Details; independent yearly source counters; block completion without a number.
 - [Audit Finding numbering policy](audit-finding-numbering-policy.md) — configurable code per finding type; separate type/source/year sequences; issue on Save Finding; exclude Not applicable.
 - [Audit CAR numbering policy](audit-car-numbering-policy.md) — issue on first successful response save/submit; independent source/year counters; opening a CAR never issues a number.
+- [CAR creation-date deadlines](audit-car-due-policy.md) — Major NC +2 days, Minor NC +3, OFI +4; no invented deadline for other classifications.
 - [CAR response access](car-response-access-policy.md) — schedule links reuse Edit permissions; only the three response fields may be editable; read-only opening must not create a CAR.
 - [Checklist evidence vs import](checklist-workbook-import-ux.md) — the Evidence picker always attaches its file, including Excel; Upload Excel alone imports rows.
 - [Checklist row deletion](checklist-row-deletion.md) — permit deletion only when Audit Findings and Evidence are both empty; protect legacy results and recheck at deletion time.
