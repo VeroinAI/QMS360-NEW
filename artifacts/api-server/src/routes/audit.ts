@@ -4146,6 +4146,10 @@ async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
     active(auditWorkspaceRoles, actor(req).organizationId), inArray(auditWorkspaceRoles.id, roleIds))) : [];
   const sections = buildConsolidatedAuditReport({
     pptxWorkbookMappings,
+    ...(pptxWorkbookMappings ? {
+      pptxProcessOwnerNames: (await auditUsersWithMarker(actor(req).organizationId, "product_process_owner")).map(user => user.fullName),
+      generatedAt: new Date(),
+    } : {}),
     audit: { ...mappedAudit, referenceNumber: audit.referenceNumber }, plan: mappedPlan, project,
     schedule: schedule ? { ...scheduleMeta(schedule), department: scheduleMeta(schedule).departmentProject, ownerId: schedule.ownerId } : null,
     legacyFindings: findings.filter(row => !(row.evidence as AnyRow)?.sourceChecklistItemId).map(row => ({

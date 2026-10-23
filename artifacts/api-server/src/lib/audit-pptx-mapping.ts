@@ -52,14 +52,12 @@ export function auditPptxMappings(sections: ReportSectionData[]): Map<number, Pp
     [11 + i * 4, themes[i]?.slice(1).join(" · ") || PPTX_EMPTY]])),
     [rows("findings-summary").map(r => [r[0]!, r[1]!, r[2]!, r[3]!, r[4]!, r[6]!])]);
   put(8, {
-    5: "", 7: `Data as at: ${field("project-progress", "Data as at")}    Source: ${field("project-progress", "Source")}`,
+    5: "", 7: "",
     13: field("project-progress", "Auditor comment"),
-  }, [rows("project-progress")]);
+  }, [rows("project-progress").filter(row => !/^(overall|total)$/i.test(row[0]?.trim() ?? ""))]);
   put(9, { 5: "", 12: `Comment: ${field("design-procurement", "Design comment")}`, 16: `Comment: ${field("design-procurement", "Procurement comment")}` },
     [rows("design-procurement"), rows("design-procurement", 1)]);
-  put(10, { 9: rows("conforming", 1).map(r => r.join(" · ")).join("\n")
-    || (rows("conforming").length ? "No good practices or positive observations recorded."
-      : "No conforming areas or good practices recorded.") }, [rows("conforming")]);
+  put(10, {}, [rows("conforming")]);
   for (const [slide, key] of [[11, "non-conformities"], [12, "ofi"]] as const) {
     // Slide 11's shape 5 is a template authoring instruction, not a data field.
     put(slide, slide === 11 ? { 5: "" } : {}, [rows(key).map(r => [r[0]!, `${r[1]}\n${r[2]}`, r[3]!, r[4]!, r[5]!])]);

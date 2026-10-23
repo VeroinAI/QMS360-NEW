@@ -26,7 +26,7 @@ function conformingDocs(files: Record<string, Uint8Array>) {
     .map(id => {
       const target = rels.find(rel => rel.getAttribute("Id") === id.getAttributeNS(R, "id"))!.getAttribute("Target");
       return parse(files[`ppt/${target}`]!);
-    }).filter(doc => text(doc).includes("Areas verified as conforming and good practices"));
+    }).filter(doc => text(doc).includes("Areas verified as conforming"));
 }
 
 function checkPackage(files: Record<string, Uint8Array>) {
@@ -80,8 +80,8 @@ describe("Conforming areas actual-row PowerPoint rendering", () => {
       expect(text(doc)).not.toContain(PPTX_UNMAPPED);
     }
     expect(actual).toEqual(Array.from({ length: count }, (_, i) => [`Area ${i}`, `Verified ${i}`, `Record ${i}`]));
-    if (!count) expect(text(docs[0]!)).toContain("No conforming areas or good practices recorded.");
-    else expect(text(docs[0]!)).toContain("GP-0");
+    if (!count) expect(text(docs[0]!)).not.toMatch(/good practices|positive observations/i);
+    else expect(text(docs[0]!)).not.toContain("Good practices and positive observations");
     checkPackage(files);
     if (process.env.QMS_CONFORMING_VISUAL === "1" && [0, 1, 6].includes(count)) {
       await mkdir("../../generated-artifacts/audit-conforming", { recursive: true });
@@ -105,8 +105,7 @@ describe("Conforming areas actual-row PowerPoint rendering", () => {
       [PPTX_EMPTY, PPTX_EMPTY, PPTX_EMPTY],
     ]);
     expect(sections.find(s => s.key === "conforming")!.tables[1]!.rows).toHaveLength(3);
-    expect(mapped.shapes[9]!.split("\n")).toHaveLength(3);
-    expect(mapped.shapes[9]).toContain("Reference-only practice");
+    expect(mapped.shapes[9]).toBeUndefined();
     expect(build(rows, [], false).find(s => s.key === "conforming")!.tables[1]!.rows).toHaveLength(6);
     expect(JSON.stringify(rows)).toBe(before);
   });
@@ -135,7 +134,7 @@ describe("Conforming areas actual-row PowerPoint rendering", () => {
     const doc = conformingDocs(files)[0]!;
     expect(doc.getElementsByTagNameNS(A, "tr")).toHaveLength(1);
     expect(text(doc)).not.toContain(PPTX_UNMAPPED);
-    expect(text(doc)).toContain("No conforming areas or good practices recorded.");
+    expect(text(doc)).not.toMatch(/good practices|positive observations/i);
   });
 
   it("preserves long-text continuation content and trims the last page using pristine styled rows", async () => {

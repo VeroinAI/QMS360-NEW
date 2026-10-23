@@ -19,6 +19,8 @@ export function buildConsolidatedAuditReport(input: {
   legacyFindings: Row[]; cars: Row[]; evidence: Row[]; names: Map<string, string>;
   roleNames: Map<string, string>; timeZone?: string;
   pptxWorkbookMappings?: boolean;
+  pptxProcessOwnerNames?: string[];
+  generatedAt?: Date;
 }): ReportSectionData[] {
   const { audit, plan, project, names, roleNames, evidence, legacyFindings, cars } = input;
   // All these report fields have a source mapping. Keep PDF/JSON wording unchanged.

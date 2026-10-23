@@ -32,10 +32,10 @@ const field = (data: ReturnType<typeof build>, section: string, label: string) =
   data.find(row => row.key === section)!.fields.find(row => row.label === label)!.value;
 
 describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
-  it("fills document control with the audit reference, selected owner and selected lead without fabricated sign-offs", () => {
+  it("fills document control without substituting a Schedule owner for role-assigned Process Owners", () => {
     const sections = build();
     expect(field(sections, "document-control", "Form number")).toBe("QAM-IA/26-001");
-    expect(field(sections, "document-control", "Process owner")).toBe("Selected owner");
+    expect(field(sections, "document-control", "Process owner")).toBe(PPTX_EMPTY);
     const table = auditPptxMappings(sections).get(2)!.tables[0]!;
     expect(table[0]).toEqual(["Prepared by", "Selected lead", PPTX_EMPTY, PPTX_EMPTY]);
     expect(table[1]).toEqual(["Reviewed by", PPTX_EMPTY, PPTX_EMPTY, PPTX_EMPTY]);
@@ -74,10 +74,11 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
       profile.client, profile.contractor, profile.contractProjectNumber, formatDate(profile.contractSigned),
       profile.contractPeriod, profile.tcc, profile.pac, profile.fac,
     ]);
-    // No change to the Audit details, cover or non-PPTX export mapping.
+    // The cover now uses Additional Data too; non-PPTX export mapping stays unchanged.
     const otherExport = buildConsolidatedAuditReport(enriched);
     expect(field(otherExport, "audit-overview", "Client")).toBe("Old report client");
-    expect(sections.find(section => section.key === "cover")).toEqual(JSON.parse(JSON.stringify(otherExport.find(section => section.key === "cover")).replaceAll("Not recorded", "-")));
+    expect(field(sections, "cover", "Contract / project number")).toBe(profile.contractProjectNumber);
+    expect(field(otherExport, "cover", "Contract / project number")).toBe("Old report contract");
     const output = unzipSync(await renderConsolidatedAuditPptx({ sections, skipPriorityActions: true }));
     const slide = strFromU8(output["ppt/slides/slide3.xml"]!);
     for (const value of Object.values(shapes)) expect(slide).toContain(String(value).replaceAll("&", "&amp;"));
@@ -145,7 +146,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     const sections = build(data);
     expect(field(sections, "scope", "Objective")).toBe("Existing objective");
     expect(field(sections, "document-control", "Form number")).toBe("Existing form number");
-    expect(field(sections, "document-control", "Process owner")).toBe("Existing owner");
+    expect(field(sections, "document-control", "Process owner")).toBe(PPTX_EMPTY);
     expect(sections.find(row => row.key === "document-control")!.tables[0]!.rows[0])
       .toEqual(["Prepared by", "Existing preparer", "Existing signature", "2026-10-01"]);
     const unchanged = buildConsolidatedAuditReport(data);
@@ -217,7 +218,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     const original = unzipSync(await renderConsolidatedAuditPptx({ sections }));
     const output = unzipSync(await renderConsolidatedAuditPptx({ sections, skipPriorityActions: true }));
     const xml = (name: string) => strFromU8(output[name]!);
-    expect(xml("ppt/slides/slide2.xml")).toContain("Selected owner");
+    expect(xml("ppt/slides/slide2.xml")).not.toContain("Selected owner");
     expect(xml("ppt/slides/slide2.xml")).toContain("Selected lead");
     expect(xml("ppt/slides/slide2.xml")).toContain("QAM-IA/26-001");
     expect(xml("ppt/slides/slide8.xml")).toContain("Engineering");

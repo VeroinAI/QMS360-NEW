@@ -143,3 +143,17 @@ unsupported fields that require IT support.
 numbers, dates, project profile, sign-offs, findings, CARs and photographs.
 Never globally replace placeholder-like words in filenames or entered prose.
 Preserve zero/false values, PDF/JSON semantics, source records and numbering.
+
+The PPTX cover Contract / Project no. uses Project Master Additional Data's
+Contract / project no., never project code or an old Report Details value.
+Document Control Process Owner lists the active organization users carrying the
+Product / Process Owner marker, comma-separated; it is not the selected Schedule
+owner or a report signatory. Effective date is the report download date.
+
+**Why:** The user explicitly corrected these sources and distinguished role
+assignments from the existing saved report/transaction fields.
+
+**How to apply:** Apply these live-source overrides to PPTX only. Preserve
+reviewer/sign-off rules and PDF/JSON mappings. Keep long scope prose complete on
+continuation slides, show None for empty recurring themes without numbered slots,
+and omit the progress total/date/source and separate good-practice panel.

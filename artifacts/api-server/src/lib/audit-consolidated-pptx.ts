@@ -71,6 +71,31 @@ function setShape(doc: Document, id: number, text: string) {
   if (!node) throw new Error(`PowerPoint template is missing shape ${id}`);
   setText(node, text);
 }
+function removeShape(doc: Document, id: number) {
+  const node = shape(doc, id);
+  node?.parentNode?.removeChild(node);
+}
+function removeProgressTotal(doc: Document) {
+  const table = elements(doc, A, "tbl")[0];
+  if (!table) return;
+  for (const row of elements(table, A, "tr").slice(1)) {
+    const first = elements(row, A, "tc")[0];
+    if (/^(overall|total)$/i.test(elements(first!, A, "t").map(t => t.textContent).join("").trim())) table.removeChild(row);
+  }
+}
+/** Explicit wrapping and pagination prevent Office-dependent fitting or clipped scope sentences. */
+function scopeBox(doc: Document, id: number, text: string) {
+  programmeBox(doc, id, text, 1100, 1250);
+  for (const props of elements(shape(doc, id)!, A, "pPr")) {
+    props.setAttribute("marL", "0"); props.setAttribute("indent", "0");
+    for (const child of Array.from(props.childNodes)) {
+      if (child.nodeType === 1 && (child as Element).localName?.startsWith("bu")) props.removeChild(child);
+    }
+    const before = Array.from(props.childNodes).find(child => child.nodeType === 1
+      && ["tabLst", "defRPr", "extLst"].includes((child as Element).localName ?? ""));
+    props.insertBefore(doc.createElementNS(A, "a:buNone"), before ?? null);
+  }
+}
 /** Programme rows use bounded lines and explicit fonts, not viewer-dependent autofit. */
 function programmeBox(doc: Document, id: number, text: string, size: number, lineHeight: number, rect?: { y: number; width: number; height: number }) {
   setShape(doc, id, text);
@@ -177,6 +202,7 @@ export async function renderConsolidatedAuditPptx(input: {
     const sourceSlide = files[path]!;
     const sourceRels = files[`ppt/slides/_rels/slide${slideNumber}.xml.rels`]!;
     const base = parse(sourceSlide);
+    if (slideNumber === 8) removeProgressTotal(base);
     const tables = elements(base, A, "tbl");
     const mapping = mappings.get(slideNumber);
     const ofi = slideNumber === 12 ? ofiPages(tables[0]!, mapping?.tables[0] ?? []) : undefined;
@@ -208,12 +234,16 @@ export async function renderConsolidatedAuditPptx(input: {
     }
     const activities = chunks(programmeEntries(activityRows), 5);
     const participation = [28, 33, 38].map(id => chunks(programmeLines(mapping?.shapes[id] ?? PPTX_EMPTY, 26), id === 33 ? 5 : 4));
-    const themeRows = section("findings-summary")?.tables[1]?.rows ?? [];
+    const themeRows = (section("findings-summary")?.tables[1]?.rows ?? [])
+      .filter(row => row.some(cell => ![PPTX_EMPTY, PPTX_UNMAPPED].includes(mappedText(cell))));
     const themes = chunks(themeRows, 3);
+    const scopeText = [6, 11, 16, 21].map(id => chunks(
+      programmeLines(mapping?.shapes[id] ?? PPTX_EMPTY, id === 6 ? 78 : 21), id === 6 ? 2 : 16));
     const count = Math.max(1, ...pages.map(p => p.length), slideNumber === 5 ? activities.length : 1,
       ofi?.length ?? 1,
       summary?.length ?? 1,
       slideNumber === 13 ? photos.length : 1, slideNumber === 7 ? themes.length : 1,
+      ...(slideNumber === 4 ? scopeText.map(pages => pages.length) : [1]),
       ...(slideNumber === 5 ? participation.map(p => p.length) : [1]));
     for (let page = 0; page < count; page++) {
       const doc = parse(sourceSlide);
@@ -224,11 +254,12 @@ export async function renderConsolidatedAuditPptx(input: {
         if (/\[[^\]]*\]|Engr\. \(Name|E\.g\. Project Manager/.test(text)) setText(s, PPTX_UNMAPPED);
       }
       const slideTables = elements(doc, A, "tbl");
+      if (slideNumber === 8) removeProgressTotal(doc);
       for (const [id, text] of Object.entries(mapping?.shapes ?? {})) setShape(doc, Number(id), text);
       if (summary) renderSummaryPage(slideTables[0]!, summary[page], setText);
       else if (ofi) renderOfiPage(doc, slideTables[0]!, ofi[page]!, setText);
       else mapping?.tables.forEach((_, i) => setTable(slideTables[i]!, pages[i]?.[page] ?? [], tableStarts[slideNumber] ?? 1,
-        elements(slideTables[i]!, A, "tr").length - (tableStarts[slideNumber] ?? 1), [10, 15].includes(slideNumber),
+        elements(slideTables[i]!, A, "tr").length - (tableStarts[slideNumber] ?? 1), [8, 10, 15].includes(slideNumber),
         slideNumber === 15 ? ["No CAR responses recorded", "—", "—", "—", "—", "—", "—", "—"] : undefined));
       if ([11, 12].includes(slideNumber)) {
         const group = elements(slideTables[0]!, A, "tr")[1]!;
@@ -237,22 +268,36 @@ export async function renderConsolidatedAuditPptx(input: {
       }
       if (slideNumber === 5) {
         programmeBox(doc, 37, "Not represented in\nClosing meeting", 1100, 1250,
-          { y: 5010912, width: 3657600, height: 317500 });
+          { y: 5010912, width: 4206240, height: 381000 });
         for (let i = 0; i < 5; i++) {
           const row = activities[page]?.[i];
           const top = 1892808 + i * 868680;
           programmeBox(doc, 10 + i * 3, row?.times ?? PPTX_EMPTY, 1100, 1200, { y: top, width: 4480560, height: 330200 });
           programmeBox(doc, 11 + i * 3, row?.details ?? PPTX_EMPTY, 1050, 1150, { y: top + 360200, width: 4480560, height: 480000 });
         }
-        [28, 33, 38].forEach((id, i) => programmeBox(doc, id, participation[i]?.[page]?.join("\n") ?? PPTX_EMPTY, 1100, 1250));
+        [28, 33, 38].forEach((id, i) => programmeBox(doc, id, participation[i]?.[page]?.join("\n") ?? PPTX_EMPTY, 1100, 1250,
+          id === 38 ? { y: 5437512, width: 4206240, height: 685800 } : undefined));
         setShape(doc, 6, String(outputSlides.length + 1));
       }
+      if (slideNumber === 4) [6, 11, 16, 21].forEach((id, i) => scopeBox(doc, id, scopeText[i]?.[page]?.join("\n") ?? ""));
       if (slideNumber === 7) {
         for (let i = 0; i < 3; i++) {
           const row = themes[page]?.[i];
-          setShape(doc, 10 + i * 4, mappedText(row?.[0]));
-          setShape(doc, 11 + i * 4, mappedText(row?.slice(1).join(" · ")));
+          if (row) {
+            setShape(doc, [4, 13, 17][i]!, String(page * 3 + i + 1));
+            setShape(doc, 10 + i * 4, mappedText(row[0]));
+            setShape(doc, 11 + i * 4, mappedText(row.slice(1).join(" · ")));
+          } else {
+            for (const id of [[8, 4], [12, 13], [16, 17]][i]!) removeShape(doc, id);
+            if (i === 0 && !themeRows.length) setShape(doc, 10, "None");
+            else removeShape(doc, 10 + i * 4);
+            removeShape(doc, 11 + i * 4);
+          }
         }
+      }
+      if (slideNumber === 10) {
+        for (const id of [5, 6, 8, 9]) removeShape(doc, id);
+        setShape(doc, 3, "Areas verified as conforming");
       }
       const target = page ? nextSlide++ : slideNumber;
       const targetPath = `ppt/slides/slide${target}.xml`;

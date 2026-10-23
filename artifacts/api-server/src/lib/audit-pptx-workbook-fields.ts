@@ -1,5 +1,5 @@
 import { projectProgressPhases } from "@workspace/field-controls";
-import { formatDate } from "@workspace/spreadsheet-dates";
+import { formatDate, formatDateInTimeZone } from "@workspace/spreadsheet-dates";
 import type { ReportSectionData } from "./audit-consolidated-report";
 import { mappedText, PPTX_EMPTY, PPTX_UNMAPPED } from "./audit-pptx-mapping";
 
@@ -10,11 +10,12 @@ export const recordedGoodPractice = (row: Row) =>
   ["areaProcess", "verifiedConforming", "evidenceReference", "referenceNumber"]
     .some(key => row[key] != null && String(row[key]).trim() !== "");
 
-/** Workbook-driven enrichment is exclusive to PPTX. Preserve recorded values except explicit workbook source changes. */
+/** PPTX-only enrichment. Explicit live-source mappings override stale report-detail values. */
 export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input: {
   audit: Row; plan?: Row | null; schedule?: Row | null; project?: Row | null;
   evidence: Row[]; names: Map<string, string>; roleNames: Map<string, string>;
   cars: Row[]; findingReferences: Map<string, { reference: string; grade: string }>;
+  pptxProcessOwnerNames?: string[]; generatedAt?: Date; timeZone?: string;
 }) {
   const { audit, plan, schedule, project, evidence, names, roleNames } = input;
   const empty = (value: unknown) => [PPTX_EMPTY, PPTX_UNMAPPED].includes(mappedText(value));
@@ -24,19 +25,12 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
     if (target && empty(target.value) && !empty(value)) target.value = String(value);
   };
   const list = (items: unknown[]) => [...new Set(items.filter(item => !empty(item)).map(String))].join("\n");
-  const projectField = (...keys: string[]) => {
-    const normalize = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, "");
-    for (const key of keys) {
-      const entry = Object.entries({ ...project?.customFields, ...project })
-        .find(([name, value]) => normalize(name) === normalize(key) && !empty(value)
-          && (typeof value === "string" || (typeof value === "number" && Number.isFinite(value))));
-      if (entry) return entry[1];
-    }
-    return undefined;
-  };
   fill("cover", "Project / process / site", project?.name || schedule?.departmentProject || schedule?.department);
   fill("document-control", "Form number", field("cover", "Audit reference")?.value);
-  fill("document-control", "Process owner", names.get(schedule?.ownerId));
+  const processOwner = field("document-control", "Process owner");
+  if (processOwner) processOwner.value = [...new Set(input.pptxProcessOwnerNames?.map(name => name.trim()).filter(Boolean) ?? [])].join(", ") || PPTX_EMPTY;
+  const effectiveDate = field("document-control", "Effective date");
+  if (effectiveDate) effectiveDate.value = formatDateInTimeZone(input.generatedAt ?? new Date(), input.timeZone ?? "Asia/Riyadh");
   fill("document-control", "Applies to", "All quality internal audits conducted by Algihaz auditors");
   const approvals = sections.find(section => section.key === "document-control")?.tables[0];
   const preparedById = plan && "pptxPreparedById" in plan ? plan.pptxPreparedById : plan?.leadAuditorId;
@@ -69,7 +63,9 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
     const saved = typeof additional[key] === "string" ? additional[key].trim() : "";
     target.value = saved ? (key === "contractSigned" ? formatDate(saved) : saved) : PPTX_EMPTY;
   }
-  fill("cover", "Contract / project number", projectField("contractNumber", "projectNumber", "contractProjectNo", "projectNo", "code"));
+  const coverContract = field("cover", "Contract / project number");
+  if (coverContract) coverContract.value = typeof additional.contractProjectNumber === "string"
+    ? additional.contractProjectNumber.trim() || PPTX_EMPTY : PPTX_EMPTY;
   fill("scope", "Objective", plan?.description);
   fill("scope", "In scope", list((plan?.activities ?? []).map((row: Row) => row.section)));
   fill("scope", "Period and sample covered", list(evidence.map(file => file.fileName)));
