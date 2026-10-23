@@ -31,13 +31,49 @@ export function programmeLines(text: string, ems: number): string[] {
 }
 
 export function programmeEntries(rows: string[][]): Array<{ times: string; details: string }> {
-  return rows.flatMap(row => {
+  return rows.map(row => {
     const times = `Start: ${programmeDate(row[0])}\nEnd: ${programmeDate(row[1])}`;
     const lines = programmeLines([
       `Activity: ${mappedText(row[2])}`, `Remarks: ${mappedText(row[3])}`, `Auditee: ${mappedText(row[4])}`,
     ].join("\n"), 30);
-    return Array.from({ length: Math.ceil(lines.length / 3) }, (_, i) => ({
-      times, details: lines.slice(i * 3, i * 3 + 3).join("\n") || PPTX_EMPTY,
-    }));
+    return { times, details: lines.join("\n") || PPTX_EMPTY };
   });
+}
+
+export const PROGRAMME_TOP = 1892808;
+export const PROGRAMME_HEIGHT = 4343400;
+const DETAILS_OFFSET = 360200;
+const LINE_HEIGHT = 146050; // 11.5 points, matching the rendered paragraph spacing.
+const DETAILS_PADDING = 41850;
+const GAP = 28480;
+export type ProgrammeActivityBlock = {
+  times: string; details: string; continued: boolean;
+  top: number; detailsTop: number; detailsHeight: number; height: number;
+};
+
+/** One milestone per activity; remarks use its space, not additional timeline entries. */
+export function programmePages(rows: string[][]): ProgrammeActivityBlock[][] {
+  const pages: ProgrammeActivityBlock[][] = [[]];
+  let page = pages[0]!, used = 0;
+  const newPage = () => { page = []; pages.push(page); used = 0; };
+  const heightFor = (lines: number) => DETAILS_OFFSET + Math.max(3, lines) * LINE_HEIGHT + DETAILS_PADDING + GAP;
+  const maxLines = Math.floor((PROGRAMME_HEIGHT - DETAILS_OFFSET - DETAILS_PADDING - GAP) / LINE_HEIGHT);
+  for (const entry of programmeEntries(rows)) {
+    let lines = entry.details.split("\n"), continued = false;
+    // Keep an activity intact when it fits on a fresh slide.
+    if (page.length && (page.length === 5 || heightFor(lines.length) > PROGRAMME_HEIGHT - used)) newPage();
+    while (lines.length) {
+      const part = lines.slice(0, maxLines), height = heightFor(part.length);
+      const top = PROGRAMME_TOP + used;
+      page.push({
+        times: continued ? "Activity continued" : entry.times,
+        details: part.join("\n"), continued, top, detailsTop: top + DETAILS_OFFSET,
+        detailsHeight: height - DETAILS_OFFSET - GAP, height,
+      });
+      used += height;
+      lines = lines.slice(part.length);
+      if (lines.length) { newPage(); continued = true; }
+    }
+  }
+  return pages;
 }

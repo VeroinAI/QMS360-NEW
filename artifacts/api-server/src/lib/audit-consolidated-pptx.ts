@@ -3,7 +3,7 @@ import { DOMParser, XMLSerializer, type Document, type Element, type Node } from
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { ReportSectionData } from "./audit-consolidated-report";
 import { auditPptxMappings, mappedText, PPTX_EMPTY, PPTX_UNMAPPED } from "./audit-pptx-mapping";
-import { programmeEntries, programmeLines } from "./audit-programme-pptx-layout";
+import { programmePages, programmeLines } from "./audit-programme-pptx-layout";
 import { photographicPages, renderPhotographicPage } from "./audit-pptx-photo-layout";
 import { ofiPages, renderOfiPage } from "./audit-pptx-ofi-layout";
 import { summaryPages, renderSummaryPage } from "./audit-pptx-summary-layout";
@@ -86,6 +86,9 @@ function removeProgressTotal(doc: Document) {
 /** Explicit wrapping and pagination prevent Office-dependent fitting or clipped scope sentences. */
 function scopeBox(doc: Document, id: number, text: string) {
   programmeBox(doc, id, text, 1100, 1250);
+  plainParagraphs(doc, id);
+}
+function plainParagraphs(doc: Document, id: number) {
   for (const props of elements(shape(doc, id)!, A, "pPr")) {
     props.setAttribute("marL", "0"); props.setAttribute("indent", "0");
     for (const child of Array.from(props.childNodes)) {
@@ -223,7 +226,8 @@ export async function renderConsolidatedAuditPptx(input: {
       });
       return chunks(expanded, capacity);
     }) ?? [];
-    const activityRows = [...(section("programme")?.tables[0]?.rows ?? [])];
+    const activityRows = [...(section("programme")?.tables[0]?.rows ?? [])]
+      .filter(row => row.some(cell => ![PPTX_EMPTY, PPTX_UNMAPPED].includes(mappedText(cell))));
     const programmeField = (label: string) => mappedText(section("programme")?.fields.find(f => f.label === label)?.value);
     for (const meeting of ["Opening", "Closing"]) {
       const held = programmeField(`${meeting} meeting`);
@@ -232,7 +236,7 @@ export async function renderConsolidatedAuditPptx(input: {
         held, PPTX_EMPTY, `${meeting} meeting (recorded)`, minutes, programmeField("Auditees present"),
       ]);
     }
-    const activities = chunks(programmeEntries(activityRows), 5);
+    const activities = programmePages(activityRows);
     const participation = [28, 33, 38].map(id => chunks(programmeLines(mapping?.shapes[id] ?? PPTX_EMPTY, 26), id === 33 ? 5 : 4));
     const themeRows = (section("findings-summary")?.tables[1]?.rows ?? [])
       .filter(row => row.some(cell => ![PPTX_EMPTY, PPTX_UNMAPPED].includes(mappedText(cell))));
@@ -269,11 +273,30 @@ export async function renderConsolidatedAuditPptx(input: {
       if (slideNumber === 5) {
         programmeBox(doc, 37, "Not represented in\nClosing meeting", 1100, 1250,
           { y: 5010912, width: 4206240, height: 381000 });
+        const markerCenters: number[] = [];
+        const remove = (id: number) => { const node = shape(doc, id); node?.parentNode?.removeChild(node); };
         for (let i = 0; i < 5; i++) {
           const row = activities[page]?.[i];
-          const top = 1892808 + i * 868680;
-          programmeBox(doc, 10 + i * 3, row?.times ?? PPTX_EMPTY, 1100, 1200, { y: top, width: 4480560, height: 330200 });
-          programmeBox(doc, 11 + i * 3, row?.details ?? PPTX_EMPTY, 1050, 1150, { y: top + 360200, width: 4480560, height: 480000 });
+          const markerId = 9 + i * 3, timeId = 10 + i * 3, detailsId = 11 + i * 3;
+          if (!row) {
+            remove(markerId); remove(timeId); remove(detailsId);
+            continue;
+          }
+          if (row.continued) remove(markerId);
+          else {
+            const marker = shape(doc, markerId)!;
+            elements(marker, A, "off")[0]!.setAttribute("y", String(row.top + 164592));
+            markerCenters.push(row.top + 310896);
+          }
+          programmeBox(doc, timeId, row.times, 1100, 1200, { y: row.top, width: 4480560, height: 330200 });
+          programmeBox(doc, detailsId, row.details, 1050, 1150, { y: row.detailsTop, width: 4480560, height: row.detailsHeight });
+          plainParagraphs(doc, detailsId);
+        }
+        if (markerCenters.length < 2) remove(8);
+        else {
+          const connector = shape(doc, 8)!;
+          elements(connector, A, "off")[0]!.setAttribute("y", String(markerCenters[0]));
+          elements(connector, A, "ext")[0]!.setAttribute("cy", String(markerCenters.at(-1)! - markerCenters[0]!));
         }
         [28, 33, 38].forEach((id, i) => programmeBox(doc, id, participation[i]?.[page]?.join("\n") ?? PPTX_EMPTY, 1100, 1250,
           id === 38 ? { y: 5437512, width: 4206240, height: 685800 } : undefined));

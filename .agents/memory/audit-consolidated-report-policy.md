@@ -157,3 +157,15 @@ assignments from the existing saved report/transaction fields.
 reviewer/sign-off rules and PDF/JSON mappings. Keep long scope prose complete on
 continuation slides, show None for empty recurring themes without numbered slots,
 and omit the progress total/date/source and separate good-practice panel.
+
+The Audit Program and Participation timeline has one milestone per activity.
+Remarks are that activity's subactivities, not independent milestones. Keep
+them in the activity block; oversized activities may continue on another slide
+but must not gain another bullet or circle.
+
+**Why:** The user reported that wrapped remarks were being presented as extra
+activities, misrepresenting the actual programme.
+
+**How to apply:** Preserve all remarks, dates and auditees while allocating
+content-based space. Remove unused template milestones and leave continuation
+text unmarked. Do not change the saved programme or unrelated report sections.

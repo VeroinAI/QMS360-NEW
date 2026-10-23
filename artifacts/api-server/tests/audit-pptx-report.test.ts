@@ -204,13 +204,16 @@ describe("Original Audit PowerPoint report template", () => {
 
       for (let i = 0; i < 5; i++) {
         const header = shape(10 + i * 3), body = shape(11 + i * 3);
+        if (!header || !body) continue;
         const box = (node: typeof header) => ({
           y: Number(node.getElementsByTagNameNS(A, "off")[0]!.getAttribute("y")),
           h: Number(node.getElementsByTagNameNS(A, "ext")[0]!.getAttribute("cy")),
         });
         expect(box(header).y + box(header).h).toBeLessThan(box(body).y);
-        if (i < 4) expect(box(body).y + box(body).h).toBeLessThan(box(shape(13 + i * 3)).y);
-        expect(body.getElementsByTagNameNS(A, "p").length).toBeLessThanOrEqual(3);
+        const next = i < 4 ? shape(13 + i * 3) : undefined;
+        if (next) expect(box(body).y + box(body).h).toBeLessThan(box(next).y);
+        expect(box(body).y + box(body).h).toBeLessThanOrEqual(6236208);
+        expect(body.getElementsByTagNameNS(A, "p").length).toBeLessThanOrEqual(26);
         expect(header.getElementsByTagNameNS(A, "p").length).toBeLessThanOrEqual(2);
         expect(body.getElementsByTagNameNS(A, "noAutofit").length).toBe(1);
         expect(body.getElementsByTagNameNS(A, "bodyPr")[0]!.getAttribute("wrap")).toBe("none");
@@ -218,7 +221,7 @@ describe("Original Audit PowerPoint report template", () => {
         if (!lines.includes("To be mapped")) bodies.push(...lines);
       }
       const headerText = Array.from(shape(10).getElementsByTagNameNS(A, "t")).map(t => t.textContent).join("\n");
-      expect(headerText).toContain("12 Oct 2026, 10:10");
+      expect(headerText).toContain(shape(9) ? "12 Oct 2026, 10:10" : "Activity continued");
       expect(headerText).not.toContain("T10:10:00.000Z");
     }
     const preserved = bodies.join(" ").replace(/\s+/g, " ");
