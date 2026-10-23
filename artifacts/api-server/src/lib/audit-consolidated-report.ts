@@ -6,7 +6,11 @@ type Row = Record<string, any>;
 export type ReportSectionData = {
   key: string; title: string; fields: Array<{ label: string; value: string }>;
   tables: Array<{ title: string; columns: string[]; rows: string[][] }>;
-  notes: string[]; photos: Array<{ id: string; fileName: string; reference: string; description: string }>;
+  notes: string[]; photos: Array<{
+    id: string; fileName: string; reference: string; description: string;
+    /** PPTX-only factual metadata; absent on PDF/JSON report data. */
+    findingId?: string; findingCreatedDate?: string; grade?: string; location?: string; captionDescription?: string;
+  }>;
 };
 const missing = "Not recorded";
 export const auditIsComplete = (state: string) => ["complete", "completed", "closed"].includes(state.toLowerCase());
@@ -185,13 +189,24 @@ export function buildConsolidatedAuditReport(input: {
   register("ofi", "Opportunities for improvement", findings.filter(row => row.grade === "OFI"));
   const photographs = section("photographs", "Photographic evidence");
   for (const file of evidence.filter(file => /^image\/(png|jpeg|webp|gif)$/i.test(file.mimeType) && file.id !== documents.organizationChartId)) {
-    const row = findings.find(f => f.evidenceIds?.includes(file.id));
+    const associated = findings.filter(f => f.evidenceIds?.includes(file.id));
+    const rows = input.pptxWorkbookMappings ? associated : [associated[0]];
+    for (const row of rows) {
     // The workbook requests images attached to NC/OFI findings, not unrelated uploads.
     if (input.pptxWorkbookMappings && !row) continue;
     const caption = details.rows.photographs?.find(c => c.fileName?.trim() === file.fileName && (!c.reference?.trim() || c.reference.trim() === row?.reference))
       ?? details.rows.photographs?.find(c => c.fileName?.trim() === file.fileName);
-    photographs.photos.push({ id: file.id, fileName: file.fileName, reference: row?.reference || caption?.reference || missing,
+    photographs.photos.push({ id: file.id, fileName: file.fileName,
+      reference: input.pptxWorkbookMappings ? value(row?.findingNumber) : row?.reference || caption?.reference || missing,
+      ...(input.pptxWorkbookMappings ? {
+        findingId: `${row?.legacy ? "legacy" : "checklist"}:${row?.id}`,
+        findingCreatedDate: date(row?.legacy ? row.createdAt : row?.findingCreatedAt),
+        grade: value(row?.grade || caption?.grade),
+        location: value(caption?.location || details.values.location || plan?.location || row?.area),
+        captionDescription: value(caption?.description || row?.description),
+      } : {}),
       description: `Grade: ${value(row?.grade || caption?.grade)}\nDate captured: ${date(caption?.date)}\nDate uploaded: ${date(file.createdAt)}\nLocation: ${value(caption?.location || details.values.location || plan?.location || row?.area)}\nDescription: ${value(caption?.description || row?.description || (input.pptxWorkbookMappings ? undefined : row?.question || file.fileName))}\nRequirement: ${value(row?.clause || caption?.requirement)}` });
+    }
   }
   const grading = section("grading", "Finding grades and response requirements");
   grading.tables.push({ title: "Client template grading guidance", columns: ["Grade", "Definition", "Response requirement"],

@@ -68,6 +68,7 @@ import { normalizeProjectProgress, projectProgressVariance } from "@workspace/fi
 import { requireFindingPriorityAction } from "@workspace/field-controls";
 import { auditIsComplete, buildConsolidatedAuditReport } from "../lib/audit-consolidated-report";
 import { AUDIT_PPTX_MIME, renderConsolidatedAuditPptx } from "../lib/audit-consolidated-pptx";
+import { findingCreationDates } from "../lib/audit-photo-finding-metadata";
 import { renderConsolidatedAuditPdf } from "../lib/audit-consolidated-pdf";
 import { auditReportDetailsErrors, type AuditReportDetailsData } from "@workspace/field-controls";
 import { auditModulePermissionCatalog, datedActivities, auditPlanDateErrors, plannedDate, auditPlanReplayMatches, type DatedActivity } from "@workspace/field-controls";
@@ -4000,12 +4001,29 @@ async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
   const [project] = audit.projectId ? await db.select().from(projects).where(and(
     active(projects, actor(req).organizationId), eq(projects.id, audit.projectId))) : [];
   const evidence = await db.select().from(auditEvidenceFiles).where(and(
-    active(auditEvidenceFiles, actor(req).organizationId), inArray(auditEvidenceFiles.recordType, ["audit", "audit_execution"]),
-    eq(auditEvidenceFiles.recordId, audit.id), eq(auditEvidenceFiles.status, "stored")));
+    active(auditEvidenceFiles, actor(req).organizationId), eq(auditEvidenceFiles.status, "stored"),
+    or(
+      and(inArray(auditEvidenceFiles.recordType, ["audit", "audit_execution"]), eq(auditEvidenceFiles.recordId, audit.id)),
+      // Legacy findings attach files to their own record. Only include active
+      // findings already resolved within this audit/tenant; PDF/JSON stay as-is.
+      pptxWorkbookMappings && findings.length ? and(
+        inArray(auditEvidenceFiles.recordType, ["audit_finding", "finding"]),
+        inArray(auditEvidenceFiles.recordId, findings.map(f => f.id)),
+      ) : undefined,
+    )));
   const mappedAudit = auditDto(audit);
   if (pptxWorkbookMappings) {
+    const events = await db.select({
+      before: auditAuditLogEntries.before, after: auditAuditLogEntries.after, createdAt: auditAuditLogEntries.createdAt,
+    }).from(auditAuditLogEntries).where(and(
+      eq(auditAuditLogEntries.organizationId, actor(req).organizationId),
+      eq(auditAuditLogEntries.entityType, "audit"), eq(auditAuditLogEntries.entityId, audit.id),
+      inArray(auditAuditLogEntries.action, ["add_finding_item", "update_checklist", "add_checklist_item", "edit_checklist_item", "import_checklist_items"]),
+    ));
+    const createdDates = findingCreationDates(events);
     mappedAudit.checklist = mappedAudit.checklist.map((item: AnyRow) => ({
-      ...item, findingId: item.findingId ?? findings.find(finding =>
+      ...item, findingCreatedAt: createdDates.get(item.id),
+      findingId: item.findingId ?? findings.find(finding =>
         (finding.evidence as AnyRow)?.sourceChecklistItemId === item.id)?.id,
     }));
   }
@@ -4047,7 +4065,9 @@ async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
     pptxWorkbookMappings,
     audit: { ...mappedAudit, referenceNumber: audit.referenceNumber }, plan: mappedPlan, project,
     schedule: schedule ? { ...scheduleMeta(schedule), department: scheduleMeta(schedule).departmentProject, ownerId: schedule.ownerId } : null,
-    legacyFindings: findings.filter(row => !(row.evidence as AnyRow)?.sourceChecklistItemId).map(findingDto),
+    legacyFindings: findings.filter(row => !(row.evidence as AnyRow)?.sourceChecklistItemId).map(row => ({
+      ...findingDto(row), ...(pptxWorkbookMappings ? { createdAt: row.createdAt } : {}),
+    })),
     cars: cars.map(car => carDto({ ...car, dueDate: carDueDate(findings.find(f => f.id === car.auditFindingId)?.classification, car.createdAt, car.dueDate) })), evidence,
     names: new Map(nameRows.map(u => [u.id, [u.name, u.designation].filter(Boolean).join(" / ")])),
     roleNames: new Map(roleRows.map(r => [r.id, r.name])),
@@ -4100,9 +4120,9 @@ router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
         bytes = await readFile(path.resolve(process.cwd(), "uploads", localKey.replace("/", "-")));
       }
       if (bytes.length > 20_000_000) throw new Error("Image exceeds report size limit");
-      // Fit to the original template rectangle without distorting photographs.
+      // Keep native aspect ratio; the count-based slide layout fits each image.
       images.set(photo.id, await sharp(bytes, { limitInputPixels: 16_000_000 })
-        .resize({ width: 1442, height: 800, fit: "contain", background: "#F3EEFA" }).png().toBuffer());
+        .rotate().resize({ width: 1800, height: 1400, fit: "inside", withoutEnlargement: true }).png().toBuffer());
     } catch {
       throw new HttpError(502, `Could not load photograph "${photo.fileName}". Please retry the PowerPoint download.`);
     }

@@ -1,14 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Server } from "node:http";
 import { randomUUID } from "node:crypto";
-import { readFile, writeFile, unlink } from "node:fs/promises";
+import { readFile, writeFile, unlink, mkdir } from "node:fs/promises";
+import sharp from "sharp";
+import { unzipSync, strFromU8 } from "fflate";
 import { eq } from "drizzle-orm";
 import { PDFDocument } from "pdf-lib";
 import { formatDate } from "@workspace/spreadsheet-dates";
 import {
   db, organizations, projects, platformRoles, users, applicationAccess,
   auditPlans, auditSchedules, audits, auditFindings, correctiveActionReports, auditAuditLogEntries, organizationSettings,
-  auditPermissions, auditWorkspaceRoles, auditWorkspaceRolePermissions, auditUserWorkspaceRoles,
+  auditPermissions, auditWorkspaceRoles, auditWorkspaceRolePermissions, auditUserWorkspaceRoles, auditEvidenceFiles,
 } from "@workspace/db";
 import app from "../src/app";
 import { issueToken } from "../src/lib/auth";
@@ -29,6 +31,7 @@ async function api(method: string, path: string, data?: unknown, auth = token) {
 }
 async function cleanup(id: string) {
   await db.delete(auditAuditLogEntries).where(eq(auditAuditLogEntries.organizationId, id));
+  await db.delete(auditEvidenceFiles).where(eq(auditEvidenceFiles.organizationId, id));
   await db.delete(correctiveActionReports).where(eq(correctiveActionReports.organizationId, id));
   await db.delete(auditFindings).where(eq(auditFindings.organizationId, id));
   await db.delete(audits).where(eq(audits.organizationId, id));
@@ -57,7 +60,8 @@ beforeAll(async () => {
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   const [org] = await db.insert(organizations).values({ name: `Report regression ${suffix}`, code: `RR${suffix}` }).returning();
   orgId = org!.id;
-  const [project] = await db.insert(projects).values({ organizationId: orgId, name: "Regression project", code: `P${suffix}`, customFields: { costCentre: "RP100" } }).returning();
+  const [project] = await db.insert(projects).values({ organizationId: orgId, name: "Regression project", code: `P${suffix}`,
+    customFields: { costCentre: "RP100", qmsAdditionalData: { contractProjectNumber: "RP100" } } }).returning();
   projectId = project!.id;
   const roles = await db.insert(platformRoles).values([
     { organizationId: orgId, name: "Org Admin", isSystem: true }, { organizationId: orgId, name: "Employee", isSystem: true },
@@ -225,6 +229,64 @@ describe.skipIf(process.env.QMS_AUDIT_REPORT_CLEANUP === "1")("Audit completion 
     expect(result.body.openingMeeting.minutes).toBe("Actual meeting");
     expect(result.body.reportDetails.values.client).toBe("Concurrent client");
   });
+  it("downloads real single/five-image evidence and long captions with saved finding metadata, without changing PDF/JSON", async () => {
+    const [uploader] = await db.select().from(users).where(eq(users.organizationId, orgId)).limit(1);
+    const png = await sharp({ create: { width: 600, height: 400, channels: 3, background: "#3274a1" } }).png().toBuffer();
+    const paths: string[] = [];
+    await mkdir("uploads", { recursive: true });
+    try {
+      for (const scenario of ["single", "five", "long", "legacy"] as const) {
+        const count = scenario === "single" || scenario === "legacy" ? 1 : 5;
+        const fileIds = Array.from({ length: count }, () => randomUUID());
+        const description = scenario === "long" ? "Saved descriptive text that must remain legible in full. ".repeat(90) : "Actual saved description";
+        const item = { id: `item-${scenario}`, source: "finding", auditArea: "Construction", auditFinding: "Major NC",
+          findingNumber: `FN-SAVED-${scenario}`, clientReference: "DO-NOT-USE-IDEMPOTENCY", evidenceIds: fileIds, description, clause: "KEEP-STORED-REQUIREMENT" };
+        const [audit] = await db.insert(audits).values({ organizationId: orgId, projectId, auditPlanId: planId,
+          referenceNumber: `Photo report ${scenario} ${suffix}`, workflowState: "complete", checklistState: scenario === "legacy" ? [] : [item], status: JSON.stringify({
+            title: "Photo evidence regression", reportDetails: { values: {}, rows: {
+              photographs: fileIds.map((_, i) => ({ fileName: `scene-${i}.png`, date: "2026-09-12" })),
+            } },
+          }),
+        }).returning();
+        const createdAt = new Date("2026-10-01T12:00:00Z");
+        let legacyId: string | undefined;
+        if (scenario === "legacy") {
+          const [legacy] = await db.insert(auditFindings).values({ organizationId: orgId, auditId: audit.id,
+            classification: "Minor NC", description, createdAt, evidence: { evidenceIds: fileIds, raisedAt: "2026-09-05" },
+          }).returning();
+          legacyId = legacy.id;
+        } else {
+          await db.insert(auditAuditLogEntries).values({ organizationId: orgId, entityId: audit.id, entityType: "audit",
+            action: "add_finding_item", before: { checklistState: [] }, after: { checklistState: [item] }, createdAt });
+        }
+        for (const [i, id] of fileIds.entries()) {
+          const local = `uploads/audit-${id}`;
+          paths.push(local); await writeFile(local, png);
+          await db.insert(auditEvidenceFiles).values({ id, organizationId: orgId, projectId, recordId: legacyId ?? audit.id, recordType: legacyId ? "audit_finding" : "audit",
+            category: "finding_evidence", fileName: `scene-${i}.png`, mimeType: "image/png", sizeBytes: png.length,
+            uploadedById: uploader.id, storageKey: `local:audit/${id}`, status: "stored", createdAt: new Date("2026-10-15T10:00:00Z") });
+        }
+        const before = (await api("GET", `/audits/${audit.id}/report`)).body.sections;
+        const res = await fetch(`${base}/api/audit/audits/${audit.id}/report/pptx`, { headers: { authorization: `Bearer ${token}` } });
+        expect(res.status).toBe(200);
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        const files = unzipSync(bytes);
+        expect(Object.keys(files).filter(n => n.startsWith("ppt/media/audit-photo-"))).toHaveLength(count);
+        const slide = strFromU8(files["ppt/slides/slide13.xml"]!);
+        expect((slide.match(/<p:pic>/g) ?? [])).toHaveLength(count);
+        expect(slide).toContain(scenario === "legacy" ? "Reference: To be mapped" : `Reference: FN-SAVED-${scenario}`);
+        expect(slide).toContain(`Date: ${formatDate("2026-10-01")}`);
+        expect(slide).not.toMatch(/DO-NOT-USE-IDEMPOTENCY|KEEP-STORED-REQUIREMENT|Requirement:|Date:.*2026-09-12|Date:.*2026-10-15/);
+        expect((await api("GET", `/audits/${audit.id}/report`)).body.sections).toEqual(before);
+        if (scenario !== "legacy") expect(before.find((s: any) => s.key === "photographs").photos[0].description).toContain("Requirement: KEEP-STORED-REQUIREMENT");
+        else expect(before.find((s: any) => s.key === "photographs").photos).toEqual([]);
+        if (process.env.QMS_PHOTO_VISUAL === "1") {
+          await mkdir("../../generated-artifacts/audit-photos", { recursive: true });
+          await writeFile(`../../generated-artifacts/audit-photos/download-${scenario}.pptx`, bytes);
+        }
+      }
+    } finally { await Promise.all(paths.map(p => unlink(p))); }
+  }, 30_000);
   it("downloads a readable PDF with all report sections", async () => {
     const res = await fetch(`${base}/api/audit/audits/${auditId}/report/pdf`, { headers: { authorization: `Bearer ${token}` } });
     expect(res.status).toBe(200); expect(res.headers.get("content-type")).toContain("application/pdf");

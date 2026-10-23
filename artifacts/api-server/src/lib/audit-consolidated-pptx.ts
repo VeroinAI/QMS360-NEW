@@ -4,6 +4,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import type { ReportSectionData } from "./audit-consolidated-report";
 import { auditPptxMappings, mappedText, PPTX_UNMAPPED } from "./audit-pptx-mapping";
 import { programmeEntries, programmeLines } from "./audit-programme-pptx-layout";
+import { photographicPages, renderPhotographicPage } from "./audit-pptx-photo-layout";
 
 export const AUDIT_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -163,6 +164,8 @@ export async function renderConsolidatedAuditPptx(input: {
   // Table continuations use the same geometry and styling rather than dropping rows.
   const tableStarts: Record<number, number> = { 11: 2, 12: 2 };
   const section = (key: string) => input.sections.find(s => s.key === key);
+  // Stable finding identities, never display references, determine pagination.
+  const photos = photographicPages(section("photographs")?.photos ?? []);
   for (let slideNumber = 1; slideNumber <= 18; slideNumber++) {
     if (slideNumber === 16 && input.skipPriorityActions) continue;
     const path = `ppt/slides/slide${slideNumber}.xml`;
@@ -198,14 +201,6 @@ export async function renderConsolidatedAuditPptx(input: {
     }
     const activities = chunks(programmeEntries(activityRows), 5);
     const participation = [28, 33, 38].map(id => chunks(programmeLines(mapping?.shapes[id] ?? PPTX_UNMAPPED, 26), id === 33 ? 5 : 4));
-    // Each NC/OFI has its own photographic slide(s), with no mixed findings.
-    const photoGroups = new Map<string, ReportSectionData["photos"]>();
-    for (const photo of section("photographs")?.photos ?? []) {
-      const key = photo.reference === PPTX_UNMAPPED || photo.reference === "Not recorded" ? photo.id : photo.reference;
-      const group = photoGroups.get(key) ?? [];
-      group.push(photo); photoGroups.set(key, group);
-    }
-    const photos = [...photoGroups.values()].flatMap(group => chunks(group, 2));
     const themeRows = section("findings-summary")?.tables[1]?.rows ?? [];
     const themes = chunks(themeRows, 3);
     const count = Math.max(1, ...pages.map(p => p.length), slideNumber === 5 ? activities.length : 1,
@@ -255,42 +250,7 @@ export async function renderConsolidatedAuditPptx(input: {
         }
       }
       if (slideNumber === 13) {
-        for (let slot = 0; slot < 2; slot++) {
-          const photo = photos[page]?.[slot];
-          const offset = slot * 8;
-          setShape(doc, 6 + offset, photo ? "" : PPTX_UNMAPPED);
-          setShape(doc, 7 + offset, photo ? photo.fileName : PPTX_UNMAPPED);
-          const description = photo?.description ?? "";
-          const labels = [...description.matchAll(/^(Grade|Date captured|Date uploaded|Location|Description|Requirement): /gm)];
-          const caption = new Map(labels.map((match, i) => [
-            match[1]!, description.slice(match.index! + match[0].length, labels[i + 1]?.index ?? description.length).trim(),
-          ]));
-          setShape(doc, 8 + offset, `Ref: ${mappedText(photo?.reference)}   Grade: ${mappedText(caption.get("Grade"))}   Date: ${mappedText(caption.get("Date captured"))}`);
-          for (const [id, key] of [[9, "Location"], [10, "Description"], [11, "Requirement"]] as const) {
-            setShape(doc, id + offset, `${key}: ${mappedText(caption.get(key))}`);
-          }
-          if (photo) {
-            const bytes = input.photos?.get(photo.id);
-            if (!bytes) throw new Error(`Photograph could not be loaded: ${photo.fileName}`);
-            const media = `audit-photo-${target}-${slot}.png`;
-            files[`ppt/media/${media}`] = new Uint8Array(bytes);
-            const rid = `rIdAuditPhoto${slot}`;
-            const rel = slideRels.createElementNS(REL, "Relationship");
-            rel.setAttribute("Id", rid); rel.setAttribute("Type", `${R}/image`); rel.setAttribute("Target", `../media/${media}`);
-            slideRels.documentElement!.appendChild(rel);
-            const box = shape(doc, 4 + offset)!;
-            // Reuse the actual template picture placeholder and its aspect-preserving geometry.
-            const picture = elements(doc, P, "pic").find(pic => shapeId(pic) === 5 + offset)!;
-            const blip = elements(picture, A, "blip")[0]!;
-            blip.setAttributeNS(R, "r:embed", rid);
-            const xfrm = elements(picture, A, "xfrm")[0]!;
-            const boxXfrm = elements(box, A, "xfrm")[0]!;
-            xfrm.parentNode!.replaceChild(boxXfrm.cloneNode(true), xfrm);
-            // The image is fitted to the template's original photo rectangle.
-            const fill = elements(picture, P, "blipFill")[0]!;
-            for (const crop of elements(fill, A, "srcRect")) fill.removeChild(crop);
-          }
-        }
+        await renderPhotographicPage({ doc, rels: slideRels, page: photos[page], target, files, photos: input.photos, setText });
       }
       files[targetPath] = xml(doc);
       files[`ppt/slides/_rels/slide${target}.xml.rels`] = xml(slideRels);
