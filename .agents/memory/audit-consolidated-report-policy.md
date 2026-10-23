@@ -74,8 +74,8 @@ including instructions in its “Unused slots” sheet.
 
 **How to apply:** Check every worksheet for instructions. Read saved values only;
 keep empty source data distinct from unused template slots in the review workbook.
-Requested NCR/OFI/CAR business reference numbers marked “to be added” remain
-“To be mapped”; internal B.x links and client idempotency keys are not substitutes.
+Genuinely unissued business reference numbers remain “To be mapped”; internal
+B.x links and client idempotency keys are not substitutes for issued numbers.
 A mapping to the classification field cannot supply a photograph capture date.
 
 Slide 3 Project Profile must use the selected audit project's Project Master
@@ -90,3 +90,17 @@ must not reappear when an administrator clears the supplementary value.
 Keep missing supplementary values exactly “To be mapped”; preserve the cover,
 other export formats and department-based audits without a project. Format
 Contract signed as a calendar date using the organization's date format.
+
+OFI PowerPoint entries must match saved Finding Reference numbers, use exactly
+`-` only for absent objective evidence, and contain one logical data row per
+finding without unused template slots. A zero-entry section states that no OFIs
+are recorded; it is not a placeholder-filled finding.
+
+**Why:** The user specifically corrected these OFI semantics while requiring
+other tables, PDF/JSON exports, numbering issuance and photographic layouts to
+remain unchanged.
+
+**How to apply:** Find the section by OFI content, not its displayed slide
+number, which varies with preceding continuations. Preserve ordinary long
+entries in taller rows; exceptional prose may continue as labelled text rather
+than additional finding rows. Do not spread the OFI hyphen policy to other tables.

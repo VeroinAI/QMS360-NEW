@@ -229,6 +229,48 @@ describe.skipIf(process.env.QMS_AUDIT_REPORT_CLEANUP === "1")("Audit completion 
     expect(result.body.openingMeeting.minutes).toBe("Actual meeting");
     expect(result.body.reportDetails.values.client).toBe("Concurrent client");
   });
+  it("downloads exactly the saved OFI rows and numbers without mutating the audit or other report projections", async () => {
+    for (const count of [0, 1, 5, 23]) {
+      const checklist = Array.from({ length: count }, (_, i) => ({
+        id: `ofi-${i}`, source: "finding", auditFinding: "OFI", auditArea: "Design",
+        description: `Recorded improvement ${i}`, findingNumber: i === 1 ? undefined : `AF-OFI-26-${i + 1}`,
+        clientReference: `IDEMPOTENCY-NOT-A-NUMBER-${i}`, notes: i === 2 ? "Recorded interview evidence" : "", evidenceIds: [],
+      }));
+      const [record] = await db.insert(audits).values({
+        organizationId: orgId, projectId, auditPlanId: planId, referenceNumber: `OFI export ${count} ${suffix}`,
+        workflowState: "complete", checklistState: checklist, status: "{}",
+      }).returning();
+      // Supported legacy OFIs coexist with checklist-backed findings but have
+      // no issued Finding Reference. Their database ID/title is not a number.
+      if (count === 5) await db.insert(auditFindings).values({
+        organizationId: orgId, auditId: record.id, classification: "OFI", description: "Historical OFI",
+      });
+      const { generatedAt: _beforeTime, ...before } = (await api("GET", `/audits/${record.id}/report`)).body;
+      const [storedBefore] = await db.select().from(audits).where(eq(audits.id, record.id));
+      const res = await fetch(`${base}/api/audit/audits/${record.id}/report/pptx`, { headers: { authorization: `Bearer ${token}` } });
+      expect(res.status).toBe(200);
+      const files = unzipSync(new Uint8Array(await res.arrayBuffer()));
+      const { DOMParser } = await import("@xmldom/xmldom");
+      const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
+      const slides = Object.entries(files).filter(([name]) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
+        .map(([, bytes]) => new DOMParser().parseFromString(strFromU8(bytes), "application/xml"))
+        .filter(doc => Array.from(doc.getElementsByTagNameNS(A, "t")).some(t => t.textContent === "OPPORTUNITIES FOR IMPROVEMENT"));
+      const rows = slides.flatMap(doc => Array.from(doc.getElementsByTagNameNS(A, "tr")).slice(2))
+        .map(row => Array.from(row.getElementsByTagNameNS(A, "tc")).map(cell =>
+          Array.from(cell.getElementsByTagNameNS(A, "t")).map(t => t.textContent).join("")));
+      expect(rows).toHaveLength(count + (count === 5 ? 1 : 0));
+      checklist.forEach((item, i) => {
+        expect(rows[i]![0]).toBe(item.findingNumber ?? "To be mapped");
+        expect(rows[i]![2]).toBe(item.notes || "-");
+      });
+      if (count === 5) expect(rows.at(-1)![0]).toBe("To be mapped");
+      if (count === 0) expect(strFromU8(files["ppt/slides/slide12.xml"]!)).toContain("No opportunities for improvement recorded.");
+      const { generatedAt: _afterTime, ...after } = (await api("GET", `/audits/${record.id}/report`)).body;
+      expect(after).toEqual(before);
+      const [storedAfter] = await db.select().from(audits).where(eq(audits.id, record.id));
+      expect(storedAfter).toEqual(storedBefore);
+    }
+  }, 30_000);
   it("downloads real single/five-image evidence and long captions with saved finding metadata, without changing PDF/JSON", async () => {
     const [uploader] = await db.select().from(users).where(eq(users.organizationId, orgId)).limit(1);
     const png = await sharp({ create: { width: 600, height: 400, channels: 3, background: "#3274a1" } }).png().toBuffer();

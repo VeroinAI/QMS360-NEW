@@ -178,11 +178,18 @@ export function buildConsolidatedAuditReport(input: {
     rows: (documents.goodPractices ?? []).map((row: Row) => [value(row.areaProcess), value(row.verifiedConforming), value(row.evidenceReference), value(row.referenceNumber)]) });
   const register = (key: string, title: string, items: Row[]) => {
     const s = section(key, title);
+    const ofiPptx = input.pptxWorkbookMappings && key === "ofi";
+    const objectiveEvidence = (row: Row) => {
+      if (!ofiPptx) return (row.evidenceIds ?? []).map((id: string) => value(evidence.find(e => e.id === id)?.fileName)).join(", ") || value(row.notes);
+      // An unavailable attachment is still a recorded reference, not absent evidence.
+      const references = (row.evidenceIds ?? []).map((id: string) =>
+        evidence.find(e => e.id === id)?.fileName?.trim() || `File unavailable (${id})`);
+      return [...references, row.notes?.trim()].filter(Boolean).join("\n") || "-";
+    };
     s.tables.push({ title, columns: ["Ref", "Audit area", "Finding", "Objective evidence", "Requirement", "Grade"],
-      // NCR/OFI numbers requested in the workbook are not captured yet.
-      // Internal B.x references and client idempotency keys are not those numbers.
-      rows: items.map(row => [input.pptxWorkbookMappings ? missing : row.reference, row.area, value(input.pptxWorkbookMappings && !row.legacy ? row.description : row.description ?? row.question ?? row.title),
-        (row.evidenceIds ?? []).map((id: string) => value(evidence.find(e => e.id === id)?.fileName)).join(", ") || value(row.notes),
+      // Never substitute an internal/client reference or a CAR number for an issued finding number.
+      rows: items.map(row => [ofiPptx ? value(row.findingNumber?.trim()) : input.pptxWorkbookMappings ? missing : row.reference, row.area, value(input.pptxWorkbookMappings && !row.legacy ? row.description : row.description ?? row.question ?? row.title),
+        objectiveEvidence(row),
         value(input.pptxWorkbookMappings ? row.area : row.clause), row.grade]) });
   };
   register("non-conformities", "Non-conformity register", findings.filter(row => row.grade !== "OFI"));

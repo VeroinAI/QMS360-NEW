@@ -5,6 +5,7 @@ import type { ReportSectionData } from "./audit-consolidated-report";
 import { auditPptxMappings, mappedText, PPTX_UNMAPPED } from "./audit-pptx-mapping";
 import { programmeEntries, programmeLines } from "./audit-programme-pptx-layout";
 import { photographicPages, renderPhotographicPage } from "./audit-pptx-photo-layout";
+import { ofiPages, renderOfiPage } from "./audit-pptx-ofi-layout";
 
 export const AUDIT_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -87,12 +88,12 @@ function programmeBox(doc: Document, id: number, text: string, size: number, lin
   for (const p of elements(node, A, "p")) {
     let props = elements(p, A, "pPr")[0];
     if (!props) { props = doc.createElementNS(A, "a:pPr"); p.insertBefore(props, p.firstChild); }
-    for (const tag of ["lnSpc", "spcBef", "spcAft"]) {
+    for (const tag of ["spcAft", "spcBef", "lnSpc"]) {
       for (const existing of elements(props, A, tag)) props.removeChild(existing);
       const spacing = doc.createElementNS(A, `a:${tag}`);
       const points = doc.createElementNS(A, "a:spcPts");
       points.setAttribute("val", String(tag === "lnSpc" ? lineHeight : 0));
-      spacing.appendChild(points); props.appendChild(spacing);
+      spacing.appendChild(points); props.insertBefore(spacing, props.firstChild);
     }
     for (const tag of ["rPr", "endParaRPr"]) for (const r of elements(p, A, tag)) r.setAttribute("sz", String(size));
   }
@@ -177,7 +178,9 @@ export async function renderConsolidatedAuditPptx(input: {
     const base = parse(sourceSlide);
     const tables = elements(base, A, "tbl");
     const mapping = mappings.get(slideNumber);
+    const ofi = slideNumber === 12 ? ofiPages(tables[0]!, mapping?.tables[0] ?? []) : undefined;
     const pages = mapping?.tables.map((rows, i) => {
+      if (slideNumber === 12) return [];
       const start = tableStarts[slideNumber] ?? 1;
       const capacity = elements(tables[i]!, A, "tr").length - start;
       if (capacity < 1) throw new Error("PowerPoint template has no table data rows");
@@ -204,6 +207,7 @@ export async function renderConsolidatedAuditPptx(input: {
     const themeRows = section("findings-summary")?.tables[1]?.rows ?? [];
     const themes = chunks(themeRows, 3);
     const count = Math.max(1, ...pages.map(p => p.length), slideNumber === 5 ? activities.length : 1,
+      ofi?.length ?? 1,
       slideNumber === 13 ? photos.length : 1, slideNumber === 7 ? themes.length : 1,
       ...(slideNumber === 5 ? participation.map(p => p.length) : [1]));
     for (let page = 0; page < count; page++) {
@@ -216,7 +220,8 @@ export async function renderConsolidatedAuditPptx(input: {
       }
       const slideTables = elements(doc, A, "tbl");
       for (const [id, text] of Object.entries(mapping?.shapes ?? {})) setShape(doc, Number(id), text);
-      mapping?.tables.forEach((_, i) => setTable(slideTables[i]!, pages[i]?.[page] ?? [], tableStarts[slideNumber] ?? 1,
+      if (ofi) renderOfiPage(doc, slideTables[0]!, ofi[page]!, setText);
+      else mapping?.tables.forEach((_, i) => setTable(slideTables[i]!, pages[i]?.[page] ?? [], tableStarts[slideNumber] ?? 1,
         elements(slideTables[i]!, A, "tr").length - (tableStarts[slideNumber] ?? 1), slideNumber === 15));
       if ([11, 12].includes(slideNumber)) {
         const group = elements(slideTables[0]!, A, "tr")[1]!;

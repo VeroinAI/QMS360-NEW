@@ -27,6 +27,16 @@ space-before and space-after precede bullet properties (such as `buNone`) and
 default run properties. Insert spacing before the preserved bullet/style
 children, not at the end of `pPr`.
 
+PowerPoint table text can still wrap in LibreOffice even with `wrap="none"`.
+Explicit line budgets need conservative glyph widths, italic-font safety and
+allowance for cell margins plus body insets.
+
+**Why:** A structurally valid table passed line-count tests but wide repeated
+glyphs wrapped again in a rendered download and expanded beyond its row/footer.
+
+**How to apply:** Inspect an actual office-rendered long-text fixture, including
+wide unbroken strings, rather than trusting XML line counts or no-autofit flags.
+
 **Why:** The photographic template already contains bullet properties. Adding
 explicit caption spacing by appending children produces schema-invalid
 DrawingML even when paragraph runs themselves are correctly ordered.
