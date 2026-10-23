@@ -4544,6 +4544,17 @@ components:
         qaqcScope: {type: string}
         auditTypes: {type: array, minItems: 1, items: {type: string}}
         auditLanguage: {type: string}
+        auditMethods:
+          type: array
+          items:
+            type: string
+            enum: ["Interviews", "Observation of activities", "Sample-based review of records", "Site / store walk-down", "Supplier or third-party verification"]
+        auditCriteria:
+          type: array
+          description: Dedicated criteria selections, independent of legacy criteria and Audit Type
+          items:
+            type: string
+            enum: ["ISO 9001:2015", "ISO 45001:2018", "ISO/IEC 17025:2017", "Client specifications (e.g. PTS, SOW)", "Project Quality Plan", "Company procedures: [list]", "Approved drawings and specifications"]
         qaqcReference: {type: string}
         description: {type: [string, "null"]}
         startDateTime: {type: string, description: "Saved planned date/time, retaining its calendar day and wall-clock time."}

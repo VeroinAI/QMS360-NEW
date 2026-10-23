@@ -95,6 +95,8 @@ export function auditPlanReplayMatches(incoming: Record<string, unknown>, saved:
   const projection = (plan: Record<string, unknown>) => ({
     id: plan.id,
     scheduleId: plan.scheduleId,
+    selections: ["auditMethods", "auditCriteria"].map(key =>
+      [...(Array.isArray(plan[key]) ? plan[key] as string[] : [])].sort()),
     dates: ["startDateTime", "endDateTime", "openingMeetingDateTime", "closingMeetingDateTime"].map(key => plan[key] ?? ""),
     dateRemarks: ["startDateTimeRemark", "endDateTimeRemark", "openingMeetingDateTimeRemark", "closingMeetingDateTimeRemark"].map(key => plan[key] ?? ""),
     activities: (Array.isArray(plan.activities) ? plan.activities as DatedActivity[] : []).map(row => ({

@@ -1885,6 +1885,7 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
 const PLAN_LANGUAGE = "Verbal: English\nWriting: English";
 type PlanActivity = DatedActivity & { id: string; section: string; remarks: string; auditeeId: string; roleIds?: string[]; auditeeIds?: string[] };
 type PlanMeta = {
+  auditMethods?: string[]; auditCriteria?: string[];
   planNumber?: string; planNumberScope?: string; planNumberYear?: number; planNumberSequence?: number;
   objectives?: string | null; leadAuditorId?: string; processOwnerIds?: string[]; feasibilityNotes?: string | null;
   auditFeasible?: boolean; auditTitle?: string; auditeeId?: string; auditeeRoleIds?: string[]; qaqcScope?: string; auditTypes?: string[];
@@ -1926,6 +1927,7 @@ const planDto = (row: AnyRow) => {
     teamMemberIds: row.teamMemberIds, auditeeId: meta.auditeeId ?? meta.processOwnerIds?.[0] ?? "",
     auditeeRoleIds: meta.auditeeRoleIds ?? [],
     circulationRoleIds: meta.circulationRoleIds,
+    auditMethods: meta.auditMethods ?? [], auditCriteria: meta.auditCriteria ?? [],
     qaqcScope: meta.qaqcScope ?? row.scope ?? "", auditTypes, auditLanguage: meta.auditLanguage ?? PLAN_LANGUAGE,
     qaqcReference: meta.qaqcReference ?? "", description: meta.description ?? meta.objectives ?? null,
     startDateTime: meta.startDateTime ?? fallbackDateTime, endDateTime: meta.endDateTime ?? fallbackDateTime,
@@ -1955,6 +1957,7 @@ const planValues = (data: AnyRow) => ({
   workflowState: String(data.status).toLowerCase(),
   status: JSON.stringify({
     objectives: data.objectives ?? null, leadAuditorId: data.leadAuditorId, processOwnerIds: data.processOwnerIds ?? [],
+    auditMethods: data.auditMethods ?? [], auditCriteria: data.auditCriteria ?? [],
     feasibilityNotes: data.feasibilityNotes ?? null, auditFeasible: data.auditFeasible, auditTitle: data.auditTitle,
     auditeeId: data.auditeeId, auditeeRoleIds: data.auditeeRoleIds ?? [], qaqcScope: data.qaqcScope, auditTypes: data.auditTypes, auditLanguage: data.auditLanguage,
     qaqcReference: data.qaqcReference, description: data.description ?? null, startDateTime: data.startDateTime,
@@ -2314,6 +2317,9 @@ router.put("/plans/:id", asyncHandler(async (req, res) => {
   if (before.workflowState !== "draft") throw new HttpError(409, "Only draft plans can be edited");
   // Older clients do not send remarks. Omission preserves them; "" explicitly clears.
   const savedPlanMeta = planMeta(before);
+  for (const key of ["auditMethods", "auditCriteria"] as const) {
+    if (data[key] === undefined) data = { ...data, [key]: savedPlanMeta[key] ?? [] };
+  }
   for (const key of ["startDateTimeRemark", "endDateTimeRemark", "openingMeetingDateTimeRemark", "closingMeetingDateTimeRemark"] as const) {
     if (data[key] === undefined) data = { ...data, [key]: savedPlanMeta[key] ?? "" };
   }

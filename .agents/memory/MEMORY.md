@@ -41,6 +41,7 @@
 - [Audit feasibility decisions](audit-feasibility-decisions.md) — Cancel blocks future plans permanently; Reschedule records mandatory feedback but keeps the schedule eligible.
 - [Audit Plan execution handoff](audit-plan-execution-handoff.md) — sending a plan creates or reuses one linked Audit Execution; repeated handoff/open actions must remain idempotent.
 - [Audit Plan role selections](audit-plan-auditee-roles.md) — Auditee and Circulation are independent multi-role fields; activity-level auditees remain users.
+- [Audit Plan selection scope](audit-plan-selection-scope.md) — method/criteria choices do not imply template changes, configurable masters, or extra free-text questions.
 - [Outbound email delivery semantics](outbound-email-delivery-semantics.md) — event emails queue per recipient; policy is tenant-wide; test messages remain direct.
 - [Email Rule templates](email-rule-template-policy.md) — per-rule content is configurable; preserve approval audiences and prevent duplicate generic approval dispatch.
 - [Editor dependency identity](editor-dependency-identity.md) — clean builds and initial rendering can miss editor class conflicts; exercise typing and selection in a browser.

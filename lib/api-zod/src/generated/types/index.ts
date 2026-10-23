@@ -90,6 +90,8 @@ export * from './auditPage';
 export * from './auditPageResponse';
 export * from './auditPlan';
 export * from './auditPlanActivity';
+export * from './auditPlanAuditCriteriaItem';
+export * from './auditPlanAuditMethodsItem';
 export * from './auditPlanBody';
 export * from './auditPlanNumberingPattern';
 export * from './auditPlanNumberingSettings';

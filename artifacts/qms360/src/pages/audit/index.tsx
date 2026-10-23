@@ -10,6 +10,8 @@ import { getAuditPlanDateRange, hasAuditActivityAuditeeSelection, openingMeeting
 import { appendChecklistEvidence, uploadChecklistEvidence, type PendingChecklistEvidence } from "./checklist-evidence-uploads";
 import { CarRegister, CarResponseDialog, CarReviewDialog } from "./car-register";
 import { PlanDateTimeField } from "./plan-date-time-field";
+import { PlanSelection } from "./plan-selection";
+import { AuditPlanAuditMethodsItem, AuditPlanAuditCriteriaItem } from "@workspace/api-client-react";
 import { MeetingHeldAt } from "./meeting-held-at";
 import { useEffect, useRef, useState } from "react";
 import { Link, Route, Switch, useLocation, useParams } from "wouter";
@@ -1426,12 +1428,14 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   });
   const [form, setForm] = useState<AuditPlan>(initial ? {
     ...initial, teamMemberIds: readOnly ? initial.teamMemberIds : auditTeamWithoutLead(initial.teamMemberIds, initial.leadAuditorId),
+    auditMethods: initial.auditMethods ?? [], auditCriteria: initial.auditCriteria ?? [],
     activities: datedActivities(initial.activities ?? [{
       id: `legacy-${initial.id}`, section: initial.activitySection, remarks: initial.activityRemarks, auditeeId: initial.activityAuditeeId,
     }], initial.activityDateTime),
   } : {
     id: crypto.randomUUID(), scheduleId: presetSchedule?.id ?? "", auditFeasible: true, auditTitle: presetSchedule?.title ?? "", leadAuditorId: "",
     teamMemberIds: [], auditeeId: "", auditeeRoleIds: [], qaqcScope: "", auditTypes: [],
+    auditMethods: [], auditCriteria: [],
     auditLanguage: "Verbal: English\nWriting: English", qaqcReference: presetSchedule?.qaqcReference ?? "", description: "",
     startDateTime: "", endDateTime: "", openingMeetingDateTime: "", closingMeetingDateTime: "",
     activitySection: "General Requirement", activityRemarks: "", activityAuditeeId: "",
@@ -1618,6 +1622,9 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       ["circulationRoleIds", selectedCirculationRoleIds], ["circulation", circulation],
     ];
     const nextErrors = Object.fromEntries(required.filter(([, value]) => Array.isArray(value) ? !value.length : !String(value ?? "").trim()).map(([key]) => [key, "This field is required."]));
+    for (const key of ["auditMethods", "auditCriteria"] as const) {
+      if (fc.fieldProps(key).required && !form[key]?.length) nextErrors[key] = "This field is required.";
+    }
     Object.assign(nextErrors, auditPlanDateErrors(form as unknown as Record<string, unknown>, selectedSchedule ?? {}, activityRows));
     if (auditeeRoles.isFetching || auditeeRoles.isError || selectedCirculationRoleIds.some(id => !circulationRoles.some(role => role.id === id))) {
       nextErrors.circulationRoleIds = "Load and select active Audit workspace roles before saving.";
@@ -1819,14 +1826,20 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     <div><Label>5. Auditee Roles *</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal" disabled={disabled("auditeeId") || auditeeRoles.isLoading} {...invalid("auditeeRoleIds")}><span className="truncate">{selectedAuditeeRoleNames.length ? selectedAuditeeRoleNames.join(", ") : auditeeRoles.isLoading ? "Loading roles…" : "Select auditee roles"}</span><ChevronDown className="ml-2 size-4 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">{(auditeeRoles.data ?? []).map(role => <DropdownMenuCheckboxItem key={role.id} checked={selectedAuditeeRoleIds.includes(role.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => toggleAuditeeRole(role.id, checked === true)}>{role.name}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu><ErrorText name="auditeeRoleIds"/></div>
     <div><Label>6. QA/QC Scope *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={form.qaqcScope} {...invalid("qaqcScope")} placeholder="Prefilled from Audit Schedule"/><ErrorText name="qaqcScope"/></div>
     <div><Label>7. Audit Type *</Label><Input className="mt-2" readOnly disabled={readOnly} value={form.auditTypes.join(", ")} {...invalid("auditTypes")} placeholder="Prefilled from Audit Schedule"/><ErrorText name="auditTypes"/></div>
-    <div><Label>8. Audit Language *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={form.auditLanguage} {...invalid("auditLanguage")}/><ErrorText name="auditLanguage"/></div>
-    <div><Label>9. QA/QC References *</Label><Select value={form.qaqcReference} disabled={readOnly || !form.scheduleId || ro("qaqcReference")} onValueChange={value => set("qaqcReference", value)}><SelectTrigger className="mt-2" {...invalid("qaqcReference")}><SelectValue placeholder="Select QA/QC reference"/></SelectTrigger><SelectContent>{form.qaqcReference && <SelectItem value={form.qaqcReference}>{form.qaqcReference}</SelectItem>}</SelectContent></Select><ErrorText name="qaqcReference"/></div>
-    <div><Label>10. Description of Audit</Label><Textarea className="mt-2" value={form.description ?? ""} disabled={disabled("description")} onChange={event => set("description", event.target.value)} placeholder="Optional"/></div>
-    <PlanDateTimeField number={11} label="Start Date & Time" remark={form.startDateTimeRemark} onRemarkChange={value => set("startDateTimeRemark", value)} remarkReadOnly={readOnly || ro("startDateTimeRemark")} error={errors.startDateTime} inputProps={{ ...dateBounds, value: form.startDateTime.slice(0,16), disabled: disabled("startDateTime"), ...invalid("startDateTime"), onChange: event => set("startDateTime", event.target.value) }}/>
-    <PlanDateTimeField number={12} label="End Date & Time" remark={form.endDateTimeRemark} onRemarkChange={value => set("endDateTimeRemark", value)} remarkReadOnly={readOnly || ro("endDateTimeRemark")} error={errors.endDateTime} inputProps={{ ...dateBounds, value: form.endDateTime.slice(0,16), disabled: disabled("endDateTime"), ...invalid("endDateTime"), onChange: event => set("endDateTime", event.target.value) }}/>
-    <PlanDateTimeField number={13} label="Opening Meeting" remark={form.openingMeetingDateTimeRemark} onRemarkChange={value => set("openingMeetingDateTimeRemark", value)} remarkReadOnly={readOnly || ro("openingMeetingDateTimeRemark")} error={errors.openingMeetingDateTime} inputProps={{ ...dateBounds, value: form.openingMeetingDateTime.slice(0,16), disabled: disabled("openingMeetingDateTime"), ...invalid("openingMeetingDateTime"), onChange: event => set("openingMeetingDateTime", event.target.value) }}/>
-    <PlanDateTimeField number={14} label="Closing Meeting" remark={form.closingMeetingDateTimeRemark} onRemarkChange={value => set("closingMeetingDateTimeRemark", value)} remarkReadOnly={readOnly || ro("closingMeetingDateTimeRemark")} error={errors.closingMeetingDateTime} inputProps={{ ...dateBounds, value: form.closingMeetingDateTime.slice(0,16), disabled: disabled("closingMeetingDateTime"), ...invalid("closingMeetingDateTime"), onChange: event => set("closingMeetingDateTime", event.target.value) }}/>
-    <div className="min-w-0 max-w-full space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><Label>15. Activity Details *</Label><p className="mt-1 text-xs text-muted-foreground">Add one row for each Activities master-data value. Planned dates must fall within the linked Audit, including its first and last day.</p></div>{!readOnly && <Button type="button" variant="outline" size="sm" onClick={addActivity} disabled={activityStructureLocked}><Plus className="mr-2 size-4"/>Add row</Button>}</div>
+    <PlanSelection id="auditMethods" number={8} label="Audit Method" options={Object.values(AuditPlanAuditMethodsItem)}
+      value={form.auditMethods ?? []} onChange={value => set("auditMethods", value)}
+      disabled={disabled("auditMethods")} required={fc.fieldProps("auditMethods").required} error={errors.auditMethods}/>
+    <PlanSelection id="auditCriteria" number={9} label="Audit Criteria" options={Object.values(AuditPlanAuditCriteriaItem)}
+      value={form.auditCriteria ?? []} onChange={value => set("auditCriteria", value)}
+      disabled={disabled("auditCriteria")} required={fc.fieldProps("auditCriteria").required} error={errors.auditCriteria}/>
+    <div><Label>10. Audit Language *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={form.auditLanguage} {...invalid("auditLanguage")}/><ErrorText name="auditLanguage"/></div>
+    <div><Label>11. QA/QC References *</Label><Select value={form.qaqcReference} disabled={readOnly || !form.scheduleId || ro("qaqcReference")} onValueChange={value => set("qaqcReference", value)}><SelectTrigger className="mt-2" {...invalid("qaqcReference")}><SelectValue placeholder="Select QA/QC reference"/></SelectTrigger><SelectContent>{form.qaqcReference && <SelectItem value={form.qaqcReference}>{form.qaqcReference}</SelectItem>}</SelectContent></Select><ErrorText name="qaqcReference"/></div>
+    <div><Label>12. Description of Audit</Label><Textarea className="mt-2" value={form.description ?? ""} disabled={disabled("description")} onChange={event => set("description", event.target.value)} placeholder="Optional"/></div>
+    <PlanDateTimeField number={13} label="Start Date & Time" remark={form.startDateTimeRemark} onRemarkChange={value => set("startDateTimeRemark", value)} remarkReadOnly={readOnly || ro("startDateTimeRemark")} error={errors.startDateTime} inputProps={{ ...dateBounds, value: form.startDateTime.slice(0,16), disabled: disabled("startDateTime"), ...invalid("startDateTime"), onChange: event => set("startDateTime", event.target.value) }}/>
+    <PlanDateTimeField number={14} label="End Date & Time" remark={form.endDateTimeRemark} onRemarkChange={value => set("endDateTimeRemark", value)} remarkReadOnly={readOnly || ro("endDateTimeRemark")} error={errors.endDateTime} inputProps={{ ...dateBounds, value: form.endDateTime.slice(0,16), disabled: disabled("endDateTime"), ...invalid("endDateTime"), onChange: event => set("endDateTime", event.target.value) }}/>
+    <PlanDateTimeField number={15} label="Opening Meeting" remark={form.openingMeetingDateTimeRemark} onRemarkChange={value => set("openingMeetingDateTimeRemark", value)} remarkReadOnly={readOnly || ro("openingMeetingDateTimeRemark")} error={errors.openingMeetingDateTime} inputProps={{ ...dateBounds, value: form.openingMeetingDateTime.slice(0,16), disabled: disabled("openingMeetingDateTime"), ...invalid("openingMeetingDateTime"), onChange: event => set("openingMeetingDateTime", event.target.value) }}/>
+    <PlanDateTimeField number={16} label="Closing Meeting" remark={form.closingMeetingDateTimeRemark} onRemarkChange={value => set("closingMeetingDateTimeRemark", value)} remarkReadOnly={readOnly || ro("closingMeetingDateTimeRemark")} error={errors.closingMeetingDateTime} inputProps={{ ...dateBounds, value: form.closingMeetingDateTime.slice(0,16), disabled: disabled("closingMeetingDateTime"), ...invalid("closingMeetingDateTime"), onChange: event => set("closingMeetingDateTime", event.target.value) }}/>
+    <div className="min-w-0 max-w-full space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><Label>17. Activity Details *</Label><p className="mt-1 text-xs text-muted-foreground">Add one row for each Activities master-data value. Planned dates must fall within the linked Audit, including its first and last day.</p></div>{!readOnly && <Button type="button" variant="outline" size="sm" onClick={addActivity} disabled={activityStructureLocked}><Plus className="mr-2 size-4"/>Add row</Button>}</div>
       <p className="text-sm text-muted-foreground">{initial
         ? "Activity roles default from the Activities master. Auditees default from the selected schedule’s role assignments. You can change either selection; saved choices are not overwritten when defaults change."
         : "Activity roles default from the Activities master. Schedule-assigned auditees are included when available; selecting an Auditee Role is sufficient when no users are assigned."}</p>
@@ -1858,7 +1871,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
         {!activityRows.length && <TableRow><TableCell colSpan={5 + (initial ? 1 : 0) + (readOnly ? 0 : 1)} className="py-8 text-center text-sm text-muted-foreground">No activity rows. Add the first activity.</TableCell></TableRow>}
       </TableBody></Table></div><ErrorText name="activities"/></div>
     <div>
-      <Label>16. Audit Plan Circulation *</Label>
+      <Label>18. Audit Plan Circulation *</Label>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal"

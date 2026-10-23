@@ -190,6 +190,8 @@ export const fieldControlRegistry: Record<FieldControlAppKey, FormDefinition[]> 
         { key: "scope", label: "Scope" },
         { key: "objectives", label: "Objectives" },
         { key: "criteria", label: "Criteria" },
+        { key: "auditMethods", label: "Audit Method" },
+        { key: "auditCriteria", label: "Audit Criteria" },
         { key: "auditDate", label: "Audit date" },
         { key: "location", label: "Location" },
         { key: "leadAuditorId", label: "Lead auditor" },

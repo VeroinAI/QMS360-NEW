@@ -3636,6 +3636,30 @@ export interface AuditPlanNumberingSettings {
   sources: AuditPlanNumberingSettingsSourcesItem[];
 }
 
+export type AuditPlanAuditMethodsItem = typeof AuditPlanAuditMethodsItem[keyof typeof AuditPlanAuditMethodsItem];
+
+
+export const AuditPlanAuditMethodsItem = {
+  Interviews: 'Interviews',
+  Observation_of_activities: 'Observation of activities',
+  'Sample-based_review_of_records': 'Sample-based review of records',
+  'Site_/_store_walk-down': 'Site / store walk-down',
+  'Supplier_or_third-party_verification': 'Supplier or third-party verification',
+} as const;
+
+export type AuditPlanAuditCriteriaItem = typeof AuditPlanAuditCriteriaItem[keyof typeof AuditPlanAuditCriteriaItem];
+
+
+export const AuditPlanAuditCriteriaItem = {
+  'ISO_9001:2015': 'ISO 9001:2015',
+  'ISO_45001:2018': 'ISO 45001:2018',
+  'ISO/IEC_17025:2017': 'ISO/IEC 17025:2017',
+  'Client_specifications_(eg_PTS,_SOW)': 'Client specifications (e.g. PTS, SOW)',
+  Project_Quality_Plan: 'Project Quality Plan',
+  'Company_procedures:_[list]': 'Company procedures: [list]',
+  Approved_drawings_and_specifications: 'Approved drawings and specifications',
+} as const;
+
 export type AuditPlanStatus = typeof AuditPlanStatus[keyof typeof AuditPlanStatus];
 
 
@@ -3691,6 +3715,9 @@ export interface AuditPlan {
   /** @minItems 1 */
   auditTypes: string[];
   auditLanguage: string;
+  auditMethods?: AuditPlanAuditMethodsItem[];
+  /** Dedicated criteria selections, independent of legacy criteria and Audit Type */
+  auditCriteria?: AuditPlanAuditCriteriaItem[];
   qaqcReference: string;
   /** @nullable */
   description?: string | null;
