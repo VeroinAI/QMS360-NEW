@@ -1,5 +1,6 @@
 import { formatDateInTimeZone, formatPresentationData } from "@workspace/spreadsheet-dates";
 import { visibleAdminUsers } from "../lib/admin-user-discovery";
+import { auditOverviewContext } from "../lib/audit-overview-context";
 import { Router, type Request, type Response } from "express";
 import { randomUUID } from "node:crypto";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
@@ -2630,6 +2631,7 @@ router.get("/audits/:id", asyncHandler(async (req, res) => {
   if (!row) throw new HttpError(404, "Audit not found");
   const editScope = await getAuthorizedProjectScope(req, "audit", { module: "audits", action: "full" });
   res.json({ ...auditDto(row, editScope.unrestricted || (row.projectId ? editScope.projectIds.includes(row.projectId) : editScope.projectIds.length > 0 || editScope.processAuditsAllowed === true)),
+    ...await auditOverviewContext(db, actor(req).organizationId, row, plan => planMeta(plan).planNumber),
     openingMeetingBounds: await openingMeetingBounds(db, actor(req).organizationId, row.auditPlanId) });
 }));
 router.post("/audits/:id/complete", asyncHandler(async (req, res) => {

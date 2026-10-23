@@ -20,6 +20,13 @@ export interface Audit {
      * @nullable
      */
   readonly planNumber?: string | null;
+  /** Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail */
+  readonly planAvailable?: boolean;
+  /**
+     * Linked project name
+     * @nullable
+     */
+  readonly projectName?: string | null;
   /**
      * Immutable server-generated Audit Report number issued on first successful report-details save
      * @nullable
