@@ -6,6 +6,8 @@ import { getAppAdminScope, getAuthorizedProjectScope, getAuthorizedFullProjectSc
 import { carDueDate, hasSavedCarResponse } from "./car-dates";
 import { HttpError } from "./workspace";
 import { activeAuditCapabilities } from "./audit-capabilities";
+import { roleDepartments } from "./role-departments";
+import { auditDepartmentId, processDepartmentAllowed } from "./audit-department-scope";
 
 export const carJson = (value: string | null | undefined): any => {
   try {
@@ -18,9 +20,9 @@ export const actionableFinding = (item: any) => {
   return typeof classification === "string" && !!classification.trim() && classification.trim().toLowerCase() !== "not applicable";
 };
 const active = (table: any, organizationId: string) => and(eq(table.organizationId, organizationId), isNull(table.deletedAt));
-const writableProject = (scope: EffectiveProjectScope, projectId: string | null, process: boolean) =>
+const writableProject = (scope: EffectiveProjectScope, projectId: string | null, process: boolean, departmentId: string | null = null) =>
   scope.unrestricted || (projectId ? scope.projectIds.includes(projectId)
-    : process && (scope.projectIds.length > 0 || scope.processAuditsAllowed === true));
+    : process && processDepartmentAllowed(scope, departmentId));
 
 export async function carLeadMarker(organizationId: string, userId: string) {
   const rows = await db.select({ id: auditUserWorkspaceRoles.id }).from(auditUserWorkspaceRoles)
@@ -43,9 +45,10 @@ export async function carAuditContext(req: Request, audit: typeof audits.$inferS
   const scheduleMeta = carJson(schedule?.status);
   const scope = await getAuthorizedProjectScope(req, "audit");
   const process = scheduleMeta.auditTypes?.includes("Quality Internal Process Audit");
+  const departmentId = auditDepartmentId(scheduleMeta.departmentProject, await roleDepartments(org));
   if (!scope.unrestricted && !(audit.projectId && scope.projectIds.includes(audit.projectId))
-    && !(process && !audit.projectId && (scope.projectIds.length || scope.processAuditsAllowed))) throw new HttpError(403, "This audit is outside your CAR project scope");
-  return { audit, plan, schedule, planMeta, scheduleMeta, leadId: planMeta.leadAuditorId as string | undefined };
+    && !(process && !audit.projectId && processDepartmentAllowed(scope, departmentId))) throw new HttpError(403, "This audit is outside your CAR project or department scope");
+  return { audit, plan, schedule, planMeta, scheduleMeta, departmentId, leadId: planMeta.leadAuditorId as string | undefined };
 }
 
 export async function carContext(req: Request, carId: string, allowInactiveSource = false) {
@@ -63,19 +66,19 @@ export async function carContext(req: Request, carId: string, allowInactiveSourc
   const ownerId = item?.actionTakerId || car.ownerId;
   const fullScope = await getAuthorizedFullProjectScope(req, "audit");
   if (!fullScope.unrestricted && !(audit.projectId && fullScope.projectIds.includes(audit.projectId))
-    && !(fullScope.processAuditsAllowed && !audit.projectId && context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit"))
+    && !(processDepartmentAllowed(fullScope, context.departmentId) && !audit.projectId && context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit"))
     && ownerId !== req.currentUser!.id && context.leadId !== req.currentUser!.id
     && !context.plan?.teamMemberIds.includes(req.currentUser!.id)) {
     throw new HttpError(403, "This CAR is outside your own-record scope");
   }
   const canRespond = !inactiveSource && ownerId === req.currentUser!.id;
   const writeScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full" });
-  const canEditResponse = canRespond && writableProject(writeScope, audit.projectId, Boolean(context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit")));
+  const canEditResponse = canRespond && writableProject(writeScope, audit.projectId, Boolean(context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit")), context.departmentId);
   const reviewScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full", operation: "review" });
   const moduleReview = (await activeAuditCapabilities(req)).keys.includes("audit.cars.approve_reject");
   const canReview = !inactiveSource && context.leadId === req.currentUser!.id && (
     await carLeadMarker(org, req.currentUser!.id)
-    || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit")))));
+    || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit")), context.departmentId)));
   return { ...context, car, finding, item, ownerId, canRespond, canEditResponse, canReview };
 }
 
@@ -98,6 +101,7 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
   const moduleReview = (await activeAuditCapabilities(req)).keys.includes("audit.cars.approve_reject");
   const entries: any[] = [];
   const adminScope = await getAppAdminScope(req, "audit");
+  const departments = await roleDepartments(org);
   for (const audit of auditRows) {
     const plan = planRows.find(row => row.id === audit.auditPlanId);
     const schedule = scheduleRows.find(row => row.id === plan?.auditScheduleId);
@@ -105,10 +109,11 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
     // The Plan's Audit Schedule is the parent programme; its Audit Title is the child audit.
     const programme = scheduleRows.find(row => row.id === sm.parentId);
     const process = sm.auditTypes?.includes("Quality Internal Process Audit");
+    const departmentId = auditDepartmentId(sm.departmentProject, departments);
     if (!scope.unrestricted && !(audit.projectId && scope.projectIds.includes(audit.projectId))
-      && !(process && !audit.projectId && (scope.projectIds.length || scope.processAuditsAllowed))) continue;
+      && !(process && !audit.projectId && processDepartmentAllowed(scope, departmentId))) continue;
     const full = fullScope.unrestricted || !!(audit.projectId && fullScope.projectIds.includes(audit.projectId))
-      || !!(fullScope.processAuditsAllowed && process && !audit.projectId);
+      || !!(processDepartmentAllowed(fullScope, departmentId) && process && !audit.projectId);
     const auditFindingsRows = findings.filter(f => f.auditId === audit.id);
     const checklist = Array.isArray(audit.checklistState) ? audit.checklistState.filter(actionableFinding) as any[] : [];
     const sourceRows = checklist.map(item => ({ item, legacy: false,
@@ -126,9 +131,9 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
         const projectName = projectRows.find(p => p.id === audit.projectId)?.name || sm.departmentProject || "Department-based audit";
         const inactiveSource = source.legacy && !!(source.finding?.evidence as any)?.sourceChecklistItemId;
         const canRespond = !inactiveSource && ownerId === userId
-          && writableProject(writeScope, audit.projectId, Boolean(process));
+          && writableProject(writeScope, audit.projectId, Boolean(process), departmentId);
         const canReview = !inactiveSource && pm.leadAuditorId === userId && (leadMarker
-          || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(carJson(schedule?.status).auditTypes?.includes("Quality Internal Process Audit")))));
+          || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(carJson(schedule?.status).auditTypes?.includes("Quality Internal Process Audit")), departmentId)));
         const classification = item.auditFinding || item.result || "";
         const dueDate = car ? carDueDate(classification, car.createdAt, car.dueDate) : null;
         const response = car ? { ...dto({ ...car, dueDate, classification }), canRespond, canReview } : undefined;
@@ -143,7 +148,7 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
           canNumber: !!car && !inactiveSource && !carJson(car.effectivenessNotes).carNumber && hasSavedCarResponse(car)
             && (canRespond || !!adminScope && (adminScope.unrestricted
               || !!audit.projectId && adminScope.projectIds.includes(audit.projectId)
-              || !audit.projectId && adminScope.processAuditsAllowed === true)),
+              || !audit.projectId && process && processDepartmentAllowed(adminScope, departmentId))),
           actionTakerName: people.find(p => p.id === ownerId)?.name || "Not assigned",
           evidenceIds: item.evidenceIds || [], status: response?.status || "Open", canRespond, canReview,
           legacy: source.legacy, ...(response ? { car: response } : {}) });

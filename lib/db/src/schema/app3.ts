@@ -5,7 +5,9 @@ import { createAppAdministration } from "./app-common";
 
 export const app3AuditSchema = pgSchema("app3_audit");
 export const carExtensionStatus = app3AuditSchema.enum("car_extension_status", ["none", "requested", "approved", "rejected"]);
-const admin = createAppAdministration(app3AuditSchema);
+const admin = createAppAdministration(app3AuditSchema, {
+  departmentIds: uuid("department_ids").array().notNull().default(sql`ARRAY[]::uuid[]`),
+});
 export const auditEvidenceStatus = admin.evidenceStatus;
 export const auditNotificationChannel = admin.notificationChannel;
 export const auditPlatformRoles = admin.platformRoles;

@@ -21,7 +21,7 @@ export type MonthlyApproval = {
 };
 export type ApprovalGrant = {
   userId: string; name: string; roleId: string; roleName: string; level: number | null;
-  key: string; grant?: string; available?: boolean; projectIds: string[] | null; businessUnitIds: string[] | null;
+  key: string; grant?: string; available?: boolean; projectIds: string[] | null; businessUnitIds: string[] | null; departmentIds?: string[] | null;
 };
 
 /** Shared monthly/daily engine; legacy export names retain monthly callers.
@@ -32,7 +32,7 @@ export function monthlyApprovalStages(rows: ApprovalGrant[], projectId: string, 
   for (const row of rows) {
     if (!qaqcPermissionMatches(row.key, `${reportType}_reports`, "approve_reject")) continue;
     if (row.grant === "select") continue;
-    const organizationWide = !row.projectIds?.length && !row.businessUnitIds?.length;
+    const organizationWide = !row.projectIds?.length && !row.businessUnitIds?.length && !row.departmentIds?.length;
     if (!organizationWide && !row.projectIds?.includes(projectId)) continue;
     if (!Number.isInteger(row.level) || Number(row.level) <= 0) {
       configurationErrors.add(`Set an Approval Level on role "${row.roleName}" in QA/QC Roles & Permissions.`);
@@ -57,7 +57,7 @@ export async function loadMonthlyApprovalStages(organizationId: string, projectI
     userId: users.id, name: users.fullName, roleId: workspaceRoles.id, roleName: workspaceRoles.name,
     level: workspaceRoles.roleAuthorizationLevel, key: permissions.key, grant: workspaceRolePermissions.grant,
     available: sql<boolean>`(${users.accessStatus} = 'active' AND ${users.status} = 'active' AND ${users.deletedAt} IS NULL)`,
-    projectIds: userWorkspaceRoles.projectIds, businessUnitIds: userWorkspaceRoles.businessUnitIds,
+    projectIds: userWorkspaceRoles.projectIds, businessUnitIds: userWorkspaceRoles.businessUnitIds, departmentIds: userWorkspaceRoles.departmentIds,
   }).from(userWorkspaceRoles)
     .innerJoin(users, eq(users.id, userWorkspaceRoles.userId))
     .innerJoin(workspaceRoles, eq(workspaceRoles.id, userWorkspaceRoles.workspaceRoleId))

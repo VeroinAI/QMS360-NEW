@@ -2257,12 +2257,19 @@ export type RoleAssignmentScopeType = typeof RoleAssignmentScopeType[keyof typeo
 export const RoleAssignmentScopeType = {
   organization: 'organization',
   project: 'project',
+  department: 'department',
 } as const;
 
 export interface RoleAssignment {
   roleId: string;
   scopeType: RoleAssignmentScopeType;
   scopeIds: string[];
+}
+
+export interface RoleDepartmentOption {
+  id: string;
+  name: string;
+  code: string;
 }
 
 export type LessonsRoleAssignmentScopeType = typeof LessonsRoleAssignmentScopeType[keyof typeof LessonsRoleAssignmentScopeType];
@@ -4154,7 +4161,11 @@ export interface Audit {
      */
   readonly reportNumber?: string | null;
   reportApproval?: AuditReportApproval;
-  projectId: string;
+  /**
+     * Null for a department-based Process audit; inherited from the selected Plan
+     * @nullable
+     */
+  projectId: string | null;
   title: string;
   status: AuditStatus;
   /** Whether the current user has Audit edit access in this record scope */
@@ -5014,6 +5025,10 @@ export type ListDronaProjectMaster200 = {
   page: number;
   limit: number;
   linkMetadataAvailable: boolean;
+};
+
+export type ListRoleAssignmentDepartmentsParams = {
+application: AppKey;
 };
 
 export type ListRoleAssignmentProjectsParams = {

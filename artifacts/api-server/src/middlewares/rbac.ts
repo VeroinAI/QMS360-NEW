@@ -41,8 +41,8 @@ export const restrictScope = (req: Request, appKey: AppKey, scope: EffectiveProj
   const restricted = restrictDronaProjects(req.dronaProjectIds, scope, appKey === "audit");
   // External project membership must not erase explicit QMS department roles
   // or widen the external user's allowed project list.
-  return appKey === "lessons" && req.dronaProjectIds !== undefined
-    ? { ...restricted, ...(scope.unrestricted ? { allDepartmentsAllowed: true } : scope.departmentIds?.length ? { departmentIds: scope.departmentIds } : {}) }
+  return req.dronaProjectIds !== undefined
+    ? { ...restricted, ...(scope.unrestricted || scope.allDepartmentsAllowed ? { allDepartmentsAllowed: true } : scope.departmentIds?.length ? { departmentIds: scope.departmentIds } : {}) }
     : restricted;
 };
 
@@ -65,7 +65,7 @@ export async function getEffectiveProjectScope(userId: string, organizationId: s
   const rows = await db.select({
     roleName: t.roles.name, roleStatus: t.roles.status,
     projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
-    departmentIds: appKey === "lessons" ? t.userRoles.departmentIds : sql<string[]>`ARRAY[]::uuid[]`,
+    departmentIds: t.userRoles.departmentIds,
   }).from(t.userRoles)
     .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
     .where(and(
@@ -149,7 +149,7 @@ export function canManageAssignmentScope(req: Request, projectIds: string[] | nu
 
 export function assertCanManageAssignmentScope(req: Request, projectIds: string[] | null | undefined, businessUnitIds?: string[] | null, departmentIds?: string[] | null): void {
   if (!canManageAssignmentScope(req, projectIds, businessUnitIds, departmentIds)) {
-    const error = new Error("You may only manage role assignments within your assigned projects") as Error & { status?: number };
+    const error = new Error("You may only manage role assignments within your assigned projects or departments") as Error & { status?: number };
     error.status = 403;
     throw error;
   }
@@ -173,7 +173,7 @@ export function requireAppAdmin(appKey: AppKey) {
     const t = appTables(appKey) as any;
     const rows = await db.select({
       projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
-      departmentIds: appKey === "lessons" ? t.userRoles.departmentIds : sql<string[]>`ARRAY[]::uuid[]`,
+      departmentIds: t.userRoles.departmentIds,
     }).from(t.userRoles)
       .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
       .where(and(
@@ -202,7 +202,7 @@ export async function getAppAdminScope(req: Request, appKey: AppKey): Promise<Ef
   }
   const t = appTables(appKey) as any;
   const rows = await db.select({ projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
-    departmentIds: appKey === "lessons" ? t.userRoles.departmentIds : sql<string[]>`ARRAY[]::uuid[]` })
+    departmentIds: t.userRoles.departmentIds })
     .from(t.userRoles).innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
     .where(and(eq(t.userRoles.userId, user.id), eq(t.userRoles.organizationId, user.organizationId),
       isNull(t.userRoles.deletedAt), eq(t.userRoles.status, "active"), isNull(t.roles.deletedAt),
@@ -228,7 +228,7 @@ async function matchingPermissionRows(req: Request, appKey: AppKey, target: Perm
   const load = () => db.select({
     roleId: t.roles.id, roleName: t.roles.name, key: t.permissions.key, grant: t.rolePermissions.grant,
     projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
-    departmentIds: appKey === "lessons" ? t.userRoles.departmentIds : sql<string[]>`ARRAY[]::uuid[]`,
+    departmentIds: t.userRoles.departmentIds,
   }).from(t.userRoles)
     .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
     .leftJoin(t.rolePermissions, and(eq(t.rolePermissions.workspaceRoleId, t.roles.id), isNull(t.rolePermissions.deletedAt), appKey === "qaqc" ? eq(t.rolePermissions.status, "active") : undefined))
@@ -339,7 +339,7 @@ export function requirePermission(
     const rows = await db.select({
       roleName: t.roles.name, key: t.permissions.key, grant: t.rolePermissions.grant,
       projectIds: t.userRoles.projectIds, businessUnitIds: t.userRoles.businessUnitIds,
-      departmentIds: appKey === "lessons" ? t.userRoles.departmentIds : sql<string[]>`ARRAY[]::uuid[]`,
+      departmentIds: t.userRoles.departmentIds,
     })
       .from(t.userRoles)
       .innerJoin(t.roles, eq(t.userRoles.workspaceRoleId, t.roles.id))
@@ -361,7 +361,7 @@ export function requirePermission(
       const normalized = module.toLowerCase();
       if (appKey === "audit" && key.startsWith("audit.")) {
         if (isAdminName(String(r.roleName ?? ""))) return true;
-        if (options.allowAuditProgrammeCreate) return !r.projectIds?.length && !r.businessUnitIds?.length
+        if (options.allowAuditProgrammeCreate) return !r.projectIds?.length && !r.businessUnitIds?.length && !r.departmentIds?.length
           && auditModulePermissionMatches(key, normalized, "create_edit");
         const path = req.originalUrl.split("?")[0];
         // Read permission is still required to download a record. Export alone
@@ -387,7 +387,7 @@ export function requirePermission(
       // Programmes have no project of their own, so the dedicated create grant
       // must come from an organization-wide assignment.
       const programmeCreate = appKey === "audit" && options.allowAuditProgrammeCreate
-        && key === "create_audit_programme" && !r.projectIds?.length && !r.businessUnitIds?.length;
+        && key === "create_audit_programme" && !r.projectIds?.length && !r.businessUnitIds?.length && !r.departmentIds?.length;
       return isAdminName(String(r.roleName ?? "")) || capability.includes(key) || key === normalized
         || programmeCreate
         || capability.some((primitive) => key === `${normalized}.${primitive}` || key === `${normalized}_${primitive}`);

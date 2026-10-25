@@ -281,6 +281,7 @@ import type {
   ListQaqcUsersParams,
   ListQtbtEntriesParams,
   ListQualityBriefsParams,
+  ListRoleAssignmentDepartmentsParams,
   ListRoleAssignmentProjects200Item,
   ListRoleAssignmentProjectsParams,
   ListSyncJobsParams,
@@ -360,6 +361,7 @@ import type {
   Role,
   RoleAssignmentBody,
   RoleBody,
+  RoleDepartmentOption,
   RolePageResponse,
   RunLessonsEscalationReportJob200,
   RunLessonsEscalationReportJob409,
@@ -2569,6 +2571,90 @@ export const useUpdateProjectAdditionalData = <TError = ErrorType<void>,
       > => {
       return useMutation(getUpdateProjectAdditionalDataMutationOptions(options));
     }
+
+export const getListRoleAssignmentDepartmentsUrl = (params: ListRoleAssignmentDepartmentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/platform/role-assignment-departments?${stringifiedParams}` : `/api/platform/role-assignment-departments`
+}
+
+/**
+ * @summary List active Department Master options within application administration scope
+ */
+export const listRoleAssignmentDepartments = async (params: ListRoleAssignmentDepartmentsParams, options?: Parameters<typeof customFetch>[1]): Promise<RoleDepartmentOption[]> => {
+
+  return customFetch<RoleDepartmentOption[]>(getListRoleAssignmentDepartmentsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRoleAssignmentDepartmentsQueryKey = (params?: ListRoleAssignmentDepartmentsParams,) => {
+    return [
+    `/api/platform/role-assignment-departments`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListRoleAssignmentDepartmentsQueryOptions = <TData = Awaited<ReturnType<typeof listRoleAssignmentDepartments>>, TError = ErrorType<void>>(params: ListRoleAssignmentDepartmentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRoleAssignmentDepartments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRoleAssignmentDepartmentsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoleAssignmentDepartments>>> = ({ signal }) => listRoleAssignmentDepartments(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRoleAssignmentDepartments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRoleAssignmentDepartmentsQueryResult = NonNullable<Awaited<ReturnType<typeof listRoleAssignmentDepartments>>>
+export type ListRoleAssignmentDepartmentsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List active Department Master options within application administration scope
+ */
+
+export function useListRoleAssignmentDepartments<TData = Awaited<ReturnType<typeof listRoleAssignmentDepartments>>, TError = ErrorType<void>>(
+ params: ListRoleAssignmentDepartmentsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRoleAssignmentDepartments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRoleAssignmentDepartmentsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListRoleAssignmentProjectsUrl = (params: ListRoleAssignmentProjectsParams,) => {
   const normalizedParams = new URLSearchParams();

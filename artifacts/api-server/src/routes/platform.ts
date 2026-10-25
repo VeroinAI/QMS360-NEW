@@ -249,6 +249,19 @@ function userHasAppAccess(platformRole: string, roleNames: string[], appKey: str
   return roleText.includes("Audit") || roleText.includes("Process");
 }
 
+router.get("/platform/role-assignment-departments", requireAuth, async (req, res): Promise<void> => {
+  const application = req.query.application;
+  if (typeof application !== "string" || !["qaqc", "lessons", "audit"].includes(application)) {
+    res.status(422).json({ error: "Choose a valid application" }); return;
+  }
+  const scope = await getRoleAssignmentProjectScope(req, application as AppKey);
+  if (!scope) { res.status(403).json({ error: "Application administrator access is required" }); return; }
+  const { roleDepartments } = await import("../lib/role-departments");
+  const rows = await roleDepartments(req.currentUser!.organizationId);
+  res.json(rows.filter(row => scope.unrestricted || scope.allDepartmentsAllowed || scope.departmentIds?.includes(row.id))
+    .map(({ id, name, code }) => ({ id, name, code })));
+});
+
 router.get("/platform/role-assignment-projects", requireAuth, async (req, res): Promise<void> => {
   const application = req.query.application;
   if (typeof application !== "string" || !["qaqc", "lessons", "audit"].includes(application)) {

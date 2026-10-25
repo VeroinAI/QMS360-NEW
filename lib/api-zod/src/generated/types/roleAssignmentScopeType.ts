@@ -12,4 +12,5 @@ export type RoleAssignmentScopeType = typeof RoleAssignmentScopeType[keyof typeo
 export const RoleAssignmentScopeType = {
   organization: 'organization',
   project: 'project',
+  department: 'department',
 } as const;

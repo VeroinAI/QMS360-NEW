@@ -4,7 +4,9 @@ import { organizations, projects, users } from "./shared";
 import { createAppAdministration } from "./app-common";
 
 export const app1QaqcSchema = pgSchema("app1_qaqc");
-const admin = createAppAdministration(app1QaqcSchema);
+const admin = createAppAdministration(app1QaqcSchema, {
+  departmentIds: uuid("department_ids").array().notNull().default(sql`ARRAY[]::uuid[]`),
+});
 export const evidenceStatus = admin.evidenceStatus;
 export const notificationChannel = admin.notificationChannel;
 export const {

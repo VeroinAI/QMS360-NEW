@@ -867,6 +867,21 @@ export const UpdateProjectAdditionalDataResponse = zod.object({
 
 
 /**
+ * @summary List active Department Master options within application administration scope
+ */
+export const ListRoleAssignmentDepartmentsQueryParams = zod.object({
+  "application": zod.enum(['qaqc', 'lessons', 'audit'])
+})
+
+export const ListRoleAssignmentDepartmentsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "code": zod.string()
+})
+export const ListRoleAssignmentDepartmentsResponse = zod.array(ListRoleAssignmentDepartmentsResponseItem)
+
+
+/**
  * @summary List active projects available for application role administration
  */
 export const ListRoleAssignmentProjectsQueryParams = zod.object({
@@ -5273,7 +5288,7 @@ export const AssignQaqcUserRoleParams = zod.object({
 
 export const AssignQaqcUserRoleBody = zod.object({
   "roleId": zod.string(),
-  "scopeType": zod.enum(['organization', 'project']),
+  "scopeType": zod.enum(['organization', 'project', 'department']),
   "scopeIds": zod.array(zod.string())
 })
 
@@ -5327,7 +5342,7 @@ export const ListQaqcAccessQueueResponse = zod.object({
   "requestedRoleId": zod.string(),
   "scope": zod.object({
   "roleId": zod.string(),
-  "scopeType": zod.enum(['organization', 'project']),
+  "scopeType": zod.enum(['organization', 'project', 'department']),
   "scopeIds": zod.array(zod.string())
 }).optional(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
@@ -6978,7 +6993,7 @@ export const ListLessonsAccessQueueResponse = zod.object({
   "requestedRoleId": zod.string(),
   "scope": zod.object({
   "roleId": zod.string(),
-  "scopeType": zod.enum(['organization', 'project']),
+  "scopeType": zod.enum(['organization', 'project', 'department']),
   "scopeIds": zod.array(zod.string())
 }).optional(),
   "status": zod.enum(['pending', 'approved', 'rejected']),
@@ -8984,7 +8999,7 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -9165,7 +9180,7 @@ export const ListAuditsResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -9306,7 +9321,7 @@ export const createAuditBodyReportDetailsRowsMaxOne = 200;
 export const CreateAuditBody = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -9468,7 +9483,7 @@ export const GetAuditResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -9612,7 +9627,7 @@ export const updateAuditBodyReportDetailsRowsMaxOne = 200;
 export const UpdateAuditBody = zod.object({
   "id": zod.string(),
   "planId": zod.string(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -9800,7 +9815,7 @@ export const CompleteAuditResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -9973,7 +9988,7 @@ export const ReviewAuditReportResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -10150,7 +10165,7 @@ export const SaveAuditReportDetailsResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -10409,7 +10424,7 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -10588,7 +10603,7 @@ export const EditAuditChecklistItemResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -10756,7 +10771,7 @@ export const DeleteAuditChecklistItemResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -10936,7 +10951,7 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -11117,7 +11132,7 @@ export const CreateAuditFindingItemResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -11285,7 +11300,7 @@ export const GenerateMissingAuditFindingNumberResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -11455,7 +11470,7 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -11627,7 +11642,7 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -11816,7 +11831,7 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -12008,7 +12023,7 @@ export const UpdateAuditOverallProjectProgressResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -12198,7 +12213,7 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -13211,7 +13226,7 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "at": zod.string()
 }))
 }).optional(),
-  "projectId": zod.string(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
@@ -13688,7 +13703,7 @@ export const AssignAuditUserRoleParams = zod.object({
 
 export const AssignAuditUserRoleBody = zod.object({
   "roleId": zod.string(),
-  "scopeType": zod.enum(['organization', 'project']),
+  "scopeType": zod.enum(['organization', 'project', 'department']),
   "scopeIds": zod.array(zod.string())
 })
 
@@ -13742,7 +13757,7 @@ export const ListAuditAccessQueueResponse = zod.object({
   "requestedRoleId": zod.string(),
   "scope": zod.object({
   "roleId": zod.string(),
-  "scopeType": zod.enum(['organization', 'project']),
+  "scopeType": zod.enum(['organization', 'project', 'department']),
   "scopeIds": zod.array(zod.string())
 }).optional(),
   "status": zod.enum(['pending', 'approved', 'rejected']),

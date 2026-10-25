@@ -110,6 +110,7 @@
 - [Daily historical balances](daily-historical-balances-policy.md) — one-time pre-report snapshots through the day before go-live; scoped historical grants and atomic multi-project imports.
 - [Monthly report uniqueness](monthly-report-uniqueness.md) — all workflow states block duplicate project/month reports; selection feedback and race-safe save checks are required.
 - [Department Lessons](department-lessons-policy.md) — explicit department role scopes and independent department reference sequences; preserve project behavior and official PDF branding.
+- [Department role boundaries](department-role-scope-policy.md) — shared Department Master without Lessons access; department-only entry grants no projects or new QA/QC reporting models.
 - [Project closure target ownership](project-closure-target-ownership.md) — edit targets in Project Master; keep Reporting Settings read-only and preserve hidden workflow configuration.
 - [Calculation tile visibility](qaqc-calculation-tile-policy.md) — no technical Server calculation tile on Daily or CSAT forms; preserve calculations and validation.
 - [CSAT final submission](csat-submission-origin-policy.md) — Yes submits and locks; No persists a draft; submitted surveys have no approval/send-back workflow.

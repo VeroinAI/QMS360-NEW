@@ -1,4 +1,6 @@
 import { formatDateInTimeZone, formatPresentationData } from "@workspace/spreadsheet-dates";
+import { roleDepartments, validateRoleDepartments } from "../lib/role-departments";
+import { auditDepartmentId, processDepartmentAllowed, intersectAuditScopes } from "../lib/audit-department-scope";
 import { visibleAdminUsers } from "../lib/admin-user-discovery";
 import { auditOverviewContext } from "../lib/audit-overview-context";
 import { auditScheduleApprovalPermission } from "@workspace/field-controls";
@@ -104,7 +106,7 @@ for (const [path, module] of auditModules) {
     if (path === "/cars" && req.method === "POST" && /^\/[^/]+\/review\/?$/.test(req.path)) {
       return asyncHandler(async (req, _res, next) => {
         const readScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "select" });
-        if (!readScope.unrestricted && !readScope.projectIds.length && !readScope.processAuditsAllowed) {
+        if (!readScope.unrestricted && !readScope.projectIds.length && !readScope.processAuditsAllowed && !readScope.allDepartmentsAllowed && !readScope.departmentIds?.length) {
           throw new HttpError(403, "CAR read access is required to review a response");
         }
         req.permissionProjectScope = readScope;
@@ -140,13 +142,10 @@ function auditExportGuard(module: string) {
     );
     if (!isExport || req.permissionAdminBypass) return next();
     const exportScope = await getAuthorizedProjectScope(req, "audit", { module, action: "select", operation: "export" });
-    const intersect = (left: EffectiveProjectScope, right: EffectiveProjectScope) =>
-      left.unrestricted ? right : right.unrestricted ? left
-        : { unrestricted: false, projectIds: left.projectIds.filter(id => right.projectIds.includes(id)),
-          processAuditsAllowed: left.processAuditsAllowed === true && right.processAuditsAllowed === true };
+    const intersect = intersectAuditScopes;
     const readScope = req.permissionProjectScope ?? { unrestricted: false, projectIds: [] };
     const scope = intersect(readScope, exportScope);
-    if (!scope.unrestricted && !scope.projectIds.length && !scope.processAuditsAllowed) throw new HttpError(403, "Export is not permitted for your role in this scope");
+    if (!scope.unrestricted && !scope.projectIds.length && !scope.processAuditsAllowed && !scope.allDepartmentsAllowed && !scope.departmentIds?.length) throw new HttpError(403, "Export is not permitted for your role in this scope");
     req.permissionProjectScope = scope;
     req.permissionFullProjectScope = intersect(req.permissionFullProjectScope ?? { unrestricted: false, projectIds: [] }, exportScope);
     next();
@@ -180,6 +179,8 @@ router.use("/evidence", asyncHandler(async (req, res, next) => {
   })(req, res, next);
 }));
 router.use(asyncHandler(async (req, _res, next) => {
+  // Process scope comes from the selected Plan, not an empty project UUID.
+  if (req.method !== "GET" && /^\/audits(?:\/|$)/.test(req.path) && req.body?.projectId === "") req.body.projectId = null;
   if (req.method !== "GET" && typeof req.body?.projectId === "string") {
     await assertProjectInOrg(db, actor(req).organizationId, req.body.projectId);
     await assertProjectAccess(req, req.body.projectId);
@@ -211,12 +212,13 @@ async function assertAuditUserManagementScope(req: Request, userId: string) {
   const assignments = await db.select({
     projectIds: auditUserWorkspaceRoles.projectIds,
     businessUnitIds: auditUserWorkspaceRoles.businessUnitIds,
+    departmentIds: auditUserWorkspaceRoles.departmentIds,
   }).from(auditUserWorkspaceRoles).where(and(
     eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId),
     eq(auditUserWorkspaceRoles.userId, userId),
     isNull(auditUserWorkspaceRoles.deletedAt),
   ));
-  if (!assignments.some(assignment => canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds))) {
+  if (!assignments.some(assignment => canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds, assignment.departmentIds))) {
     throw new HttpError(403, "You do not have access to manage this user's Audit profile");
   }
 }
@@ -322,48 +324,66 @@ type ScheduleMeta = {
   feasibilityRecordedAt?: string | null;
 };
 const PROCESS_AUDIT_TYPE = "Quality Internal Process Audit";
-const processPlansByRequest = new WeakMap<Request, Promise<string[]>>();
-async function processPlanCondition(req: Request, planId: AnyPgColumn) {
-  let ids = processPlansByRequest.get(req);
+const processPlansByRequest = new WeakMap<Request, Map<EffectiveProjectScope, Promise<string[]>>>();
+const departmentsByRequest = new WeakMap<Request, ReturnType<typeof roleDepartments>>();
+async function processScheduleAllowed(req: Request, row: AnyRow, scope?: EffectiveProjectScope) {
+  if (!isProcessAuditSchedule(row)) return false;
+  const authorized = scope ?? await getAuthorizedProjectScope(req, "audit");
+  let departments = departmentsByRequest.get(req);
+  if (!departments) { departments = roleDepartments(actor(req).organizationId); departmentsByRequest.set(req, departments); }
+  return processDepartmentAllowed(authorized, auditDepartmentId(scheduleMeta(row).departmentProject, await departments));
+}
+async function processPlanCondition(req: Request, planId: AnyPgColumn, scope: EffectiveProjectScope) {
+  let cache = processPlansByRequest.get(req);
+  if (!cache) { cache = new Map(); processPlansByRequest.set(req, cache); }
+  let ids = cache.get(scope);
   if (!ids) {
     ids = (async () => {
       const schedules = await db.select({ id: auditSchedules.id, status: auditSchedules.status })
         .from(auditSchedules).where(active(auditSchedules, actor(req).organizationId));
       // Use the same safe legacy JSON parser as detail authorization. Never cast
       // arbitrary historical status text to JSON in a database WHERE clause.
-      const scheduleIds = schedules.filter(isProcessAuditSchedule).map(row => row.id);
+      const scheduleIds = (await Promise.all(schedules.map(async row => await processScheduleAllowed(req, row, scope) ? row.id : null))).filter((id): id is string => !!id);
       if (!scheduleIds.length) return [];
       const plans = await db.select({ id: auditPlans.id }).from(auditPlans).where(and(
         active(auditPlans, actor(req).organizationId), inArray(auditPlans.auditScheduleId, scheduleIds),
       ));
       return plans.map(row => row.id);
     })();
-    processPlansByRequest.set(req, ids);
+    cache.set(scope, ids);
   }
   return inArray(planId, await ids);
 }
 async function auditProjectCondition(req: Request, scope: EffectiveProjectScope) {
   if (scope.unrestricted) return undefined;
   return or(inArray(audits.projectId, scope.projectIds),
-    scope.processAuditsAllowed ? and(isNull(audits.projectId), await processPlanCondition(req, audits.auditPlanId)) : undefined);
+    and(isNull(audits.projectId), await processPlanCondition(req, audits.auditPlanId, scope)));
 }
 const PRODUCT_AUDIT_TYPE = "Quality Internal Product Audit";
 const isProcessAuditSchedule = (row: AnyRow) => scheduleMeta(row).auditTypes?.includes(PROCESS_AUDIT_TYPE) ?? false;
 const scheduleMeta = (row: AnyRow): ScheduleMeta => parseJson(row.status, {});
 const isProgramme = (row: AnyRow) => Boolean(scheduleMeta(row).programme);
-async function isProcessScheduleId(organizationId: string, scheduleId: string | null | undefined) {
+async function isProcessScheduleId(req: Request, scheduleId: string | null | undefined, scope?: EffectiveProjectScope) {
   if (!scheduleId) return false;
   const [schedule] = await db.select({ status: auditSchedules.status }).from(auditSchedules).where(and(
-    active(auditSchedules, organizationId), eq(auditSchedules.id, scheduleId),
+    active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, scheduleId),
   ));
-  return schedule ? isProcessAuditSchedule(schedule) : false;
+  return schedule ? processScheduleAllowed(req, schedule, scope) : false;
 }
-async function isProcessPlanId(organizationId: string, planId: string | null | undefined) {
+async function isProcessPlanId(req: Request, planId: string | null | undefined, scope?: EffectiveProjectScope) {
   if (!planId) return false;
   const [plan] = await db.select({ scheduleId: auditPlans.auditScheduleId }).from(auditPlans).where(and(
-    active(auditPlans, organizationId), eq(auditPlans.id, planId),
+    active(auditPlans, actor(req).organizationId), eq(auditPlans.id, planId),
   ));
-  return isProcessScheduleId(organizationId, plan?.scheduleId);
+  return isProcessScheduleId(req, plan?.scheduleId, scope);
+}
+async function planDepartmentId(req: Request, planId: string | null | undefined) {
+  if (!planId) return null;
+  const [row] = await db.select({ status: auditSchedules.status }).from(auditPlans)
+    .innerJoin(auditSchedules, eq(auditPlans.auditScheduleId, auditSchedules.id))
+    .where(and(active(auditPlans, actor(req).organizationId), active(auditSchedules, actor(req).organizationId), eq(auditPlans.id, planId)));
+  return row && isProcessAuditSchedule(row)
+    ? auditDepartmentId(scheduleMeta(row).departmentProject, await roleDepartments(actor(req).organizationId)) : null;
 }
 async function assertChildSchedule(row: AnyRow | undefined): Promise<AnyRow> {
   if (!row) throw new HttpError(404, "Audit schedule not found");
@@ -387,14 +407,16 @@ async function scheduleInScope(req: Request, row: AnyRow): Promise<boolean> {
   const scope = await getAuthorizedProjectScope(req, "audit");
   if (scope.unrestricted) return true;
   const ids = scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
-  if (ids.length === 0 && isProcessAuditSchedule(row)) return true;
+  if (ids.length === 0 && isProcessAuditSchedule(row)) return processScheduleAllowed(req, row, scope);
   return ids.length > 0 && ids.every((id) => scope.projectIds.includes(id));
 }
-async function assertAuditProject(req: Request, projectId: string | null | undefined) {
+async function assertAuditProject(req: Request, projectId: string | null | undefined, processPlanId?: string | null) {
   if (req.permissionAdminBypass) return;
   const scope = await getAuthorizedProjectScope(req, "audit");
   if (!projectId) {
-    if (!scope.unrestricted) throw new HttpError(403, "You do not have access to a projectless Audit record");
+    if (!scope.unrestricted && !await isProcessPlanId(req, processPlanId, scope)) {
+      throw new HttpError(403, "You do not have access to this Audit department or its source Process schedule");
+    }
     return;
   }
   if (!scope.unrestricted && !scope.projectIds.includes(projectId)) throw new HttpError(403, "You do not have access to this project");
@@ -415,13 +437,14 @@ async function assertAuditRecordAccess(req: Request, recordType: string, recordI
     if (row && !["GET", "HEAD", "OPTIONS"].includes(req.method) && /\/evidence(?:\/|$)/.test(req.originalUrl.split("?")[0])) assertAuditReportEditable(row);
     // Internal Process audits are department-scoped, not project-scoped. Match
     // the parent-chain check already used for /audits/:id detail routes.
-    if (row && !projectId && await isProcessPlanId(actor(req).organizationId, row.planId)) return;
+    if (row && !projectId && await isProcessPlanId(req, row.planId)) return;
   } else if (recordType === "audit_finding" || recordType === "finding") {
-    const [row] = await db.select({ projectId: audits.projectId, status: audits.status }).from(auditFindings)
+    const [row] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId, status: audits.status }).from(auditFindings)
       .innerJoin(audits, eq(auditFindings.auditId, audits.id))
       .where(and(eq(auditFindings.id, recordId), active(auditFindings, actor(req).organizationId), isNull(audits.deletedAt)));
     projectId = row?.projectId;
     if (row && !["GET", "HEAD", "OPTIONS"].includes(req.method) && /\/evidence(?:\/|$)/.test(req.originalUrl.split("?")[0])) assertAuditReportEditable(row);
+    if (row && !projectId && await isProcessPlanId(req, row.planId)) return;
   } else if (recordType === "corrective_action_report" || recordType === "car") {
     const [row] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(correctiveActionReports)
       .innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id))
@@ -435,12 +458,12 @@ async function assertAuditRecordAccess(req: Request, recordType: string, recordI
         isNull(audits.deletedAt),
       ));
     projectId = row?.projectId;
-    if (!projectId && row?.planId && await isProcessPlanId(actor(req).organizationId, row.planId)) {
+    if (!projectId && row?.planId && await isProcessPlanId(req, row.planId)) {
       // The detail route has already passed the router-wide parent-chain scope guard.
       // That guard explicitly permits scoped process-audit records without project IDs.
       if (req.path === `/cars/${recordId}`) return;
       const scope = await getAuthorizedProjectScope(req, "audit");
-      if (scope.unrestricted || scope.projectIds.length > 0 || scope.processAuditsAllowed) return;
+      if (scope.unrestricted || scope.projectIds.length > 0 || scope.processAuditsAllowed || scope.allDepartmentsAllowed || scope.departmentIds?.length) return;
       throw new HttpError(403, "You do not have access to this project");
     }
   } else {
@@ -468,19 +491,19 @@ router.use(asyncHandler(async (req, _res, next) => {
     if (row) {
       if (isProgramme(row)) throw new HttpError(404, "Audit programme is not a child schedule");
       recordFound = true; projectIds = scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
-      allowProjectless = isProcessAuditSchedule(row);
+      allowProjectless = await processScheduleAllowed(req, row);
     }
   } else if (routeType === "plans" && id) {
     const [row] = await db.select({ projectId: auditPlans.projectId, scheduleId: auditPlans.auditScheduleId }).from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, id)));
-    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; else allowProjectless = await isProcessScheduleId(actor(req).organizationId, row.scheduleId); }
+    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; else allowProjectless = await isProcessScheduleId(req, row.scheduleId); }
   } else if (routeType === "audits" && id) {
     const [row] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, id)));
-    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; else allowProjectless = await isProcessPlanId(actor(req).organizationId, row.planId); }
+    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; else allowProjectless = await isProcessPlanId(req, row.planId); }
   } else if (routeType === "findings" && id) {
     const [row] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(auditFindings)
       .innerJoin(audits, eq(auditFindings.auditId, audits.id))
       .where(and(eq(auditFindings.id, id), eq(audits.organizationId, actor(req).organizationId), isNull(auditFindings.deletedAt)));
-    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; else allowProjectless = await isProcessPlanId(actor(req).organizationId, row.planId); }
+    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; else allowProjectless = await isProcessPlanId(req, row.planId); }
   } else if (routeType === "cars" && id) {
     const [row] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(correctiveActionReports)
       .innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id))
@@ -494,7 +517,7 @@ router.use(asyncHandler(async (req, _res, next) => {
         eq(audits.organizationId, actor(req).organizationId),
         isNull(audits.deletedAt),
       ));
-    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; else allowProjectless = await isProcessPlanId(actor(req).organizationId, row.planId); }
+    if (row) { recordFound = true; if (row.projectId) projectIds = [row.projectId]; else allowProjectless = await isProcessPlanId(req, row.planId); }
   }
   if (recordFound) {
     const scope = await getAuthorizedProjectScope(req, "audit");
@@ -712,6 +735,7 @@ async function hasProgrammeManagerMarker(req: Request, children: AnyRow[]) {
   const assignments = await db.select({
     projectIds: auditUserWorkspaceRoles.projectIds,
     businessUnitIds: auditUserWorkspaceRoles.businessUnitIds,
+    departmentIds: auditUserWorkspaceRoles.departmentIds,
   }).from(auditUserWorkspaceRoles)
     .innerJoin(auditWorkspaceRoles, and(
       eq(auditWorkspaceRoles.id, auditUserWorkspaceRoles.workspaceRoleId),
@@ -734,10 +758,13 @@ async function hasProgrammeManagerMarker(req: Request, children: AnyRow[]) {
       eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
     ));
   if (!assignments.length) return false;
-  if (assignments.some(row => !row.projectIds?.length && !row.businessUnitIds?.length)) return true;
+  if (assignments.some(row => !row.projectIds?.length && !row.businessUnitIds?.length && !row.departmentIds?.length)) return true;
   const allowed = new Set(assignments.flatMap(row => row.projectIds ?? []));
+  const departmentIds = new Set(assignments.flatMap(row => row.departmentIds ?? []));
+  const departments = await roleDepartments(actor(req).organizationId);
   return children.every(child => {
     const ids = scheduleMeta(child).projectIds ?? (child.projectId ? [child.projectId] : []);
+    if (!ids.length && isProcessAuditSchedule(child)) return departmentIds.has(auditDepartmentId(scheduleMeta(child).departmentProject, departments) ?? "");
     return ids.length > 0 && ids.every(id => allowed.has(id));
   });
 }
@@ -833,7 +860,7 @@ const moduleSelectScope = (req: Request, module: string) =>
 const moduleFullScope = (req: Request, module: string, operation?: "review") =>
   getAuthorizedProjectScope(req, "audit", { module, action: "full", operation });
 const scopeHasSelectAccess = (scope: Awaited<ReturnType<typeof moduleSelectScope>>) =>
-  scope.unrestricted || scope.projectIds.length > 0 || scope.processAuditsAllowed === true;
+  scope.unrestricted || scope.projectIds.length > 0 || scope.processAuditsAllowed === true || scope.allDepartmentsAllowed === true || !!scope.departmentIds?.length;
 const hasActionPermission = (
   selectScope: Awaited<ReturnType<typeof moduleSelectScope>>,
   fullScope: Awaited<ReturnType<typeof moduleFullScope>>,
@@ -842,9 +869,9 @@ function myActionProjectInScope(projectId: string | null | undefined,
   selectScope: Awaited<ReturnType<typeof moduleSelectScope>>,
   fullScope: Awaited<ReturnType<typeof moduleFullScope>>,
   effectiveScope: Awaited<ReturnType<typeof moduleSelectScope>>,
-  allowProjectless = false) {
+  allowProjectless = false, departmentId: string | null = null) {
   if (!scopeHasSelectAccess(selectScope) || !scopeHasSelectAccess(fullScope) || !scopeHasSelectAccess(effectiveScope)) return false;
-  if (!projectId) return allowProjectless;
+  if (!projectId) return allowProjectless && [selectScope, fullScope, effectiveScope].every(scope => processDepartmentAllowed(scope, departmentId));
   return (selectScope.unrestricted || selectScope.projectIds.includes(projectId))
     && (fullScope.unrestricted || fullScope.projectIds.includes(projectId))
     && (effectiveScope.unrestricted || effectiveScope.projectIds.includes(projectId));
@@ -1517,6 +1544,7 @@ router.post("/schedules", asyncHandler(async (req, res) => {
   if (processAudit) {
     projectIds = [];
     data.projectIds = [];
+    if (!processDepartmentAllowed(scope, auditDepartmentId(data.departmentProject, await roleDepartments(actor(req).organizationId)))) throw new HttpError(403, "You do not have access to this department");
   }
   if (productAudit && !projectIds.length) throw new HttpError(422, "A project is required for a Quality Internal Product Audit schedule");
   if (!scope.unrestricted && !projectIds.length && !processAudit) throw new HttpError(422, "At least one project is required for a project-scoped Audit schedule");
@@ -1660,6 +1688,7 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
   if (processAudit) {
     projectIds = [];
     data.projectIds = [];
+    if (!processDepartmentAllowed(scope, auditDepartmentId(data.departmentProject, await roleDepartments(actor(req).organizationId)))) throw new HttpError(403, "You do not have access to this department");
   }
   if (productAudit && !projectIds.length) throw new HttpError(422, "A project is required for a Quality Internal Product Audit schedule");
   if (!scope.unrestricted && !projectIds.length && !processAudit) throw new HttpError(422, "At least one project is required for a project-scoped Audit schedule");
@@ -2186,9 +2215,7 @@ router.get("/plan-source-schedules/:id", requirePermission("audit", "plans", "se
 router.get("/plans", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req); const scope = await getAuthorizedProjectScope(req, "audit");
   const where = and(active(auditPlans, actor(req).organizationId), scope.unrestricted ? undefined :
-    or(inArray(auditPlans.projectId, scope.projectIds), req.dronaProjectIds !== undefined
-      ? scope.processAuditsAllowed ? and(isNull(auditPlans.projectId), await processPlanCondition(req, auditPlans.id)) : undefined
-      : isNull(auditPlans.projectId)));
+    or(inArray(auditPlans.projectId, scope.projectIds), and(isNull(auditPlans.projectId), await processPlanCondition(req, auditPlans.id, scope))));
   const [rows, [{ count }]] = await Promise.all([
     db.select().from(auditPlans).where(where).orderBy(desc(auditPlans.updatedAt)).limit(limit).offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(auditPlans).where(where),
@@ -2484,7 +2511,7 @@ router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
     active(auditPlans, organizationId), eq(auditPlans.id, planId),
   ));
   if (!plan) throw new HttpError(404, "Audit plan not found");
-  await assertAuditProject(req, plan.projectId);
+  await assertAuditProject(req, plan.projectId, plan.id);
   await assertFieldAccess(req, "audit", "audit-execution", { mode: "create" });
 
   let created = false;
@@ -2585,10 +2612,10 @@ router.get("/audits", asyncHandler(async (req, res) => {
     db.select({ count: sql<number>`count(*)` }).from(audits).where(where),
   ]);
   const editScope = await getAuthorizedProjectScope(req, "audit", { module: "audits", action: "full" });
-  res.json(paginated(rows.map(({ audit, planStatus }) => ({
-    ...auditDto(audit, editScope.unrestricted || (audit.projectId ? editScope.projectIds.includes(audit.projectId) : editScope.projectIds.length > 0 || editScope.processAuditsAllowed === true)),
+  res.json(paginated(await Promise.all(rows.map(async ({ audit, planStatus }) => ({
+    ...auditDto(audit, editScope.unrestricted || (audit.projectId ? editScope.projectIds.includes(audit.projectId) : await isProcessPlanId(req, audit.auditPlanId, editScope))),
     planNumber: planStatus ? planMeta({ status: planStatus }).planNumber ?? null : null,
-  })), Number(count), page, limit));
+  }))), Number(count), page, limit));
 }));
 router.post("/audits", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditBody, req);
@@ -2596,7 +2623,7 @@ router.post("/audits", asyncHandler(async (req, res) => {
   await assertFieldAccess(req, "audit", "audit-execution", { mode: "create" });
   const [plan] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, data.planId)));
   if (!plan) throw new HttpError(422, "Audit plan does not belong to this organization");
-  await assertAuditProject(req, plan.projectId);
+  await assertAuditProject(req, plan.projectId, plan.id);
   if (data.projectId && plan.projectId && data.projectId !== plan.projectId) {
     throw new HttpError(422, "Audit project must match the selected plan");
   }
@@ -2613,6 +2640,7 @@ router.post("/audits", asyncHandler(async (req, res) => {
   // generated from it; otherwise the manually supplied title remains the reference.
   const usePattern = await hasNumberingPattern(actor(req).organizationId, "audit");
   const values: Omit<typeof audits.$inferInsert, "organizationId"> = auditValues(data);
+  values.projectId = plan.projectId;
   let row: typeof audits.$inferSelect | undefined;
   for (let attempt = 0; attempt < 5 && !row; attempt++) {
     if (usePattern) {
@@ -2656,8 +2684,8 @@ router.get("/audits/:id", asyncHandler(async (req, res) => {
   if (!row) throw new HttpError(404, "Audit not found");
   const editScope = await getAuthorizedProjectScope(req, "audit", { module: "audits", action: "full" });
   const reviewers = auditMeta(row).reportApproval?.status === "Pending approval"
-    ? await reportReviewers(db, actor(req).organizationId, row.projectId) : [];
-  res.json({ ...auditDto(row, editScope.unrestricted || (row.projectId ? editScope.projectIds.includes(row.projectId) : editScope.projectIds.length > 0 || editScope.processAuditsAllowed === true)),
+    ? await reportReviewers(db, actor(req).organizationId, row.projectId, await planDepartmentId(req, row.auditPlanId)) : [];
+  res.json({ ...auditDto(row, editScope.unrestricted || (row.projectId ? editScope.projectIds.includes(row.projectId) : await isProcessPlanId(req, row.auditPlanId, editScope))),
     reportApproval: reportApprovalSummary(auditMeta(row).reportApproval, canReviewReport(auditMeta(row).reportApproval, reviewers, actor(req).id)),
     ...await auditOverviewContext(db, actor(req).organizationId, row, plan => planMeta(plan).planNumber),
     openingMeetingBounds: await openingMeetingBounds(db, actor(req).organizationId, row.auditPlanId) });
@@ -2677,7 +2705,7 @@ router.post("/audits/:id/complete", asyncHandler(async (req, res) => {
       mode: "update", current: auditDto(before), body: { status: "Complete" },
     });
     await assertFieldControls(req, "audit", "audit-execution", { mode: "update", current: auditDto(before), body: { status: "Complete" } });
-    const reportApproval = submitReportApproval(await reportReviewers(tx, actor(req).organizationId, before.projectId),
+    const reportApproval = submitReportApproval(await reportReviewers(tx, actor(req).organizationId, before.projectId, await planDepartmentId(req, before.auditPlanId)),
       actor(req).id, meta.reportApproval);
     const [row] = await tx.update(audits).set({
       workflowState: "closed", updatedAt: new Date(),
@@ -2709,12 +2737,12 @@ router.post("/audits/:id/review", asyncHandler(async (req, res) => {
       eq(audits.id, String(req.params.id)))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
     const readScope = await moduleSelectScope(req, "audits");
-    if (!readScope.unrestricted && !(before.projectId ? readScope.projectIds.includes(before.projectId) : readScope.processAuditsAllowed)) {
+    if (!readScope.unrestricted && !(before.projectId ? readScope.projectIds.includes(before.projectId) : await isProcessPlanId(req, before.auditPlanId, readScope))) {
       throw new HttpError(403, "Audit read access is required in this record's scope");
     }
     const meta = auditMeta(before);
     const reportApproval = reviewReportApproval(meta.reportApproval,
-      await reportReviewers(tx, actor(req).organizationId, before.projectId), actor(req).id, actor(req).fullName, data.decision, data.remarks);
+      await reportReviewers(tx, actor(req).organizationId, before.projectId, await planDepartmentId(req, before.auditPlanId)), actor(req).id, actor(req).fullName, data.decision, data.remarks);
     const [row] = await tx.update(audits).set({ status: JSON.stringify({ ...meta, reportApproval }), updatedAt: new Date() })
       .where(eq(audits.id, before.id)).returning();
     return { before, row };
@@ -2781,7 +2809,7 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
   }
   const [plan] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, data.planId)));
   if (!plan) throw new HttpError(404, "Audit plan not found");
-  await assertAuditProject(req, plan.projectId);
+  await assertAuditProject(req, plan.projectId, plan.id);
   if (data.projectId && plan.projectId && data.projectId !== plan.projectId) {
     throw new HttpError(422, "Audit project must match the selected plan");
   }
@@ -3001,7 +3029,7 @@ router.delete("/audits/:id/checklist/items/:itemId", asyncHandler(async (req, re
     )).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
     assertAuditReportEditable(before);
-    await assertAuditProject(req, before.projectId);
+    await assertAuditProject(req, before.projectId, before.auditPlanId);
     const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
     const item = checklist.find(value => value.id === itemId && value.source !== "finding");
     if (!item) throw new HttpError(404, "Checklist item not found");
@@ -3288,7 +3316,7 @@ router.put("/audits/:id/additional-documents/overall-project-progress", asyncHan
     )).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
     assertAuditReportEditable(before);
-    await assertAuditProject(req, before.projectId);
+    await assertAuditProject(req, before.projectId, before.auditPlanId);
     const meta = auditMeta(before);
     const [row] = await tx.update(audits).set({
       status: JSON.stringify({
@@ -3378,7 +3406,7 @@ router.post("/findings", asyncHandler(async (req, res) => {
   ]);
   const [audit] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, data.auditId)));
   if (!audit) throw new HttpError(404, "Audit not found");
-  await assertAuditProject(req, audit.projectId);
+  await assertAuditProject(req, audit.projectId, audit.auditPlanId);
   const [row] = await db.insert(auditFindings).values({ organizationId: actor(req).organizationId, ...findingValues(data) }).returning();
   await auditLog(req, "create", "audit_finding", row.id, undefined, row); res.status(201).json(findingDto(row));
 }));
@@ -3392,7 +3420,7 @@ router.put("/findings/:id", asyncHandler(async (req, res) => {
   if (!before) throw new HttpError(404, "Audit finding not found");
   const [parentAudit] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, data.auditId)));
   if (!parentAudit) throw new HttpError(404, "Audit not found");
-  await assertAuditProject(req, parentAudit.projectId);
+  await assertAuditProject(req, parentAudit.projectId, parentAudit.auditPlanId);
   await assertFieldAccess(req, "audit", "finding", { mode: "update", current: findingDto(before) });
   await assertFieldControls(req, "audit", "finding", { mode: "update", current: findingDto(before) });
   await Promise.all([
@@ -3560,9 +3588,10 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
     for (const row of reportRows) {
       const approval = auditMeta(row).reportApproval;
       if (approval?.status !== "Pending approval") continue;
-      if (!auditScope.unrestricted && !(row.projectId ? auditScope.projectIds.includes(row.projectId) : auditScope.processAuditsAllowed)) continue;
-      const key = row.projectId ?? "";
-      if (!reviewerCache.has(key)) reviewerCache.set(key, await reportReviewers(db, organizationId, row.projectId));
+      if (!auditScope.unrestricted && !(row.projectId ? auditScope.projectIds.includes(row.projectId) : await isProcessPlanId(req, row.auditPlanId, auditScope))) continue;
+      const departmentId = row.projectId ? null : await planDepartmentId(req, row.auditPlanId);
+      const key = row.projectId ?? departmentId ?? "";
+      if (!reviewerCache.has(key)) reviewerCache.set(key, await reportReviewers(db, organizationId, row.projectId, departmentId));
       if (!canReviewReport(approval, reviewerCache.get(key)!, userId)) continue;
       add({ kind: "audit", id: row.id, title: auditMeta(row).title ?? row.referenceNumber,
         action: `Review Audit Report — Level ${approval.steps[approval.index]!.level}`,
@@ -3577,12 +3606,13 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
     ? await db.select().from(auditSchedules).where(active(auditSchedules, organizationId))
     : [];
   const schedulesById = new Map(scheduleRows.map(row => [row.id, row]));
+  const actionDepartments = await roleDepartments(organizationId);
+  const actionDepartmentId = (row: AnyRow | undefined) => auditDepartmentId(row ? scheduleMeta(row).departmentProject : null, actionDepartments);
   const scheduleProjectIds = (row: AnyRow) => scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
   const scheduleIsInActionScope = (row: AnyRow, actionScope = scheduleFullScope) => {
     const projectIds = scheduleProjectIds(row);
     if (!projectIds.length) {
-      return isProcessAuditSchedule(row) && hasActionPermission(scheduleScope, actionScope)
-        && scopeHasSelectAccess(effectiveScope);
+      return isProcessAuditSchedule(row) && [scheduleScope, actionScope, effectiveScope].every(scope => processDepartmentAllowed(scope, actionDepartmentId(row)));
     }
     return projectIds.every((projectId: string) =>
       (scheduleScope.unrestricted || scheduleScope.projectIds.includes(projectId))
@@ -3681,7 +3711,7 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
       || (meta.processOwnerIds ?? []).includes(userId);
     if (!assigned) continue;
     const processSchedule = Boolean(row.auditScheduleId && processScheduleIds.has(row.auditScheduleId));
-    if (!myActionProjectInScope(row.projectId, planScope, planFullScope, effectiveScope, processSchedule)) continue;
+    if (!myActionProjectInScope(row.projectId, planScope, planFullScope, effectiveScope, processSchedule, actionDepartmentId(schedulesById.get(row.auditScheduleId ?? "")))) continue;
     const title = meta.auditTitle ?? row.scope ?? "Audit Plan";
     add({
       kind: "plan", id: row.id, title,
@@ -3704,7 +3734,7 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
       || (Array.isArray(plan.teamMemberIds) && plan.teamMemberIds.includes(userId));
     if (!assigned) continue;
     const processSchedule = Boolean(plan.auditScheduleId && processScheduleIds.has(plan.auditScheduleId));
-    if (!myActionProjectInScope(row.projectId, auditScope, auditFullScope, effectiveScope, processSchedule)) continue;
+    if (!myActionProjectInScope(row.projectId, auditScope, auditFullScope, effectiveScope, processSchedule, actionDepartmentId(schedulesById.get(plan.auditScheduleId ?? "")))) continue;
     const auditInfo = auditMeta(row);
     const displayStatus = ({ planned: "Planned", scheduled: "Planned", "in progress": "In Progress", "report draft": "Report Draft", "car follow-up": "CAR Follow-up" } as AnyRow)[String(row.workflowState).toLowerCase()] ?? row.workflowState;
     add({
@@ -3745,7 +3775,7 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
     if (!ownerAction && !reviewerAction) continue;
     const plan = plansById.get(parentAudit.auditPlanId ?? "");
     const processSchedule = Boolean(plan?.auditScheduleId && processScheduleIds.has(plan.auditScheduleId));
-    if (!myActionProjectInScope(parentAudit.projectId, carScope, reviewerAction ? carScope : carFullScope, effectiveScope, processSchedule)) continue;
+    if (!myActionProjectInScope(parentAudit.projectId, carScope, reviewerAction ? carScope : carFullScope, effectiveScope, processSchedule, actionDepartmentId(schedulesById.get(plan?.auditScheduleId ?? "")))) continue;
     add({
       kind: "car", id: car.id,
       title: `Corrective action: ${car.responsibleDepartment}`,
@@ -3846,7 +3876,7 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
     const scope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full", operation: "submit" });
     const process = !context.audit.projectId && context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit");
     if (!scope.unrestricted && !(context.audit.projectId && scope.projectIds.includes(context.audit.projectId))
-      && !(process && (scope.processAuditsAllowed || scope.projectIds.length))) {
+      && !(process && processDepartmentAllowed(scope, context.departmentId))) {
       throw new HttpError(403, "CAR Submit / send permission is required in this scope");
     }
     if (!context.leadId) throw new HttpError(422, "Select a Lead / Internal Auditor in the linked Audit Plan before submitting");
@@ -3883,7 +3913,7 @@ router.post("/cars/:id/number", asyncHandler(async (req, res) => {
   if (!linkedFinding || !linkedAudit) throw new HttpError(404, "Linked finding or Audit not found");
   const scope = await getAppAdminScope(req, "audit");
   const adminAllowed = !!scope && (scope.unrestricted || !!linkedAudit.projectId && scope.projectIds.includes(linkedAudit.projectId)
-    || !linkedAudit.projectId && scope.processAuditsAllowed === true);
+    || !linkedAudit.projectId && await isProcessPlanId(req, linkedAudit.auditPlanId, scope));
   const sourceId = (linkedFinding.evidence as AnyRow)?.sourceChecklistItemId;
   const sourceItem = sourceId && Array.isArray(linkedAudit.checklistState) ? linkedAudit.checklistState.find((item: AnyRow) => item.id === sourceId) as AnyRow : undefined;
   if (adminAllowed && sourceId && (!sourceItem || !actionableFinding(sourceItem))) throw new HttpError(409, "The linked finding is no longer actionable");
@@ -4092,7 +4122,8 @@ router.get("/evidence", asyncHandler(async (req, res) => {
 }));
 
 async function scopedAuditRows(req: Request, projectId?: string, module = "audits") {
-  const scope = await getAuthorizedProjectScope(req, "audit", { module, action: "select" });
+  const scope = intersectAuditScopes(await getAuthorizedProjectScope(req, "audit", { module, action: "select" }),
+    req.permissionProjectScope ?? { unrestricted: true, projectIds: [] });
   if (projectId && !scope.unrestricted && !scope.projectIds.includes(projectId)) {
     throw new HttpError(403, "You do not have access to this project");
   }
@@ -4166,11 +4197,13 @@ router.get("/reports/car-status", asyncHandler(async (req, res) => {
 }));
 router.get("/reports/schedule", asyncHandler(async (req, res) => {
   const all = await db.select().from(auditSchedules).where(active(auditSchedules, actor(req).organizationId)).orderBy(desc(auditSchedules.year));
-  const scope = await getAuthorizedProjectScope(req, "audit", { module: "schedules", action: "select" });
-  const scoped = all.filter((row) => {
+  const scope = intersectAuditScopes(await getAuthorizedProjectScope(req, "audit", { module: "schedules", action: "select" }),
+    req.permissionProjectScope ?? { unrestricted: true, projectIds: [] });
+  const scoped = (await Promise.all(all.map(async (row) => {
     const ids = scheduleMeta(row).projectIds ?? (row.projectId ? [row.projectId] : []);
-    return scope.unrestricted || (ids.length > 0 && ids.every((id) => scope.projectIds.includes(id)));
-  });
+    return scope.unrestricted || (ids.length > 0 && ids.every((id) => scope.projectIds.includes(id)))
+      || !isProgramme(row) && !ids.length && await processScheduleAllowed(req, row, scope) ? row : null;
+  }))).filter((row): row is NonNullable<typeof row> => !!row);
   const rows = scoped.map(row => scheduleDto(row));
   if (!maybeCsv(req, res, "annual-audit-schedule", rows)) res.json(paginated(rows, rows.length, 1, Math.max(1, rows.length)));
 }));
@@ -4600,7 +4633,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
   const visibleRows = await visibleAdminUsers(req, allRows, allAssignments);
   const rows = visibleRows.slice(offset, offset + limit);
   const assignments = rows.length ? await db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), inArray(auditUserWorkspaceRoles.userId, rows.map((x) => x.id)), isNull(auditUserWorkspaceRoles.deletedAt))) : [];
-  const visibleAssignments = assignments.filter((assignment) => canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds));
+  const visibleAssignments = assignments.filter((assignment) => canManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds, assignment.departmentIds));
   const roles = visibleAssignments.length ? await db.select().from(auditWorkspaceRoles).where(inArray(auditWorkspaceRoles.id, visibleAssignments.map((x) => x.workspaceRoleId))) : [];
   res.json(paginated(rows.map((x) => ({
     id: x.id, username: x.username, fullName: x.fullName, email: x.email, designation: x.designation,
@@ -4608,7 +4641,7 @@ router.get("/admin/users", asyncHandler(async (req, res) => {
     platformRole: availablePlatformRoles.find((role) => role.id === x.platformRoleId)?.name ?? "Employee",
     workspaceRoles: roles.filter((role) => visibleAssignments.some((a) => a.userId === x.id && a.workspaceRoleId === role.id)).map((role) => {
       const assignment = visibleAssignments.find((a) => a.userId === x.id && a.workspaceRoleId === role.id)!;
-      return { id: role.id, name: role.name, description: role.description, permissions: [], active: role.status === "active", systemDefault: role.isSystem, scopeType: assignment.projectIds?.length ? "project" as const : "organization" as const, scopeIds: assignment.projectIds ?? [] };
+      return { id: role.id, name: role.name, description: role.description, permissions: [], active: role.status === "active", systemDefault: role.isSystem, scopeType: assignment.departmentIds?.length ? "department" as const : assignment.projectIds?.length ? "project" as const : "organization" as const, scopeIds: assignment.departmentIds?.length ? assignment.departmentIds : assignment.projectIds ?? [] };
     }),
     status: x.accessStatus === "active" ? "Active" : x.accessStatus === "deactivated" ? "Deactivated" : "Not Requested", lastAccessAt: x.lastAccessAt,
   })), visibleRows.length, page, limit));
@@ -4669,11 +4702,14 @@ router.post("/admin/users/:userId/roles", asyncHandler(async (req, res) => {
   const [existing] = await db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.userId, user.id), eq(auditUserWorkspaceRoles.workspaceRoleId, role.id), isNull(auditUserWorkspaceRoles.deletedAt)));
   if (data.scopeType === "business_unit") throw new HttpError(422, "Business-unit scope is not supported; choose organization or project");
   const values = { organizationId: actor(req).organizationId, userId: user.id, workspaceRoleId: role.id, projectIds: data.scopeType === "project" ? await assertProjectScopeInOrg(db, actor(req).organizationId, data.scopeIds) : [], businessUnitIds: [], status: "active", updatedAt: new Date() };
-  assertCanManageAssignmentScope(req, values.projectIds, values.businessUnitIds);
+  const departmentIds = data.scopeType === "department" ? await validateRoleDepartments(actor(req).organizationId, data.scopeIds) : [];
+  const scopedValues = { ...values, departmentIds };
+  if (existing) assertCanManageAssignmentScope(req, existing.projectIds, existing.businessUnitIds, existing.departmentIds);
+  assertCanManageAssignmentScope(req, values.projectIds, values.businessUnitIds, departmentIds);
   const row = await db.transaction(async tx => {
     const [assigned] = existing
-      ? await tx.update(auditUserWorkspaceRoles).set(values).where(eq(auditUserWorkspaceRoles.id, existing.id)).returning()
-      : await tx.insert(auditUserWorkspaceRoles).values(values).returning();
+      ? await tx.update(auditUserWorkspaceRoles).set(scopedValues).where(eq(auditUserWorkspaceRoles.id, existing.id)).returning()
+      : await tx.insert(auditUserWorkspaceRoles).values(scopedValues).returning();
     return assigned;
   });
   await auditLog(req, "assign_role", "user_workspace_role", row.id, existing, row); res.json(row);
@@ -4686,7 +4722,7 @@ router.delete("/admin/users/:userId/roles/:id", asyncHandler(async (req, res) =>
     db.select().from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), eq(auditUserWorkspaceRoles.userId, userId), eq(auditUserWorkspaceRoles.workspaceRoleId, roleId), isNull(auditUserWorkspaceRoles.deletedAt))).then((x) => x[0]),
   ]);
   if (!user || !assignment) throw new HttpError(404, "Role assignment not found");
-  assertCanManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds);
+  assertCanManageAssignmentScope(req, assignment.projectIds, assignment.businessUnitIds, assignment.departmentIds);
   const now = new Date();
   await db.update(auditUserWorkspaceRoles).set({ deletedAt: now, status: "deleted", updatedAt: now }).where(eq(auditUserWorkspaceRoles.id, assignment.id));
   const remaining = await db.select({ id: auditUserWorkspaceRoles.id }).from(auditUserWorkspaceRoles).where(and(eq(auditUserWorkspaceRoles.organizationId, actor(req).organizationId), eq(auditUserWorkspaceRoles.userId, userId), isNull(auditUserWorkspaceRoles.deletedAt))).limit(1);

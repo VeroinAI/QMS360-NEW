@@ -34,7 +34,11 @@ export interface Audit {
      */
   readonly reportNumber?: string | null;
   reportApproval?: AuditReportApproval;
-  projectId: string;
+  /**
+     * Null for a department-based Process audit; inherited from the selected Plan
+     * @nullable
+     */
+  projectId: string | null;
   title: string;
   status: AuditStatus;
   /** Whether the current user has Audit edit access in this record scope */

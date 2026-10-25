@@ -7,4 +7,4 @@ Quality Internal Process Audit schedules use the `departments` master-data LOV a
 
 **Why:** Treating all Audit records as project-backed allowed Process schedules to be created and listed but blocked their detail, edit, plan, and downstream routes.
 
-**How to apply:** For Quality Internal Product Audits, continue requiring and enforcing a project ID. For Quality Internal Process Audits, require a valid department and authorize projectless descendants only when their source schedule is a Process audit.
+**How to apply:** For Quality Internal Product Audits, continue requiring and enforcing a project ID. For Quality Internal Process Audits, require a valid department and authorize projectless descendants only when their source schedule is a Process audit. An explicit department-scoped role must match the actual Department Master identity through that parent chain; being a Process audit alone is insufficient. Reject unknown or ambiguous historical department matches for department-restricted users, without rewriting their stored values. Preserve existing organization/project-role behavior.

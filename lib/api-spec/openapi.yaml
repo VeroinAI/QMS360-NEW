@@ -494,6 +494,25 @@ paths:
         "401": {description: Authentication required}
         "403": {description: Administrator access required}
         "404": {description: Project not available within current project access}
+  /platform/role-assignment-departments:
+    get:
+      operationId: listRoleAssignmentDepartments
+      tags: [platform]
+      summary: List active Department Master options within application administration scope
+      parameters:
+        - name: application
+          in: query
+          required: true
+          schema: {$ref: "#/components/schemas/AppKey"}
+      responses:
+        "200":
+          description: Available departments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/RoleDepartmentOption"}
+        "403": {description: Application administrator access required}
   /platform/role-assignment-projects:
     get:
       operationId: listRoleAssignmentProjects
@@ -3921,7 +3940,14 @@ components:
     RoleAssignment:
       type: object
       required: [roleId, scopeType, scopeIds]
-      properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, project]}, scopeIds: {type: array, items: {type: string}}}
+      properties: {roleId: {type: string}, scopeType: {type: string, enum: [organization, project, department]}, scopeIds: {type: array, items: {type: string}}}
+    RoleDepartmentOption:
+      type: object
+      required: [id, name, code]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        code: {type: string}
     LessonsRoleAssignment:
       type: object
       required: [roleId, scopeType, scopeIds]
@@ -4749,7 +4775,7 @@ components:
         projectName: {type: [string, "null"], readOnly: true, description: Linked project name, not its code; null for projectless audits or unavailable projects; supplied on audit detail}
         reportNumber: {type: [string, "null"], readOnly: true, description: Immutable server-generated Audit Report number issued on first successful report-details save}
         reportApproval: {$ref: "#/components/schemas/AuditReportApproval"}
-        projectId: {type: string}
+        projectId: {type: [string, "null"], description: Null for a department-based Process audit; inherited from the selected Plan}
         title: {type: string}
         status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Complete, Closed, Deleted]}
         canEdit: {type: boolean, description: Whether the current user has Audit edit access in this record scope}
