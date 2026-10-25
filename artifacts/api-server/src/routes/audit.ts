@@ -89,6 +89,8 @@ import { carWordReportData } from "../lib/car-word-report-data";
 import { carReviewers, submitCarApproval, canReviewCar, reviewCarApproval, eligibleCarReviewers, carApprovalSummary, type CarApprovalState } from "../lib/car-approval";
 import { CAR_WORD_MIME, renderCarWordReport } from "../lib/car-word-report";
 
+import { captureCarSignature, checklistSignatureStatus } from "../lib/car-signature-evidence";
+
 const router = Router();
 const requireAuditAdmin = requireAppAdmin("audit");
 router.use(requireAuth);
@@ -2794,6 +2796,8 @@ router.post("/audits", asyncHandler(async (req, res) => {
     try {
       [row] = await db.transaction(async tx => {
         await nestedMeetingValues(tx, req, plan.id, data, values);
+        values.status = await checklistSignatureStatus(tx as unknown as typeof db, actor(req).organizationId,
+          { status: values.status, checklistState: [] }, (values.checklistState ?? []) as AnyRow[], actor(req).id);
         return tx.insert(audits).values({ organizationId: actor(req).organizationId, ...values }).returning();
       });
     } catch (error: any) {
@@ -2993,7 +2997,9 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
     }
     const [row] = await tx.update(audits).set({
       ...values, id: undefined,
-      status: JSON.stringify({ ...auditMeta(locked), ...parseJson(values.status, {}) }),
+      status: await checklistSignatureStatus(tx as unknown as typeof db, actor(req).organizationId,
+        { ...locked, status: JSON.stringify({ ...auditMeta(locked), ...parseJson(values.status, {}) }) },
+        (values.checklistState ?? []) as AnyRow[], actor(req).id),
       updatedAt: new Date(),
     }).where(eq(audits.id, before.id)).returning();
     return { locked, row };
@@ -3077,7 +3083,9 @@ router.put("/audits/:id/checklist", asyncHandler(async (req, res) => {
     return previous ? { ...preserveFindingNumber(item, previous), source: previous.source, actionTakerId: previous.actionTakerId } : withoutFindingNumber(item);
   });
   merged.push(...[...existingItems.values()].filter(item => item.source === "finding"));
-  const [row] = await tx.update(audits).set({ checklistState: merged as any, updatedAt: new Date() }).where(eq(audits.id, before.id)).returning();
+  const [row] = await tx.update(audits).set({ checklistState: merged as any,
+    status: await checklistSignatureStatus(tx as unknown as typeof db, actor(req).organizationId, before, merged, actor(req).id),
+    updatedAt: new Date() }).where(eq(audits.id, before.id)).returning();
   return { before, row };
   });
   await auditLog(req, "update_checklist", "audit", row.id, before, row); res.json(auditDto(row));
@@ -3117,7 +3125,9 @@ router.post("/audits/:id/checklist/items", asyncHandler(async (req, res) => {
     const checklist = Array.isArray(before.checklistState) ? before.checklistState : [];
     const item = { id: randomUUID(), ...checklistItemValues(data, evidenceIds) };
     const [row] = await tx.update(audits).set({
-      checklistState: [...checklist, item] as any, updatedAt: new Date(),
+      checklistState: [...checklist, item] as any,
+      status: await checklistSignatureStatus(tx as unknown as typeof db, organizationId, before, [...checklist, item], actor(req).id),
+      updatedAt: new Date(),
     }).where(eq(audits.id, auditId)).returning();
     return { before, row };
   });
@@ -3146,7 +3156,9 @@ router.put("/audits/:id/checklist/items/:itemId", asyncHandler(async (req, res) 
     const evidenceIds = submittedIds;
     const updated = checklist.map(item => item.id === itemId
       ? { ...item, ...checklistItemValues(data, evidenceIds) } : item);
-    const [row] = await tx.update(audits).set({ checklistState: updated as any, updatedAt: new Date() }).where(eq(audits.id, auditId)).returning();
+    const [row] = await tx.update(audits).set({ checklistState: updated as any,
+      status: await checklistSignatureStatus(tx as unknown as typeof db, organizationId, before, updated, actor(req).id),
+      updatedAt: new Date() }).where(eq(audits.id, auditId)).returning();
     return { before, row };
   });
   await auditLog(req, "edit_checklist_item", "audit", row.id, before, row);
@@ -3207,7 +3219,9 @@ router.post("/audits/:id/checklist/import", asyncHandler(async (req, res) => {
         checkedAreas.add(checkKey);
       }
     }
-    const [row] = await tx.update(audits).set({ checklistState: merged.checklist as any, updatedAt: new Date() }).where(eq(audits.id, auditId)).returning();
+    const [row] = await tx.update(audits).set({ checklistState: merged.checklist as any,
+      status: await checklistSignatureStatus(tx as unknown as typeof db, organizationId, before, merged.checklist, actor(req).id),
+      updatedAt: new Date() }).where(eq(audits.id, auditId)).returning();
     return { before, row };
   });
   await auditLog(req, "import_checklist_items", "audit", row.id, before, row);
@@ -3253,7 +3267,9 @@ router.post("/audits/:id/finding-items", asyncHandler(async (req, res) => {
       recommendedPriorityAction: data.recommendedPriorityAction,
       ...(data.clientReference ? { clientReference: data.clientReference } : {}),
     };
-    const [row] = await tx.update(audits).set({ checklistState: [...checklist, item] as any, updatedAt: new Date() })
+    const [row] = await tx.update(audits).set({ checklistState: [...checklist, item] as any,
+      status: await checklistSignatureStatus(tx as unknown as typeof db, organizationId, before, [...checklist, item], actor(req).id),
+      updatedAt: new Date() })
       .where(eq(audits.id, auditId)).returning();
     return { before, row, created: true };
   });
@@ -3574,8 +3590,19 @@ router.post("/findings", asyncHandler(async (req, res) => {
   const [audit] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, data.auditId)));
   if (!audit) throw new HttpError(404, "Audit not found");
   await assertAuditProject(req, audit.projectId, audit.auditPlanId);
-  const [row] = await db.insert(auditFindings).values({ organizationId: actor(req).organizationId, ...findingValues(data) }).returning();
-  await auditLog(req, "create", "audit_finding", row.id, undefined, row); res.status(201).json(findingDto(row));
+  const row = await db.transaction(async tx => {
+    const organizationId = actor(req).organizationId;
+    const [locked] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, audit.id))).for("update");
+    if (!locked) throw new HttpError(404, "Audit not found");
+    const [created] = await tx.insert(auditFindings).values({ organizationId, ...findingValues(data) }).returning();
+    const meta = carJson(locked.status);
+    meta.carOriginatorSignatures = { ...meta.carOriginatorSignatures,
+      [created.id]: await captureCarSignature(tx as unknown as typeof db, organizationId, created.id, actor(req).id) };
+    await tx.update(audits).set({ status: JSON.stringify(meta) }).where(eq(audits.id, locked.id));
+    await auditLog(req, "create", "audit_finding", created.id, undefined, created, tx as unknown as typeof db);
+    return created;
+  });
+  res.status(201).json(findingDto(row));
 }));
 router.get("/findings/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(auditFindings).where(and(active(auditFindings, actor(req).organizationId), eq(auditFindings.id, String(req.params.id))));
@@ -4092,6 +4119,8 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
     if (current.workflowState !== before.workflowState) throw new HttpError(409, "CAR changed while saving. Reload and retry.");
     if (saveAndSubmit) meta.carApproval = submitCarApproval(
       await carReviewers(tx, actor(req).organizationId, context.audit.projectId, context.departmentId), actor(req).id, meta.carApproval);
+    if (saveAndSubmit) meta.carRecipientSignature = await captureCarSignature(
+      tx as unknown as typeof db, actor(req).organizationId, current.id, context.ownerId);
     const [saved] = await tx.update(correctiveActionReports).set({
       rootCause: data.rootCause, correction: data.correction, correctiveAction: data.correctiveAction,
       ownerId: context.ownerId, dueDate: carDueDate(context.item?.auditFinding || context.finding.classification, findingDateValue(context.item, context.finding), current.dueDate), workflowState: saveAndSubmit ? "submitted" : "draft",
@@ -4154,6 +4183,8 @@ router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
     if (current.workflowState !== before.workflowState) throw new HttpError(409, "CAR changed while submitting. Reload and retry.");
     if (!current.rootCause?.trim() || !current.correction?.trim() || !current.correctiveAction?.trim()) throw new HttpError(422, "Root cause, correction, and corrective action are required");
     meta.carApproval = submitCarApproval(await carReviewers(tx, actor(req).organizationId, context.audit.projectId, context.departmentId), actor(req).id, meta.carApproval);
+    meta.carRecipientSignature = await captureCarSignature(
+      tx as unknown as typeof db, actor(req).organizationId, current.id, context.ownerId);
     const [saved] = await tx.update(correctiveActionReports).set({
       workflowState: "submitted", effectivenessNotes: JSON.stringify(meta),
       dueDate: carDueDate(context.item?.auditFinding || context.finding.classification, findingDateValue(context.item, context.finding), current.dueDate), updatedAt: new Date(),

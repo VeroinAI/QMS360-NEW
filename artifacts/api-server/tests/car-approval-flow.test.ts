@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
 import { and, eq } from "drizzle-orm";
 import { db, organizations, users, platformRoles, projects, auditWorkspaceRoles, auditUserWorkspaceRoles,
   auditWorkspaceRolePermissions, auditPermissions, auditSchedules, auditPlans, audits, auditFindings,
@@ -9,6 +10,10 @@ import { db, organizations, users, platformRoles, projects, auditWorkspaceRoles,
 import app from "../src/app";
 import { issueToken } from "../src/lib/auth";
 import { saveCarNumbering } from "../src/lib/audit-car-numbering";
+import { readCarSignature } from "../src/lib/car-signature-evidence";
+
+const storage = vi.hoisted(() => ({ get: vi.fn(), store: vi.fn() }));
+vi.mock("../src/lib/objectStorage", () => ({ getObject: storage.get, storeObject: storage.store }));
 
 const suffix = randomUUID().slice(0,8);
 let server: Server, base: string, orgId: string, foreignOrg: string, projectId: string, otherProject: string, departmentId: string, otherDepartment: string;
@@ -148,6 +153,59 @@ describe("Configured CAR approvals through the real API", () => {
       expect(resubmitted.body.carNumber).toBe(initial.body.carNumber);
     }
     expect((await call("GET", `/cars/${car.id}`)).body.approval.history).toHaveLength(2);
+  });
+  it("captures only on submission, refreshes on resubmission and retains evidence through final acceptance", async () => {
+    const objects = new Map<string, Uint8Array>();
+    const image = async (color: string) => new Uint8Array(await sharp({
+      create: { width: 100, height: 30, channels: 4, background: color },
+    }).png().toBuffer());
+    objects.set("/profile-a", await image("#123456"));
+    objects.set("/profile-b", await image("#654321"));
+    storage.get.mockImplementation(async path => {
+      if (!objects.has(path)) throw new Error("Object storage download returned 404");
+      return new Response(objects.get(path)!, { headers: { "content-type": "image/png" } });
+    });
+    storage.store.mockImplementation(async (path, bytes) => {
+      objects.set(`/private/${path}`, new Uint8Array(bytes));
+      return `/private/${path}`;
+    });
+    const car = await makeCar();
+    const metadata = async () => {
+      const [row] = await db.select().from(correctiveActionReports).where(eq(correctiveActionReports.id, car.id));
+      return JSON.parse(row!.effectivenessNotes!);
+    };
+    try {
+      await db.update(users).set({ signaturePath: "gcs:/profile-a" }).where(eq(users.id, ids[0]!));
+      expect((await call("PUT", `/cars/${car.id}`, 0, response)).status).toBe(200);
+      expect((await metadata()).carRecipientSignature).toBeUndefined();
+      expect((await call("POST", `/cars/${car.id}/submit`)).status).toBe(200);
+      const first = (await metadata()).carRecipientSignature;
+      expect(first).toMatchObject({ organizationId: orgId, recordId: car.id, userId: ids[0] });
+      const firstBytes = await readCarSignature(first, orgId, car.id);
+      await db.update(users).set({ signaturePath: "gcs:/profile-b" }).where(eq(users.id, ids[0]!));
+      expect(await readCarSignature(first, orgId, car.id)).toEqual(firstBytes);
+      expect((await call("POST", `/cars/${car.id}/review`, 1, { decision: "query", comments: "Clarify" })).status).toBe(200);
+      // A storage outage must roll back submission and retain prior evidence.
+      storage.store.mockRejectedValueOnce(new Error("Signature storage unavailable"));
+      const failed = await fetch(`${base}/api/audit/cars/${car.id}`, { method: "PUT",
+        headers: { authorization: `Bearer ${tokens[0]}`, "content-type": "application/json" },
+        body: JSON.stringify({ ...response, saveAndSubmit: true }),
+      });
+      expect(failed.status).toBe(500);
+      expect((await metadata()).carRecipientSignature).toEqual(first);
+      expect((await call("PUT", `/cars/${car.id}`, 0, { ...response, saveAndSubmit: true })).status).toBe(200);
+      const second = (await metadata()).carRecipientSignature;
+      expect(second.path).not.toBe(first.path);
+      const secondBytes = await readCarSignature(second, orgId, car.id);
+      expect(secondBytes).not.toEqual(firstBytes);
+      await db.update(users).set({ signaturePath: null }).where(eq(users.id, ids[0]!));
+      expect((await call("POST", `/cars/${car.id}/review`, 1, { decision: "accept" })).status).toBe(200);
+      expect((await call("POST", `/cars/${car.id}/review`, 3, { decision: "accept" })).body.status).toBe("Closed");
+      expect((await metadata()).carRecipientSignature).toEqual(second);
+      expect(await readCarSignature(second, orgId, car.id)).toEqual(secondBytes);
+    } finally {
+      await db.update(users).set({ signaturePath: null }).where(eq(users.id, ids[0]!));
+    }
   });
   it("prevents revoked reviewers, missing next levels, concurrent decisions and close/extension bypasses", async () => {
     const car = await makeCar();

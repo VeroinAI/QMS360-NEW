@@ -13,9 +13,10 @@ import app from "../src/app";
 import { issueToken } from "../src/lib/auth";
 import { carWordReportData } from "../src/lib/car-word-report-data";
 import { CAR_WORD_MIME } from "../src/lib/car-word-report";
+import { captureCarSignature } from "../src/lib/car-signature-evidence";
 
-const storage = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock("../src/lib/objectStorage", () => ({ getObject: storage.get, storeObject: vi.fn() }));
+const storage = vi.hoisted(() => ({ get: vi.fn(), store: vi.fn(), objects: new Map<string, Uint8Array>() }));
+vi.mock("../src/lib/objectStorage", () => ({ getObject: storage.get, storeObject: storage.store }));
 const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const suffix = randomUUID().slice(0, 8);
 let server: Server, base: string, org: string, foreign: string, project: string, token: string, foreignToken: string;
@@ -60,7 +61,16 @@ beforeAll(async () => {
   png = await sharp({ create: { width: 300, height: 65, channels: 4, background: "#18358a" } }).png().toBuffer();
   storage.get.mockImplementation(async (path: string) => {
     if (path.includes("unavailable")) throw new Error("Missing object");
+    if (path.includes("/car-signature-evidence/")) {
+      const bytes = storage.objects.get(path);
+      if (!bytes) throw new Error("Missing object");
+      return new Response(bytes, { headers: { "content-type": "image/png" } });
+    }
     return new Response(new Uint8Array(png), { headers: { "content-type": "image/png" } });
+  });
+  storage.store.mockImplementation(async (path: string, bytes: Buffer) => {
+    storage.objects.set(`/test/${path}`, new Uint8Array(bytes));
+    return `/test/${path}`;
   });
   await new Promise<void>(resolve => { server = app.listen(0, "127.0.0.1", resolve); });
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
@@ -91,7 +101,15 @@ afterAll(async () => {
 
 describe("Read-only CAR Word endpoint and mapper", () => {
   it("keeps original creation attribution, Action Taker signatures and latest submission despite edits and Plan lead changes", async () => {
-    const f = await fixture(), data = await carWordReportData(req(), f);
+    const f = await fixture();
+    const originatorEvidence = await captureCarSignature(db, org, f.itemId, originator);
+    originatorEvidence.capturedAt = "2026-10-01T11:00:00Z";
+    const recipientEvidence = await captureCarSignature(db, org, f.carId, taker);
+    await db.update(audits).set({ status: JSON.stringify({ carOriginatorSignatures: { [f.itemId]: originatorEvidence } }) }).where(eq(audits.id, f.auditId));
+    await db.update(correctiveActionReports).set({ effectivenessNotes: JSON.stringify({
+      sourceChecklistItemId: f.itemId, carRecipientSignature: recipientEvidence,
+    }) }).where(eq(correctiveActionReports.id, f.carId));
+    const data = await carWordReportData(req(), f);
     expect(data.auditor).toBe("Original creator");
     expect(data.originatorDate).toBe("01/10/2026");
     expect(data.recipient).toBe("Action Taker");
@@ -100,6 +118,14 @@ describe("Read-only CAR Word endpoint and mapper", () => {
     expect(data.originatorSignature).toBeTruthy(); expect(data.recipientSignature).toBeTruthy();
     expect(storage.get).toHaveBeenCalledWith("/test/signature-0.png");
     expect(storage.get).toHaveBeenCalledWith("/test/signature-1.png");
+    // Profile replacement/removal must not change any captured signature bytes.
+    await db.update(users).set({ signaturePath: "gcs:/test/replacement.png" }).where(eq(users.id, originator));
+    await db.update(users).set({ signaturePath: null }).where(eq(users.id, taker));
+    storage.get.mockClear();
+    const changed = await carWordReportData(req(), f);
+    expect(changed.originatorSignature).toEqual(data.originatorSignature);
+    expect(changed.recipientSignature).toEqual(data.recipientSignature);
+    expect(storage.get.mock.calls.every(([path]) => path.includes("/car-signature-evidence/"))).toBe(true);
     const predicate = and(eq(auditAuditLogEntries.organizationId, org), eq(auditAuditLogEntries.entityId, f.carId));
     const before = await db.select().from(correctiveActionReports).where(eq(correctiveActionReports.id, f.carId));
     const history = await db.select().from(auditAuditLogEntries).where(predicate);
@@ -118,6 +144,27 @@ describe("Read-only CAR Word endpoint and mapper", () => {
     }
     expect(await db.select().from(correctiveActionReports).where(eq(correctiveActionReports.id, f.carId))).toEqual(before);
     expect(await db.select().from(auditAuditLogEntries).where(predicate)).toEqual(history);
+    storage.objects.delete(recipientEvidence.path!.slice(4));
+    const missing = await carWordReportData(req(), f);
+    expect(missing.recipientSignature).toBeUndefined();
+    const missingReport = textDocument(new Uint8Array(await (await download(f)).arrayBuffer()));
+    expect(missingReport.text).toContain("To be mapped");
+    expect(missingReport.doc.getElementsByTagNameNS(W, "drawing")).toHaveLength(1);
+    await db.update(users).set({ signaturePath: "gcs:/test/signature-0.png" }).where(eq(users.id, originator));
+    await db.update(users).set({ signaturePath: "gcs:/test/signature-1.png" }).where(eq(users.id, taker));
+  });
+  it("never backfills historical signature gaps from today's profiles", async () => {
+    const f = await fixture();
+    storage.get.mockClear(); storage.store.mockClear();
+    const data = await carWordReportData(req(), f);
+    expect(data.originatorSignature).toBeUndefined();
+    expect(data.recipientSignature).toBeUndefined();
+    const response = await download(f);
+    const report = textDocument(new Uint8Array(await response.arrayBuffer()));
+    expect(report.doc.getElementsByTagNameNS(W, "drawing")).toHaveLength(0);
+    expect(report.text).toContain("To be mapped");
+    expect(storage.get).not.toHaveBeenCalled();
+    expect(storage.store).not.toHaveBeenCalled();
   });
   it("uses approved extensions and only final approval; missing closed history stays unmapped", async () => {
     const f = await fixture();

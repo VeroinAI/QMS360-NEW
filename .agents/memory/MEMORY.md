@@ -98,6 +98,7 @@
 - [Drona automatic setup](drona-automatic-setup-policy.md) — source-owned signup needs no routine manual linking; preserve QMS permissions/history and keep removed links revoked.
 - [Drona user discovery](drona-user-discovery.md) — email search/add for existing QMS-assigned Drona users only; reuse role controls, without extra workflows or automatic sync.
 - [CAR Word template policy](car-word-template-policy.md) — row downloads retain the supplied Word format; unavailable values read exactly “To be mapped”; never fabricate signatures or record data.
+- [CAR signature evidence](car-signature-evidence-policy.md) — freeze creation/submission signatures privately; retain them through profile changes and never backfill historical gaps.
 - [Audit memo defaults](audit-memo-defaults.md) — reusable headings prefill submit/resubmit; keep saved approval memos and email audiences independent of live defaults.
 - [Lessons dynamic numbering](lessons-dynamic-numbering-requirement.md) — requested configurable prefix fields, initially Project Cost Center and selected Discipline master Value.
 - [Email browser drafts](email-browser-draft-visibility.md) — hide already registered local copies without deleting drafts or changing active email placeholders.

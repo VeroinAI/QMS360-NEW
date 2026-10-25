@@ -9,7 +9,7 @@ import { HttpError } from "./workspace";
 import { getLovValues } from "./lov";
 import { findingCreationEvidence } from "./audit-photo-finding-metadata";
 import { carCalendarDate, carSubmissionDate, carVerification } from "./car-word-report-facts";
-import { readAuditPlanSignature } from "./audit-plan-signatures";
+import { readCarSignature, type CarSignatureEvidence } from "./car-signature-evidence";
 
 export interface CarWordReportData {
   auditor?: string | null;
@@ -97,23 +97,29 @@ export async function carWordReportData(req: Request, input: { auditId: string; 
   ));
   const creation = checklistId ? findingCreationEvidence(creationEvents).get(checklistId)
     : creationEvents.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
-  const originatorId = creation?.actorId;
-  const recipientId = item?.actionTakerId || car?.ownerId;
+  const originatorRecordId = checklistId || finding?.id || "";
+  const savedOriginator = carJson(context.audit.status).carOriginatorSignatures?.[originatorRecordId] as CarSignatureEvidence | undefined;
+  const originatorEvidence = savedOriginator?.organizationId === org && savedOriginator.recordId === originatorRecordId ? savedOriginator : undefined;
+  const savedRecipient = meta.carRecipientSignature as CarSignatureEvidence | undefined;
+  const recipientEvidence = savedRecipient?.organizationId === org && savedRecipient.recordId === car?.id ? savedRecipient : undefined;
+  const originatorId = originatorEvidence?.userId || creation?.actorId;
+  const recipientId = recipientEvidence?.userId || item?.actionTakerId || car?.ownerId;
   const ids = [originatorId, context.leadId, recipientId, meta.reviewedBy].filter((id): id is string => typeof id === "string" && !!id);
-  const people = ids.length ? await db.select({ id: users.id, name: users.fullName, designation: users.designation, signaturePath: users.signaturePath })
+  const people = ids.length ? await db.select({ id: users.id, name: users.fullName, designation: users.designation })
     .from(users).where(and(eq(users.organizationId, org), inArray(users.id, ids))) : [];
   const person = (id?: string | null) => people.find(entry => entry.id === id);
   const submissions = car ? await db.select({ createdAt: auditAuditLogEntries.createdAt, action: auditAuditLogEntries.action }).from(auditAuditLogEntries).where(and(
     eq(auditAuditLogEntries.organizationId, org), eq(auditAuditLogEntries.entityType, "corrective_action_report"),
     eq(auditAuditLogEntries.entityId, car.id), inArray(auditAuditLogEntries.action, ["submit", "resubmit"]),
   )) : [];
-  const signature = async (id?: string | null) => {
-    const path = person(id)?.signaturePath;
-    if (!path) return undefined;
-    try { return await readAuditPlanSignature(path); }
-    catch { req.log?.warn({ userId: id }, "CAR report signature unavailable"); return undefined; }
+  const signature = async (evidence: CarSignatureEvidence | undefined, recordId: string) => {
+    try { return await readCarSignature(evidence, org, recordId); }
+    catch { req.log?.warn({ recordId }, "CAR report signature evidence unavailable"); return undefined; }
   };
-  const [originatorSignature, recipientSignature] = await Promise.all([signature(originatorId), signature(recipientId)]);
+  const [originatorSignature, recipientSignature] = await Promise.all([
+    signature(originatorEvidence, originatorRecordId),
+    signature(recipientEvidence, car?.id || ""),
+  ]);
   const riskText = String(item?.riskLevel || finding?.riskLevel || "").toLowerCase().trim();
   const risk = ["high", "medium", "low"].includes(riskText) ? riskText as CarWordReportData["risk"] : null;
   const dueDate = car?.extensionStatus === "approved" && car.extensionDueDate ? car.extensionDueDate
@@ -130,7 +136,7 @@ export async function carWordReportData(req: Request, input: { auditId: string; 
   return {
     auditor: person(originatorId)?.name,
     date: carReportDate(car?.createdAt ?? finding?.createdAt),
-    originatorDate: carReportDate(creation?.createdAt ?? (!checklistId ? finding?.createdAt : null)),
+    originatorDate: carReportDate(originatorEvidence?.capturedAt ?? creation?.createdAt ?? (!checklistId ? finding?.createdAt : null)),
     recipientDate: carReportDate(carSubmissionDate(meta, submissions)),
     originatorSignature, recipientSignature,
     carNumber: typeof meta.carNumber === "string" ? meta.carNumber : null,
