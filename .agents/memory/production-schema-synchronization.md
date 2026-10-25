@@ -26,3 +26,14 @@ Reconcile migration history independently of a targeted schema repair; do not au
 **Why:** Manually applied schema changes can leave the ledger behind the real catalog. Advancing a timestamp-based migration ledger to its newest entry can silently skip missing intermediate migrations, while replaying everything can collide with objects already present.
 
 **How to apply:** First compare the catalog with the complete source journal. A narrowly scoped incident repair can leave the ledger untouched until an operator verifies which intervening migrations are genuinely applied. Never infer historical completion from the success of the latest repair.
+
+The production SQL console may reject explicit `BEGIN` / `COMMIT` and instruct
+the operator to select multiple statements for an automatically wrapped batch.
+
+**Why:** The user encountered this exact console behavior on 2026-10-25, even
+though documentation search suggested explicit transaction statements.
+
+**How to apply:** Follow the actual console's message: omit transaction wrappers,
+select the intended statements together, and run the selection as a batch.
+This is guidance for the existing operator-approved manual repair procedure,
+not permission to automate production DDL or add deployment migration hooks.
