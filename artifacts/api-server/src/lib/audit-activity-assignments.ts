@@ -1,6 +1,15 @@
 import { HttpError } from "./workspace";
 export type ActivityRoleAssignment = { roleId: string; userIds: string[] };
 
+/** Omitted hidden defaults are retained; explicit changes still require eligibility validation. */
+export async function resolveActivityAssignments(
+  supplied: ActivityRoleAssignment[] | undefined,
+  current: ActivityRoleAssignment[] | undefined,
+  validate: (assignments: ActivityRoleAssignment[]) => Promise<ActivityRoleAssignment[]>,
+): Promise<ActivityRoleAssignment[]> {
+  return supplied === undefined ? current ?? [] : validate(supplied);
+}
+
 /** Schedule-local defaults, never organization role grants. */
 export function normalizeActivityAssignments(
   assignments: ActivityRoleAssignment[], roleIds: Set<string>, userIds: Set<string>,

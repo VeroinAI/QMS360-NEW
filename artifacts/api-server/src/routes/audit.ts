@@ -81,7 +81,7 @@ import { renderConsolidatedAuditPdf } from "../lib/audit-consolidated-pdf";
 import { auditReportDetailsErrors, type AuditReportDetailsData } from "@workspace/field-controls";
 import { auditModulePermissionCatalog, datedActivities, auditPlanDateErrors, plannedDate, auditPlanReplayMatches, type DatedActivity } from "@workspace/field-controls";
 import { activeAuditCapabilities } from "../lib/audit-capabilities";
-import { normalizeActivityAssignments, type ActivityRoleAssignment } from "../lib/audit-activity-assignments";
+import { normalizeActivityAssignments, resolveActivityAssignments, type ActivityRoleAssignment } from "../lib/audit-activity-assignments";
 import { auditActivityAuditeeIds, hasAuditActivityAuditeeSelection } from "@workspace/field-controls";
 import { auditModuleReadMatches, auditModulePermissionMatches } from "@workspace/field-controls";
 import { actionableFinding, carAuditContext, carContext, carJson, carRegister, carLeadMarker } from "../lib/car-register";
@@ -1544,7 +1544,8 @@ router.get("/schedules", asyncHandler(async (req, res) => {
 }));
 router.post("/schedules", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditScheduleBody, req);
-  data.activityRoleAssignments = await validateActivityRoleAssignments(actor(req).organizationId, data.activityRoleAssignments ?? [], data);
+  data.activityRoleAssignments = await resolveActivityAssignments(data.activityRoleAssignments, undefined,
+    assignments => validateActivityRoleAssignments(actor(req).organizationId, assignments, data));
   await assertValidParent(actor(req).organizationId, data.parentId);
   const requestedProjectIds = data.projectIds?.length ? data.projectIds : [data.projectId].filter(Boolean);
   let projectIds = requestedProjectIds.length
@@ -1686,8 +1687,8 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.UpdateAuditScheduleBody, req);
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   await assertChildSchedule(before);
-  data.activityRoleAssignments = await validateActivityRoleAssignments(actor(req).organizationId,
-    data.activityRoleAssignments ?? scheduleMeta(before).activityRoleAssignments ?? [], data);
+  data.activityRoleAssignments = await resolveActivityAssignments(data.activityRoleAssignments, scheduleMeta(before).activityRoleAssignments,
+    assignments => validateActivityRoleAssignments(actor(req).organizationId, assignments, data));
   data.parentId = data.parentId ?? scheduleMeta(before).parentId ?? null;
   await assertValidParent(actor(req).organizationId, data.parentId);
   const requestedProjectIds = data.projectIds?.length ? data.projectIds : [data.projectId].filter(Boolean);

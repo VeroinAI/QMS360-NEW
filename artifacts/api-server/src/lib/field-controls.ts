@@ -71,6 +71,9 @@ type ExtraFieldSpec = {
 };
 
 const EXTRA_FIELD_SPECS: Record<string, ExtraFieldSpec> = {
+  // Removed from the Schedule form; retain configured locks and validate
+  // explicit assignment writes, but never require an omitted hidden field.
+  "audit.schedule.activityRoleAssignments": { mandatoryWhen: body => body.activityRoleAssignments !== undefined },
   "audit.plan.circulationRoleIds": { createDefault: [] },
   "lessons.lesson-form.gps": {
     bodyKeys: ["gpsLat", "gpsLng"],

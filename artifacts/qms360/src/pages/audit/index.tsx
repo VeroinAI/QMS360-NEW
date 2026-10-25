@@ -3,7 +3,7 @@ import { confirmedWorkflowMutation, workflowConfirmationMessage } from "@/lib/wo
 import { responseFieldLabels } from "@/lib/response-field-labels";
 import { newPlanActivity, selectPlanActivity } from "@/lib/audit-plan-activities";
 import { activityRoleDefaults, activityAuditeeDefaults, activityAuditeeIds, withActivityAuditees } from "@/lib/audit-activity-defaults";
-import { ActivityMultiSelect, ScheduleActivityRoleFields } from "./activity-role-fields";
+import { ActivityMultiSelect } from "./activity-role-fields";
 import { auditTeamLeadLabel } from "./team-lead-label";
 import { ScheduleActivityButton } from "./schedule-activity";
 import { AuditOverviewReferences } from "./overview-references";
@@ -44,8 +44,6 @@ import {
   getGetAuditPlanQueryKey,
   useGetAuditPlanOptions,
   getGetAuditPlanOptionsQueryKey,
-  useGetAuditScheduleActivityOptions,
-  getGetAuditScheduleActivityOptionsQueryKey,
   useListAuditTeamLeads,
   useListAuditMeetingAttendees,
   useListAuditProcessProductOwners,
@@ -649,7 +647,7 @@ function Metric({ label, value, icon }: { label: string; value: number; icon: Re
   return <Card><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-3xl font-semibold">{value}</p></div><div className="rounded-lg bg-accent p-3 text-accent-foreground">{icon}</div></CardContent></Card>;
 }
 
-function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: AuditSchedule; onClose: () => void; parentId?: string; parentRange?: ProgrammeRange }) {
+export function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: AuditSchedule; onClose: () => void; parentId?: string; parentRange?: ProgrammeRange }) {
   const permissions = useAuditCapabilities();
   const qc = useQueryClient(); const { toast } = useToast();
   const fc = useFieldControls("audit", "schedule"); const ro = (key: string) => !permissions.can("schedules", "create_edit") || fc.fieldProps(key).disabled; const req = (key: string) => fc.fieldProps(key).required;
@@ -666,17 +664,6 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     currentApprovalRole: null, approvalRoles: [], canReview: false,
   });
   const create = useCreateAuditSchedule(); const update = useUpdateAuditSchedule();
-  const participantOnline = useParticipantConnectivity();
-  const activityContext: { retainedScheduleId?: string; projectId?: string; department?: string } = { retainedScheduleId: initial?.id, ...(form.auditTypes?.includes(PROCESS_AUDIT_TYPE)
-    ? { department: form.departmentProject ?? "" } : { projectId: form.projectIds?.[0] ?? "" }) };
-  const activityAssignmentOptions = useGetAuditScheduleActivityOptions(activityContext, { query: {
-    queryKey: getGetAuditScheduleActivityOptionsQueryKey(activityContext),
-    enabled: !!(activityContext.projectId || activityContext.department) && participantOnline,
-    staleTime: 0, refetchOnMount: "always",
-  } });
-  const activityParticipantName = useParticipantNames([
-    ...(activityAssignmentOptions.data?.users ?? []), ...(activityAssignmentOptions.data?.historicalUsers ?? []),
-  ]);
   const auditTypes = useLov("audit_types");
   const auditCategories = useLov("audit_categories");
   const processOwners = useListAuditProcessProductOwners();
@@ -764,21 +751,13 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     }
     if (!form.departmentProject?.trim() || (!isProcessAudit && !form.projectIds?.length)) missing.departmentProject = `${isProcessAudit ? "Department" : "Project"} is required.`;
     if (!form.title.trim()) missing.title = "Audit Title is required.";
-    if ((form.activityRoleAssignments ?? []).some(item => !item.roleId || !item.userIds.length)) {
-      missing.activityRoleAssignments = "Select a role and one or more users for every activity role assignment.";
-    }
-    if (form.activityRoleAssignments?.length && (activityAssignmentOptions.isFetching || !navigator.onLine
-      || !activityAssignmentOptions.data || activityAssignmentOptions.isError
-      || form.activityRoleAssignments.some(item => item.userIds.some(id => !activityAssignmentOptions.data?.users.some(user => user.id === id))))) {
-      missing.activityRoleAssignments = "Load eligible users for this project or department and replace unavailable selections before saving.";
-    }
     if (!form.processProductOwner?.trim()) missing.processProductOwner = "Process / Product Owner is required.";
     if (!form.plannedStartDate) missing.plannedStartDate = "From Date is required.";
     if (!form.plannedEndDate) missing.plannedEndDate = "To Date is required.";
     if (!missing.plannedStartDate && !missing.plannedEndDate && form.plannedEndDate.slice(0, 10) < form.plannedStartDate.slice(0, 10)) missing.plannedEndDate = "To Date must be on or after From Date.";
     if (parentRange && form.plannedStartDate && form.plannedStartDate.slice(0, 10) < parentRange.fromDate) missing.plannedStartDate = `From Date must be on or after ${parentRange.fromDate}.`;
     if (parentRange && form.plannedEndDate && form.plannedEndDate.slice(0, 10) > parentRange.toDate) missing.plannedEndDate = `To Date must be on or before ${parentRange.toDate}.`;
-    const alwaysOptional = new Set(["location", "l1Name", "l1ReviewStatus", "l1ReviewComments", "l1Attachments", "l2Name", "l2ReviewStatus", "l2ReviewComments", "l2Attachments", "memoDescription", "memoCirculation"]);
+    const alwaysOptional = new Set(["activityRoleAssignments", "location", "l1Name", "l1ReviewStatus", "l1ReviewComments", "l1Attachments", "l2Name", "l2ReviewStatus", "l2ReviewComments", "l2Attachments", "memoDescription", "memoCirculation"]);
     for (const key of fc.mandatoryFieldKeys()) {
       if (alwaysOptional.has(key)) continue;
       if (missing[key]) continue;
@@ -795,16 +774,19 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     }
     setErrors({});
     let savedScheduleId: string | null = null;
+    // This form no longer edits assignments. Omission preserves historical
+    // defaults server-side without revalidating or overwriting hidden data.
+    const { activityRoleAssignments: _assignments, ...data } = form;
     try {
       if (initial) {
-        await update.mutateAsync({ id: initial.id, data: form });
+        await update.mutateAsync({ id: initial.id, data });
         savedScheduleId = initial.id;
       } else if (createdScheduleId) {
-        await update.mutateAsync({ id: createdScheduleId, data: { ...form, id: createdScheduleId } });
+        await update.mutateAsync({ id: createdScheduleId, data: { ...data, id: createdScheduleId } });
         savedScheduleId = createdScheduleId;
       }
       else {
-        await create.mutateAsync({ data: form });
+        await create.mutateAsync({ data });
         savedScheduleId = form.id;
         setCreatedScheduleId(savedScheduleId);
       }
@@ -866,20 +848,6 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     <div><Label>10. QA/QC Scope *</Label><Input readOnly value={form.qaqcScope ?? ""}/></div>
     <div><Label>11. QA/QC Clauses *</Label><Input readOnly value={form.qaqcClauses ?? ""}/></div>
     <div><Label>12. Remarks{req("remarks") ? " *" : ""}</Label><Textarea value={form.remarks ?? ""} disabled={ro("remarks")} onChange={e => field("remarks", e.target.value)}/></div>
-    <div id="schedule-activityRoleAssignments">
-      <ScheduleActivityRoleFields value={form.activityRoleAssignments ?? []}
-        onChange={activityRoleAssignments => setForm(current => ({ ...current, activityRoleAssignments }))}
-        roles={activityAssignmentOptions.data?.roles ?? []}
-        users={eligibleParticipantOptions(activityAssignmentOptions.data, participantOnline, activityAssignmentOptions.isError).map(user => ({ id: user.id, name: user.fullName }))}
-        historicalUsers={[...new Set((form.activityRoleAssignments ?? []).flatMap(row => row.userIds))]
-          .map(id => ({ id, name: activityParticipantName(id) ?? id }))}
-        disabled={ro("activityRoleAssignments") || activityAssignmentOptions.isFetching || activityAssignmentOptions.isError || !activityAssignmentOptions.data || !participantOnline}/>
-      {activityAssignmentOptions.isLoading && <p className="text-sm text-muted-foreground">Loading activity roles and users…</p>}
-      {activityAssignmentOptions.isError && <p role="alert" className="text-sm text-destructive">Unable to load activity roles and users. Existing assignments are retained. <Button variant="link" size="sm" onClick={() => void activityAssignmentOptions.refetch()}>Retry</Button></p>}
-      {(!participantOnline || (!activityContext.projectId && !activityContext.department)) && <p role="alert" className="text-sm text-destructive">Select a project or department and connect to load eligible activity users. Cached organization user lists cannot be used.</p>}
-      {activityAssignmentOptions.data && (form.activityRoleAssignments ?? []).some(row => row.userIds.some(id => !activityAssignmentOptions.data.users.some(user => user.id === id))) && <p role="alert" className="text-sm text-destructive">Some retained activity users are unavailable for this project or department. Remove or replace them before saving.</p>}
-      {error("activityRoleAssignments")}
-    </div>
     <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={() => void save()} disabled={create.isPending || update.isPending}>Save audit</Button></DialogFooter>
   </div>;
 }

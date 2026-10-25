@@ -240,6 +240,7 @@ beforeAll(async () => {
     schedule: {
       remarks: { access: "read_only", requirement: "optional" },
       departmentProject: { access: "editable", requirement: "mandatory" },
+      activityRoleAssignments: { access: "editable", requirement: "mandatory" },
     },
     plan: {
       location: { access: "read_only", requirement: "optional" },
@@ -1130,6 +1131,34 @@ describe("field-controls enforcement over HTTP (audit schedule)", () => {
     delete (body as any).departmentProject;
     const res = await api("POST", "/audit/schedules", { token: admin.token, body });
     expect(res.status).toBe(201);
+  });
+
+  it("creates without activity assignments despite historical mandatory field settings", async () => {
+    const result = await api("POST", "/audit/schedules", { token: member.token, body: scheduleBody() });
+    expect(result.status).toBe(201);
+    expect(result.json.activityRoleAssignments).toEqual([]);
+  });
+
+  it("preserves historical activity assignments across an unrelated edit and reopen", async () => {
+    const created = await api("POST", "/audit/schedules", { token: member.token, body: scheduleBody() });
+    expect(created.status).toBe(201);
+    const id = created.json.id;
+    const assignments = [{ roleId: crypto.randomUUID(), userIds: [crypto.randomUUID()] }];
+    const [before] = await db.select().from(auditSchedules).where(eq(auditSchedules.id, id));
+    const metadata = JSON.parse(before!.status!);
+    await db.update(auditSchedules).set({ status: JSON.stringify({ ...metadata, activityRoleAssignments: assignments }) })
+      .where(eq(auditSchedules.id, id));
+    const updated = await api("PUT", `/audit/schedules/${id}`, {
+      token: member.token, body: scheduleBody({ id, title: "Unrelated title change" }),
+    });
+    expect(updated.status).toBe(200);
+    expect(updated.json.activityRoleAssignments).toEqual(assignments);
+    const reopened = await api("GET", `/audit/schedules/${id}`, { token: member.token });
+    expect(reopened.status).toBe(200);
+    expect(reopened.json.title).toBe("Unrelated title change");
+    expect(reopened.json.activityRoleAssignments).toEqual(assignments);
+    const [stored] = await db.select().from(auditSchedules).where(eq(auditSchedules.id, id));
+    expect(JSON.parse(stored!.status!).activityRoleAssignments).toEqual(assignments);
   });
 });
 

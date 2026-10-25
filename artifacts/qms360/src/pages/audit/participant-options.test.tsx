@@ -2,6 +2,7 @@
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, renderHook, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { getGetAuditPlanOptionsQueryKey, getGetAuditPlanOptionsUrl,
   getGetAuditScheduleActivityOptionsQueryKey, getGetAuditScheduleActivityOptionsUrl } from "@workspace/api-client-react";
@@ -53,6 +54,17 @@ describe("Audit participant selection lifecycle", () => {
       historicalOptions={[{ id: "b", name: "Historical B" }]} value={["b"]} onChange={change}/>);
     expect(screen.getByRole("button").textContent).toContain("Historical B");
     expect(change).not.toHaveBeenCalled();
+  });
+  it.each(["Select activity roles", "Select activity auditees"])("keeps Plan %s multi-selection editable", async label => {
+    const user = userEvent.setup();
+    const change = vi.fn();
+    render(<ActivityMultiSelect label={label} options={[{ id: "a", name: "Eligible A" }, { id: "b", name: "Eligible B" }]}
+      value={["a"]} onChange={change}/>);
+    await user.click(screen.getByRole("button", { name: label }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Eligible B" }));
+    expect(change).toHaveBeenLastCalledWith(["a", "b"]);
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Eligible A" }));
+    expect(change).toHaveBeenLastCalledWith([]);
   });
   it("retains display names across source changes and disconnects without retaining eligibility", () => {
     const { result, rerender } = renderHook(({ people }) => useParticipantNames(people), {
