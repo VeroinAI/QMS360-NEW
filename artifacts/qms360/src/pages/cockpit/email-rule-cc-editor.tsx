@@ -1,3 +1,4 @@
+import { SearchableSelectionList } from '@/components/ui/selection-search';
 import type { EmailCcRecipient, EmailEventRule } from '@workspace/api-client-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -74,9 +75,9 @@ export function EmailRuleCcEditor({value,onChange,toMode,eventType,users,project
       <p className="text-xs text-muted-foreground">Active users assigned the selected roles in this event's application receive a copy, including approval or send-back comments.</p>
       {rolesLoading&&<p className="text-sm text-muted-foreground">Loading roles...</p>}
       {rolesError&&<p role="alert" className="text-sm text-destructive">{rolesError}</p>}
-      <div className="grid gap-2 sm:grid-cols-2">{roles.map(role=><label key={role.id} className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm">
+      <SearchableSelectionList label="Search CC roles">{roles.map(role=><label key={role.id} className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm">
         <input type="checkbox" checked={value.roleNames.includes(role.name)} onChange={event=>onChange({roleNames:event.target.checked?[...new Set([...value.roleNames,role.name])]:value.roleNames.filter(name=>name!==role.name)})}/>{role.name}
-      </label>)}</div>
+      </label>)}</SearchableSelectionList>
       {!rolesLoading&&!rolesError&&!roles.length&&<p className="text-sm text-muted-foreground">No active roles are available for this application.</p>}
     </div>}
     {value.mode==='project_role'&&<div className="space-y-2"><Label>CC workspace role name</Label>

@@ -1,3 +1,5 @@
+import { NativeSelection } from '@/components/ui/native-selection';
+import { SearchableSelectionList } from '@/components/ui/selection-search';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { EmailRuleCcEditor, initialCcDraft, ccRecipientFromDraft, ccModeError, recipientModeForDraft } from './email-rule-cc-editor';
 import { useQueryClient } from '@tanstack/react-query';
@@ -434,7 +436,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
             <div className="space-y-3">
               <div>
                 <Label>Event type</Label>
-                <select
+                <NativeSelection
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
                   value={draft.eventType}
                   onChange={event => {
@@ -452,7 +454,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                 >
                   <option value="">Select an event...</option>
                   {events.map(ev => <option key={ev.value} value={ev.value}>{emailRuleEventLabel(ev)} ({ev.value})</option>)}
-                </select>
+                </NativeSelection>
                 {(!draft.eventType || draft.eventType === INTERMEDIATE_AUDIT_SCHEDULE_EVENT) && (
                   <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
                     {draft.eventType === INTERMEDIATE_AUDIT_SCHEDULE_EVENT ? (
@@ -553,7 +555,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                   {roleOptionsQuery.isLoading && <p className="text-sm text-muted-foreground">Loading {eventApp.toUpperCase()} roles...</p>}
                   {roleOptionsQuery.error && <p className="text-sm text-destructive">{message(roleOptionsQuery.error)}</p>}
                   {!roleOptionsQuery.isLoading && !roleOptionsQuery.error && roleOptionsQuery.data?.length === 0 && hasRoleApplication && <p className="text-sm text-muted-foreground">No active workspace roles are available for this application.</p>}
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <SearchableSelectionList label="Search receiver roles">
                     {roleOptionsQuery.data?.map(role => (
                       <label key={role.id} className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm">
                         <input
@@ -566,7 +568,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                         {role.name}
                       </label>
                     ))}
-                  </div>
+                  </SearchableSelectionList>
                   <p className="text-xs text-muted-foreground">Users assigned any selected active role in the event’s application will receive the email.</p>
                 </div>
               )}
@@ -630,14 +632,14 @@ function EmailSimulator() {
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-[2fr_2fr_auto] items-end">
           <div>
             <Label>Event</Label>
-            <select
+            <NativeSelection
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
               value={eventType}
               onChange={event => setEventType(event.target.value)}
             >
               <option value="">Select event...</option>
               {events.map(ev => <option key={ev.value} value={ev.value}>{ev.label}</option>)}
-            </select>
+            </NativeSelection>
           </div>
           <div>
             <Label>Created by</Label>

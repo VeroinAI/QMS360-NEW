@@ -4,6 +4,7 @@ import * as React from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { cn } from '@/lib/utils';
 import { Check, ChevronRight, Circle } from 'lucide-react';
+import { SelectionSearchContext, SelectionSearchInput, selectionText, matchesSelection, useSelectionEmpty } from './selection-search';
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
 
@@ -55,13 +56,29 @@ const DropdownMenuSubContent = React.forwardRef<
 DropdownMenuSubContent.displayName =
   DropdownMenuPrimitive.SubContent.displayName;
 
-const DropdownMenuContent = React.forwardRef<
+function hasActions(children: React.ReactNode): boolean {
+  return React.Children.toArray(children).some(child => React.isValidElement<{ children?: React.ReactNode }>(child)
+    && (child.type === DropdownMenuItem || child.type === DropdownMenuSubTrigger || hasActions(child.props.children)));
+}
+
+const DropdownMenuContentBody = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => (
-  <DropdownMenuPrimitive.Portal>
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & { searchable?: boolean }
+>(({ className, sideOffset = 4, children, searchable: explicitSearch, ...props }, ref) => {
+  const [search, setSearch] = React.useState('');
+  const content = React.useRef<HTMLDivElement>(null);
+  const input = React.useRef<HTMLInputElement>(null);
+  // Empty selection lists still need search. Ordinary action menus do not.
+  const searchable = explicitSearch ?? !hasActions(children);
+  const empty = useSelectionEmpty(content, search, children);
+  React.useEffect(() => {
+    if (!searchable) return;
+    const timer = setTimeout(() => input.current?.focus(), 0);
+    return () => clearTimeout(timer);
+  }, [searchable]);
+  return (
     <DropdownMenuPrimitive.Content
-      ref={ref}
+      ref={node => { content.current = node; if (typeof ref === 'function') ref(node); else if (ref) ref.current = node; }}
       sideOffset={sideOffset}
       className={cn(
         'z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
@@ -69,9 +86,16 @@ const DropdownMenuContent = React.forwardRef<
         className,
       )}
       {...props}
-    />
-  </DropdownMenuPrimitive.Portal>
-));
+    >
+      {searchable && <SelectionSearchInput ref={input} value={search} onChange={event => setSearch(event.target.value)} />}
+      <SelectionSearchContext.Provider value={search}>{children}</SelectionSearchContext.Provider>
+      {searchable && empty && <p role="status" className="p-3 text-sm text-muted-foreground">No matching options.</p>}
+    </DropdownMenuPrimitive.Content>
+); });
+const DropdownMenuContent = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & { searchable?: boolean }
+>((props, ref) => <DropdownMenuPrimitive.Portal><DropdownMenuContentBody ref={ref} {...props} /></DropdownMenuPrimitive.Portal>);
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
 const DropdownMenuItem = React.forwardRef<
@@ -95,9 +119,15 @@ DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
 const DropdownMenuCheckboxItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.CheckboxItem>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem>
->(({ className, children, checked, ...props }, ref) => (
+>(({ className, children, checked, disabled, ...props }, ref) => {
+  const matches = matchesSelection(selectionText(children), React.useContext(SelectionSearchContext));
+  return (
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
+    hidden={!matches}
+    style={!matches ? { display: 'none' } : undefined}
+    data-selection-match={matches}
+    disabled={disabled || !matches}
     className={cn(
       'relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className,
@@ -112,16 +142,22 @@ const DropdownMenuCheckboxItem = React.forwardRef<
     </span>
     {children}
   </DropdownMenuPrimitive.CheckboxItem>
-));
+); });
 DropdownMenuCheckboxItem.displayName =
   DropdownMenuPrimitive.CheckboxItem.displayName;
 
 const DropdownMenuRadioItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.RadioItem>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, disabled, ...props }, ref) => {
+  const matches = matchesSelection(selectionText(children), React.useContext(SelectionSearchContext));
+  return (
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
+    hidden={!matches}
+    style={!matches ? { display: 'none' } : undefined}
+    data-selection-match={matches}
+    disabled={disabled || !matches}
     className={cn(
       'relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className,
@@ -135,7 +171,7 @@ const DropdownMenuRadioItem = React.forwardRef<
     </span>
     {children}
   </DropdownMenuPrimitive.RadioItem>
-));
+); });
 DropdownMenuRadioItem.displayName = DropdownMenuPrimitive.RadioItem.displayName;
 
 const DropdownMenuLabel = React.forwardRef<

@@ -1,3 +1,4 @@
+import { NativeSelection } from '@/components/ui/native-selection';
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { EmailPlaceholderDefinition } from '@workspace/api-client-react';
 import { auditEmailTemplateExamples, emailTemplateFields, renderEmailRuleTemplate, type EmailRuleTemplate, type EmailRichDocument } from '@workspace/field-controls';
@@ -83,10 +84,10 @@ export function EmailRuleTemplateEditor({ template, onChange, eventType = '', de
       <p className="mt-1 text-xs text-muted-foreground">Saved separately for this rule and used when its event sends email. Leave either field blank to keep the default subject or body. Templates do not change recipients, approval routing or attachments.</p>
     </div>
     <div className="flex flex-wrap items-center gap-2">
-      <select aria-label="Audit email example" className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+      <NativeSelection aria-label="Audit email example" className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm"
         value={example} onChange={event => setExample(event.target.value as typeof example)}>
         {Object.entries(auditEmailTemplateExamples).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}
-      </select>
+      </NativeSelection>
       <Button type="button" size="sm" variant="outline" onClick={() => {
         const selected = auditEmailTemplateExamples[example];
         lastFocusedField.current = null;

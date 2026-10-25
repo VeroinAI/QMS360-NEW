@@ -23,7 +23,7 @@ beforeAll(async()=>{
   const projectRows=await db.insert(projects).values(["Approval project","Other project"].map((name,i)=>({organizationId:orgId,name,code:`AA${i}${suffix}`}))).returning();
   projectId=projectRows[0]!.id;
   const platform=await db.insert(platformRoles).values([{organizationId:orgId,name:"Org Admin",isSystem:true},{organizationId:orgId,name:"Employee",isSystem:true}]).returning();
-  const people=await db.insert(users).values(["Author","First reviewer","Final reviewer","Other project reviewer","Schedule reviewer"].map((fullName,i)=>({
+  const people=await db.insert(users).values(["Author","First reviewer","Final reviewer","Other project reviewer","Schedule reviewer","Business unit reviewer"].map((fullName,i)=>({
     organizationId:orgId,platformRoleId:platform[i?1:0]!.id,fullName,
     email:`approval-${i}-${suffix}@example.test`,username:`approval-${i}-${suffix}`,
   }))).returning();
@@ -31,12 +31,17 @@ beforeAll(async()=>{
   const permissions=await db.insert(auditPermissions).values(["audit.audits.view_all","audit.audits.approve_reject","approve_reject"].map(key=>({
     organizationId:orgId,key,label:key,category:"Audit",
   }))).returning();
-  for(let i=1;i<=4;i++){
+  for(let i=1;i<=5;i++){
     const [role]=await db.insert(auditWorkspaceRoles).values({organizationId:orgId,name:`Reviewer ${i}`,roleAuthorizationLevel:i===2?2:1}).returning();
     const selected=i===4?[permissions[0]!,permissions[2]!]:[permissions[0]!,permissions[1]!];
     await db.insert(auditWorkspaceRolePermissions).values(selected.map(permission=>({organizationId:orgId,workspaceRoleId:role!.id,permissionId:permission.id,grant:"full" as const})));
     await db.insert(auditUserWorkspaceRoles).values({organizationId:orgId,workspaceRoleId:role!.id,userId:people[i]!.id,
-      projectIds:i===2?[]:[i===3?projectRows[1]!.id:projectId]});
+      projectIds:i===2||i===5?[]:[i===3?projectRows[1]!.id:projectId],businessUnitIds:i===5?[randomUUID()]:[]});
+    if(i===5){
+      const [readRole]=await db.insert(auditWorkspaceRoles).values({organizationId:orgId,name:"Organization-wide Audit reader"}).returning();
+      await db.insert(auditWorkspaceRolePermissions).values({organizationId:orgId,workspaceRoleId:readRole!.id,permissionId:permissions[0]!.id,grant:"full"});
+      await db.insert(auditUserWorkspaceRoles).values({organizationId:orgId,workspaceRoleId:readRole!.id,userId:people[i]!.id,projectIds:[]});
+    }
   }
   const [schedule]=await db.insert(auditSchedules).values({organizationId:orgId,projectId,title:"Approval schedule",year:2026}).returning();
   const [plan]=await db.insert(auditPlans).values({organizationId:orgId,projectId,auditScheduleId:schedule!.id}).returning();
@@ -88,6 +93,31 @@ describe("Audit Report approval API",()=>{
     const again=await call("POST",`/audits/${auditId}/complete`);
     expect(again.status).toBe(200);
     expect(again.body.reportApproval.history).toEqual([]);
+  });
+  it("never borrows broad read scope for business-unit-restricted approval, including old snapshots",async()=>{
+    const detail=await call("GET",`/audits/${auditId}`,5);
+    expect(detail.status).toBe(200); // Broad read access is intentionally valid.
+    expect(detail.body.reportApproval.canReview).toBe(false);
+    expect(detail.body.reportApproval.pendingApprovers.map((user:{id:string})=>user.id)).not.toContain(personIds[5]);
+    const [saved]=await db.select().from(audits).where(eq(audits.id,auditId));
+    const assignments=await db.select().from(auditUserWorkspaceRoles).where(eq(auditUserWorkspaceRoles.userId,personIds[5]!));
+    const assignment=assignments.find(row=>row.businessUnitIds.length);
+    const meta=JSON.parse(saved!.status!);
+    // A snapshot issued before the restriction/fix must not grant live access.
+    meta.reportApproval.steps[0].roleIds.push(assignment!.workspaceRoleId);
+    meta.reportApproval.steps[0].approvers.push({id:personIds[5],name:"Business unit reviewer"});
+    await db.update(audits).set({status:JSON.stringify(meta)}).where(eq(audits.id,auditId));
+    try {
+      const old=await call("GET",`/audits/${auditId}`,5);
+      expect(old.status).toBe(200);
+      expect(old.body.reportApproval.canReview).toBe(false);
+      const actions=await call("GET","/my-actions",5);
+      expect(actions.status).toBe(200);
+      expect(actions.body.items.some((item:{id:string})=>item.id===auditId)).toBe(false);
+      expect((await call("POST",`/audits/${auditId}/review`,5,{decision:"approve"})).status).toBe(403);
+    } finally {
+      await db.update(audits).set({status:saved!.status}).where(eq(audits.id,auditId));
+    }
   });
   it("puts pending reports in the current reviewer's action queue and enforces read-only content",async()=>{
     const actions=await call("GET","/my-actions",1);

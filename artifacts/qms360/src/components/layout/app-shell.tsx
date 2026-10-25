@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { applicationSection } from './application-section';
 import { LessonsProjectFilterContext } from '@/lib/lessons-project-filter';
+import { NativeSelection } from '@/components/ui/native-selection';
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -167,14 +168,14 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
             <p className="truncate text-sm font-semibold">{orgName}</p>
             <p className="text-xs text-muted-foreground">Enterprise Quality Management</p>
           </div>
-          <select key={section === 'lessons' ? 'lessons-project' : 'other-project'} aria-label="Project selector" className="hidden max-w-56 rounded-md border border-border bg-background px-3 py-2 text-xs sm:block"
+          <NativeSelection key={section === 'lessons' ? 'lessons-project' : 'other-project'} aria-label="Project selector" className="max-w-36 rounded-md border border-border bg-background px-3 py-2 text-xs sm:max-w-56"
             {...(section === 'lessons' ? {
               value: lessonsProjectId,
               onChange: (event: ChangeEvent<HTMLSelectElement>) => setLessonsProject({ userId: user.id, projectId: event.target.value }),
             } : {})}>
             <option value="">All projects</option>
             {(projects.data?.items ?? []).map(project => <option key={project.id} value={project.id}>{project.code} · {project.name}</option>)}
-          </select>
+          </NativeSelection>
           <Link href="/notifications" className="relative rounded-md p-2 hover:bg-muted" aria-label={notificationsUnavailable ? 'Notifications unavailable' : `${unread} unread notifications`}>
             <Bell className="h-5 w-5" />
             {!notificationsUnavailable && unread > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">{unread > 99 ? '99+' : unread}</span>}

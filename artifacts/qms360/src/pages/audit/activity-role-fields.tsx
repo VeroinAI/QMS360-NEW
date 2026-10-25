@@ -14,7 +14,7 @@ export function ActivityMultiSelect({ label, options, value, onChange, disabled 
     <Button type="button" variant="outline" disabled={disabled} aria-label={label} className="h-auto min-h-10 w-full justify-start whitespace-normal text-left font-normal">
       {value.length ? value.map(id => options.find(option => option.id === id)?.name ?? `Unavailable selection (${id})`).join(", ") : label}
     </Button>
-  </DropdownMenuTrigger><DropdownMenuContent className="max-h-72 max-w-md overflow-y-auto">
+  </DropdownMenuTrigger><DropdownMenuContent searchable className="max-h-72 max-w-[min(28rem,calc(100vw-1rem))] overflow-y-auto">
     {options.map(option => <DropdownMenuCheckboxItem key={option.id} checked={value.includes(option.id)}
       onSelect={event => event.preventDefault()} onCheckedChange={checked => toggle(option.id, checked === true)}>{option.name}</DropdownMenuCheckboxItem>)}
     {missing.map(id => <DropdownMenuCheckboxItem key={id} checked onCheckedChange={() => toggle(id, false)}

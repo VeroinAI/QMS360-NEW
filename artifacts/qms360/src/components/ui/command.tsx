@@ -10,9 +10,10 @@ import { Search } from 'lucide-react';
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive>
->(({ className, ...props }, ref) => (
+>(({ className, label = 'Search options', ...props }, ref) => (
   <CommandPrimitive
     ref={ref}
+    label={label}
     className={cn(
       'flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground',
       className,

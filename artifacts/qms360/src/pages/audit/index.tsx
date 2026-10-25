@@ -153,6 +153,8 @@ import {
   type QueuedAuditPlan,
 } from "@/lib/pwa";
 
+import { SearchableSelectionList } from '@/components/ui/selection-search';
+
 const PAGE_SIZE = 10;
 const date = (value?: string | null) => value ? formatDate(value) : "—";
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Something went wrong.";
@@ -1157,7 +1159,7 @@ function ProgrammeTeamLeadsDialog({ item, onClose, onSaved }: {
           <ul className="mt-2 space-y-2">{selectedUsers.map(user => <li key={user.id} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"><span>{user.name}</span><Button size="sm" variant="ghost" aria-label={`Remove ${user.name}`} disabled={selected.length <= 1 || update.isPending} onClick={() => setSelected(current => current.filter(id => id !== user.id))}><Trash2 className="size-4"/></Button></li>)}</ul>
         </div>
         <div><Label>Add Audit Team Lead</Label>
-          {leads.isLoading ? <p className="mt-2 text-sm text-muted-foreground">Loading eligible leads…</p> : leads.isError ? <p className="mt-2 text-sm text-destructive">Unable to load eligible leads. Close and reopen to retry.</p> : <div className="mt-2 max-h-48 space-y-1 overflow-y-auto">{available.filter(user => !selected.includes(user.id)).map(user => <Button key={user.id} type="button" variant="outline" className="w-full justify-start" disabled={update.isPending} onClick={() => setSelected(current => [...current, user.id])}><Plus className="mr-2 size-4"/>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</Button>)}{available.every(user => selected.includes(user.id)) && <p className="text-sm text-muted-foreground">All eligible leads are selected.</p>}</div>}
+          {leads.isLoading ? <p className="mt-2 text-sm text-muted-foreground">Loading eligible leads…</p> : leads.isError ? <p className="mt-2 text-sm text-destructive">Unable to load eligible leads. Close and reopen to retry.</p> : <><SearchableSelectionList label="Search eligible Audit Team Leads" className="mt-2">{available.filter(user => !selected.includes(user.id)).map(user => <Button key={user.id} type="button" variant="outline" className="w-full justify-start" disabled={update.isPending} onClick={() => setSelected(current => [...current, user.id])}><Plus className="mr-2 size-4"/>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</Button>)}</SearchableSelectionList>{available.every(user => selected.includes(user.id)) && <p className="text-sm text-muted-foreground">All eligible leads are selected.</p>}</>}
         </div>
       </div>
       <DialogFooter><Button variant="outline" disabled={update.isPending} onClick={onClose}>Cancel</Button><Button disabled={update.isPending || leads.isLoading || leads.isError || !selected.length || selected.join(",") === item.teamLeadIds.join(",")} onClick={save}>{update.isPending ? "Saving…" : "Save Team Leads"}</Button></DialogFooter>
@@ -1819,7 +1821,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
         {!initial && programmeId && !programmeAudits.isFetching && !programmeAudits.error && !approvedSchedules.length && <p className="mt-2 text-xs text-muted-foreground">No audits are available in this schedule. Audits with an existing plan or a cancellation are excluded.</p>}
       </div>
     </div>
-    <div><Label>1. Audit Feasible *</Label><RadioGroup className="mt-2 flex gap-6" value={form.auditFeasible ? "yes" : "no"} disabled={disabled("auditFeasible")} onValueChange={value => { const feasible = value === "yes"; set("auditFeasible", feasible); if (!feasible) setFeasibilityOpen(true); }}><div className="flex items-center gap-2"><RadioGroupItem value="yes" id="plan-feasible-yes"/><Label htmlFor="plan-feasible-yes">Yes</Label></div><div className="flex items-center gap-2"><RadioGroupItem value="no" id="plan-feasible-no"/><Label htmlFor="plan-feasible-no">No</Label></div></RadioGroup></div>
+    <div><Label>1. Audit Feasible *</Label><RadioGroup className="mt-2" value={form.auditFeasible ? "yes" : "no"} disabled={disabled("auditFeasible")} onValueChange={value => { const feasible = value === "yes"; set("auditFeasible", feasible); if (!feasible) setFeasibilityOpen(true); }}><SearchableSelectionList label="Search Audit feasibility choices" listClassName="flex gap-6" disabled={disabled("auditFeasible")}><div className="flex items-center gap-2"><RadioGroupItem value="yes" id="plan-feasible-yes"/><Label htmlFor="plan-feasible-yes">Yes</Label></div><div className="flex items-center gap-2"><RadioGroupItem value="no" id="plan-feasible-no"/><Label htmlFor="plan-feasible-no">No</Label></div></SearchableSelectionList></RadioGroup></div>
     <Dialog open={feasibilityOpen} onOpenChange={open => { setFeasibilityOpen(open); if (!open) setForm(current => ({ ...current, auditFeasible: true })); }}><DialogContent><DialogHeader><DialogTitle>Audit is not feasible</DialogTitle><DialogDescription>Enter the required feedback. New dates are required only to reschedule the audit; canceling does not require dates.</DialogDescription></DialogHeader><div><Label htmlFor="feasibility-feedback">Remarks / Feedback *</Label><Textarea id="feasibility-feedback" className="mt-2" rows={5} value={feasibilityFeedback} aria-invalid={!!feasibilityError} onChange={event => { setFeasibilityFeedback(event.target.value); setFeasibilityError(""); }} placeholder="Enter remarks or feedback"/>{feasibilityError && <p className="mt-1 text-sm text-destructive">{feasibilityError}</p>}</div><div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="feasibility-from-date">From Date</Label><Input id="feasibility-from-date" type="date" className="mt-2" value={feasibilityFromDate} aria-invalid={!!feasibilityDateError} onChange={event => { setFeasibilityFromDate(event.target.value); setFeasibilityDateError(""); }}/></div><div><Label htmlFor="feasibility-to-date">To Date</Label><Input id="feasibility-to-date" type="date" className="mt-2" min={feasibilityFromDate || undefined} value={feasibilityToDate} aria-invalid={!!feasibilityDateError} onChange={event => { setFeasibilityToDate(event.target.value); setFeasibilityDateError(""); }}/></div>{feasibilityDateError && <p className="text-sm text-destructive sm:col-span-2">{feasibilityDateError}</p>}</div><DialogFooter><Button variant="destructive" disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("cancelled")}>Cancel Audit</Button><Button disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("reschedule")}>Reschedule Audit</Button></DialogFooter></DialogContent></Dialog>
     <fieldset disabled={!form.auditFeasible} className={`grid gap-4 ${!form.auditFeasible ? "opacity-50" : ""}`}>
     <div><Label>2. Audit Title *</Label><Input className="mt-2" readOnly disabled={readOnly} value={form.auditTitle} {...invalid("auditTitle")} placeholder="Generated from Audit Schedule"/><ErrorText name="auditTitle"/></div>
@@ -1939,6 +1941,7 @@ function SendForAuditDialog({ plan, open, onOpenChange, onSent }: {
       <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border p-3">
         {roles.isLoading && <p className="py-4 text-center text-sm text-muted-foreground">Loading roles…</p>}
         {roles.error && <p className="py-4 text-center text-sm text-destructive">{errorText(roles.error)}</p>}
+        <SearchableSelectionList label="Search notification roles">
         {(roles.data ?? []).map(role => <label key={role.id} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted">
           <Checkbox checked={roleIds.includes(role.id)} onCheckedChange={checked => toggleRole(role.id, checked === true)} />
           <span>
@@ -1946,6 +1949,7 @@ function SendForAuditDialog({ plan, open, onOpenChange, onSent }: {
             {role.description && <span className="block text-xs text-muted-foreground">{role.description}</span>}
           </span>
         </label>)}
+        </SearchableSelectionList>
         {!roles.isLoading && !roles.error && !(roles.data?.length) && <p className="py-4 text-center text-sm text-muted-foreground">No active roles are available.</p>}
       </div>
       {!roleIds.length && <p className="text-xs text-muted-foreground">Select at least one role to continue.</p>}

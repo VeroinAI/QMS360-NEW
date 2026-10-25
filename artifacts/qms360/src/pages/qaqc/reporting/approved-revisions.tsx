@@ -1,3 +1,4 @@
+import { NativeSelection } from '@/components/ui/native-selection';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,11 +47,11 @@ export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
           const label = `${categoryLabel(cat)} revision ${i + 1}`;
           const total = categoryTotal(cat);
           return <tr key={`${cat}-${i}`} className="border-t">
-            <td className="px-2 py-2"><select aria-label={`${label} document type`} disabled={disabled} value={cat}
+            <td className="px-2 py-2"><NativeSelection aria-label={`${label} document type`} disabled={disabled} value={cat}
               className="h-9 w-full rounded-md border bg-background px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               onChange={e => f.set(['revisions'], moveRevision(revisions, cat, i, e.target.value as Category))}>
               <option value="drawings">Drawing</option><option value="submittals">Submittal</option>
-            </select></td>
+            </NativeSelection></td>
             <td className="px-2 py-2"><Input data-report-field={`revisions.${cat}.${i}.name`} aria-label={`${label} number`} disabled={disabled} value={row.name ?? ''} placeholder="0"
               onChange={e => f.set(['revisions', cat, i, 'name'], e.target.value)} /></td>
             <td className="px-2 py-2"><Input aria-label={`${label} yesterday approved`} readOnly className="bg-muted/50 text-muted-foreground" value={priorValue(cat, row.name)} /></td>

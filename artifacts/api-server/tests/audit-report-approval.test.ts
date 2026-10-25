@@ -3,7 +3,7 @@ import {auditScheduleApprovalPermission} from "@workspace/field-controls";
 import {submitReportApproval,reviewReportApproval,reportApprovalSummary,reportContentLocked,reportAssignmentAllowsProject,
   canReviewReport,type ReportReviewer} from "../src/lib/audit-report-approval";
 const reviewer=(level:number,userId=`u${level}`,roleId=`r${level}`):ReportReviewer=>({
-  level,userId,roleId,userName:userId,roleName:roleId,projectIds:["project-a"],
+  level,userId,roleId,userName:userId,roleName:roleId,projectIds:["project-a"],businessUnitIds:[],
 });
 describe("Independent Audit Report approval",()=>{
   it("preserves legacy scheduling but keeps report-only roles out of scheduling",()=>{
@@ -18,6 +18,12 @@ describe("Independent Audit Report approval",()=>{
     expect(reportAssignmentAllowsProject([], "project-a")).toBe(true);
     expect(reportAssignmentAllowsProject([],null)).toBe(true);
     expect(reportAssignmentAllowsProject(["project-a"],null)).toBe(false);
+    expect(reportAssignmentAllowsProject([], "project-a", [], null, ["unit-a"])).toBe(false);
+    expect(reportAssignmentAllowsProject([], null, [], null, ["unit-a"])).toBe(false);
+    expect(reportAssignmentAllowsProject(["project-a"], "project-a", [], null, ["unit-a"])).toBe(true);
+    expect(reportAssignmentAllowsProject(["project-b"], "project-a", [], null, ["unit-a"])).toBe(false);
+    expect(reportAssignmentAllowsProject([], null, ["department-a"], "department-a", ["unit-a"])).toBe(true);
+    expect(reportAssignmentAllowsProject([], null, ["department-a"], "department-b", ["unit-a"])).toBe(false);
   });
   it("groups same-level roles and requires every applicable role's saved level",()=>{
     const state=submitReportApproval([reviewer(3),reviewer(1),reviewer(1,"other","other-role"),reviewer(1)],"author");

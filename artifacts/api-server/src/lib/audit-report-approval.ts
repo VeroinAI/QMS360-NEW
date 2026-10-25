@@ -3,20 +3,22 @@ import {db,auditWorkspaceRoles as roles,auditWorkspaceRolePermissions as grants,
   auditUserWorkspaceRoles as assignments,users} from "@workspace/db";
 import {HttpError} from "./workspace";
 
-export type ReportReviewer = {roleId:string;roleName:string;level:number|null;userId:string;userName:string;projectIds:string[]};
+export type ReportReviewer = {roleId:string;roleName:string;level:number|null;userId:string;userName:string;projectIds:string[];businessUnitIds:string[]};
 type Step = {level:number;roleIds:string[];approvers:Array<{id:string;name:string}>};
 type Decision = {decision:string;userId:string;userName:string;level:number;remarks:string;at:string};
 export type AuditReportApprovalState = {
   status:"Pending approval"|"Approved"|"Sent back";steps:Step[];index:number;
   submittedById:string;submittedAt:string;history:Decision[];
 };
-export function reportAssignmentAllowsProject(projectIds:string[],projectId:string|null|undefined,departmentIds:string[]=[],departmentId?:string|null) {
+export function reportAssignmentAllowsProject(projectIds:string[],projectId:string|null|undefined,departmentIds:string[]=[],departmentId?:string|null,businessUnitIds:string[]=[]) {
   if (departmentIds.length) return !projectId && !!departmentId && departmentIds.includes(departmentId);
-  return !projectIds.length || !!projectId && projectIds.includes(projectId);
+  // Like Audit RBAC, business-unit-only assignments are restricted, not global.
+  // A separate read grant must never broaden an approval-bearing assignment.
+  return (!projectIds.length && !businessUnitIds.length) || !!projectId && projectIds.includes(projectId);
 }
 export async function reportReviewers(database:Pick<typeof db,"select">,organizationId:string,projectId:string|null|undefined,departmentId?:string|null):Promise<ReportReviewer[]> {
   const rows=await database.select({roleId:roles.id,roleName:roles.name,level:roles.roleAuthorizationLevel,
-    userId:users.id,userName:users.fullName,projectIds:assignments.projectIds,departmentIds:assignments.departmentIds}).from(roles)
+    userId:users.id,userName:users.fullName,projectIds:assignments.projectIds,departmentIds:assignments.departmentIds,businessUnitIds:assignments.businessUnitIds}).from(roles)
     .innerJoin(grants,and(eq(grants.workspaceRoleId,roles.id),eq(grants.organizationId,organizationId),isNull(grants.deletedAt),eq(grants.grant,"full")))
     .innerJoin(permissions,and(eq(permissions.id,grants.permissionId),eq(permissions.organizationId,organizationId),
       eq(permissions.key,"audit.audits.approve_reject"),isNull(permissions.deletedAt)))
@@ -25,7 +27,7 @@ export async function reportReviewers(database:Pick<typeof db,"select">,organiza
     .innerJoin(users,and(eq(users.id,assignments.userId),eq(users.organizationId,organizationId),
       eq(users.accessStatus,"active"),isNull(users.deletedAt)))
     .where(and(eq(roles.organizationId,organizationId),eq(roles.status,"active"),isNull(roles.deletedAt)));
-  return rows.filter(row=>reportAssignmentAllowsProject(row.projectIds,projectId,row.departmentIds,departmentId));
+  return rows.filter(row=>reportAssignmentAllowsProject(row.projectIds,projectId,row.departmentIds,departmentId,row.businessUnitIds));
 }
 export function submitReportApproval(reviewers:ReportReviewer[],userId:string,previous?:AuditReportApprovalState,at=new Date().toISOString()):AuditReportApprovalState {
   if(!reviewers.length)throw new HttpError(409,"No Audit Report approvers are configured for this project. Assign active reviewers with Audit Reports approval permission and an Approval Level in Settings → Roles & Permissions.");

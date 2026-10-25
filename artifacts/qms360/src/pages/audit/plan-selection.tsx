@@ -19,7 +19,7 @@ export function PlanSelection<T extends string>({ id, number, label, options, va
           <ChevronDown className="ml-2 size-4 shrink-0"/>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] max-w-[calc(100vw-1rem)] overflow-y-auto">
+      <DropdownMenuContent searchable className="max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] max-w-[calc(100vw-1rem)] overflow-y-auto">
         {options.map(option => <DropdownMenuCheckboxItem key={option} checked={value.includes(option)}
           className="whitespace-normal break-words" onSelect={event => event.preventDefault()}
           onCheckedChange={checked => onChange(checked

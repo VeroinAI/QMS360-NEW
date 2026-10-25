@@ -1,3 +1,4 @@
+import { SearchableSelectionList } from '@/components/ui/selection-search';
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -340,7 +341,7 @@ function PlaceholderWizard({ initialWorkspace, draft, allEvents, drafts, local, 
         <div className="min-w-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto p-5">
           {step === 0 && <fieldset className="space-y-3">
             <legend className="text-sm text-muted-foreground">Which application will this placeholder belong to? Changing workspace clears the source, events and formatting.</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <SearchableSelectionList label="Search applications" listClassName="grid gap-2 sm:grid-cols-2">
               {WORKSPACES.map((w) => {
                 const n = eventsForWorkspace(allEvents, w.key).length;
                 return <label key={w.key} className={`flex cursor-pointer gap-3 rounded-lg border p-3 ${state.workspace === w.key ? 'border-primary bg-primary/5' : ''}`}>
@@ -348,7 +349,7 @@ function PlaceholderWizard({ initialWorkspace, draft, allEvents, drafts, local, 
                   <span><span className="block font-medium">{w.label}</span><span className="block text-xs text-muted-foreground">{w.blurb}</span><span className={`mt-1 block text-xs ${n ? 'text-primary' : 'text-destructive'}`}>{n ? `${n} registered events` : 'No registered events: unavailable'}</span></span>
                 </label>;
               })}
-            </div>
+            </SearchableSelectionList>
           </fieldset>}
 
           {step === 1 && <div className="space-y-3">
@@ -379,23 +380,23 @@ function PlaceholderWizard({ initialWorkspace, draft, allEvents, drafts, local, 
                 ? 'This draft can apply to registered events in this workspace. Actual system values depend on the event; missing values use the fallback.'
                 : 'This source applies only to events for its associated record in this workspace. Unassigned or unavailable values use the configured fallback.'
               : `${src.entityLabel} fields are scoped to events for that entity; configuration events are excluded.`}</p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <SearchableSelectionList label="Search event applicability" listClassName="grid gap-2 sm:grid-cols-2">
               {(['all', 'selected'] as const).map((mode) => <label key={mode} className={`flex cursor-pointer gap-3 rounded-lg border p-3 ${state.applicability === mode ? 'border-primary bg-primary/5' : ''}`}>
                 <input type="radio" name="app" className="mt-1" checked={state.applicability === mode} data-testid={`radio-applicability-${mode}`} onChange={() => set({ applicability: mode })} />
                 <span><span className="block font-medium">{mode === 'all' ? 'All compatible events' : 'Selected events'}</span><span className="text-xs text-muted-foreground">{mode === 'all' ? `${srcEvents.length} registered events today` : 'Pick specific events below'}</span></span>
               </label>)}
-            </div>
-            {state.applicability === 'selected' && <div className="max-h-[36dvh] space-y-1 overflow-y-auto rounded-lg border p-2">
+            </SearchableSelectionList>
+            {state.applicability === 'selected' && <SearchableSelectionList label="Search compatible events" className="rounded-lg border p-2">
               {srcEvents.map((e) => <label key={e.value} className="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/50">
                 <Checkbox className="mt-0.5" checked={state.eventIds.includes(e.value)} data-testid={`checkbox-event-${e.value}`} onCheckedChange={(v) => set({ eventIds: v === true ? [...state.eventIds, e.value] : state.eventIds.filter((x) => x !== e.value) })} />
                 <span><span className="block">{e.label}</span><span className="font-mono text-[11px] text-muted-foreground">{e.value}</span></span>
               </label>)}
-            </div>}
+            </SearchableSelectionList>}
           </div>}
 
           {step === 3 && src && <div className="space-y-4">
             <fieldset className="space-y-2"><legend className="text-sm font-medium">Format ({src.type})</legend>
-              <div className="grid gap-2 sm:grid-cols-2">{formatsForType(src.type).map((f) => <label key={f} className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm ${state.format === f ? 'border-primary bg-primary/5' : ''}`}><input type="radio" name="fmt" checked={state.format === f} data-testid={`radio-format-${f}`} onChange={() => set({ format: f })} />{FORMAT_LABELS[f]}</label>)}</div>
+              <SearchableSelectionList label="Search formats" listClassName="grid gap-2 sm:grid-cols-2">{formatsForType(src.type).map((f) => <label key={f} className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm ${state.format === f ? 'border-primary bg-primary/5' : ''}`}><input type="radio" name="fmt" checked={state.format === f} data-testid={`radio-format-${f}`} onChange={() => set({ format: f })} />{FORMAT_LABELS[f]}</label>)}</SearchableSelectionList>
             </fieldset>
             <div><Label htmlFor="ph-fallback">Fallback text</Label><Input id="ph-fallback" data-testid="input-fallback" maxLength={120} value={state.fallback} onChange={(e) => set({ fallback: e.target.value })} /><p className="mt-1 text-xs text-muted-foreground">Shown when the value is empty. Matches built-in behavior: "Not available".</p></div>
             <div><Label htmlFor="ph-desc">Description (optional)</Label><Textarea id="ph-desc" data-testid="input-description" maxLength={300} rows={3} value={state.description} onChange={(e) => set({ description: e.target.value })} placeholder="Why this placeholder is needed and where it will be used" /></div>
