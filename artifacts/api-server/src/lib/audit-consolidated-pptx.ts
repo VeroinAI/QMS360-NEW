@@ -73,7 +73,7 @@ function setShape(doc: Document, id: number, text: string) {
   setText(node, text);
 }
 function removeShape(doc: Document, id: number) {
-  const node = shape(doc, id);
+  const node = shape(doc, id) ?? elements(doc, P, "pic").find(pic => shapeId(pic) === id);
   node?.parentNode?.removeChild(node);
 }
 function removeProgressTotal(doc: Document) {
@@ -316,7 +316,9 @@ export async function renderConsolidatedAuditPptx(input: {
         }
       }
       if (slideNumber === 10) {
-        for (const id of [5, 6, 8, 9]) removeShape(doc, id);
+        // The former Good practices panel includes a picture (7), not just text shapes.
+        // Remove its slide node only; its media may still be used elsewhere.
+        for (const id of [5, 6, 7, 8, 9]) removeShape(doc, id);
         setShape(doc, 3, "Areas verified as conforming");
       }
       const target = page ? nextSlide++ : slideNumber;

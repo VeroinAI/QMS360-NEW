@@ -20,13 +20,16 @@ const build = (goodPractices: Record<string, string>[] = [], checklist: Record<s
   });
 
 /** Read presentation order rather than physical part numbers: earlier tables may continue. */
-function conformingDocs(files: Record<string, Uint8Array>) {
+function presentationDocs(files: Record<string, Uint8Array>) {
   const rels = Array.from(parse(files["ppt/_rels/presentation.xml.rels"]!).getElementsByTagName("Relationship"));
   return Array.from(parse(files["ppt/presentation.xml"]!).getElementsByTagNameNS(P, "sldId"))
     .map(id => {
       const target = rels.find(rel => rel.getAttribute("Id") === id.getAttributeNS(R, "id"))!.getAttribute("Target");
       return parse(files[`ppt/${target}`]!);
-    }).filter(doc => text(doc).includes("Areas verified as conforming"));
+    });
+}
+function conformingDocs(files: Record<string, Uint8Array>) {
+  return presentationDocs(files).filter(doc => text(doc).includes("Areas verified as conforming"));
 }
 
 function checkPackage(files: Record<string, Uint8Array>) {
@@ -61,11 +64,29 @@ describe("Conforming areas actual-row PowerPoint rendering", () => {
       Array.from({ length: 20 }, (_, i) => [`Phase ${i}`, "10%", "20", "30", "10", "0"]);
     const bytes = await renderConsolidatedAuditPptx({ sections: data });
     const files = unzipSync(bytes), docs = conformingDocs(files);
+    const firstConformingPage = presentationDocs(files).findIndex(doc => text(doc).includes("Areas verified as conforming")) + 1;
     expect(docs).toHaveLength(Math.max(1, Math.ceil(count / 5)));
     const actual: string[][] = [];
-    const original = parse(unzipSync(await readFile(new URL("../src/assets/audit-report-template.pptx", import.meta.url)))["ppt/slides/slide10.xml"]!);
+    const templateFiles = unzipSync(await readFile(new URL("../src/assets/audit-report-template.pptx", import.meta.url)));
+    const original = parse(templateFiles["ppt/slides/slide10.xml"]!);
+    const tick = Array.from(original.getElementsByTagNameNS(P, "pic"))
+      .find(pic => pic.getElementsByTagNameNS(P, "cNvPr")[0]?.getAttribute("id") === "7")!;
+    expect(tick.getElementsByTagNameNS(P, "cNvPr")[0]!.getAttribute("name")).toBe("Image 0");
+    expect(tick.getElementsByTagNameNS(A, "blip")[0]!.getAttributeNS(R, "embed")).toBe("rId3");
     const originalStyles = Array.from(original.getElementsByTagNameNS(A, "tcPr")).map(n => n.toString());
     for (const [page, doc] of docs.entries()) {
+      for (const id of ["5", "6", "7", "8", "9"]) {
+        expect(Array.from(doc.getElementsByTagNameNS(P, "cNvPr")).some(n => n.getAttribute("id") === id)).toBe(false);
+      }
+      expect(Array.from(doc.getElementsByTagNameNS(A, "blip")).some(n => n.getAttributeNS(R, "embed") === "rId3")).toBe(false);
+      expect(Array.from(doc.getElementsByTagNameNS(P, "pic")).map(n => n.toString()))
+        .toEqual(Array.from(original.getElementsByTagNameNS(P, "pic")).filter(n => n !== tick).map(n => n.toString()));
+      const heading = (source: typeof doc) => Array.from(source.getElementsByTagNameNS(P, "sp"))
+        .find(s => s.getElementsByTagNameNS(P, "cNvPr")[0]?.getAttribute("id") === "2")!.toString();
+      expect(heading(doc)).toBe(heading(original));
+      const number = Array.from(doc.getElementsByTagNameNS(P, "sp"))
+        .find(s => s.getElementsByTagNameNS(P, "cNvPr")[0]?.getAttribute("id") === "25")!;
+      expect(number.getElementsByTagNameNS(A, "t")[0]!.textContent).toBe(String(firstConformingPage + page));
       const table = doc.getElementsByTagNameNS(A, "tbl")[0]!;
       const rows = Array.from(table.getElementsByTagNameNS(A, "tr"));
       expect(rows).toHaveLength(1 + Math.min(5, Math.max(0, count - page * 5)));
@@ -82,6 +103,16 @@ describe("Conforming areas actual-row PowerPoint rendering", () => {
     expect(actual).toEqual(Array.from({ length: count }, (_, i) => [`Area ${i}`, `Verified ${i}`, `Record ${i}`]));
     if (!count) expect(text(docs[0]!)).not.toMatch(/good practices|positive observations/i);
     else expect(text(docs[0]!)).not.toContain("Good practices and positive observations");
+    for (const [name, originalBytes] of Object.entries(templateFiles)) {
+      if (name.startsWith("ppt/media/") || name.startsWith("ppt/slideMasters/")) {
+        expect(files[name], name).toEqual(originalBytes);
+      }
+      // The photographic section intentionally replaces/removes its sample pictures.
+      if (/^ppt\/slides\/slide\d+\.xml$/.test(name) && !["ppt/slides/slide10.xml", "ppt/slides/slide13.xml"].includes(name)) {
+        const pictures = (bytes: Uint8Array) => Array.from(parse(bytes).getElementsByTagNameNS(P, "pic")).map(n => n.toString());
+        expect(pictures(files[name]!), name).toEqual(pictures(originalBytes));
+      }
+    }
     checkPackage(files);
     if (process.env.QMS_CONFORMING_VISUAL === "1" && [0, 1, 6].includes(count)) {
       await mkdir("../../generated-artifacts/audit-conforming", { recursive: true });
