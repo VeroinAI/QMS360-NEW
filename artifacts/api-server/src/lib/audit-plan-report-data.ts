@@ -33,6 +33,9 @@ function custom(fields: RecordData, ...aliases: string[]) {
   }
   return NO_DATA;
 }
+function record(value: unknown): RecordData {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as RecordData : {};
+}
 export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule: RecordData, project: RecordData | undefined,
   userNames: Map<string, string>, roleNames: Map<string, string>, timeZone: string, creatorId?: string,
   activityLabels: ReadonlyMap<string, string> = new Map()): AuditPlanReportData {
@@ -54,7 +57,13 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
     if (typeof saved !== "string" || !plannedDate(saved) || (withTime && !saved.includes("T"))) return NO_DATA;
     return `${formatDate(saved.slice(0, 10))}${withTime ? `\n${saved.slice(11, 16)}` : ""}`;
   };
-  const fields = project?.customFields ?? {};
+  const fields = record(project?.customFields);
+  const additional = record(fields.qmsAdditionalData);
+  // Presence, not truthiness: a saved clear must not revive a stale legacy value.
+  const projectField = (key: string, aliases: string[], calendarDate = false) =>
+    Object.prototype.hasOwnProperty.call(additional, key)
+      ? calendarDate ? date(additional[key]) : mapped(additional[key])
+      : custom(fields, ...aliases);
   const activityRows = Array.isArray(meta.activities) && meta.activities.length ? meta.activities : [{
     section: meta.activitySection ?? plan.location, remarks: meta.activityRemarks ?? meta.feasibilityNotes,
     auditeeId: meta.activityAuditeeId ?? meta.auditeeId ?? meta.processOwnerIds?.[0],
@@ -83,13 +92,13 @@ export function auditPlanReportData(plan: RecordData, meta: RecordData, schedule
     revision: TO_BE_MAPPED,
     project: [
       ["Project Name", mapped(project?.name)],
-      ["Contract #", custom(fields, "contractNumber", "contractNo", "contract #")],
-      ["Client", custom(fields, "client", "clientName")], ["Consultant", custom(fields, "consultant", "consultantName")],
-      ["Main contractor", custom(fields, "mainContractor", "mainContractorName")],
+      ["Contract #", projectField("contractProjectNumber", ["contractNumber", "contractNo", "contract #"])],
+      ["Client", projectField("client", ["client", "clientName"])], ["Consultant", custom(fields, "consultant", "consultantName")],
+      ["Main contractor", projectField("contractor", ["mainContractor", "mainContractorName"])],
       ["Project Manager", custom(fields, "projectManager", "projectManagerName", "pmName")],
-      ["TCC", custom(fields, "tcc", "tccDate")], ["PAC", custom(fields, "pac", "pacDate")],
-      ["FAC", custom(fields, "fac", "facDate")], ["Contract Value", custom(fields, "contractValue")],
-      ["Contract Signed Date", custom(fields, "contractSignedDate")], ["PTS #", custom(fields, "ptsNumber", "ptsNo", "pts #")],
+      ["TCC", projectField("tcc", ["tcc", "tccDate"])], ["PAC", projectField("pac", ["pac", "pacDate"])],
+      ["FAC", projectField("fac", ["fac", "facDate"])], ["Contract Value", custom(fields, "contractValue")],
+      ["Contract Signed Date", projectField("contractSigned", ["contractSignedDate"], true)], ["PTS #", custom(fields, "ptsNumber", "ptsNo", "pts #")],
     ],
     activities: datedActivities<RecordData>(activityRows, meta.activityDateTime).map((row: RecordData) => {
       const start = date(row.plannedStartDateTime, true), end = date(row.plannedEndDateTime, true);

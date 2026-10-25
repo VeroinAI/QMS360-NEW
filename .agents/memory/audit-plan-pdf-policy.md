@@ -56,3 +56,23 @@ block.
 do not infer them from later edits or the selected lead. Preserve missing-data
 markers if no creator or signature is available, and never reuse sample
 signatures from the template.
+
+Project Details must respect the Project Master Additional Data — 2 meaning:
+the generic Name is a contact, not the Project Name or Project Manager.
+TCC, PAC and FAC are free text, while Contract Signed is a calendar date.
+Canonical saved clears must never revive old imported aliases.
+
+**Why:** The user explicitly required the saved QMS-owned values without
+substituting contact, contract period, cost-centre or other unrelated data.
+
+**How to apply:** Keep this correction read-only and scoped to the Plan PDF;
+do not infer missing Consultant, Contract Value or PTS fields or migrate projects.
+
+Continuation-content checks must account for repeated headers and footers
+interleaving extracted PDF text, including in the middle of a phrase.
+
+**Why:** Text extraction can place page furniture between two words of a
+fully retained value, causing a contiguous-string assertion to falsely report loss.
+
+**How to apply:** Verify short unique content markers across continuations or
+strip page furniture before comparing complete multi-page values.

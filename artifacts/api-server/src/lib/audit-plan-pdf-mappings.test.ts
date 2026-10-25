@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { getDateFormat, setDateFormatResolver } from "@workspace/spreadsheet-dates";
+import { DATE_FORMATS, getDateFormat, setDateFormatResolver } from "@workspace/spreadsheet-dates";
 import { auditPlanReportData, mapped, NO_DATA, TO_BE_MAPPED, type AuditPlanReportData } from "./audit-plan-report-data";
 import { renderAuditPlanPdf } from "./audit-plan-pdf";
 
@@ -29,6 +29,90 @@ async function extractedReport(data: AuditPlanReportData, filename?: string) {
   } finally { await rm(dir, { recursive: true, force: true }); }
 }
 const extracted = (meta: Record<string, unknown>, filename?: string) => extractedReport(report(meta), filename);
+const canonicalProject = {
+  name: "Actual Project",
+  customFields: {
+    contractNumber: "Old contract", clientName: "Old client", mainContractor: "Old contractor",
+    tccDate: "Old TCC", pacDate: "Old PAC", facDate: "Old FAC", contractSignedDate: "Old signed",
+    consultantName: "Actual consultant", pmName: "Actual manager", contractValue: 0, ptsNo: 0,
+    qmsAdditionalData: {
+      contractProjectNumber: "Saved contract", client: "Saved client", contractor: "Saved contractor",
+      contractSigned: "2026-01-01", tcc: "2027-03-04 tentative", pac: "After handover", fac: "Pending client agreement",
+      name: "Contact, not manager", contractPeriod: "Not a value", email: "Not a consultant", phone: "Not PTS",
+    },
+  },
+};
+const projectReport = (project: unknown, zone = "UTC") =>
+  auditPlanReportData({}, {}, {}, project as any, new Map(), new Map(), zone);
+
+describe("Project Master Additional Data — 2 mapping", () => {
+  it("prefers the exact saved keys without reusing unrelated contact or contract fields", () => {
+    const before = structuredClone(canonicalProject);
+    expect(projectReport(canonicalProject).project.map(([, value]) => value)).toEqual([
+      "Actual Project", "Saved contract", "Saved client", "Actual consultant", "Saved contractor", "Actual manager",
+      "2027-03-04 tentative", "After handover", "Pending client agreement", "0", "01-01-2026", "0",
+    ]);
+    expect(canonicalProject).toEqual(before);
+    const nestedOnly = projectReport({ name: "Identity", code: "Not a contract",
+      customFields: { costCentre: "Not PTS", qmsAdditionalData: canonicalProject.customFields.qmsAdditionalData } });
+    for (const label of ["Consultant", "Project Manager", "Contract Value", "PTS #"]) {
+      expect(nestedOnly.project).toContainEqual([label, "-"]);
+    }
+  });
+  it.each([null, "", " \t\n", {}, [], false])("does not revive old aliases when canonical values are cleared or invalid (%s)", value => {
+    const project = structuredClone(canonicalProject);
+    project.customFields.qmsAdditionalData = Object.fromEntries(
+      Object.keys(project.customFields.qmsAdditionalData).map(key => [key, value]),
+    ) as any;
+    const rows = Object.fromEntries(projectReport(project).project);
+    for (const label of ["Contract #", "Client", "Main contractor", "TCC", "PAC", "FAC", "Contract Signed Date"]) {
+      expect(rows[label]).toBe("-");
+    }
+    expect(rows["Contract Value"]).toBe("0");
+  });
+  it.each([undefined, null, "", 42, [], ["not metadata"]])("safely falls back for malformed or absent nested metadata (%s)", qmsAdditionalData => {
+    const rows = Object.fromEntries(projectReport({ ...canonicalProject,
+      customFields: { ...canonicalProject.customFields, qmsAdditionalData } }).project);
+    expect(rows).toMatchObject({ "Contract #": "Old contract", Client: "Old client",
+      "Main contractor": "Old contractor", "Contract Signed Date": "Old signed" });
+  });
+  it.each([null, "invalid", 42, []])("handles malformed customFields (%s)", customFields => {
+    expect(projectReport({ name: "Identity", customFields }).project.slice(1).every(([, value]) => value === "-")).toBe(true);
+  });
+  it("falls back independently for missing keys, not for the whole nested object", () => {
+    const rows = Object.fromEntries(projectReport({ ...canonicalProject, customFields: {
+      ...canonicalProject.customFields, qmsAdditionalData: { client: "Only canonical client" },
+    } }).project);
+    expect(rows).toMatchObject({ Client: "Only canonical client", "Contract #": "Old contract", TCC: "Old TCC" });
+  });
+  it("formats the signed calendar day in every organization format without timezone shifts", () => {
+    const project = { ...canonicalProject, customFields: { qmsAdditionalData: { contractSigned: "2026-01-23" } } };
+    const expected = ["23/01/2026", "01/23/2026", "2026-01-23", "23-01-2026", "01-23-2026"];
+    try {
+      DATE_FORMATS.forEach((format, i) => {
+        setDateFormatResolver(() => format);
+        for (const zone of ["Pacific/Kiritimati", "America/Los_Angeles", "UTC"]) {
+          expect(projectReport(project, zone).project).toContainEqual(["Contract Signed Date", expected[i]]);
+        }
+      });
+    } finally { setDateFormatResolver(() => "DD-MM-YYYY"); }
+  });
+  it.each(["2026-02-30", "not a date", 0])("does not roll over or fall back for invalid canonical dates (%s)", contractSigned => {
+    const rows = projectReport({ ...canonicalProject, customFields: { ...canonicalProject.customFields,
+      qmsAdditionalData: { contractSigned } } }).project;
+    expect(rows).toContainEqual(["Contract Signed Date", "-"]);
+  });
+  it("retains long nested project values in labelled PDF continuations", async () => {
+    const parts = Array.from({ length: 20 }, (_, i) => `CLIENT-${String(i).padStart(2, "0")}`);
+    const phrases = parts.map(part => `${part} full legal name`);
+    const client = `${phrases.join(" ")} CLIENT-FINAL`;
+    const data = projectReport({ ...canonicalProject, customFields: { qmsAdditionalData: { client } } });
+    const text = (await extractedReport(data)).replace(/\s+/g, " ");
+    expect(text).toContain("Client (continuation)");
+    for (const part of parts) expect(text).toContain(part);
+    expect(text).toContain("CLIENT-FINAL");
+  });
+});
 
 describe("Audit Plan mapped values versus missing mapping logic", () => {
   it.each([undefined, null, "", " \n\t", {}, [], NaN, Infinity])("prints a dash for absent/invalid mapped values (%s)", value => {
