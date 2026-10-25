@@ -877,7 +877,7 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
       {activityAssignmentOptions.data && (form.activityRoleAssignments ?? []).some(row => row.userIds.some(id => !activityAssignmentOptions.data.users.some(user => user.id === id))) && <p role="alert" className="text-sm text-destructive">Some retained activity users are unavailable for this project or department. Remove or replace them before saving.</p>}
       {error("activityRoleAssignments")}
     </div>
-    <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={() => void save()} disabled={create.isPending || update.isPending}>Save schedule</Button></DialogFooter>
+    <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={() => void save()} disabled={create.isPending || update.isPending}>Save audit</Button></DialogFooter>
   </div>;
 }
 
