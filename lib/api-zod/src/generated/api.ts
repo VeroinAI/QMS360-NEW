@@ -5111,7 +5111,7 @@ export const ListQaqcRolesResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listQaqcRolesResponseTwoItemsItemRoleAuthorizationLevelMax).multipleOf(listQaqcRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -5136,7 +5136,7 @@ export const CreateQaqcRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(createQaqcRoleBodyRoleAuthorizationLevelMax).multipleOf(createQaqcRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -5166,7 +5166,7 @@ export const UpdateQaqcRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(updateQaqcRoleBodyRoleAuthorizationLevelMax).multipleOf(updateQaqcRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -5221,7 +5221,7 @@ export const ListQaqcUsersResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listQaqcUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMax).multipleOf(listQaqcUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -6766,7 +6766,7 @@ export const ListLessonsRolesResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listLessonsRolesResponseTwoItemsItemRoleAuthorizationLevelMax).multipleOf(listLessonsRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -6791,7 +6791,7 @@ export const CreateLessonsRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(createLessonsRoleBodyRoleAuthorizationLevelMax).multipleOf(createLessonsRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -6821,7 +6821,7 @@ export const UpdateLessonsRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(updateLessonsRoleBodyRoleAuthorizationLevelMax).multipleOf(updateLessonsRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -6876,7 +6876,7 @@ export const ListLessonsUsersResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listLessonsUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMax).multipleOf(listLessonsUsersResponseTwoItemsItemWorkspaceRolesItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -8629,7 +8629,7 @@ export const ListAuditPlanNotificationRolesResponseItem = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listAuditPlanNotificationRolesResponseRoleAuthorizationLevelMax).multipleOf(listAuditPlanNotificationRolesResponseRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -8968,6 +8968,22 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9133,6 +9149,22 @@ export const ListAuditsResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9420,6 +9452,22 @@ export const GetAuditResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9736,6 +9784,22 @@ export const CompleteAuditResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -9823,6 +9887,179 @@ export const CompleteAuditResponse = zod.object({
 
 
 /**
+ * @summary Approve the current Audit Report level or send the report back for correction
+ */
+export const ReviewAuditReportParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const reviewAuditReportBodyRemarksMax = 4000;
+
+
+
+export const ReviewAuditReportBody = zod.object({
+  "decision": zod.enum(['approve', 'send_back']),
+  "remarks": zod.string().max(reviewAuditReportBodyRemarksMax).optional()
+})
+
+export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
+
+export const reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
+export const reviewAuditReportResponseReportDetailsValuesMaxOne = 10000;
+
+export const reviewAuditReportResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const reviewAuditReportResponseReportDetailsRowsMaxOne = 200;
+
+
+
+export const ReviewAuditReportResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(reviewAuditReportResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(reviewAuditReportResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(reviewAuditReportResponseAdditionalDocumentsDesignStatusItemValueMin).max(reviewAuditReportResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(reviewAuditReportResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "designRemarks": zod.string().optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemValueMin).max(reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(reviewAuditReportResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(reviewAuditReportResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(reviewAuditReportResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(reviewAuditReportResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(reviewAuditReportResponseReportDetailsRowsItemMaxOne))).max(reviewAuditReportResponseReportDetailsRowsMaxOne))
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+/**
  * @summary Save editable report-only details
  */
 export const SaveAuditReportDetailsParams = zod.object({
@@ -9897,6 +10134,22 @@ export const SaveAuditReportDetailsResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10140,6 +10393,22 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10303,6 +10572,22 @@ export const EditAuditChecklistItemResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10455,6 +10740,22 @@ export const DeleteAuditChecklistItemResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10619,6 +10920,22 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10784,6 +11101,22 @@ export const CreateAuditFindingItemResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -10936,6 +11269,22 @@ export const GenerateMissingAuditFindingNumberResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -11090,6 +11439,22 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -11246,6 +11611,22 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -11419,6 +11800,22 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -11595,6 +11992,22 @@ export const UpdateAuditOverallProjectProgressResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -11769,6 +12182,22 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -12766,6 +13195,22 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
   "projectName": zod.string().nullish().describe('Linked project name'),
   "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "projectId": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
@@ -13078,7 +13523,7 @@ export const ListAuditRolesResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listAuditRolesResponseTwoItemsItemRoleAuthorizationLevelMax).multipleOf(listAuditRolesResponseTwoItemsItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -13103,7 +13548,7 @@ export const CreateAuditRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(createAuditRoleBodyRoleAuthorizationLevelMax).multipleOf(createAuditRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -13133,7 +13578,7 @@ export const UpdateAuditRoleBody = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(updateAuditRoleBodyRoleAuthorizationLevelMax).multipleOf(updateAuditRoleBodyRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),
@@ -13188,7 +13633,7 @@ export const ListAuditUsersResponse = zod.object({
   "description": zod.string().nullish(),
   "roleAuthorizationLevel": zod.number().min(1).max(listAuditUsersResponseTwoItemsItemOneWorkspaceRolesItemRoleAuthorizationLevelMax).multipleOf(listAuditUsersResponseTwoItemsItemOneWorkspaceRolesItemRoleAuthorizationLevelMultipleOf).nullish().describe('Positive approval level required when approval permission is granted to an Audit or QA\/QC role. QA\/QC Monthly and Daily Reports follow ascending saved levels within the approval role\'s project or organization scope; CSAT approval routing is unchanged.'),
   "permissions": zod.array(zod.object({
-  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
+  "key": zod.enum(['data_entry', 'create_edit', 'view_own', 'create_audit_programme', 'submit', 'approve_reject', 'view_own_scope', 'view_all', 'configure_masters', 'manage_integrations', 'manage_ai_settings', 'export', 'delegate', 'memo_circulation', 'audit_team_lead', 'audit_program_manager', 'product_process_owner', 'qaqc.configure_masters', 'qaqc.manage_ai_settings', 'qaqc.delegate', 'qaqc.manage_roles', 'qaqc.manage_access', 'qaqc.view_audit_log', 'qaqc.metrics.view_own_scope', 'qaqc.metrics.view_all', 'qaqc.metrics.create_edit', 'qaqc.metrics.delete', 'qaqc.metrics.submit', 'qaqc.metrics.approve_reject', 'qaqc.metrics.import', 'qaqc.metrics.export', 'qaqc.metrics.ai', 'qaqc.material_inspections.view_own_scope', 'qaqc.material_inspections.view_all', 'qaqc.material_inspections.create_edit', 'qaqc.material_inspections.delete', 'qaqc.qtbt.view_own_scope', 'qaqc.qtbt.view_all', 'qaqc.qtbt.create_edit', 'qaqc.qtbt.delete', 'qaqc.customer_satisfaction.view_own_scope', 'qaqc.customer_satisfaction.view_all', 'qaqc.customer_satisfaction.create_edit', 'qaqc.customer_satisfaction.delete', 'qaqc.document_governance.view_own_scope', 'qaqc.document_governance.view_all', 'qaqc.document_governance.create_edit', 'qaqc.document_governance.delete', 'qaqc.document_governance.export', 'qaqc.quality_briefs.view_own_scope', 'qaqc.quality_briefs.view_all', 'qaqc.quality_briefs.create_edit', 'qaqc.quality_briefs.submit', 'qaqc.quality_briefs.approve_reject', 'qaqc.quality_briefs.ai', 'qaqc.monthly_reports.view_own_scope', 'qaqc.monthly_reports.view_all', 'qaqc.monthly_reports.create_edit', 'qaqc.monthly_reports.delete', 'qaqc.monthly_reports.submit', 'qaqc.monthly_reports.approve_reject', 'qaqc.monthly_reports.import', 'qaqc.monthly_reports.export', 'qaqc.monthly_reports.ai', 'qaqc.historical_balances.view_all', 'qaqc.historical_balances.create_edit', 'qaqc.historical_balances.import', 'qaqc.historical_balances.export', 'qaqc.monthly_sections.configured', 'qaqc.monthly_section_project.create_edit', 'qaqc.monthly_section_pqp.create_edit', 'qaqc.monthly_section_reference.create_edit', 'qaqc.monthly_section_meetings.create_edit', 'qaqc.monthly_section_internal_audit.create_edit', 'qaqc.monthly_section_manpower.create_edit', 'qaqc.monthly_section_metrics.create_edit', 'qaqc.monthly_section_material.create_edit', 'qaqc.monthly_section_qtbt.create_edit', 'qaqc.monthly_section_training.create_edit', 'qaqc.monthly_section_documents.create_edit', 'qaqc.monthly_section_qms_reports.create_edit', 'qaqc.monthly_section_assessment.create_edit', 'qaqc.daily_reports.view_own_scope', 'qaqc.daily_reports.view_all', 'qaqc.daily_reports.create_edit', 'qaqc.daily_reports.delete', 'qaqc.daily_reports.submit', 'qaqc.daily_reports.approve_reject', 'qaqc.daily_reports.import', 'qaqc.daily_reports.export', 'qaqc.csat_reports.view_own_scope', 'qaqc.csat_reports.view_all', 'qaqc.csat_reports.create_edit', 'qaqc.csat_reports.delete', 'qaqc.csat_reports.submit', 'qaqc.csat_reports.approve_reject', 'qaqc.csat_reports.import', 'qaqc.csat_reports.export', 'audit.dashboard.view_all', 'audit.schedules.view_all', 'audit.schedules.create_edit', 'audit.schedules.delete', 'audit.schedules.submit', 'audit.schedules.approve_reject', 'audit.schedules.export', 'audit.plans.view_all', 'audit.plans.create_edit', 'audit.plans.delete', 'audit.plans.submit', 'audit.plans.export', 'audit.audits.view_all', 'audit.audits.create_edit', 'audit.audits.delete', 'audit.audits.approve_reject', 'audit.audits.export', 'audit.findings.view_all', 'audit.findings.create_edit', 'audit.findings.delete', 'audit.findings.export', 'audit.cars.view_all', 'audit.cars.create_edit', 'audit.cars.submit', 'audit.cars.approve_reject', 'audit.cars.export', 'audit.reports.view_all', 'audit.reports.export']),
   "name": zod.string()
 })),
   "active": zod.boolean(),

@@ -1916,6 +1916,21 @@ paths:
       responses:
         "200": {description: Completed audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
         "403": {description: Audit edit permission required}
+  /audit/audits/{id}/review:
+    post:
+      operationId: reviewAuditReport
+      tags: [audit]
+      summary: Approve the current Audit Report level or send the report back for correction
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AuditReportApprovalDecisionInput"}
+      responses:
+        "200": {description: Reviewed report, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
+        "403": {description: Only an authorized reviewer at the current report approval level may act}
+        "409": {description: Report is not awaiting this approval or the next level has no eligible reviewers}
   /audit/audits/{id}/report-details:
     put:
       operationId: saveAuditReportDetails
@@ -3893,7 +3908,7 @@ components:
             audit.dashboard.view_all,
             audit.schedules.view_all, audit.schedules.create_edit, audit.schedules.delete, audit.schedules.submit, audit.schedules.approve_reject, audit.schedules.export,
             audit.plans.view_all, audit.plans.create_edit, audit.plans.delete, audit.plans.submit, audit.plans.export,
-            audit.audits.view_all, audit.audits.create_edit, audit.audits.delete, audit.audits.export,
+            audit.audits.view_all, audit.audits.create_edit, audit.audits.delete, audit.audits.approve_reject, audit.audits.export,
             audit.findings.view_all, audit.findings.create_edit, audit.findings.delete, audit.findings.export,
             audit.cars.view_all, audit.cars.create_edit, audit.cars.submit, audit.cars.approve_reject, audit.cars.export,
             audit.reports.view_all, audit.reports.export
@@ -4733,6 +4748,7 @@ components:
         planAvailable: {type: boolean, readOnly: true, description: Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail}
         projectName: {type: [string, "null"], readOnly: true, description: Linked project name, not its code; null for projectless audits or unavailable projects; supplied on audit detail}
         reportNumber: {type: [string, "null"], readOnly: true, description: Immutable server-generated Audit Report number issued on first successful report-details save}
+        reportApproval: {$ref: "#/components/schemas/AuditReportApproval"}
         projectId: {type: string}
         title: {type: string}
         status: {type: string, enum: [Planned, In Progress, Report Draft, CAR Follow-up, Complete, Closed, Deleted]}
@@ -4751,6 +4767,37 @@ components:
         reportDetails: {$ref: "#/components/schemas/AuditReportDetails"}
         startedAt: {type: [string, "null"], format: date-time}
         closedAt: {type: [string, "null"], format: date-time}
+    AuditReportApprovalDecisionInput:
+      type: object
+      required: [decision]
+      properties:
+        decision: {type: string, enum: [approve, send_back]}
+        remarks: {type: string, maxLength: 4000}
+    AuditReportApproval:
+      type: object
+      readOnly: true
+      required: [status, pendingLevel, pendingApprovers, canReview, history]
+      properties:
+        status: {type: string, enum: [Not submitted, Pending approval, Approved, Sent back]}
+        pendingLevel: {type: [number, "null"]}
+        pendingApprovers:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties: {id: {type: string}, name: {type: string}}
+        canReview: {type: boolean}
+        history:
+          type: array
+          items:
+            type: object
+            required: [decision, userName, level, remarks, at]
+            properties:
+              decision: {type: string}
+              userName: {type: string}
+              level: {type: number}
+              remarks: {type: string}
+              at: {type: string}
     AuditReportDetails:
       type: object
       required: [values, rows]

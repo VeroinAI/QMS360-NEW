@@ -7,6 +7,7 @@
  */
 import type { AuditAdditionalDocuments } from './auditAdditionalDocuments';
 import type { AuditOpeningMeetingBounds } from './auditOpeningMeetingBounds';
+import type { AuditReportApproval } from './auditReportApproval';
 import type { AuditReportDetails } from './auditReportDetails';
 import type { AuditStatus } from './auditStatus';
 import type { ChecklistItem } from './checklistItem';
@@ -32,6 +33,7 @@ export interface Audit {
      * @nullable
      */
   readonly reportNumber?: string | null;
+  reportApproval?: AuditReportApproval;
   projectId: string;
   title: string;
   status: AuditStatus;

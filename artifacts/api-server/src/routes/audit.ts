@@ -1,6 +1,8 @@
 import { formatDateInTimeZone, formatPresentationData } from "@workspace/spreadsheet-dates";
 import { visibleAdminUsers } from "../lib/admin-user-discovery";
 import { auditOverviewContext } from "../lib/audit-overview-context";
+import { auditScheduleApprovalPermission } from "@workspace/field-controls";
+import { reportReviewers, submitReportApproval, canReviewReport, reviewReportApproval, reportContentLocked, reportApprovalSummary, type AuditReportApprovalState } from "../lib/audit-report-approval";
 import { Router, type Request, type Response } from "express";
 import { randomUUID } from "node:crypto";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
@@ -407,17 +409,19 @@ async function assertAuditRecordAccess(req: Request, recordType: string, recordI
     if (!await scheduleInScope(req, row)) throw new HttpError(403, "You do not have access to this project");
     return;
   } else if (recordType === "audit" || recordType === "audit_execution") {
-    const [row] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(audits)
+    const [row] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId, status: audits.status }).from(audits)
       .where(and(active(audits, actor(req).organizationId), eq(audits.id, recordId)));
     projectId = row?.projectId;
+    if (row && !["GET", "HEAD", "OPTIONS"].includes(req.method) && /\/evidence(?:\/|$)/.test(req.originalUrl.split("?")[0])) assertAuditReportEditable(row);
     // Internal Process audits are department-scoped, not project-scoped. Match
     // the parent-chain check already used for /audits/:id detail routes.
     if (row && !projectId && await isProcessPlanId(actor(req).organizationId, row.planId)) return;
   } else if (recordType === "audit_finding" || recordType === "finding") {
-    const [row] = await db.select({ projectId: audits.projectId }).from(auditFindings)
+    const [row] = await db.select({ projectId: audits.projectId, status: audits.status }).from(auditFindings)
       .innerJoin(audits, eq(auditFindings.auditId, audits.id))
       .where(and(eq(auditFindings.id, recordId), active(auditFindings, actor(req).organizationId), isNull(audits.deletedAt)));
     projectId = row?.projectId;
+    if (row && !["GET", "HEAD", "OPTIONS"].includes(req.method) && /\/evidence(?:\/|$)/.test(req.originalUrl.split("?")[0])) assertAuditReportEditable(row);
   } else if (recordType === "corrective_action_report" || recordType === "car") {
     const [row] = await db.select({ projectId: audits.projectId, planId: audits.auditPlanId }).from(correctiveActionReports)
       .innerJoin(auditFindings, eq(correctiveActionReports.auditFindingId, auditFindings.id))
@@ -767,7 +771,7 @@ async function backfillLegacyApprovalLevels(organizationId: string) {
 async function approvalRoleChain(organizationId: string) {
   await backfillLegacyApprovalLevels(organizationId);
   const rows = await db.select({
-    id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name, level: auditWorkspaceRoles.roleAuthorizationLevel,
+    id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name, level: auditWorkspaceRoles.roleAuthorizationLevel, key: auditPermissions.key,
   }).from(auditWorkspaceRoles)
     .innerJoin(auditWorkspaceRolePermissions, and(
       eq(auditWorkspaceRolePermissions.workspaceRoleId, auditWorkspaceRoles.id),
@@ -780,11 +784,12 @@ async function approvalRoleChain(organizationId: string) {
     .where(and(
       eq(auditWorkspaceRoles.organizationId, organizationId), eq(auditWorkspaceRoles.status, "active"),
       isNull(auditWorkspaceRoles.deletedAt), eq(auditWorkspaceRolePermissions.organizationId, organizationId),
-      or(eq(auditPermissions.key, "schedules.approve_reject"), eq(auditPermissions.key, "approve_reject"), eq(auditPermissions.key, "schedules"), eq(auditPermissions.key, "audit.schedules.approve_reject")),
+      or(eq(auditPermissions.key, "schedules.approve_reject"), eq(auditPermissions.key, "approve_reject"), eq(auditPermissions.key, "schedules"), eq(auditPermissions.key, "audit.schedules.approve_reject"), eq(auditPermissions.key, "audit.audits.approve_reject")),
       eq(auditWorkspaceRolePermissions.grant, "full"),
     ));
   const unique = [...new Map(rows.map(row => [row.id, row])).values()]
-    .filter(role => role.level !== null && role.level > 0);
+    .filter(role => role.level !== null && role.level > 0
+      && auditScheduleApprovalPermission(rows.filter(row => row.id === role.id).map(row => row.key)));
   return unique.sort((a, b) => a.level! - b.level! || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 
@@ -2389,8 +2394,12 @@ router.post("/plans/:id/share", asyncHandler(async (req, res) => {
   await auditLog(req, "share", "audit_plan", row.id, before, row); res.status(202).json(planDto(row));
 }));
 
-type AuditMeta = { title?: string; openingMeeting?: AnyRow; closingMeeting?: AnyRow; startedAt?: string | null; closedAt?: string | null; additionalDocuments?: AnyRow; reportDetails?: AuditReportDetailsData; completedById?: string; reportNumber?: string; reportNumberScope?: string; reportNumberYear?: number; reportNumberSequence?: number };
+type AuditMeta = { title?: string; openingMeeting?: AnyRow; closingMeeting?: AnyRow; startedAt?: string | null; closedAt?: string | null; additionalDocuments?: AnyRow; reportDetails?: AuditReportDetailsData; completedById?: string; reportNumber?: string; reportNumberScope?: string; reportNumberYear?: number; reportNumberSequence?: number; reportApproval?: AuditReportApprovalState };
 const auditMeta = (row: AnyRow): AuditMeta => parseJson(row.status, {});
+function assertAuditReportEditable(row: AnyRow) {
+  if (reportContentLocked(auditMeta(row).reportApproval)) throw new HttpError(409,
+    "This Audit Report is pending approval or approved and cannot be edited. A reviewer must send it back before corrections can be made.");
+}
 const legacyDocumentRemarks = (rows: unknown): string => Array.isArray(rows)
   ? rows.filter((entry: AnyRow) => typeof entry.remarks === "string" && entry.remarks.trim())
     .map((entry: AnyRow) => `${entry.label}: ${entry.remarks}`).join("\n")
@@ -2403,7 +2412,8 @@ const auditDto = (row: AnyRow, canEdit = false) => {
   const meta = auditMeta(row);
   return {
     id: row.id, planId: row.auditPlanId!, projectId: row.projectId!, title: meta.title ?? row.referenceNumber,
-    canEdit, reportNumber: meta.reportNumber ?? null,
+    canEdit: canEdit && !reportContentLocked(meta.reportApproval), reportNumber: meta.reportNumber ?? null,
+    reportApproval: reportApprovalSummary(meta.reportApproval),
     status: auditIsComplete(row.workflowState) ? "Complete" : ({ planned: "Planned", "in progress": "In Progress", "report draft": "Report Draft", "car follow-up": "CAR Follow-up", scheduled: "Planned" } as AnyRow)[row.workflowState.toLowerCase()] ?? "Planned",
     reportDetails: meta.reportDetails ?? { values: {}, rows: {} },
     openingMeeting: meta.openingMeeting ? { ...meta.openingMeeting, heldAt: new Date(meta.openingMeeting.heldAt) } : undefined,
@@ -2426,6 +2436,21 @@ const auditDto = (row: AnyRow, canEdit = false) => {
     startedAt: meta.startedAt ? new Date(meta.startedAt) : null, closedAt: meta.closedAt ? new Date(meta.closedAt) : null,
   };
 };
+// Server-side protection covers every execution section, not only disabled UI controls.
+router.use("/audits/:id", asyncHandler(async (req, _res, next) => {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method) || ["/complete", "/review"].includes(req.path.replace(/\/$/, ""))) return next();
+  const [row] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
+  if (row) assertAuditReportEditable(row);
+  next();
+}));
+router.use("/findings/:id", asyncHandler(async (req, _res, next) => {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method) || /^\/cars\/?$/.test(req.path)) return next();
+  const [row] = await db.select({ status: audits.status }).from(auditFindings)
+    .innerJoin(audits, and(eq(audits.id, auditFindings.auditId), active(audits, actor(req).organizationId)))
+    .where(and(active(auditFindings, actor(req).organizationId), eq(auditFindings.id, String(req.params.id))));
+  if (row) assertAuditReportEditable(row);
+  next();
+}));
 function withoutFindingNumber(item: AnyRow) {
   const { findingNumber, findingNumberScope, findingNumberYear, findingNumberSequence, findingNumberType, ...values } = item;
   return values;
@@ -2630,7 +2655,10 @@ router.get("/audits/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!row) throw new HttpError(404, "Audit not found");
   const editScope = await getAuthorizedProjectScope(req, "audit", { module: "audits", action: "full" });
+  const reviewers = auditMeta(row).reportApproval?.status === "Pending approval"
+    ? await reportReviewers(db, actor(req).organizationId, row.projectId) : [];
   res.json({ ...auditDto(row, editScope.unrestricted || (row.projectId ? editScope.projectIds.includes(row.projectId) : editScope.projectIds.length > 0 || editScope.processAuditsAllowed === true)),
+    reportApproval: reportApprovalSummary(auditMeta(row).reportApproval, canReviewReport(auditMeta(row).reportApproval, reviewers, actor(req).id)),
     ...await auditOverviewContext(db, actor(req).organizationId, row, plan => planMeta(plan).planNumber),
     openingMeetingBounds: await openingMeetingBounds(db, actor(req).organizationId, row.auditPlanId) });
 }));
@@ -2639,22 +2667,61 @@ router.post("/audits/:id/complete", asyncHandler(async (req, res) => {
     const [before] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId),
       eq(audits.id, String(req.params.id)))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    await assertAuditRecordAccess(req, "audit", before.id);
     if (!String(auditMeta(before).reportNumber ?? "").trim()) {
       throw new HttpError(409, "Save Report Details to generate the Audit Report Number before marking the audit Complete.");
     }
-    if (auditIsComplete(before.workflowState)) return { before, row: before, changed: false };
+    const meta = auditMeta(before);
+    if (meta.reportApproval && meta.reportApproval.status !== "Sent back") return { before, row: before, changed: false };
     await assertFieldAccess(req, "audit", "audit-execution", {
       mode: "update", current: auditDto(before), body: { status: "Complete" },
     });
     await assertFieldControls(req, "audit", "audit-execution", { mode: "update", current: auditDto(before), body: { status: "Complete" } });
+    const reportApproval = submitReportApproval(await reportReviewers(tx, actor(req).organizationId, before.projectId),
+      actor(req).id, meta.reportApproval);
     const [row] = await tx.update(audits).set({
       workflowState: "closed", updatedAt: new Date(),
-      status: JSON.stringify({ ...auditMeta(before), closedAt: new Date().toISOString(), completedById: actor(req).id }),
+      status: JSON.stringify({ ...meta, closedAt: meta.closedAt ?? new Date().toISOString(), completedById: actor(req).id, reportApproval }),
     }).where(eq(audits.id, before.id)).returning();
     return { before, row, changed: true };
   });
-  if (result.changed) await auditLog(req, "complete", "audit", result.row.id, result.before, result.row);
+  if (result.changed) {
+    await auditLog(req, "complete", "audit", result.row.id, result.before, result.row);
+    await notifyReportApproval(req, result.row);
+  }
   res.json(auditDto(result.row, true));
+}));
+async function notifyReportApproval(req: Request, row: AnyRow) {
+  const approval = auditMeta(row).reportApproval!;
+  const summary = reportApprovalSummary(approval);
+  const recipients = summary.status === "Pending approval" ? summary.pendingApprovers.map(user => user.id) : [approval.submittedById];
+  for (const userId of new Set(recipients)) await notify(db, "audit", {
+    organizationId: actor(req).organizationId, userId, type: "audit_report_approval",
+    title: summary.status === "Pending approval" ? "Audit Report awaiting your approval" : `Audit Report: ${summary.status}`,
+    body: `${auditMeta(row).title ?? row.referenceNumber}: ${summary.status}${summary.pendingLevel ? ` — Level ${summary.pendingLevel}` : ""}.`,
+    entityType: "audit", entityId: row.id,
+  });
+}
+router.post("/audits/:id/review", asyncHandler(async (req, res) => {
+  const data = body<{ decision: "approve" | "send_back"; remarks?: string }>(Api.ReviewAuditReportBody, req);
+  const result = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId),
+      eq(audits.id, String(req.params.id)))).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    const readScope = await moduleSelectScope(req, "audits");
+    if (!readScope.unrestricted && !(before.projectId ? readScope.projectIds.includes(before.projectId) : readScope.processAuditsAllowed)) {
+      throw new HttpError(403, "Audit read access is required in this record's scope");
+    }
+    const meta = auditMeta(before);
+    const reportApproval = reviewReportApproval(meta.reportApproval,
+      await reportReviewers(tx, actor(req).organizationId, before.projectId), actor(req).id, actor(req).fullName, data.decision, data.remarks);
+    const [row] = await tx.update(audits).set({ status: JSON.stringify({ ...meta, reportApproval }), updatedAt: new Date() })
+      .where(eq(audits.id, before.id)).returning();
+    return { before, row };
+  });
+  await auditLog(req, data.decision === "approve" ? "approve_report" : "send_back_report", "audit", result.row.id, result.before, result.row);
+  await notifyReportApproval(req, result.row);
+  res.json(auditDto(result.row));
 }));
 router.put("/audits/:id/report-details", asyncHandler(async (req, res) => {
   const data = body<AuditReportDetailsData>(Api.SaveAuditReportDetailsBody, req);
@@ -2666,6 +2733,7 @@ router.put("/audits/:id/report-details", asyncHandler(async (req, res) => {
     const [before] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId),
       eq(audits.id, String(req.params.id)))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    assertAuditReportEditable(before);
     const captions = data.rows.photographs?.filter(row => row.fileName?.trim()) ?? [];
     if (captions.length) {
       const files = await tx.select({ fileName: auditEvidenceFiles.fileName }).from(auditEvidenceFiles).where(and(
@@ -2753,6 +2821,7 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
         .map((item: AnyRow) => preserveFindingNumber(item, currentChecklist.find(previous => previous.id === item.id))),
       ...findingRows,
     ] : currentChecklist;
+    assertAuditReportEditable(locked);
     if (auditIsComplete(data.status) !== auditIsComplete(locked.workflowState)) {
       throw new HttpError(409, "The audit completion status changed. Reload before editing.");
     }
@@ -2810,6 +2879,7 @@ async function updateMeeting(req: Request, kind: "opening" | "closing", schema: 
     if (kind === "opening") {
       await assertOpeningMeetingWrite(tx, req, locked.auditPlanId, req.body.heldAt);
     }
+    assertAuditReportEditable(locked);
     const meta = auditMeta(locked); meta[`${kind}Meeting`] = { ...data, heldAt: data.heldAt.toISOString() };
     if (kind === "opening" && meta.openingMeeting) meta.openingMeeting.heldAtLocal = req.body.heldAt;
     if (kind === "opening" && !meta.startedAt) meta.startedAt = data.heldAt.toISOString();
@@ -2828,6 +2898,7 @@ router.put("/audits/:id/checklist", asyncHandler(async (req, res) => {
   const { before, row } = await db.transaction(async tx => {
   const [before] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id)))).for("update");
   if (!before) throw new HttpError(404, "Audit not found");
+  assertAuditReportEditable(before);
   const legacyResults = (Array.isArray(before.checklistState) ? before.checklistState : [])
     .map((item: AnyRow) => item.result).filter((value: unknown): value is string => typeof value === "string");
   const existingItems = new Map((Array.isArray(before.checklistState) ? before.checklistState : [])
@@ -2881,6 +2952,7 @@ router.post("/audits/:id/checklist/items", asyncHandler(async (req, res) => {
       active(audits, organizationId), eq(audits.id, auditId),
     )).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    assertAuditReportEditable(before);
     const checklist = Array.isArray(before.checklistState) ? before.checklistState : [];
     const item = { id: randomUUID(), ...checklistItemValues(data, evidenceIds) };
     const [row] = await tx.update(audits).set({
@@ -2901,6 +2973,7 @@ router.put("/audits/:id/checklist/items/:itemId", asyncHandler(async (req, res) 
   const { before, row } = await db.transaction(async tx => {
     const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    assertAuditReportEditable(before);
     const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
     const previous = checklist.find(item => item.id === itemId);
     if (!previous) throw new HttpError(404, "Checklist item not found");
@@ -2927,6 +3000,7 @@ router.delete("/audits/:id/checklist/items/:itemId", asyncHandler(async (req, re
       active(audits, organizationId), eq(audits.id, auditId),
     )).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    assertAuditReportEditable(before);
     await assertAuditProject(req, before.projectId);
     const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
     const item = checklist.find(value => value.id === itemId && value.source !== "finding");
@@ -2954,6 +3028,7 @@ router.post("/audits/:id/checklist/import", asyncHandler(async (req, res) => {
   const { before, row } = await db.transaction(async tx => {
     const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    assertAuditReportEditable(before);
     const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
     let merged: ReturnType<typeof mergeAuditChecklistImport>;
     try {
@@ -2993,6 +3068,7 @@ router.post("/audits/:id/finding-items", asyncHandler(async (req, res) => {
     const { settings } = await lockScheduleNumbering(tx, organizationId);
     const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    assertAuditReportEditable(before);
     const checklist = Array.isArray(before.checklistState) ? before.checklistState : [];
     if (data.clientReference && checklist.some((entry: AnyRow) => entry.source === "finding" && entry.clientReference === data.clientReference)) {
       return { before, row: before, created: false };
@@ -3109,6 +3185,7 @@ router.put("/audits/:id/additional-documents/organization-chart", asyncHandler(a
   const { before, row, replaced } = await db.transaction(async tx => {
     const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    assertAuditReportEditable(before);
     const meta = auditMeta(before);
     const currentId = meta.additionalDocuments?.organizationChartId ?? null;
     // An identical retry must not remove the current chart.
@@ -3168,6 +3245,7 @@ router.put("/audits/:id/additional-documents/good-practices", asyncHandler(async
   const { before, row } = await db.transaction(async tx => {
     const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    assertAuditReportEditable(before);
     const evidenceIds = [...new Set<string>(rows.flatMap((item: AnyRow) =>
       typeof item.evidenceId === "string" ? [item.evidenceId] : []))];
     const files = evidenceIds.length ? await tx.select({
@@ -3209,6 +3287,7 @@ router.put("/audits/:id/additional-documents/overall-project-progress", asyncHan
       active(audits, organizationId), eq(audits.id, auditId),
     )).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    assertAuditReportEditable(before);
     await assertAuditProject(req, before.projectId);
     const meta = auditMeta(before);
     const [row] = await tx.update(audits).set({
@@ -3245,6 +3324,7 @@ router.put("/audits/:id/additional-documents/:section", asyncHandler(async (req,
   const { before, row } = await db.transaction(async tx => {
     const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
+    assertAuditReportEditable(before);
     const meta = auditMeta(before);
     const key = section === "design-status" ? "designStatus" : "procurementStatus";
     const remarksKey = section === "design-status" ? "designRemarks" : "procurementRemarks";
@@ -3448,7 +3528,7 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
   const [
     scheduleScope, planScope, auditScope, carScope,
     scheduleFullScope, planFullScope, auditFullScope, carFullScope,
-    scheduleReviewScope, effectiveScope,
+    scheduleReviewScope, effectiveScope, reportReviewScope,
   ] = await Promise.all([
     moduleSelectScope(req, "schedules"),
     moduleSelectScope(req, "plans"),
@@ -3460,19 +3540,35 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
     moduleFullScope(req, "cars"),
     moduleFullScope(req, "schedules", "review"),
     getAuthorizedProjectScope(req, "audit"),
+    moduleFullScope(req, "audits", "review"),
   ]);
   if (![scheduleScope, planScope, auditScope, carScope].some(scopeHasSelectAccess)) {
     throw new HttpError(403, "Audit select access is required");
   }
   const carLeadReviewer = scopeHasSelectAccess(carScope) && await carLeadMarker(organizationId, userId);
   if (![hasActionPermission(scheduleScope, scheduleFullScope), hasActionPermission(scheduleScope, scheduleReviewScope), hasActionPermission(planScope, planFullScope),
-    hasActionPermission(auditScope, auditFullScope), hasActionPermission(carScope, carFullScope), carLeadReviewer].some(Boolean)) {
+    hasActionPermission(auditScope, auditFullScope), hasActionPermission(auditScope, reportReviewScope), hasActionPermission(carScope, carFullScope), carLeadReviewer].some(Boolean)) {
     res.json(Api.ListAuditMyActionsResponse.parse(paginated([], 0, page, limit)));
     return;
   }
 
   const itemsByRecord = new Map<string, MyActionItem>();
   const add = (item: MyActionItem) => itemsByRecord.set(`${item.kind}:${item.id}`, item);
+  if (hasActionPermission(auditScope, reportReviewScope)) {
+    const reportRows = await db.select().from(audits).where(active(audits, organizationId));
+    const reviewerCache = new Map<string, Awaited<ReturnType<typeof reportReviewers>>>();
+    for (const row of reportRows) {
+      const approval = auditMeta(row).reportApproval;
+      if (approval?.status !== "Pending approval") continue;
+      if (!auditScope.unrestricted && !(row.projectId ? auditScope.projectIds.includes(row.projectId) : auditScope.processAuditsAllowed)) continue;
+      const key = row.projectId ?? "";
+      if (!reviewerCache.has(key)) reviewerCache.set(key, await reportReviewers(db, organizationId, row.projectId));
+      if (!canReviewReport(approval, reviewerCache.get(key)!, userId)) continue;
+      add({ kind: "audit", id: row.id, title: auditMeta(row).title ?? row.referenceNumber,
+        action: `Review Audit Report — Level ${approval.steps[approval.index]!.level}`,
+        status: "Pending approval", href: `/audit/audits/${row.id}`, dueDate: null });
+    }
+  }
 
   const scheduleRows = [
     hasActionPermission(scheduleScope, scheduleFullScope), hasActionPermission(scheduleScope, scheduleReviewScope), hasActionPermission(planScope, planFullScope),
@@ -4425,7 +4521,11 @@ function auditRoleAuthorizationLevel(data: AnyRow): number | null {
     throw new HttpError(422, "Unsupported Audit module permission");
   }
   if (!data.permissions.some((permission: { key: string }) =>
-    ["approve_reject", "schedules.approve_reject", "audit.schedules.approve_reject"].includes(permission.key))) return null;
+    ["approve_reject", "schedules.approve_reject", "audit.schedules.approve_reject", "audit.audits.approve_reject"].includes(permission.key))) return null;
+  if (!data.permissions.some((permission: { key: string }) =>
+    ["schedules.approve_reject", "audit.schedules.approve_reject", "audit.audits.approve_reject"].includes(permission.key))) {
+    throw new HttpError(422, "Select at least one approval module: Schedules / Programme or Audit Reports.");
+  }
   const level = data.roleAuthorizationLevel;
   if (!Number.isInteger(level) || level < 1 || level > 2147483647) {
     throw new HttpError(422, "Approval Level must be a positive whole number when Approve / reject is selected");

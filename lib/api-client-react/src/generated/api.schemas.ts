@@ -2203,6 +2203,7 @@ export const PermissionKey = {
   auditauditsview_all: 'audit.audits.view_all',
   auditauditscreate_edit: 'audit.audits.create_edit',
   auditauditsdelete: 'audit.audits.delete',
+  auditauditsapprove_reject: 'audit.audits.approve_reject',
   auditauditsexport: 'audit.audits.export',
   auditfindingsview_all: 'audit.findings.view_all',
   auditfindingscreate_edit: 'audit.findings.create_edit',
@@ -4089,6 +4090,38 @@ export type AuditOpeningMeetingBounds = {
   readonly toDate: string | null;
 };
 
+export type AuditReportApprovalStatus = typeof AuditReportApprovalStatus[keyof typeof AuditReportApprovalStatus];
+
+
+export const AuditReportApprovalStatus = {
+  Not_submitted: 'Not submitted',
+  Pending_approval: 'Pending approval',
+  Approved: 'Approved',
+  Sent_back: 'Sent back',
+} as const;
+
+export type AuditReportApprovalPendingApproversItem = {
+  id: string;
+  name: string;
+};
+
+export type AuditReportApprovalHistoryItem = {
+  decision: string;
+  userName: string;
+  level: number;
+  remarks: string;
+  at: string;
+};
+
+export interface AuditReportApproval {
+  readonly status: AuditReportApprovalStatus;
+  /** @nullable */
+  readonly pendingLevel: number | null;
+  readonly pendingApprovers: AuditReportApprovalPendingApproversItem[];
+  readonly canReview: boolean;
+  readonly history: AuditReportApprovalHistoryItem[];
+}
+
 export type AuditReportDetailsValues = {[key: string]: string};
 
 export type AuditReportDetailsRowsItem = {[key: string]: string};
@@ -4120,6 +4153,7 @@ export interface Audit {
      * @nullable
      */
   readonly reportNumber?: string | null;
+  reportApproval?: AuditReportApproval;
   projectId: string;
   title: string;
   status: AuditStatus;
@@ -4135,6 +4169,20 @@ export interface Audit {
   startedAt?: string | null;
   /** @nullable */
   closedAt?: string | null;
+}
+
+export type AuditReportApprovalDecisionInputDecision = typeof AuditReportApprovalDecisionInputDecision[keyof typeof AuditReportApprovalDecisionInputDecision];
+
+
+export const AuditReportApprovalDecisionInputDecision = {
+  approve: 'approve',
+  send_back: 'send_back',
+} as const;
+
+export interface AuditReportApprovalDecisionInput {
+  decision: AuditReportApprovalDecisionInputDecision;
+  /** @maxLength 4000 */
+  remarks?: string;
 }
 
 export type AuditReportSectionFieldsItem = {

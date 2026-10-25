@@ -373,7 +373,7 @@ function Roles({ app }: { app: AppKey }) {
     : basePermissionLabels;
   const permissionKeys = (app === 'qaqc' ? [...qaqcGlobalPermissions] as PermissionKey[] : (Object.keys(permissionLabels) as PermissionKey[])).filter(key => app === 'qaqc' || app === 'audit' || (key !== 'create_audit_programme' && key !== 'audit_team_lead' && key !== 'audit_program_manager' && key !== 'product_process_owner'));
   const roleHasApproval = (role: Role) => app === 'qaqc' ? hasQaqcRoleApprovalPermission(role.permissions)
-    : role.permissions.some(p => ['approve_reject', 'schedules.approve_reject', 'audit.schedules.approve_reject'].includes(p.key));
+    : role.permissions.some(p => ['approve_reject', 'schedules.approve_reject', 'audit.schedules.approve_reject', 'audit.audits.approve_reject'].includes(p.key));
   const supportsApprovalLevel = app === 'audit' || app === 'qaqc';
   const hasApproveReject = !!editing && roleHasApproval(editing);
   const parsedAuthorizationLevel = /^\d+$/.test(authorizationLevelInput) ? Number(authorizationLevelInput) : NaN;
@@ -408,6 +408,11 @@ function Roles({ app }: { app: AppKey }) {
   };
   const save = () => {
     if (!editing?.name.trim()) return;
+    if (app === 'audit' && hasApproveReject && !editing.permissions.some(p =>
+      ['schedules.approve_reject', 'audit.schedules.approve_reject', 'audit.audits.approve_reject'].includes(p.key))) {
+      act.fail(new Error('Select at least one approval module: Schedules / Programme or Audit Reports.'));
+      return;
+    }
     if (supportsApprovalLevel && hasApproveReject && !validAuthorizationLevel) return;
     const exists = api.roles.data?.items.some(r => r.id === editing.id);
     const mutation = exists ? act.updateRole : act.createRole;

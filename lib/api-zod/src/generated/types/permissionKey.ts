@@ -123,6 +123,7 @@ export const PermissionKey = {
   auditauditsview_all: 'audit.audits.view_all',
   auditauditscreate_edit: 'audit.audits.create_edit',
   auditauditsdelete: 'audit.audits.delete',
+  auditauditsapprove_reject: 'audit.audits.approve_reject',
   auditauditsexport: 'audit.audits.export',
   auditfindingsview_all: 'audit.findings.view_all',
   auditfindingscreate_edit: 'audit.findings.create_edit',

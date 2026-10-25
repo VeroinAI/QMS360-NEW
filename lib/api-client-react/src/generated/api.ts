@@ -71,6 +71,7 @@ import type {
   AuditProgrammeSubmissionBody,
   AuditProgrammeTeamLeadsBody,
   AuditProjectProgressInput,
+  AuditReportApprovalDecisionInput,
   AuditReportDetails,
   AuditSchedule,
   AuditScheduleActivityOptions,
@@ -22669,6 +22670,78 @@ export const useCompleteAudit = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCompleteAuditMutationOptions(options));
+    }
+
+export const getReviewAuditReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/review`
+}
+
+/**
+ * @summary Approve the current Audit Report level or send the report back for correction
+ */
+export const reviewAuditReport = async (id: string,
+    auditReportApprovalDecisionInput: AuditReportApprovalDecisionInput, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getReviewAuditReportUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(auditReportApprovalDecisionInput)
+  }
+);}
+
+
+
+
+
+export const getReviewAuditReportMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAuditReport>>, TError,{id: string;data: BodyType<AuditReportApprovalDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewAuditReport>>, TError,{id: string;data: BodyType<AuditReportApprovalDecisionInput>}, TContext> => {
+
+const mutationKey = ['reviewAuditReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewAuditReport>>, {id: string;data: BodyType<AuditReportApprovalDecisionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reviewAuditReport(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewAuditReportMutationResult = NonNullable<Awaited<ReturnType<typeof reviewAuditReport>>>
+    export type ReviewAuditReportMutationBody = BodyType<AuditReportApprovalDecisionInput>
+    export type ReviewAuditReportMutationError = ErrorType<void>
+
+    /**
+ * @summary Approve the current Audit Report level or send the report back for correction
+ */
+export const useReviewAuditReport = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAuditReport>>, TError,{id: string;data: BodyType<AuditReportApprovalDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewAuditReport>>,
+        TError,
+        {id: string;data: BodyType<AuditReportApprovalDecisionInput>},
+        TContext
+      > => {
+      return useMutation(getReviewAuditReportMutationOptions(options));
     }
 
 export const getSaveAuditReportDetailsUrl = (id: string,) => {

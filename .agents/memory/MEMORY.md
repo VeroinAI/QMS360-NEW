@@ -81,6 +81,7 @@
 - [Audit document replacement safety](audit-document-replacement-safety.md) — unlink charts without deleting evidence cited elsewhere; merge audit metadata under a row lock.
 - [Audit attachment scopes](audit-attachment-scopes.md) — legacy uploads share MIME-based categories; exclude Checklist references, tag new Checklist and Attachment uploads separately.
 - [Audit approval level migration](audit-approval-level-migration.md) — preserve in-flight role snapshots and materialize legacy L-number levels once; new sequencing reads stored levels only.
+- [Audit Report approval](audit-report-approval-policy.md) — completion triggers module-specific scoped approval; preserve schedule routing and validate new permission keys through the Settings API.
 - [Audit status remarks migration](audit-status-remarks-migration.md) — section-wide remarks replace row text; show legacy notes together rather than dropping them.
 - [Overall project progress scope](audit-project-progress-scope.md) — manual Additional Documents data; only Weight is explicitly a percentage, with no sample defaults or invented weighted totals.
 - [API runtime asset paths](api-runtime-asset-paths.md) — production may run from workspace root; package and resolve assets independently of the process working directory.

@@ -19,4 +19,21 @@ describe("Audit module controls", () => {
     expect(auditModulePermissionMatches("audit.schedules.create_edit", "plans", "create_edit")).toBe(false);
     expect(auditModulePermissionMatches("audit_program_manager", "schedules", "create_edit")).toBe(false);
   });
+  it("requires a module for a global approval grant and offers independent schedule and report choices", () => {
+    const html = renderToStaticMarkup(<AuditModulePermissions permissions={[
+      { key: "approve_reject", name: "Approve / reject" },
+    ]} onToggle={() => {}}/>);
+    expect(html).toContain("Approval applies to *");
+    expect(html).toContain("Select an approval module before saving this role.");
+    expect(html).toContain("approval-module-audit.schedules.approve_reject");
+    expect(html).toContain("approval-module-audit.audits.approve_reject");
+  });
+  it("accepts report-only approval without implicitly selecting scheduling", () => {
+    const html = renderToStaticMarkup(<AuditModulePermissions permissions={[
+      { key: "audit.audits.approve_reject", name: "Report approval" },
+    ]} onToggle={() => {}}/>);
+    expect(html).not.toContain("Select an approval module before saving this role.");
+    expect(html).toMatch(/data-testid="approval-module-audit.audits.approve_reject"[^>]*aria-checked="true"|aria-checked="true"[^>]*data-testid="approval-module-audit.audits.approve_reject"/);
+    expect(html).toMatch(/data-testid="approval-module-audit.schedules.approve_reject"[^>]*aria-checked="false"|aria-checked="false"[^>]*data-testid="approval-module-audit.schedules.approve_reject"/);
+  });
 });

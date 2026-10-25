@@ -203,6 +203,7 @@ describe("Audit role permission persistence", () => {
     const selectedPermissions = [
       { key: "data_entry", name: "Data Entry" },
       { key: "approve_reject", name: "Approve or Reject" },
+      { key: "audit.schedules.approve_reject", name: "Schedules / Programme: Approve / reject" },
       { key: "audit_team_lead", name: "Audit Team Lead" },
       { key: "audit_program_manager", name: "Audit Program Manager" },
       { key: "product_process_owner", name: "Product / Process Owner" },
