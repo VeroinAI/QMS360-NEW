@@ -4,6 +4,7 @@ import { buildConsolidatedAuditReport } from "../src/lib/audit-consolidated-repo
 import { auditPptxMappings, PPTX_EMPTY } from "../src/lib/audit-pptx-mapping";
 import { renderConsolidatedAuditPptx } from "../src/lib/audit-consolidated-pptx";
 import { formatDate } from "@workspace/spreadsheet-dates";
+import { DOMParser } from "@xmldom/xmldom";
 
 const fixture = () => ({
   audit: {
@@ -222,7 +223,9 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
     expect(xml("ppt/slides/slide2.xml")).toContain("Selected lead");
     expect(xml("ppt/slides/slide2.xml")).toContain("QAM-IA/26-001");
     expect(xml("ppt/slides/slide8.xml")).toContain("Engineering");
-    expect(xml("ppt/slides/slide15.xml")).toContain("Actual root cause");
+    const tracker = new DOMParser().parseFromString(xml("ppt/slides/slide15.xml"), "application/xml");
+    expect(Array.from(tracker.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "t"))
+      .map(node => node.textContent).join("")).toContain("Actual root cause");
     const presentation = xml("ppt/presentation.xml");
     const oldPresentation = strFromU8(original["ppt/presentation.xml"]!);
     expect((presentation.match(/<p:sldId /g) ?? []).length).toBe((oldPresentation.match(/<p:sldId /g) ?? []).length - 1);

@@ -7,6 +7,7 @@ import { programmePages, programmeLines } from "./audit-programme-pptx-layout";
 import { photographicPages, renderPhotographicPage } from "./audit-pptx-photo-layout";
 import { ofiPages, renderOfiPage } from "./audit-pptx-ofi-layout";
 import { summaryPages, renderSummaryPage } from "./audit-pptx-summary-layout";
+import { carPages, renderCarPage } from "./audit-pptx-car-layout";
 
 export const AUDIT_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -210,14 +211,15 @@ export async function renderConsolidatedAuditPptx(input: {
     const mapping = mappings.get(slideNumber);
     const ofi = slideNumber === 12 ? ofiPages(tables[0]!, mapping?.tables[0] ?? []) : undefined;
     const summary = slideNumber === 7 ? summaryPages(tables[0]!, mapping?.tables[0] ?? []) : undefined;
+    const cars = slideNumber === 15 ? carPages(mapping?.tables[0] ?? []) : undefined;
     const pages = mapping?.tables.map((rows, i) => {
-      if (slideNumber === 12 || slideNumber === 7) return [];
+      if ([7, 12, 15].includes(slideNumber)) return [];
       const start = tableStarts[slideNumber] ?? 1;
       const capacity = elements(tables[i]!, A, "tr").length - start;
       if (capacity < 1) throw new Error("PowerPoint template has no table data rows");
       // Long cells are continued without truncation, within the existing row geometry.
       const expanded = rows.flatMap(row => {
-        const maxLength = slideNumber === 15 ? 110 : 160;
+        const maxLength = 160;
         const count = Math.max(1, ...row.map(cell => Math.ceil(cell.length / maxLength)));
         return Array.from({ length: count }, (_, part) => row.map((cell, col) =>
           col === 0 ? (part ? `${cell} (continued)` : cell)
@@ -240,6 +242,7 @@ export async function renderConsolidatedAuditPptx(input: {
     const count = Math.max(1, ...pages.map(p => p.length), slideNumber === 5 ? activities.length : 1,
       ofi?.length ?? 1,
       summary?.length ?? 1,
+      cars?.length ?? 1,
       slideNumber === 13 ? photos.length : 1, slideNumber === 7 ? themes.length : 1,
       ...(slideNumber === 4 ? scopeText.map(pages => pages.length) : [1]),
       ...(slideNumber === 5 ? participation.map(p => p.length) : [1]));
@@ -256,9 +259,9 @@ export async function renderConsolidatedAuditPptx(input: {
       for (const [id, text] of Object.entries(mapping?.shapes ?? {})) setShape(doc, Number(id), text);
       if (summary) renderSummaryPage(slideTables[0]!, summary[page], setText);
       else if (ofi) renderOfiPage(doc, slideTables[0]!, ofi[page]!, setText);
+      else if (cars) renderCarPage(slideTables[0]!, cars[page]!, setText);
       else mapping?.tables.forEach((_, i) => setTable(slideTables[i]!, pages[i]?.[page] ?? [], tableStarts[slideNumber] ?? 1,
-        elements(slideTables[i]!, A, "tr").length - (tableStarts[slideNumber] ?? 1), [8, 10, 15].includes(slideNumber),
-        slideNumber === 15 ? ["No CAR responses recorded", "—", "—", "—", "—", "—", "—", "—"] : undefined));
+        elements(slideTables[i]!, A, "tr").length - (tableStarts[slideNumber] ?? 1), [8, 10].includes(slideNumber)));
       if ([11, 12].includes(slideNumber)) {
         const group = elements(slideTables[0]!, A, "tr")[1]!;
         const cells = elements(group, A, "tc");

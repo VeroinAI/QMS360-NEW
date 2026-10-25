@@ -240,10 +240,13 @@ export function buildConsolidatedAuditReport(input: {
   grading.notes.push("Definitions and response windows are proposed for approval in the supplied client standard. This report does not change existing CAR due dates.",
     "Response sequence: root-cause analysis and CAPA plan; audit team acceptance; implementation with evidence; effectiveness verification; closure in tracker.");
   const tracker = section("corrective-actions", "Corrective action tracker");
-  tracker.tables.push({ title: "Corrective actions", columns: ["Ref", "Grade", "Root cause", "Correction and corrective action", "Owner", "Due date", "Status", "Verified by / date"],
+  tracker.tables.push({ title: "Corrective actions", columns: ["Ref", "Grade", "Root cause",
+    ...(input.pptxWorkbookMappings ? ["Correction", "Corrective action"] : ["Correction and corrective action"]),
+    "Owner", "Due date", "Status", "Verified by / date"],
     rows: cars.map(car => { const f = findings.find(f => f.id === car.findingId);
       return [car.carNumber || (input.pptxWorkbookMappings ? missing : "Not numbered"), f?.grade ?? missing, value(car.rootCause),
-        [car.correction, car.correctiveAction].filter(Boolean).join("\n") || missing, name(car.ownerId), date(car.dueDate),
+        ...(input.pptxWorkbookMappings ? [car.correction?.trim() || missing, car.correctiveAction?.trim() || missing]
+          : [[car.correction, car.correctiveAction].filter(Boolean).join("\n") || missing]), name(car.ownerId), date(car.dueDate),
         value(car.status), car.effectivenessVerified ? `Effectiveness verified; ${date(car.closedAt)}; verifier ${missing}` : missing]; }) });
   const actions = section("priority-actions", "Recommended priority actions");
   for (const key of ["containRisk", "correctClose", "preventRecurrence"]) collection(actions, key);

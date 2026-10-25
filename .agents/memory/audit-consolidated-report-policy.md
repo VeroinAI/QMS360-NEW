@@ -169,3 +169,14 @@ slide but must not gain another bullet or circle.
 **How to apply:** Preserve saved remarks, meetings and shared PDF/JSON report data, dates
 and auditees. Allocate PowerPoint space from visible content only. Remove unused template milestones and leave continuation
 text unmarked. Do not change the saved programme or unrelated report sections.
+
+The PowerPoint CAR tracker must show Correction and Corrective action as separate
+response fields, with an independent `-` for each missing value. Keep PDF/JSON's
+combined response representation unchanged.
+
+**Why:** The user requested a PowerPoint-only separation of the two saved CAR
+responses, not a change to CAR entry, storage, workflows or other report formats.
+
+**How to apply:** Preserve field identity through row mapping and continuation
+pagination; never infer one response from the other or shift the owner, due date,
+status or verification data when changing the tracker columns.

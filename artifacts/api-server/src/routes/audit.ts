@@ -4479,15 +4479,16 @@ router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
     const finding = report.findings.find(f => f.id === car.auditFindingId);
     const item = Array.isArray(report.audit.checklistState) ? report.audit.checklistState.find((i: AnyRow) => i.id === (finding?.evidence as AnyRow)?.sourceChecklistItemId) as AnyRow | undefined : undefined;
     const due = carDueDate(item?.auditFinding || finding?.classification, findingDateValue(item, finding), car.dueDate);
-    row[5] = car.extensionStatus === "approved" && car.extensionDueDate ? date(car.extensionDueDate) : due ? date(due) : "-";
-    row[6] = carDto(car).status;
-    row[7] = meta.reviewedAt && (meta.reviewOutcome === "accept" || car.workflowState === "closed" || car.workflowState === "accepted")
+    row[6] = car.extensionStatus === "approved" && car.extensionDueDate ? date(car.extensionDueDate) : due ? date(due) : "-";
+    row[7] = carDto(car).status;
+    row[8] = meta.reviewedAt && (meta.reviewOutcome === "accept" || car.workflowState === "closed" || car.workflowState === "accepted")
       ? `${reviewerRows.find(u => u.id === meta.reviewedBy)?.name || "-"} / ${date(meta.reviewedAt)}`
       : "Pending verification";
     row[1] = ["Not recorded", "-"].includes(row[1]!) ? report.findings.find(f => f.id === car.auditFindingId)?.classification || "-" : row[1]!;
     row[2] = car.rootCause?.trim() || "-";
-    row[3] = [car.correction, car.correctiveAction].filter(value => value?.trim()).join("\n") || "-";
-    if (row[4] === "Not recorded" || row[4] === "To be mapped") row[4] = "-";
+    row[3] = car.correction?.trim() || "-";
+    row[4] = car.correctiveAction?.trim() || "-";
+    if (row[5] === "Not recorded" || row[5] === "To be mapped") row[5] = "-";
   });
   const images = new Map<string, Uint8Array>();
   for (const photo of report.sections.flatMap(s => s.photos)) {
