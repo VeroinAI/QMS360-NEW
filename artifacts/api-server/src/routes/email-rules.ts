@@ -20,7 +20,7 @@ const knownEvents = [
   "audit.audit_finding.create", "audit.audit_finding.delete", "audit.audit_finding.update",
   "audit.audit_plan.create", "audit.audit_plan.delete", "audit.audit_plan.send_for_audit", "audit.audit_plan.share", "audit.audit_plan.update",
   "audit.audit_programme.approve", "audit.audit_programme.approved_final", "audit.audit_programme.create", "audit.audit_programme.delete", "audit.audit_programme.reject", "audit.audit_programme.send_back", "audit.audit_programme.submit",
-  "audit.audit_schedule.approve", "audit.audit_schedule.approved_final", "audit.audit_schedule.create", "audit.audit_schedule.delete", "audit.audit_schedule.reject", "audit.audit_schedule.send_back", "audit.audit_schedule.submit", "audit.audit_schedule.update",
+  "audit.audit_schedule.approve", "audit.audit_schedule.approved_final", "audit.audit_schedule.create", "audit.audit_schedule.delete", "audit.audit_schedule.reject", "audit.audit_schedule.reschedule_audit", "audit.audit_schedule.send_back", "audit.audit_schedule.submit", "audit.audit_schedule.update",
   "audit.corrective_action_report.cancel_extension", "audit.corrective_action_report.close", "audit.corrective_action_report.create",
   "audit.corrective_action_report.request_extension", "audit.corrective_action_report.submit", "audit.corrective_action_report.update",
   "audit.delegation.create", "audit.delegation.revoke", "audit.escalation_rules.replace",
@@ -229,6 +229,8 @@ async function registeredEmailEvents(organizationId: string) {
     value,
     label: value === "audit.audit_programme.submit"
       ? "Audit · Audit Schedule · Submit / Resubmit"
+      : value === "audit.audit_schedule.reschedule_audit"
+        ? "Audit · Individual Audit · Audit Rescheduled"
       : value.split(".").map((part) => part.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())).join(" · "),
   }));
 }

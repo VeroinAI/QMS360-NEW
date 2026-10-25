@@ -113,3 +113,4 @@
 - [Project closure target ownership](project-closure-target-ownership.md) — edit targets in Project Master; keep Reporting Settings read-only and preserve hidden workflow configuration.
 - [Calculation tile visibility](qaqc-calculation-tile-policy.md) — no technical Server calculation tile on Daily or CSAT forms; preserve calculations and validation.
 - [CSAT final submission](csat-submission-origin-policy.md) — Yes submits and locks; No persists a draft; submitted surveys have no approval/send-back workflow.
+- [Email-rule browser test isolation](browser-email-rule-test-isolation.md) — save enabled test rules only in disposable organizations, never shared demo or live accounts.
