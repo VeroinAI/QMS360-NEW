@@ -1,6 +1,13 @@
 export type ParticipantContext = { projectIds: string[]; process?: boolean; departmentId?: string | null };
 type Assignment = { projectIds: string[] | null; businessUnitIds: string[] | null; departmentIds: string[] | null };
 
+/** Process Audit team membership requires an owner grant for its department,
+ * or an organization-wide Audit assignment. Other participant lists are unchanged. */
+export function processTeamAssignmentMatches(row: Assignment, departmentId: string | null | undefined, owner: boolean): boolean {
+  const organizationWide = !row.projectIds?.length && !row.departmentIds?.length && !row.businessUnitIds?.length;
+  return organizationWide || !!departmentId && owner && !!row.departmentIds?.includes(departmentId);
+}
+
 /** Evaluate each qualifying Audit assignment independently; never union unrelated grants. */
 export function participantAssignmentMatches(row: Assignment, context?: ParticipantContext): boolean {
   if (!context) return false;

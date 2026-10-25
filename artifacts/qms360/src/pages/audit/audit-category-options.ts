@@ -11,6 +11,14 @@ export function linkedAuditTypes(category: CategoryOption): string[] {
 
 export function categoryOptionsForAuditType<T extends CategoryOption>(categories: T[], auditType: string): T[] {
   if (!auditType) return [];
+  const type = auditType.trim().toLowerCase();
+  if (type === "quality internal product audit" || type === "product audit") {
+    return categories.filter(category => category.value.trim().toLowerCase() === "project");
+  }
+  if (type === "quality internal process audit" || type === "process audit") {
+    return categories.filter(category => ["business unit", "regional office", "warehouse"]
+      .includes(category.value.trim().toLowerCase()));
+  }
   // Existing installations have no links yet. Keep their choices available until
   // an administrator starts configuring type/category associations.
   const hasLinks = categories.some(category => linkedAuditTypes(category).length > 0);

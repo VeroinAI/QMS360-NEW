@@ -21,4 +21,15 @@ describe("Audit Category choices", () => {
     const unlinked = categories.map(category => ({ ...category, metadata: {} }));
     expect(categoryOptionsForAuditType(unlinked, "Process")).toEqual(unlinked);
   });
+
+  it("restricts standard Product and Process audits regardless of old master-data links", () => {
+    const values = ["Project", "Business Unit", "Regional Office", "Warehouse", "Other"]
+      .map(value => ({ value, label: value, metadata: { auditTypeValues: ["Quality Internal Product Audit", "Quality Internal Process Audit"] } }));
+    expect(categoryOptionsForAuditType(values, "Quality Internal Product Audit").map(c => c.value)).toEqual(["Project"]);
+    expect(categoryOptionsForAuditType(values, "Quality Internal Process Audit").map(c => c.value))
+      .toEqual(["Business Unit", "Regional Office", "Warehouse"]);
+    expect(categoryOptionsForAuditType(values, "Product Audit").map(c => c.value)).toEqual(["Project"]);
+    expect(categoryOptionsForAuditType(values, "Process Audit").map(c => c.value))
+      .toEqual(["Business Unit", "Regional Office", "Warehouse"]);
+  });
 });

@@ -120,14 +120,14 @@ describe("audit schedule spreadsheet", () => {
     expect([lists.getCell("I2").value, lists.getCell("I3").value, lists.getCell("I4").value])
       .toEqual(["Business Unit", "Regional Office", null]);
     expect([lists.getCell("J2").value, lists.getCell("J3").value, lists.getCell("J4").value])
-      .toEqual(["Regional Office", "Project", null]);
+      .toEqual(["Project", null, null]);
     expect(lists.getCell("H4").value).toBe("EmptyAuditCategories");
     expect(reopened.definedNames.getRanges("EmptyAuditCategories").ranges).toEqual(["'Dropdown Values'!$G$5"]);
     expect(lists.getCell("G5").value).toBeNull();
     expect(reopened.definedNames.getRanges("ScheduleCategories1").ranges)
       .toEqual(["'Dropdown Values'!$I$2:$I$3"]);
     expect(reopened.definedNames.getRanges("ScheduleCategories2").ranges)
-      .toEqual(["'Dropdown Values'!$J$2:$J$3"]);
+      .toEqual(["'Dropdown Values'!$J$2"]);
     expect(reopened.getWorksheet("Instructions")?.getCell("B4").value).toContain("reselect the category");
   });
 

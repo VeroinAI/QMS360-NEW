@@ -52,7 +52,7 @@
 - [Drona container build](drona-container-build.md) — isolate relative assets and hash navigation from Replit builds; portable assets do not configure the API bridge.
 - [Workspace package installation](workspace-package-installation.md) — package installer targets root; pnpm rejects unscoped root installs, so use artifact-filtered pnpm for leaf-only dependencies.
 - [Role-based application entry](role-based-application-entry.md) — active roles grant entry in all three modules; no separate application approval; preserve RBAC and report approvals.
-- [Audit type-category links](audit-type-category-links.md) — administrators maintain category-to-type links in master data; do not infer a hardcoded mapping from existing schedules.
+- [Audit type-category links](audit-type-category-links.md) — standard Product/Process category restrictions override old links; custom types keep master-data mappings and historical edits stay valid.
 - [Task rebase verification](task-rebase-verification.md) — after resolving overlapping task edits, rerun focused tests against the final rebased tree; semantic merging can scramble test bodies.
 - [Audit Team Lead marker](audit-team-lead-marker.md) — assigned leads review CARs with scoped read access; acceptance closes immediately; the marker grants no unrelated rights.
 - [Audit Program Manager marker](audit-program-manager-marker.md) — permits only post-approval Team Lead changes on scoped Audit Schedules, not general edit or approval.

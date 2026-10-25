@@ -728,8 +728,11 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
   const selectAuditType = (value: string) => {
     setForm(current => ({
       ...current, auditTypes: [value], projectIds: [], departmentProject: "",
-      auditCategory: categoryOptionsForAuditType(auditCategories.options, value)
-        .some(option => option.value === current.auditCategory) ? current.auditCategory : "",
+      auditCategory: (() => {
+        const choices = categoryOptionsForAuditType(auditCategories.options, value);
+        return choices.length === 1 ? choices[0].value
+          : choices.some(option => option.value === current.auditCategory) ? current.auditCategory : "";
+      })(),
     }));
     setErrors(current => {
       const next = { ...current };
@@ -1542,7 +1545,10 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     ? users
     : users.filter(user => selectedSchedule.teamLeadIds?.includes(user.id)
       && options.data?.leadUsers?.some(lead => lead.id === user.id));
-  const teamUsers = users.filter(user => user.id !== form.leadAuditorId);
+  const teamUsers = eligibleParticipantOptions(
+    options.data ? { users: options.data.teamUsers ?? [] } : undefined,
+    participantOnline, options.isError,
+  ).filter(user => user.id !== form.leadAuditorId);
   const clearError = (...keys: string[]) => setErrors(current => {
     const next = { ...current };
     keys.forEach(key => delete next[key]);
@@ -1659,7 +1665,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     ];
     const nextErrors = Object.fromEntries(required.filter(([, value]) => Array.isArray(value) ? !value.length : !String(value ?? "").trim()).map(([key]) => [key, "This field is required."]));
     if (!navigator.onLine || eligibilityUnavailable) nextErrors.teamMemberIds = "Eligible users are unavailable. Connect and load this audit's eligible users before saving.";
-    else if (form.teamMemberIds.some(id => !users.some(user => user.id === id))) nextErrors.teamMemberIds = "Remove or replace team members who are not eligible for this audit.";
+    else if (form.teamMemberIds.some(id => !teamUsers.some(user => user.id === id))) nextErrors.teamMemberIds = "Remove or replace team members who are not eligible for this audit.";
     for (const row of activityRows) {
       if (activityAuditeeIds(row).some(id => !users.some(user => user.id === id))) nextErrors[`activity-${row.id}-auditeeId`] = "Remove or replace activity users who are not eligible for this audit.";
     }

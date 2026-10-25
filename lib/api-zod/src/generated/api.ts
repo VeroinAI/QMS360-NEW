@@ -8654,6 +8654,12 @@ export const GetAuditPlanOptionsResponse = zod.object({
   "id": zod.string(),
   "fullName": zod.string(),
   "designation": zod.string().nullish()
+})).optional(),
+  "teamUsers": zod.array(zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
 })).optional()
 })
 

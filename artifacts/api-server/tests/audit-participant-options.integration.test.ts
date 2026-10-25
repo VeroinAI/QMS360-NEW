@@ -9,7 +9,7 @@ import app from "../src/app";
 import { issueToken } from "../src/lib/auth";
 
 const org = randomUUID(), foreign = randomUUID(), a = randomUUID(), b = randomUUID(), dept = randomUUID(), otherDept = randomUUID();
-const role = randomUUID(), markerRole = randomUUID(), inactiveRole = randomUUID(), parent = randomUUID();
+const role = randomUUID(), markerRole = randomUUID(), ownerRole = randomUUID(), inactiveRole = randomUUID(), parent = randomUUID();
 const scheduleA = randomUUID(), scheduleB = randomUUID(), processSchedule = randomUUID(), historicalPlan = randomUUID();
 const people: Record<string, string> = {};
 let server: Server, base: string, token: string, scopedToken: string;
@@ -39,10 +39,13 @@ beforeAll(async () => {
     { id: b, organizationId: org, code: "B", name: "B" }]);
   await db.insert(auditWorkspaceRoles).values([
     { id: role, organizationId: org, name: "Participant" }, { id: markerRole, organizationId: org, name: "Lead" },
+    { id: ownerRole, organizationId: org, name: "Process owner" },
     { id: inactiveRole, organizationId: org, name: "Inactive role", status: "inactive" },
   ]);
   const [marker] = await db.insert(auditPermissions).values({ organizationId: org, key: "audit_team_lead", label: "Team lead", category: "audit" }).returning();
   await db.insert(auditWorkspaceRolePermissions).values({ organizationId: org, workspaceRoleId: markerRole, permissionId: marker!.id, grant: "full" });
+  const [ownerMarker] = await db.insert(auditPermissions).values({ organizationId: org, key: "product_process_owner", label: "Owner", category: "audit" }).returning();
+  await db.insert(auditWorkspaceRolePermissions).values({ organizationId: org, workspaceRoleId: ownerRole, permissionId: ownerMarker!.id, grant: "full" });
   const group = randomUUID(), activityGroup = randomUUID();
   await db.insert(masterDataGroups).values([{ id: group, organizationId: org, name: "Departments", code: "departments", appKey: "audit" },
     { id: activityGroup, organizationId: org, name: "Activities", code: "activities", appKey: "audit" }]);
@@ -56,6 +59,12 @@ beforeAll(async () => {
   const split = await person("split"); await assign(split, [a]); await assign(split, [b], [], markerRole);
   await assign(await person("department"), [], [dept]);
   await assign(await person("other-department"), [], [otherDept]);
+  await assign(await person("department-owner"), [], [dept], ownerRole);
+  await assign(await person("other-department-owner"), [], [otherDept], ownerRole);
+  const splitOwner = await person("split-owner");
+  await assign(splitOwner, [], [dept]);
+  await assign(splitOwner, [], [otherDept], ownerRole);
+  await assign(await person("inactive-owner"), [], [dept], ownerRole, { status: "inactive" });
   await assign(await person("inactive-assignment"), [], [], role, { status: "inactive" });
   await assign(await person("inactive-role"), [], [], inactiveRole);
   await assign(await person("deleted-assignment"), [], [], role, { deletedAt: new Date() });
@@ -77,7 +86,8 @@ beforeAll(async () => {
     { ...common, id: scheduleA, title: "Audit A", projectId: a, status: JSON.stringify({ parentId: parent, projectIds: [a], auditTypes: ["Quality Internal Product Audit"], plannedStartDate: "2026-10-01", plannedEndDate: "2026-10-30", qaqcScope: "Scope", qaqcReference: "REF" }) },
     { ...common, id: scheduleB, title: "Audit B", projectId: b, status: JSON.stringify({ parentId: parent, projectIds: [b],
       auditTypes: ["Quality Internal Product Audit"], plannedStartDate: "2026-10-01", plannedEndDate: "2026-10-30", qaqcScope: "Scope", qaqcReference: "REF" }) },
-    { ...common, id: processSchedule, title: "Process", status: JSON.stringify({ parentId: parent, auditTypes: ["Quality Internal Process Audit"], departmentProject: "OPS" }) },
+    { ...common, id: processSchedule, title: "Process", status: JSON.stringify({ parentId: parent, auditTypes: ["Quality Internal Process Audit"], departmentProject: "OPS",
+      plannedStartDate: "2026-10-01", plannedEndDate: "2026-10-30", qaqcScope: "Scope", qaqcReference: "REF" }) },
   ]);
   await db.insert(auditPlans).values({ id: historicalPlan, organizationId: org, auditScheduleId: scheduleA, projectId: a,
     teamMemberIds: [people.b!], status: JSON.stringify({ leadAuditorId: people["lead-a"] }) });
@@ -103,6 +113,7 @@ describe("Contextual Audit participant API", () => {
     expect(names.sort()).toEqual(["a", "global", "lead-a", "mixed-lead", "multi", "scoped-reader", "split"].sort());
     expect(new Set(result.data.users.map((user: any) => user.id)).size).toBe(names.length);
     expect(result.data.leadUsers.map((user: any) => user.fullName)).toEqual(["lead-a"]);
+    expect(result.data.teamUsers).toEqual(result.data.users);
     expect(result.data.historicalUsers.some((user: any) => user.fullName === "b")).toBe(true);
     const switched = await api(`/plan-options?scheduleId=${scheduleB}`);
     expect(switched.data.users.some((user: any) => user.fullName === "a")).toBe(false);
@@ -123,6 +134,7 @@ describe("Contextual Audit participant API", () => {
     const names = result.data.users.map((user: any) => user.fullName);
     expect(names).toContain("department"); expect(names).toContain("a"); expect(names).toContain("global");
     expect(names).not.toContain("other-department");
+    expect(result.data.teamUsers.map((user: any) => user.fullName)).toEqual(["department-owner", "global"]);
     const activity = await api("/schedule-activity-options?department=OPS");
     expect(activity.data.users.map((user: any) => user.id)).toEqual(result.data.users.map((user: any) => user.id));
     expect((await api("/schedule-activity-options?department=unknown")).status).toBe(422);
@@ -136,6 +148,23 @@ describe("Contextual Audit participant API", () => {
     expect(create.status).toBe(422); expect(create.data.error).toMatch(/QMS Audit users/);
     const update = await api(`/schedules/${scheduleA}`, "PUT", input);
     expect(update.status).toBe(422); expect(update.data.error).toMatch(/QMS Audit users/);
+  });
+  it("rejects Process team writes from project-only users and department users without the owner marker", async () => {
+    const input = { id: randomUUID(), scheduleId: processSchedule, auditFeasible: true, auditTitle: "Process", status: "Draft",
+      leadAuditorId: people["lead-a"], teamMemberIds: [people.department], auditeeId: people.department, auditeeRoleIds: [role],
+      qaqcScope: "Scope", auditTypes: ["Quality Internal Process Audit"], auditLanguage: "English", qaqcReference: "REF",
+      startDateTime: "2026-10-05T09:00", endDateTime: "2026-10-05T17:00", openingMeetingDateTime: "2026-10-05T09:00",
+      closingMeetingDateTime: "2026-10-05T17:00", auditPlanCirculation: "Participants",
+      activitySection: "Review", activityRemarks: "Review", activityAuditeeId: people.department,
+      activities: [{ id: "review", section: "Review", remarks: "Review", auditeeId: people.department,
+        plannedStartDateTime: "2026-10-05T10:00", plannedEndDateTime: "2026-10-05T11:00" }] };
+    for (const member of [people.department, people.a, people["split-owner"]]) {
+      const result = await api("/plans", "POST", { ...input, teamMemberIds: [member] });
+      expect(result.status).toBe(422);
+      expect(result.data.error).toMatch(/Process \/ Product Owner/);
+    }
+    const saved = await db.select().from(auditPlans).where(eq(auditPlans.auditScheduleId, processSchedule));
+    expect(saved).toHaveLength(0);
   });
   it("rejects out-of-project team and activity users on Plan updates and leaves history intact", async () => {
     const input = { id: historicalPlan, scheduleId: scheduleA, auditFeasible: true, auditTitle: "A", status: "Draft", leadAuditorId: people["lead-a"],

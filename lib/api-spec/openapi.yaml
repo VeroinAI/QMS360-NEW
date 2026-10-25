@@ -4513,6 +4513,7 @@ components:
         users: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
         historicalUsers: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
         leadUsers: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
+        teamUsers: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
     AuditPlanNumberingPattern:
       type: object
       required: [prefix, middle, separator, padding]

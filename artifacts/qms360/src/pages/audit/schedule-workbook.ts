@@ -51,11 +51,14 @@ export type ScheduleWorkbookOptions = {
 export function scheduleCategoryLinkError(
   categories: Option[], auditTypes: string[], category: string,
 ): string | null {
-  if (!categories.some(option => linkedAuditTypes(option).length)) return null;
+  // Preserve unlinked custom-type historical categories, while still applying
+  // the mandatory standard Product/Process split to newly imported pairs.
+  const choices = categories.some(option => linkedAuditTypes(option).length)
+    ? categories : [...categories, { value: category, label: category }];
   const incompatible = auditTypes.filter(type =>
-    !categoryOptionsForAuditType(categories, type).some(option => option.value === category));
+    !categoryOptionsForAuditType(choices, type).some(option => option.value === category));
   return incompatible.length
-    ? `Audit Category "${category}" is not linked to Audit Type(s) ${incompatible.join(", ")} in master data`
+    ? `Audit Category "${category}" is not allowed for Audit Type(s) ${incompatible.join(", ")}`
     : null;
 }
 export async function createScheduleWorkbook(

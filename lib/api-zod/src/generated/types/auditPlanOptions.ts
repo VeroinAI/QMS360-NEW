@@ -11,4 +11,5 @@ export interface AuditPlanOptions {
   users: AuditPlanUserOption[];
   historicalUsers?: AuditPlanUserOption[];
   leadUsers?: AuditPlanUserOption[];
+  teamUsers?: AuditPlanUserOption[];
 }
