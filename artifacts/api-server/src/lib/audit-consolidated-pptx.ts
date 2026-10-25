@@ -228,14 +228,8 @@ export async function renderConsolidatedAuditPptx(input: {
     }) ?? [];
     const activityRows = [...(section("programme")?.tables[0]?.rows ?? [])]
       .filter(row => row.some(cell => ![PPTX_EMPTY, PPTX_UNMAPPED].includes(mappedText(cell))));
-    const programmeField = (label: string) => mappedText(section("programme")?.fields.find(f => f.label === label)?.value);
-    for (const meeting of ["Opening", "Closing"]) {
-      const held = programmeField(`${meeting} meeting`);
-      const minutes = programmeField(`${meeting} minutes`);
-      if (![PPTX_EMPTY, PPTX_UNMAPPED].includes(held) || ![PPTX_EMPTY, PPTX_UNMAPPED].includes(minutes)) activityRows.push([
-        held, PPTX_EMPTY, `${meeting} meeting (recorded)`, minutes, programmeField("Auditees present"),
-      ]);
-    }
+    // The timeline is exclusively the Audit Plan activities. Recorded meetings
+    // contribute to participation, not additional programme milestones.
     const activities = programmePages(activityRows);
     const participation = [28, 33, 38].map(id => chunks(programmeLines(mapping?.shapes[id] ?? PPTX_EMPTY, 26), id === 33 ? 5 : 4));
     const themeRows = (section("findings-summary")?.tables[1]?.rows ?? [])
@@ -285,11 +279,11 @@ export async function renderConsolidatedAuditPptx(input: {
           if (row.continued) remove(markerId);
           else {
             const marker = shape(doc, markerId)!;
-            elements(marker, A, "off")[0]!.setAttribute("y", String(row.top + 164592));
-            markerCenters.push(row.top + 310896);
+            elements(marker, A, "off")[0]!.setAttribute("y", String(row.top));
+            markerCenters.push(row.top + 146304);
           }
-          programmeBox(doc, timeId, row.times, 1100, 1200, { y: row.top, width: 4480560, height: 330200 });
-          programmeBox(doc, detailsId, row.details, 1050, 1150, { y: row.detailsTop, width: 4480560, height: row.detailsHeight });
+          programmeBox(doc, timeId, row.details, 1100, 1150, { y: row.top, width: 4480560, height: row.detailsHeight });
+          programmeBox(doc, detailsId, row.times, 1050, 1200, { y: row.timesTop, width: 4480560, height: 330200 });
           plainParagraphs(doc, detailsId);
         }
         if (markerCenters.length < 2) remove(8);

@@ -25,11 +25,11 @@ async function output(rows:string[][]){
     .filter(doc=>text(shape(doc,37)).includes("Not represented in"));
 }
 describe("Activity-level programme pagination",()=>{
-  it("shows main activity, times and auditee without multiline remark subactivities",()=>{
+  it("shows only the main activity heading and times without auditees or remarks",()=>{
     const remarks="Check documents\nInterview the project team\nVerify supporting evidence\nConfirm all records";
     const entries=programmeEntries([row("Design review",remarks)]);
     expect(entries).toHaveLength(1);
-    expect(entries[0]!.details).toBe("Activity: Design review\nAuditee: Actual auditee");
+    expect(entries[0]!.details).toBe("Activity: Design review");
     expect(entries[0]!.times).toBe("Start: 23 Oct 2026, 09:00\nEnd: 23 Oct 2026, 10:00");
     expect(entries[0]!.details).not.toContain("Remarks:");
     for(const remark of remarks.split("\n"))expect(entries[0]!.details).not.toContain(remark);
@@ -62,7 +62,7 @@ describe("Activity-level programme pagination",()=>{
     expect(pages.flat().filter(block=>!block.continued)).toHaveLength(1);
     expect(normalized(pages.flat().map(block=>block.details).join(""))).toContain(normalized(activity));
     expect(pages.flat().map(block=>block.details).join("")).not.toContain("Hidden remark");
-    expect(pages.slice(1).flat().every(block=>block.times==="Activity continued")).toBe(true);
+    expect(pages.slice(1).flat().every(block=>block.times==="")).toBe(true);
   });
 });
 describe("Generated Audit Program and Participation slide",()=>{
@@ -89,28 +89,31 @@ describe("Generated Audit Program and Participation slide",()=>{
     expect(text(shape(doc,28))).toBe("Actual auditor");
     expect(text(shape(doc,33))).toBe("Actual auditee role");
     expect(text(shape(doc,38))).toBe("Actual auditee");
-    expect(text(shape(doc,10))).toBe("Start: 23 Oct 2026, 09:00 End: 23 Oct 2026, 10:00");
-    expect(text(shape(doc,13))).toBe("Start: 23 Oct 2026, 10:00 End: 23 Oct 2026, 11:00");
+    expect(text(shape(doc,10))).toBe("Activity: Design review");
+    expect(text(shape(doc,13))).toBe("Activity: Construction inspection");
+    expect(text(shape(doc,11))).toBe("Start: 23 Oct 2026, 09:00 End: 23 Oct 2026, 10:00");
+    expect(text(shape(doc,14))).toBe("Start: 23 Oct 2026, 10:00 End: 23 Oct 2026, 11:00");
+    expect(markers(doc)).toHaveLength(2);
     if(process.env.QMS_PROGRAMME_VISUAL==="1")await writeFile("../../generated-artifacts/audit-programme-main-activities.pptx",bytes);
   });
-  it("retains recorded meetings when only minutes are present, without showing their remark text",async()=>{
+  it("does not invent timeline activities from recorded meetings when no Plan activities exist",async()=>{
     const sections=buildConsolidatedAuditReport({
       audit:{title:"Recorded meetings",openingMeeting:{minutes:"Hidden opening minutes"},closingMeeting:{minutes:"Hidden closing minutes"}},
       names:new Map(),roleNames:new Map(),legacyFindings:[],cars:[],evidence:[],pptxWorkbookMappings:true,
     });
     const files=unzipSync(await renderConsolidatedAuditPptx({sections}));
     const doc=new DOMParser().parseFromString(strFromU8(files["ppt/slides/slide5.xml"]!),"application/xml");
-    expect(markers(doc)).toHaveLength(2);
+    expect(markers(doc)).toHaveLength(0);
     const content=normalized(els(doc,A,"t").map(t=>t.textContent??"").join(" "));
-    expect(content).toContain(normalized("Opening meeting (recorded)"));
-    expect(content).toContain(normalized("Closing meeting (recorded)"));
+    expect(content).not.toContain(normalized("Opening meeting (recorded)"));
+    expect(content).not.toContain(normalized("Closing meeting (recorded)"));
     expect(content).not.toMatch(/Hidden|Remarks:/);
   });
   it("renders exactly one circle per activity, not per remark or wrapped line",async()=>{
     const remarks="Check documents\nInterview personnel\nVerify evidence\nConfirm records";
     const docs=await output([row("First activity",remarks),row("Second activity","Review the remaining records")]);
     expect(docs.reduce((count,doc)=>count+markers(doc).length,0)).toBe(2);
-    const details=docs.flatMap(doc=>[11,14,17,20,23].map(id=>text(shape(doc,id)))).join(" ");
+    const details=docs.flatMap(doc=>[10,13,16,19,22].map(id=>text(shape(doc,id)))).join(" ");
     for(const remark of [...remarks.split("\n"),"Review the remaining records"])expect(details).not.toContain(remark);
     expect(details).not.toContain("Remarks:");
     expect(details).toContain("First activity");
@@ -145,10 +148,10 @@ describe("Generated Audit Program and Participation slide",()=>{
     expect(docs.length).toBeGreaterThan(1);
     expect(docs.reduce((count,doc)=>count+markers(doc).length,0)).toBe(1);
     expect(docs.slice(1).every(doc=>markers(doc).length===0)).toBe(true);
-    const details=docs.flatMap(doc=>[11,14,17,20,23].map(id=>text(shape(doc,id)))).join("");
+    const details=docs.flatMap(doc=>[10,13,16,19,22].map(id=>text(shape(doc,id)))).join("");
     expect(normalized(details)).toContain(normalized(activity));
     expect(details).not.toContain("Hidden subactivity");
-    expect(docs.slice(1).some(doc=>text(shape(doc,10))==="Activity continued")).toBe(true);
+    expect(docs.slice(1).every(doc=>text(shape(doc,11))==="")).toBe(true);
   });
   it("does not leave sample circles for an empty programme",async()=>{
     const docs=await output([]);

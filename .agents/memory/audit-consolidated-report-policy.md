@@ -159,14 +159,13 @@ continuation slides, show None for empty recurring themes without numbered slots
 and omit the progress total/date/source and separate good-practice panel.
 
 The Audit Program and Participation timeline has one milestone per activity.
-Show only main activity names, dates and auditees in PowerPoint milestones.
+Show only Audit Plan main activity headings followed by start/end dates and times in PowerPoint milestones. Do not include per-activity auditees or append recorded opening/closing meetings as additional milestones.
 Remarks are subactivities and must be excluded before wrapping and pagination,
 including multiline remarks. Oversized visible activities may continue on another
 slide but must not gain another bullet or circle.
 
-**Why:** The user clarified that the PowerPoint timeline should show main
-activities only, rather than remark-based subactivities.
+**Why:** The user supplied a revised reference showing the activity heading above its dates, and explicitly limited the timeline to headings entered in the Audit Plan. Participation remains in the right-hand boxes.
 
-**How to apply:** Preserve saved remarks and shared PDF/JSON report data, dates
+**How to apply:** Preserve saved remarks, meetings and shared PDF/JSON report data, dates
 and auditees. Allocate PowerPoint space from visible content only. Remove unused template milestones and leave continuation
 text unmarked. Do not change the saved programme or unrelated report sections.

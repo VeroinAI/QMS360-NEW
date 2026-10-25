@@ -35,22 +35,20 @@ export function programmeEntries(rows: string[][]): Array<{ times: string; detai
     const times = `Start: ${programmeDate(row[0])}\nEnd: ${programmeDate(row[1])}`;
     // PPTX milestones show main activities only. Keep remarks in the shared
     // report rows for other exports, but exclude them before wrapping/pagination.
-    const lines = programmeLines([
-      `Activity: ${mappedText(row[2])}`, `Auditee: ${mappedText(row[4])}`,
-    ].join("\n"), 30);
+    const lines = programmeLines(`Activity: ${mappedText(row[2])}`, 30);
     return { times, details: lines.join("\n") || PPTX_EMPTY };
   });
 }
 
 export const PROGRAMME_TOP = 1892808;
 export const PROGRAMME_HEIGHT = 4343400;
-const DETAILS_OFFSET = 360200;
+const TIMES_HEIGHT = 330200;
 const LINE_HEIGHT = 146050; // 11.5 points, matching the rendered paragraph spacing.
 const DETAILS_PADDING = 41850;
 const GAP = 28480;
 export type ProgrammeActivityBlock = {
   times: string; details: string; continued: boolean;
-  top: number; detailsTop: number; detailsHeight: number; height: number;
+  top: number; timesTop: number; detailsHeight: number; height: number;
 };
 
 /** One milestone per main activity; only visible content can require continuations. */
@@ -58,8 +56,8 @@ export function programmePages(rows: string[][]): ProgrammeActivityBlock[][] {
   const pages: ProgrammeActivityBlock[][] = [[]];
   let page = pages[0]!, used = 0;
   const newPage = () => { page = []; pages.push(page); used = 0; };
-  const heightFor = (lines: number) => DETAILS_OFFSET + Math.max(3, lines) * LINE_HEIGHT + DETAILS_PADDING + GAP;
-  const maxLines = Math.floor((PROGRAMME_HEIGHT - DETAILS_OFFSET - DETAILS_PADDING - GAP) / LINE_HEIGHT);
+  const heightFor = (lines: number) => TIMES_HEIGHT + Math.max(3, lines) * LINE_HEIGHT + DETAILS_PADDING + GAP;
+  const maxLines = Math.floor((PROGRAMME_HEIGHT - TIMES_HEIGHT - DETAILS_PADDING - GAP) / LINE_HEIGHT);
   for (const entry of programmeEntries(rows)) {
     let lines = entry.details.split("\n"), continued = false;
     // Keep an activity intact when it fits on a fresh slide.
@@ -68,9 +66,9 @@ export function programmePages(rows: string[][]): ProgrammeActivityBlock[][] {
       const part = lines.slice(0, maxLines), height = heightFor(part.length);
       const top = PROGRAMME_TOP + used;
       page.push({
-        times: continued ? "Activity continued" : entry.times,
-        details: part.join("\n"), continued, top, detailsTop: top + DETAILS_OFFSET,
-        detailsHeight: height - DETAILS_OFFSET - GAP, height,
+        times: continued ? "" : entry.times,
+        details: part.join("\n"), continued, top, timesTop: top + height - TIMES_HEIGHT - GAP,
+        detailsHeight: height - TIMES_HEIGHT - GAP - DETAILS_PADDING, height,
       });
       used += height;
       lines = lines.slice(part.length);

@@ -213,20 +213,21 @@ describe("Original Audit PowerPoint report template", () => {
         const next = i < 4 ? shape(13 + i * 3) : undefined;
         if (next) expect(box(body).y + box(body).h).toBeLessThan(box(next).y);
         expect(box(body).y + box(body).h).toBeLessThanOrEqual(6236208);
-        expect(body.getElementsByTagNameNS(A, "p").length).toBeLessThanOrEqual(26);
-        expect(header.getElementsByTagNameNS(A, "p").length).toBeLessThanOrEqual(2);
+        expect(header.getElementsByTagNameNS(A, "p").length).toBeLessThanOrEqual(26);
+        expect(body.getElementsByTagNameNS(A, "p").length).toBeLessThanOrEqual(2);
         expect(body.getElementsByTagNameNS(A, "noAutofit").length).toBe(1);
         expect(body.getElementsByTagNameNS(A, "bodyPr")[0]!.getAttribute("wrap")).toBe("none");
-        const lines = Array.from(body.getElementsByTagNameNS(A, "t")).map(t => t.textContent);
+        const lines = Array.from(header.getElementsByTagNameNS(A, "t")).map(t => t.textContent);
         if (!lines.includes("To be mapped")) bodies.push(...lines);
       }
-      const headerText = Array.from(shape(10).getElementsByTagNameNS(A, "t")).map(t => t.textContent).join("\n");
-      expect(headerText).toContain(shape(9) ? "12 Oct 2026, 10:10" : "Activity continued");
+      const headerText = Array.from(shape(11).getElementsByTagNameNS(A, "t")).map(t => t.textContent).join("\n");
+      if (shape(9)) expect(headerText).toContain("12 Oct 2026, 10:10");
+      else expect(headerText).toBe("");
       expect(headerText).not.toContain("T10:10:00.000Z");
     }
     const preserved = bodies.join(" ").replace(/\s+/g, " ");
     expect(preserved).toContain(details.trim());
     expect(preserved).not.toContain("Hidden subactivity remarks");
-    expect(preserved).toContain("Recorded Auditor / QA/QC Manager");
+    expect(preserved).not.toContain("Recorded Auditor / QA/QC Manager");
   });
 });
