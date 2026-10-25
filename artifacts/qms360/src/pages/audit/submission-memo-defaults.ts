@@ -1,4 +1,18 @@
-import type { AuditMemoDefaults } from "@workspace/api-client-react";
+import type { AuditMemoDefaults, AuditProgramme } from "@workspace/api-client-react";
+
+export type ProgrammeSubmission = Pick<AuditProgramme, "id" | "title"> & Partial<Pick<AuditProgramme,
+  "workflowState" | "submissionReference" | "submissionFrom" | "submissionTo" |
+  "submissionSubject" | "submissionMailBody"
+>>;
+
+/** Initialize only when opening a popup, independently of asynchronous headings. */
+export function submissionMemoContent(previous: ProgrammeSubmission) {
+  return {
+    reference: previous.submissionReference ?? "",
+    subject: previous.submissionSubject?.trim() ? previous.submissionSubject : previous.title,
+    mailBody: previous.submissionMailBody?.trim() ? previous.submissionMailBody : "",
+  };
+}
 
 /** Fresh organization defaults win; empty defaults retain existing memo headings. */
 export function submissionMemoDefaults(defaults: AuditMemoDefaults, previous: {

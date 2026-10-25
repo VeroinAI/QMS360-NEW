@@ -96,7 +96,7 @@ import type {
 } from "@workspace/api-client-react";
 import { eligiblePlanAudits, loadPlanOptionPages } from "./plan-schedule-options";
 import { refreshAuditScheduleQueries } from "./schedule-query-refresh";
-import { submissionMemoDefaults } from "./submission-memo-defaults";
+import { submissionMemoContent, submissionMemoDefaults, type ProgrammeSubmission } from "./submission-memo-defaults";
 import { auditTeamWithoutLead } from "./audit-plan-team";
 import { useGetPlatformAuditMemoDefaults, getGetPlatformAuditMemoDefaultsQueryKey } from "@workspace/api-client-react";
 import { parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
@@ -1016,11 +1016,12 @@ function ProgrammeForm({ onClose }: { onClose: () => void }) {
 }
 
 function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
-  item: { id: string; title: string; workflowState?: string; submissionReference?: string | null; submissionFrom?: string | null; submissionTo?: string | null };
+  item: ProgrammeSubmission;
   onClose: () => void;
   onSubmitted: (updated: AuditProgramme) => void;
 }) {
-  const [reference, setReference] = useState(item.submissionReference ?? "");
+  const [initialContent] = useState(() => submissionMemoContent(item));
+  const [reference, setReference] = useState(initialContent.reference);
   const [from, setFrom] = useState(item.submissionFrom ?? "");
   const [to, setTo] = useState(item.submissionTo ?? "");
   const [defaultsKey] = useState(() => crypto.randomUUID());
@@ -1036,8 +1037,8 @@ function ProgrammeSubmitDialog({ item, onClose, onSubmitted }: {
     setTo(headings.to);
     setDefaultsLoaded(true);
   }, [memoDefaults.data, defaultsLoaded, item]);
-  const [subject, setSubject] = useState(item.title);
-  const [mailBody, setMailBody] = useState("");
+  const [subject, setSubject] = useState(initialContent.subject);
+  const [mailBody, setMailBody] = useState(initialContent.mailBody);
   const submitMutation = useSubmitAuditProgramme();
   const submit = confirmedWorkflowMutation(submitMutation, () => ({
     action: item.workflowState === "Sent Back" ? "resubmit" : "submit",
@@ -1168,7 +1169,7 @@ function Programmes() {
   const permissions = useAuditCapabilities();
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
-  const [submitting, setSubmitting] = useState<{ id: string; title: string }>();
+  const [submitting, setSubmitting] = useState<ProgrammeSubmission>();
   const [sendingBack, setSendingBack] = useState<{ id: string; title: string }>();
   const [viewingDetails, setViewingDetails] = useState<AuditProgramme>();
   const [managingLeads, setManagingLeads] = useState<AuditProgramme>();
@@ -1214,7 +1215,7 @@ function Schedules() {
   const { parentId = "" } = useParams<{ parentId: string }>();
   const focusId = new URLSearchParams(window.location.search).get("focusSchedule") ?? "";
   const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [editing, setEditing] = useState<AuditSchedule | undefined>(); const [open, setOpen] = useState(false); const [displaying, setDisplaying] = useState<AuditSchedule | undefined>();
-  const [submitting, setSubmitting] = useState<{ id: string; title: string }>();
+  const [submitting, setSubmitting] = useState<ProgrammeSubmission>();
   const [sendingProgrammeBack, setSendingProgrammeBack] = useState<{ id: string; title: string }>();
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
   const [showProgrammeDetails, setShowProgrammeDetails] = useState(false);
@@ -1360,7 +1361,7 @@ function Schedules() {
     finally { setLoadingFile(false); if (fileInput.current) fileInput.current.value = ""; }
   };
   const programmePending = parentId !== "legacy" && (programme.isLoading || !programme.data);
-  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<div className="flex flex-wrap gap-2">{parentId !== "legacy" && <Button variant="outline" onClick={() => setShowProgrammeDetails(true)} disabled={!programme.data}><Info className="mr-2 size-4"/>Schedule details</Button>}{programme.data?.canManageTeamLeads && <Button variant="outline" onClick={() => setShowLeadManager(true)}>Manage Team Leads</Button>}<Button variant="outline" onClick={() => void download()} disabled={!permissions.canExport("schedules") || allChildren.isLoading || downloading || programmePending}><Download className="mr-2 size-4"/>{downloading ? "Downloading…" : "Download"}</Button><Button variant="outline" onClick={() => fileInput.current?.click()} disabled={!permissions.can("schedules", "create_edit") || loadingFile || projects.isLoading || programmePending || parentSubmitted}><Upload className="mr-2 size-4"/>{loadingFile ? "Loading…" : "Load"}</Button><input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" disabled={!permissions.can("schedules", "create_edit")} className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void loadFile(file); }}/>{parentId !== "legacy" && programme.data?.canSubmit && <Button variant="outline" disabled={!permissions.can("schedules", "submit") || programmePending || !programme.data.childCount || !!submitting} onClick={() => setSubmitting({ id: parentId, title: programme.data.title })}>{programme.data.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}{programme.data?.workflowState === "Submitted" && programme.data.canReview && <><Button disabled={reviewProgramme.isPending} onClick={() => reviewProgramme.mutate({ id: parentId, data: { decision: "approve" } }, { onSuccess: updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule approved"); }, onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve schedule</Button><Button variant="outline" onClick={() => setSendingProgrammeBack({ id: parentId, title: programme.data!.title })}>Send back</Button></>}<Button disabled={!permissions.can("schedules", "create_edit") || programmePending || parentSubmitted} title={parentSubmitted ? "New audits cannot be created while the audit schedule is submitted" : undefined} onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button></div>}/>
+  return <div className="space-y-5"><PageHeader title="Audits in schedule" description="Build, submit and approve audits in this programme" action={<div className="flex flex-wrap gap-2">{parentId !== "legacy" && <Button variant="outline" onClick={() => setShowProgrammeDetails(true)} disabled={!programme.data}><Info className="mr-2 size-4"/>Schedule details</Button>}{programme.data?.canManageTeamLeads && <Button variant="outline" onClick={() => setShowLeadManager(true)}>Manage Team Leads</Button>}<Button variant="outline" onClick={() => void download()} disabled={!permissions.canExport("schedules") || allChildren.isLoading || downloading || programmePending}><Download className="mr-2 size-4"/>{downloading ? "Downloading…" : "Download"}</Button><Button variant="outline" onClick={() => fileInput.current?.click()} disabled={!permissions.can("schedules", "create_edit") || loadingFile || projects.isLoading || programmePending || parentSubmitted}><Upload className="mr-2 size-4"/>{loadingFile ? "Loading…" : "Load"}</Button><input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" disabled={!permissions.can("schedules", "create_edit")} className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) void loadFile(file); }}/>{parentId !== "legacy" && programme.data?.canSubmit && <Button variant="outline" disabled={!permissions.can("schedules", "submit") || programmePending || !programme.data.childCount || !!submitting} onClick={() => setSubmitting(programme.data)}>{programme.data.workflowState === "Sent Back" ? "Resubmit" : "Submit"}</Button>}{programme.data?.workflowState === "Submitted" && programme.data.canReview && <><Button disabled={reviewProgramme.isPending} onClick={() => reviewProgramme.mutate({ id: parentId, data: { decision: "approve" } }, { onSuccess: updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule approved"); }, onError: e => toast({ title: "Unable to approve schedule", description: errorText(e), variant: "destructive" }) })}>Approve schedule</Button><Button variant="outline" onClick={() => setSendingProgrammeBack({ id: parentId, title: programme.data!.title })}>Send back</Button></>}<Button disabled={!permissions.can("schedules", "create_edit") || programmePending || parentSubmitted} title={parentSubmitted ? "New audits cannot be created while the audit schedule is submitted" : undefined} onClick={() => { setEditing(undefined); setOpen(true); }}><Plus className="mr-2 size-4"/>New Audit</Button></div>}/>
     {showProgrammeDetails && programme.data && <ProgrammeDetailsDialog item={programme.data} onClose={() => setShowProgrammeDetails(false)}/>}
     {showLeadManager && programme.data && <ProgrammeTeamLeadsDialog item={programme.data} onClose={() => setShowLeadManager(false)} onSaved={updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit Team Leads updated"); }}/>}
     {focusId && <Card><CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
@@ -1377,7 +1378,7 @@ function Schedules() {
         </div>
       </> : <p className="text-muted-foreground">This action item is no longer available in this schedule.</p>}
     </CardContent></Card>}
-    {submitting && <ProgrammeSubmitDialog key={submitting.id} item={programme.data ? { ...programme.data, ...submitting } : submitting} onClose={() => setSubmitting(undefined)} onSubmitted={programmeSubmitted}/>}
+    {submitting && <ProgrammeSubmitDialog key={submitting.id} item={submitting} onClose={() => setSubmitting(undefined)} onSubmitted={programmeSubmitted}/>}
     {sendingProgrammeBack && <ProgrammeSendBackDialog key={sendingProgrammeBack.id} item={sendingProgrammeBack} onClose={() => setSendingProgrammeBack(undefined)} onSentBack={updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule sent back"); }}/>}
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
