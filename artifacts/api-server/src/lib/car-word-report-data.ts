@@ -1,11 +1,12 @@
 import type { Request } from "express";
 import { formatDate } from "@workspace/spreadsheet-dates";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
-import { auditAuditLogEntries, auditFindings, audits, db, users } from "@workspace/db";
+import { auditAuditLogEntries, auditFindings, auditSchedules, audits, db, users } from "@workspace/db";
 import { getAuthorizedFullProjectScope } from "../middlewares/rbac";
 import { actionableFinding, carAuditContext, carContext, carJson } from "./car-register";
 import { carDueDate, findingDateValue } from "./car-dates";
 import { HttpError } from "./workspace";
+import { getLovValues } from "./lov";
 
 export interface CarWordReportData {
   auditor?: string | null;
@@ -95,15 +96,24 @@ export async function carWordReportData(req: Request, input: { auditId: string; 
   const closedDate = typeof meta.closedAt === "string" ? meta.closedAt.slice(0, 10) : null;
   const dueDate = car?.extensionStatus === "approved" && car.extensionDueDate ? car.extensionDueDate
     : carDueDate(item?.auditFinding || item?.result || finding?.classification, findingDateValue(item, finding), car?.dueDate);
+  const areaValue = item?.auditArea || finding?.responsibleDepartment;
+  const areaOptions = areaValue ? await getLovValues(db, org, "Audit Area") : [];
+  const areaLabel = areaOptions.find(option => option.value === areaValue)?.label
+    ?? areaOptions.find(option => option.label === areaValue)?.label;
+  const parentId = context.scheduleMeta.parentId;
+  const [programme] = typeof parentId === "string" && parentId ? await db.select({ title: auditSchedules.title })
+    .from(auditSchedules).where(and(
+      eq(auditSchedules.organizationId, org), eq(auditSchedules.id, parentId), isNull(auditSchedules.deletedAt),
+    )).limit(1) : [];
   return {
     auditor: person(context.leadId)?.name,
     date: carReportDate(car?.createdAt ?? finding?.createdAt),
     carNumber: typeof meta.carNumber === "string" ? meta.carNumber : null,
     department: context.scheduleMeta.departmentProject || finding?.responsibleDepartment,
     recipient: person(recipientId)?.name,
-    auditReference: context.audit.referenceNumber,
-    area: [item?.auditArea || finding?.responsibleDepartment, item?.clause ? `Clause ${item.clause}` : null].filter(Boolean).join("\n"),
-    source: Array.isArray(context.scheduleMeta.auditTypes) ? context.scheduleMeta.auditTypes.join(", ") : null,
+    auditReference: context.scheduleMeta.qaqcReference || context.planMeta.qaqcReference || null,
+    area: areaLabel || null,
+    source: parentId ? programme?.title ?? null : context.schedule?.title ?? null,
     finding: [item?.description || item?.question || finding?.description, item?.auditFinding || item?.result || finding?.classification].filter(Boolean).join("\n"),
     risk, dueDate: carReportDate(dueDate),
     rootCause: car?.rootCause, correction: car?.correction, correctiveAction: car?.correctiveAction,

@@ -16,6 +16,8 @@ import { readPlanNumberState } from "../src/lib/audit-plan-numbering";
 import { readReportNumberState } from "../src/lib/audit-report-numbering";
 import { readFindingNumberState } from "../src/lib/audit-finding-numbering";
 import { carWordReportData } from "../src/lib/car-word-report-data";
+import { renderCarWordReport } from "../src/lib/car-word-report";
+import { strFromU8, unzipSync } from "fflate";
 
 let server: Server, base: string, orgId: string, userId: string, projectId: string, missingProjectId: string;
 let token: string, otherToken: string, employeeToken: string, employeeId: string, departmentId: string, browserAuditId: string;
@@ -282,6 +284,43 @@ describe.skipIf(process.env.QMS_AUDIT_CAR_CLEANUP === "1")("Audit CAR numbering"
     expect((await api("GET", `/cars/${f.carId}`)).body.carNumber).toBe("QAM-CC100-CAR-30-0126");
     expect([await readPlanNumberState(orgId), await readReportNumberState(orgId), await readFindingNumberState(orgId)]).toEqual(other);
     await saveCarNumbering(orgId, pattern);
+  });
+  it("maps CAR download reference, activity label only and parent Schedule Name without changing records", async () => {
+    const f = await makeAudit(2040);
+    const [programme] = await db.insert(auditSchedules).values({
+      organizationId: orgId, year: 2040, title: "Containing Schedule Name",
+      status: JSON.stringify({ programme: true }),
+    }).returning();
+    // Resolve the actual shared group rather than creating a second area list.
+    const groups = await db.select().from(masterDataGroups).where(eq(masterDataGroups.organizationId, orgId));
+    const group = groups.find(row => row.code === "Audit Area")!;
+    await db.insert(masterDataValues).values({ organizationId: orgId, groupId: group.id,
+      value: "design_engg", label: "Design and Engineering" });
+    await db.update(auditSchedules).set({ status: JSON.stringify({
+      ...JSON.parse(f.schedule.status!), parentId: programme!.id, qaqcReference: "QAM-IA/40-012",
+    }) }).where(eq(auditSchedules.id, f.schedule.id));
+    const state = (f.audit.checklistState as any[]).map(item => ({ ...item, auditArea: "design_engg" }));
+    await db.update(audits).set({ checklistState: state }).where(eq(audits.id, f.audit.id));
+    const req = { currentUser: { id: userId, organizationId: orgId, platformRoleName: "Org Admin" },
+      permissionProjectScope: { unrestricted: true, projectIds: [] },
+      permissionFullProjectScope: { unrestricted: true, projectIds: [] } } as any;
+    const input = { auditId: f.audit.id, itemId: f.itemIds[0]! };
+    const data = await carWordReportData(req, input);
+    expect(data.auditReference).toBe("QAM-IA/40-012");
+    expect(data.area).toBe("Design and Engineering");
+    expect(data.source).toBe("Containing Schedule Name");
+    const xml = strFromU8(unzipSync(await renderCarWordReport(data))["word/document.xml"]!);
+    for (const value of ["QAM-IA/40-012", "Design and Engineering", "Containing Schedule Name"]) expect(xml).toContain(value);
+    expect(xml).not.toContain("design_engg");
+    expect(xml).not.toContain("Clause 9.1");
+    expect(xml).not.toContain(f.audit.referenceNumber);
+    const findings = await db.select().from(auditFindings).where(eq(auditFindings.auditId, f.audit.id));
+    expect(findings).toHaveLength(0);
+    const created = await api("POST", "/car-register/start", input);
+    expect(created.status).toBe(200);
+    const withCar = await carWordReportData(req, { ...input, carId: created.body.id });
+    expect([withCar.auditReference, withCar.area, withCar.source])
+      .toEqual([data.auditReference, data.area, data.source]);
   });
   it("honors CAR module actions for the assigned user without substituting other module grants", async () => {
     const [role] = await db.insert(auditWorkspaceRoles).values({ organizationId: orgId, name: `Module response ${suffix}` }).returning();
