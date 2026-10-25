@@ -30,7 +30,7 @@ export function initialCcDraft(config: EmailEventRule['recipientConfig']): CcDra
 }
 export function ccModeError(mode: CcDraft['mode'], toMode: EmailEventRule['recipientMode'], eventType: string): string | undefined {
   if(mode==='none')return;
-  if(mode===toMode)return 'CC recipient mode must differ from Recipient mode. Choose another CC mode or select No CC.';
+  if(mode===toMode&&mode!=='workspace_role')return 'CC recipient mode must differ from Recipient mode. Choose another CC mode or select No CC.';
   if((mode==='linked_approver'||mode==='linked_creator')&&!eventType.startsWith('lessons.lesson_form.'))
     return 'Linked Lessons CC modes are only available for Lessons Learned form events.';
   return undefined;
@@ -54,7 +54,7 @@ export function EmailRuleCcEditor({value,onChange,toMode,eventType,users,project
   return <section className="space-y-3 rounded-xl border p-4" aria-label="CC recipients">
     <div className="space-y-2">
       <Label>CC recipient mode (optional)</Label>
-      <p className="text-xs text-muted-foreground">Choose how CC recipients are determined. The option selected in Recipient mode cannot also be selected for CC. A person included in both To and CC receives the email in To only.</p>
+      <p className="text-xs text-muted-foreground">Choose how CC recipients are determined. Application workspace roles can be used for both To and CC, with separate role selections. Other modes must differ from Recipient mode. A person included in both To and CC receives the email in To only.</p>
       <Select value={value.mode} onValueChange={mode=>onChange({mode:mode as CcDraft['mode']})}>
         <SelectTrigger aria-label="CC recipient mode"><SelectValue placeholder="No CC" /></SelectTrigger>
         <SelectContent><SelectItem value="none">No CC</SelectItem>

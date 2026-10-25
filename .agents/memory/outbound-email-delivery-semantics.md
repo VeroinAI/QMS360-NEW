@@ -9,6 +9,12 @@ Application-event emails must be persisted as one queued message per notificatio
 
 **How to apply:** Resolve and deduplicate the audience before enqueueing; To wins over CC for repeated addresses. Preserve the complete MIME audience for retries, restrict retry envelopes to failed addresses, and use the combined To names/emails for recipient-specific placeholders. Keep distinct workflow events and differently authorized audiences separate.
 
+Application workspace roles may be selected as both the To recipient mode and CC recipient mode, with independent role selections. Keep the existing distinct-mode restriction for other modes.
+
+**Why:** The user explicitly requested this exception to the earlier rule disallowing the same recipient mode in To and CC.
+
+**How to apply:** Permit the workspace-role pairing in both editor and server validation; preserve To-over-CC address deduplication.
+
 All QMS360 emails use the configured SMTP From Address for both the visible From header and SMTP envelope. A workflow-specific contact, if saved on a queue row, may be used only for Reply-To and must survive retries.
 
 **Why:** The user requires a consistent organizational sender across all applications; allowing rule-specific visible From addresses made the SMTP setting unreliable.

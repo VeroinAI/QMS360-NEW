@@ -4,16 +4,16 @@ import {CC_MODES,initialCcDraft,ccModeError,ccRecipientFromDraft,recipientModeFo
 import {isReportAssignedToUser} from '../qaqc/reporting/approval-summary';
 
 describe('CC recipient mode editor',()=>{
-  it.each(CC_MODES)('excludes only the matching To mode: $value',({value})=>{
+  it.each(CC_MODES)('allows shared workspace-role mode and excludes other matching To modes: $value',({value})=>{
     for(const option of CC_MODES)
-      expect(!!ccModeError(option.value,value,'lessons.lesson_form.approve')).toBe(option.value===value);
+      expect(!!ccModeError(option.value,value,'lessons.lesson_form.approve')).toBe(option.value===value&&value!=='workspace_role');
     expect(ccModeError('none',value,'lessons.lesson_form.approve')).toBeUndefined();
   });
   it('preserves legacy role-only rules in the editor until explicitly changed',()=>{
     const cc=initialCcDraft({ccRoleNames:['Reviewer']});
     expect(cc.mode).toBe('workspace_role');
     expect(ccRecipientFromDraft(cc)).toEqual({mode:'workspace_role',roleNames:['Reviewer']});
-    expect(ccModeError(cc.mode,'workspace_role','lessons.lesson_form.approve')).toContain('must differ');
+    expect(ccModeError(cc.mode,'workspace_role','lessons.lesson_form.approve')).toBeUndefined();
   });
   it('round-trips each explicitly saved CC mode and ignores inactive input values',()=>{
     for(const {value} of CC_MODES){
@@ -46,11 +46,13 @@ describe('CC recipient mode editor',()=>{
     expect(html).toContain('CC recipient mode');
     expect(html).toContain({internal_user:'Internal CC user',external_email:'CC recipient email',workspace_role:'CC application workspace roles',project_members:'CC project',project_role:'CC workspace role name'}[mode]);
   });
-  it('does not silently erase a pre-existing conflict; it displays a corrective message',()=>{
+  it('preserves saved CC roles when To also uses workspace roles without a conflict',()=>{
     const html=renderToStaticMarkup(<EmailRuleCcEditor value={initialCcDraft({ccRoleNames:['Manager']})} onChange={()=>{}}
       toMode="workspace_role" eventType="lessons.lesson_form.approve" users={[]} projects={[]} roles={[{id:'role',name:'Manager'}]}/>);
-    expect(html).toContain('CC recipient mode must differ');
-    expect(html).toContain('role="alert"');
+    expect(html).not.toContain('CC recipient mode must differ');
+    expect(html).not.toContain('role="alert"');
+    expect(html).toContain('checked=""');
+    expect(html).toContain('separate role selections');
   });
 });
 describe('Pending report assignment identity',()=>{

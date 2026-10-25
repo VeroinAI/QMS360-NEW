@@ -7,7 +7,7 @@ const modes = ['all_users', 'internal_user', 'external_email', 'workspace_role',
 export function emailCcTargetError(toMode: string, cc: CcTarget | undefined, eventType: string): string | undefined {
   if (!cc) return;
   if (!modes.includes(cc.mode)) return 'Select a valid CC recipient mode.';
-  if (cc.mode === toMode) return 'CC recipient mode must differ from Recipient mode. Select a different CC mode or remove CC.';
+  if (cc.mode === toMode && cc.mode !== 'workspace_role') return 'CC recipient mode must differ from Recipient mode. Select a different CC mode or remove CC.';
   if (['workspace_role','project_role'].includes(cc.mode) && !['audit','lessons','qaqc'].includes(eventType.split('.')[0]!))
     return 'CC workspace-role modes require an Audit, Lessons Learned or QA/QC event.';
   if (['linked_approver','linked_creator'].includes(cc.mode) && !eventType.startsWith('lessons.lesson_form.'))

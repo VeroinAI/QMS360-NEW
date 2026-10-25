@@ -11,8 +11,17 @@ const valid: CcTarget[]=[
   {mode:'linked_approver'},{mode:'linked_creator'},
 ];
 describe('CC target server validation',()=>{
-  it.each(valid)('rejects matching To and CC modes: $mode',cc=>{
+  it.each(valid.filter(cc=>cc.mode!=='workspace_role'))('rejects other matching To and CC modes: $mode',cc=>{
     expect(emailCcTargetError(cc.mode,cc,event)).toContain('must differ');
+  });
+  it.each(['audit.audit_report.approve','lessons.lesson_form.approve','qaqc.daily_report.submit'])('allows workspace roles in both To and CC for %s',eventType=>{
+    const cc={mode:'workspace_role',roleNames:['Reviewer']};
+    expect(emailCcTargetError('workspace_role',cc,eventType)).toBeUndefined();
+    const parsed=CreateEmailRuleBody.parse({name:'Rule',enabled:true,priority:0,eventType,recipientMode:'workspace_role',
+      recipientConfig:{roleNames:['Process Owner'],ccRecipient:cc}});
+    expect(parsed.recipientConfig?.roleNames).toEqual(['Process Owner']);
+    expect(parsed.recipientConfig?.ccRecipient).toEqual(cc);
+    expect(emailCcTargetError('workspace_role',{mode:'workspace_role',roleNames:[]},eventType)).toContain('at least one');
   });
   it.each(valid)('accepts and preserves a valid distinct mode: $mode',cc=>{
     const toMode=cc.mode==='all_users'?'internal_user':'all_users';
