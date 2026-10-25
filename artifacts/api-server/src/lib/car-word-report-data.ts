@@ -1,16 +1,23 @@
 import type { Request } from "express";
 import { formatDate } from "@workspace/spreadsheet-dates";
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { auditAuditLogEntries, auditFindings, auditSchedules, audits, db, users } from "@workspace/db";
 import { getAuthorizedFullProjectScope } from "../middlewares/rbac";
 import { actionableFinding, carAuditContext, carContext, carJson } from "./car-register";
 import { carDueDate, findingDateValue } from "./car-dates";
 import { HttpError } from "./workspace";
 import { getLovValues } from "./lov";
+import { findingCreationEvidence } from "./audit-photo-finding-metadata";
+import { carCalendarDate, carSubmissionDate, carVerification } from "./car-word-report-facts";
+import { readAuditPlanSignature } from "./audit-plan-signatures";
 
 export interface CarWordReportData {
   auditor?: string | null;
   date?: string | null;
+  originatorDate?: string | null;
+  recipientDate?: string | null;
+  originatorSignature?: Uint8Array;
+  recipientSignature?: Uint8Array;
   carNumber?: string | null;
   department?: string | null;
   recipient?: string | null;
@@ -33,11 +40,8 @@ export interface CarWordReportData {
 }
 
 export function carReportDate(value?: string | Date | null): string | null {
-  if (!value) return null;
-  if (!(value instanceof Date) && typeof value !== "string") return null;
-  const iso = value instanceof Date ? value.toISOString().slice(0, 10) : value.slice(0, 10);
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  return match ? formatDate(iso) : null;
+  const iso = carCalendarDate(value);
+  return iso ? formatDate(iso) : null;
 }
 
 /** A read-only export: never start a CAR or alter response/review history. */
@@ -81,19 +85,37 @@ export async function carWordReportData(req: Request, input: { auditId: string; 
     }
   }
   const meta = carJson(car?.effectivenessNotes);
+  const sourceId = meta.sourceChecklistItemId || (finding?.evidence as any)?.sourceChecklistItemId;
+  const checklistId = sourceId || (!finding ? item?.id : undefined);
+  const creationEvents = await db.select().from(auditAuditLogEntries).where(and(
+    eq(auditAuditLogEntries.organizationId, org),
+    eq(auditAuditLogEntries.entityType, checklistId ? "audit" : "audit_finding"),
+    eq(auditAuditLogEntries.entityId, checklistId ? context.audit.id : finding!.id),
+    inArray(auditAuditLogEntries.action, checklistId
+      ? ["add_finding_item", "update_checklist", "add_checklist_item", "edit_checklist_item", "import_checklist_items"]
+      : ["create"]),
+  ));
+  const creation = checklistId ? findingCreationEvidence(creationEvents).get(checklistId)
+    : creationEvents.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+  const originatorId = creation?.actorId;
   const recipientId = item?.actionTakerId || car?.ownerId;
-  const ids = [context.leadId, recipientId, meta.reviewedBy].filter((id): id is string => typeof id === "string" && !!id);
-  const people = ids.length ? await db.select({ id: users.id, name: users.fullName, designation: users.designation })
+  const ids = [originatorId, context.leadId, recipientId, meta.reviewedBy].filter((id): id is string => typeof id === "string" && !!id);
+  const people = ids.length ? await db.select({ id: users.id, name: users.fullName, designation: users.designation, signaturePath: users.signaturePath })
     .from(users).where(and(eq(users.organizationId, org), inArray(users.id, ids))) : [];
   const person = (id?: string | null) => people.find(entry => entry.id === id);
-  const [lastResponse] = car ? await db.select({ at: auditAuditLogEntries.createdAt }).from(auditAuditLogEntries).where(and(
+  const submissions = car ? await db.select({ createdAt: auditAuditLogEntries.createdAt, action: auditAuditLogEntries.action }).from(auditAuditLogEntries).where(and(
     eq(auditAuditLogEntries.organizationId, org), eq(auditAuditLogEntries.entityType, "corrective_action_report"),
-    eq(auditAuditLogEntries.entityId, car.id), inArray(auditAuditLogEntries.action, ["update", "submit"]),
-  )).orderBy(desc(auditAuditLogEntries.createdAt)).limit(1) : [];
+    eq(auditAuditLogEntries.entityId, car.id), inArray(auditAuditLogEntries.action, ["submit", "resubmit"]),
+  )) : [];
+  const signature = async (id?: string | null) => {
+    const path = person(id)?.signaturePath;
+    if (!path) return undefined;
+    try { return await readAuditPlanSignature(path); }
+    catch { req.log?.warn({ userId: id }, "CAR report signature unavailable"); return undefined; }
+  };
+  const [originatorSignature, recipientSignature] = await Promise.all([signature(originatorId), signature(recipientId)]);
   const riskText = String(item?.riskLevel || finding?.riskLevel || "").toLowerCase().trim();
   const risk = ["high", "medium", "low"].includes(riskText) ? riskText as CarWordReportData["risk"] : null;
-  const closed = car?.workflowState === "closed";
-  const closedDate = typeof meta.closedAt === "string" ? meta.closedAt.slice(0, 10) : null;
   const dueDate = car?.extensionStatus === "approved" && car.extensionDueDate ? car.extensionDueDate
     : carDueDate(item?.auditFinding || item?.result || finding?.classification, findingDateValue(item, finding), car?.dueDate);
   const areaValue = item?.auditArea || finding?.responsibleDepartment;
@@ -106,8 +128,11 @@ export async function carWordReportData(req: Request, input: { auditId: string; 
       eq(auditSchedules.organizationId, org), eq(auditSchedules.id, parentId), isNull(auditSchedules.deletedAt),
     )).limit(1) : [];
   return {
-    auditor: person(context.leadId)?.name,
+    auditor: person(originatorId)?.name,
     date: carReportDate(car?.createdAt ?? finding?.createdAt),
+    originatorDate: carReportDate(creation?.createdAt ?? (!checklistId ? finding?.createdAt : null)),
+    recipientDate: carReportDate(carSubmissionDate(meta, submissions)),
+    originatorSignature, recipientSignature,
     carNumber: typeof meta.carNumber === "string" ? meta.carNumber : null,
     department: context.scheduleMeta.departmentProject || finding?.responsibleDepartment,
     recipient: person(recipientId)?.name,
@@ -117,10 +142,8 @@ export async function carWordReportData(req: Request, input: { auditId: string; 
     finding: [item?.description || item?.question || finding?.description, item?.auditFinding || item?.result || finding?.classification].filter(Boolean).join("\n"),
     risk, dueDate: carReportDate(dueDate),
     rootCause: car?.rootCause, correction: car?.correction, correctiveAction: car?.correctiveAction,
-    designation: person(recipientId)?.designation, actionDate: carReportDate(lastResponse?.at),
-    accepted: meta.reviewOutcome === "accept" ? true : ["query", "rework", "reject"].includes(meta.reviewOutcome) ? false : null,
-    withinAcd: closed && closedDate && dueDate ? closedDate <= dueDate : null,
-    completed: car ? closed : false,
+    designation: person(recipientId)?.designation, actionDate: carReportDate(carSubmissionDate(meta, submissions)),
+    ...carVerification(car, meta, dueDate),
     verifiedBy: meta.reviewedAt ? person(meta.reviewedBy)?.name : null,
     verifiedDate: carReportDate(meta.reviewedAt),
   };

@@ -14,3 +14,9 @@ The Audit / Assessment Reference is the linked individual audit's saved QA/QC re
 **Why:** The user identified these three incorrect mappings in the downloaded CAR form and explicitly specified their meanings.
 
 **How to apply:** Resolve these fields at export time without modifying records or the supplied template. Missing references or unresolved labels follow the existing unavailable-value policy; do not substitute titles for missing numbers.
+
+Originator attribution is historical: use the actual finding creator and creation evidence, never the current Plan lead, manual Finding Date or a synthetic finding generated when a CAR was started. Recipient and Action Taken by signatures belong to the Action Taker; Recipient Date means the latest actual submission, not a save or review.
+
+**Why:** The user explicitly required creation attribution to survive lead changes and edits, and submission dates to distinguish drafts and resubmissions.
+
+**How to apply:** Preserve factual gaps as “To be mapped”; do not manufacture historical evidence. Only the three requested signature cells are mapped—Verified by, Auditor and Audit Managers signatures remain outside this mapping.
