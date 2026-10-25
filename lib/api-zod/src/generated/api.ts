@@ -8603,6 +8603,12 @@ export const CreateAuditPlanBody = zod.object({
 export const CreateAuditPlanResponse = zod.void()
 
 
+export const GetAuditScheduleActivityOptionsQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional(),
+  "department": zod.coerce.string().optional(),
+  "retainedScheduleId": zod.coerce.string().optional()
+})
+
 export const GetAuditScheduleActivityOptionsResponse = zod.object({
   "users": zod.array(zod.object({
   "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
@@ -8613,20 +8619,42 @@ export const GetAuditScheduleActivityOptionsResponse = zod.object({
   "roles": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string()
-}))
+})),
+  "historicalUsers": zod.array(zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+})).optional()
 })
 
 
 /**
- * @summary List active organization users available to Audit Plan master fields
+ * @summary List eligible Audit participants for an authorized individual audit
  */
+export const GetAuditPlanOptionsQueryParams = zod.object({
+  "scheduleId": zod.coerce.string()
+})
+
 export const GetAuditPlanOptionsResponse = zod.object({
   "users": zod.array(zod.object({
   "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
   "id": zod.string(),
   "fullName": zod.string(),
   "designation": zod.string().nullish()
-}))
+})),
+  "historicalUsers": zod.array(zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+})).optional(),
+  "leadUsers": zod.array(zod.object({
+  "canSelect": zod.boolean().optional().describe('False for retained former meeting attendees shown for display only'),
+  "id": zod.string(),
+  "fullName": zod.string(),
+  "designation": zod.string().nullish()
+})).optional()
 })
 
 

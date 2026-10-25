@@ -43,7 +43,9 @@ import {
   useGetAuditPlan,
   getGetAuditPlanQueryKey,
   useGetAuditPlanOptions,
+  getGetAuditPlanOptionsQueryKey,
   useGetAuditScheduleActivityOptions,
+  getGetAuditScheduleActivityOptionsQueryKey,
   useListAuditTeamLeads,
   useListAuditMeetingAttendees,
   useListAuditProcessProductOwners,
@@ -98,6 +100,9 @@ import { eligiblePlanAudits, loadPlanOptionPages } from "./plan-schedule-options
 import { refreshAuditScheduleQueries } from "./schedule-query-refresh";
 import { submissionMemoContent, submissionMemoDefaults, type ProgrammeSubmission } from "./submission-memo-defaults";
 import { auditTeamWithoutLead } from "./audit-plan-team";
+import { useParticipantConnectivity } from "./use-participant-connectivity";
+import { eligibleParticipantOptions } from "./participant-options";
+import { useParticipantNames } from "./use-participant-names";
 import { useGetPlatformAuditMemoDefaults, getGetPlatformAuditMemoDefaultsQueryKey } from "@workspace/api-client-react";
 import { parseSpreadsheetDate } from "@workspace/spreadsheet-dates";
 import { importDateOptions } from "@/lib/import-date-options";
@@ -661,7 +666,17 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     currentApprovalRole: null, approvalRoles: [], canReview: false,
   });
   const create = useCreateAuditSchedule(); const update = useUpdateAuditSchedule();
-  const activityAssignmentOptions = useGetAuditScheduleActivityOptions();
+  const participantOnline = useParticipantConnectivity();
+  const activityContext: { retainedScheduleId?: string; projectId?: string; department?: string } = { retainedScheduleId: initial?.id, ...(form.auditTypes?.includes(PROCESS_AUDIT_TYPE)
+    ? { department: form.departmentProject ?? "" } : { projectId: form.projectIds?.[0] ?? "" }) };
+  const activityAssignmentOptions = useGetAuditScheduleActivityOptions(activityContext, { query: {
+    queryKey: getGetAuditScheduleActivityOptionsQueryKey(activityContext),
+    enabled: !!(activityContext.projectId || activityContext.department) && participantOnline,
+    staleTime: 0, refetchOnMount: "always",
+  } });
+  const activityParticipantName = useParticipantNames([
+    ...(activityAssignmentOptions.data?.users ?? []), ...(activityAssignmentOptions.data?.historicalUsers ?? []),
+  ]);
   const auditTypes = useLov("audit_types");
   const auditCategories = useLov("audit_categories");
   const processOwners = useListAuditProcessProductOwners();
@@ -748,6 +763,11 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
     if (!form.title.trim()) missing.title = "Audit Title is required.";
     if ((form.activityRoleAssignments ?? []).some(item => !item.roleId || !item.userIds.length)) {
       missing.activityRoleAssignments = "Select a role and one or more users for every activity role assignment.";
+    }
+    if (form.activityRoleAssignments?.length && (activityAssignmentOptions.isFetching || !navigator.onLine
+      || !activityAssignmentOptions.data || activityAssignmentOptions.isError
+      || form.activityRoleAssignments.some(item => item.userIds.some(id => !activityAssignmentOptions.data?.users.some(user => user.id === id))))) {
+      missing.activityRoleAssignments = "Load eligible users for this project or department and replace unavailable selections before saving.";
     }
     if (!form.processProductOwner?.trim()) missing.processProductOwner = "Process / Product Owner is required.";
     if (!form.plannedStartDate) missing.plannedStartDate = "From Date is required.";
@@ -847,10 +867,14 @@ function ScheduleForm({ initial, onClose, parentId, parentRange }: { initial?: A
       <ScheduleActivityRoleFields value={form.activityRoleAssignments ?? []}
         onChange={activityRoleAssignments => setForm(current => ({ ...current, activityRoleAssignments }))}
         roles={activityAssignmentOptions.data?.roles ?? []}
-        users={(activityAssignmentOptions.data?.users ?? []).map(user => ({ id: user.id, name: user.fullName }))}
-        disabled={ro("activityRoleAssignments") || activityAssignmentOptions.isLoading || activityAssignmentOptions.isError}/>
+        users={eligibleParticipantOptions(activityAssignmentOptions.data, participantOnline, activityAssignmentOptions.isError).map(user => ({ id: user.id, name: user.fullName }))}
+        historicalUsers={[...new Set((form.activityRoleAssignments ?? []).flatMap(row => row.userIds))]
+          .map(id => ({ id, name: activityParticipantName(id) ?? id }))}
+        disabled={ro("activityRoleAssignments") || activityAssignmentOptions.isFetching || activityAssignmentOptions.isError || !activityAssignmentOptions.data || !participantOnline}/>
       {activityAssignmentOptions.isLoading && <p className="text-sm text-muted-foreground">Loading activity roles and users…</p>}
       {activityAssignmentOptions.isError && <p role="alert" className="text-sm text-destructive">Unable to load activity roles and users. Existing assignments are retained. <Button variant="link" size="sm" onClick={() => void activityAssignmentOptions.refetch()}>Retry</Button></p>}
+      {(!participantOnline || (!activityContext.projectId && !activityContext.department)) && <p role="alert" className="text-sm text-destructive">Select a project or department and connect to load eligible activity users. Cached organization user lists cannot be used.</p>}
+      {activityAssignmentOptions.data && (form.activityRoleAssignments ?? []).some(row => row.userIds.some(id => !activityAssignmentOptions.data.users.some(user => user.id === id))) && <p role="alert" className="text-sm text-destructive">Some retained activity users are unavailable for this project or department. Remove or replace them before saving.</p>}
       {error("activityRoleAssignments")}
     </div>
     <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={() => void save()} disabled={create.isPending || update.isPending}>Save schedule</Button></DialogFooter>
@@ -1474,17 +1498,25 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   const ro = (key: string) => fc.fieldProps(key).disabled || fa.readOnly("plan", key)
     || (key.startsWith("activityPlanned") && (fc.fieldProps("activityDateTime").disabled || fa.readOnly("plan", "activityDateTime")));
   const create = useCreateAuditPlan(); const update = useUpdateAuditPlan(); const recordFeasibility = useRecordAuditScheduleFeasibility(); const qc = useQueryClient(); const { toast } = useToast();
-  const options = useGetAuditPlanOptions();
+  const participantOnline = useParticipantConnectivity();
+  const options = useGetAuditPlanOptions({ scheduleId: form.scheduleId }, { query: {
+    queryKey: getGetAuditPlanOptionsQueryKey({ scheduleId: form.scheduleId }),
+    enabled: !!form.scheduleId && participantOnline, staleTime: 0, refetchOnMount: "always",
+  } });
   const auditeeRoles = useListAuditPlanNotificationRoles();
   const activityMaster = useLov("activities");
   useEffect(() => { void readAuditPlanContext().then(setOfflineContext).catch(() => undefined); }, []);
   useEffect(() => {
     const loadedSchedules = [...new Map([...schedules, ...(programmeAudits.data ?? [])].map(schedule => [schedule.id, schedule])).values()];
-    if (options.data?.users && loadedSchedules.length) {
-      void cacheAuditPlanContext(loadedSchedules, options.data.users).then(() => readAuditPlanContext().then(setOfflineContext)).catch(() => undefined);
+    if (loadedSchedules.length) {
+      // Cache source records only. Old broad user snapshots are never eligibility.
+      void cacheAuditPlanContext(loadedSchedules, []).then(() => readAuditPlanContext().then(setOfflineContext)).catch(() => undefined);
     }
   }, [options.data, schedules, programmeAudits.data]);
-  const users = options.data?.users ?? offlineContext?.users ?? [];
+  const users = eligibleParticipantOptions(options.data, participantOnline, options.isError);
+  const knownParticipantName = useParticipantNames([...(options.data?.users ?? []), ...(options.data?.historicalUsers ?? [])]);
+  const participantName = (id: string) => knownParticipantName(id) ?? `Unavailable user (${id})`;
+  const eligibilityUnavailable = !participantOnline || !form.scheduleId || options.isFetching || options.isError || !options.data;
   const effectiveSchedules = [...new Map([
     ...(!navigator.onLine ? offlineContext?.schedules ?? [] : []),
     ...schedules, ...(linkedSchedule.data ? [linkedSchedule.data] : []),
@@ -1508,7 +1540,8 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
   });
   const leadUsers = selectedSchedule?.teamLeadIds == null
     ? users
-    : users.filter(user => selectedSchedule.teamLeadIds?.includes(user.id));
+    : users.filter(user => selectedSchedule.teamLeadIds?.includes(user.id)
+      && options.data?.leadUsers?.some(lead => lead.id === user.id));
   const teamUsers = users.filter(user => user.id !== form.leadAuditorId);
   const clearError = (...keys: string[]) => setErrors(current => {
     const next = { ...current };
@@ -1531,7 +1564,6 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     setForm(current => ({
       ...current, scheduleId, auditTitle: schedule.title, qaqcScope: schedule.qaqcScope ?? "",
       auditTypes: schedule.auditTypes ?? [], qaqcReference: schedule.qaqcReference ?? "",
-      leadAuditorId: schedule.teamLeadIds == null || schedule.teamLeadIds.includes(current.leadAuditorId) ? current.leadAuditorId : "",
     }));
     clearError("scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId");
   };
@@ -1540,11 +1572,11 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     setProgrammeId(id);
     setForm(current => ({
       ...current, scheduleId: "", auditTitle: "", qaqcScope: "", auditTypes: [],
-      qaqcReference: "", leadAuditorId: "",
+      qaqcReference: "",
     }));
     clearError("programmeId", "scheduleId", "auditTitle", "qaqcScope", "auditTypes", "qaqcReference", "leadAuditorId");
   };
-  const selectedTeamNames = form.teamMemberIds.map(id => users.find(user => user.id === id)?.fullName).filter(Boolean);
+  const selectedTeamNames = form.teamMemberIds.map(participantName);
   const selectedAuditeeRoleIds = form.auditeeRoleIds ?? [];
   const selectedAuditeeRoleNames = selectedAuditeeRoleIds.map(id => auditeeRoles.data?.find(role => role.id === id)?.name).filter(Boolean);
   const selectedCirculationRoleIds = form.circulationRoleIds ?? [];
@@ -1626,6 +1658,11 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
       ["circulationRoleIds", selectedCirculationRoleIds], ["circulation", circulation],
     ];
     const nextErrors = Object.fromEntries(required.filter(([, value]) => Array.isArray(value) ? !value.length : !String(value ?? "").trim()).map(([key]) => [key, "This field is required."]));
+    if (!navigator.onLine || eligibilityUnavailable) nextErrors.teamMemberIds = "Eligible users are unavailable. Connect and load this audit's eligible users before saving.";
+    else if (form.teamMemberIds.some(id => !users.some(user => user.id === id))) nextErrors.teamMemberIds = "Remove or replace team members who are not eligible for this audit.";
+    for (const row of activityRows) {
+      if (activityAuditeeIds(row).some(id => !users.some(user => user.id === id))) nextErrors[`activity-${row.id}-auditeeId`] = "Remove or replace activity users who are not eligible for this audit.";
+    }
     for (const key of ["auditMethods", "auditCriteria"] as const) {
       if (fc.fieldProps(key).required && !form[key]?.length) nextErrors[key] = "This field is required.";
     }
@@ -1825,8 +1862,11 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
     <Dialog open={feasibilityOpen} onOpenChange={open => { setFeasibilityOpen(open); if (!open) setForm(current => ({ ...current, auditFeasible: true })); }}><DialogContent><DialogHeader><DialogTitle>Audit is not feasible</DialogTitle><DialogDescription>Enter the required feedback. New dates are required only to reschedule the audit; canceling does not require dates.</DialogDescription></DialogHeader><div><Label htmlFor="feasibility-feedback">Remarks / Feedback *</Label><Textarea id="feasibility-feedback" className="mt-2" rows={5} value={feasibilityFeedback} aria-invalid={!!feasibilityError} onChange={event => { setFeasibilityFeedback(event.target.value); setFeasibilityError(""); }} placeholder="Enter remarks or feedback"/>{feasibilityError && <p className="mt-1 text-sm text-destructive">{feasibilityError}</p>}</div><div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="feasibility-from-date">From Date</Label><Input id="feasibility-from-date" type="date" className="mt-2" value={feasibilityFromDate} aria-invalid={!!feasibilityDateError} onChange={event => { setFeasibilityFromDate(event.target.value); setFeasibilityDateError(""); }}/></div><div><Label htmlFor="feasibility-to-date">To Date</Label><Input id="feasibility-to-date" type="date" className="mt-2" min={feasibilityFromDate || undefined} value={feasibilityToDate} aria-invalid={!!feasibilityDateError} onChange={event => { setFeasibilityToDate(event.target.value); setFeasibilityDateError(""); }}/></div>{feasibilityDateError && <p className="text-sm text-destructive sm:col-span-2">{feasibilityDateError}</p>}</div><DialogFooter><Button variant="destructive" disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("cancelled")}>Cancel Audit</Button><Button disabled={recordFeasibility.isPending} onClick={() => submitFeasibility("reschedule")}>Reschedule Audit</Button></DialogFooter></DialogContent></Dialog>
     <fieldset disabled={!form.auditFeasible} className={`grid gap-4 ${!form.auditFeasible ? "opacity-50" : ""}`}>
     <div><Label>2. Audit Title *</Label><Input className="mt-2" readOnly disabled={readOnly} value={form.auditTitle} {...invalid("auditTitle")} placeholder="Generated from Audit Schedule"/><ErrorText name="auditTitle"/></div>
-    <div><Label>3. Lead / Internal Auditor *</Label><Select value={form.leadAuditorId} disabled={disabled("leadAuditorId") || !form.scheduleId} onValueChange={value => set("leadAuditorId", value)}><SelectTrigger className="mt-2" {...invalid("leadAuditorId")}><SelectValue placeholder="Select lead auditor"/></SelectTrigger><SelectContent>{leadUsers.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><ErrorText name="leadAuditorId"/>{form.scheduleId && selectedSchedule?.teamLeadIds != null && !leadUsers.length && <p className="mt-1 text-xs text-muted-foreground">No selected Audit Team Leads currently have active Audit access.</p>}</div>
-    <div><Label>4. Audit Team *</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal" disabled={disabled("teamMemberIds")} {...invalid("teamMemberIds")}><span className="truncate">{selectedTeamNames.length ? selectedTeamNames.join(", ") : "Select Audit Team"}</span><ChevronDown className="ml-2 size-4 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">{teamUsers.map(user => <DropdownMenuCheckboxItem key={user.id} checked={form.teamMemberIds.includes(user.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => toggleTeamMember(user.id, checked === true)}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu><ErrorText name="teamMemberIds"/><p className="mt-1 text-xs text-muted-foreground">The selected Lead / Internal Auditor is excluded from the Audit Team.</p></div>
+    <div><Label>3. Lead / Internal Auditor *</Label><Select value={form.leadAuditorId} disabled={disabled("leadAuditorId") || eligibilityUnavailable} onValueChange={value => set("leadAuditorId", value)}><SelectTrigger className="mt-2" {...invalid("leadAuditorId")}><SelectValue placeholder="Select lead auditor"/></SelectTrigger><SelectContent>{leadUsers.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}{form.leadAuditorId && !leadUsers.some(user => user.id === form.leadAuditorId) && <SelectItem value={form.leadAuditorId} disabled>{participantName(form.leadAuditorId)} — unavailable, replace</SelectItem>}</SelectContent></Select><ErrorText name="leadAuditorId"/>{form.scheduleId && selectedSchedule?.teamLeadIds != null && !leadUsers.length && <p className="mt-1 text-xs text-muted-foreground">No selected Audit Team Leads currently have eligible Audit access for this audit.</p>}</div>
+    <div><Label>4. Audit Team *</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal" disabled={disabled("teamMemberIds")} {...invalid("teamMemberIds")}><span className="truncate">{selectedTeamNames.length ? selectedTeamNames.join(", ") : "Select Audit Team"}</span><ChevronDown className="ml-2 size-4 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">{teamUsers.map(user => <DropdownMenuCheckboxItem key={user.id} disabled={eligibilityUnavailable} checked={form.teamMemberIds.includes(user.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => toggleTeamMember(user.id, checked === true)}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</DropdownMenuCheckboxItem>)}{form.teamMemberIds.filter(id => !teamUsers.some(user => user.id === id)).map(id => <DropdownMenuCheckboxItem key={id} checked onSelect={event => event.preventDefault()} onCheckedChange={() => toggleTeamMember(id, false)}>{participantName(id)} — unavailable, remove</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu><ErrorText name="teamMemberIds"/><p className="mt-1 text-xs text-muted-foreground">The selected Lead / Internal Auditor is excluded from the Audit Team.</p>
+      {eligibilityUnavailable && <p role="alert" className="mt-1 text-sm text-destructive">{!form.scheduleId ? "Select an individual audit to load eligible users." : "Eligible users are unavailable. Connect and retry before saving."} {navigator.onLine && form.scheduleId && <Button type="button" variant="link" onClick={() => void options.refetch()}>Retry</Button>}</p>}
+      {!eligibilityUnavailable && form.teamMemberIds.some(id => !users.some(user => user.id === id)) && <p role="alert" className="mt-1 text-sm text-destructive">Some retained team selections are not eligible for this audit. Remove or replace them before saving.</p>}
+    </div>
     <div><Label>5. Auditee Roles *</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="mt-2 w-full justify-between font-normal" disabled={disabled("auditeeId") || auditeeRoles.isLoading} {...invalid("auditeeRoleIds")}><span className="truncate">{selectedAuditeeRoleNames.length ? selectedAuditeeRoleNames.join(", ") : auditeeRoles.isLoading ? "Loading roles…" : "Select auditee roles"}</span><ChevronDown className="ml-2 size-4 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">{(auditeeRoles.data ?? []).map(role => <DropdownMenuCheckboxItem key={role.id} checked={selectedAuditeeRoleIds.includes(role.id)} onSelect={event => event.preventDefault()} onCheckedChange={checked => toggleAuditeeRole(role.id, checked === true)}>{role.name}</DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu><ErrorText name="auditeeRoleIds"/></div>
     <div><Label>6. QA/QC Scope *</Label><Textarea className="mt-2" readOnly disabled={readOnly} value={form.qaqcScope} {...invalid("qaqcScope")} placeholder="Prefilled from Audit Schedule"/><ErrorText name="qaqcScope"/></div>
     <div><Label>7. Audit Type *</Label><Input className="mt-2" readOnly disabled={readOnly} value={form.auditTypes.join(", ")} {...invalid("auditTypes")} placeholder="Prefilled from Audit Schedule"/><ErrorText name="auditTypes"/></div>
@@ -1862,6 +1902,7 @@ function PlanForm({ schedules, onClose, initial, presetSchedule, presetProgramme
           </TableCell>
           {initial && <TableCell className="align-top">
             <ActivityMultiSelect label={`Select auditees for ${row.section || "activity"}`} options={users.map(user => ({ id: user.id, name: user.fullName }))}
+              historicalOptions={activityAuditeeIds(row).map(id => ({ id, name: participantName(id) }))}
               value={activityAuditeeIds(row)} disabled={disabled("activityAuditeeId")} onChange={ids => setActivityAuditees(row.id, ids)}/>
             {!readOnly && <Button type="button" variant="link" size="sm" disabled={disabled("activityAuditeeId") || !selectedSchedule || linkedSchedule.isFetching || !activityAuditeeDefaults(row.roleIds ?? [], selectedSchedule?.activityRoleAssignments).length}
               onClick={() => setActivityAuditees(row.id, activityAuditeeDefaults(row.roleIds ?? [], selectedSchedule?.activityRoleAssignments))}>Use schedule auditees</Button>}

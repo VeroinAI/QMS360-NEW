@@ -1886,6 +1886,10 @@ paths:
   /audit/schedule-activity-options:
     get:
       operationId: getAuditScheduleActivityOptions
+      parameters:
+        - {in: query, name: projectId, schema: {type: string}}
+        - {in: query, name: department, schema: {type: string}}
+        - {in: query, name: retainedScheduleId, schema: {type: string}}
       responses:
         "200":
           description: Active organization Audit roles and eligible Audit users for schedule-local activity assignments
@@ -1893,7 +1897,7 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/AuditScheduleActivityOptions"}
   /audit/plan-options:
-    get: {operationId: getAuditPlanOptions, tags: [audit], summary: List active organization users available to Audit Plan master fields, responses: {"200": {description: Plan options, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanOptions"}}}}}}
+    get: {operationId: getAuditPlanOptions, tags: [audit], summary: List eligible Audit participants for an authorized individual audit, parameters: [{in: query, name: scheduleId, required: true, schema: {type: string}}], responses: {"200": {description: Plan options and display-only historical names, content: {application/json: {schema: {$ref: "#/components/schemas/AuditPlanOptions"}}}}}}
   /audit/plan-notification-roles:
     get: {operationId: listAuditPlanNotificationRoles, tags: [audit], summary: List active roles available for Audit Plan execution notifications, responses: {"200": {description: Active Audit roles, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/Role"}}}}}}}
   /audit/plans/{id}:
@@ -4360,6 +4364,7 @@ components:
       properties:
         users: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
         roles: {type: array, items: {$ref: "#/components/schemas/AuditActivityRoleOption"}}
+        historicalUsers: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
     AuditSchedule:
       type: object
       required: [id, year, title, projectIds, plannedStartDate, plannedEndDate, workflowState, currentApprovalRole, approvalRoles, canReview]
@@ -4498,6 +4503,8 @@ components:
       required: [users]
       properties:
         users: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
+        historicalUsers: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
+        leadUsers: {type: array, items: {$ref: "#/components/schemas/AuditPlanUserOption"}}
     AuditPlanNumberingPattern:
       type: object
       required: [prefix, middle, separator, padding]

@@ -3256,6 +3256,7 @@ export interface AuditPlanUserOption {
 export interface AuditScheduleActivityOptions {
   users: AuditPlanUserOption[];
   roles: AuditActivityRoleOption[];
+  historicalUsers?: AuditPlanUserOption[];
 }
 
 /**
@@ -3501,6 +3502,8 @@ export type AuditTeamLeadOption = AuditPlanUserOption & ({
 
 export interface AuditPlanOptions {
   users: AuditPlanUserOption[];
+  historicalUsers?: AuditPlanUserOption[];
+  leadUsers?: AuditPlanUserOption[];
 }
 
 export interface AuditPlanNumberingPattern {
@@ -6034,6 +6037,16 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+};
+
+export type GetAuditScheduleActivityOptionsParams = {
+projectId?: string;
+department?: string;
+retainedScheduleId?: string;
+};
+
+export type GetAuditPlanOptionsParams = {
+scheduleId: string;
 };
 
 export type ListAuditsParams = {

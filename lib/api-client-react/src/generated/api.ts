@@ -174,6 +174,8 @@ import type {
   GetAuditOpenVsClosedReportParams,
   GetAuditPlanNumberPreview200,
   GetAuditPlanNumberPreviewParams,
+  GetAuditPlanOptionsParams,
+  GetAuditScheduleActivityOptionsParams,
   GetDailyOpeningProjects200,
   GetLessonsEscalationsParams,
   GetLessonsReferenceDataParams,
@@ -21570,17 +21572,24 @@ export const useCreateAuditPlan = <TError = ErrorType<unknown>,
       return useMutation(getCreateAuditPlanMutationOptions(options));
     }
 
-export const getGetAuditScheduleActivityOptionsUrl = () => {
+export const getGetAuditScheduleActivityOptionsUrl = (params?: GetAuditScheduleActivityOptionsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/audit/schedule-activity-options`
+  return stringifiedParams.length > 0 ? `/api/audit/schedule-activity-options?${stringifiedParams}` : `/api/audit/schedule-activity-options`
 }
 
-export const getAuditScheduleActivityOptions = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditScheduleActivityOptions> => {
+export const getAuditScheduleActivityOptions = async (params?: GetAuditScheduleActivityOptionsParams, options?: Parameters<typeof customFetch>[1]): Promise<AuditScheduleActivityOptions> => {
 
-  return customFetch<AuditScheduleActivityOptions>(getGetAuditScheduleActivityOptionsUrl(),
+  return customFetch<AuditScheduleActivityOptions>(getGetAuditScheduleActivityOptionsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -21593,23 +21602,23 @@ export const getAuditScheduleActivityOptions = async ( options?: Parameters<type
 
 
 
-export const getGetAuditScheduleActivityOptionsQueryKey = () => {
+export const getGetAuditScheduleActivityOptionsQueryKey = (params?: GetAuditScheduleActivityOptionsParams,) => {
     return [
-    `/api/audit/schedule-activity-options`
+    `/api/audit/schedule-activity-options`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetAuditScheduleActivityOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAuditScheduleActivityOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError = ErrorType<unknown>>(params?: GetAuditScheduleActivityOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetAuditScheduleActivityOptionsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditScheduleActivityOptionsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>> = ({ signal }) => getAuditScheduleActivityOptions({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>> = ({ signal }) => getAuditScheduleActivityOptions(params, { signal, ...requestOptions });
 
 
 
@@ -21624,11 +21633,11 @@ export type GetAuditScheduleActivityOptionsQueryError = ErrorType<unknown>
 
 
 export function useGetAuditScheduleActivityOptions<TData = Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetAuditScheduleActivityOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditScheduleActivityOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetAuditScheduleActivityOptionsQueryOptions(options)
+  const queryOptions = getGetAuditScheduleActivityOptionsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -21641,20 +21650,27 @@ export function useGetAuditScheduleActivityOptions<TData = Awaited<ReturnType<ty
 
 
 
-export const getGetAuditPlanOptionsUrl = () => {
+export const getGetAuditPlanOptionsUrl = (params: GetAuditPlanOptionsParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/audit/plan-options`
+  return stringifiedParams.length > 0 ? `/api/audit/plan-options?${stringifiedParams}` : `/api/audit/plan-options`
 }
 
 /**
- * @summary List active organization users available to Audit Plan master fields
+ * @summary List eligible Audit participants for an authorized individual audit
  */
-export const getAuditPlanOptions = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanOptions> => {
+export const getAuditPlanOptions = async (params: GetAuditPlanOptionsParams, options?: Parameters<typeof customFetch>[1]): Promise<AuditPlanOptions> => {
 
-  return customFetch<AuditPlanOptions>(getGetAuditPlanOptionsUrl(),
+  return customFetch<AuditPlanOptions>(getGetAuditPlanOptionsUrl(params),
   {
     ...options,
     method: 'GET'
@@ -21667,23 +21683,23 @@ export const getAuditPlanOptions = async ( options?: Parameters<typeof customFet
 
 
 
-export const getGetAuditPlanOptionsQueryKey = () => {
+export const getGetAuditPlanOptionsQueryKey = (params?: GetAuditPlanOptionsParams,) => {
     return [
-    `/api/audit/plan-options`
+    `/api/audit/plan-options`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetAuditPlanOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getAuditPlanOptions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetAuditPlanOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getAuditPlanOptions>>, TError = ErrorType<unknown>>(params: GetAuditPlanOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetAuditPlanOptionsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetAuditPlanOptionsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditPlanOptions>>> = ({ signal }) => getAuditPlanOptions({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAuditPlanOptions>>> = ({ signal }) => getAuditPlanOptions(params, { signal, ...requestOptions });
 
 
 
@@ -21697,15 +21713,15 @@ export type GetAuditPlanOptionsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List active organization users available to Audit Plan master fields
+ * @summary List eligible Audit participants for an authorized individual audit
  */
 
 export function useGetAuditPlanOptions<TData = Awaited<ReturnType<typeof getAuditPlanOptions>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params: GetAuditPlanOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAuditPlanOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetAuditPlanOptionsQueryOptions(options)
+  const queryOptions = getGetAuditPlanOptionsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

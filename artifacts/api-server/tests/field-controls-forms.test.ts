@@ -1170,7 +1170,7 @@ describe("field-controls enforcement over HTTP (audit plan)", () => {
   });
 
   it("returns active Audit users as Master options", async () => {
-    const res = await api("GET", "/audit/plan-options", { token: member.token });
+    const res = await api("GET", `/audit/plan-options?scheduleId=${scheduleId}`, { token: member.token });
     expect(res.status).toBe(200);
     expect(res.json.users.some((user: { id: string }) => user.id === member.id)).toBe(true);
   });

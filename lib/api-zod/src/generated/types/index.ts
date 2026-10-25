@@ -333,6 +333,8 @@ export * from './getAuditFindingsLogReportParams';
 export * from './getAuditOpenVsClosedReportParams';
 export * from './getAuditPlanNumberPreview200';
 export * from './getAuditPlanNumberPreviewParams';
+export * from './getAuditPlanOptionsParams';
+export * from './getAuditScheduleActivityOptionsParams';
 export * from './getDailyOpeningProjects200';
 export * from './getLessonsEscalationsParams';
 export * from './getLessonsReferenceDataParams';

@@ -1,5 +1,6 @@
 import { formatDateInTimeZone, formatPresentationData } from "@workspace/spreadsheet-dates";
 import { roleDepartments, validateRoleDepartments } from "../lib/role-departments";
+import { participantAssignmentMatches, type ParticipantContext } from "../lib/audit-participant-scope";
 import { auditDepartmentId, processDepartmentAllowed, intersectAuditScopes } from "../lib/audit-department-scope";
 import { visibleAdminUsers } from "../lib/admin-user-discovery";
 import { auditOverviewContext } from "../lib/audit-overview-context";
@@ -911,9 +912,11 @@ async function scheduleResponse(req: Request, row: AnyRow, hasPlan = false, pare
   return scheduleDto(row, await canReviewApproval(req, row), hasPlan, parent && isProgramme(parent) ? scheduleMeta(parent).teamLeadIds ?? null : null);
 }
 
-async function auditUsersWithMarker(organizationId: string, permissionKey: "audit_team_lead" | "product_process_owner") {
+async function auditUsersWithMarker(organizationId: string, permissionKey: "audit_team_lead" | "product_process_owner", context?: ParticipantContext) {
   const rows = await db.select({
     id: users.id, fullName: users.fullName, designation: users.designation,
+    projectIds: auditUserWorkspaceRoles.projectIds, businessUnitIds: auditUserWorkspaceRoles.businessUnitIds,
+    departmentIds: auditUserWorkspaceRoles.departmentIds,
     ...(permissionKey === "audit_team_lead" ? { email: users.email } : {}),
   }).from(users)
     .innerJoin(auditUserWorkspaceRoles, and(
@@ -936,7 +939,8 @@ async function auditUsersWithMarker(organizationId: string, permissionKey: "audi
     ))
     .where(and(eq(users.organizationId, organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt)))
     .orderBy(asc(users.fullName));
-  return [...new Map(rows.map(row => [row.id, row])).values()];
+  return [...new Map(rows.filter(row => !context || participantAssignmentMatches(row, context))
+    .map(({ projectIds, businessUnitIds, departmentIds, ...row }) => [row.id, row] as const)).values()];
 }
 
 async function eligibleMeetingAttendees(organizationId: string) {
@@ -1530,7 +1534,7 @@ router.get("/schedules", asyncHandler(async (req, res) => {
 }));
 router.post("/schedules", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditScheduleBody, req);
-  data.activityRoleAssignments = await validateActivityRoleAssignments(actor(req).organizationId, data.activityRoleAssignments ?? []);
+  data.activityRoleAssignments = await validateActivityRoleAssignments(actor(req).organizationId, data.activityRoleAssignments ?? [], data);
   await assertValidParent(actor(req).organizationId, data.parentId);
   const requestedProjectIds = data.projectIds?.length ? data.projectIds : [data.projectId].filter(Boolean);
   let projectIds = requestedProjectIds.length
@@ -1673,7 +1677,7 @@ router.put("/schedules/:id", asyncHandler(async (req, res) => {
   const [before] = await db.select().from(auditSchedules).where(and(active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, String(req.params.id))));
   await assertChildSchedule(before);
   data.activityRoleAssignments = await validateActivityRoleAssignments(actor(req).organizationId,
-    data.activityRoleAssignments ?? scheduleMeta(before).activityRoleAssignments ?? []);
+    data.activityRoleAssignments ?? scheduleMeta(before).activityRoleAssignments ?? [], data);
   data.parentId = data.parentId ?? scheduleMeta(before).parentId ?? null;
   await assertValidParent(actor(req).organizationId, data.parentId);
   const requestedProjectIds = data.projectIds?.length ? data.projectIds : [data.projectId].filter(Boolean);
@@ -2006,8 +2010,21 @@ const planValues = (data: AnyRow) => ({
     circulationRoleIds: data.circulationRoleIds,
   }),
 });
-async function auditPlanUsers(organizationId: string) {
-  const rows = await db.select({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
+async function participantContext(organizationId: string, data: AnyRow): Promise<ParticipantContext> {
+  const process = data.auditTypes?.includes(PROCESS_AUDIT_TYPE) ?? false;
+  return { projectIds: process ? [] : data.projectIds?.length ? data.projectIds : [data.projectId].filter(Boolean),
+    process, departmentId: process ? auditDepartmentId(data.departmentProject, await roleDepartments(organizationId)) : null };
+}
+async function scheduleParticipantContext(organizationId: string, schedule: AnyRow) {
+  // The persisted individual schedule owns the project; caller claims and legacy
+  // metadata must not override its actual project column.
+  return participantContext(organizationId, { ...scheduleMeta(schedule),
+    projectId: schedule.projectId, projectIds: schedule.projectId ? [schedule.projectId] : [] });
+}
+async function auditPlanUsers(organizationId: string, context?: ParticipantContext) {
+  const rows = await db.select({ id: users.id, fullName: users.fullName, designation: users.designation,
+    projectIds: auditUserWorkspaceRoles.projectIds, businessUnitIds: auditUserWorkspaceRoles.businessUnitIds,
+    departmentIds: auditUserWorkspaceRoles.departmentIds }).from(users)
     .innerJoin(auditUserWorkspaceRoles, and(
       eq(auditUserWorkspaceRoles.userId, users.id), eq(auditUserWorkspaceRoles.organizationId, organizationId),
       eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
@@ -2018,16 +2035,17 @@ async function auditPlanUsers(organizationId: string) {
     ))
     .where(and(eq(users.organizationId, organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt)))
     .orderBy(asc(users.fullName));
-  return [...new Map(rows.map((row) => [row.id, row])).values()];
+  return [...new Map(rows.filter(row => participantAssignmentMatches(row, context))
+    .map(({ projectIds, businessUnitIds, departmentIds, ...row }) => [row.id, row] as const)).values()];
 }
 async function activityRoleOptions(organizationId: string) {
   return db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles)
     .where(and(active(auditWorkspaceRoles, organizationId), eq(auditWorkspaceRoles.status, "active")))
     .orderBy(asc(auditWorkspaceRoles.name));
 }
-async function validateActivityRoleAssignments(organizationId: string, assignments: ActivityRoleAssignment[]) {
+async function validateActivityRoleAssignments(organizationId: string, assignments: ActivityRoleAssignment[], data: AnyRow) {
   if (!assignments.length) return [];
-  const [roles, people] = await Promise.all([activityRoleOptions(organizationId), auditPlanUsers(organizationId)]);
+  const [roles, people] = await Promise.all([activityRoleOptions(organizationId), auditPlanUsers(organizationId, await participantContext(organizationId, data))]);
   return normalizeActivityAssignments(assignments, new Set(roles.map(role => role.id)), new Set(people.map(user => user.id)));
 }
 async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) {
@@ -2070,10 +2088,10 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   await Promise.all(activities.map(activity =>
     assertLovValue(db, actor(req).organizationId, "activities", activity.section)));
   assertPlanDates(data, schedule, activities);
-  const options = await auditPlanUsers(actor(req).organizationId);
+  const options = await auditPlanUsers(actor(req).organizationId, await scheduleParticipantContext(actor(req).organizationId, schedule));
   const usersById = new Map(options.map((option) => [option.id, option]));
   const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, ...activities.flatMap(auditActivityAuditeeIds)])];
-  if (participantIds.some((id) => !usersById.has(id))) throw new HttpError(422, "Select active QMS Audit users for all Master fields");
+  if (participantIds.some((id) => !usersById.has(id))) throw new HttpError(422, "Select active QMS Audit users eligible for this audit's project or department; replace unavailable selections");
   const parentId = scheduleMeta(schedule).parentId;
   if (parentId) {
     const [parent] = await db.select({ status: auditSchedules.status }).from(auditSchedules).where(and(
@@ -2083,6 +2101,11 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
     const selectedLeads = scheduleMeta(parent).teamLeadIds;
     if (selectedLeads && !selectedLeads.includes(data.leadAuditorId)) {
       throw new HttpError(422, "Lead / Internal Auditor must be one of the Audit Team Leads selected when the schedule was created");
+    }
+    if (selectedLeads && !(await auditUsersWithMarker(actor(req).organizationId, "audit_team_lead",
+      await scheduleParticipantContext(actor(req).organizationId, schedule)))
+      .some(user => user.id === data.leadAuditorId)) {
+      throw new HttpError(422, "The selected lead must have an Audit Team Lead assignment eligible for this audit");
     }
   }
   const selectedRoles = await db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name })
@@ -2132,18 +2155,82 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
     location: scheduleData.location,
   };
 }
+async function optionContext(req: Request, allowDraft: boolean): Promise<ParticipantContext> {
+  const organizationId = actor(req).organizationId;
+  for (const key of ["scheduleId", "projectId", "retainedScheduleId"]) {
+    if (req.query[key] !== undefined && (typeof req.query[key] !== "string" ||
+      !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(req.query[key] as string))) {
+      throw new HttpError(422, `Select a valid ${key}`);
+    }
+  }
+  if (typeof req.query.scheduleId === "string" && req.query.scheduleId) {
+    const [schedule] = await db.select().from(auditSchedules).where(and(
+      active(auditSchedules, organizationId), eq(auditSchedules.id, req.query.scheduleId)));
+    await assertChildSchedule(schedule);
+    if (!await scheduleInScope(req, schedule)) throw new HttpError(403, "You do not have access to this schedule");
+    return scheduleParticipantContext(organizationId, schedule);
+  }
+  if (!allowDraft) throw new HttpError(422, "Select an individual audit before loading eligible users");
+  const projectId = typeof req.query.projectId === "string" ? req.query.projectId : "";
+  if (projectId) {
+    await assertProjectInOrg(db, organizationId, projectId);
+    await assertProjectAccess(req, projectId);
+    return { projectIds: [projectId] };
+  }
+  const departmentId = auditDepartmentId(req.query.department, await roleDepartments(organizationId));
+  if (!departmentId) throw new HttpError(422, "Select a project or department before loading eligible users");
+  if (!processDepartmentAllowed(await getAuthorizedProjectScope(req, "audit"), departmentId)) throw new HttpError(403, "You do not have access to this department");
+  return { projectIds: [], process: true, departmentId };
+}
 router.get("/schedule-activity-options", asyncHandler(async (req, res) => {
   const capabilities = await activeAuditCapabilities(req);
   if (!capabilities.administrator && !capabilities.keys.some(key =>
     auditModuleReadMatches(key, "schedules") || auditModulePermissionMatches(key, "schedules", "create_edit"))) {
     throw new HttpError(403, "Audit Schedule access is required to select activity roles and users");
   }
+  const scopes = await Promise.all([
+    getAuthorizedProjectScope(req, "audit", { module: "schedules", action: "select" }),
+    getAuthorizedProjectScope(req, "audit", { module: "schedules", action: "full" }),
+  ]);
+  // This endpoint lives outside /schedules middleware. Couple context access to
+  // the grants authorizing the picker, not unrelated Audit markers or modules.
+  req.permissionProjectScope = {
+    unrestricted: scopes.some(scope => scope.unrestricted),
+    projectIds: [...new Set(scopes.flatMap(scope => scope.projectIds))],
+    departmentIds: [...new Set(scopes.flatMap(scope => scope.departmentIds ?? []))],
+    allDepartmentsAllowed: scopes.some(scope => scope.allDepartmentsAllowed),
+    processAuditsAllowed: scopes.some(scope => scope.processAuditsAllowed),
+  };
   const organizationId = actor(req).organizationId;
-  const [people, roles] = await Promise.all([auditPlanUsers(organizationId), activityRoleOptions(organizationId)]);
-  res.json(Api.GetAuditScheduleActivityOptionsResponse.parse({ users: people, roles }));
+  const context = await optionContext(req, true);
+  const [people, roles] = await Promise.all([auditPlanUsers(organizationId, context), activityRoleOptions(organizationId)]);
+  let retainedIds: string[] = [];
+  if (typeof req.query.retainedScheduleId === "string" && req.query.retainedScheduleId) {
+    const [saved] = await db.select().from(auditSchedules).where(and(
+      active(auditSchedules, organizationId), eq(auditSchedules.id, req.query.retainedScheduleId)));
+    await assertChildSchedule(saved);
+    if (!await scheduleInScope(req, saved)) throw new HttpError(403, "You do not have access to this schedule");
+    retainedIds = [...new Set((scheduleMeta(saved).activityRoleAssignments ?? []).flatMap(row => row.userIds))]
+      .filter(id => /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id));
+  }
+  const historicalUsers = retainedIds.length ? await db.select({ id: users.id, fullName: users.fullName, designation: users.designation })
+    .from(users).where(and(eq(users.organizationId, organizationId), inArray(users.id, retainedIds))) : [];
+  res.json(Api.GetAuditScheduleActivityOptionsResponse.parse({ users: people, roles, historicalUsers }));
 }));
 router.get("/plan-options", requirePermission("audit", "plans", "select"), asyncHandler(async (req, res) => {
-  res.json({ users: await auditPlanUsers(actor(req).organizationId) });
+  const context = await optionContext(req, false);
+  const organizationId = actor(req).organizationId;
+  const plans = await db.select().from(auditPlans).where(and(active(auditPlans, organizationId),
+    eq(auditPlans.auditScheduleId, String(req.query.scheduleId))));
+  const ids = [...new Set(plans.flatMap(row => {
+    const data = planDto(row);
+    return [data.leadAuditorId, ...row.teamMemberIds, ...(data.activities ?? []).flatMap(auditActivityAuditeeIds)]
+      .filter(id => typeof id === "string" && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id));
+  }))] as string[];
+  const historicalUsers = ids.length ? await db.select({ id: users.id, fullName: users.fullName, designation: users.designation })
+    .from(users).where(and(eq(users.organizationId, organizationId), inArray(users.id, ids))) : [];
+  res.json({ users: await auditPlanUsers(organizationId, context), historicalUsers,
+    leadUsers: await auditUsersWithMarker(organizationId, "audit_team_lead", context) });
 }));
 router.get("/plan-notification-roles", requirePermission("audit", "plans", "select"), asyncHandler(async (req, res) => {
   const rows = await db.select().from(auditWorkspaceRoles)

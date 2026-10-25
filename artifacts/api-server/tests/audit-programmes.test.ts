@@ -453,7 +453,7 @@ describe("audit programme parent/child workflow", () => {
     const ownerRole = await role("Assignment product owner", [marker.id]);
     await assign(creator.id, ownerRole.id);
     try {
-    const options = await api("GET", "/schedule-activity-options", admin.token);
+    const options = await api("GET", "/schedule-activity-options?department=Quality%20Department", admin.token);
     expect(options.status, JSON.stringify(options.json)).toBe(200);
     expect(options.json.users.some((user: { id: string }) => user.id === l1.id)).toBe(true);
     const programme = await api("POST", "/programmes", creator.token, {
