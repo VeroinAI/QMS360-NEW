@@ -394,7 +394,7 @@ function Roles({ app }: { app: AppKey }) {
     : basePermissionLabels;
   const permissionKeys = (app === 'qaqc' ? [...qaqcGlobalPermissions] as PermissionKey[] : (Object.keys(permissionLabels) as PermissionKey[])).filter(key => app === 'qaqc' || app === 'audit' || (key !== 'create_audit_programme' && key !== 'audit_team_lead' && key !== 'audit_program_manager' && key !== 'product_process_owner'));
   const roleHasApproval = (role: Role) => app === 'qaqc' ? hasQaqcRoleApprovalPermission(role.permissions)
-    : role.permissions.some(p => ['approve_reject', 'schedules.approve_reject', 'audit.schedules.approve_reject', 'audit.audits.approve_reject'].includes(p.key));
+    : role.permissions.some(p => ['approve_reject', 'schedules.approve_reject', 'audit.schedules.approve_reject', 'audit.audits.approve_reject', 'audit.cars.approve_reject'].includes(p.key));
   const supportsApprovalLevel = app === 'audit' || app === 'qaqc';
   const hasApproveReject = !!editing && roleHasApproval(editing);
   const parsedAuthorizationLevel = /^\d+$/.test(authorizationLevelInput) ? Number(authorizationLevelInput) : NaN;
@@ -420,7 +420,7 @@ function Roles({ app }: { app: AppKey }) {
     if (!editing) return;
     const selected = editing.permissions.some(p => p.key === key);
     const permissions = selected ? editing.permissions.filter(p => p.key !== key) : [...editing.permissions, { key, name: labelFor(key) }];
-    if (app === 'audit' && key === 'approve_reject' && selected && !permissions.some(p => ['audit.schedules.approve_reject', 'schedules.approve_reject'].includes(p.key))) {
+    if (app === 'audit' && key === 'approve_reject' && selected && !permissions.some(p => ['audit.schedules.approve_reject', 'schedules.approve_reject', 'audit.audits.approve_reject', 'audit.cars.approve_reject'].includes(p.key))) {
       setAuthorizationLevelInput('');
       setEditing({ ...editing, permissions, roleAuthorizationLevel: null });
       return;
@@ -430,8 +430,8 @@ function Roles({ app }: { app: AppKey }) {
   const save = () => {
     if (!editing?.name.trim()) return;
     if (app === 'audit' && hasApproveReject && !editing.permissions.some(p =>
-      ['schedules.approve_reject', 'audit.schedules.approve_reject', 'audit.audits.approve_reject'].includes(p.key))) {
-      act.fail(new Error('Select at least one approval module: Schedules / Programme or Audit Reports.'));
+      ['schedules.approve_reject', 'audit.schedules.approve_reject', 'audit.audits.approve_reject', 'audit.cars.approve_reject'].includes(p.key))) {
+      act.fail(new Error('Select at least one approval module: Schedules / Programme, Audit Reports or Corrective Action Reports.'));
       return;
     }
     if (supportsApprovalLevel && hasApproveReject && !validAuthorizationLevel) return;

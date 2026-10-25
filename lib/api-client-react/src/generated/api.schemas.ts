@@ -4266,6 +4266,33 @@ export interface AuditFinding {
   raisedAt?: string;
 }
 
+export type CarApprovalStatus = typeof CarApprovalStatus[keyof typeof CarApprovalStatus];
+
+
+export const CarApprovalStatus = {
+  Not_submitted: 'Not submitted',
+  Pending_approval: 'Pending approval',
+  Approved: 'Approved',
+  Sent_back: 'Sent back',
+} as const;
+
+export type CarApprovalHistoryItem = {
+  decision: string;
+  userName: string;
+  level: number;
+  remarks: string;
+  at: string;
+};
+
+export interface CarApproval {
+  readonly status: CarApprovalStatus;
+  /** @nullable */
+  readonly pendingLevel: number | null;
+  /** @nullable */
+  readonly finalLevel: number | null;
+  readonly history: CarApprovalHistoryItem[];
+}
+
 export type CorrectiveActionReportStatus = typeof CorrectiveActionReportStatus[keyof typeof CorrectiveActionReportStatus];
 
 
@@ -4299,6 +4326,7 @@ export interface CorrectiveActionReport {
      * @nullable
      */
   readonly carNumber?: string | null;
+  approval?: CarApproval;
   id: string;
   findingId: string;
   responsibleDepartment: string;

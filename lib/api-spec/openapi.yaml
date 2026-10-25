@@ -2133,9 +2133,9 @@ paths:
           description: Existing or newly assigned CAR number
           content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}
   /audit/cars/{id}/submit:
-    post: {operationId: submitCorrectiveActionReport, tags: [audit], summary: Submit CAR, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted}}}
+    post: {operationId: submitCorrectiveActionReport, tags: [audit], summary: Submit CAR for configured approval, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Submitted, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}}}
   /audit/cars/{id}/review:
-    post: {operationId: reviewCorrectiveActionReport, tags: [audit], summary: Team Lead closes or returns CAR, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CarReviewInput"}}}}, responses: {"200": {description: Reviewed}}}
+    post: {operationId: reviewCorrectiveActionReport, tags: [audit], summary: Review CAR at its pending approval level, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CarReviewInput"}}}}, responses: {"200": {description: Reviewed, content: {application/json: {schema: {$ref: "#/components/schemas/CorrectiveActionReport"}}}}}}
   /audit/cars/{id}/extension:
     post: {operationId: requestCarExtension, tags: [audit], summary: Request CAR due-date extension, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/Extension"}, responses: {"200": {description: Requested}}}
   /audit/cars/{id}/extension/review:
@@ -4866,11 +4866,31 @@ components:
       type: object
       required: [id, auditId, title, description, classification, priority, riskLevel, responsibleDepartments, status]
       properties: {id: {type: string}, auditId: {type: string}, title: {type: string}, description: {type: string}, clause: {type: [string, "null"]}, classification: {type: string, description: "Values managed via /platform/master-data/lov/nc_classifications"}, priority: {type: string, description: "Values managed via /platform/master-data/lov/finding_priorities"}, riskLevel: {type: string, description: "Values managed via /platform/master-data/lov/risk_levels"}, responsibleDepartments: {type: array, items: {type: string}}, evidenceIds: {type: array, items: {type: string}}, status: {type: string, enum: [Open, CAR Issued, Verified, Closed, Deleted]}, raisedAt: {type: string, format: date-time}}
+    CarApproval:
+      type: object
+      readOnly: true
+      required: [status, pendingLevel, finalLevel, history]
+      properties:
+        status: {type: string, enum: [Not submitted, Pending approval, Approved, Sent back]}
+        pendingLevel: {type: [number, "null"]}
+        finalLevel: {type: [number, "null"]}
+        history:
+          type: array
+          items:
+            type: object
+            required: [decision, userName, level, remarks, at]
+            properties:
+              decision: {type: string}
+              userName: {type: string}
+              level: {type: number}
+              remarks: {type: string}
+              at: {type: string}
     CorrectiveActionReport:
       type: object
       required: [id, findingId, responsibleDepartment, ownerId, status, dueDate]
       properties:
         carNumber: {type: [string, "null"], readOnly: true, description: Assigned on the first successful response save or submission}
+        approval: {$ref: "#/components/schemas/CarApproval"}
         id: {type: string}
         findingId: {type: string}
         responsibleDepartment: {type: string}

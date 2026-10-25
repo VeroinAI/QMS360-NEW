@@ -10,6 +10,7 @@ import { AuditOverviewReferences } from "./overview-references";
 import { getAuditPlanDateRange, hasAuditActivityAuditeeSelection, openingMeetingDateError } from "@workspace/field-controls";
 import { appendChecklistEvidence, uploadChecklistEvidence, type PendingChecklistEvidence } from "./checklist-evidence-uploads";
 import { CarRegister, CarResponseDialog, CarReviewDialog } from "./car-register";
+import { CarApprovalDetails } from "./car-approval-details";
 import { PlanDateTimeField } from "./plan-date-time-field";
 import { PlanSelection } from "./plan-selection";
 import { AuditPlanAuditMethodsItem, AuditPlanAuditCriteriaItem } from "@workspace/api-client-react";
@@ -2369,6 +2370,7 @@ function CarActionDetail() {
         <div><p className="font-medium">{responseFieldLabels.correctiveAction}</p><p className="whitespace-pre-wrap">{car.correctiveAction || "Not provided"}</p></div>
       </div>
       {car.reviewComments && <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm"><b>Review{car.reviewOutcome ? ` (${car.reviewOutcome})` : ""}:</b> {car.reviewComments}</p>}
+      <CarApprovalDetails car={car}/>
       <div className="flex flex-wrap gap-2">
         {car.canRespond && ["Open", "Draft", "Rejected", "Returned for query", "Returned for rework"].includes(car.status) && <Button variant="outline" onClick={() => setEditing(true)}>Edit response</Button>}
         {car.canReview && car.status === "Submitted" && <Button onClick={() => setReviewing(true)}>Review</Button>}

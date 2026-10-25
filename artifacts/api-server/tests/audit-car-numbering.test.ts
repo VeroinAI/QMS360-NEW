@@ -83,17 +83,19 @@ beforeAll(async () => {
   await db.insert(applicationAccess).values(people.map(person => ({
     organizationId: orgId, username: person.username, canOpenAudit: true, status: "active",
   })));
-  const [role] = await db.insert(auditWorkspaceRoles).values({ organizationId: orgId, name: "CAR operator" }).returning();
+  const [role] = await db.insert(auditWorkspaceRoles).values({ organizationId: orgId, name: "CAR operator", roleAuthorizationLevel: 1 }).returning();
   const [permission] = await db.insert(auditPermissions).values({ organizationId: orgId, key: "audit_team_lead", label: "Audit Team Lead", category: "audit", description: "Lead reviewer" }).returning();
   await db.insert(auditWorkspaceRolePermissions).values({ organizationId: orgId, workspaceRoleId: role!.id, permissionId: permission!.id, grant: "full" });
+  const [approval] = await db.insert(auditPermissions).values({ organizationId: orgId, key: "audit.cars.approve_reject", label: "CAR approval", category: "audit" }).returning();
+  await db.insert(auditWorkspaceRolePermissions).values({ organizationId: orgId, workspaceRoleId: role!.id, permissionId: approval!.id, grant: "full" });
   await db.insert(auditUserWorkspaceRoles).values({ organizationId: orgId, userId, workspaceRoleId: role!.id });
   const projectRows = await db.insert(projects).values([
-    { organizationId: orgId, name: "CAR numbering project", code: `CP${suffix}`, customFields: { costCentre: "CC100" } },
+    { organizationId: orgId, name: "CAR numbering project", code: `CP${suffix}`, customFields: { qmsAdditionalData: { contractProjectNumber: "CC100" } } },
     { organizationId: orgId, name: "CAR missing Cost Center", code: `CM${suffix}` },
   ]).returning();
   projectId = projectRows[0]!.id; missingProjectId = projectRows[1]!.id;
   const [group] = await db.insert(masterDataGroups).values({ organizationId: orgId, name: "Department Master", code: "Department", appKey: "audit" }).returning();
-  const [department] = await db.insert(masterDataValues).values({ organizationId: orgId, groupId: group!.id, value: "ENG", label: "Engineering label" }).returning();
+  const [department] = await db.insert(masterDataValues).values({ organizationId: orgId, groupId: group!.id, value: "ENG", label: "Engineering label", metadata: { costId: "ENG" } }).returning();
   departmentId = department!.id;
   const [areaGroup] = await db.insert(masterDataGroups).values({ organizationId: orgId, name: "Audit Area", code: "Audit Area", appKey: "audit" }).returning();
   await db.insert(masterDataValues).values({ organizationId: orgId, groupId: areaGroup!.id, value: "Construction", label: "Construction" });
@@ -325,7 +327,8 @@ describe.skipIf(process.env.QMS_AUDIT_CAR_CLEANUP === "1")("Audit CAR numbering"
   it("honors CAR module actions for the assigned user without substituting other module grants", async () => {
     const [role] = await db.insert(auditWorkspaceRoles).values({ organizationId: orgId, name: `Module response ${suffix}` }).returning();
     const grant = async (key: string) => {
-      const [permission] = await db.insert(auditPermissions).values({ organizationId: orgId, key, label: key, category: "audit" }).returning();
+      const existing = await db.select().from(auditPermissions).where(eq(auditPermissions.organizationId, orgId));
+      const permission = existing.find(row => row.key === key) ?? (await db.insert(auditPermissions).values({ organizationId: orgId, key, label: key, category: "audit" }).returning())[0]!;
       await db.insert(auditWorkspaceRolePermissions).values({ organizationId: orgId, workspaceRoleId: role!.id, permissionId: permission!.id });
     };
     await grant("audit.cars.view_all"); await grant("audit.cars.create_edit");
@@ -342,6 +345,11 @@ describe.skipIf(process.env.QMS_AUDIT_CAR_CLEANUP === "1")("Audit CAR numbering"
     expect((await api("PUT", `/cars/${review.carId}`, { ...response, saveAndSubmit: true })).status).toBe(200);
     expect((await api("POST", `/cars/${review.carId}/review`, { decision: "accept" }, employeeToken)).status).toBe(403);
     await grant("audit.cars.approve_reject");
+    await db.update(auditWorkspaceRoles).set({ roleAuthorizationLevel: 1 }).where(eq(auditWorkspaceRoles.id, role!.id));
+    // Later grants do not insert reviewers into an already submitted snapshot.
+    expect((await api("POST", `/cars/${review.carId}/review`, { decision: "accept" }, employeeToken)).status).toBe(403);
+    expect((await api("POST", `/cars/${review.carId}/review`, { decision: "query", comments: "Please revise" })).status).toBe(200);
+    expect((await api("POST", `/cars/${review.carId}/submit`)).status).toBe(200);
     expect((await api("POST", `/cars/${review.carId}/review`, { decision: "accept" }, employeeToken)).status).toBe(200);
   });
 });

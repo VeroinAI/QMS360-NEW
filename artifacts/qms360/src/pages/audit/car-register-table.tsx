@@ -90,6 +90,7 @@ export function CarRegisterTable({ entries, auditAreaOptions = [], auditAreasLoa
             <td className={cell}>
               <div className="mb-1 whitespace-pre-wrap">{e.classification}</div>
               <div className="flex flex-wrap gap-1"><Badge variant={tone(e.status)}>{e.status}</Badge>{e.legacy && <Badge variant="outline">Historical</Badge>}</div>
+               {car?.approval?.pendingLevel != null && <p className="mt-1">Approval Level {car.approval.pendingLevel}</p>}
             </td>
             <td className={cell}>{renderEvidence(e)}</td>
             <td className={cell}>{e.actionTakerName}</td>

@@ -27,9 +27,10 @@ export function auditModuleReadMatches(key: string, module: string): boolean {
 export const auditApprovalModuleOptions = [
   { key: "audit.schedules.approve_reject", label: "Schedules / Programme" },
   { key: "audit.audits.approve_reject", label: "Audit Reports" },
+  { key: "audit.cars.approve_reject", label: "Corrective Action Reports" },
 ] as const;
 /** Explicit module selection overrides the old schedule-only global approval grant. */
 export function auditScheduleApprovalPermission(keys: string[]): boolean {
   if (keys.some(key => ["schedules", "schedules.approve_reject", "audit.schedules.approve_reject"].includes(key))) return true;
-  return keys.includes("approve_reject") && !keys.includes("audit.audits.approve_reject");
+  return keys.includes("approve_reject") && !keys.some(key => ["audit.audits.approve_reject", "audit.cars.approve_reject"].includes(key));
 }

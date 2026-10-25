@@ -25,6 +25,7 @@ import { useFieldAccess } from "@/lib/use-field-access";
 import { useLov } from "@/lib/use-lov";
 import { AuditAttachments } from "./audit-attachments";
 import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
+import { CarApprovalDetails } from "./car-approval-details";
 
 const LIMIT = 10;
 const EDITABLE = ["Open", "Draft", "Rejected", "Returned for query", "Returned for rework"];
@@ -100,6 +101,7 @@ export function CarResponseDialog({ car, entry, auditAreaLabel, evidence, open, 
       </div>
       {entry && <CarResponseDetails entry={entry} auditAreaLabel={auditAreaLabel ?? entry.auditArea} evidence={evidence ?? "—"} />}
       {car && <CarReviewNotes car={car}/>}
+      {car && <CarApprovalDetails car={car}/>}
       {field("rootCause", responseFieldLabels.rootCause)}{field("correction", responseFieldLabels.correction)}{field("correctiveAction", responseFieldLabels.correctiveAction)}
       {car && <AuditAttachments auditId={car.id} recordType="car" readOnly={viewOnly || update.isPending} onUploadingChange={setUploading}/>}
       {err && <p role="alert" data-testid="status-car-error" className="text-sm text-destructive">{err}</p>}
@@ -119,16 +121,17 @@ export function CarReviewDialog({ car, open, onClose }: { car: CorrectiveActionR
   const go = () => {
     if (decision !== "accept" && !comments.trim()) { setErr("Comments are required for query or rework."); return; }
     review.mutate({ id: car.id, data: { decision, comments: comments.trim() || null } }, {
-      onSuccess: () => { refresh(); toast({ title: decision === "accept" ? "CAR closed" : decision === "query" ? "Query sent" : "Sent for rework" }); onClose(); },
+      onSuccess: saved => { refresh(); toast({ title: decision === "accept" ? saved.status === "Closed" ? "CAR closed" : "CAR advanced to next Approval Level" : decision === "query" ? "Query sent" : "Sent for rework" }); onClose(); },
       onError: e => { setErr(errorText(e)); refresh(); },
     });
   };
   return <Dialog open={open} onOpenChange={v => { if (!v && !review.isPending) onClose(); }}>
-    <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>Review CAR response</DialogTitle><DialogDescription>Accepting closes the CAR immediately.</DialogDescription></DialogHeader>
+    <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>Review CAR response{car.approval?.pendingLevel != null ? ` — Level ${car.approval.pendingLevel}` : ""}</DialogTitle><DialogDescription>{car.approval?.pendingLevel != null && car.approval.pendingLevel !== car.approval.finalLevel ? "Accepting advances this response to the next Approval Level without closing the CAR." : "Final acceptance closes the CAR. Query or rework returns the response to the Action Taker."}</DialogDescription></DialogHeader>
+      <CarApprovalDetails car={car}/>
       <div className="space-y-1 text-sm"><p><b>{responseFieldLabels.rootCause}:</b> {car.rootCause}</p><p><b>{responseFieldLabels.correction}:</b> {car.correction}</p><p><b>{responseFieldLabels.correctiveAction}:</b> {car.correctiveAction}</p></div>
       <Select value={decision} onValueChange={v => { setDecision(v as typeof decision); setErr(""); }}>
         <SelectTrigger data-testid="select-review-decision"><SelectValue/></SelectTrigger>
-        <SelectContent><SelectItem value="accept">Accept and close</SelectItem><SelectItem value="query">Query</SelectItem><SelectItem value="rework">Rework</SelectItem></SelectContent></Select>
+        <SelectContent><SelectItem value="accept">{car.approval?.pendingLevel != null && car.approval.pendingLevel !== car.approval.finalLevel ? "Accept and advance" : "Accept and close"}</SelectItem><SelectItem value="query">Query</SelectItem><SelectItem value="rework">Rework</SelectItem></SelectContent></Select>
       <div className="space-y-1"><Label htmlFor="review-comments">Comments{decision !== "accept" ? " *" : ""}</Label><Textarea id="review-comments" data-testid="input-review-comments" rows={3} value={comments} onChange={e => setComments(e.target.value)}/></div>
       {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
       <DialogFooter><Button variant="outline" disabled={review.isPending} onClick={onClose}>Cancel</Button><Button data-testid="button-confirm-review" disabled={review.isPending} onClick={go}>{review.isPending ? "Saving…" : "Submit review"}</Button></DialogFooter>

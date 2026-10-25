@@ -16,12 +16,12 @@ export function reportAssignmentAllowsProject(projectIds:string[],projectId:stri
   // A separate read grant must never broaden an approval-bearing assignment.
   return (!projectIds.length && !businessUnitIds.length) || !!projectId && projectIds.includes(projectId);
 }
-export async function reportReviewers(database:Pick<typeof db,"select">,organizationId:string,projectId:string|null|undefined,departmentId?:string|null):Promise<ReportReviewer[]> {
+export async function reportReviewers(database:Pick<typeof db,"select">,organizationId:string,projectId:string|null|undefined,departmentId?:string|null,permissionKey="audit.audits.approve_reject"):Promise<ReportReviewer[]> {
   const rows=await database.select({roleId:roles.id,roleName:roles.name,level:roles.roleAuthorizationLevel,
     userId:users.id,userName:users.fullName,projectIds:assignments.projectIds,departmentIds:assignments.departmentIds,businessUnitIds:assignments.businessUnitIds}).from(roles)
     .innerJoin(grants,and(eq(grants.workspaceRoleId,roles.id),eq(grants.organizationId,organizationId),isNull(grants.deletedAt),eq(grants.grant,"full")))
     .innerJoin(permissions,and(eq(permissions.id,grants.permissionId),eq(permissions.organizationId,organizationId),
-      eq(permissions.key,"audit.audits.approve_reject"),isNull(permissions.deletedAt)))
+      eq(permissions.key,permissionKey),isNull(permissions.deletedAt)))
     .innerJoin(assignments,and(eq(assignments.workspaceRoleId,roles.id),eq(assignments.organizationId,organizationId),
       eq(assignments.status,"active"),isNull(assignments.deletedAt)))
     .innerJoin(users,and(eq(users.id,assignments.userId),eq(users.organizationId,organizationId),

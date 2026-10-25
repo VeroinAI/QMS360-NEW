@@ -12674,6 +12674,18 @@ export const CreateFindingCarsResponse = zod.object({
 }).and(zod.object({
   "items": zod.array(zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -12729,6 +12741,18 @@ export const ListCorrectiveActionReportsResponse = zod.object({
 }).and(zod.object({
   "items": zod.array(zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -12801,6 +12825,18 @@ export const ListCarRegisterResponse = zod.object({
   "legacy": zod.boolean().optional(),
   "car": zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -12871,6 +12907,18 @@ export const StartFindingCarBody = zod.object({
 
 export const StartFindingCarResponse = zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -12902,6 +12950,18 @@ export const OpenCarEditSessionParams = zod.object({
 
 export const OpenCarEditSessionResponse = zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -12963,6 +13023,18 @@ export const GetCorrectiveActionReportParams = zod.object({
 
 export const GetCorrectiveActionReportResponse = zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -13006,6 +13078,18 @@ export const UpdateCorrectiveActionReportBody = zod.object({
 
 export const UpdateCorrectiveActionReportResponse = zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -13040,6 +13124,18 @@ export const GenerateMissingCarNumberParams = zod.object({
 
 export const GenerateMissingCarNumberResponse = zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),
@@ -13066,17 +13162,53 @@ export const GenerateMissingCarNumberResponse = zod.object({
 
 
 /**
- * @summary Submit CAR
+ * @summary Submit CAR for configured approval
  */
 export const SubmitCorrectiveActionReportParams = zod.object({
   "id": zod.coerce.string()
 })
 
-export const SubmitCorrectiveActionReportResponse = zod.unknown()
+export const SubmitCorrectiveActionReportResponse = zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date().nullable(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
+})
 
 
 /**
- * @summary Team Lead closes or returns CAR
+ * @summary Review CAR at its pending approval level
  */
 export const ReviewCorrectiveActionReportParams = zod.object({
   "id": zod.coerce.string()
@@ -13087,7 +13219,43 @@ export const ReviewCorrectiveActionReportBody = zod.object({
   "comments": zod.string().nullish()
 })
 
-export const ReviewCorrectiveActionReportResponse = zod.unknown()
+export const ReviewCorrectiveActionReportResponse = zod.object({
+  "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "id": zod.string(),
+  "findingId": zod.string(),
+  "responsibleDepartment": zod.string(),
+  "ownerId": zod.string(),
+  "rootCause": zod.string().nullish(),
+  "correction": zod.string().nullish(),
+  "correctiveAction": zod.string().nullish(),
+  "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
+  "dueDate": zod.coerce.date().nullable(),
+  "extensionRequestedTo": zod.coerce.date().nullish(),
+  "extensionReason": zod.string().nullish(),
+  "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
+  "extensionReviewedBy": zod.string().nullish(),
+  "extensionReviewedAt": zod.coerce.date().nullish(),
+  "effectivenessVerified": zod.boolean().optional(),
+  "closedAt": zod.coerce.date().nullish(),
+  "reviewComments": zod.string().nullish(),
+  "reviewOutcome": zod.string().nullish(),
+  "reviewedBy": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "canRespond": zod.boolean().optional(),
+  "canReview": zod.boolean().optional()
+})
 
 
 /**
@@ -13553,6 +13721,18 @@ export const GetGeneratedAuditReportResponse = zod.object({
 })),
   "cars": zod.array(zod.object({
   "carNumber": zod.string().nullish().describe('Assigned on the first successful response save or submission'),
+  "approval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "finalLevel": zod.number().nullable(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
   "id": zod.string(),
   "findingId": zod.string(),
   "responsibleDepartment": zod.string(),

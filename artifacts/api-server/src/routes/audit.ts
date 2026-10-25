@@ -86,6 +86,7 @@ import { auditActivityAuditeeIds, hasAuditActivityAuditeeSelection } from "@work
 import { auditModuleReadMatches, auditModulePermissionMatches } from "@workspace/field-controls";
 import { actionableFinding, carAuditContext, carContext, carJson, carRegister, carLeadMarker } from "../lib/car-register";
 import { carWordReportData } from "../lib/car-word-report-data";
+import { carReviewers, submitCarApproval, canReviewCar, reviewCarApproval, eligibleCarReviewers, carApprovalSummary, type CarApprovalState } from "../lib/car-approval";
 import { CAR_WORD_MIME, renderCarWordReport } from "../lib/car-word-report";
 
 const router = Router();
@@ -822,7 +823,7 @@ async function approvalRoleChain(organizationId: string) {
     .where(and(
       eq(auditWorkspaceRoles.organizationId, organizationId), eq(auditWorkspaceRoles.status, "active"),
       isNull(auditWorkspaceRoles.deletedAt), eq(auditWorkspaceRolePermissions.organizationId, organizationId),
-      or(eq(auditPermissions.key, "schedules.approve_reject"), eq(auditPermissions.key, "approve_reject"), eq(auditPermissions.key, "schedules"), eq(auditPermissions.key, "audit.schedules.approve_reject"), eq(auditPermissions.key, "audit.audits.approve_reject")),
+      or(eq(auditPermissions.key, "schedules.approve_reject"), eq(auditPermissions.key, "approve_reject"), eq(auditPermissions.key, "schedules"), eq(auditPermissions.key, "audit.schedules.approve_reject"), eq(auditPermissions.key, "audit.audits.approve_reject"), eq(auditPermissions.key, "audit.cars.approve_reject")),
       eq(auditWorkspaceRolePermissions.grant, "full"),
     ));
   const unique = [...new Map(rows.map(row => [row.id, row])).values()]
@@ -2116,6 +2117,12 @@ async function normalizeAuditPlan(req: Request, data: AnyRow, schedule: AnyRow) 
   const context = await scheduleParticipantContext(actor(req).organizationId, schedule);
   const options = await auditPlanUsers(actor(req).organizationId, context);
   const usersById = new Map(options.map((option) => [option.id, option]));
+  const teamOptions = await auditPlanUsers(actor(req).organizationId,
+    await scheduleParticipantContext(actor(req).organizationId, schedule), true);
+  const teamIds = new Set(teamOptions.map(user => user.id));
+  if (data.teamMemberIds.some((id: string) => !teamIds.has(id))) {
+    throw new HttpError(422, "Select Audit Team members with a Process / Product Owner role for this department or organization-wide Audit access");
+  }
   const participantIds = [...new Set([data.leadAuditorId, ...data.teamMemberIds, ...activities.flatMap(auditActivityAuditeeIds)])];
   if (participantIds.some((id) => !usersById.has(id))) throw new HttpError(422, "Select active QMS Audit users eligible for this audit's project or department; replace unavailable selections");
   if (context.process) {
@@ -3592,6 +3599,7 @@ router.delete("/findings/:id", asyncHandler(async (req, res) => {
 }));
 
 type CarMeta = {
+  carApproval?: CarApprovalState;
   carNumber?: string; carNumberScope?: string; carNumberYear?: number; carNumberSequence?: number;
   extensionReason?: string | null; extensionReviewedBy?: string | null; extensionReviewedAt?: string | null;
   extensionPriorState?: string | null;
@@ -3625,6 +3633,17 @@ const extensionPriorState = async (before: AnyRow): Promise<string | null> => {
   return typeof state === "string" && CAR_EXTENSION_RESTORABLE_STATES.includes(state) ? state : null;
 };
 const carMeta = (row: AnyRow): CarMeta => parseJson(row.effectivenessNotes, {});
+// A separate extension decision or ordinary administrative close cannot finish
+// an unfinished response approval. Legacy records retain their original rules.
+router.use("/cars/:id", asyncHandler(async (req, _res, next) => {
+  if (req.method === "POST" && /^\/(?:close|extension)(?:\/|$)/.test(req.path)) {
+    const [car] = await db.select().from(correctiveActionReports).where(and(
+      active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
+    if (car && carMeta(car).carApproval && carMeta(car).carApproval!.status !== "Approved")
+      throw new HttpError(409, "Complete all CAR Approval Levels before closing the CAR or using the separate extension process.");
+  }
+  next();
+}));
 const carDto = (row: AnyRow) => {
   const meta = carMeta(row);
   return {
@@ -3642,12 +3661,23 @@ const carDto = (row: AnyRow) => {
     effectivenessVerified: meta.effectivenessVerified ?? false, closedAt: meta.closedAt ? new Date(meta.closedAt) : null,
     reviewComments: meta.reviewComments ?? null, reviewOutcome: meta.reviewOutcome ?? null,
     reviewedBy: meta.reviewedBy ?? null, reviewedAt: meta.reviewedAt ? new Date(meta.reviewedAt) : null,
+    approval: carApprovalSummary(meta.carApproval),
   };
 };
 
 router.get("/car-register", asyncHandler(async (req, res) => {
   res.json(await carRegister(req, carDto));
 }));
+async function notifyCarReviewers(req: Request, row: AnyRow) {
+  const state = carMeta(row).carApproval;
+  if (!state || state.status !== "Pending approval") return;
+  const context = await carContext(req, row.id);
+  const live = await carReviewers(db, actor(req).organizationId, context.audit.projectId, context.departmentId);
+  const ids = [...new Set(eligibleCarReviewers(state, live).map(user => user.userId))];
+  for (const userId of ids) await notify(db, "audit", { organizationId: actor(req).organizationId, userId,
+    type: "car_submitted", title: `CAR response awaiting Approval Level ${state.steps[state.index]!.level}`,
+    body: "A CAR response is awaiting your review.", entityType: "corrective_action_report", entityId: row.id });
+}
 router.get("/car-register/report.docx", asyncHandler(async (req, res) => {
   const parsed = Api.DownloadCarWordReportQueryParams.safeParse(req.query);
   if (!parsed.success || [parsed.data.auditId, parsed.data.itemId, parsed.data.carId].filter(Boolean)
@@ -3710,7 +3740,7 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
   const [
     scheduleScope, planScope, auditScope, carScope,
     scheduleFullScope, planFullScope, auditFullScope, carFullScope,
-    scheduleReviewScope, effectiveScope, reportReviewScope,
+    scheduleReviewScope, effectiveScope, reportReviewScope, carReviewScope,
   ] = await Promise.all([
     moduleSelectScope(req, "schedules"),
     moduleSelectScope(req, "plans"),
@@ -3723,13 +3753,15 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
     moduleFullScope(req, "schedules", "review"),
     getAuthorizedProjectScope(req, "audit"),
     moduleFullScope(req, "audits", "review"),
+    moduleFullScope(req, "cars", "review"),
   ]);
   if (![scheduleScope, planScope, auditScope, carScope].some(scopeHasSelectAccess)) {
     throw new HttpError(403, "Audit select access is required");
   }
   const carLeadReviewer = scopeHasSelectAccess(carScope) && await carLeadMarker(organizationId, userId);
+  const carReviewerAccess = carLeadReviewer || hasActionPermission(carScope, carReviewScope);
   if (![hasActionPermission(scheduleScope, scheduleFullScope), hasActionPermission(scheduleScope, scheduleReviewScope), hasActionPermission(planScope, planFullScope),
-    hasActionPermission(auditScope, auditFullScope), hasActionPermission(auditScope, reportReviewScope), hasActionPermission(carScope, carFullScope), carLeadReviewer].some(Boolean)) {
+    hasActionPermission(auditScope, auditFullScope), hasActionPermission(auditScope, reportReviewScope), hasActionPermission(carScope, carFullScope), carReviewerAccess].some(Boolean)) {
     res.json(Api.ListAuditMyActionsResponse.parse(paginated([], 0, page, limit)));
     return;
   }
@@ -3755,7 +3787,7 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
 
   const scheduleRows = [
     hasActionPermission(scheduleScope, scheduleFullScope), hasActionPermission(scheduleScope, scheduleReviewScope), hasActionPermission(planScope, planFullScope),
-    hasActionPermission(auditScope, auditFullScope), hasActionPermission(carScope, carFullScope), carLeadReviewer,
+    hasActionPermission(auditScope, auditFullScope), hasActionPermission(carScope, carFullScope), carReviewerAccess,
   ].some(Boolean)
     ? await db.select().from(auditSchedules).where(active(auditSchedules, organizationId))
     : [];
@@ -3852,7 +3884,7 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
   }
 
   const planRows = [hasActionPermission(planScope, planFullScope), hasActionPermission(auditScope, auditFullScope),
-    hasActionPermission(carScope, carFullScope)].some(Boolean)
+    hasActionPermission(carScope, carFullScope), carReviewerAccess].some(Boolean)
     ? await db.select().from(auditPlans).where(active(auditPlans, organizationId))
     : [];
   const plansById = new Map(planRows.map(row => [row.id, row]));
@@ -3901,9 +3933,9 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
 
   const actionableCarConditions = [
     and(eq(correctiveActionReports.ownerId, userId), inArray(correctiveActionReports.workflowState, ["open", "draft", "rejected"])),
-    ...(carLeadReviewer ? [eq(correctiveActionReports.workflowState, "submitted")] : []),
+    ...(carReviewerAccess ? [eq(correctiveActionReports.workflowState, "submitted")] : []),
   ];
-  const carsWithParents = (hasActionPermission(carScope, carFullScope) || carLeadReviewer) && actionableCarConditions.length ? await db.select({
+  const carsWithParents = (hasActionPermission(carScope, carFullScope) || carReviewerAccess) && actionableCarConditions.length ? await db.select({
     car: correctiveActionReports, audit: audits,
   }).from(correctiveActionReports)
     .innerJoin(auditFindings, and(
@@ -3924,16 +3956,27 @@ router.get("/my-actions", asyncHandler(async (req, res) => {
     const sourceId = carMeta(car).sourceChecklistItemId;
     if (sourceId && !(Array.isArray(parentAudit.checklistState) && parentAudit.checklistState.some((item: AnyRow) => item.id === sourceId && actionableFinding(item)))) continue;
     const ownerAction = car.ownerId === userId && ["open", "draft", "rejected"].includes(String(car.workflowState).toLowerCase());
-    const reviewerAction = car.workflowState === "submitted" && carLeadReviewer
-      && planMeta(plansById.get(parentAudit.auditPlanId ?? "") ?? {}).leadAuditorId === userId;
+    const route = carMeta(car).carApproval;
+    let reviewerAction = car.workflowState === "submitted" && (route
+      ? canReviewCar(route, await carReviewers(db, organizationId, parentAudit.projectId,
+        actionDepartmentId(schedulesById.get(plansById.get(parentAudit.auditPlanId ?? "")?.auditScheduleId ?? ""))), userId)
+      : carLeadReviewer && planMeta(plansById.get(parentAudit.auditPlanId ?? "") ?? {}).leadAuditorId === userId);
     if (!ownerAction && !reviewerAction) continue;
     const plan = plansById.get(parentAudit.auditPlanId ?? "");
     const processSchedule = Boolean(plan?.auditScheduleId && processScheduleIds.has(plan.auditScheduleId));
     if (!myActionProjectInScope(parentAudit.projectId, carScope, reviewerAction ? carScope : carFullScope, effectiveScope, processSchedule, actionDepartmentId(schedulesById.get(plan?.auditScheduleId ?? "")))) continue;
+    if (reviewerAction && route) {
+      // The approval grant does not replace full-vs-own CAR read visibility.
+      const fullRead = await getAuthorizedFullProjectScope(req, "audit", { module: "cars", action: "select" });
+      const canReadAll = fullRead.unrestricted || !!parentAudit.projectId && fullRead.projectIds.includes(parentAudit.projectId)
+        || !parentAudit.projectId && processSchedule && processDepartmentAllowed(fullRead, actionDepartmentId(schedulesById.get(plan?.auditScheduleId ?? "")));
+      if (!canReadAll && car.ownerId !== userId && planMeta(plan ?? {}).leadAuditorId !== userId && !plan?.teamMemberIds.includes(userId)) reviewerAction = false;
+      if (!reviewerAction && !ownerAction) continue;
+    }
     add({
       kind: "car", id: car.id,
       title: `Corrective action: ${car.responsibleDepartment}`,
-      action: reviewerAction ? "Review" : car.workflowState === "rejected" ? "Revise" : "Complete",
+      action: reviewerAction ? route ? `Review Level ${route.steps[route.index]!.level}` : "Review" : car.workflowState === "rejected" ? "Revise" : "Complete",
        status: carDto(car).status,
       href: `/audit/cars/${encodeURIComponent(car.id)}`,
       dueDate: myActionDate(car.dueDate),
@@ -4033,7 +4076,6 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
       && !(process && processDepartmentAllowed(scope, context.departmentId))) {
       throw new HttpError(403, "CAR Submit / send permission is required in this scope");
     }
-    if (!context.leadId) throw new HttpError(422, "Select a Lead / Internal Auditor in the linked Audit Plan before submitting");
     if (!data.rootCause?.trim() || !data.correction?.trim() || !data.correctiveAction?.trim()) {
       throw new HttpError(422, "Root cause, correction, and corrective action are required");
     }
@@ -4042,6 +4084,8 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
     const { settings } = await lockScheduleNumbering(tx, actor(req).organizationId);
     const { car: current, meta } = await lockNumberedCarResponse(tx, settings, before.id, actor(req).id);
     if (current.workflowState !== before.workflowState) throw new HttpError(409, "CAR changed while saving. Reload and retry.");
+    if (saveAndSubmit) meta.carApproval = submitCarApproval(
+      await carReviewers(tx, actor(req).organizationId, context.audit.projectId, context.departmentId), actor(req).id, meta.carApproval);
     const [saved] = await tx.update(correctiveActionReports).set({
       rootCause: data.rootCause, correction: data.correction, correctiveAction: data.correctiveAction,
       ownerId: context.ownerId, dueDate: carDueDate(context.item?.auditFinding || context.finding.classification, findingDateValue(context.item, context.finding), current.dueDate), workflowState: saveAndSubmit ? "submitted" : "draft",
@@ -4051,9 +4095,7 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
     await auditLog(req, saveAndSubmit ? "submit" : "update", "corrective_action_report", saved.id, current, saved, tx as unknown as typeof db);
     return saved;
   });
-  if (saveAndSubmit) await notify(db, "audit", { organizationId: actor(req).organizationId, userId: context.leadId!,
-    type: "car_submitted", title: "CAR response awaiting your review", body: "The action taker submitted a response to an Audit finding.",
-    entityType: "corrective_action_report", entityId: row.id });
+  if (saveAndSubmit) await notifyCarReviewers(req, row);
   res.json(carDto(row));
 }));
 router.post("/cars/:id/number", asyncHandler(async (req, res) => {
@@ -4094,7 +4136,10 @@ router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
   if (!before) throw new HttpError(404, "CAR not found");
   const context = await carContext(req, before.id);
   if (!context.canEditResponse) throw new HttpError(403, "Only the assigned action taker may submit this response");
-  if (!context.leadId) throw new HttpError(422, "Select a Lead / Internal Auditor in the linked Audit Plan before submitting");
+  const submitScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full", operation: "submit" });
+  if (!submitScope.unrestricted && !(context.audit.projectId && submitScope.projectIds.includes(context.audit.projectId))
+    && !(!context.audit.projectId && context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit") && processDepartmentAllowed(submitScope, context.departmentId)))
+    throw new HttpError(403, "CAR Submit / send permission is required in this scope");
   if (!["open", "draft", "rejected"].includes(before.workflowState)) throw new HttpError(409, "CAR is not eligible for submission");
   if (!before.rootCause?.trim() || !before.correction?.trim() || !before.correctiveAction?.trim()) throw new HttpError(422, "Root cause, correction, and corrective action are required");
   const row = await db.transaction(async tx => {
@@ -4102,6 +4147,7 @@ router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
     const { car: current, meta } = await lockNumberedCarResponse(tx, settings, before.id, actor(req).id);
     if (current.workflowState !== before.workflowState) throw new HttpError(409, "CAR changed while submitting. Reload and retry.");
     if (!current.rootCause?.trim() || !current.correction?.trim() || !current.correctiveAction?.trim()) throw new HttpError(422, "Root cause, correction, and corrective action are required");
+    meta.carApproval = submitCarApproval(await carReviewers(tx, actor(req).organizationId, context.audit.projectId, context.departmentId), actor(req).id, meta.carApproval);
     const [saved] = await tx.update(correctiveActionReports).set({
       workflowState: "submitted", effectivenessNotes: JSON.stringify(meta),
       dueDate: carDueDate(context.item?.auditFinding || context.finding.classification, findingDateValue(context.item, context.finding), current.dueDate), updatedAt: new Date(),
@@ -4109,9 +4155,7 @@ router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
     await auditLog(req, "submit", "corrective_action_report", current.id, current, saved, tx as unknown as typeof db);
     return saved!;
   });
-  await notify(db, "audit", { organizationId: actor(req).organizationId, userId: context.leadId,
-    type: "car_submitted", title: "CAR response awaiting your review", body: "The action taker submitted a response to an Audit finding.",
-    entityType: "corrective_action_report", entityId: row.id });
+  await notifyCarReviewers(req, row);
   res.json(carDto(row));
 }));
 router.post("/cars/:id/review", asyncHandler(async (req, res) => { const data = body<AnyRow>(Api.ReviewCorrectiveActionReportBody, req);
@@ -4119,18 +4163,31 @@ router.post("/cars/:id/review", asyncHandler(async (req, res) => { const data = 
   const [before] = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, String(req.params.id))));
   if (!before) throw new HttpError(404, "CAR not found");
   const context = await carContext(req, before.id);
-  if (!context.canReview) throw new HttpError(403, "Only this audit's assigned Audit Team Lead may review the CAR");
+  if (!context.canReview) throw new HttpError(403, "Only an eligible reviewer at the pending CAR Approval Level (or the assigned Team Lead for a legacy submission) may review the CAR");
   if (before.workflowState !== "submitted") throw new HttpError(409, "Only submitted CARs may be reviewed");
-  const [row] = await db.update(correctiveActionReports).set({
-    ownerId: context.ownerId,
-    workflowState: data.decision === "accept" ? "closed" : "rejected",
-    effectivenessNotes: JSON.stringify({ ...carMeta(before), reviewComments: data.comments?.trim() || null,
-      reviewOutcome: data.decision === "reject" ? "rework" : data.decision, reviewedBy: actor(req).id,
-      reviewedAt: new Date().toISOString(), ...(data.decision === "accept" ? { closedAt: new Date().toISOString() } : {}) }), updatedAt: new Date(),
-  }).where(and(eq(correctiveActionReports.id, before.id), eq(correctiveActionReports.workflowState, "submitted"))).returning();
-  if (!row) throw new HttpError(409, "This CAR has already been reviewed. Reload to see its status.");
-  if (row.ownerId) await notify(db, "audit", { organizationId: actor(req).organizationId, userId: row.ownerId, type: "car_decision", title: data.decision === "accept" ? "CAR closed" : data.decision === "query" ? "CAR returned for query" : "CAR returned for rework", body: data.comments || "Your CAR has been reviewed.", entityType: "corrective_action_report", entityId: row.id });
-  await auditLog(req, data.decision, "corrective_action_report", row.id, before, row); res.json(carDto(row));
+  const row = await db.transaction(async tx => {
+    const [current] = await tx.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.id, before.id))).for("update");
+    if (!current || current.workflowState !== "submitted" || current.effectivenessNotes !== before.effectivenessNotes)
+      throw new HttpError(409, "This CAR has already changed. Reload to see its current approval level.");
+    const meta = carMeta(current);
+    if (meta.carApproval) meta.carApproval = reviewCarApproval(meta.carApproval,
+      await carReviewers(tx, actor(req).organizationId, context.audit.projectId, context.departmentId),
+      actor(req).id, actor(req).fullName, data.decision, data.comments ?? "");
+    const closed = data.decision === "accept" && (!meta.carApproval || meta.carApproval.status === "Approved");
+    const [saved] = await tx.update(correctiveActionReports).set({
+      ownerId: context.ownerId, workflowState: closed ? "closed" : data.decision === "accept" ? "submitted" : "rejected",
+      effectivenessNotes: JSON.stringify({ ...meta, reviewComments: data.comments?.trim() || null,
+        reviewOutcome: data.decision === "reject" ? "rework" : data.decision, reviewedBy: actor(req).id,
+        reviewedAt: new Date().toISOString(), ...(closed ? { closedAt: new Date().toISOString() } : {}) }), updatedAt: new Date(),
+    }).where(eq(correctiveActionReports.id, current.id)).returning();
+    await auditLog(req, data.decision, "corrective_action_report", saved!.id, current, saved, tx as unknown as typeof db);
+    return saved!;
+  });
+  if (row.workflowState === "submitted") await notifyCarReviewers(req, row);
+  if (row.ownerId) await notify(db, "audit", { organizationId: actor(req).organizationId, userId: row.ownerId, type: "car_decision",
+    title: row.workflowState === "closed" ? "CAR closed" : row.workflowState === "submitted" ? "CAR advanced to next Approval Level" : data.decision === "query" ? "CAR returned for query" : "CAR returned for rework",
+    body: data.comments || "Your CAR has been reviewed.", entityType: "corrective_action_report", entityId: row.id });
+  res.json(carDto(row));
 }));
 router.post("/cars/:id/extension", asyncHandler(async (req, res) => { const data = body<AnyRow>(Api.RequestCarExtensionBody, req);
   if (!data.reason.trim()) throw new HttpError(422, "Extension reason is required");
@@ -4715,10 +4772,10 @@ function auditRoleAuthorizationLevel(data: AnyRow): number | null {
     throw new HttpError(422, "Unsupported Audit module permission");
   }
   if (!data.permissions.some((permission: { key: string }) =>
-    ["approve_reject", "schedules.approve_reject", "audit.schedules.approve_reject", "audit.audits.approve_reject"].includes(permission.key))) return null;
+    ["approve_reject", "schedules.approve_reject", "audit.schedules.approve_reject", "audit.audits.approve_reject", "audit.cars.approve_reject"].includes(permission.key))) return null;
   if (!data.permissions.some((permission: { key: string }) =>
-    ["schedules.approve_reject", "audit.schedules.approve_reject", "audit.audits.approve_reject"].includes(permission.key))) {
-    throw new HttpError(422, "Select at least one approval module: Schedules / Programme or Audit Reports.");
+    ["schedules.approve_reject", "audit.schedules.approve_reject", "audit.audits.approve_reject", "audit.cars.approve_reject"].includes(permission.key))) {
+    throw new HttpError(422, "Select at least one approval module: Schedules / Programme, Audit Reports or Corrective Action Reports.");
   }
   const level = data.roleAuthorizationLevel;
   if (!Number.isInteger(level) || level < 1 || level > 2147483647) {

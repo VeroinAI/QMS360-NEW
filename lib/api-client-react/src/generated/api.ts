@@ -25286,11 +25286,11 @@ export const getSubmitCorrectiveActionReportUrl = (id: string,) => {
 }
 
 /**
- * @summary Submit CAR
+ * @summary Submit CAR for configured approval
  */
-export const submitCorrectiveActionReport = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+export const submitCorrectiveActionReport = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<CorrectiveActionReport> => {
 
-  return customFetch<void>(getSubmitCorrectiveActionReportUrl(id),
+  return customFetch<CorrectiveActionReport>(getSubmitCorrectiveActionReportUrl(id),
   {
     ...options,
     method: 'POST'
@@ -25335,7 +25335,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SubmitCorrectiveActionReportMutationError = ErrorType<unknown>
 
     /**
- * @summary Submit CAR
+ * @summary Submit CAR for configured approval
  */
 export const useSubmitCorrectiveActionReport = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitCorrectiveActionReport>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -25357,12 +25357,12 @@ export const getReviewCorrectiveActionReportUrl = (id: string,) => {
 }
 
 /**
- * @summary Team Lead closes or returns CAR
+ * @summary Review CAR at its pending approval level
  */
 export const reviewCorrectiveActionReport = async (id: string,
-    carReviewInput: CarReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+    carReviewInput: CarReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<CorrectiveActionReport> => {
 
-  return customFetch<void>(getReviewCorrectiveActionReportUrl(id),
+  return customFetch<CorrectiveActionReport>(getReviewCorrectiveActionReportUrl(id),
   {
     ...options,
     method: 'POST',
@@ -25407,7 +25407,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ReviewCorrectiveActionReportMutationError = ErrorType<unknown>
 
     /**
- * @summary Team Lead closes or returns CAR
+ * @summary Review CAR at its pending approval level
  */
 export const useReviewCorrectiveActionReport = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewCorrectiveActionReport>>, TError,{id: string;data: BodyType<CarReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}

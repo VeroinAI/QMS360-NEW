@@ -11,7 +11,7 @@ export function AuditModulePermissions({ permissions, onToggle }: {
   return <section className="space-y-3" data-testid="audit-module-permissions">
     {approving && <fieldset className="space-y-3 rounded-lg border p-3" data-testid="audit-approval-modules" aria-invalid={!selected}>
       <legend className="px-1 text-sm font-semibold">Approval applies to *</legend>
-      <p className="text-xs text-muted-foreground">Select at least one module. The Approval Level applies separately within each selected module. Existing schedule submissions keep their saved route.</p>
+      <p className="text-xs text-muted-foreground">Select at least one module. The Approval Level applies separately within each selected module. Existing submissions keep their saved route.</p>
       {auditApprovalModuleOptions.map(option => <label key={option.key} className="flex items-center gap-2 text-sm">
         <Checkbox data-testid={`approval-module-${option.key}`} checked={permissions.some(p => p.key === option.key || option.key === "audit.schedules.approve_reject" && String(p.key) === "schedules.approve_reject")}
           onCheckedChange={() => {
@@ -34,6 +34,6 @@ export function AuditModulePermissions({ permissions, onToggle }: {
         </label>;
       })}</div>
     </fieldset>)}
-    <p className="text-xs text-muted-foreground">Create / edit schedules remains separate from the organization-wide Create Audit Programme grant. Schedule and Audit Report approval require an Approval Level. Audit Reports enter approval when marked Complete. Action grants do not replace view access or assignment scope.</p>
+    <p className="text-xs text-muted-foreground">Create / edit schedules remains separate from the organization-wide Create Audit Programme grant. Schedule, Audit Report and Corrective Action Report approval require a positive whole-number Approval Level. Audit Reports enter approval when marked Complete; CAR responses enter approval on submission. Action grants do not replace view access or assignment scope.</p>
   </section>;
 }

@@ -8,6 +8,7 @@ import { HttpError } from "./workspace";
 import { activeAuditCapabilities } from "./audit-capabilities";
 import { roleDepartments } from "./role-departments";
 import { auditDepartmentId, processDepartmentAllowed } from "./audit-department-scope";
+import { carReviewers, canReviewCar } from "./car-approval";
 
 export const carJson = (value: string | null | undefined): any => {
   try {
@@ -76,9 +77,12 @@ export async function carContext(req: Request, carId: string, allowInactiveSourc
   const canEditResponse = canRespond && writableProject(writeScope, audit.projectId, Boolean(context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit")), context.departmentId);
   const reviewScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full", operation: "review" });
   const moduleReview = (await activeAuditCapabilities(req)).keys.includes("audit.cars.approve_reject");
-  const canReview = !inactiveSource && context.leadId === req.currentUser!.id && (
+   const route = carJson(car.effectivenessNotes).carApproval;
+   const canReview = !inactiveSource && (route
+     ? canReviewCar(route, await carReviewers(db, org, audit.projectId, context.departmentId), req.currentUser!.id)
+     : context.leadId === req.currentUser!.id && (
     await carLeadMarker(org, req.currentUser!.id)
-    || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit")), context.departmentId)));
+     || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(context.scheduleMeta.auditTypes?.includes("Quality Internal Process Audit")), context.departmentId))));
   return { ...context, car, finding, item, ownerId, canRespond, canEditResponse, canReview };
 }
 
@@ -132,8 +136,11 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
         const inactiveSource = source.legacy && !!(source.finding?.evidence as any)?.sourceChecklistItemId;
         const canRespond = !inactiveSource && ownerId === userId
           && writableProject(writeScope, audit.projectId, Boolean(process), departmentId);
-        const canReview = !inactiveSource && pm.leadAuditorId === userId && (leadMarker
-          || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(carJson(schedule?.status).auditTypes?.includes("Quality Internal Process Audit")), departmentId)));
+        const route = carJson(car?.effectivenessNotes).carApproval;
+        const canReview = !inactiveSource && (route
+          ? canReviewCar(route, await carReviewers(db, org, audit.projectId, departmentId), userId)
+          : pm.leadAuditorId === userId && (leadMarker
+            || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(process), departmentId))));
         const classification = item.auditFinding || item.result || "";
         const dueDate = carDueDate(classification, item.findingDate, car?.dueDate);
         const response = car ? { ...dto({ ...car, dueDate, classification }), canRespond, canReview } : undefined;

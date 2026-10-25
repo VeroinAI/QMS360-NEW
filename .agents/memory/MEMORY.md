@@ -54,7 +54,8 @@
 - [Role-based application entry](role-based-application-entry.md) — active roles grant entry in all three modules; no separate application approval; preserve RBAC and report approvals.
 - [Audit type-category links](audit-type-category-links.md) — standard Product/Process category restrictions override old links; custom types keep master-data mappings and historical edits stay valid.
 - [Task rebase verification](task-rebase-verification.md) — after resolving overlapping task edits, rerun focused tests against the final rebased tree; semantic merging can scramble test bodies.
-- [Audit Team Lead marker](audit-team-lead-marker.md) — assigned leads review CARs with scoped read access; acceptance closes immediately; the marker grants no unrelated rights.
+- [Audit Team Lead marker](audit-team-lead-marker.md) — marker is not a general action grant; legacy pending CAR reviews retain the assigned Lead workflow.
+- [CAR approval policy](car-approval-policy.md) — explicit independent CAR roles; preserve legacy pending Lead reviews and close routed responses only after final acceptance.
 - [Audit Program Manager marker](audit-program-manager-marker.md) — permits only post-approval Team Lead changes on scoped Audit Schedules, not general edit or approval.
 - [Audit Schedule data-entry scope](audit-schedule-data-entry-scope.md) — legacy Audit “Create / edit” grants are schedule-only; do not turn them into global Audit write rights.
 - [Audit module access](audit-module-access.md) — module grants are additive; narrow global grants explicitly and preserve Programme creation, approval levels and assignment scope.

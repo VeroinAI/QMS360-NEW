@@ -36,4 +36,15 @@ describe("Audit module controls", () => {
     expect(html).toMatch(/data-testid="approval-module-audit.audits.approve_reject"[^>]*aria-checked="true"|aria-checked="true"[^>]*data-testid="approval-module-audit.audits.approve_reject"/);
     expect(html).toMatch(/data-testid="approval-module-audit.schedules.approve_reject"[^>]*aria-checked="false"|aria-checked="false"[^>]*data-testid="approval-module-audit.schedules.approve_reject"/);
   });
+  it("accepts CAR-only and combined approval selections independently", () => {
+    for (const keys of [["audit.cars.approve_reject"], ["audit.cars.approve_reject", "audit.audits.approve_reject", "audit.schedules.approve_reject"]] as const) {
+      const html = renderToStaticMarkup(<AuditModulePermissions permissions={keys.map(key => ({ key, name: key }))} onToggle={() => {}}/>);
+      expect(html).toContain("Corrective Action Reports");
+      expect(html).not.toContain("Select an approval module before saving this role.");
+      for (const key of ["audit.cars.approve_reject", "audit.audits.approve_reject", "audit.schedules.approve_reject"]) {
+        const checked = (keys as readonly string[]).includes(key);
+        expect(html).toMatch(new RegExp(`data-testid="approval-module-${key}"[^>]*aria-checked="${checked}"|aria-checked="${checked}"[^>]*data-testid="approval-module-${key}"`));
+      }
+    }
+  });
 });
