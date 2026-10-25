@@ -26,9 +26,9 @@ describe("Closing meeting attendance display", () => {
   });
 });
 
-describe("Opening meeting Held at input", () => {
+describe.each(["opening", "closing"] as const)("%s meeting Held at input", kind => {
   const render = (props: Partial<Parameters<typeof MeetingHeldAt>[0]> = {}) => renderToStaticMarkup(
-    <MeetingHeldAt kind="opening" value="2026-10-04T00:00" locked={false} from="2026-10-04" to="2026-10-06" onChange={() => {}} {...props}/>);
+    <MeetingHeldAt kind={kind} value="2026-10-04T00:00" locked={false} from="2026-10-04" to="2026-10-06" onChange={() => {}} {...props}/>);
   it("disables days beyond the actual individual audit, retaining both complete boundary days", () => {
     const html = render();
     expect(html).toContain('min="2026-10-04T00:00"');
@@ -42,14 +42,18 @@ describe("Opening meeting Held at input", () => {
     expect(html).toContain('aria-invalid="true"');
     expect(html).toContain("04/10/2026 to 06/10/2026 (inclusive)");
   });
-  it("fails closed without authoritative dates and leaves Closing date rules unchanged", () => {
+  it("fails closed without authoritative dates", () => {
     const html = render({ from: null });
     expect(html).toContain('disabled=""');
     expect(html).not.toContain(' min="');
     expect(html).toContain("Correct the Audit schedule dates");
-    const closing = render({ kind: "closing" });
-    expect(closing).not.toContain(' min="');
-    expect(closing).not.toContain(' max="');
-    expect(closing).not.toContain('disabled=""');
+  });
+  it("shows the allowed period with a kind-specific accessible description", () => {
+    const html = render();
+    expect(html).toContain(`aria-describedby="${kind}-held-at-help"`);
+    expect(html).toContain("Allowed period: 04/10/2026 to 06/10/2026 (inclusive)");
+  });
+  it.each([{ from: "2026-10-07" }, { from: "invalid" }, { to: null }])("disables unusable bounds %s", props => {
+    expect(render(props)).toContain('disabled=""');
   });
 });

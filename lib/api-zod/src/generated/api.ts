@@ -9039,14 +9039,14 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -9054,7 +9054,7 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -9221,14 +9221,14 @@ export const ListAuditsResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -9236,7 +9236,7 @@ export const ListAuditsResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -9363,14 +9363,14 @@ export const CreateAuditBody = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -9526,14 +9526,14 @@ export const GetAuditResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -9541,7 +9541,7 @@ export const GetAuditResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -9671,14 +9671,14 @@ export const UpdateAuditBody = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -9860,14 +9860,14 @@ export const CompleteAuditResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -9875,7 +9875,7 @@ export const CompleteAuditResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -10034,14 +10034,14 @@ export const ReviewAuditReportResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -10049,7 +10049,7 @@ export const ReviewAuditReportResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -10212,14 +10212,14 @@ export const SaveAuditReportDetailsResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -10227,7 +10227,7 @@ export const SaveAuditReportDetailsResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -10473,14 +10473,14 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -10488,7 +10488,7 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -10653,14 +10653,14 @@ export const EditAuditChecklistItemResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -10668,7 +10668,7 @@ export const EditAuditChecklistItemResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -10822,14 +10822,14 @@ export const DeleteAuditChecklistItemResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -10837,7 +10837,7 @@ export const DeleteAuditChecklistItemResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -11003,14 +11003,14 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -11018,7 +11018,7 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -11187,14 +11187,14 @@ export const CreateAuditFindingItemResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -11202,7 +11202,7 @@ export const CreateAuditFindingItemResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -11356,14 +11356,14 @@ export const GenerateMissingAuditFindingNumberResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -11371,7 +11371,7 @@ export const GenerateMissingAuditFindingNumberResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -11527,14 +11527,14 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -11542,7 +11542,7 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -11697,14 +11697,14 @@ export const UpdateAuditFindingDateResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -11712,7 +11712,7 @@ export const UpdateAuditFindingDateResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -11870,14 +11870,14 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -11885,7 +11885,7 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -12060,14 +12060,14 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -12075,7 +12075,7 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -12253,14 +12253,14 @@ export const UpdateAuditOverallProjectProgressResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -12268,7 +12268,7 @@ export const UpdateAuditOverallProjectProgressResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -12444,14 +12444,14 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -12459,7 +12459,7 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),
@@ -13626,14 +13626,14 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
   "openingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
 }).optional(),
   "closingMeeting": zod.object({
   "heldAt": zod.coerce.date(),
-  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "heldAtLocal": zod.string().optional().describe('Original meeting wall-clock input retained without shifting its calendar day'),
   "attendees": zod.array(zod.string()),
   "minutes": zod.string(),
   "evidenceIds": zod.array(zod.string()).optional()
@@ -13641,7 +13641,7 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "openingMeetingBounds": zod.object({
   "fromDate": zod.string().nullable(),
   "toDate": zod.string().nullable()
-}).optional(),
+}).optional().describe('Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.'),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
   "findingDate": zod.string().nullish(),

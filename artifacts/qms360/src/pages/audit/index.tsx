@@ -7,7 +7,7 @@ import { ActivityMultiSelect } from "./activity-role-fields";
 import { auditTeamLeadLabel } from "./team-lead-label";
 import { ScheduleActivityButton } from "./schedule-activity";
 import { AuditOverviewReferences } from "./overview-references";
-import { getAuditPlanDateRange, hasAuditActivityAuditeeSelection, openingMeetingDateError } from "@workspace/field-controls";
+import { getAuditPlanDateRange, hasAuditActivityAuditeeSelection, meetingDateError } from "@workspace/field-controls";
 import { appendChecklistEvidence, uploadChecklistEvidence, type PendingChecklistEvidence } from "./checklist-evidence-uploads";
 import { CarRegister, CarResponseDialog, CarReviewDialog } from "./car-register";
 import { CarApprovalDetails } from "./car-approval-details";
@@ -2053,7 +2053,7 @@ function Audits() {
 
 function MeetingEditor({ auditId, kind, value, openingAttendees }: { auditId: string; kind: "opening" | "closing"; value?: MeetingMinutes; openingAttendees?: readonly string[] }) {
   const [form, setForm] = useState<MeetingMinutes>(value ? { ...value,
-    heldAt: kind === "opening" ? value.heldAtLocal ?? value.heldAt : value.heldAt,
+    heldAt: value.heldAtLocal ?? value.heldAt,
   } : { heldAt: "", attendees: [], minutes: "" });
   const [attendeePickerOpen, setAttendeePickerOpen] = useState(false);
   const qc = useQueryClient(); const { toast } = useToast();
@@ -2063,7 +2063,7 @@ function MeetingEditor({ auditId, kind, value, openingAttendees }: { auditId: st
   const attendeeOptions = useListAuditMeetingAttendees(auditId);
   const auditContext = useGetAudit(auditId);
   const bounds = auditContext.data?.openingMeetingBounds;
-  const dateError = kind === "opening" ? openingMeetingDateError(form.heldAt, bounds?.fromDate, bounds?.toDate) : null;
+  const dateError = meetingDateError(kind, form.heldAt, bounds?.fromDate, bounds?.toDate);
   const users = attendeeOptions.data ?? [];
   const selectableUsers = users.filter(user => user.canSelect !== false);
   const toggleAttendee = (id: string) => setForm(current => ({
@@ -2071,7 +2071,7 @@ function MeetingEditor({ auditId, kind, value, openingAttendees }: { auditId: st
       ? current.attendees.filter(value => value !== id) : [...current.attendees, id],
   }));
   const save = () => {
-    if (dateError) { toast({ title: "Unable to save Opening meeting", description: dateError, variant: "destructive" }); return; }
+    if (dateError) { toast({ title: `Unable to save ${kind === "opening" ? "Opening meeting" : "Closing Meeting"}`, description: dateError, variant: "destructive" }); return; }
     if (!form.heldAt || !form.minutes) { toast({ title: "Date and minutes are required", variant: "destructive" }); return; }
     const mutation = kind === "opening" ? opening : closing;
     mutation.mutate({ id: auditId, data: form }, {
@@ -2097,7 +2097,7 @@ function MeetingEditor({ auditId, kind, value, openingAttendees }: { auditId: st
     </div>
     {kind === "closing" && <NotRepresentedClosingAttendees opening={openingAttendees} closing={value || form.heldAt || form.minutes || form.attendees.length ? form.attendees : undefined}
       users={users} loading={attendeeOptions.isLoading} error={!!attendeeOptions.error}/>}
-    <div><Label>Minutes</Label><Textarea rows={8} value={form.minutes} disabled={locked} onChange={e=>setForm(v=>({...v,minutes:e.target.value}))}/></div><Button onClick={save} disabled={locked || opening.isPending || closing.isPending || attendeeOptions.isLoading || !!attendeeOptions.error}>Save minutes</Button>
+    <div><Label>Minutes</Label><Textarea rows={8} value={form.minutes} disabled={locked} onChange={e=>setForm(v=>({...v,minutes:e.target.value}))}/></div><Button onClick={save} disabled={locked || !getAuditPlanDateRange(bounds?.fromDate, bounds?.toDate) || opening.isPending || closing.isPending || attendeeOptions.isLoading || !!attendeeOptions.error}>Save minutes</Button>
   </CardContent></Card>;
 }
 

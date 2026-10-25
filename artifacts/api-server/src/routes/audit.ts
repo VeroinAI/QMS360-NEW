@@ -18,7 +18,7 @@ import sharp from "sharp";
 import * as Api from "@workspace/api-zod";
 import { allocateReferenceNumber, hasNumberingPattern } from "../lib/numbering";
 import { scheduleActivityEntry } from "../lib/audit-schedule-activity";
-import { auditPlanDateFields, validateAuditPlanDates, openingMeetingDateError } from "@workspace/field-controls";
+import { auditPlanDateFields, validateAuditPlanDates, meetingDateError } from "@workspace/field-controls";
 import {
   applicationAccess,
   auditAuditLogEntries,
@@ -197,7 +197,14 @@ const active = (table: AnyRow, organizationId: string) =>
 const actor = (req: Request) => req.currentUser!;
 const body = <T>(schema: { safeParse: (value: unknown) => any }, req: Request): T => {
   const result = schema.safeParse(req.body);
-  if (!result.success) throw new HttpError(422, result.error.issues.map((i: any) => i.message).join("; "));
+  if (!result.success) throw new HttpError(422, result.error.issues.map((i: any) => {
+    if (i.path?.includes("heldAt")) {
+      const kind = i.path.includes("closingMeeting") || req.path?.endsWith("/closing-meeting") ? "Closing Meeting"
+        : i.path.includes("openingMeeting") || req.path?.endsWith("/opening-meeting") ? "Opening meeting" : null;
+      if (kind) return `${kind} Held at: enter a valid date and time.`;
+    }
+    return i.message;
+  }).join("; "));
   return result.data as T;
 };
 const auditLog = (req: Request, action: string, entityType: string, entityId: string, before?: AnyRow, after?: AnyRow, database: typeof db = db) =>
@@ -2618,10 +2625,20 @@ const auditValues = (data: AnyRow) => ({
     startedAt: data.startedAt?.toISOString?.() ?? data.startedAt ?? null, closedAt: data.closedAt?.toISOString?.() ?? data.closedAt ?? null,
   }),
 });
-async function assertOpeningMeetingWrite(database: Pick<typeof db, "select">, req: Request, planId: string | null, rawHeldAt: unknown) {
+async function assertMeetingWrite(database: Pick<typeof db, "select">, req: Request, planId: string | null, rawHeldAt: unknown, kind: "opening" | "closing") {
   const bounds = await openingMeetingBounds(database, actor(req).organizationId, planId, true);
-  const error = openingMeetingDateError(rawHeldAt, bounds.fromDate, bounds.toDate);
+  const error = meetingDateError(kind, rawHeldAt, bounds.fromDate, bounds.toDate);
   if (error) throw new HttpError(422, error);
+}
+async function nestedMeetingValues(database: Pick<typeof db, "select">, req: Request, planId: string, data: AnyRow, values: AnyRow) {
+  const meta = parseJson<AnyRow>(values.status, {});
+  for (const kind of ["opening", "closing"] as const) {
+    const key = `${kind}Meeting`;
+    if (!data[key]) continue;
+    await assertMeetingWrite(database, req, planId, req.body[key]?.heldAt, kind);
+    meta[key] = { ...data[key], heldAtLocal: req.body[key].heldAt };
+  }
+  values.status = JSON.stringify(meta);
 }
 router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.SendAuditPlanForExecutionBody, req);
@@ -2776,12 +2793,7 @@ router.post("/audits", asyncHandler(async (req, res) => {
     }
     try {
       [row] = await db.transaction(async tx => {
-        if (data.openingMeeting) {
-          await assertOpeningMeetingWrite(tx, req, plan.id, req.body.openingMeeting?.heldAt);
-          values.status = JSON.stringify({ ...parseJson(values.status, {}), openingMeeting: {
-            ...data.openingMeeting, heldAtLocal: req.body.openingMeeting.heldAt,
-          } });
-        }
+        await nestedMeetingValues(tx, req, plan.id, data, values);
         return tx.insert(audits).values({ organizationId: actor(req).organizationId, ...values }).returning();
       });
     } catch (error: any) {
@@ -2954,12 +2966,7 @@ router.put("/audits/:id", asyncHandler(async (req, res) => {
     const [locked] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, before.id))).for("update");
     if (!locked) throw new HttpError(404, "Audit not found");
     const currentChecklist = Array.isArray(locked.checklistState) ? locked.checklistState as AnyRow[] : [];
-    if (data.openingMeeting) {
-      await assertOpeningMeetingWrite(tx, req, plan.id, req.body.openingMeeting?.heldAt);
-      values.status = JSON.stringify({ ...parseJson(values.status, {}), openingMeeting: {
-        ...data.openingMeeting, heldAtLocal: req.body.openingMeeting.heldAt,
-      } });
-    }
+    await nestedMeetingValues(tx, req, plan.id, data, values);
     if ((auditMeta(locked).reportNumber || currentChecklist.some(item => item.findingNumber)) && locked.auditPlanId !== plan.id) {
       throw new HttpError(409, "An audit with an issued Report or Finding Number cannot be moved to a different Audit Plan.");
     }
@@ -3031,12 +3038,11 @@ async function updateMeeting(req: Request, kind: "opening" | "closing", schema: 
     const [locked] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId),
       eq(audits.id, before.id))).for("update");
     if (!locked) throw new HttpError(404, "Audit not found");
-    if (kind === "opening") {
-      await assertOpeningMeetingWrite(tx, req, locked.auditPlanId, req.body.heldAt);
-    }
+    await assertMeetingWrite(tx, req, locked.auditPlanId, req.body.heldAt, kind);
     assertAuditReportEditable(locked);
-    const meta = auditMeta(locked); meta[`${kind}Meeting`] = { ...data, heldAt: data.heldAt.toISOString() };
-    if (kind === "opening" && meta.openingMeeting) meta.openingMeeting.heldAtLocal = req.body.heldAt;
+    const meta = auditMeta(locked); meta[`${kind}Meeting`] = {
+      ...data, heldAt: data.heldAt.toISOString(), heldAtLocal: req.body.heldAt,
+    };
     if (kind === "opening" && !meta.startedAt) meta.startedAt = data.heldAt.toISOString();
     const [row] = await tx.update(audits).set({
       status: JSON.stringify(meta), [kind === "opening" ? "openingMeetingMinutes" : "closingMeetingMinutes"]: data.minutes,

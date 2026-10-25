@@ -45,6 +45,7 @@ export interface Audit {
   canEdit?: boolean;
   openingMeeting?: MeetingMinutes;
   closingMeeting?: MeetingMinutes;
+  /** Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility. */
   readonly openingMeetingBounds?: AuditOpeningMeetingBounds;
   checklist?: ChecklistItem[];
   additionalDocuments?: AuditAdditionalDocuments;

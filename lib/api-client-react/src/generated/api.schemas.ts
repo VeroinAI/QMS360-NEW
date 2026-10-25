@@ -3795,7 +3795,7 @@ export interface AuditPlan {
 
 export interface MeetingMinutes {
   heldAt: string;
-  /** Original Opening meeting wall-clock input retained without shifting its calendar day */
+  /** Original meeting wall-clock input retained without shifting its calendar day */
   readonly heldAtLocal?: string;
   attendees: string[];
   minutes: string;
@@ -4103,6 +4103,9 @@ export const AuditStatus = {
   Deleted: 'Deleted',
 } as const;
 
+/**
+ * Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.
+ */
 export type AuditOpeningMeetingBounds = {
   /** @nullable */
   readonly fromDate: string | null;
@@ -4185,6 +4188,7 @@ export interface Audit {
   canEdit?: boolean;
   openingMeeting?: MeetingMinutes;
   closingMeeting?: MeetingMinutes;
+  /** Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility. */
   readonly openingMeetingBounds?: AuditOpeningMeetingBounds;
   checklist?: ChecklistItem[];
   additionalDocuments?: AuditAdditionalDocuments;

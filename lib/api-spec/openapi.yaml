@@ -4658,7 +4658,7 @@ components:
       required: [heldAt, attendees, minutes]
       properties:
         heldAt: {type: string, format: date-time}
-        heldAtLocal: {type: string, readOnly: true, description: Original Opening meeting wall-clock input retained without shifting its calendar day}
+        heldAtLocal: {type: string, readOnly: true, description: Original meeting wall-clock input retained without shifting its calendar day}
         attendees: {type: array, items: {type: string}}
         minutes: {type: string}
         evidenceIds: {type: array, items: {type: string}}
@@ -4805,6 +4805,7 @@ components:
         closingMeeting: {$ref: "#/components/schemas/MeetingMinutes"}
         openingMeetingBounds:
           type: object
+          description: Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.
           readOnly: true
           required: [fromDate, toDate]
           properties:

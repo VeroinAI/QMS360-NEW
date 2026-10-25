@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Actual linked individual audit dates shared by Opening and Closing Meeting validation. The property name is retained for client compatibility.
+ */
 export type AuditOpeningMeetingBounds = {
   /** @nullable */
   readonly fromDate: string | null;
