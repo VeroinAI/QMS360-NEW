@@ -58,7 +58,7 @@ import { formatAuditNumber, formatQaqcReference, getScheduleNumbering, lockSched
 import { allocatePlanNumber, getPlanNumberDepartments, previewPlanNumber, readPlanNumberState, savePlanNumbering, type PlanNumberPattern } from "../lib/audit-plan-numbering";
 import { allocateReportNumber, readReportNumberState, saveReportNumbering } from "../lib/audit-report-numbering";
 import { lockNumberedCarResponse, readCarNumberState, saveCarNumbering, type CarNumberRange } from "../lib/audit-car-numbering";
-import { carDueDate, hasSavedCarResponse } from "../lib/car-dates";
+import { carDueDate, findingDateValue, validFindingDate, hasSavedCarResponse } from "../lib/car-dates";
 import { allocateFindingNumber, numberedFindingTypes, readFindingNumberState, saveFindingNumbering, type FindingNumberPattern, type FindingNumberRange } from "../lib/audit-finding-numbering";
 import { findingForNumberRepair, preserveFindingNumber } from "../lib/audit-finding-number-repair";
 import { auditProjectNumberSourceValue, auditDepartmentNumberSourceValue } from "../lib/audit-number-source";
@@ -3170,6 +3170,7 @@ router.post("/audits/:id/checklist/import", asyncHandler(async (req, res) => {
 
 router.post("/audits/:id/finding-items", asyncHandler(async (req, res) => {
   const data = body<AnyRow>(Api.CreateAuditFindingItemBody, req);
+  if (data.findingDate !== undefined && !validFindingDate(data.findingDate)) throw new HttpError(422, "Enter a valid Finding Date.");
   try { requireFindingPriorityAction(data.actionTakerId, data.recommendedPriorityAction); }
   catch (error) { throw new HttpError(422, (error as Error).message); }
   const organizationId = actor(req).organizationId;
@@ -3202,7 +3203,7 @@ router.post("/audits/:id/finding-items", asyncHandler(async (req, res) => {
       ...numbering,
       id: randomUUID(), source: "finding", question: "", clause: data.clause.trim(),
       auditArea: data.auditArea.trim(), description: data.description?.trim() || null,
-      auditFinding: data.auditFinding, evidenceIds, actionTakerId: data.actionTakerId,
+      auditFinding: data.auditFinding, findingDate: data.findingDate ?? null, evidenceIds, actionTakerId: data.actionTakerId,
       recommendedPriorityAction: data.recommendedPriorityAction,
       ...(data.clientReference ? { clientReference: data.clientReference } : {}),
     };
@@ -3276,6 +3277,39 @@ router.patch("/audits/:id/finding-items/:itemId/action-taker", asyncHandler(asyn
     return { before, row };
   });
   await auditLog(req, "assign_finding_action_taker", "audit", auditId, before, row);
+  res.json(auditDto(row));
+}));
+
+router.patch("/audits/:id/finding-items/:itemId/date", asyncHandler(async (req, res) => {
+  const data = body<AnyRow>(Api.UpdateAuditFindingDateBody, req);
+  if (!validFindingDate(data.findingDate)) throw new HttpError(422, "Enter a valid Finding Date.");
+  const organizationId = actor(req).organizationId;
+  const auditId = String(req.params.id), itemId = String(req.params.itemId);
+  await assertAuditRecordAccess(req, "audit", auditId);
+  const row = await db.transaction(async tx => {
+    const [before] = await tx.select().from(audits).where(and(active(audits, organizationId), eq(audits.id, auditId))).for("update");
+    if (!before) throw new HttpError(404, "Audit not found");
+    assertAuditReportEditable(before);
+    const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
+    const item = checklist.find(entry => entry.id === itemId);
+    if (!item || !actionableFinding(item)) throw new HttpError(404, "Finding not found");
+    if (item.findingDate === data.findingDate) return before;
+    const linked = await tx.select().from(auditFindings).where(and(active(auditFindings, organizationId), eq(auditFindings.auditId, auditId)));
+    for (const finding of linked.filter(f => (f.evidence as AnyRow)?.sourceChecklistItemId === itemId)) {
+      await tx.update(auditFindings).set({ evidence: { ...finding.evidence, findingDate: data.findingDate }, updatedAt: new Date() })
+        .where(eq(auditFindings.id, finding.id));
+      const cars = await tx.select().from(correctiveActionReports).where(and(active(correctiveActionReports, organizationId), eq(correctiveActionReports.auditFindingId, finding.id))).for("update");
+      for (const car of cars) await tx.update(correctiveActionReports).set({
+        dueDate: carDueDate(item.auditFinding || item.result, data.findingDate, car.dueDate), updatedAt: new Date(),
+      }).where(eq(correctiveActionReports.id, car.id));
+    }
+    const [updated] = await tx.update(audits).set({
+      checklistState: checklist.map(entry => entry.id === itemId ? { ...entry, findingDate: data.findingDate } : entry) as any,
+      updatedAt: new Date(),
+    }).where(eq(audits.id, auditId)).returning();
+    await auditLog(req, "update_finding_date", "audit", auditId, before, updated, tx as unknown as typeof db);
+    return updated;
+  });
   res.json(auditDto(row));
 }));
 
@@ -3567,7 +3601,7 @@ const carDto = (row: AnyRow) => {
     status: row.workflowState === "rejected" && ["query", "rework"].includes(meta.reviewOutcome ?? "")
       ? `Returned for ${meta.reviewOutcome}`
       : ({ open: "Open", draft: "Draft", submitted: "Submitted", accepted: "Accepted", rejected: "Rejected", extension_requested: "Extension Requested", closed: "Closed" } as AnyRow)[row.workflowState] ?? "Open",
-    dueDate: new Date(row.dueDate ?? row.createdAt), extensionRequestedTo: row.extensionDueDate ? new Date(row.extensionDueDate) : null,
+    dueDate: row.dueDate ?? null, extensionRequestedTo: row.extensionDueDate ? new Date(row.extensionDueDate) : null,
     extensionReason: meta.extensionReason ?? null,
     extensionStatus: row.extensionStatus === "none" ? null : row.extensionStatus === "requested" ? "pending" : row.extensionStatus,
     extensionReviewedBy: meta.extensionReviewedBy ?? null,
@@ -3617,14 +3651,14 @@ router.post("/car-register/start", asyncHandler(async (req, res) => {
     if (!finding) [finding] = await tx.insert(auditFindings).values({
       organizationId, auditId: audit.id, classification: item.auditFinding || item.result,
       description: item.description || item.question || "", responsibleDepartment: item.auditArea || "Audit finding",
-      evidence: { sourceChecklistItemId: item.id, evidenceIds: item.evidenceIds || [] },
+      evidence: { sourceChecklistItemId: item.id, evidenceIds: item.evidenceIds || [], findingDate: item.findingDate ?? null },
     }).returning();
     const [existing] = await tx.select().from(correctiveActionReports).where(and(active(correctiveActionReports, organizationId), eq(correctiveActionReports.auditFindingId, finding!.id)));
     if (existing) return existing;
     const [created] = await tx.insert(correctiveActionReports).values({
       organizationId, auditFindingId: finding!.id, ownerId: item.actionTakerId,
       responsibleDepartment: item.auditArea || "Audit finding", workflowState: "open",
-      dueDate: carDueDate(item.auditFinding || item.result, new Date()),
+      dueDate: carDueDate(item.auditFinding || item.result, item.findingDate),
       effectivenessNotes: JSON.stringify({ sourceChecklistItemId: item.id }),
     }).returning();
     await tx.insert(auditAuditLogEntries).values({ organizationId, actorId: actor(req).id,
@@ -3889,7 +3923,7 @@ router.post("/findings/:id/cars", asyncHandler(async (req, res) => {
   if (!finding) throw new HttpError(404, "Audit finding not found");
   const existing = await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), eq(correctiveActionReports.auditFindingId, finding.id), inArray(correctiveActionReports.responsibleDepartment, departments)));
   if (existing.length) throw new HttpError(409, `CAR already exists for: ${existing.map((x) => x.responsibleDepartment).join(", ")}`);
-  const dueDate = carDueDate(finding.classification, new Date());
+  const dueDate = carDueDate(finding.classification, findingDateValue(null, finding));
   const rows = await db.insert(correctiveActionReports).values(departments.map((department) => ({
     organizationId: actor(req).organizationId, auditFindingId: finding.id, responsibleDepartment: department,
     ownerId: actor(req).id, workflowState: "open", dueDate,
@@ -3977,7 +4011,7 @@ router.put("/cars/:id", asyncHandler(async (req, res) => {
     if (current.workflowState !== before.workflowState) throw new HttpError(409, "CAR changed while saving. Reload and retry.");
     const [saved] = await tx.update(correctiveActionReports).set({
       rootCause: data.rootCause, correction: data.correction, correctiveAction: data.correctiveAction,
-      ownerId: context.ownerId, dueDate: carDueDate(context.item?.auditFinding || context.finding.classification, current.createdAt, current.dueDate), workflowState: saveAndSubmit ? "submitted" : "draft",
+      ownerId: context.ownerId, dueDate: carDueDate(context.item?.auditFinding || context.finding.classification, findingDateValue(context.item, context.finding), current.dueDate), workflowState: saveAndSubmit ? "submitted" : "draft",
       effectivenessNotes: JSON.stringify(meta), updatedAt: new Date(),
     }).where(and(eq(correctiveActionReports.id, before.id), eq(correctiveActionReports.workflowState, before.workflowState))).returning();
     if (!saved) throw new HttpError(409, "CAR changed while saving. Reload and retry.");
@@ -4013,7 +4047,7 @@ router.post("/cars/:id/number", asyncHandler(async (req, res) => {
     const { settings } = await lockScheduleNumbering(tx, actor(req).organizationId);
     const { car, meta } = await lockNumberedCarResponse(tx, settings, context.car.id, actor(req).id, Boolean(adminAllowed));
     if (carMeta(car).carNumber) return car;
-    const dueDate = carDueDate(context.item?.auditFinding || context.finding.classification, car.createdAt, car.dueDate);
+    const dueDate = carDueDate(context.item?.auditFinding || context.finding.classification, findingDateValue(context.item, context.finding), car.dueDate);
     const [row] = await tx.update(correctiveActionReports).set({
       effectivenessNotes: JSON.stringify(meta), dueDate, updatedAt: new Date(),
     }).where(eq(correctiveActionReports.id, car.id)).returning();
@@ -4037,7 +4071,7 @@ router.post("/cars/:id/submit", asyncHandler(async (req, res) => {
     if (!current.rootCause?.trim() || !current.correction?.trim() || !current.correctiveAction?.trim()) throw new HttpError(422, "Root cause, correction, and corrective action are required");
     const [saved] = await tx.update(correctiveActionReports).set({
       workflowState: "submitted", effectivenessNotes: JSON.stringify(meta),
-      dueDate: carDueDate(context.item?.auditFinding || context.finding.classification, current.createdAt, current.dueDate), updatedAt: new Date(),
+      dueDate: carDueDate(context.item?.auditFinding || context.finding.classification, findingDateValue(context.item, context.finding), current.dueDate), updatedAt: new Date(),
     }).where(eq(correctiveActionReports.id, current.id)).returning();
     await auditLog(req, "submit", "corrective_action_report", current.id, current, saved, tx as unknown as typeof db);
     return saved!;
@@ -4379,7 +4413,11 @@ async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
     legacyFindings: findings.filter(row => !(row.evidence as AnyRow)?.sourceChecklistItemId).map(row => ({
       ...findingDto(row), ...(pptxWorkbookMappings ? { createdAt: row.createdAt } : {}),
     })),
-    cars: cars.map(car => carDto({ ...car, dueDate: carDueDate(findings.find(f => f.id === car.auditFindingId)?.classification, car.createdAt, car.dueDate) })), evidence,
+    cars: cars.map(car => {
+      const finding = findings.find(f => f.id === car.auditFindingId);
+      const item = Array.isArray(audit.checklistState) ? audit.checklistState.find((i: AnyRow) => i.id === (finding?.evidence as AnyRow)?.sourceChecklistItemId) as AnyRow | undefined : undefined;
+      return carDto({ ...car, dueDate: carDueDate(item?.auditFinding || finding?.classification, findingDateValue(item, finding), car.dueDate) });
+    }), evidence,
     names: new Map(nameRows.map(u => [u.id, [u.name, u.designation].filter(Boolean).join(" / ")])),
     roleNames: new Map(roleRows.map(r => [r.id, r.name])),
   });
@@ -4405,7 +4443,9 @@ router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
     const car = report.cars[i]!;
     const meta = carMeta(car);
     row[0] = meta.carNumber || "-";
-    const due = carDueDate(report.findings.find(f => f.id === car.auditFindingId)?.classification, car.createdAt, car.dueDate);
+    const finding = report.findings.find(f => f.id === car.auditFindingId);
+    const item = Array.isArray(report.audit.checklistState) ? report.audit.checklistState.find((i: AnyRow) => i.id === (finding?.evidence as AnyRow)?.sourceChecklistItemId) as AnyRow | undefined : undefined;
+    const due = carDueDate(item?.auditFinding || finding?.classification, findingDateValue(item, finding), car.dueDate);
     row[5] = car.extensionStatus === "approved" && car.extensionDueDate ? date(car.extensionDueDate) : due ? date(due) : "-";
     row[6] = carDto(car).status;
     row[7] = meta.reviewedAt && (meta.reviewOutcome === "accept" || car.workflowState === "closed" || car.workflowState === "accepted")

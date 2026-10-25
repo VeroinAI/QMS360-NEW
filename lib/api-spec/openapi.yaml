@@ -2019,6 +2019,14 @@ paths:
         "422": {description: Finding type or required numbering master data is missing}
   /audit/audits/{id}/finding-items/{itemId}/action-taker:
     patch: {operationId: assignAuditFindingActionTaker, tags: [audit], summary: Assign an active QMS Audit user to a finding, parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string}}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditFindingActionTakerInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}}}
+  /audit/audits/{id}/finding-items/{itemId}/date:
+    patch:
+      operationId: updateAuditFindingDate
+      tags: [audit]
+      parameters: [{$ref: "#/components/parameters/Id"}, {name: itemId, in: path, required: true, schema: {type: string}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/FindingDateInput"}}}}
+      responses:
+        "200": {description: Finding date and linked CAR deadlines updated, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}
   /audit/audits/{id}/additional-documents/organization-chart:
     put: {operationId: replaceAuditOrganizationChart, tags: [audit], summary: Attach or replace the single organization chart, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AuditOrganizationChartInput"}}}}, responses: {"200": {description: Updated audit, content: {application/json: {schema: {$ref: "#/components/schemas/Audit"}}}}, "409": {description: Organization chart changed since it was viewed}}}
   /audit/audits/{id}/additional-documents/good-practices:
@@ -4656,14 +4664,20 @@ components:
     ChecklistItem:
       type: object
       required: [id, question]
-      properties: {id: {type: string}, clause: {type: [string, "null"]}, auditArea: {type: string}, question: {type: string}, description: {type: [string, "null"]}, auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}, result: {type: string, description: "Legacy values managed via /platform/master-data/lov/checklist_results"}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}, source: {type: string, enum: [finding], description: "Finding-only row, excluded from the Checklist tab"}, actionTakerId: {type: string}, recommendedPriorityAction: {$ref: "#/components/schemas/FindingPriorityAction"}, clientReference: {type: string}, findingNumber: {type: string, readOnly: true, description: "Server-issued number assigned on Save Finding; distinct from clientReference"}}
+      properties: {id: {type: string}, findingDate: {type: [string, "null"]}, clause: {type: [string, "null"]}, auditArea: {type: string}, question: {type: string}, description: {type: [string, "null"]}, auditFinding: {type: string, enum: ["Minor NC", "Moderate NC", "Major NC", OFI, "Not applicable"]}, result: {type: string, description: "Legacy values managed via /platform/master-data/lov/checklist_results"}, notes: {type: [string, "null"]}, evidenceIds: {type: array, items: {type: string}}, source: {type: string, enum: [finding], description: "Finding-only row, excluded from the Checklist tab"}, actionTakerId: {type: string}, recommendedPriorityAction: {$ref: "#/components/schemas/FindingPriorityAction"}, clientReference: {type: string}, findingNumber: {type: string, readOnly: true, description: "Server-issued number assigned on Save Finding; distinct from clientReference"}}
     FindingPriorityAction:
       type: string
       enum: ["Contain the risk now", "Correct and close", "Prevent recurrence"]
+    FindingDateInput:
+      type: object
+      required: [findingDate]
+      properties:
+        findingDate: {type: string, pattern: '^\d{4}-\d{2}-\d{2}$'}
     AuditFindingItemInput:
       type: object
       required: [clause, auditArea, auditFinding, actionTakerId, recommendedPriorityAction]
       properties:
+        findingDate: {type: string, pattern: '^\d{4}-\d{2}-\d{2}$'}
         clause: {type: string, minLength: 1}
         auditArea: {type: string, minLength: 1}
         description: {type: string}
@@ -4864,7 +4878,7 @@ components:
         correction: {type: [string, "null"]}
         correctiveAction: {type: [string, "null"]}
         status: {type: string, enum: [Open, Draft, Submitted, Accepted, Rejected, Returned for query, Returned for rework, Extension Requested, Closed]}
-        dueDate: {type: string, format: date}
+        dueDate: {type: [string, "null"], format: date}
         extensionRequestedTo: {type: [string, "null"], format: date}
         extensionReason: {type: [string, "null"]}
         extensionStatus: {type: [string, "null"], enum: [pending, approved, rejected, null]}

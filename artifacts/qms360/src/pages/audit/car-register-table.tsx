@@ -79,7 +79,7 @@ export function CarRegisterTable({ entries, auditAreaOptions = [], auditAreasLoa
               {e.canNumber && <CarNumberRepair entry={e} busy={busy} />}
             </td>
             <td className={cell}>{e.createdAt ? formatDate(e.createdAt) : "—"}</td>
-            <td className={cell} data-testid={`text-car-due-date-${e.id}`}>{e.dueDate ? formatDate(e.dueDate) : car ? "Not configured for this finding type" : "Set when CAR is created"}</td>
+            <td className={cell} data-testid={`text-car-due-date-${e.id}`}>{e.dueDate ? formatDate(e.dueDate) : "Finding Date missing or no due-date rule configured"}</td>
             <td className={cell}><button type="button" className="text-left font-medium text-primary underline underline-offset-2 hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
               data-testid={`link-car-schedule-${e.id}`} aria-haspopup="dialog" aria-label={`Open CAR Response for ${e.scheduleName || "unlinked schedule"} — ${e.auditTitle}`} disabled={busy} onClick={() => onOpenResponse(e)}>{e.scheduleName || "No linked schedule"}</button></td>
             <td className={cell}>{e.auditTitle}</td>

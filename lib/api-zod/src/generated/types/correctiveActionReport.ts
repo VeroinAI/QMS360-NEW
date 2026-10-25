@@ -25,7 +25,8 @@ export interface CorrectiveActionReport {
   /** @nullable */
   correctiveAction?: string | null;
   status: CorrectiveActionReportStatus;
-  dueDate: Date;
+  /** @nullable */
+  dueDate: Date | null;
   /** @nullable */
   extensionRequestedTo?: Date | null;
   /** @nullable */

@@ -3834,6 +3834,8 @@ export const FindingPriorityAction = {
 export interface ChecklistItem {
   id: string;
   /** @nullable */
+  findingDate?: string | null;
+  /** @nullable */
   clause?: string | null;
   auditArea?: string;
   question: string;
@@ -3854,6 +3856,11 @@ export interface ChecklistItem {
   readonly findingNumber?: string;
 }
 
+export interface FindingDateInput {
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  findingDate: string;
+}
+
 export type AuditFindingItemInputAuditFinding = typeof AuditFindingItemInputAuditFinding[keyof typeof AuditFindingItemInputAuditFinding];
 
 
@@ -3865,6 +3872,8 @@ export const AuditFindingItemInputAuditFinding = {
 } as const;
 
 export interface AuditFindingItemInput {
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  findingDate?: string;
   /** @minLength 1 */
   clause: string;
   /** @minLength 1 */
@@ -4300,7 +4309,8 @@ export interface CorrectiveActionReport {
   /** @nullable */
   correctiveAction?: string | null;
   status: CorrectiveActionReportStatus;
-  dueDate: string;
+  /** @nullable */
+  dueDate: string | null;
   /** @nullable */
   extensionRequestedTo?: string | null;
   /** @nullable */

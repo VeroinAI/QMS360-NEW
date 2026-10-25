@@ -166,6 +166,7 @@ import type {
   FieldSettingsCatalog,
   FieldSettingsUpdate,
   FindingCarInput,
+  FindingDateInput,
   GeneratedAuditReport,
   GetAuditCapabilities200,
   GetAuditDashboardParams,
@@ -23796,6 +23797,74 @@ export const useAssignAuditFindingActionTaker = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAssignAuditFindingActionTakerMutationOptions(options));
+    }
+
+export const getUpdateAuditFindingDateUrl = (id: string,
+    itemId: string,) => {
+
+
+
+
+  return `/api/audit/audits/${id}/finding-items/${itemId}/date`
+}
+
+export const updateAuditFindingDate = async (id: string,
+    itemId: string,
+    findingDateInput: FindingDateInput, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
+
+  return customFetch<Audit>(getUpdateAuditFindingDateUrl(id,itemId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(findingDateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAuditFindingDateMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditFindingDate>>, TError,{id: string;itemId: string;data: BodyType<FindingDateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAuditFindingDate>>, TError,{id: string;itemId: string;data: BodyType<FindingDateInput>}, TContext> => {
+
+const mutationKey = ['updateAuditFindingDate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAuditFindingDate>>, {id: string;itemId: string;data: BodyType<FindingDateInput>}> = (props) => {
+          const {id,itemId,data} = props ?? {};
+
+          return  updateAuditFindingDate(id,itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAuditFindingDateMutationResult = NonNullable<Awaited<ReturnType<typeof updateAuditFindingDate>>>
+    export type UpdateAuditFindingDateMutationBody = BodyType<FindingDateInput>
+    export type UpdateAuditFindingDateMutationError = ErrorType<unknown>
+
+    export const useUpdateAuditFindingDate = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAuditFindingDate>>, TError,{id: string;itemId: string;data: BodyType<FindingDateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAuditFindingDate>>,
+        TError,
+        {id: string;itemId: string;data: BodyType<FindingDateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAuditFindingDateMutationOptions(options));
     }
 
 export const getReplaceAuditOrganizationChartUrl = (id: string,) => {

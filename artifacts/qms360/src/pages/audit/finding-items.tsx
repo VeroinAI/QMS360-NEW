@@ -30,9 +30,11 @@ import { useLov } from "@/lib/use-lov";
 import { checklistFindings } from "./checklist-workbook";
 import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
 import { canRepairFindingNumber, FindingNumberRepair } from "./finding-number-repair";
+import { FindingDate } from "./finding-date";
 
 const findingOptions = checklistFindings.filter(value => value !== "Not applicable");
 const findingSchema = z.object({
+  findingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Finding Date is required"),
   clause: z.string().trim().min(1, "Clause is required"),
   auditArea: z.string().min(1, "Audit Area is required"),
   description: z.string(),
@@ -47,6 +49,7 @@ const findingSchema = z.object({
 });
 type FindingForm = z.infer<typeof findingSchema>;
 const emptyForm = (): FindingForm => ({
+  findingDate: "",
   clause: "", auditArea: "", description: "", auditFinding: undefined as unknown as FindingForm["auditFinding"], actionTakerId: "", recommendedPriorityAction: "",
 });
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Please try again.";
@@ -148,6 +151,7 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
         setUploadedId(fileId); // A failed record save can be retried without uploading the file twice.
       }
       const payload: AuditFindingItemInput = {
+        findingDate: values.findingDate,
         clause: values.clause, auditArea: values.auditArea, description: values.description.trim(),
         auditFinding: values.auditFinding, actionTakerId: values.actionTakerId,
         recommendedPriorityAction: values.recommendedPriorityAction,
@@ -213,7 +217,7 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
       <div className="overflow-x-auto rounded-md border" role="region" aria-label="Audit findings spreadsheet" tabIndex={0}>
         <Table className="min-w-[1240px] border-collapse text-sm">
           <TableHeader><TableRow className="bg-muted/50">
-            {["Finding No.", "Clause", "Audit Area", "Description", "Audit Findings", "Evidence", "Action Taker", "Recommended priority actions"].map(column =>
+            {["Finding No.", "Finding Date", "Clause", "Audit Area", "Description", "Audit Findings", "Evidence", "Action Taker", "Recommended priority actions"].map(column =>
               <TableHead key={column} scope="col" className="h-10 border-r border-b border-border/60 px-3 text-xs font-semibold uppercase tracking-wide last:border-r-0">{column}</TableHead>)}
           </TableRow></TableHeader>
           <TableBody>
@@ -221,6 +225,7 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
               <TableCell data-testid={`text-finding-number-${item.id}`} className="w-40 whitespace-nowrap border-r border-b border-border/60 px-3 align-top font-mono text-xs">{item.findingNumber?.trim() || <span className="text-muted-foreground">Not numbered</span>}
                 {!readOnly && canRepairFindingNumber(item.auditFinding, item.findingNumber) && <FindingNumberRepair auditId={auditId} itemId={item.id}/>}
               </TableCell>
+              <TableCell className="min-w-44 border-r border-b border-border/60 px-3 align-top" data-testid={`finding-date-${item.id}`}><FindingDate auditId={auditId} itemId={item.id} value={item.findingDate} readOnly={readOnly}/></TableCell>
               <TableCell data-testid={`text-clause-${item.id}`} className="w-28 border-r border-b border-border/60 px-3 align-top font-medium">{item.clause || "—"}</TableCell>
               <TableCell data-testid={`text-audit-area-${item.id}`} className="w-44 border-r border-b border-border/60 px-3 align-top">{areas.options.find(area => area.value === item.auditArea)?.label ?? item.auditArea ?? "—"}</TableCell>
               <TableCell data-testid={`text-description-${item.id}`} className="min-w-64 max-w-sm whitespace-pre-wrap border-r border-b border-border/60 px-3 align-top">{item.description || item.notes || "—"}</TableCell>
@@ -255,7 +260,7 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
                 {assignmentDrafts[item.id]?.recommendedPriorityAction && assigningId !== item.id && <p className="mt-1 text-xs text-muted-foreground">Unsaved changes. <button type="button" className="underline" onClick={() => void assignUser(item, {})}>Retry save</button></p>}
               </TableCell>
             </TableRow>)}
-            {!findings.length && <TableRow><TableCell colSpan={8} className="py-12 text-center">
+            {!findings.length && <TableRow><TableCell colSpan={9} className="py-12 text-center">
               <FileText className="mx-auto mb-3 size-7 text-muted-foreground" aria-hidden="true"/>
               <p data-testid="text-no-findings" className="font-medium">No findings recorded yet</p>
               <p className="mt-1 text-sm text-muted-foreground">Add a finding here, or record one while completing the checklist.</p>
@@ -271,8 +276,9 @@ export function FindingsGrid({ auditId, items }: { auditId: string; items: Check
     </CardContent>
     <Dialog open={open} onOpenChange={value => { if (!value && !saving) reset(); else if (value) setOpen(true); }}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl" onEscapeKeyDown={event => { if (saving) event.preventDefault(); }} onInteractOutside={event => { if (saving) event.preventDefault(); }}>
-        <DialogHeader><DialogTitle>Add Finding</DialogTitle><DialogDescription>Record a finding against a clause. Fields marked * are required. The Audit Finding number is assigned by the server on successful Save Finding, based on the finding type, the source from the linked Plan and the linked Schedule From Date year.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Add Finding</DialogTitle><DialogDescription>Record a finding against a clause. Fields marked * are required. CAR due dates use Finding Date: Major NC +2 days, Minor NC +3 days, OFI +4 days. Finding numbering still uses the linked Schedule From Date year.</DialogDescription></DialogHeader>
         <Form {...form}><form onSubmit={event => void save(event)} className="space-y-4">
+          <FormField control={form.control} name="findingDate" render={({ field }) => <FormItem><FormLabel>Finding Date *</FormLabel><FormControl><Input {...field} type="date" required data-testid="input-finding-date"/></FormControl><FormMessage/></FormItem>}/>
           <FormField control={form.control} name="clause" render={({ field }) => <FormItem><FormLabel>Clause *</FormLabel><FormControl><Input {...field} data-testid="input-finding-clause" placeholder="Enter audit clause" autoFocus/></FormControl><FormMessage/></FormItem>}/>
           <FormField control={form.control} name="auditArea" render={({ field, fieldState }) => <FormItem><FormLabel>Audit Area *</FormLabel><Select value={field.value || undefined} onValueChange={field.onChange} disabled={areas.isLoading || !!areas.error || !areas.options.length}><FormControl><SelectTrigger data-testid="select-finding-audit-area" aria-invalid={!!fieldState.error}><SelectValue placeholder="Select Audit Area"/></SelectTrigger></FormControl><SelectContent>{areas.options.map(area => <SelectItem key={area.value} value={area.value}>{area.label}</SelectItem>)}</SelectContent></Select><FormMessage/>{areas.error && <p className="text-sm text-destructive">Unable to load Audit Areas. <button type="button" data-testid="button-retry-audit-areas" className="underline" onClick={() => void areas.refetch()}>Retry</button></p>}{!areas.isLoading && !areas.error && !areas.options.length && <p className="text-sm text-muted-foreground">No active Audit Areas are configured.</p>}</FormItem>}/>
           <FormField control={form.control} name="description" render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} data-testid="input-finding-description" rows={3} placeholder="Describe what was observed"/></FormControl><FormMessage/></FormItem>}/>

@@ -121,7 +121,7 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
     if (String(req.query.includeLegacy) === "true") sourceRows.push(...auditFindingsRows
       .filter(f => f.classification?.trim().toLowerCase() !== "not applicable")
       .filter(f => !(f.evidence as any)?.sourceChecklistItemId || !checklist.some(item => item.id === (f.evidence as any)?.sourceChecklistItemId))
-      .map(f => ({ item: { id: f.id, description: f.description, auditFinding: f.classification }, legacy: true, finding: f })));
+      .map(f => ({ item: { id: f.id, description: f.description, auditFinding: f.classification, findingDate: (f.evidence as any)?.findingDate }, legacy: true, finding: f })));
     for (const source of sourceRows) {
       const associated = source.finding ? cars.filter(c => c.auditFindingId === source.finding!.id) : [];
       for (const car of associated.length ? associated : [undefined]) {
@@ -135,7 +135,7 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
         const canReview = !inactiveSource && pm.leadAuditorId === userId && (leadMarker
           || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(carJson(schedule?.status).auditTypes?.includes("Quality Internal Process Audit")), departmentId)));
         const classification = item.auditFinding || item.result || "";
-        const dueDate = car ? carDueDate(classification, car.createdAt, car.dueDate) : null;
+        const dueDate = carDueDate(classification, item.findingDate, car?.dueDate);
         const response = car ? { ...dto({ ...car, dueDate, classification }), canRespond, canReview } : undefined;
         entries.push({ id: car?.id || `${audit.id}:${item.id}`, auditId: audit.id, itemId: item.id,
           auditTitle: schedule?.title || carJson(audit.status).title || audit.referenceNumber, scheduleId: programme?.id || null,

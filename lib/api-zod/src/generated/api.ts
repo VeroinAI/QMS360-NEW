@@ -9051,6 +9051,7 @@ export const SendAuditPlanForExecutionResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -9232,6 +9233,7 @@ export const ListAuditsResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -9369,6 +9371,7 @@ export const CreateAuditBody = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -9535,6 +9538,7 @@ export const GetAuditResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -9675,6 +9679,7 @@ export const UpdateAuditBody = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -9867,6 +9872,7 @@ export const CompleteAuditResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -10040,6 +10046,7 @@ export const ReviewAuditReportResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -10217,6 +10224,7 @@ export const SaveAuditReportDetailsResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -10342,6 +10350,7 @@ export const UpdateAuditChecklistParams = zod.object({
 
 export const UpdateAuditChecklistBodyItem = zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -10476,6 +10485,7 @@ export const CreateAuditChecklistItemResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -10655,6 +10665,7 @@ export const EditAuditChecklistItemResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -10823,6 +10834,7 @@ export const DeleteAuditChecklistItemResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -11003,6 +11015,7 @@ export const ImportAuditChecklistItemsResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -11072,6 +11085,7 @@ export const CreateAuditFindingItemParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const createAuditFindingItemBodyFindingDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 
 
 export const createAuditFindingItemBodyClientReferenceMax = 100;
@@ -11079,6 +11093,7 @@ export const createAuditFindingItemBodyClientReferenceMax = 100;
 
 
 export const CreateAuditFindingItemBody = zod.object({
+  "findingDate": zod.string().regex(createAuditFindingItemBodyFindingDateRegExp).optional(),
   "clause": zod.string().min(1),
   "auditArea": zod.string().min(1),
   "description": zod.string().optional(),
@@ -11184,6 +11199,7 @@ export const CreateAuditFindingItemResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -11352,6 +11368,7 @@ export const GenerateMissingAuditFindingNumberResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -11522,6 +11539,7 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -11578,6 +11596,176 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "reportDetails": zod.object({
   "values": zod.record(zod.string(), zod.string().max(assignAuditFindingActionTakerResponseReportDetailsValuesMaxOne)),
   "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(assignAuditFindingActionTakerResponseReportDetailsRowsItemMaxOne))).max(assignAuditFindingActionTakerResponseReportDetailsRowsMaxOne))
+}).optional(),
+  "startedAt": zod.coerce.date().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+
+export const UpdateAuditFindingDateParams = zod.object({
+  "id": zod.coerce.string(),
+  "itemId": zod.coerce.string()
+})
+
+export const updateAuditFindingDateBodyFindingDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const UpdateAuditFindingDateBody = zod.object({
+  "findingDate": zod.string().regex(updateAuditFindingDateBodyFindingDateRegExp)
+})
+
+export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemValueMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemValueMax = 1000000000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemRemarksMax = 4000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemIdMax = 100;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemLabelMax = 120;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemValueMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemValueMax = 1000000000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemRemarksMax = 4000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax = 100;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax = 1000000000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax = 1000000000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin = 0;
+export const updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax = 1000000000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneIdMax = 100;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax = 200;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax = 4000;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax = 500;
+
+export const updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax = 200;
+
+export const updateAuditFindingDateResponseReportDetailsValuesMaxOne = 10000;
+
+export const updateAuditFindingDateResponseReportDetailsRowsItemMaxOne = 10000;
+
+export const updateAuditFindingDateResponseReportDetailsRowsMaxOne = 200;
+
+
+
+export const UpdateAuditFindingDateResponse = zod.object({
+  "id": zod.string(),
+  "planId": zod.string(),
+  "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
+  "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
+  "projectName": zod.string().nullish().describe('Linked project name'),
+  "reportNumber": zod.string().nullish().describe('Immutable server-generated Audit Report number issued on first successful report-details save'),
+  "reportApproval": zod.object({
+  "status": zod.enum(['Not submitted', 'Pending approval', 'Approved', 'Sent back']),
+  "pendingLevel": zod.number().nullable(),
+  "pendingApprovers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})),
+  "canReview": zod.boolean(),
+  "history": zod.array(zod.object({
+  "decision": zod.string(),
+  "userName": zod.string(),
+  "level": zod.number(),
+  "remarks": zod.string(),
+  "at": zod.string()
+}))
+}).optional(),
+  "projectId": zod.string().nullable().describe('Null for a department-based Process audit; inherited from the selected Plan'),
+  "title": zod.string(),
+  "status": zod.enum(['Planned', 'In Progress', 'Report Draft', 'CAR Follow-up', 'Complete', 'Closed', 'Deleted']),
+  "canEdit": zod.boolean().optional().describe('Whether the current user has Audit edit access in this record scope'),
+  "openingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "closingMeeting": zod.object({
+  "heldAt": zod.coerce.date(),
+  "heldAtLocal": zod.string().optional().describe('Original Opening meeting wall-clock input retained without shifting its calendar day'),
+  "attendees": zod.array(zod.string()),
+  "minutes": zod.string(),
+  "evidenceIds": zod.array(zod.string()).optional()
+}).optional(),
+  "openingMeetingBounds": zod.object({
+  "fromDate": zod.string().nullable(),
+  "toDate": zod.string().nullable()
+}).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string(),
+  "findingDate": zod.string().nullish(),
+  "clause": zod.string().nullish(),
+  "auditArea": zod.string().optional(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
+  "result": zod.string().optional().describe('Legacy values managed via \/platform\/master-data\/lov\/checklist_results'),
+  "notes": zod.string().nullish(),
+  "evidenceIds": zod.array(zod.string()).optional(),
+  "source": zod.enum(['finding']).optional().describe('Finding-only row, excluded from the Checklist tab'),
+  "actionTakerId": zod.string().optional(),
+  "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional(),
+  "clientReference": zod.string().optional(),
+  "findingNumber": zod.string().optional().describe('Server-issued number assigned on Save Finding; distinct from clientReference')
+})).optional(),
+  "additionalDocuments": zod.object({
+  "organizationChartId": zod.string().nullish(),
+  "organizationChartFileName": zod.string().nullish(),
+  "designStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemLabelMax),
+  "value": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemValueMin).max(updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemRemarksMax)
+})).optional(),
+  "designRemarks": zod.string().optional(),
+  "procurementStatus": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemIdMax),
+  "label": zod.string().min(1).max(updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemLabelMax),
+  "value": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemValueMin).max(updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemValueMax).nullable(),
+  "remarks": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsProcurementStatusItemRemarksMax)
+})).optional(),
+  "overallProjectProgress": zod.array(zod.object({
+  "id": zod.enum(['project-preparation', 'engineering-design', 'equipment-material', 'construction', 'installation', 'testing-commissioning-energization', 'project-close-out']),
+  "weight": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMin).max(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneWeightMax).nullish().describe('Percentage weight'),
+  "plan": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMin).max(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePlanMax).nullish(),
+  "actual": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneActualMin).max(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOneActualMax).nullish(),
+  "priorPeriod": zod.number().min(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMin).max(updateAuditFindingDateResponseAdditionalDocumentsOverallProjectProgressItemOnePriorPeriodMax).nullish(),
+  "remarks": zod.string().nullish()
+}).and(zod.object({
+  "phase": zod.string(),
+  "variance": zod.number().nullable().describe('Actual minus Plan; blank if either is unavailable')
+}))).optional(),
+  "procurementRemarks": zod.string().optional(),
+  "goodPractices": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneIdMax),
+  "areaProcess": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneAreaProcessMax),
+  "verifiedConforming": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneVerifiedConformingMax),
+  "evidenceReference": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneEvidenceReferenceMax),
+  "referenceNumber": zod.string().max(updateAuditFindingDateResponseAdditionalDocumentsGoodPracticesItemOneReferenceNumberMax),
+  "evidenceId": zod.string().nullable()
+}).and(zod.object({
+  "evidenceFileName": zod.string().nullish()
+}))).optional()
+}).optional(),
+  "reportDetails": zod.object({
+  "values": zod.record(zod.string(), zod.string().max(updateAuditFindingDateResponseReportDetailsValuesMaxOne)),
+  "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(updateAuditFindingDateResponseReportDetailsRowsItemMaxOne))).max(updateAuditFindingDateResponseReportDetailsRowsMaxOne))
 }).optional(),
   "startedAt": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
@@ -11694,6 +11882,7 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -11883,6 +12072,7 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -12075,6 +12265,7 @@ export const UpdateAuditOverallProjectProgressResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -12265,6 +12456,7 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -12484,7 +12676,7 @@ export const CreateFindingCarsResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -12539,7 +12731,7 @@ export const ListCorrectiveActionReportsResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -12611,7 +12803,7 @@ export const ListCarRegisterResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -12681,7 +12873,7 @@ export const StartFindingCarResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -12712,7 +12904,7 @@ export const OpenCarEditSessionResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -12773,7 +12965,7 @@ export const GetCorrectiveActionReportResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -12816,7 +13008,7 @@ export const UpdateCorrectiveActionReportResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -12850,7 +13042,7 @@ export const GenerateMissingCarNumberResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),
@@ -13278,6 +13470,7 @@ export const GetGeneratedAuditReportResponse = zod.object({
 }).optional(),
   "checklist": zod.array(zod.object({
   "id": zod.string(),
+  "findingDate": zod.string().nullish(),
   "clause": zod.string().nullish(),
   "auditArea": zod.string().optional(),
   "question": zod.string(),
@@ -13362,7 +13555,7 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "correction": zod.string().nullish(),
   "correctiveAction": zod.string().nullish(),
   "status": zod.enum(['Open', 'Draft', 'Submitted', 'Accepted', 'Rejected', 'Returned for query', 'Returned for rework', 'Extension Requested', 'Closed']),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
   "extensionRequestedTo": zod.coerce.date().nullish(),
   "extensionReason": zod.string().nullish(),
   "extensionStatus": zod.union([zod.literal('pending'),zod.literal('approved'),zod.literal('rejected'),zod.literal(null)]).nullish(),

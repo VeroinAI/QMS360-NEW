@@ -120,6 +120,42 @@ afterAll(async () => {
 });
 
 describe.skipIf(process.env.QMS_AUDIT_CAR_CLEANUP === "1")("Audit CAR numbering", () => {
+  it("uses Finding Date for CAR creation and atomically recalculates existing deadlines on correction", async () => {
+    const f = await makeAudit();
+    const path = `/audits/${f.audit.id}/finding-items/${f.itemIds[0]}/date`;
+    const saved = await api("PATCH", path, { findingDate: "2026-10-01" });
+    expect(saved.status).toBe(200);
+    expect(saved.body.checklist[0].findingDate).toBe("2026-10-01");
+    const created = await api("POST", "/car-register/start", { auditId: f.audit.id, itemId: f.itemIds[0] });
+    expect(created.status).toBe(200);
+    expect(created.body.dueDate).toBe("2026-10-03");
+    const carId = created.body.id;
+    const [car] = await db.select().from(correctiveActionReports).where(eq(correctiveActionReports.id, carId));
+    expect(car!.createdAt.toISOString().slice(0,10)).not.toBe("2026-10-01");
+    await db.update(correctiveActionReports).set({ extensionStatus: "approved", extensionDueDate: "2026-11-15" })
+      .where(eq(correctiveActionReports.id, carId));
+    expect((await api("PATCH", path, { findingDate: "2026-10-10" })).status).toBe(200);
+    const [updated] = await db.select().from(correctiveActionReports).where(eq(correctiveActionReports.id, carId));
+    expect(updated!.dueDate).toBe("2026-10-12");
+    expect(updated!.extensionDueDate).toBe("2026-11-15");
+    expect(updated!.extensionStatus).toBe("approved");
+    expect((await api("GET", `/cars/${carId}`)).body.dueDate.slice(0,10)).toBe("2026-10-12");
+    const register = await api("GET", "/car-register");
+    expect(register.status).toBe(200);
+    const entry = register.body.items.find((entry: any) => entry.itemId === f.itemIds[0]);
+    expect(entry.dueDate).toBe("2026-10-12");
+    const logs = await db.select().from(auditAuditLogEntries).where(eq(auditAuditLogEntries.entityId, f.audit.id));
+    expect(logs.filter(log=>log.action==="update_finding_date")).toHaveLength(2);
+  });
+  it("rejects invalid Finding Dates and unauthorized changes without altering findings", async () => {
+    const f = await makeAudit();
+    const path = `/audits/${f.audit.id}/finding-items/${f.itemIds[0]}/date`;
+    for (const findingDate of ["2026-02-30", "2026-13-01", "", "2026-10-01T00:00:00Z"])
+      expect((await api("PATCH", path, { findingDate })).status).toBe(422);
+    expect((await api("PATCH", path, { findingDate: "2026-10-01" }, employeeToken)).status).toBe(403);
+    const [unchanged] = await db.select().from(audits).where(eq(audits.id, f.audit.id));
+    expect((unchanged!.checklistState as any)[0].findingDate).toBeUndefined();
+  });
   it("exposes independent settings and prevents non-admin maintenance", async () => {
     const settings = await api("GET", "/admin/car-numbering");
     expect(settings.status).toBe(200); expect(settings.body.pattern).toEqual(pattern);

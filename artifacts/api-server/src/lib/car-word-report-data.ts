@@ -4,6 +4,7 @@ import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { auditAuditLogEntries, auditFindings, audits, db, users } from "@workspace/db";
 import { getAuthorizedFullProjectScope } from "../middlewares/rbac";
 import { actionableFinding, carAuditContext, carContext, carJson } from "./car-register";
+import { carDueDate, findingDateValue } from "./car-dates";
 import { HttpError } from "./workspace";
 
 export interface CarWordReportData {
@@ -92,7 +93,8 @@ export async function carWordReportData(req: Request, input: { auditId: string; 
   const risk = ["high", "medium", "low"].includes(riskText) ? riskText as CarWordReportData["risk"] : null;
   const closed = car?.workflowState === "closed";
   const closedDate = typeof meta.closedAt === "string" ? meta.closedAt.slice(0, 10) : null;
-  const dueDate = car?.extensionStatus === "approved" && car.extensionDueDate ? car.extensionDueDate : car?.dueDate;
+  const dueDate = car?.extensionStatus === "approved" && car.extensionDueDate ? car.extensionDueDate
+    : carDueDate(item?.auditFinding || item?.result || finding?.classification, findingDateValue(item, finding), car?.dueDate);
   return {
     auditor: person(context.leadId)?.name,
     date: carReportDate(car?.createdAt ?? finding?.createdAt),

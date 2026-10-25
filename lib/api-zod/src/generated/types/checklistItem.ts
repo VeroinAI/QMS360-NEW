@@ -12,6 +12,8 @@ import type { FindingPriorityAction } from './findingPriorityAction';
 export interface ChecklistItem {
   id: string;
   /** @nullable */
+  findingDate?: string | null;
+  /** @nullable */
   clause?: string | null;
   auditArea?: string;
   question: string;
