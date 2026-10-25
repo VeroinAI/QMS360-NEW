@@ -14,7 +14,7 @@ const fixture = () => ({
     { id: "nc", auditFinding: "Minor NC", auditArea: "Civil" },
     { id: "ofi", auditFinding: "OFI" },
   ], additionalDocuments: { goodPractices: [{ areaProcess: "Civil" }] } },
-  plan: { activities: [{ section: "Inspection" }] },
+   plan: { activities: [{ section: "Inspection", remarks: "Saved inspection subactivity\nSaved evidence check" }] },
   legacyFindings: [], cars: [{ findingId: "nc" }], evidence: [],
   names: new Map<string, string>(), roleNames: new Map<string, string>(),
 });
@@ -82,6 +82,8 @@ describe("Audit PPTX mapping availability versus missing transaction data", () =
     buildConsolidatedAuditReport({ ...input, pptxWorkbookMappings: true });
     expect(JSON.stringify(input)).toBe(before);
     expect(buildConsolidatedAuditReport(input)).toEqual(other);
+    expect(other.find(section => section.key === "programme")!.tables[0]!.rows[0]![3])
+      .toBe(input.plan.activities[0]!.remarks);
     expect(other.find(section => section.key === "scope")!.fields[0]!.value).toBe("Not recorded");
   });
 });

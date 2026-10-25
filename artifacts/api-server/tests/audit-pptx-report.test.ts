@@ -190,7 +190,7 @@ describe("Original Audit PowerPoint report template", () => {
     const details = "A long activity description with important details that must be preserved in the downloaded report. ".repeat(15);
     programme.tables[0]!.rows = [[
       "2026-10-12T10:10:00.000Z (derived legacy)", "2026-10-12T10:10:00.000Z (derived legacy)",
-      "Opening meeting", details, "Recorded Auditor / QA/QC Manager",
+      details, "Hidden subactivity remarks", "Recorded Auditor / QA/QC Manager",
     ]];
     const result = unzipSync(await renderConsolidatedAuditPptx({ sections: data }));
     const docs = Object.entries(result).filter(([name]) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
@@ -226,6 +226,7 @@ describe("Original Audit PowerPoint report template", () => {
     }
     const preserved = bodies.join(" ").replace(/\s+/g, " ");
     expect(preserved).toContain(details.trim());
+    expect(preserved).not.toContain("Hidden subactivity remarks");
     expect(preserved).toContain("Recorded Auditor / QA/QC Manager");
   });
 });

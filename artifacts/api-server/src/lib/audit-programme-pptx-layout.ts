@@ -33,8 +33,10 @@ export function programmeLines(text: string, ems: number): string[] {
 export function programmeEntries(rows: string[][]): Array<{ times: string; details: string }> {
   return rows.map(row => {
     const times = `Start: ${programmeDate(row[0])}\nEnd: ${programmeDate(row[1])}`;
+    // PPTX milestones show main activities only. Keep remarks in the shared
+    // report rows for other exports, but exclude them before wrapping/pagination.
     const lines = programmeLines([
-      `Activity: ${mappedText(row[2])}`, `Remarks: ${mappedText(row[3])}`, `Auditee: ${mappedText(row[4])}`,
+      `Activity: ${mappedText(row[2])}`, `Auditee: ${mappedText(row[4])}`,
     ].join("\n"), 30);
     return { times, details: lines.join("\n") || PPTX_EMPTY };
   });
@@ -51,7 +53,7 @@ export type ProgrammeActivityBlock = {
   top: number; detailsTop: number; detailsHeight: number; height: number;
 };
 
-/** One milestone per activity; remarks use its space, not additional timeline entries. */
+/** One milestone per main activity; only visible content can require continuations. */
 export function programmePages(rows: string[][]): ProgrammeActivityBlock[][] {
   const pages: ProgrammeActivityBlock[][] = [[]];
   let page = pages[0]!, used = 0;

@@ -159,13 +159,14 @@ continuation slides, show None for empty recurring themes without numbered slots
 and omit the progress total/date/source and separate good-practice panel.
 
 The Audit Program and Participation timeline has one milestone per activity.
-Remarks are that activity's subactivities, not independent milestones. Keep
-them in the activity block; oversized activities may continue on another slide
-but must not gain another bullet or circle.
+Show only main activity names, dates and auditees in PowerPoint milestones.
+Remarks are subactivities and must be excluded before wrapping and pagination,
+including multiline remarks. Oversized visible activities may continue on another
+slide but must not gain another bullet or circle.
 
-**Why:** The user reported that wrapped remarks were being presented as extra
-activities, misrepresenting the actual programme.
+**Why:** The user clarified that the PowerPoint timeline should show main
+activities only, rather than remark-based subactivities.
 
-**How to apply:** Preserve all remarks, dates and auditees while allocating
-content-based space. Remove unused template milestones and leave continuation
+**How to apply:** Preserve saved remarks and shared PDF/JSON report data, dates
+and auditees. Allocate PowerPoint space from visible content only. Remove unused template milestones and leave continuation
 text unmarked. Do not change the saved programme or unrelated report sections.
