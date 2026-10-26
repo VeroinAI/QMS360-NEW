@@ -3123,6 +3123,21 @@ export interface ApproverScopeInput {
   categorisation?: string;
 }
 
+export interface LessonApprovalHistoryEntry {
+  id: string;
+  action: string;
+  /** @nullable */
+  actorId?: string | null;
+  actorName: string;
+  /** @nullable */
+  actorDesignation?: string | null;
+  occurredAt: string;
+  /** @nullable */
+  comments?: string | null;
+  /** @nullable */
+  signatureUrl?: string | null;
+}
+
 export type LessonLearnedFormSourceType = typeof LessonLearnedFormSourceType[keyof typeof LessonLearnedFormSourceType];
 
 
@@ -5842,6 +5857,10 @@ page?: PageParameter;
  * @maximum 200
  */
 limit?: LimitParameter;
+};
+
+export type GetLessonApprovalHistory200 = {
+  items: LessonApprovalHistoryEntry[];
 };
 
 export type SearchLessonsLogParams = {

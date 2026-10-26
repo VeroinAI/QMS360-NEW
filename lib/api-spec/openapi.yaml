@@ -1663,6 +1663,22 @@ paths:
     post: {operationId: reviewLessonForm, tags: [lessons], summary: Review form; remarks are required when sent back, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/ApprovalReview"}, responses: {"200": {description: Reviewed}}}
   /lessons/forms/{id}/activity:
     get: {operationId: listLessonFormActivity, tags: [lessons], summary: List the audit activity for one lesson (most recent 50), parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {$ref: "#/components/responses/AuditLogPage"}}}
+  /lessons/forms/{id}/approval-history:
+    get:
+      operationId: getLessonApprovalHistory
+      tags: [lessons]
+      summary: Complete approval history for an authorized lesson, newest first
+      parameters: [{$ref: "#/components/parameters/Id"}]
+      responses:
+        "200":
+          description: All recorded approval actions, without the activity timeline limit
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: "#/components/schemas/LessonApprovalHistoryEntry"}}
   /lessons/forms/{id}/photos:
     post: {operationId: createLessonPhotoIntent, tags: [lessons], summary: Create photo upload intent; maximum five per category, parameters: [{$ref: "#/components/parameters/Id"}], requestBody: {$ref: "#/components/requestBodies/LessonPhotoIntent"}, responses: {"201": {description: Upload intent, content: {application/json: {schema: {$ref: "#/components/schemas/UploadIntent"}}}}}}
   /lessons/photos/{id}/confirm:
@@ -4344,6 +4360,18 @@ components:
         projectId: {type: string}
         disciplineId: {type: string}
         categorisation: {type: string}
+    LessonApprovalHistoryEntry:
+      type: object
+      required: [id, action, actorName, occurredAt]
+      properties:
+        id: {type: string}
+        action: {type: string}
+        actorId: {type: [string, "null"]}
+        actorName: {type: string}
+        actorDesignation: {type: [string, "null"]}
+        occurredAt: {type: string, format: date-time}
+        comments: {type: [string, "null"]}
+        signatureUrl: {type: [string, "null"]}
     LessonLearnedForm:
       type: object
       required: [id, referenceNumber, projectId, title, disciplineId, categorisationId, issueCategory, impact, description, rootCause, correction, correctiveAction, capturedAt, version, conflictFlag, workflowState]

@@ -178,6 +178,7 @@ import type {
   GetAuditPlanOptionsParams,
   GetAuditScheduleActivityOptionsParams,
   GetDailyOpeningProjects200,
+  GetLessonApprovalHistory200,
   GetLessonsEscalationsParams,
   GetLessonsReferenceDataParams,
   GetPlatformReferenceDataParams,
@@ -15953,6 +15954,83 @@ export function useListLessonFormActivity<TData = Awaited<ReturnType<typeof list
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListLessonFormActivityQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetLessonApprovalHistoryUrl = (id: string,) => {
+
+
+
+
+  return `/api/lessons/forms/${id}/approval-history`
+}
+
+/**
+ * @summary Complete approval history for an authorized lesson, newest first
+ */
+export const getLessonApprovalHistory = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<GetLessonApprovalHistory200> => {
+
+  return customFetch<GetLessonApprovalHistory200>(getGetLessonApprovalHistoryUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLessonApprovalHistoryQueryKey = (id: string,) => {
+    return [
+    `/api/lessons/forms/${id}/approval-history`
+    ] as const;
+    }
+
+
+export const getGetLessonApprovalHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getLessonApprovalHistory>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonApprovalHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLessonApprovalHistoryQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLessonApprovalHistory>>> = ({ signal }) => getLessonApprovalHistory(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLessonApprovalHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLessonApprovalHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getLessonApprovalHistory>>>
+export type GetLessonApprovalHistoryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Complete approval history for an authorized lesson, newest first
+ */
+
+export function useGetLessonApprovalHistory<TData = Awaited<ReturnType<typeof getLessonApprovalHistory>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonApprovalHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLessonApprovalHistoryQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

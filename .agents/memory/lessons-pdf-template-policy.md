@@ -26,3 +26,9 @@ The Discipline cell displays the selected Discipline Master's Label, not its Val
 **Why:** The user requested readable discipline labels in the form without requesting a change to reference-number codes.
 
 **How to apply:** Resolve display text within the Lesson's organization. Keep saved discipline identifiers and existing references unchanged, and preserve readable legacy values when no matching label is available.
+
+Show the “Approved by” heading, approval name/designation, signature and approval date only when the form's current workflow state is Approved. A send-back review is not approval, and previously populated review fields must not imply approval after resubmission.
+
+**Why:** The user reported a sent-back form displaying the reviewer's identity and signature as approval evidence.
+
+**How to apply:** Gate the shared download/email PDF renderer and reviewer-signature loading on current approved state. Preserve Prepared by details and the official form layout.

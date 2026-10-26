@@ -6318,6 +6318,27 @@ export const ListLessonFormActivityResponse = zod.object({
 
 
 /**
+ * @summary Complete approval history for an authorized lesson, newest first
+ */
+export const GetLessonApprovalHistoryParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetLessonApprovalHistoryResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "actorId": zod.string().nullish(),
+  "actorName": zod.string(),
+  "actorDesignation": zod.string().nullish(),
+  "occurredAt": zod.coerce.date(),
+  "comments": zod.string().nullish(),
+  "signatureUrl": zod.string().nullish()
+}))
+})
+
+
+/**
  * @summary Create photo upload intent; maximum five per category
  */
 export const CreateLessonPhotoIntentParams = zod.object({
