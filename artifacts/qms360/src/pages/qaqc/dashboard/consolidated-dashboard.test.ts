@@ -1,12 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { dash, filterRecords, signed, SeriesBars } from './consolidated-dashboard';
+import { dash, filterRecords, signed, SeriesBars, MonthlyQualityEmptyState } from './consolidated-dashboard';
 import type { DashboardRecord } from './types';
 
 const rec = (o: Partial<DashboardRecord>): DashboardRecord => ({ id: '1', projectId: 'p1', projectName: 'P', type: 'monthly_report', period: '2025-04', title: 't', href: '/x', state: 'Approved', ...o });
 
 describe('consolidated dashboard helpers', () => {
+  it('explains approval-only empty quality figures without claiming the module is unavailable', () => {
+    const html = renderToStaticMarkup(createElement(MonthlyQualityEmptyState, {
+      period: '2026-10', pendingApproval: 1, pendingSubmission: 8, onReports: () => {}, onPending: () => {},
+    }));
+    expect(html).toContain('No approved monthly reports for 2026-10');
+    expect(html).toContain('Values appear after final approval');
+    expect(html).toContain('View pending approval');
+    expect(html).toContain('View monthly reports');
+    expect(html).not.toContain('module unavailable');
+  });
+  it('does not offer a pending-approval action when no visible report is awaiting approval', () => {
+    const html = renderToStaticMarkup(createElement(MonthlyQualityEmptyState, {
+      period: '2026-10', pendingApproval: 0, pendingSubmission: 2, onReports: () => {}, onPending: () => {},
+    }));
+    expect(html).not.toContain('View pending approval');
+    expect(html).toContain('View monthly reports');
+  });
+  it('limits the empty-state pending approval drilldown to submitted monthly reports in the selected month', () => {
+    const records = [rec({ id: 'approved' }), rec({ id: 'draft', state: 'draft' }), rec({ id: 'pending', state: 'submitted' }),
+      rec({ id: 'otherMonth', state: 'submitted', period: '2025-03' }), rec({ id: 'daily', type: 'daily', state: 'submitted' })];
+    expect(filterRecords(records, { title: '', module: 'monthly', state: 'submitted', period: '2025-04' }).map(r => r.id)).toEqual(['pending']);
+  });
   it('forwards measured responsive dimensions through the reusable chart wrapper', () => {
     const html = renderToStaticMarkup(createElement(SeriesBars, {
       width: 320, height: 180, data: [{ name: 'Civil', value: 12 }],

@@ -55,14 +55,14 @@ const DEFINITIONS: Array<[string, string, string]> = [
 ];
 
 /* ---------- small building blocks ---------- */
-function Lane({ color, title, eyebrow, children, unavailable }: { color: string; title: string; eyebrow: string; children: ReactNode; unavailable?: boolean }) {
+function Lane({ color, title, eyebrow, children, unavailable, emptyContent }: { color: string; title: string; eyebrow: string; children: ReactNode; unavailable?: boolean; emptyContent?: ReactNode }) {
   return <section aria-label={title} className="relative flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-card shadow-[0_1px_0_rgba(88,44,131,.06),0_12px_32px_-20px_rgba(88,44,131,.35)]" style={{ borderColor: `${color}33` }}>
     <div className="h-1.5" style={{ background: color }} />
     <header className="flex items-baseline justify-between gap-2 px-4 pt-3">
       <h2 className="text-sm font-bold uppercase tracking-[0.14em]" style={{ color }}>{title}</h2>
       <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{eyebrow}</span>
     </header>
-    {unavailable ? <div className="m-4 rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">No data — module unavailable for this view.</div> : <div className="flex flex-1 flex-col gap-3 p-4">{children}</div>}
+    {unavailable ? <div className="m-4 rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">No data — module unavailable for this view.</div> : <div className="flex flex-1 flex-col gap-3 p-4">{emptyContent ?? children}</div>}
   </section>;
 }
 
@@ -213,8 +213,8 @@ export function ConsolidatedDashboardPage() {
           {data.warnings.length > 0 && <div role="status" className="rounded-xl border-l-4 bg-card p-3 text-sm" style={{ borderColor: C.amber }}>
             {data.warnings.map(w => <p key={w} className="flex gap-2"><AlertTriangle className="mt-0.5 size-4 shrink-0" style={{ color: C.amber }} />{w}</p>)}</div>}
           <Coverage data={data} onDrill={setDrill} />
-          {(data.view === 'monthly' ? data.coverage.approved === 0 && data.monthly.csat.responses === 0 && !data.monthly.lessons.logged && !data.monthly.audit.planned : (data.daily.snapshotReports ?? data.daily.selectedReports) === 0)
-            ? <div className="rounded-2xl border border-dashed bg-card p-10 text-center"><p className="font-[Outfit,sans-serif] text-lg font-semibold" style={{ color: C.purple }}>No approved reports in this selection</p><p className="text-sm text-muted-foreground">Figures appear once a report for this {data.view === 'monthly' ? 'month' : 'date'} is approved. Try another period or widen the filters. Use the coverage tiles to see pending projects.</p></div>
+           {data.view === 'daily' && (data.daily.snapshotReports ?? data.daily.selectedReports) === 0
+             ? <div className="rounded-2xl border border-dashed bg-card p-10 text-center"><p className="font-[Outfit,sans-serif] text-lg font-semibold" style={{ color: C.purple }}>No approved reports in this selection</p><p className="text-sm text-muted-foreground">Figures appear once a report for this date is approved. Try another period or widen the filters. Use the coverage tiles to see pending projects.</p></div>
             : data.view === 'monthly' ? <Monthly data={data} onDrill={setDrill} /> : <Daily data={data} onDrill={setDrill} />}
         </>}
     </div>
@@ -252,6 +252,23 @@ function Coverage({ data, onDrill }: { data: DashboardData; onDrill: (d: Drill) 
 }
 
 /* ---------- monthly ---------- */
+export function MonthlyQualityEmptyState({ period, pendingApproval, pendingSubmission, onReports, onPending }: {
+  period: string; pendingApproval: number; pendingSubmission: number; onReports: () => void; onPending: () => void;
+}) {
+  return <div role="status" className="rounded-xl border border-dashed p-4 text-sm">
+    <p className="font-semibold" style={{ color: C.purple }}>No approved monthly reports for {period}</p>
+    <p className="mt-2 text-muted-foreground">No approved reports are available in your current selection. Draft reports and reports awaiting approval are excluded from the quality figures. Values appear after final approval.</p>
+    <dl className="mt-3 grid grid-cols-2 gap-3">
+      <div><dt className="text-xs text-muted-foreground">Pending approval</dt><dd className="text-lg font-semibold">{pendingApproval}</dd></div>
+      <div><dt className="text-xs text-muted-foreground">Projects pending submission</dt><dd className="text-lg font-semibold">{pendingSubmission}</dd></div>
+    </dl>
+    <div className="mt-4 flex flex-wrap gap-2">
+      {pendingApproval > 0 && <Button size="sm" onClick={onPending}>View pending approval</Button>}
+      <Button size="sm" variant="outline" onClick={onReports}>View monthly reports</Button>
+    </div>
+  </div>;
+}
+
 function Monthly({ data, onDrill }: { data: DashboardData; onDrill: (d: Drill) => void }) {
   const { quality: Q, csat, lessons: L, audit: A, scorecard } = data.monthly;
   const per = data.period;
@@ -259,7 +276,11 @@ function Monthly({ data, onDrill }: { data: DashboardData; onDrill: (d: Drill) =
   const src = (title: string, projectId?: string): Drill => ({ title, module: 'monthly', state: 'approved', period: per, projectId });
   return <>
     <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
-      <Lane color={C.purple} title="Quality" eyebrow="Monthly report" unavailable={Q.pqi === null}>
+      <Lane color={C.purple} title="Quality" eyebrow="Monthly report" emptyContent={data.coverage.approved === 0
+        ? <MonthlyQualityEmptyState period={per} pendingApproval={data.coverage.pendingApproval} pendingSubmission={data.coverage.pendingSubmission}
+          onPending={() => onDrill({ title: 'Monthly reports pending approval', module: 'monthly', state: 'submitted', period: per })}
+          onReports={() => onDrill({ title: 'Monthly reports · current selection', module: 'monthly', period: per })} />
+        : undefined}>
         <div className="grid grid-cols-3 gap-2">
           <Kpi color={C.purple} label="PQI acc." value={dash(Q.pqi, '%', 1)} sub={<span style={{ color: (Q.variance ?? 0) < 0 ? C.fuchsia : C.cyan }}>{signed(Q.variance, ' pp')} · target {dash(Q.target, '%', 0)}</span>} onClick={() => onDrill(src('PQI · source monthly reports'))} />
           <Kpi color={C.purple} label="Closure" value={dash(Q.closure, '%', 1)} sub={`${Q.closed} of ${Q.issued} closed`} onClick={() => onDrill(src('Overall closure · source monthly reports'))} />
