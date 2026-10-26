@@ -2972,6 +2972,10 @@ components:
         senderMode: {type: string, enum: [form_creator, approving_user]}
         subjectTemplate: {type: string, maxLength: 250}
         bodyTemplate: {type: string, maxLength: 20000}
+        reportAttachment:
+          type: [string, "null"]
+          enum: [null, lesson_pdf, qaqc_report_pdf, audit_schedule_pdf, audit_plan_pdf, audit_report_pdf, audit_report_pptx]
+          description: Optional event-specific generated report. Null or omitted means no attachment.
         bodyRichText:
           type: [object, "null"]
           additionalProperties: true

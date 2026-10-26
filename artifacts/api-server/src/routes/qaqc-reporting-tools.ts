@@ -108,23 +108,29 @@ async function projectScopeIds(req: any, types: ReportingType[]) {
 }
 
 async function getReport(req: any, id: string) {
+  const report = await qaqcReportForEmail(organizationId(req), id);
+  const access = await reportAccess(req, report.reportType as ReportingType);
+  if (!canReadReport(req, access, report as any)) throw new HttpError(404, "QA/QC report was not found in your authorized project scope");
+  return report;
+}
+
+/** Tenant-scoped report hydration shared by authorized downloads and the email worker. */
+export async function qaqcReportForEmail(orgId: string, id: string) {
   const clauses = [
-    eq(qaqcReportSubmissions.organizationId, organizationId(req)),
+    eq(qaqcReportSubmissions.organizationId, orgId),
     eq(qaqcReportSubmissions.id, id),
     isNull(qaqcReportSubmissions.deletedAt),
   ];
   const [report] = await db.select().from(qaqcReportSubmissions).where(and(...clauses)).limit(1);
   if (!report) throw new HttpError(404, "QA/QC report was not found in your authorized project scope");
   if (!safeType(report.reportType)) throw new HttpError(404, "QA/QC report type is invalid");
-  const access = await reportAccess(req, report.reportType);
-  if (!canReadReport(req, access, report)) throw new HttpError(404, "QA/QC report was not found in your authorized project scope");
   const [project] = await db.select({ name: projects.name, code: projects.code, location: projects.location, customFields: projects.customFields }).from(projects)
-    .where(and(eq(projects.id, report.projectId), eq(projects.organizationId, organizationId(req)), isNull(projects.deletedAt))).limit(1);
+    .where(and(eq(projects.id, report.projectId), eq(projects.organizationId, orgId), isNull(projects.deletedAt))).limit(1);
   const audit = await db.select({
     id: auditLogEntries.id, action: auditLogEntries.action, actorId: auditLogEntries.actorId,
     before: auditLogEntries.before, after: auditLogEntries.after, createdAt: auditLogEntries.createdAt,
   }).from(auditLogEntries).where(and(
-    eq(auditLogEntries.organizationId, organizationId(req)), eq(auditLogEntries.entityType, "qaqc_report"),
+    eq(auditLogEntries.organizationId, orgId), eq(auditLogEntries.entityType, "qaqc_report"),
     eq(auditLogEntries.entityId, report.id),
   )).orderBy(auditLogEntries.createdAt);
   const dailySettings = report.reportType === "daily" ? jsonObject(jsonObject(project?.customFields).qaqcReporting) : {};
@@ -133,14 +139,14 @@ async function getReport(req: any, id: string) {
   const actorIds = [...new Set([...audit.map((entry) => entry.actorId), report.submittedById, report.createdById,
     ...["pmId","peId","dcId"].map(teamId)].filter((id): id is string => !!id))];
   const actors = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
-    .where(and(eq(users.organizationId, organizationId(req)), inArray(users.id, actorIds))) : [];
+    .where(and(eq(users.organizationId, orgId), inArray(users.id, actorIds))) : [];
   const actorNames = new Map(actors.map((user) => [user.id, user.fullName]));
   const [dailyOrganization] = report.reportType === "daily"
-    ? await db.select({timezone:organizations.timezone}).from(organizations).where(eq(organizations.id,organizationId(req))).limit(1)
+    ? await db.select({timezone:organizations.timezone}).from(organizations).where(eq(organizations.id,orgId)).limit(1)
     : [];
   const templates = await db.select({ name: reportTemplates.name, template: reportTemplates.template })
     .from(reportTemplates).where(and(
-      eq(reportTemplates.organizationId, organizationId(req)), isNull(reportTemplates.deletedAt),
+       eq(reportTemplates.organizationId, orgId), isNull(reportTemplates.deletedAt),
     )).orderBy(asc(reportTemplates.name));
   return {
     ...report, projectName: project?.name ?? null, projectCode: project?.code ?? null,

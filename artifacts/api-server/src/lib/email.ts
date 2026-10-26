@@ -4,8 +4,8 @@ import { promises as dns } from "node:dns";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db, integrationConnectors, syncJobs, users } from "@workspace/db";
 import { decryptSecret } from "./secrets";
-import { loadEmailPdfAttachments, type EmailPdfAttachment } from "./email-attachments";
-export type { EmailPdfAttachment } from "./email-attachments";
+import { loadEmailPdfAttachments, type EmailReportAttachment } from "./email-attachments";
+export type { EmailPdfAttachment, EmailReportAttachment } from "./email-attachments";
 
 /**
  * Outbound email delivery through the SMTP connector configured in the
@@ -88,7 +88,7 @@ export type EmailDeliveryInput = {
   text: string;
   html?: string;
   /** Private PDF files are loaded from object storage when the queue processes the delivery. */
-  attachments?: EmailPdfAttachment[];
+  attachments?: EmailReportAttachment[];
   context?: Record<string, unknown>;
 };
 

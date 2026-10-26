@@ -63,7 +63,7 @@ import { carDueDate, findingDateValue, validFindingDate, hasSavedCarResponse } f
 import { allocateFindingNumber, numberedFindingTypes, readFindingNumberState, saveFindingNumbering, type FindingNumberPattern, type FindingNumberRange } from "../lib/audit-finding-numbering";
 import { findingForNumberRepair, preserveFindingNumber } from "../lib/audit-finding-number-repair";
 import { auditProjectNumberSourceValue, auditDepartmentNumberSourceValue } from "../lib/audit-number-source";
-import { auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
+import { auditApprovalAttachmentEnabled, auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
 import { renderAuditScheduleApprovalPdf, type AuditScheduleApprovalPdfInput } from "../lib/audit-schedule-approval-pdf";
 import { removeEmailPdfAttachment, storeEmailPdfAttachment } from "../lib/email-attachments";
 import { auditPlanReportData } from "../lib/audit-plan-report-data";
@@ -1415,8 +1415,11 @@ router.post("/programmes/:id/review", asyncHandler(async (req, res) => {
   const finalEmailEnabled = complete && await auditApprovalEmailEnabled(db, {
     organizationId: actor(req).organizationId, actorId: actor(req).id, entityType: "audit_programme",
   });
-  const childrenForPdf = finalEmailEnabled ? await programmeChildren(req, before.id) : [];
-  const pdfAttachment = finalEmailEnabled ? await storeEmailPdfAttachment(
+  const attachFinalPdf = finalEmailEnabled && await auditApprovalAttachmentEnabled(db, {
+    organizationId: actor(req).organizationId, actorId: actor(req).id, entityType: "audit_programme",
+  });
+  const childrenForPdf = attachFinalPdf ? await programmeChildren(req, before.id) : [];
+  const pdfAttachment = attachFinalPdf ? await storeEmailPdfAttachment(
     actor(req).organizationId, before.id,
     await renderAuditScheduleApprovalPdf({
       title: before.title, reference: meta.submissionReference, from: meta.submissionFrom, to: meta.submissionTo,
@@ -1861,7 +1864,10 @@ router.post("/schedules/:id/review", asyncHandler(async (req, res) => {
   const finalEmailEnabled = complete && await auditApprovalEmailEnabled(db, {
     organizationId: actor(req).organizationId, actorId: actor(req).id, entityType: "audit_schedule",
   });
-  const pdfAttachment = finalEmailEnabled ? await storeEmailPdfAttachment(
+  const attachFinalPdf = finalEmailEnabled && await auditApprovalAttachmentEnabled(db, {
+    organizationId: actor(req).organizationId, actorId: actor(req).id, entityType: "audit_schedule",
+  });
+  const pdfAttachment = attachFinalPdf ? await storeEmailPdfAttachment(
     actor(req).organizationId, before.id,
     await renderAuditScheduleApprovalPdf({
       title: before.title, subject: detail.submissionSubject ?? before.title, memo: detail.submissionMailBody ?? "",
@@ -2433,7 +2439,34 @@ router.get("/plans/:id/report", asyncHandler(async (req, res) => {
   const timeZone = req.get("X-Report-Time-Zone") || "UTC";
   try { new Intl.DateTimeFormat("en-GB", { timeZone }); }
   catch { throw new HttpError(400, "Invalid report timezone"); }
-  const orgId = actor(req).organizationId;
+  const bytes = await auditPlanEmailPdf(actor(req).organizationId, id, timeZone);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="audit-plan-${id}.pdf"`);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.send(bytes);
+}));
+
+export async function auditScheduleEmailPdf(orgId: string, id: string) {
+  const rows = await db.select().from(auditSchedules).where(active(auditSchedules, orgId));
+  const schedule = rows.find(row => row.id === id);
+  if (!schedule) throw new HttpError(404, "Audit Programme / Schedule not found");
+  const meta = scheduleMeta(schedule);
+  const children = isProgramme(schedule) ? rows.filter(row => !isProgramme(row) && scheduleMeta(row).parentId === id) : [schedule];
+  return renderAuditScheduleApprovalPdf({
+    title: schedule.title, reference: meta.submissionReference ?? meta.qaqcReference,
+    from: meta.submissionFrom, to: meta.submissionTo,
+    subject: meta.submissionSubject ?? schedule.title, memo: meta.submissionMailBody ?? "",
+    rows: children.map(child => {
+      const detail = scheduleMeta(child);
+      return { title: child.title, fromDate: detail.plannedStartDate ?? "", toDate: detail.plannedEndDate ?? "",
+        auditCategory: detail.auditCategory ?? "", departmentProject: detail.departmentProject ?? "",
+        ownerName: detail.processProductOwner ?? "", auditNumber: detail.auditNumber ?? "",
+        qaqcReference: detail.qaqcReference ?? "", scope: detail.qaqcScope ?? "", clauses: detail.qaqcClauses ?? "", remarks: detail.remarks ?? "" };
+    }),
+  });
+}
+
+export async function auditPlanEmailPdf(orgId: string, id: string, timeZone = "UTC") {
   const [plan] = await db.select().from(auditPlans).where(and(active(auditPlans, orgId), eq(auditPlans.id, id)));
   if (!plan) throw new HttpError(404, "Audit plan not found");
   const meta = planMeta(plan);
@@ -2474,11 +2507,8 @@ router.get("/plans/:id/report", asyncHandler(async (req, res) => {
     signature(preparedById), signature(creatorId),
   ]);
   const bytes = await renderAuditPlanPdf(data);
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="audit-plan-${plan.id}.pdf"`);
-  res.setHeader("Cache-Control", "private, no-store");
-  res.send(Buffer.from(bytes));
-}));
+  return Buffer.from(bytes);
+}
 router.put("/plans/:id", asyncHandler(async (req, res) => {
   let data = body<AnyRow>(Api.UpdateAuditPlanBody, req);
   const [before] = await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, String(req.params.id))));
@@ -4455,21 +4485,21 @@ router.get("/reports/schedule", asyncHandler(async (req, res) => {
   const rows = scoped.map(row => scheduleDto(row));
   if (!maybeCsv(req, res, "annual-audit-schedule", rows)) res.json(paginated(rows, rows.length, 1, Math.max(1, rows.length)));
 }));
-async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
-  const [audit] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
+async function consolidatedReport(orgId: string, id: string, pptxWorkbookMappings = false) {
+  const [audit] = await db.select().from(audits).where(and(active(audits, orgId), eq(audits.id, id)));
   if (!audit) throw new HttpError(404, "Audit not found");
   if (!auditIsComplete(audit.workflowState)) throw new HttpError(409, "Mark the audit Complete before viewing or downloading its report.");
-  const [plan] = audit.auditPlanId ? await db.select().from(auditPlans).where(and(active(auditPlans, actor(req).organizationId), eq(auditPlans.id, audit.auditPlanId))) : [];
+  const [plan] = audit.auditPlanId ? await db.select().from(auditPlans).where(and(active(auditPlans, orgId), eq(auditPlans.id, audit.auditPlanId))) : [];
   // The router-wide parent-chain guard already handles both project and
   // department-scoped Internal Process audits.
-  const findings = await db.select().from(auditFindings).where(and(active(auditFindings, actor(req).organizationId), eq(auditFindings.auditId, audit.id)));
-  const cars = findings.length ? await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, actor(req).organizationId), inArray(correctiveActionReports.auditFindingId, findings.map((x) => x.id)))) : [];
+  const findings = await db.select().from(auditFindings).where(and(active(auditFindings, orgId), eq(auditFindings.auditId, audit.id)));
+  const cars = findings.length ? await db.select().from(correctiveActionReports).where(and(active(correctiveActionReports, orgId), inArray(correctiveActionReports.auditFindingId, findings.map((x) => x.id)))) : [];
   const [schedule] = plan?.auditScheduleId ? await db.select().from(auditSchedules).where(and(
-    active(auditSchedules, actor(req).organizationId), eq(auditSchedules.id, plan.auditScheduleId))) : [];
+    active(auditSchedules, orgId), eq(auditSchedules.id, plan.auditScheduleId))) : [];
   const [project] = audit.projectId ? await db.select().from(projects).where(and(
-    active(projects, actor(req).organizationId), eq(projects.id, audit.projectId))) : [];
+    active(projects, orgId), eq(projects.id, audit.projectId))) : [];
   const evidence = await db.select().from(auditEvidenceFiles).where(and(
-    active(auditEvidenceFiles, actor(req).organizationId), eq(auditEvidenceFiles.status, "stored"),
+    active(auditEvidenceFiles, orgId), eq(auditEvidenceFiles.status, "stored"),
     or(
       and(inArray(auditEvidenceFiles.recordType, ["audit", "audit_execution"]), eq(auditEvidenceFiles.recordId, audit.id)),
       // Legacy findings attach files to their own record. Only include active
@@ -4484,7 +4514,7 @@ async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
     const events = await db.select({
       before: auditAuditLogEntries.before, after: auditAuditLogEntries.after, createdAt: auditAuditLogEntries.createdAt,
     }).from(auditAuditLogEntries).where(and(
-      eq(auditAuditLogEntries.organizationId, actor(req).organizationId),
+      eq(auditAuditLogEntries.organizationId, orgId),
       eq(auditAuditLogEntries.entityType, "audit"), eq(auditAuditLogEntries.entityId, audit.id),
       inArray(auditAuditLogEntries.action, ["add_finding_item", "update_checklist", "add_checklist_item", "edit_checklist_item", "import_checklist_items"]),
     ));
@@ -4510,8 +4540,8 @@ async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
   } : null;
   if (pptxWorkbookMappings && mappedPlan) {
     const [activityMasters, areaMasters] = await Promise.all([
-      auditPlanActivityLabelsQuery(db, actor(req).organizationId),
-      auditAreaLabelsQuery(db, actor(req).organizationId),
+      auditPlanActivityLabelsQuery(db, orgId),
+      auditAreaLabelsQuery(db, orgId),
     ]);
     const activityLabels = new Map(activityMasters.map(row => [row.value, row.label]));
     mappedPlan.activities = mappedPlan.activities.map(row => ({ ...row, section: activityLabels.get(row.section) || row.section }));
@@ -4525,14 +4555,14 @@ async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
     ...(auditMeta(audit).openingMeeting?.attendees ?? []), ...(auditMeta(audit).closingMeeting?.attendees ?? []), ...cars.map(c => c.ownerId),
   ].filter((id): id is string => typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)))];
   const nameRows = userIds.length ? await db.select({ id: users.id, name: users.fullName, designation: users.designation }).from(users).where(and(
-    eq(users.organizationId, actor(req).organizationId), inArray(users.id, userIds))) : [];
+    eq(users.organizationId, orgId), inArray(users.id, userIds))) : [];
   const roleIds = mappedPlan?.auditeeRoleIds ?? [];
   const roleRows = roleIds.length ? await db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name }).from(auditWorkspaceRoles).where(and(
-    active(auditWorkspaceRoles, actor(req).organizationId), inArray(auditWorkspaceRoles.id, roleIds))) : [];
+    active(auditWorkspaceRoles, orgId), inArray(auditWorkspaceRoles.id, roleIds))) : [];
   const sections = buildConsolidatedAuditReport({
     pptxWorkbookMappings,
     ...(pptxWorkbookMappings ? {
-      pptxProcessOwnerNames: (await auditUsersWithMarker(actor(req).organizationId, "product_process_owner")).map(user => user.fullName),
+      pptxProcessOwnerNames: (await auditUsersWithMarker(orgId, "product_process_owner")).map(user => user.fullName),
       generatedAt: new Date(),
     } : {}),
     audit: { ...mappedAudit, referenceNumber: audit.referenceNumber }, plan: mappedPlan, project,
@@ -4551,7 +4581,7 @@ async function consolidatedReport(req: Request, pptxWorkbookMappings = false) {
   return { audit, mappedAudit, plan, findings, cars, sections, evidence };
 }
 router.get("/audits/:id/report", asyncHandler(async (req, res) => {
-  const { audit, plan, findings, cars, sections } = await consolidatedReport(req);
+  const { audit, plan, findings, cars, sections } = await consolidatedReport(actor(req).organizationId, String(req.params.id));
   const payload = { audit: auditDto(audit), plan: plan ? planDto(plan) : null, findings: findings.filter(row => !(row.evidence as AnyRow)?.sourceChecklistItemId).map(findingDto), cars: cars.map(carDto), generatedAt: new Date(), downloadUrl: null };
   if (!maybeCsv(req, res, `audit-${audit.referenceNumber}`, sections.flatMap(s => [
     ...s.fields.map(f => ({ section: s.title, field: f.label, value: f.value })),
@@ -4559,12 +4589,21 @@ router.get("/audits/:id/report", asyncHandler(async (req, res) => {
   ]))) res.json({ ...payload, sections });
 }));
 router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
-  const report = await consolidatedReport(req, true);
+  const bytes = await auditExecutionEmailReport(actor(req).organizationId, String(req.params.id), "pptx");
+  res.setHeader("Content-Type", AUDIT_PPTX_MIME);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("Content-Disposition", `attachment; filename="audit-report-${req.params.id}.pptx"`);
+  res.send(bytes);
+}));
+
+export async function auditExecutionEmailReport(orgId: string, id: string, format: "pdf" | "pptx") {
+  if (format === "pdf") return auditExecutionEmailPdf(orgId, id);
+  const report = await consolidatedReport(orgId, id, true);
   // Use the same CAR reference, classification deadline and workflow as the register.
   const tracker = report.sections.find(s => s.key === "corrective-actions")?.tables[0];
   const reviewers = [...new Set(report.cars.map(car => carMeta(car).reviewedBy).filter((id): id is string => !!id))];
   const reviewerRows = reviewers.length ? await db.select({ id: users.id, name: users.fullName }).from(users).where(and(
-    eq(users.organizationId, actor(req).organizationId), inArray(users.id, reviewers), isNull(users.deletedAt))) : [];
+    eq(users.organizationId, orgId), inArray(users.id, reviewers), isNull(users.deletedAt))) : [];
   const date = (value?: string | Date | null) => value ? formatDateInTimeZone(value, "Asia/Riyadh") : "-";
   tracker?.rows.forEach((row, i) => {
     const car = report.cars[i]!;
@@ -4607,13 +4646,18 @@ router.get("/audits/:id/report/pptx", asyncHandler(async (req, res) => {
     }
   }
   const bytes = await renderConsolidatedAuditPptx({ sections: report.sections, photos: images, skipPriorityActions: true });
-  res.setHeader("Content-Type", AUDIT_PPTX_MIME);
+  return bytes;
+}
+router.get("/audits/:id/report/pdf", asyncHandler(async (req, res) => {
+  const bytes = await auditExecutionEmailPdf(actor(req).organizationId, String(req.params.id));
+  res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Cache-Control", "private, no-store");
-  res.setHeader("Content-Disposition", `attachment; filename="audit-report-${report.audit.id}.pptx"`);
+  res.setHeader("Content-Disposition", `attachment; filename="audit-report-${req.params.id}.pdf"`);
   res.send(bytes);
 }));
-router.get("/audits/:id/report/pdf", asyncHandler(async (req, res) => {
-  const report = await consolidatedReport(req);
+
+async function auditExecutionEmailPdf(orgId: string, id: string) {
+  const report = await consolidatedReport(orgId, id);
   const images = new Map<string, Uint8Array>();
   for (const photo of report.sections.flatMap(s => s.photos)) {
     const file = report.evidence.find(f => f.id === photo.id)!;
@@ -4638,11 +4682,8 @@ router.get("/audits/:id/report/pdf", asyncHandler(async (req, res) => {
   const bytes = await renderConsolidatedAuditPdf({
     title: report.mappedAudit.title, reference: report.mappedAudit.reportNumber || report.audit.referenceNumber, sections: report.sections, photos: images,
   });
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Cache-Control", "private, no-store");
-  res.setHeader("Content-Disposition", `attachment; filename="audit-report-${report.audit.id}.pdf"`);
-  res.send(Buffer.from(bytes));
-}));
+  return Buffer.from(bytes);
+}
 
 router.get("/field-controls", asyncHandler(async (req, res) => {
   res.json(await readFieldControls(actor(req).organizationId, "audit"));

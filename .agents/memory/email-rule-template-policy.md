@@ -45,17 +45,19 @@ stored legacy delivery, organization isolation and To-over-CC address deduplicat
 for triggered emails. This explicitly configured audience is distinct from
 automatically copying sample-document recipients.
 
-Lessons Learned submission emails must include the form PDF as an actual
-attachment, using the same report as the form's Download PDF action.
+Event Email Rules explicitly control report attachments, including Lessons
+submission and configured Audit approval emails. No report selection means no
+attachment; selecting a report attaches the triggering record's supported PDF/PPT.
 
-**Why:** The business requested the downloadable form in the existing email sent
-for approval, without changing unrelated workflows. A download link alone does
-not fulfill this requirement.
+**Why:** The user superseded the earlier automatic Lessons submission-PDF rule
+with optional, event-specific attachment selection across QMS360. An automatic
+PDF must not override an administrator's No attachment choice.
 
-**How to apply:** Preserve the configured submission recipients and templates.
-Keep a private submitted-report snapshot available for queued delivery retries;
-do not add PDFs to Lessons review emails or other application events as a side
-effect.
+**How to apply:** Preserve recipients, CC, templates and protected approval
+audiences. Permit only reports supported for the selected event, validate on
+the server, keep private snapshots for retries, and retry selected-report
+failures rather than sending without the report. Independent scheduled
+distribution and already queued messages retain their existing behavior.
 
 Lessons Learned “Reject” is a legacy email-event label for the Send back review outcome, not a separate permanent rejection state. Existing rules and selected-event placeholders must continue to recognize both names.
 

@@ -8,7 +8,7 @@ const { storeObject, getObject, removeObject } = vi.hoisted(() => ({
 
 vi.mock("./objectStorage", () => ({ storeObject, getObject, removeObject }));
 
-import { loadEmailPdfAttachments, removeEmailPdfAttachment, storeEmailPdfAttachment } from "./email-attachments";
+import { loadEmailPdfAttachments, removeEmailPdfAttachment, storeEmailPdfAttachment, storeEmailReportAttachment } from "./email-attachments";
 
 describe("email PDF attachments", () => {
   beforeEach(() => {
@@ -31,6 +31,20 @@ describe("email PDF attachments", () => {
     });
     expect(second.objectPath).not.toBe(first.objectPath);
     expect(storeObject).toHaveBeenCalledWith(expect.stringMatching(/^email-attachments\/org-one\/record-1\/.+\.pdf$/), bytes, "application/pdf");
+  });
+  it("stores, loads and cleans up a PowerPoint with its own extension and MIME type", async () => {
+    const mime = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    const bytes = Buffer.from([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4]);
+    const metadata = await storeEmailReportAttachment("org", "audit", bytes, "pptx");
+    expect(metadata.filename).toBe("audit.pptx");
+    expect(metadata.contentType).toBe(mime);
+    expect(metadata.objectPath).toMatch(/\.pptx$/);
+    getObject.mockResolvedValueOnce(new Response(bytes, { headers: { "content-type": mime } }));
+    expect((await loadEmailPdfAttachments("org", [metadata]))[0]).toMatchObject({ filename: "audit.pptx", contentType: mime, content: bytes });
+    await removeEmailPdfAttachment("org", metadata.objectPath);
+    expect(removeObject).toHaveBeenCalledWith(metadata.objectPath);
+    await expect(loadEmailPdfAttachments("another-org", [metadata])).rejects.toThrow("invalid private object path");
+    await expect(storeEmailReportAttachment("org", "audit", Buffer.from("%PDF-1.7\nwrong type"), "pptx")).rejects.toThrow("PPTX");
   });
 
   it("rejects non-PDF and oversized bytes before storage", async () => {

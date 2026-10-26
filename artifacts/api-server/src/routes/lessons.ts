@@ -1269,7 +1269,7 @@ router.get("/reports/log", requirePermission("lessons", "lessons", "select"), as
   res.json({ delivery: "download", fileName, downloadUrl: `data:${format === "csv" ? "text/csv" : "application/json"};charset=utf-8,${encodeURIComponent(content)}`, message: null });
 }));
 
-async function lessonReportPdf(
+export async function lessonReportPdf(
   row: typeof lessonLearnedForms.$inferSelect,
   photos: Array<typeof lessonsEvidenceFiles.$inferSelect>,
 ) {

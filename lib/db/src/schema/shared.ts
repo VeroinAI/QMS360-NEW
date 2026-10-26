@@ -250,6 +250,7 @@ export const emailEventRules = sharedSchema.table("email_event_rules", {
     senderMode?: "form_creator" | "approving_user";
     subjectTemplate?: string;
     bodyTemplate?: string;
+    reportAttachment?: string | null;
     bodyRichText?: Record<string, unknown> | null;
   }>().notNull().default({}),
   receiverUserId: uuid("receiver_user_id").references(() => users.id),

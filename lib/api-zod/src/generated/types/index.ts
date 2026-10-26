@@ -244,6 +244,7 @@ export * from './emailPlaceholderInputFormat';
 export * from './emailPlaceholderInputWorkspace';
 export * from './emailRecipientConfig';
 export * from './emailRecipientConfigBodyRichText';
+export * from './emailRecipientConfigReportAttachment';
 export * from './emailRecipientConfigSenderMode';
 export * from './emailRuleEventOption';
 export * from './emailRuleOrderInput';

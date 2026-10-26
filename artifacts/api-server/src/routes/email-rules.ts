@@ -11,11 +11,14 @@ import { resolveEmailRule } from "../lib/email-rules";
 import { emailCcTargetError } from "../lib/email-cc-validation";
 import { listPlaceholderDefinitions, mutatePlaceholderRegistry, validateCustomRuleTemplate } from "../lib/email-placeholder-registry";
 import { CreateEmailPlaceholderBody, UpdateEmailPlaceholderBody, SetEmailPlaceholderActivationBody } from "@workspace/api-zod";
-import { emailRichTextToPlain } from "@workspace/field-controls";
+import { emailRichTextToPlain, validEmailReportSelection } from "@workspace/field-controls";
 
 const router = Router();
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const knownEvents = [
+  "qaqc.qaqc_report.create", "qaqc.qaqc_report.update", "qaqc.qaqc_report.delete",
+  "qaqc.qaqc_report.submit", "qaqc.qaqc_report.approve", "qaqc.qaqc_report.send_back",
+  "audit.audit.complete", "audit.audit.approve_report", "audit.audit.send_back_report",
   "audit.audit.create", "audit.audit.delete", "audit.audit.update", "audit.audit.update_checklist",
   "audit.audit_finding.create", "audit.audit_finding.delete", "audit.audit_finding.update",
   "audit.audit_plan.create", "audit.audit_plan.delete", "audit.audit_plan.send_for_audit", "audit.audit_plan.share", "audit.audit_plan.update",
@@ -49,6 +52,8 @@ const knownEvents = [
 function bodyValue(value: unknown): string | null { return typeof value === "string" ? value.trim() || null : null; }
 async function validate(input: any, organizationId: string) {
   const template = input.recipientConfig ?? {};
+  if (!validEmailReportSelection(input.eventType, template.reportAttachment))
+    throw new HttpError(422, "Select a report belonging to this email event, or choose No attachment");
   if (template.bodyRichText != null) {
     try {
       // Derive plain text server-side so placeholder validation cannot be bypassed

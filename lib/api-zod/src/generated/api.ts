@@ -15039,6 +15039,7 @@ export const ListEmailRulesResponseItem = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(listEmailRulesResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(listEmailRulesResponseRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -15100,6 +15101,7 @@ export const CreateEmailRuleBody = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(createEmailRuleBodyRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(createEmailRuleBodyRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -15158,6 +15160,7 @@ export const CreateEmailRuleResponse = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(createEmailRuleResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(createEmailRuleResponseRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -15222,6 +15225,7 @@ export const UpdateEmailRuleBody = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(updateEmailRuleBodyRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(updateEmailRuleBodyRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -15280,6 +15284,7 @@ export const UpdateEmailRuleResponse = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(updateEmailRuleResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(updateEmailRuleResponseRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -15350,6 +15355,7 @@ export const ReorderEmailRulesResponseItem = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(reorderEmailRulesResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(reorderEmailRulesResponseRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -15611,6 +15617,7 @@ export const SimulateEmailRuleResponse = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigBodyTemplateMax).optional(),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),

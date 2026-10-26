@@ -7,6 +7,7 @@
  */
 import type { EmailCcRecipient } from './emailCcRecipient';
 import type { EmailRecipientConfigBodyRichText } from './emailRecipientConfigBodyRichText';
+import type { EmailRecipientConfigReportAttachment } from './emailRecipientConfigReportAttachment';
 import type { EmailRecipientConfigSenderMode } from './emailRecipientConfigSenderMode';
 
 export interface EmailRecipientConfig {
@@ -25,6 +26,11 @@ export interface EmailRecipientConfig {
   subjectTemplate?: string;
   /** @maxLength 20000 */
   bodyTemplate?: string;
+  /**
+     * Optional event-specific generated report. Null or omitted means no attachment.
+     * @nullable
+     */
+  reportAttachment?: EmailRecipientConfigReportAttachment;
   /**
      * Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
      * @nullable

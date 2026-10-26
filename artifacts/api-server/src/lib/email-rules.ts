@@ -216,9 +216,8 @@ export async function dispatchEmailRule(event: AuditEvent, options: {
     if (!result.rule || !result.recipients.length) return result;
     // Only generate/store a report when an enabled rule actually has recipients.
     // The queue retains the private snapshot for SMTP retries.
-    if (event.app === "lessons" && event.entityType === "lesson_form" && event.action === "submit") {
-      attachments = await options.emailAttachments?.() ?? [];
-    }
+    // Report choice is frozen on the queue row. Generation is performed by the
+    // retryable worker, never by the business transaction or an implicit default.
     const delivery = await enqueueEmail(db, {
       organizationId: event.organizationId, recipientIds: [], recipients: result.recipients,
       ccRecipients: result.ccRecipients ?? [],
@@ -267,7 +266,7 @@ export async function queueAuditApprovalEmail(
     text: string;
     record?: Record<string, any>;
     templateValues?: Record<string, unknown>;
-    attachments?: Array<{ filename: string; contentType: "application/pdf"; objectPath: string }>;
+    attachments?: EmailPdfAttachment[];
   },
 ): Promise<{ queued: number }> {
   const eventType = `audit.${input.entityType}.${input.action}`;
@@ -336,4 +335,16 @@ export async function auditApprovalEmailEnabled(
   )).orderBy(asc(emailEventRules.priority), asc(emailEventRules.createdAt));
   const rule = rules.find(candidate => !candidate.createdByUserId || candidate.createdByUserId === input.actorId);
   return rule?.enabled ?? true;
+}
+
+/** Keep unconfigured legacy workflow mail unchanged; configured rules opt in. */
+export async function auditApprovalAttachmentEnabled(
+  database: typeof db, input: { organizationId: string; actorId: string; entityType: "audit_programme" | "audit_schedule" },
+) {
+  const rules = await database.select().from(emailEventRules).where(and(
+    eq(emailEventRules.organizationId, input.organizationId), isNull(emailEventRules.deletedAt),
+    eq(emailEventRules.eventType, `audit.${input.entityType}.approved_final`),
+  )).orderBy(asc(emailEventRules.priority), asc(emailEventRules.createdAt));
+  const rule = rules.find(candidate => !candidate.createdByUserId || candidate.createdByUserId === input.actorId);
+  return !rule || (rule.enabled && rule.recipientConfig?.reportAttachment === "audit_schedule_pdf");
 }

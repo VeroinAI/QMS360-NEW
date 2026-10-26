@@ -561,6 +561,22 @@ export const EmailRecipientConfigSenderMode = {
 } as const;
 
 /**
+ * Optional event-specific generated report. Null or omitted means no attachment.
+ * @nullable
+ */
+export type EmailRecipientConfigReportAttachment = typeof EmailRecipientConfigReportAttachment[keyof typeof EmailRecipientConfigReportAttachment] | null;
+
+
+export const EmailRecipientConfigReportAttachment = {
+  lesson_pdf: 'lesson_pdf',
+  qaqc_report_pdf: 'qaqc_report_pdf',
+  audit_schedule_pdf: 'audit_schedule_pdf',
+  audit_plan_pdf: 'audit_plan_pdf',
+  audit_report_pdf: 'audit_report_pdf',
+  audit_report_pptx: 'audit_report_pptx',
+} as const;
+
+/**
  * Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
  * @nullable
  */
@@ -582,6 +598,11 @@ export interface EmailRecipientConfig {
   subjectTemplate?: string;
   /** @maxLength 20000 */
   bodyTemplate?: string;
+  /**
+     * Optional event-specific generated report. Null or omitted means no attachment.
+     * @nullable
+     */
+  reportAttachment?: EmailRecipientConfigReportAttachment;
   /**
      * Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
      * @nullable
