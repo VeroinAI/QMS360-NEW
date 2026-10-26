@@ -5025,6 +5025,79 @@ projectId: string;
 period: string;
 };
 
+export type GetQaqcConsolidatedDashboardParams = {
+view?: GetQaqcConsolidatedDashboardView;
+period?: string;
+date?: string;
+from?: string;
+to?: string;
+mode?: GetQaqcConsolidatedDashboardMode;
+projectId?: string;
+sbg?: string;
+bu?: string;
+projectGroup?: string;
+};
+
+export type GetQaqcConsolidatedDashboardView = typeof GetQaqcConsolidatedDashboardView[keyof typeof GetQaqcConsolidatedDashboardView];
+
+
+export const GetQaqcConsolidatedDashboardView = {
+  monthly: 'monthly',
+  daily: 'daily',
+} as const;
+
+export type GetQaqcConsolidatedDashboardMode = typeof GetQaqcConsolidatedDashboardMode[keyof typeof GetQaqcConsolidatedDashboardMode];
+
+
+export const GetQaqcConsolidatedDashboardMode = {
+  cumulative: 'cumulative',
+  movement: 'movement',
+} as const;
+
+export type GetQaqcConsolidatedDashboard200View = typeof GetQaqcConsolidatedDashboard200View[keyof typeof GetQaqcConsolidatedDashboard200View];
+
+
+export const GetQaqcConsolidatedDashboard200View = {
+  monthly: 'monthly',
+  daily: 'daily',
+} as const;
+
+export type GetQaqcConsolidatedDashboard200Mode = typeof GetQaqcConsolidatedDashboard200Mode[keyof typeof GetQaqcConsolidatedDashboard200Mode];
+
+
+export const GetQaqcConsolidatedDashboard200Mode = {
+  cumulative: 'cumulative',
+  movement: 'movement',
+} as const;
+
+export type GetQaqcConsolidatedDashboard200ProjectsItem = { [key: string]: unknown };
+
+export type GetQaqcConsolidatedDashboard200Coverage = { [key: string]: unknown };
+
+export type GetQaqcConsolidatedDashboard200Monthly = { [key: string]: unknown };
+
+export type GetQaqcConsolidatedDashboard200Daily = { [key: string]: unknown };
+
+export type GetQaqcConsolidatedDashboard200RecordsItem = { [key: string]: unknown };
+
+export type GetQaqcConsolidatedDashboard200 = {
+  view: GetQaqcConsolidatedDashboard200View;
+  period: string;
+  mode: GetQaqcConsolidatedDashboard200Mode;
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  projects: GetQaqcConsolidatedDashboard200ProjectsItem[];
+  periods: string[];
+  coverage: GetQaqcConsolidatedDashboard200Coverage;
+  monthly: GetQaqcConsolidatedDashboard200Monthly;
+  daily: GetQaqcConsolidatedDashboard200Daily;
+  records: GetQaqcConsolidatedDashboard200RecordsItem[];
+  warnings: string[];
+  [key: string]: unknown;
+ };
+
 export type ListPlatformProjectsParams = {
 /**
  * @minimum 1

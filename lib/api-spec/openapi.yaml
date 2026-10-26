@@ -191,6 +191,43 @@ paths:
           content:
             application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
               schema: {type: string, format: binary}
+  /qaqc/reporting/consolidated-dashboard:
+    get:
+      operationId: getQaqcConsolidatedDashboard
+      tags: [qaqc]
+      parameters:
+        - {name: view, in: query, schema: {type: string, enum: [monthly, daily]}}
+        - {name: period, in: query, schema: {type: string}}
+        - {name: date, in: query, schema: {type: string}}
+        - {name: from, in: query, schema: {type: string}}
+        - {name: to, in: query, schema: {type: string}}
+        - {name: mode, in: query, schema: {type: string, enum: [cumulative, movement]}}
+        - {name: projectId, in: query, schema: {type: string}}
+        - {name: sbg, in: query, schema: {type: string}}
+        - {name: bu, in: query, schema: {type: string}}
+        - {name: projectGroup, in: query, schema: {type: string}}
+      responses:
+        "200":
+          description: Authorized approved-report dashboard and drill-down records
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [view, period, mode, projects, periods, coverage, monthly, daily, records, warnings]
+                properties:
+                  view: {type: string, enum: [monthly, daily]}
+                  period: {type: string}
+                  mode: {type: string, enum: [cumulative, movement]}
+                  from: {type: [string, "null"]}
+                  to: {type: [string, "null"]}
+                  projects: {type: array, items: {type: object, additionalProperties: true}}
+                  periods: {type: array, items: {type: string}}
+                  coverage: {type: object, additionalProperties: true}
+                  monthly: {type: object, additionalProperties: true}
+                  daily: {type: object, additionalProperties: true}
+                  records: {type: array, items: {type: object, additionalProperties: true}}
+                  warnings: {type: array, items: {type: string}}
   /healthz:
     get:
       operationId: healthCheck

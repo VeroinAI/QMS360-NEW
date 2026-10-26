@@ -119,3 +119,5 @@
 - [Email-rule browser test isolation](browser-email-rule-test-isolation.md) — save enabled test rules only in disposable organizations, never shared demo or live accounts.
 - [Selection search contracts](selection-search-contracts.md) — editable search must own focus; hidden native bridges must not duplicate visible validation paths.
 - [Audit participant boundaries](audit-participant-boundaries.md) — scope team/activity choices to the individual audit; separate historical names and never borrow marker scope or broad offline eligibility.
+- [Consolidated QA/QC dashboards](qaqc-consolidated-dashboard-policy.md) — approved-only web totals, signed snapshot movement, final CSAT surveys and separate cross-app authorization.
+- [Recharts component boundaries](recharts-component-boundaries.md) — forward measured dimensions through wrappers; keep axes as direct chart children and test real bars, labels and finite coordinates.

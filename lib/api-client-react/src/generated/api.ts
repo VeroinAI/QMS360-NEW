@@ -182,6 +182,8 @@ import type {
   GetLessonsReferenceDataParams,
   GetPlatformReferenceDataParams,
   GetQaqcCapabilities200,
+  GetQaqcConsolidatedDashboard200,
+  GetQaqcConsolidatedDashboardParams,
   GetQaqcDashboardParams,
   GetQaqcEscalationsParams,
   GetQaqcHistoricalBalances200,
@@ -1276,6 +1278,84 @@ export function useGetQaqcHistoricalTemplate<TData = Awaited<ReturnType<typeof g
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetQaqcHistoricalTemplateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetQaqcConsolidatedDashboardUrl = (params?: GetQaqcConsolidatedDashboardParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/qaqc/reporting/consolidated-dashboard?${stringifiedParams}` : `/api/qaqc/reporting/consolidated-dashboard`
+}
+
+export const getQaqcConsolidatedDashboard = async (params?: GetQaqcConsolidatedDashboardParams, options?: Parameters<typeof customFetch>[1]): Promise<GetQaqcConsolidatedDashboard200> => {
+
+  return customFetch<GetQaqcConsolidatedDashboard200>(getGetQaqcConsolidatedDashboardUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQaqcConsolidatedDashboardQueryKey = (params?: GetQaqcConsolidatedDashboardParams,) => {
+    return [
+    `/api/qaqc/reporting/consolidated-dashboard`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetQaqcConsolidatedDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getQaqcConsolidatedDashboard>>, TError = ErrorType<unknown>>(params?: GetQaqcConsolidatedDashboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcConsolidatedDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQaqcConsolidatedDashboardQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQaqcConsolidatedDashboard>>> = ({ signal }) => getQaqcConsolidatedDashboard(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQaqcConsolidatedDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQaqcConsolidatedDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getQaqcConsolidatedDashboard>>>
+export type GetQaqcConsolidatedDashboardQueryError = ErrorType<unknown>
+
+
+
+export function useGetQaqcConsolidatedDashboard<TData = Awaited<ReturnType<typeof getQaqcConsolidatedDashboard>>, TError = ErrorType<unknown>>(
+ params?: GetQaqcConsolidatedDashboardParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQaqcConsolidatedDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQaqcConsolidatedDashboardQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

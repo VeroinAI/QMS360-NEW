@@ -24,6 +24,9 @@ import { exactReportVersion } from "../lib/qaqc-report-version";
 import { MONTHLY_APPROVAL_KEY, reportApprovalKey, isSequentialReportType, readMonthlyApproval, loadMonthlyApprovalStages, startMonthlyApproval, advanceMonthlyApproval, hasMonthlyReviewHistory } from "../lib/qaqc-monthly-approval";
 import { getHistoricalSetup, historicalBaseline as historicalOpeningBaseline } from "../lib/qaqc-historical-balances";
 import { getDailyOpening, assertDailyOpeningDate } from "../lib/qaqc-daily-historical";
+import { dailyDashboard, dayBefore } from "../lib/qaqc-consolidated-daily";
+import { monthlyDashboard } from "../lib/qaqc-consolidated-monthly";
+import { loadDashboardCrossModules } from "../lib/qaqc-dashboard-cross-modules";
 import {
   buildMonthlyAssessment, calculateReport, subtractReportSnapshot, validateReportData, DAILY_DOCUMENT_TYPES, DAILY_REJECTED_SUBMISSION_TYPES, type CsatReportComputed, type DailyReportComputed,
   type MonthlyReportComputed, type ReportType,
@@ -1139,6 +1142,114 @@ export async function buildQaqcReportingDashboard(req: Request): Promise<QaqcRep
     daily: dailyMovement,
   };
 }
+
+router.get("/consolidated-dashboard", multipleReportAccess(), asyncHandler(async (req, res) => {
+  const view = req.query.view ?? "monthly", mode = req.query.mode ?? "cumulative";
+  if (!["monthly", "daily"].includes(String(view)) || !["cumulative", "movement"].includes(String(mode)))
+    throw new HttpError(422, "Choose a valid dashboard view and mode");
+  const access = (req as any).qaqcReportAccess as Map<ReportType, Awaited<ReturnType<typeof reportAccess>>>;
+  const primary = access.get(view as ReportType);
+  if (!primary?.allowed) throw new HttpError(403, `You do not have permission to view ${view} reports`);
+  const validDate = (value: unknown) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+  for (const key of ["date", "from", "to"]) {
+    if (req.query[key] !== undefined && !validDate(req.query[key])) throw new HttpError(422, `${key} must be a valid YYYY-MM-DD date`);
+  }
+  if (req.query.period !== undefined && (typeof req.query.period !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(req.query.period)))
+    throw new HttpError(422, "period must be a valid YYYY-MM month");
+  for (const key of ["projectId", "sbg", "bu", "projectGroup"]) {
+    if (req.query[key] !== undefined && typeof req.query[key] !== "string") throw new HttpError(422, `${key} must be text`);
+  }
+  const projectRows = await db.select({ id: projects.id, name: projects.name, code: projects.code,
+    customFields: projects.customFields, businessUnit: businessUnits.name })
+    .from(projects).leftJoin(businessUnits, and(eq(projects.businessUnitId, businessUnits.id),
+      eq(businessUnits.organizationId, org(req)), isNull(businessUnits.deletedAt)))
+    .where(and(eq(projects.organizationId, org(req)), isNull(projects.deletedAt), eq(projects.status, "active"),
+      primary.scope.unrestricted ? undefined : inArray(projects.id, primary.scope.projectIds)));
+  const [defaults] = await db.select({ values: sql<Record<string, number>>`coalesce(jsonb_object_agg(${targetBenchmarks.metricKey}, ${targetBenchmarks.targetValue}::numeric), '{}'::jsonb)` })
+    .from(targetBenchmarks).where(and(eq(targetBenchmarks.organizationId, org(req)), isNull(targetBenchmarks.deletedAt)));
+  const text = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : "Unassigned";
+  const options = projectRows.map(row => {
+    const fields = row.customFields as Record<string, any>;
+    return { id: row.id, name: row.name, code: row.code,
+      sbg: text(fields.sbg ?? fields.SBG ?? fields.strategicBusinessGroup),
+      bu: text(row.businessUnit ?? fields.businessUnit ?? fields.bu),
+      projectGroup: text(fields.projectGroup ?? fields.project_group),
+      costCentre: typeof fields.costCentre === "string" ? fields.costCentre : "",
+      targets: { ...defaults?.values, ...(fields.qaqcReporting?.targets ?? {}), ...(fields.targets ?? {}) } };
+  });
+  const selected = options.filter(project => (!req.query.projectId || project.id === req.query.projectId)
+    && (!req.query.sbg || project.sbg === req.query.sbg) && (!req.query.bu || project.bu === req.query.bu)
+    && (!req.query.projectGroup || project.projectGroup === req.query.projectGroup));
+  if (req.query.projectId && !options.some(project => project.id === req.query.projectId))
+    throw new HttpError(403, "You do not have access to this project");
+  const selectedIds = selected.map(project => project.id);
+  const loaded = selectedIds.length ? await db.select().from(qaqcReportSubmissions).where(and(
+    eq(qaqcReportSubmissions.organizationId, org(req)), isNull(qaqcReportSubmissions.deletedAt),
+    inArray(qaqcReportSubmissions.projectId, selectedIds),
+    inArray(qaqcReportSubmissions.reportType, view === "daily" ? ["daily"] : ["monthly", "csat"]),
+  )).orderBy(asc(qaqcReportSubmissions.period)) : [];
+  const reports = loaded.filter(row => canReadByCapability(req, row));
+  const periods = [...new Set(reports.filter(row => row.reportType === view && row.state === "approved")
+    .map(row => view === "monthly" ? row.period.slice(0, 7) : row.period))].sort().reverse();
+  const today = await orgLocalToday(req);
+  const end = String(req.query.to ?? req.query.date ?? (view === "daily" ? periods[0] : undefined) ?? today);
+  const from = typeof req.query.from === "string" ? req.query.from : null;
+  if (from && from > end) throw new HttpError(422, "From date cannot be after To date");
+  const period = view === "monthly" ? String(req.query.period ?? periods[0] ?? today.slice(0, 7)) : end;
+  const current = reports.filter(row => row.reportType === view && (view === "monthly" ? row.period.slice(0, 7) === period : row.period === period));
+  const stateFor = (id: string) => current.find(row => row.projectId === id)?.state;
+  const fullProject = (id: string) => primary.fullScope.unrestricted || primary.fullScope.projectIds.includes(id);
+  const noVisibleReport = selected.filter(project => !stateFor(project.id) && !fullProject(project.id));
+  const coverage = {
+    total: selected.length,
+    approved: selected.filter(project => stateFor(project.id) === "approved").length,
+    pendingApproval: selected.filter(project => stateFor(project.id) === "submitted").length,
+    pendingSubmission: selected.filter(project => (!stateFor(project.id) && fullProject(project.id))
+      || (!!stateFor(project.id) && !["approved", "submitted"].includes(stateFor(project.id)!))).length,
+    excluded: noVisibleReport.length,
+  };
+  const warnings: string[] = [];
+  if (noVisibleReport.length) warnings.push(`${noVisibleReport.length} project(s) have no report visible to your role for this period. Their submission status is not inferred.`);
+  if (!selected.length) warnings.push("No active authorized projects match these filters.");
+  if (options.length && options.every(project => project.sbg === "Unassigned"))
+    warnings.push("SBG is not maintained in the available Project Master data. Those projects are grouped as Unassigned.");
+  if (options.length && options.every(project => project.projectGroup === "Unassigned"))
+    warnings.push("Project group is not maintained in the available Project Master data. Those projects are grouped as Unassigned.");
+  const cross = view === "monthly" && selected.length ? await loadDashboardCrossModules(req, selectedIds, today)
+    : { lessons: [], audits: [], records: [], warnings: [], availability: { lessons: false, audit: false } };
+  if (view === "monthly") {
+    warnings.push(...cross.warnings, "CSAT includes finalized submitted surveys and approved history, by survey date; CSAT has no approval workflow.");
+    if (!access.get("csat")?.allowed) warnings.push("CSAT figures are unavailable because your role has no CSAT viewing access.");
+    warnings.push("Lessons approval ageing follows your organization’s working calendar.");
+    warnings.push(`Open findings, CAR status and pending Lessons are live as of ${today}; historical statuses are not reconstructed.`);
+  }
+  const daily = dailyDashboard(reports, selected, end, from, String(mode));
+  if (view === "daily") {
+    warnings.push(...daily.warnings);
+    const stale = daily.chosen.filter(row => row.period !== end);
+    if (stale.length) warnings.push(`${stale.length} project(s) use their latest approved snapshot before ${end}; coverage counts only reports on the selected date.`);
+    if (mode === "movement") warnings.push("Movement = end snapshot minus start snapshot. Pending-day charts and bottlenecks remain the end-date snapshot.");
+    coverage.excluded = selected.length - daily.data.selectedReports;
+  }
+  const records: Array<Record<string, any>> = reports.map(row => ({
+    id: row.id, projectId: row.projectId, projectName: selected.find(project => project.id === row.projectId)?.name ?? "",
+    type: row.reportType, period: row.period, state: row.state, category: row.reportType === "csat" ? row.data.expectations : undefined,
+    snapshot: row.reportType === "daily" && daily.sources.some(source => source.id === row.id),
+    title: `${row.reportType === "monthly" ? "Monthly QA/QC" : row.reportType === "daily" ? "Daily submission" : "CSAT survey"} · ${row.period}`,
+    href: `/qaqc/${row.reportType === "monthly" ? "metrics/reports" : row.reportType === "daily" ? "daily" : "csat"}/${row.id}`,
+  }));
+  for (const project of selected.filter(project => !stateFor(project.id) && fullProject(project.id))) records.push({
+    id: `missing-${project.id}`, projectId: project.id, projectName: project.name, type: view, period,
+    title: "Report not yet submitted", state: "draft",
+    href: `/qaqc/${view === "monthly" ? "metrics" : "daily"}/new?projectId=${project.id}`,
+  });
+  records.push(...cross.records.map(row => ({ ...row, projectName: selected.find(project => project.id === row.projectId)?.name ?? "" })));
+  res.json({ view, period, mode, from: mode === "movement" ? from ?? dayBefore(end) : null, to: end,
+    projects: options.map(({ targets: _targets, ...project }) => project), periods, coverage, warnings,
+    monthly: monthlyDashboard(reports, selected, period.slice(0, 7), cross.lessons, cross.audits, cross.availability),
+    daily: daily.data, records });
+}));
 
 router.get("/dashboard", multipleReportAccess(), asyncHandler(async (req, res) => {
   res.json(await buildQaqcReportingDashboard(req));

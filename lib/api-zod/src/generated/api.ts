@@ -195,6 +195,35 @@ export const GetQaqcHistoricalTemplateQueryParams = zod.object({
 export const GetQaqcHistoricalTemplateResponse = zod.unknown()
 
 
+export const GetQaqcConsolidatedDashboardQueryParams = zod.object({
+  "view": zod.enum(['monthly', 'daily']).optional(),
+  "period": zod.coerce.string().optional(),
+  "date": zod.coerce.string().optional(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "mode": zod.enum(['cumulative', 'movement']).optional(),
+  "projectId": zod.coerce.string().optional(),
+  "sbg": zod.coerce.string().optional(),
+  "bu": zod.coerce.string().optional(),
+  "projectGroup": zod.coerce.string().optional()
+})
+
+export const GetQaqcConsolidatedDashboardResponse = zod.object({
+  "view": zod.enum(['monthly', 'daily']),
+  "period": zod.string(),
+  "mode": zod.enum(['cumulative', 'movement']),
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "projects": zod.array(zod.record(zod.string(), zod.unknown())),
+  "periods": zod.array(zod.string()),
+  "coverage": zod.record(zod.string(), zod.unknown()),
+  "monthly": zod.record(zod.string(), zod.unknown()),
+  "daily": zod.record(zod.string(), zod.unknown()),
+  "records": zod.array(zod.record(zod.string(), zod.unknown())),
+  "warnings": zod.array(zod.string())
+})
+
+
 /**
  * Returns server health status
  * @summary Health check
