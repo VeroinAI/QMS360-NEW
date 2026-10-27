@@ -18,10 +18,9 @@ import { MeetingHeldAt } from "./meeting-held-at";
 import { availablePlanSchedules, buildPlanRow, EMPTY_PLAN_FILTERS, filterPlanRows, type PlanFilters } from "./plan-register";
 import { buildExecutionRow, EMPTY_EXECUTION_FILTERS, filterExecutionRows, hasMissingSummaries, type ExecutionFilters } from "./execution-register";
 import { ExecutionRegisterFilters, ExecutionRegisterTable, useExecutionRegister } from "./execution-register-view";
-import { FindingRegister } from "./finding-register-view";
 import { PlanRegisterFilters, PlanRegisterTable, usePlanRegister } from "./plan-register-view";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, Route, Switch, useLocation, useParams, useSearch } from "wouter";
+import { Link, Redirect, Route, Switch, useLocation, useParams, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useGetAuditPlanNumberPreview,
@@ -596,7 +595,7 @@ function Pager({ page, total, onPage }: { page: number; total: number; onPage: (
 
 function AuditNav() {
   const capabilities = useAuditCapabilities();
-  const links = [["Dashboard", "/audit"], ["For my Action", "/audit/my-actions"], ["Schedules", "/audit/schedules"], ["Plans", "/audit/plans"], ["Audits", "/audit/audits"], ["Findings", "/audit/findings"], ["CAR register", "/audit/cars"], ["Reports", "/audit/reports"]];
+  const links = [["Dashboard", "/audit"], ["For my Action", "/audit/my-actions"], ["Schedules", "/audit/schedules"], ["Plans", "/audit/plans"], ["Audits", "/audit/audits"], ["CAR register", "/audit/cars"], ["Reports", "/audit/reports"]];
   return <nav className="flex gap-1 overflow-x-auto border-b pb-3">{links.filter(([, href]) => capabilities.canOpen(href)).map(([label, href]) => <Button key={href} variant="ghost" size="sm" asChild><Link href={href}>{label}</Link></Button>)}</nav>;
 }
 
@@ -2380,7 +2379,7 @@ function AuditWorkspace() {
   const audit=query.data;
   return <div className="space-y-5"><Button variant="ghost" asChild><Link href="/audit/audits"><ArrowLeft className="mr-2 size-4"/>All audits</Link></Button><PageHeader title={audit.title} description={`Execution workspace · ${audit.status}`} action={<div className="flex flex-wrap gap-2"><MarkCompleteButton audit={audit}/><ReportButton audit={audit}/></div>}/><Tabs defaultValue="overview"><TabsList className="h-auto flex-wrap"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="checklist">Checklist</TabsTrigger><TabsTrigger value="opening">Opening meeting</TabsTrigger><TabsTrigger value="findings">Findings</TabsTrigger><TabsTrigger value="evidence">Additional Documents</TabsTrigger><TabsTrigger value="closing">Closing meeting</TabsTrigger><TabsTrigger value="report-details">Report details</TabsTrigger></TabsList>
     <TabsContent value="overview"><Card><CardHeader><CardTitle>Audit overview</CardTitle></CardHeader><CardContent className="grid gap-4 sm:grid-cols-3"><div><Label>Status</Label><div><Badge>{audit.status}</Badge></div></div><AuditOverviewReferences audit={audit}/><div><Label>Started</Label><p>{date(audit.startedAt)}</p></div><div><Label>Completed</Label><p>{date(audit.closedAt)}</p></div><div><Label>Checklist</Label><p>{audit.checklist?.length??0} items</p></div></CardContent></Card></TabsContent>
-    <TabsContent value="checklist"><Checklist auditId={id} initial={(audit.checklist??[]).filter(item => item.source !== "finding")}/></TabsContent><TabsContent value="opening"><MeetingEditor auditId={id} kind="opening" value={audit.openingMeeting}/></TabsContent><TabsContent value="findings"><FindingsGrid auditId={id} items={audit.checklist??[]}/></TabsContent><TabsContent value="evidence"><div className="space-y-4"><AdditionalDocumentSections auditId={id} documents={audit.additionalDocuments}/><AuditAttachments auditId={id}/></div></TabsContent><TabsContent value="closing"><MeetingEditor auditId={id} kind="closing" value={audit.closingMeeting} openingAttendees={audit.openingMeeting?.attendees}/></TabsContent><TabsContent value="report-details"><AuditReportDetailsEditor audit={audit}/></TabsContent></Tabs></div>;
+    <TabsContent value="checklist"><Checklist auditId={id} initial={(audit.checklist??[]).filter(item => item.source !== "finding")}/></TabsContent><TabsContent value="opening"><MeetingEditor auditId={id} kind="opening" value={audit.openingMeeting}/></TabsContent><TabsContent value="findings"><FindingsGrid auditId={id} items={audit.checklist??[]} auditTitle={audit.title} registerRows={audit.findingRegister}/></TabsContent><TabsContent value="evidence"><div className="space-y-4"><AdditionalDocumentSections auditId={id} documents={audit.additionalDocuments}/><AuditAttachments auditId={id}/></div></TabsContent><TabsContent value="closing"><MeetingEditor auditId={id} kind="closing" value={audit.closingMeeting} openingAttendees={audit.openingMeeting?.attendees}/></TabsContent><TabsContent value="report-details"><AuditReportDetailsEditor audit={audit}/></TabsContent></Tabs></div>;
 }
 
 function CarEditor({car,onClose}:{car:CorrectiveActionReport;onClose:()=>void}) {
@@ -2388,10 +2387,6 @@ function CarEditor({car,onClose}:{car:CorrectiveActionReport;onClose:()=>void}) 
   const fc=useFieldControls("audit","car"); const ro=(key:string)=>fc.fieldProps(key).disabled; const req=(key:string)=>fc.fieldProps(key).required;
   const save=()=>{const missing=fc.mandatoryFieldKeys().filter(key=>{const value=(form as unknown as Record<string,unknown>)[key];return value==null||(typeof value==="string"&&!value.trim());});if(missing.length){toast({title:"Complete mandatory fields",description:`Required by your administrator: ${missing.join(", ")}`,variant:"destructive"});return;}mutation.mutate({id:car.id,data:form},{onSuccess:()=>{qc.invalidateQueries({queryKey:["/api/audit/cars"]});toast({title:"CAR updated"});onClose();}})};
   return <div className="space-y-3"><div><Label>{responseFieldLabels.rootCause}{req("rootCause") ? " *" : ""}</Label><Textarea value={form.rootCause??""} disabled={ro("rootCause")} onChange={e=>setForm(v=>({...v,rootCause:e.target.value}))}/></div><div><Label>{responseFieldLabels.correction}{req("correction") ? " *" : ""}</Label><Textarea value={form.correction??""} disabled={ro("correction")} onChange={e=>setForm(v=>({...v,correction:e.target.value}))}/></div><div><Label>{responseFieldLabels.correctiveAction}{req("correctiveAction") ? " *" : ""}</Label><Textarea value={form.correctiveAction??""} disabled={ro("correctiveAction")} onChange={e=>setForm(v=>({...v,correctiveAction:e.target.value}))}/></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save}>Save response</Button></DialogFooter></div>;
-}
-
-function Findings() {
-  return <FindingRegister/>;
 }
 
 function Cars() {
@@ -2468,6 +2463,8 @@ function AuditAccessBoundary({ children }: { children: React.ReactNode }) {
 }
 
 export function AuditRoutes() {
+  const [location] = useLocation();
+  if (location === "/audit/findings" || location.startsWith("/audit/findings/")) return <Redirect to="/audit/audits" replace/>;
   return <Layout><AuditAccessBoundary><AuditPlanAutoSync/><Switch>
     <Route path="/audit" component={Dashboard}/>
     <Route path="/audit/my-actions" component={MyActions}/>
@@ -2478,7 +2475,6 @@ export function AuditRoutes() {
     <Route path="/audit/audits/:id/report" component={AuditReportPage}/>
     <Route path="/audit/audits/:id" component={AuditWorkspace}/>
     <Route path="/audit/audits" component={Audits}/>
-    <Route path="/audit/findings" component={Findings}/>
     <Route path="/audit/cars/:id" component={CarActionDetail}/>
     <Route path="/audit/cars" component={Cars}/>
     <Route path="/audit/reports" component={Reports}/>

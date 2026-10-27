@@ -2859,10 +2859,14 @@ async function openingMeetingBounds(database: Pick<typeof db, "select">, organiz
 router.get("/audits/:id", asyncHandler(async (req, res) => {
   const [row] = await db.select().from(audits).where(and(active(audits, actor(req).organizationId), eq(audits.id, String(req.params.id))));
   if (!row) throw new HttpError(404, "Audit not found");
+  await assertAuditRecordAccess(req, "audit", row.id);
   const editScope = await getAuthorizedProjectScope(req, "audit", { module: "audits", action: "full" });
   const reviewers = auditMeta(row).reportApproval?.status === "Pending approval"
     ? await reportReviewers(db, actor(req).organizationId, row.projectId, await planDepartmentId(req, row.auditPlanId)) : [];
   res.json({ ...auditDto(row, editScope.unrestricted || (row.projectId ? editScope.projectIds.includes(row.projectId) : await isProcessPlanId(req, row.auditPlanId, editScope))),
+    // The existing authorized audit detail already exposes its entire checklist.
+    // Resolve display context for that same audit, never through the cross-audit list.
+    findingRegister: await auditFindingRegisterRows(actor(req).organizationId, actor(req).id, [row], new Set([row.id])),
     reportApproval: reportApprovalSummary(auditMeta(row).reportApproval, canReviewReport(auditMeta(row).reportApproval, reviewers, actor(req).id)),
     ...await auditOverviewContext(db, actor(req).organizationId, row, plan => planMeta(plan).planNumber),
     openingMeetingBounds: await openingMeetingBounds(db, actor(req).organizationId, row.auditPlanId) });

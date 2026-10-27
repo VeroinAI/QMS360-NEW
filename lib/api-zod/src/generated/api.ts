@@ -9077,6 +9077,26 @@ export const SendAuditPlanForExecutionResponse = zod.object({
   "findingCount": zod.number().min(sendAuditPlanForExecutionResponseExecutionSummaryFindingCountMin).multipleOf(sendAuditPlanForExecutionResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(sendAuditPlanForExecutionResponseExecutionSummaryOpenFindingCountMin).multipleOf(sendAuditPlanForExecutionResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -9274,6 +9294,26 @@ export const ListAuditsResponse = zod.object({
   "findingCount": zod.number().min(listAuditsResponseTwoItemsItemExecutionSummaryFindingCountMin).multipleOf(listAuditsResponseTwoItemsItemExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(listAuditsResponseTwoItemsItemExecutionSummaryOpenFindingCountMin).multipleOf(listAuditsResponseTwoItemsItemExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -9594,6 +9634,26 @@ export const GetAuditResponse = zod.object({
   "findingCount": zod.number().min(getAuditResponseExecutionSummaryFindingCountMin).multipleOf(getAuditResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(getAuditResponseExecutionSummaryOpenFindingCountMin).multipleOf(getAuditResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -9943,6 +10003,26 @@ export const CompleteAuditResponse = zod.object({
   "findingCount": zod.number().min(completeAuditResponseExecutionSummaryFindingCountMin).multipleOf(completeAuditResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(completeAuditResponseExecutionSummaryOpenFindingCountMin).multipleOf(completeAuditResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -10132,6 +10212,26 @@ export const ReviewAuditReportResponse = zod.object({
   "findingCount": zod.number().min(reviewAuditReportResponseExecutionSummaryFindingCountMin).multipleOf(reviewAuditReportResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(reviewAuditReportResponseExecutionSummaryOpenFindingCountMin).multipleOf(reviewAuditReportResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -10325,6 +10425,26 @@ export const SaveAuditReportDetailsResponse = zod.object({
   "findingCount": zod.number().min(saveAuditReportDetailsResponseExecutionSummaryFindingCountMin).multipleOf(saveAuditReportDetailsResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(saveAuditReportDetailsResponseExecutionSummaryOpenFindingCountMin).multipleOf(saveAuditReportDetailsResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -10601,6 +10721,26 @@ export const CreateAuditChecklistItemResponse = zod.object({
   "findingCount": zod.number().min(createAuditChecklistItemResponseExecutionSummaryFindingCountMin).multipleOf(createAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(createAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(createAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -10796,6 +10936,26 @@ export const EditAuditChecklistItemResponse = zod.object({
   "findingCount": zod.number().min(editAuditChecklistItemResponseExecutionSummaryFindingCountMin).multipleOf(editAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(editAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(editAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -10980,6 +11140,26 @@ export const DeleteAuditChecklistItemResponse = zod.object({
   "findingCount": zod.number().min(deleteAuditChecklistItemResponseExecutionSummaryFindingCountMin).multipleOf(deleteAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(deleteAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(deleteAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -11176,6 +11356,26 @@ export const ImportAuditChecklistItemsResponse = zod.object({
   "findingCount": zod.number().min(importAuditChecklistItemsResponseExecutionSummaryFindingCountMin).multipleOf(importAuditChecklistItemsResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(importAuditChecklistItemsResponseExecutionSummaryOpenFindingCountMin).multipleOf(importAuditChecklistItemsResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -11375,6 +11575,26 @@ export const CreateAuditFindingItemResponse = zod.object({
   "findingCount": zod.number().min(createAuditFindingItemResponseExecutionSummaryFindingCountMin).multipleOf(createAuditFindingItemResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(createAuditFindingItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(createAuditFindingItemResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -11559,6 +11779,26 @@ export const GenerateMissingAuditFindingNumberResponse = zod.object({
   "findingCount": zod.number().min(generateMissingAuditFindingNumberResponseExecutionSummaryFindingCountMin).multipleOf(generateMissingAuditFindingNumberResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(generateMissingAuditFindingNumberResponseExecutionSummaryOpenFindingCountMin).multipleOf(generateMissingAuditFindingNumberResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -11745,6 +11985,26 @@ export const AssignAuditFindingActionTakerResponse = zod.object({
   "findingCount": zod.number().min(assignAuditFindingActionTakerResponseExecutionSummaryFindingCountMin).multipleOf(assignAuditFindingActionTakerResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(assignAuditFindingActionTakerResponseExecutionSummaryOpenFindingCountMin).multipleOf(assignAuditFindingActionTakerResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -11930,6 +12190,26 @@ export const UpdateAuditFindingDateResponse = zod.object({
   "findingCount": zod.number().min(updateAuditFindingDateResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditFindingDateResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(updateAuditFindingDateResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditFindingDateResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -12118,6 +12398,26 @@ export const ReplaceAuditOrganizationChartResponse = zod.object({
   "findingCount": zod.number().min(replaceAuditOrganizationChartResponseExecutionSummaryFindingCountMin).multipleOf(replaceAuditOrganizationChartResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(replaceAuditOrganizationChartResponseExecutionSummaryOpenFindingCountMin).multipleOf(replaceAuditOrganizationChartResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -12323,6 +12623,26 @@ export const UpdateAuditGoodPracticesResponse = zod.object({
   "findingCount": zod.number().min(updateAuditGoodPracticesResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditGoodPracticesResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(updateAuditGoodPracticesResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditGoodPracticesResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -12531,6 +12851,26 @@ export const UpdateAuditOverallProjectProgressResponse = zod.object({
   "findingCount": zod.number().min(updateAuditOverallProjectProgressResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditOverallProjectProgressResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(updateAuditOverallProjectProgressResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditOverallProjectProgressResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -12737,6 +13077,26 @@ export const UpdateAuditDocumentStatusResponse = zod.object({
   "findingCount": zod.number().min(updateAuditDocumentStatusResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditDocumentStatusResponseExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(updateAuditDocumentStatusResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditDocumentStatusResponseExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -14011,6 +14371,26 @@ export const GetGeneratedAuditReportResponse = zod.object({
   "findingCount": zod.number().min(getGeneratedAuditReportResponseAuditExecutionSummaryFindingCountMin).multipleOf(getGeneratedAuditReportResponseAuditExecutionSummaryFindingCountMultipleOf),
   "openFindingCount": zod.number().min(getGeneratedAuditReportResponseAuditExecutionSummaryOpenFindingCountMin).multipleOf(getGeneratedAuditReportResponseAuditExecutionSummaryOpenFindingCountMultipleOf)
 }).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
+  "findingRegister": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})).optional().describe('Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),

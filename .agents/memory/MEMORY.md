@@ -80,7 +80,7 @@
 - [Audit meeting attendee identity](opening-meeting-attendee-identity.md) — opening and closing selections use Audit user IDs; preserve old typed names and resolve IDs for display.
 - [Meeting date policy](opening-meeting-date-policy.md) — both meetings use inclusive individual-audit bounds independently; preserve instants and require explicit correction of invalid history.
 - [Orval scalar format compatibility](orval-uuid-format.md) — UUID, email and integer schemas can generate unavailable Zod helpers; check generated-library compilation.
-- [Audit finding record coexistence](audit-finding-coexistence.md) — preserve older standalone findings and CAR links while the Findings workspace uses checklist-backed rows.
+- [Audit finding workspace policy](audit-finding-coexistence.md) — Findings belongs inside an individual Audit Execution; preserve standalone history, checklist identities and CAR links.
 - [Finding priority actions](finding-priority-action-policy.md) — single required choice with an Action Taker; remove the Report Details tile without deleting historical data.
 - [Audit document replacement safety](audit-document-replacement-safety.md) — unlink charts without deleting evidence cited elsewhere; merge audit metadata under a row lock.
 - [Audit attachment scopes](audit-attachment-scopes.md) — legacy uploads share MIME-based categories; exclude Checklist references, tag new Checklist and Attachment uploads separately.

@@ -46,6 +46,18 @@ findings or terminal CAR responses stop contributing to the open count; any
 unfinished associated response keeps the finding open. Keep this display-only:
 do not rewrite historical rows or close workflows while calculating counts.
 
+The user-facing Findings workspace belongs inside an individual Audit Execution,
+not as a separate top-level Audit workspace tab. Requests for Findings filters and
+column layouts apply to that selected audit's existing editable Findings section.
+
+**Why:** The user explicitly corrected the earlier interpretation that introduced
+a cross-audit Findings landing page.
+
+**How to apply:** Keep filters and display context local to the selected audit,
+retain its existing entry/assignment/evidence controls, and do not restore a global
+Findings navigation tab. Read-only metadata must not require unrelated module
+permissions or grant access to another audit.
+
 In the Audit Finding register, Risk Level is an independently saved value, not a
 conversion from Major/Minor NC or OFI. Unrecorded risk stays blank/dash; do not
 apply the older standalone DTO's default Low as if it were entered transaction data.

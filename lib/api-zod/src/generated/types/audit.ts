@@ -7,6 +7,7 @@
  */
 import type { AuditAdditionalDocuments } from './auditAdditionalDocuments';
 import type { AuditExecutionSummary } from './auditExecutionSummary';
+import type { AuditFindingRegisterItem } from './auditFindingRegisterItem';
 import type { AuditOpeningMeetingBounds } from './auditOpeningMeetingBounds';
 import type { AuditReportApproval } from './auditReportApproval';
 import type { AuditReportDetails } from './auditReportDetails';
@@ -17,6 +18,8 @@ import type { MeetingMinutes } from './meetingMinutes';
 export interface Audit {
   id: string;
   executionSummary?: AuditExecutionSummary;
+  /** Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit. */
+  readonly findingRegister?: readonly AuditFindingRegisterItem[];
   planId: string;
   /**
      * Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable

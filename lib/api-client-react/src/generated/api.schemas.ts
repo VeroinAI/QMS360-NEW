@@ -4171,6 +4171,48 @@ export interface AuditExecutionSummary {
   readonly openFindingCount: number;
 }
 
+export type AuditFindingRegisterItemSource = typeof AuditFindingRegisterItemSource[keyof typeof AuditFindingRegisterItemSource];
+
+
+export const AuditFindingRegisterItemSource = {
+  checklist: 'checklist',
+  legacy: 'legacy',
+} as const;
+
+export type AuditFindingRegisterItemActionTakersItem = {
+  id: string;
+  /** @nullable */
+  name: string | null;
+};
+
+export interface AuditFindingRegisterItem {
+  readonly id: string;
+  readonly source: AuditFindingRegisterItemSource;
+  readonly auditExecutionId: string;
+  /** @nullable */
+  readonly findingNumber: string | null;
+  /** @nullable */
+  readonly auditId: string | null;
+  readonly auditTitle: string;
+  /** @nullable */
+  readonly projectDepartment: string | null;
+  /** @nullable */
+  readonly clauseReference: string | null;
+  /** @nullable */
+  readonly auditArea: string | null;
+  /** @nullable */
+  readonly description: string | null;
+  /** @nullable */
+  readonly findingType: string | null;
+  /** @nullable */
+  readonly riskLevel: string | null;
+  /** @nullable */
+  readonly auditTeamLeadId: string | null;
+  /** @nullable */
+  readonly auditTeamLeadName: string | null;
+  readonly actionTakers: AuditFindingRegisterItemActionTakersItem[];
+}
+
 export type AuditReportApprovalStatus = typeof AuditReportApprovalStatus[keyof typeof AuditReportApprovalStatus];
 
 
@@ -4217,6 +4259,8 @@ export interface AuditReportDetails {
 export interface Audit {
   id: string;
   executionSummary?: AuditExecutionSummary;
+  /** Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit. */
+  readonly findingRegister?: readonly AuditFindingRegisterItem[];
   planId: string;
   /**
      * Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable
@@ -4256,48 +4300,6 @@ export interface Audit {
   startedAt?: string | null;
   /** @nullable */
   closedAt?: string | null;
-}
-
-export type AuditFindingRegisterItemSource = typeof AuditFindingRegisterItemSource[keyof typeof AuditFindingRegisterItemSource];
-
-
-export const AuditFindingRegisterItemSource = {
-  checklist: 'checklist',
-  legacy: 'legacy',
-} as const;
-
-export type AuditFindingRegisterItemActionTakersItem = {
-  id: string;
-  /** @nullable */
-  name: string | null;
-};
-
-export interface AuditFindingRegisterItem {
-  readonly id: string;
-  readonly source: AuditFindingRegisterItemSource;
-  readonly auditExecutionId: string;
-  /** @nullable */
-  readonly findingNumber: string | null;
-  /** @nullable */
-  readonly auditId: string | null;
-  readonly auditTitle: string;
-  /** @nullable */
-  readonly projectDepartment: string | null;
-  /** @nullable */
-  readonly clauseReference: string | null;
-  /** @nullable */
-  readonly auditArea: string | null;
-  /** @nullable */
-  readonly description: string | null;
-  /** @nullable */
-  readonly findingType: string | null;
-  /** @nullable */
-  readonly riskLevel: string | null;
-  /** @nullable */
-  readonly auditTeamLeadId: string | null;
-  /** @nullable */
-  readonly auditTeamLeadName: string | null;
-  readonly actionTakers: AuditFindingRegisterItemActionTakersItem[];
 }
 
 export interface AuditFindingRegisterPage {

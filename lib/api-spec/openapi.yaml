@@ -4878,6 +4878,11 @@ components:
       properties:
         id: {type: string}
         executionSummary: {$ref: "#/components/schemas/AuditExecutionSummary"}
+        findingRegister:
+          type: array
+          readOnly: true
+          description: Read-only finding display context for this authorized audit only; supplied on audit detail without granting access to another audit.
+          items: {$ref: "#/components/schemas/AuditFindingRegisterItem"}
         planId: {type: string}
         planNumber: {type: [string, "null"], readOnly: true, description: Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable}
         planAvailable: {type: boolean, readOnly: true, description: Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail}
