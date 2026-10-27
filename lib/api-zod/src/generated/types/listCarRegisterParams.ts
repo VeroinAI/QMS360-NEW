@@ -9,6 +9,11 @@ import type { LimitParameter } from './limitParameter';
 import type { PageParameter } from './pageParameter';
 
 export type ListCarRegisterParams = {
+carNumber?: string;
+projectDepartment?: string;
+findingType?: string;
+riskLevel?: string;
+actionTakerId?: string;
 projectId?: string;
 scheduleId?: string;
 auditTitle?: string;

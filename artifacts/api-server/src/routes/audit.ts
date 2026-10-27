@@ -1,4 +1,6 @@
 import { formatDateInTimeZone, formatPresentationData } from "@workspace/spreadsheet-dates";
+import { auditExecutionSummaries } from "../lib/audit-execution-summary";
+import { auditFindingRegisterRows } from "../lib/audit-finding-register";
 import { roleDepartments, validateRoleDepartments } from "../lib/role-departments";
 import { participantAssignmentMatches, processTeamAssignmentMatches, type ParticipantContext } from "../lib/audit-participant-scope";
 import { standardAuditCategories } from "../lib/audit-category-rule";
@@ -100,7 +102,7 @@ router.use("/dashboard", requirePermission("audit", "dashboard", "select"));
 router.use("/reports", requirePermission("audit", "reports", "select"), auditExportGuard("reports"));
 const auditModules: Array<[string, string]> = [
   ["/programmes", "schedules"], ["/schedules", "schedules"], ["/plans", "plans"], ["/audits", "audits"],
-  ["/findings", "findings"], ["/cars", "cars"], ["/car-register", "cars"],
+  ["/findings", "findings"], ["/finding-register", "findings"], ["/cars", "cars"], ["/car-register", "cars"],
 ];
 for (const [path, module] of auditModules) {
   router.use(path, (req, res, next) => {
@@ -2788,9 +2790,11 @@ router.get("/audits", asyncHandler(async (req, res) => {
     db.select({ count: sql<number>`count(*)` }).from(audits).where(where),
   ]);
   const editScope = await getAuthorizedProjectScope(req, "audit", { module: "audits", action: "full" });
+  const summaries = await auditExecutionSummaries(actor(req).organizationId, rows.map(({ audit }) => audit));
   res.json(paginated(await Promise.all(rows.map(async ({ audit, planStatus }) => ({
     ...auditDto(audit, editScope.unrestricted || (audit.projectId ? editScope.projectIds.includes(audit.projectId) : await isProcessPlanId(req, audit.auditPlanId, editScope))),
     planNumber: planStatus ? planMeta({ status: planStatus }).planNumber ?? null : null,
+    executionSummary: summaries.get(audit.id),
   }))), Number(count), page, limit));
 }));
 router.post("/audits", asyncHandler(async (req, res) => {
@@ -3599,6 +3603,20 @@ const findingValues = (data: AnyRow) => ({
   evidence: { title: data.title, clause: data.clause ?? null, responsibleDepartments: data.responsibleDepartments, evidenceIds: data.evidenceIds ?? [], raisedAt: data.raisedAt?.toISOString?.() ?? data.raisedAt ?? new Date().toISOString() },
 });
 const prioritySla: Record<string, number> = { P1: 2, P2: 2, P3: 2, P4: 2, P5: 3, P6: 3 };
+router.get("/finding-register", asyncHandler(async (req, res) => {
+  const { page, limit, offset } = pagination(req);
+  const target = { module: "findings", action: "select" as const };
+  const [scope, fullScope] = await Promise.all([
+    getAuthorizedProjectScope(req, "audit", target), getAuthorizedFullProjectScope(req, "audit", target),
+  ]);
+  const [auditRows, fullRows] = await Promise.all([
+    db.select().from(audits).where(and(active(audits, actor(req).organizationId), await auditProjectCondition(req, scope)))
+      .orderBy(desc(audits.updatedAt), audits.id),
+    db.select({ id: audits.id }).from(audits).where(and(active(audits, actor(req).organizationId), await auditProjectCondition(req, fullScope))),
+  ]);
+  const rows = await auditFindingRegisterRows(actor(req).organizationId, actor(req).id, auditRows, new Set(fullRows.map(row => row.id)));
+  res.json(paginated(rows.slice(offset, offset + limit), rows.length, page, limit));
+}));
 router.get("/findings", asyncHandler(async (req, res) => {
   const { page, limit, offset } = pagination(req);
   const scope = await getAuthorizedProjectScope(req, "audit");

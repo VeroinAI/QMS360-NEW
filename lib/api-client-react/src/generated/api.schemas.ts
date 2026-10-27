@@ -4149,6 +4149,28 @@ export type AuditOpeningMeetingBounds = {
   readonly toDate: string | null;
 };
 
+/**
+ * Scoped list projection derived from the linked Plan, Schedule and active finding/CAR records; no additional module permissions required.
+ */
+export interface AuditExecutionSummary {
+  /**
+     * Linked child Schedule QA/QC Reference
+     * @nullable
+     */
+  readonly auditId: string | null;
+  readonly auditTypes: string[];
+  /** @nullable */
+  readonly projectDepartment: string | null;
+  /** @nullable */
+  readonly auditLeadId: string | null;
+  /** @nullable */
+  readonly auditLeadName: string | null;
+  /** @minimum 0 */
+  readonly findingCount: number;
+  /** @minimum 0 */
+  readonly openFindingCount: number;
+}
+
 export type AuditReportApprovalStatus = typeof AuditReportApprovalStatus[keyof typeof AuditReportApprovalStatus];
 
 
@@ -4194,6 +4216,7 @@ export interface AuditReportDetails {
 
 export interface Audit {
   id: string;
+  executionSummary?: AuditExecutionSummary;
   planId: string;
   /**
      * Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable
@@ -4233,6 +4256,55 @@ export interface Audit {
   startedAt?: string | null;
   /** @nullable */
   closedAt?: string | null;
+}
+
+export type AuditFindingRegisterItemSource = typeof AuditFindingRegisterItemSource[keyof typeof AuditFindingRegisterItemSource];
+
+
+export const AuditFindingRegisterItemSource = {
+  checklist: 'checklist',
+  legacy: 'legacy',
+} as const;
+
+export type AuditFindingRegisterItemActionTakersItem = {
+  id: string;
+  /** @nullable */
+  name: string | null;
+};
+
+export interface AuditFindingRegisterItem {
+  readonly id: string;
+  readonly source: AuditFindingRegisterItemSource;
+  readonly auditExecutionId: string;
+  /** @nullable */
+  readonly findingNumber: string | null;
+  /** @nullable */
+  readonly auditId: string | null;
+  readonly auditTitle: string;
+  /** @nullable */
+  readonly projectDepartment: string | null;
+  /** @nullable */
+  readonly clauseReference: string | null;
+  /** @nullable */
+  readonly auditArea: string | null;
+  /** @nullable */
+  readonly description: string | null;
+  /** @nullable */
+  readonly findingType: string | null;
+  /** @nullable */
+  readonly riskLevel: string | null;
+  /** @nullable */
+  readonly auditTeamLeadId: string | null;
+  /** @nullable */
+  readonly auditTeamLeadName: string | null;
+  readonly actionTakers: AuditFindingRegisterItemActionTakersItem[];
+}
+
+export interface AuditFindingRegisterPage {
+  items: AuditFindingRegisterItem[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export type AuditReportApprovalDecisionInputDecision = typeof AuditReportApprovalDecisionInputDecision[keyof typeof AuditReportApprovalDecisionInputDecision];
@@ -4481,6 +4553,18 @@ export interface CarRegisterEntry {
   description: string;
   classification: string;
   /** @nullable */
+  findingNumber?: string | null;
+  /** @nullable */
+  riskLevel?: string | null;
+  /** @nullable */
+  actionTakerId?: string | null;
+  /** @nullable */
+  assignedAt?: string | null;
+  /** @nullable */
+  actualClosedAt?: string | null;
+  /** @nullable */
+  pendingWith?: string | null;
+  /** @nullable */
   createdAt?: string | null;
   /** @nullable */
   dueDate?: string | null;
@@ -4504,6 +4588,12 @@ export interface CarRegisterPage {
   auditTitles: CarRegisterOption[];
   auditTypes: CarRegisterOption[];
   departments: CarRegisterOption[];
+  carNumbers?: CarRegisterOption[];
+  projectDepartments?: CarRegisterOption[];
+  auditFindings?: CarRegisterOption[];
+  riskLevels?: CarRegisterOption[];
+  actionTakers?: CarRegisterOption[];
+  statuses?: CarRegisterOption[];
 }
 
 export type AcceptRejectReviewDecision = typeof AcceptRejectReviewDecision[keyof typeof AcceptRejectReviewDecision];
@@ -6243,6 +6333,11 @@ limit?: LimitParameter;
 };
 
 export type ListCarRegisterParams = {
+carNumber?: string;
+projectDepartment?: string;
+findingType?: string;
+riskLevel?: string;
+actionTakerId?: string;
 projectId?: string;
 scheduleId?: string;
 auditTitle?: string;
@@ -6305,6 +6400,18 @@ export type GetAuditOpenVsClosedReportParams = {
 projectId?: ProjectIdParameter;
 from?: FromParameter;
 to?: ToParameter;
+};
+
+export type ListAuditFindingRegisterParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: LimitParameter;
 };
 
 export type GetAuditFindingsLogReportParams = {

@@ -33,6 +33,7 @@
 - [Two-phase attachment retries](two-phase-attachment-retries.md) — parent creation and evidence uploads must be independently idempotent to survive lost responses.
 - [Audit schedule programme guards](audit-schedule-programme-guards.md) — parent programmes share schedule storage; child endpoints must reject them and await every project-scope check.
 - [Audit Schedule event history](audit-schedule-event-history.md) — scoped, retained, read-only history; canonical events also drive approval cycles and PDF signatories.
+- [Audit schedule register](audit-schedule-register-policy.md) — show individual audits without removing annual programme management; filter all authorized rows and use inclusive date overlap.
 - [Process audit department scope](process-audit-department-scope.md) — Internal Process audits are department-based and projectless; authorize their full schedule-to-audit chain consistently.
 - [Audit Plan activity rows](audit-plan-activity-rows.md) — activity details are repeatable master-data rows; retain single-value fields only for backward compatibility.
 - [Audit Plan date boundaries](audit-plan-date-boundaries.md) — every Plan date/time must fit the child audit's actual From/To dates, with an explicit allowed-range error.
@@ -73,6 +74,7 @@
 - [Audit CAR numbering policy](audit-car-numbering-policy.md) — issue on first successful response save/submit; independent source/year counters; opening a CAR never issues a number.
 - [CAR Finding Date deadlines](audit-car-due-policy.md) — use Finding Date: Major NC +2 days, Minor NC +3, OFI +4; preserve historical deadlines until dates are entered.
 - [CAR response access](car-response-access-policy.md) — schedule links reuse Edit permissions; only the three response fields may be editable; read-only opening must not create a CAR.
+- [CAR register display semantics](car-register-display-policy.md) — initial CAR assignment dates are distinct from Finding Date; pending people reflect only the current stage.
 - [Checklist evidence vs import](checklist-workbook-import-ux.md) — the Evidence picker always attaches its file, including Excel; Upload Excel alone imports rows.
 - [Checklist row deletion](checklist-row-deletion.md) — permit deletion only when Audit Findings and Evidence are both empty; protect legacy results and recheck at deletion time.
 - [Audit meeting attendee identity](opening-meeting-attendee-identity.md) — opening and closing selections use Audit user IDs; preserve old typed names and resolve IDs for display.

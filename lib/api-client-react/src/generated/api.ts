@@ -50,6 +50,7 @@ import type {
   AuditFindingNumberingPattern,
   AuditFindingNumberingSettings,
   AuditFindingPageResponse,
+  AuditFindingRegisterPage,
   AuditGoodPracticesInput,
   AuditLogPageResponse,
   AuditMemoDefaults,
@@ -228,6 +229,7 @@ import type {
   ListAuditAccessQueueParams,
   ListAuditDelegationsParams,
   ListAuditEvidenceParams,
+  ListAuditFindingRegisterParams,
   ListAuditFindingsParams,
   ListAuditMyActionsParams,
   ListAuditNotificationTemplatesParams,
@@ -26162,6 +26164,90 @@ export function useGetAuditOpenVsClosedReport<TData = Awaited<ReturnType<typeof 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetAuditOpenVsClosedReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAuditFindingRegisterUrl = (params?: ListAuditFindingRegisterParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/finding-register?${stringifiedParams}` : `/api/audit/finding-register`
+}
+
+/**
+ * @summary Read the scoped current and historical Audit Finding register without issuing numbers or creating CARs
+ */
+export const listAuditFindingRegister = async (params?: ListAuditFindingRegisterParams, options?: Parameters<typeof customFetch>[1]): Promise<AuditFindingRegisterPage> => {
+
+  return customFetch<AuditFindingRegisterPage>(getListAuditFindingRegisterUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAuditFindingRegisterQueryKey = (params?: ListAuditFindingRegisterParams,) => {
+    return [
+    `/api/audit/finding-register`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAuditFindingRegisterQueryOptions = <TData = Awaited<ReturnType<typeof listAuditFindingRegister>>, TError = ErrorType<unknown>>(params?: ListAuditFindingRegisterParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditFindingRegister>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAuditFindingRegisterQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditFindingRegister>>> = ({ signal }) => listAuditFindingRegister(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAuditFindingRegister>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAuditFindingRegisterQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditFindingRegister>>>
+export type ListAuditFindingRegisterQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read the scoped current and historical Audit Finding register without issuing numbers or creating CARs
+ */
+
+export function useListAuditFindingRegister<TData = Awaited<ReturnType<typeof listAuditFindingRegister>>, TError = ErrorType<unknown>>(
+ params?: ListAuditFindingRegisterParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAuditFindingRegister>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAuditFindingRegisterQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

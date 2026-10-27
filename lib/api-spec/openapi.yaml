@@ -2112,6 +2112,11 @@ paths:
       operationId: listCarRegister
       tags: [audit]
       parameters:
+        - {name: carNumber, in: query, schema: {type: string}}
+        - {name: projectDepartment, in: query, schema: {type: string}}
+        - {name: findingType, in: query, schema: {type: string}}
+        - {name: riskLevel, in: query, schema: {type: string}}
+        - {name: actionTakerId, in: query, schema: {type: string}}
         - {name: projectId, in: query, schema: {type: string}}
         - {name: scheduleId, in: query, schema: {type: string}}
         - {name: auditTitle, in: query, schema: {type: string}}
@@ -2204,6 +2209,18 @@ paths:
     put: {operationId: confirmAuditEvidence, tags: [audit], summary: Confirm evidence upload, parameters: [{$ref: "#/components/parameters/Id"}], responses: {"200": {description: Confirmed}}}
   /audit/reports/open-vs-closed:
     get: {operationId: getAuditOpenVsClosedReport, tags: [audit], summary: Get open versus closed report, parameters: [{$ref: "#/components/parameters/ProjectId"}, {$ref: "#/components/parameters/From"}, {$ref: "#/components/parameters/To"}], responses: {"200": {description: Report, content: {application/json: {schema: {$ref: "#/components/schemas/Dashboard"}}}}}}
+  /audit/finding-register:
+    get:
+      operationId: listAuditFindingRegister
+      tags: [audit]
+      summary: Read the scoped current and historical Audit Finding register without issuing numbers or creating CARs
+      parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}]
+      responses:
+        "200":
+          description: Authorized finding rows
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuditFindingRegisterPage"}
   /audit/reports/findings-log:
     get: {operationId: getAuditFindingsLogReport, tags: [audit], summary: Get findings log report, parameters: [{$ref: "#/components/parameters/Page"}, {$ref: "#/components/parameters/Limit"}], responses: {"200": {$ref: "#/components/responses/AuditFindingPage"}}}
   /audit/reports/ageing:
@@ -4860,6 +4877,7 @@ components:
       required: [id, planId, projectId, title, status]
       properties:
         id: {type: string}
+        executionSummary: {$ref: "#/components/schemas/AuditExecutionSummary"}
         planId: {type: string}
         planNumber: {type: [string, "null"], readOnly: true, description: Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable}
         planAvailable: {type: boolean, readOnly: true, description: Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail}
@@ -4885,6 +4903,52 @@ components:
         reportDetails: {$ref: "#/components/schemas/AuditReportDetails"}
         startedAt: {type: [string, "null"], format: date-time}
         closedAt: {type: [string, "null"], format: date-time}
+    AuditFindingRegisterPage:
+      type: object
+      required: [items, total, page, limit]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/AuditFindingRegisterItem"}}
+        total: {type: number}
+        page: {type: number}
+        limit: {type: number}
+    AuditFindingRegisterItem:
+      type: object
+      readOnly: true
+      required: [id, source, auditExecutionId, findingNumber, auditId, auditTitle, projectDepartment, clauseReference, auditArea, description, findingType, riskLevel, auditTeamLeadId, auditTeamLeadName, actionTakers]
+      properties:
+        id: {type: string}
+        source: {type: string, enum: [checklist, legacy]}
+        auditExecutionId: {type: string}
+        findingNumber: {type: [string, "null"]}
+        auditId: {type: [string, "null"]}
+        auditTitle: {type: string}
+        projectDepartment: {type: [string, "null"]}
+        clauseReference: {type: [string, "null"]}
+        auditArea: {type: [string, "null"]}
+        description: {type: [string, "null"]}
+        findingType: {type: [string, "null"]}
+        riskLevel: {type: [string, "null"]}
+        auditTeamLeadId: {type: [string, "null"]}
+        auditTeamLeadName: {type: [string, "null"]}
+        actionTakers:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties: {id: {type: string}, name: {type: [string, "null"]}}
+    AuditExecutionSummary:
+      type: object
+      readOnly: true
+      description: Scoped list projection derived from the linked Plan, Schedule and active finding/CAR records; no additional module permissions required.
+      required: [auditId, auditTypes, projectDepartment, auditLeadId, auditLeadName, findingCount, openFindingCount]
+      properties:
+        auditId: {type: [string, "null"], description: Linked child Schedule QA/QC Reference, with saved Plan QA/QC Reference as a legacy fallback}
+        auditTypes: {type: array, items: {type: string}}
+        projectDepartment: {type: [string, "null"]}
+        auditLeadId: {type: [string, "null"]}
+        auditLeadName: {type: [string, "null"]}
+        findingCount: {type: number, minimum: 0, multipleOf: 1}
+        openFindingCount: {type: number, minimum: 0, multipleOf: 1}
     AuditReportApprovalDecisionInput:
       type: object
       required: [decision]
@@ -5045,6 +5109,12 @@ components:
         auditArea: {type: string}
         description: {type: string}
         classification: {type: string}
+        findingNumber: {type: [string, "null"]}
+        riskLevel: {type: [string, "null"]}
+        actionTakerId: {type: [string, "null"]}
+        assignedAt: {type: [string, "null"], format: date-time}
+        actualClosedAt: {type: [string, "null"], format: date-time}
+        pendingWith: {type: [string, "null"]}
         createdAt: {type: [string, "null"], format: date-time}
         dueDate: {type: [string, "null"], format: date}
         canNumber: {type: boolean}
@@ -5068,6 +5138,12 @@ components:
         auditTitles: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
         auditTypes: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
         departments: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        carNumbers: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        projectDepartments: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        auditFindings: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        riskLevels: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        actionTakers: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
+        statuses: {type: array, items: {$ref: "#/components/schemas/CarRegisterOption"}}
     AcceptRejectReview:
       type: object
       required: [decision]

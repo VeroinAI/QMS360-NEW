@@ -22,3 +22,9 @@ Dependent numbering lookups must follow the same Department master alias priorit
 **Why:** Existing tenant masters may use singular or differently cased group codes. A separate exact-code lookup rejected valid Civil selections; merging groups could instead select a different master UUID and split the department's counter.
 
 **How to apply:** Use one consistent group resolution for schedule selections, number preview/allocation and go-live department lists. Retain master-value UUIDs as counter scope identities.
+
+In the Audit Plan and Audit Execution landing registers, **Audit ID** means the linked child's QA/QC Reference; **Audit Plan Reference Number** means the plan's independently issued number. Neither column should substitute the Schedule's separate Audit Number / Site Visit No. or an internal UUID.
+
+**Why:** The user requested both identifiers as distinct columns on both registers. Their numbering sequences have different business meanings and must not be combined for display.
+
+**How to apply:** Use the linked Schedule QA/QC Reference for Audit ID, retaining the saved Plan QA/QC Reference only as a legacy fallback when the linked source is absent or blank. Display an unavailable lookup explicitly rather than guessing a reference.

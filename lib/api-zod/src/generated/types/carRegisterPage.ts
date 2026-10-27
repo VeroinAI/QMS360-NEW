@@ -18,4 +18,10 @@ export interface CarRegisterPage {
   auditTitles: CarRegisterOption[];
   auditTypes: CarRegisterOption[];
   departments: CarRegisterOption[];
+  carNumbers?: CarRegisterOption[];
+  projectDepartments?: CarRegisterOption[];
+  auditFindings?: CarRegisterOption[];
+  riskLevels?: CarRegisterOption[];
+  actionTakers?: CarRegisterOption[];
+  statuses?: CarRegisterOption[];
 }

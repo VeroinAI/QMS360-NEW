@@ -8,3 +8,9 @@ Sending an Audit Plan for execution must create or reuse one active Audit Execut
 **Why:** Users need a reliable handoff from planning to execution, and retries or repeated clicks must not produce duplicate Audit Execution records.
 
 **How to apply:** Use the same required multi-role confirmation dialog from every Send for Audit entry point. Resolve selected roles to active users on the server, notify those users, and store the canonical role IDs/names with the handoff. Keep the handoff transactionally idempotent, preserve the existing execution when the action is retried, and navigate by the returned execution identifier. Treat legacy `ready` plans as pre-send plans alongside current `draft` plans; on retry, transition them to Shared and refresh the linked execution so it appears in the current list.
+
+The Plan register's **Plan Status** and **Approval Status** are independent: Plan Status is the plan's own execution-handoff state, while Approval Status is the linked child Audit Schedule's workflow state. Plans do not acquire a separate approval workflow merely because the register adds an approval column or filter.
+
+**Why:** The user requested both columns and filters as a landing-page change, not a new approval process.
+
+**How to apply:** Identify Approval Status as the Audit Schedule approval state in the UI. Never infer approval from Shared, Active or Completed plan status, and never default unavailable linked approval data to Approved.

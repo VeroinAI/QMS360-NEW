@@ -9012,6 +9012,12 @@ export const SendAuditPlanForExecutionBody = zod.object({
   "roleIds": zod.array(zod.string())
 })
 
+export const sendAuditPlanForExecutionResponseExecutionSummaryFindingCountMin = 0;
+export const sendAuditPlanForExecutionResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const sendAuditPlanForExecutionResponseExecutionSummaryOpenFindingCountMin = 0;
+export const sendAuditPlanForExecutionResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const sendAuditPlanForExecutionResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -9062,6 +9068,15 @@ export const sendAuditPlanForExecutionResponseReportDetailsRowsMaxOne = 200;
 
 export const SendAuditPlanForExecutionResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(sendAuditPlanForExecutionResponseExecutionSummaryFindingCountMin).multipleOf(sendAuditPlanForExecutionResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(sendAuditPlanForExecutionResponseExecutionSummaryOpenFindingCountMin).multipleOf(sendAuditPlanForExecutionResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -9189,6 +9204,12 @@ export const listAuditsResponseOneTotalMin = 0;
 
 
 
+export const listAuditsResponseTwoItemsItemExecutionSummaryFindingCountMin = 0;
+export const listAuditsResponseTwoItemsItemExecutionSummaryFindingCountMultipleOf = 1;
+
+export const listAuditsResponseTwoItemsItemExecutionSummaryOpenFindingCountMin = 0;
+export const listAuditsResponseTwoItemsItemExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const listAuditsResponseTwoItemsItemAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -9244,6 +9265,15 @@ export const ListAuditsResponse = zod.object({
 }).and(zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(listAuditsResponseTwoItemsItemExecutionSummaryFindingCountMin).multipleOf(listAuditsResponseTwoItemsItemExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(listAuditsResponseTwoItemsItemExecutionSummaryOpenFindingCountMin).multipleOf(listAuditsResponseTwoItemsItemExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -9499,6 +9529,12 @@ export const GetAuditParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getAuditResponseExecutionSummaryFindingCountMin = 0;
+export const getAuditResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const getAuditResponseExecutionSummaryOpenFindingCountMin = 0;
+export const getAuditResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const getAuditResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const getAuditResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -9549,6 +9585,15 @@ export const getAuditResponseReportDetailsRowsMaxOne = 200;
 
 export const GetAuditResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(getAuditResponseExecutionSummaryFindingCountMin).multipleOf(getAuditResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(getAuditResponseExecutionSummaryOpenFindingCountMin).multipleOf(getAuditResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -9833,6 +9878,12 @@ export const CompleteAuditParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const completeAuditResponseExecutionSummaryFindingCountMin = 0;
+export const completeAuditResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const completeAuditResponseExecutionSummaryOpenFindingCountMin = 0;
+export const completeAuditResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const completeAuditResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const completeAuditResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -9883,6 +9934,15 @@ export const completeAuditResponseReportDetailsRowsMaxOne = 200;
 
 export const CompleteAuditResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(completeAuditResponseExecutionSummaryFindingCountMin).multipleOf(completeAuditResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(completeAuditResponseExecutionSummaryOpenFindingCountMin).multipleOf(completeAuditResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -10007,6 +10067,12 @@ export const ReviewAuditReportBody = zod.object({
   "remarks": zod.string().max(reviewAuditReportBodyRemarksMax).optional()
 })
 
+export const reviewAuditReportResponseExecutionSummaryFindingCountMin = 0;
+export const reviewAuditReportResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const reviewAuditReportResponseExecutionSummaryOpenFindingCountMin = 0;
+export const reviewAuditReportResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const reviewAuditReportResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -10057,6 +10123,15 @@ export const reviewAuditReportResponseReportDetailsRowsMaxOne = 200;
 
 export const ReviewAuditReportResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(reviewAuditReportResponseExecutionSummaryFindingCountMin).multipleOf(reviewAuditReportResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(reviewAuditReportResponseExecutionSummaryOpenFindingCountMin).multipleOf(reviewAuditReportResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -10185,6 +10260,12 @@ export const SaveAuditReportDetailsBody = zod.object({
   "rows": zod.record(zod.string(), zod.array(zod.record(zod.string(), zod.string().max(saveAuditReportDetailsBodyRowsItemMaxOne))).max(saveAuditReportDetailsBodyRowsMaxOne))
 })
 
+export const saveAuditReportDetailsResponseExecutionSummaryFindingCountMin = 0;
+export const saveAuditReportDetailsResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const saveAuditReportDetailsResponseExecutionSummaryOpenFindingCountMin = 0;
+export const saveAuditReportDetailsResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const saveAuditReportDetailsResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -10235,6 +10316,15 @@ export const saveAuditReportDetailsResponseReportDetailsRowsMaxOne = 200;
 
 export const SaveAuditReportDetailsResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(saveAuditReportDetailsResponseExecutionSummaryFindingCountMin).multipleOf(saveAuditReportDetailsResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(saveAuditReportDetailsResponseExecutionSummaryOpenFindingCountMin).multipleOf(saveAuditReportDetailsResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -10446,6 +10536,12 @@ export const CreateAuditChecklistItemBody = zod.object({
   "evidenceIds": zod.array(zod.string()).optional()
 })
 
+export const createAuditChecklistItemResponseExecutionSummaryFindingCountMin = 0;
+export const createAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const createAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin = 0;
+export const createAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const createAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -10496,6 +10592,15 @@ export const createAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
 
 export const CreateAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(createAuditChecklistItemResponseExecutionSummaryFindingCountMin).multipleOf(createAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(createAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(createAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -10626,6 +10731,12 @@ export const EditAuditChecklistItemBody = zod.object({
   "evidenceIds": zod.array(zod.string()).optional()
 })
 
+export const editAuditChecklistItemResponseExecutionSummaryFindingCountMin = 0;
+export const editAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const editAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin = 0;
+export const editAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const editAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -10676,6 +10787,15 @@ export const editAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
 
 export const EditAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(editAuditChecklistItemResponseExecutionSummaryFindingCountMin).multipleOf(editAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(editAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(editAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -10795,6 +10915,12 @@ export const DeleteAuditChecklistItemParams = zod.object({
   "itemId": zod.coerce.string().min(1)
 })
 
+export const deleteAuditChecklistItemResponseExecutionSummaryFindingCountMin = 0;
+export const deleteAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const deleteAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin = 0;
+export const deleteAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const deleteAuditChecklistItemResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -10845,6 +10971,15 @@ export const deleteAuditChecklistItemResponseReportDetailsRowsMaxOne = 200;
 
 export const DeleteAuditChecklistItemResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(deleteAuditChecklistItemResponseExecutionSummaryFindingCountMin).multipleOf(deleteAuditChecklistItemResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(deleteAuditChecklistItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(deleteAuditChecklistItemResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -10976,6 +11111,12 @@ export const ImportAuditChecklistItemsBodyItem = zod.object({
 })
 export const ImportAuditChecklistItemsBody = zod.array(ImportAuditChecklistItemsBodyItem).min(1).max(500)
 
+export const importAuditChecklistItemsResponseExecutionSummaryFindingCountMin = 0;
+export const importAuditChecklistItemsResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const importAuditChecklistItemsResponseExecutionSummaryOpenFindingCountMin = 0;
+export const importAuditChecklistItemsResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const importAuditChecklistItemsResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -11026,6 +11167,15 @@ export const importAuditChecklistItemsResponseReportDetailsRowsMaxOne = 200;
 
 export const ImportAuditChecklistItemsResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(importAuditChecklistItemsResponseExecutionSummaryFindingCountMin).multipleOf(importAuditChecklistItemsResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(importAuditChecklistItemsResponseExecutionSummaryOpenFindingCountMin).multipleOf(importAuditChecklistItemsResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -11160,6 +11310,12 @@ export const CreateAuditFindingItemBody = zod.object({
   "clientReference": zod.string().min(1).max(createAuditFindingItemBodyClientReferenceMax).optional()
 })
 
+export const createAuditFindingItemResponseExecutionSummaryFindingCountMin = 0;
+export const createAuditFindingItemResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const createAuditFindingItemResponseExecutionSummaryOpenFindingCountMin = 0;
+export const createAuditFindingItemResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const createAuditFindingItemResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -11210,6 +11366,15 @@ export const createAuditFindingItemResponseReportDetailsRowsMaxOne = 200;
 
 export const CreateAuditFindingItemResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(createAuditFindingItemResponseExecutionSummaryFindingCountMin).multipleOf(createAuditFindingItemResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(createAuditFindingItemResponseExecutionSummaryOpenFindingCountMin).multipleOf(createAuditFindingItemResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -11329,6 +11494,12 @@ export const GenerateMissingAuditFindingNumberParams = zod.object({
   "itemId": zod.coerce.string().min(1)
 })
 
+export const generateMissingAuditFindingNumberResponseExecutionSummaryFindingCountMin = 0;
+export const generateMissingAuditFindingNumberResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const generateMissingAuditFindingNumberResponseExecutionSummaryOpenFindingCountMin = 0;
+export const generateMissingAuditFindingNumberResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const generateMissingAuditFindingNumberResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -11379,6 +11550,15 @@ export const generateMissingAuditFindingNumberResponseReportDetailsRowsMaxOne = 
 
 export const GenerateMissingAuditFindingNumberResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(generateMissingAuditFindingNumberResponseExecutionSummaryFindingCountMin).multipleOf(generateMissingAuditFindingNumberResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(generateMissingAuditFindingNumberResponseExecutionSummaryOpenFindingCountMin).multipleOf(generateMissingAuditFindingNumberResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -11500,6 +11680,12 @@ export const AssignAuditFindingActionTakerBody = zod.object({
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']).optional().describe('Required if the finding has no existing priority action; saved together with the Action Taker')
 })
 
+export const assignAuditFindingActionTakerResponseExecutionSummaryFindingCountMin = 0;
+export const assignAuditFindingActionTakerResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const assignAuditFindingActionTakerResponseExecutionSummaryOpenFindingCountMin = 0;
+export const assignAuditFindingActionTakerResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const assignAuditFindingActionTakerResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -11550,6 +11736,15 @@ export const assignAuditFindingActionTakerResponseReportDetailsRowsMaxOne = 200;
 
 export const AssignAuditFindingActionTakerResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(assignAuditFindingActionTakerResponseExecutionSummaryFindingCountMin).multipleOf(assignAuditFindingActionTakerResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(assignAuditFindingActionTakerResponseExecutionSummaryOpenFindingCountMin).multipleOf(assignAuditFindingActionTakerResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -11670,6 +11865,12 @@ export const UpdateAuditFindingDateBody = zod.object({
   "findingDate": zod.string().regex(updateAuditFindingDateBodyFindingDateRegExp)
 })
 
+export const updateAuditFindingDateResponseExecutionSummaryFindingCountMin = 0;
+export const updateAuditFindingDateResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const updateAuditFindingDateResponseExecutionSummaryOpenFindingCountMin = 0;
+export const updateAuditFindingDateResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const updateAuditFindingDateResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -11720,6 +11921,15 @@ export const updateAuditFindingDateResponseReportDetailsRowsMaxOne = 200;
 
 export const UpdateAuditFindingDateResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(updateAuditFindingDateResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditFindingDateResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(updateAuditFindingDateResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditFindingDateResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -11843,6 +12053,12 @@ export const ReplaceAuditOrganizationChartBody = zod.object({
   "previousId": zod.string().nullable()
 })
 
+export const replaceAuditOrganizationChartResponseExecutionSummaryFindingCountMin = 0;
+export const replaceAuditOrganizationChartResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const replaceAuditOrganizationChartResponseExecutionSummaryOpenFindingCountMin = 0;
+export const replaceAuditOrganizationChartResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const replaceAuditOrganizationChartResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -11893,6 +12109,15 @@ export const replaceAuditOrganizationChartResponseReportDetailsRowsMaxOne = 200;
 
 export const ReplaceAuditOrganizationChartResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(replaceAuditOrganizationChartResponseExecutionSummaryFindingCountMin).multipleOf(replaceAuditOrganizationChartResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(replaceAuditOrganizationChartResponseExecutionSummaryOpenFindingCountMin).multipleOf(replaceAuditOrganizationChartResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -12033,6 +12258,12 @@ export const UpdateAuditGoodPracticesBody = zod.object({
 })).max(updateAuditGoodPracticesBodyRowsMax)
 })
 
+export const updateAuditGoodPracticesResponseExecutionSummaryFindingCountMin = 0;
+export const updateAuditGoodPracticesResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const updateAuditGoodPracticesResponseExecutionSummaryOpenFindingCountMin = 0;
+export const updateAuditGoodPracticesResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const updateAuditGoodPracticesResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -12083,6 +12314,15 @@ export const updateAuditGoodPracticesResponseReportDetailsRowsMaxOne = 200;
 
 export const UpdateAuditGoodPracticesResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(updateAuditGoodPracticesResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditGoodPracticesResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(updateAuditGoodPracticesResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditGoodPracticesResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -12226,6 +12466,12 @@ export const UpdateAuditOverallProjectProgressBody = zod.object({
 })).min(updateAuditOverallProjectProgressBodyRowsMin).max(updateAuditOverallProjectProgressBodyRowsMax)
 })
 
+export const updateAuditOverallProjectProgressResponseExecutionSummaryFindingCountMin = 0;
+export const updateAuditOverallProjectProgressResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const updateAuditOverallProjectProgressResponseExecutionSummaryOpenFindingCountMin = 0;
+export const updateAuditOverallProjectProgressResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const updateAuditOverallProjectProgressResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -12276,6 +12522,15 @@ export const updateAuditOverallProjectProgressResponseReportDetailsRowsMaxOne = 
 
 export const UpdateAuditOverallProjectProgressResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(updateAuditOverallProjectProgressResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditOverallProjectProgressResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(updateAuditOverallProjectProgressResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditOverallProjectProgressResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -12417,6 +12672,12 @@ export const UpdateAuditDocumentStatusBody = zod.object({
   "remarks": zod.string().max(updateAuditDocumentStatusBodyRemarksMax).optional()
 })
 
+export const updateAuditDocumentStatusResponseExecutionSummaryFindingCountMin = 0;
+export const updateAuditDocumentStatusResponseExecutionSummaryFindingCountMultipleOf = 1;
+
+export const updateAuditDocumentStatusResponseExecutionSummaryOpenFindingCountMin = 0;
+export const updateAuditDocumentStatusResponseExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const updateAuditDocumentStatusResponseAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -12467,6 +12728,15 @@ export const updateAuditDocumentStatusResponseReportDetailsRowsMaxOne = 200;
 
 export const UpdateAuditDocumentStatusResponse = zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(updateAuditDocumentStatusResponseExecutionSummaryFindingCountMin).multipleOf(updateAuditDocumentStatusResponseExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(updateAuditDocumentStatusResponseExecutionSummaryOpenFindingCountMin).multipleOf(updateAuditDocumentStatusResponseExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),
@@ -12837,6 +13107,11 @@ export const listCarRegisterQueryLimitMax = 200;
 
 
 export const ListCarRegisterQueryParams = zod.object({
+  "carNumber": zod.coerce.string().optional(),
+  "projectDepartment": zod.coerce.string().optional(),
+  "findingType": zod.coerce.string().optional(),
+  "riskLevel": zod.coerce.string().optional(),
+  "actionTakerId": zod.coerce.string().optional(),
   "projectId": zod.coerce.string().optional(),
   "scheduleId": zod.coerce.string().optional(),
   "auditTitle": zod.coerce.string().optional(),
@@ -12864,6 +13139,12 @@ export const ListCarRegisterResponse = zod.object({
   "auditArea": zod.string(),
   "description": zod.string(),
   "classification": zod.string(),
+  "findingNumber": zod.string().nullish(),
+  "riskLevel": zod.string().nullish(),
+  "actionTakerId": zod.string().nullish(),
+  "assignedAt": zod.coerce.date().nullish(),
+  "actualClosedAt": zod.coerce.date().nullish(),
+  "pendingWith": zod.string().nullish(),
   "createdAt": zod.coerce.date().nullish(),
   "dueDate": zod.coerce.date().nullish(),
   "canNumber": zod.boolean().optional(),
@@ -12933,7 +13214,31 @@ export const ListCarRegisterResponse = zod.object({
   "departments": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string()
-}))
+})),
+  "carNumbers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional(),
+  "projectDepartments": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional(),
+  "auditFindings": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional(),
+  "riskLevels": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional(),
+  "statuses": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string()
+})).optional()
 })
 
 
@@ -13454,6 +13759,48 @@ export const GetAuditOpenVsClosedReportResponse = zod.object({
 
 
 /**
+ * @summary Read the scoped current and historical Audit Finding register without issuing numbers or creating CARs
+ */
+export const listAuditFindingRegisterQueryPageDefault = 1;
+
+export const listAuditFindingRegisterQueryLimitDefault = 20;
+export const listAuditFindingRegisterQueryLimitMax = 200;
+
+
+
+export const ListAuditFindingRegisterQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listAuditFindingRegisterQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(listAuditFindingRegisterQueryLimitMax).default(listAuditFindingRegisterQueryLimitDefault)
+})
+
+export const ListAuditFindingRegisterResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "source": zod.enum(['checklist', 'legacy']),
+  "auditExecutionId": zod.string(),
+  "findingNumber": zod.string().nullable(),
+  "auditId": zod.string().nullable(),
+  "auditTitle": zod.string(),
+  "projectDepartment": zod.string().nullable(),
+  "clauseReference": zod.string().nullable(),
+  "auditArea": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "findingType": zod.string().nullable(),
+  "riskLevel": zod.string().nullable(),
+  "auditTeamLeadId": zod.string().nullable(),
+  "auditTeamLeadName": zod.string().nullable(),
+  "actionTakers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().nullable()
+}))
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number()
+})
+
+
+/**
  * @summary Get findings log report
  */
 export const getAuditFindingsLogReportQueryPageDefault = 1;
@@ -13598,6 +13945,12 @@ export const GetGeneratedAuditReportParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getGeneratedAuditReportResponseAuditExecutionSummaryFindingCountMin = 0;
+export const getGeneratedAuditReportResponseAuditExecutionSummaryFindingCountMultipleOf = 1;
+
+export const getGeneratedAuditReportResponseAuditExecutionSummaryOpenFindingCountMin = 0;
+export const getGeneratedAuditReportResponseAuditExecutionSummaryOpenFindingCountMultipleOf = 1;
+
 export const getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemIdMax = 100;
 
 export const getGeneratedAuditReportResponseAuditAdditionalDocumentsDesignStatusItemLabelMax = 120;
@@ -13649,6 +14002,15 @@ export const getGeneratedAuditReportResponseAuditReportDetailsRowsMaxOne = 200;
 export const GetGeneratedAuditReportResponse = zod.object({
   "audit": zod.object({
   "id": zod.string(),
+  "executionSummary": zod.object({
+  "auditId": zod.string().nullable().describe('Linked child Schedule QA\/QC Reference'),
+  "auditTypes": zod.array(zod.string()),
+  "projectDepartment": zod.string().nullable(),
+  "auditLeadId": zod.string().nullable(),
+  "auditLeadName": zod.string().nullable(),
+  "findingCount": zod.number().min(getGeneratedAuditReportResponseAuditExecutionSummaryFindingCountMin).multipleOf(getGeneratedAuditReportResponseAuditExecutionSummaryFindingCountMultipleOf),
+  "openFindingCount": zod.number().min(getGeneratedAuditReportResponseAuditExecutionSummaryOpenFindingCountMin).multipleOf(getGeneratedAuditReportResponseAuditExecutionSummaryOpenFindingCountMultipleOf)
+}).optional().describe('Scoped list projection derived from the linked Plan, Schedule and active finding\/CAR records; no additional module permissions required.'),
   "planId": zod.string(),
   "planNumber": zod.string().nullish().describe('Saved number of the linked Audit Plan; null when not assigned or the plan is unavailable'),
   "planAvailable": zod.boolean().optional().describe('Whether the linked non-deleted Audit Plan is available in this organization; supplied on audit detail'),

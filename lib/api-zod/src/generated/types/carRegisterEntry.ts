@@ -26,6 +26,18 @@ export interface CarRegisterEntry {
   description: string;
   classification: string;
   /** @nullable */
+  findingNumber?: string | null;
+  /** @nullable */
+  riskLevel?: string | null;
+  /** @nullable */
+  actionTakerId?: string | null;
+  /** @nullable */
+  assignedAt?: Date | null;
+  /** @nullable */
+  actualClosedAt?: Date | null;
+  /** @nullable */
+  pendingWith?: string | null;
+  /** @nullable */
   createdAt?: Date | null;
   /** @nullable */
   dueDate?: Date | null;

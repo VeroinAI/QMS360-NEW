@@ -32,3 +32,29 @@ The CAR Register's user-visible Log contains only successful Save Response and S
 **Why:** The user explicitly narrowed the register log to these two button actions; internal review and creation history still serves other Audit workflows.
 
 **How to apply:** Filter before history counts and pagination, save-and-submit in one operation, and do not fabricate or rewrite historical button intent.
+
+Audit Execution register counts combine current applicable checklist findings
+with historical standalone findings, counting a checklist finding and its backing
+standalone mirror only once. Removed checklist mirrors remain history, not extra
+current findings. Blank and Not applicable rows do not contribute.
+
+**Why:** The user requested total and open finding counts on the execution register;
+the two storage families must not inflate those figures or lose standalone history.
+
+**How to apply:** A saved or submitted CAR response is still open. Closed/Verified
+findings or terminal CAR responses stop contributing to the open count; any
+unfinished associated response keeps the finding open. Keep this display-only:
+do not rewrite historical rows or close workflows while calculating counts.
+
+In the Audit Finding register, Risk Level is an independently saved value, not a
+conversion from Major/Minor NC or OFI. Unrecorded risk stays blank/dash; do not
+apply the older standalone DTO's default Low as if it were entered transaction data.
+Likewise, Responsible Department is not an Audit Area and cannot fill that column.
+
+**Why:** The requested register separates Finding Type, Risk Level and Audit Area.
+Filling one from a different business field would hide missing transaction data.
+
+**How to apply:** Resolve the existing Audit Area master label, retain actual
+standalone risk values and current checklist/mirror risk if saved, and leave genuine
+gaps visible. Changing the landing layout does not authorize adding defaults or
+rewriting historical findings.

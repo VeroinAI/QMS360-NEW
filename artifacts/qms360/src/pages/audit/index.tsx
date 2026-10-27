@@ -15,8 +15,13 @@ import { PlanDateTimeField } from "./plan-date-time-field";
 import { PlanSelection } from "./plan-selection";
 import { AuditPlanAuditMethodsItem, AuditPlanAuditCriteriaItem } from "@workspace/api-client-react";
 import { MeetingHeldAt } from "./meeting-held-at";
-import { useEffect, useRef, useState } from "react";
-import { Link, Route, Switch, useLocation, useParams } from "wouter";
+import { availablePlanSchedules, buildPlanRow, EMPTY_PLAN_FILTERS, filterPlanRows, type PlanFilters } from "./plan-register";
+import { buildExecutionRow, EMPTY_EXECUTION_FILTERS, filterExecutionRows, hasMissingSummaries, type ExecutionFilters } from "./execution-register";
+import { ExecutionRegisterFilters, ExecutionRegisterTable, useExecutionRegister } from "./execution-register-view";
+import { FindingRegister } from "./finding-register-view";
+import { PlanRegisterFilters, PlanRegisterTable, usePlanRegister } from "./plan-register-view";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, Route, Switch, useLocation, useParams, useSearch } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useGetAuditPlanNumberPreview,
@@ -97,6 +102,8 @@ import type {
 } from "@workspace/api-client-react";
 import { eligiblePlanAudits, loadPlanOptionPages } from "./plan-schedule-options";
 import { refreshAuditScheduleQueries } from "./schedule-query-refresh";
+import { ScheduleRegisterFilters, ScheduleRegisterTable, useScheduleRegister } from "./schedule-register-view";
+import { EMPTY_FILTERS, filterSchedules, paginate, type RegisterFilters } from "./schedule-register";
 import { submissionMemoContent, submissionMemoDefaults, type ProgrammeSubmission } from "./submission-memo-defaults";
 import { auditTeamWithoutLead } from "./audit-plan-team";
 import { useParticipantConnectivity } from "./use-participant-connectivity";
@@ -589,7 +596,7 @@ function Pager({ page, total, onPage }: { page: number; total: number; onPage: (
 
 function AuditNav() {
   const capabilities = useAuditCapabilities();
-  const links = [["Dashboard", "/audit"], ["For my Action", "/audit/my-actions"], ["Schedules", "/audit/schedules"], ["Plans", "/audit/plans"], ["Audits", "/audit/audits"], ["CAR register", "/audit/cars"], ["Reports", "/audit/reports"]];
+  const links = [["Dashboard", "/audit"], ["For my Action", "/audit/my-actions"], ["Schedules", "/audit/schedules"], ["Plans", "/audit/plans"], ["Audits", "/audit/audits"], ["Findings", "/audit/findings"], ["CAR register", "/audit/cars"], ["Reports", "/audit/reports"]];
   return <nav className="flex gap-1 overflow-x-auto border-b pb-3">{links.filter(([, href]) => capabilities.canOpen(href)).map(([label, href]) => <Button key={href} variant="ghost" size="sm" asChild><Link href={href}>{label}</Link></Button>)}</nav>;
 }
 
@@ -1188,7 +1195,7 @@ function Programmes() {
     toast({ title: message });
   };
   return <div className="space-y-5">
-    <PageHeader title="Audit schedules" description="Create and manage annual audit programmes" action={<Button disabled={!permissions.canCreateProgramme} onClick={() => setOpen(true)}><Plus className="mr-2 size-4"/>New Schedule</Button>} />
+    <PageHeader title="Annual programmes" description="Create, submit, review and manage annual audit programmes" action={<Button disabled={!permissions.canCreateProgramme} onClick={() => setOpen(true)}><Plus className="mr-2 size-4"/>New Schedule</Button>} />
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>New Schedule</DialogTitle></DialogHeader><ProgrammeForm onClose={() => setOpen(false)} /></DialogContent></Dialog>
     {submitting && <ProgrammeSubmitDialog key={submitting.id} item={submitting} onClose={() => setSubmitting(undefined)} onSubmitted={updated => done("Audit schedule submitted", updated)}/>}
     {sendingBack && <ProgrammeSendBackDialog key={sendingBack.id} item={sendingBack} onClose={() => setSendingBack(undefined)} onSentBack={updated => done("Audit schedule sent back", updated)}/>}
@@ -1208,6 +1215,37 @@ function Programmes() {
   </div>;
 }
 
+function AuditSchedulesLanding() {
+  const [location, setLocation] = useLocation();
+  const search = useSearch();
+  const view = new URLSearchParams(search).get("view") === "programmes" ? "programmes" : "register";
+  return <Tabs value={view} onValueChange={next => setLocation(next === "programmes" ? `${location}?view=programmes` : location)} className="space-y-5">
+    <TabsList><TabsTrigger value="register" data-testid="tab-audit-register">Audit register</TabsTrigger><TabsTrigger value="programmes" data-testid="tab-annual-programmes">Annual programmes</TabsTrigger></TabsList>
+    <TabsContent value="register"><AuditRegister onManageProgrammes={() => setLocation(`${location}?view=programmes`)}/></TabsContent>
+    <TabsContent value="programmes"><Programmes/></TabsContent>
+  </Tabs>;
+}
+
+function AuditRegister({ onManageProgrammes }: { onManageProgrammes: () => void }) {
+  const register = useScheduleRegister();
+  const [page, setPage] = useState(1);
+  const [filters, setFiltersState] = useState<RegisterFilters>(EMPTY_FILTERS);
+  const [displaying, setDisplaying] = useState<AuditSchedule>();
+  const all = register.schedules.data;
+  const filtered = useMemo(() => filterSchedules(all ?? [], filters, register.lookups), [all, filters, register.lookups]);
+  const paged = paginate(filtered, page, PAGE_SIZE);
+  return <div className="space-y-5">
+    <PageHeader title="Audit schedules" description="Every audit you are authorised to see, across all annual programmes" action={<Button variant="outline" onClick={onManageProgrammes} data-testid="button-manage-programmes">Manage annual programmes</Button>}/>
+    <Dialog open={!!displaying} onOpenChange={isOpen => !isOpen && setDisplaying(undefined)}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">{displaying && <ScheduleDisplay schedule={displaying} onClose={() => setDisplaying(undefined)}/>}</DialogContent></Dialog>
+    {!register.loading && !register.error && <ScheduleRegisterFilters items={all ?? []} filters={filters} onChange={next => { setFiltersState(next); setPage(1); }} lookups={register.lookups} typeLabels={register.typeLabels} categoryLabels={register.categoryLabels} masterErrors={register.masterErrors}/>}
+    {register.error ? <Card className="border-destructive"><CardContent className="flex flex-col items-center gap-3 py-10 text-center text-destructive"><p>{errorText(register.error)}</p><Button variant="outline" onClick={() => void register.schedules.refetch()}>Retry</Button></CardContent></Card> : <State loading={register.loading} error={null} empty={!paged.rows.length} label={all?.length ? "No audits match these filters." : "No audits scheduled yet. Create an annual programme to add audits."}/>}
+    {paged.rows.length > 0 && <Card className="overflow-hidden"><ScheduleRegisterTable rows={paged.rows} lookups={register.lookups} typeLabels={register.typeLabels} categoryLabels={register.categoryLabels}
+      renderTitle={item => <><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)} data-testid={`button-display-${item.id}`}>{item.title}</Button><div className="text-xs"><Link className="text-muted-foreground underline-offset-2 hover:underline" href={`/audit/schedules/${item.parentId ?? "legacy"}?focusSchedule=${item.id}`}>Open in programme</Link></div></>}
+      renderStatus={item => <div className="flex flex-wrap gap-1"><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge><FeasibilityBadge decision={item.feasibilityDecision}/></div>}/>
+      <CardContent><Pager page={paged.page} total={filtered.length} onPage={setPage}/></CardContent></Card>}
+  </div>;
+}
+
 function Schedules() {
   const permissions = useAuditCapabilities();
   const { parentId = "" } = useParams<{ parentId: string }>();
@@ -1219,7 +1257,7 @@ function Schedules() {
   const [showProgrammeDetails, setShowProgrammeDetails] = useState(false);
   const [showLeadManager, setShowLeadManager] = useState(false);
   const [planning, setPlanning] = useState<AuditSchedule | undefined>();
-  const query = useListAuditSchedules({ page, limit: PAGE_SIZE, parentId }); const planSchedules = useListAuditPlans({ page: 1, limit: 100 }, { query: { enabled: permissions.canRead("plans"), queryKey: ["/api/audit/plans", { page: 1, limit: 100 }] } }); const qc = useQueryClient(); const { toast } = useToast();
+  const register = useScheduleRegister(parentId); const [filters, setFiltersState] = useState<RegisterFilters>(EMPTY_FILTERS); const setFilters = (next: RegisterFilters) => { setFiltersState(next); setPage(1); }; const planSchedules = useListAuditPlans({ page: 1, limit: 100 }, { query: { enabled: permissions.canRead("plans"), queryKey: ["/api/audit/plans", { page: 1, limit: 100 }] } }); const qc = useQueryClient(); const { toast } = useToast();
   const focused = useGetAuditSchedule(focusId, { query: { enabled: !!focusId, queryKey: ["/api/audit/schedules", focusId] } });
   const programme = useGetAuditProgramme(parentId, { query: { enabled: parentId !== "legacy" && !!parentId, queryKey: getGetAuditProgrammeQueryKey(parentId) } });
   const allChildren = useListAuditSchedules({ page: 1, limit: 200, parentId });
@@ -1232,9 +1270,11 @@ function Schedules() {
   const remove = useDeleteAuditSchedule(); const review = confirmedWorkflowMutation(useReviewAuditSchedule(), variables => ({ action: variables.data.decision, document: "this child audit schedule" }));
   const reviewProgramme = confirmedWorkflowMutation(useReviewAuditProgramme(), variables => ({ action: variables.data.decision, document: "this audit schedule" }));
   const occupiedScheduleIds = new Set((planSchedules.data?.items ?? []).map(plan => plan.scheduleId));
-  const items = (query.data?.items ?? [])
-    .map(schedule => occupiedScheduleIds.has(schedule.id) ? { ...schedule, hasPlan: true } : schedule)
-    .filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
+  const allItems = (register.schedules.data ?? [])
+    .map(schedule => occupiedScheduleIds.has(schedule.id) ? { ...schedule, hasPlan: true } : schedule);
+  const filtered = filterSchedules(allItems, filters, register.lookups).filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
+  const paged = paginate(filtered, page, PAGE_SIZE);
+  const items = paged.rows;
   const done = (message: string) => { void refreshAuditScheduleQueries(qc, parentId); qc.invalidateQueries({ queryKey: ["/api/audit/my-actions"] }); toast({ title: message }); };
   const parentSubmitted = programme.data?.workflowState === "Submitted";
   const programmeSubmitted = (updated: AuditProgramme) => {
@@ -1379,7 +1419,7 @@ function Schedules() {
     {submitting && <ProgrammeSubmitDialog key={submitting.id} item={submitting} onClose={() => setSubmitting(undefined)} onSubmitted={programmeSubmitted}/>}
     {sendingProgrammeBack && <ProgrammeSendBackDialog key={sendingProgrammeBack.id} item={sendingProgrammeBack} onClose={() => setSendingProgrammeBack(undefined)} onSentBack={updated => { qc.setQueryData(getGetAuditProgrammeQueryKey(parentId), updated); done("Audit schedule sent back"); }}/>}
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-      <Input placeholder="Search schedules…" value={search} onChange={e => setSearch(e.target.value)} className="max-w-sm"/>
+      <Input placeholder="Search audit titles…" data-testid="input-search-schedules" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="max-w-sm"/>
       <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/40 shrink-0">
         <Button variant={viewMode === "list" ? "secondary" : "ghost"} size="sm" className="h-8 px-4 font-medium" onClick={() => setViewMode("list")}><FileText className="mr-2 size-4"/>List</Button>
         <Button variant={viewMode === "gantt" ? "secondary" : "ghost"} size="sm" className="h-8 px-4 font-medium" onClick={() => setViewMode("gantt")}><CalendarDays className="mr-2 size-4"/>Programme</Button>
@@ -1388,8 +1428,9 @@ function Schedules() {
      <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>{editing ? "Edit audit" : "Create audit"}</DialogTitle></DialogHeader><ScheduleForm initial={editing} parentId={parentId === "legacy" ? undefined : parentId} parentRange={range} onClose={() => setOpen(false)}/></DialogContent></Dialog>
     <Dialog open={!!planning} onOpenChange={isOpen => !isOpen && setPlanning(undefined)}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader>{planning && <PlanForm schedules={[planning]} presetSchedule={planning} presetProgramme={programme.data} onClose={() => setPlanning(undefined)}/>}</DialogContent></Dialog>
     <Dialog open={!!displaying} onOpenChange={isOpen => !isOpen && setDisplaying(undefined)}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">{displaying && <ScheduleDisplay schedule={displaying} onClose={() => setDisplaying(undefined)}/>}</DialogContent></Dialog>
-    <State loading={query.isLoading} error={query.error} empty={!items.length}/>
-    {items.length > 0 && viewMode === "list" && <Card><Table><TableHeader><TableRow><TableHead>Audit</TableHead><TableHead>Type</TableHead><TableHead>Dates</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{items.map(item => <TableRow key={item.id}><TableCell><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : item.year}</div></TableCell><TableCell>{item.auditTypes?.join(", ") || "—"}</TableCell><TableCell>{date(item.plannedStartDate)} – {date(item.plannedEndDate)}</TableCell><TableCell><div className="flex flex-wrap gap-1"><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge><FeasibilityBadge decision={item.feasibilityDecision}/></div></TableCell><TableCell><div className="flex justify-end gap-1">
+    {!register.loading && !register.error && <ScheduleRegisterFilters items={allItems} filters={filters} onChange={setFilters} lookups={register.lookups} typeLabels={register.typeLabels} categoryLabels={register.categoryLabels} masterErrors={register.masterErrors}/>}
+    {register.error ? <Card className="border-destructive"><CardContent className="flex flex-col items-center gap-3 py-10 text-center text-destructive"><p>{errorText(register.error)}</p><Button variant="outline" onClick={() => void register.schedules.refetch()}>Retry</Button></CardContent></Card> : <State loading={register.loading} error={null} empty={!items.length} label={allItems.length ? "No audits match these filters." : "No records found."}/>}
+    {items.length > 0 && viewMode === "list" && <Card className="overflow-hidden"><ScheduleRegisterTable rows={items} lookups={register.lookups} typeLabels={register.typeLabels} categoryLabels={register.categoryLabels} renderTitle={item => <><Button variant="link" className="h-auto p-0 text-left font-semibold" onClick={() => setDisplaying(item)}>{item.title}</Button><div className="text-xs text-muted-foreground">{item.currentApprovalRole ? `Pending ${item.currentApprovalRole}` : item.year}</div></>} renderStatus={item => <div className="flex flex-wrap gap-1"><Badge variant={workflowTone(item.workflowState)}>{item.workflowState}</Badge><FeasibilityBadge decision={item.feasibilityDecision}/></div>} renderActions={item => <div className="flex justify-end gap-1">
       <Button size="sm" variant="outline" onClick={() => setDisplaying(item)}>Display</Button>
       <ScheduleActivityButton id={item.id} title={item.title}/>
       {item.workflowState === "Draft" && <Button disabled={!permissions.can("schedules", "create_edit")} size="sm" variant="outline" onClick={() => { setEditing(item); setOpen(true); }}>Edit</Button>}
@@ -1397,8 +1438,8 @@ function Schedules() {
       {item.workflowState === "Approved" && <Button size="sm" title={!item.parentId ? "New Plans require an audit belonging to a New Schedule" : parentSubmitted ? "New plans cannot be created while the audit schedule is submitted" : item.hasPlan ? "An Audit Plan already exists for this Audit Schedule" : item.feasibilityDecision === "cancelled" ? "This audit was cancelled and cannot be planned" : "Create Audit Plan"} disabled={!item.parentId || parentSubmitted || item.hasPlan || item.feasibilityDecision === "cancelled"} onClick={() => setPlanning(item)}><Plus className="mr-2 size-4"/>New Plan</Button>}
       {item.workflowState === "Submitted" && item.canReview && <><Button size="sm" onClick={() => review.mutate({ id: item.id, data: { decision: "approve" } }, { onSuccess: () => done("Schedule approved") })}>Approve</Button><Button size="sm" variant="outline" onClick={() => sendBack(item.id)}>Send back</Button></>}
       <Button size="icon" variant="ghost" aria-label={`Delete ${item.title}`} title={item.workflowState === "Approved" ? "Approved child audits cannot be deleted" : "Delete child audit"} disabled={!permissions.can("schedules", "delete") || item.workflowState === "Approved" || remove.isPending} onClick={() => window.confirm("Delete this child audit?") && remove.mutate({ id: item.id }, { onSuccess: () => done("Child audit deleted"), onError: e => toast({ title: "Unable to delete child audit", description: errorText(e), variant: "destructive" }) })}><Trash2 className="size-4"/></Button>
-    </div></TableCell></TableRow>)}</TableBody></Table><CardContent><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card>}
-    {items.length > 0 && viewMode === "gantt" && <div className="space-y-4"><ScheduleGantt items={items} onDisplay={setDisplaying} onEdit={item => { setEditing(item); setOpen(true); }} onNewPlan={setPlanning} planCreationDisabled={parentSubmitted}/><Card className="bg-transparent border-none shadow-none"><CardContent className="p-0"><Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/></CardContent></Card></div>}
+    </div>}/><CardContent><Pager page={paged.page} total={filtered.length} onPage={setPage}/></CardContent></Card>}
+    {items.length > 0 && viewMode === "gantt" && <div className="space-y-4"><ScheduleGantt items={items} onDisplay={setDisplaying} onEdit={item => { setEditing(item); setOpen(true); }} onNewPlan={setPlanning} planCreationDisabled={parentSubmitted}/><Card className="bg-transparent border-none shadow-none"><CardContent className="p-0"><Pager page={paged.page} total={filtered.length} onPage={setPage}/></CardContent></Card></div>}
   </div>;
 }
 
@@ -1988,26 +2029,39 @@ function Plans() {
     return () => window.removeEventListener("audit-plan-outbox-changed", load);
   }, []);
   const [page, setPage] = useState(1); const [open, setOpen] = useState(false); const [search, setSearch] = useState(""); const [sendPlan, setSendPlan] = useState<AuditPlan>();
+  const [planFilters, setPlanFilters] = useState<PlanFilters>(EMPTY_PLAN_FILTERS);
   const [, navigate] = useLocation();
-  const query = useListAuditPlans({ page, limit: PAGE_SIZE }); const knownPlans = useListAuditPlans({ page: 1, limit: 100 }); const schedules = useListAuditSchedules({ page: 1, limit: 100, context: "plan" }); const openAudit = useSendAuditPlanForExecution(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
-  const items = (query.data?.items ?? []).filter(x => x.auditTitle.toLowerCase().includes(search.toLowerCase()));
-  const occupiedScheduleIds = new Set((knownPlans.data?.items ?? []).map(plan => plan.scheduleId));
-  const availableSchedules = (schedules.data?.items ?? []).filter(schedule =>
-    !schedule.hasPlan && !occupiedScheduleIds.has(schedule.id) && schedule.feasibilityDecision !== "cancelled");
+  const register = usePlanRegister();
+  const openAudit = useSendAuditPlanForExecution(); const remove = useDeleteAuditPlan(); const qc = useQueryClient(); const { toast } = useToast();
+  const allPlans = register.plans.data;
+  const scheduleItems = register.schedules.data;
+  const rows = useMemo(() => (allPlans ?? []).map(plan => buildPlanRow(plan, { byId: register.scheduleMap, failed: !!register.schedules.error, loading: register.schedules.isLoading }, register.lookups)),
+    [allPlans, register.scheduleMap, register.schedules.error, register.schedules.isLoading, register.lookups]);
+  const filtered = useMemo(() => filterPlanRows(rows, planFilters, search), [rows, planFilters, search]);
+  const paged = paginate(filtered, page, PAGE_SIZE);
+  const availableSchedules = useMemo(() => availablePlanSchedules(scheduleItems ?? [], allPlans ?? []), [scheduleItems, allPlans]);
+  const changeFilters = (next: PlanFilters) => { setPlanFilters(next); setPage(1); };
   const refresh = (title: string) => {
     qc.invalidateQueries({ queryKey: ["/api/audit/plans"] });
     qc.invalidateQueries({ queryKey: ["/api/audit/schedules"] });
     qc.invalidateQueries({ queryKey: ["/api/audit/audits"] });
     toast({ title });
   };
-  return <div className="space-y-5"><PageHeader title="Audit plans" description="Define the Stage 2 Audit Planning programme" action={<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button disabled={!permissions.can("plans", "create_edit")}><Plus className="mr-2 size-4"/>New plan</Button></DialogTrigger><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader><PlanForm schedules={availableSchedules} onClose={() => setOpen(false)}/></DialogContent></Dialog>}/><Input className="max-w-sm" placeholder="Search audit title…" value={search} onChange={e => setSearch(e.target.value)}/><State loading={query.isLoading} error={query.error} empty={!items.length}/>
-    <div className="grid gap-4 md:grid-cols-2">{items.map(plan => <Card key={plan.id}><CardHeader><div className="flex justify-between gap-2"><CardTitle className="text-base"><Link className="underline-offset-4 hover:underline" href={`/audit/plans/${plan.id}`}>{plan.auditTitle}</Link></CardTitle><Badge variant={workflowTone(plan.status)}>{plan.status}</Badge></div>
-      {plan.planNumber && <p className="break-all font-mono text-sm" data-testid="audit-plan-number">{plan.planNumber}</p>}
-      <CardDescription>{date(plan.startDateTime)} · {plan.activitySection}</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><p><b>Audit type:</b> {plan.auditTypes.join(", ")}</p><p><b>Team:</b> {plan.teamMemberIds.length} member(s)</p><p className="text-muted-foreground">{plan.description || plan.activityRemarks}</p><div className="flex flex-wrap justify-end gap-2"><AuditPlanDownload id={plan.id}/><Button size="sm" variant="outline" asChild><Link href={`/audit/plans/${plan.id}`}>{plan.status === "Draft" && permissions.can("plans", "create_edit") ? <Pencil className="mr-2 size-4"/> : <Eye className="mr-2 size-4"/>}{plan.status === "Draft" && permissions.can("plans", "create_edit") ? "Edit" : "View"}</Link></Button>{plan.status === "Draft" && <Button disabled={!permissions.can("plans", "submit")} size="sm" onClick={() => setSendPlan(plan)}><Send className="mr-2 size-4"/>Send for Audit</Button>}<Button size="sm" variant="outline" disabled={!permissions.can("plans", "submit") || !permissions.canRead("audits") || plan.status === "Draft" || openAudit.isPending} title={plan.status === "Draft" ? "Send this plan for audit first" : "Open Audit Execution"} onClick={() => openAudit.mutate({ id: plan.id, data: { roleIds: [] } }, { onSuccess: audit => navigate(`/audit/audits/${audit.id}`), onError: error => toast({ title: "Unable to open Audit Execution", description: errorText(error), variant: "destructive" }) })}><ClipboardCheck className="mr-2 size-4"/>Audit</Button><Button disabled={!permissions.can("plans", "delete")} size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></div></CardContent></Card>)}</div>
+  const loadError = register.user.error ?? register.plans.error;
+  const loading = register.user.isLoading || register.plans.isLoading;
+  return <div className="space-y-5"><PageHeader title="Audit plans" description="Define the Stage 2 Audit Planning programme" action={<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button data-testid="button-new-plan" disabled={!permissions.can("plans", "create_edit")}><Plus className="mr-2 size-4"/>New plan</Button></DialogTrigger><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Create Audit Plan</DialogTitle></DialogHeader><PlanForm schedules={availableSchedules} onClose={() => setOpen(false)}/></DialogContent></Dialog>}/>
+    <Input className="max-w-sm" data-testid="input-search-plans" aria-label="Search audit title" placeholder="Search audit title..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}/>
+    <PlanRegisterFilters rows={rows} filters={planFilters} onChange={changeFilters} typeLabels={register.typeLabels} lookupErrors={register.lookupErrors}/>
+    {loadError ? <div role="alert" className="flex items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive"><span>Unable to load audit plans. {errorText(loadError)}</span><Button size="sm" variant="outline" data-testid="button-retry-plans" onClick={() => void register.plans.refetch()}>Retry</Button></div>
+      : loading ? <div className="space-y-2" aria-busy="true">{Array.from({ length: 5 }, (_, i) => <div key={i} className="h-11 animate-pulse rounded bg-muted"/>)}</div>
+      : !filtered.length ? <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground" data-testid="text-plans-empty">{rows.length ? <>No audit plans match the current search and filters. <Button variant="link" size="sm" onClick={() => { changeFilters(EMPTY_PLAN_FILTERS); setSearch(""); }}>Clear filters</Button></> : "No audit plans yet."}</div>
+      : <PlanRegisterTable rows={paged.rows} typeLabels={register.typeLabels}
+          renderTitle={({ plan }) => <Link className="font-medium underline-offset-4 hover:underline" data-testid={`link-plan-${plan.id}`} href={`/audit/plans/${plan.id}`}>{plan.auditTitle}</Link>}
+          renderActions={({ plan }) => <><AuditPlanDownload id={plan.id}/><Button size="sm" variant="outline" asChild><Link href={`/audit/plans/${plan.id}`}>{plan.status === "Draft" && permissions.can("plans", "create_edit") ? <Pencil className="mr-2 size-4"/> : <Eye className="mr-2 size-4"/>}{plan.status === "Draft" && permissions.can("plans", "create_edit") ? "Edit" : "View"}</Link></Button>{plan.status === "Draft" && <Button disabled={!permissions.can("plans", "submit")} size="sm" onClick={() => setSendPlan(plan)}><Send className="mr-2 size-4"/>Send for Audit</Button>}<Button size="sm" variant="outline" disabled={!permissions.can("plans", "submit") || !permissions.canRead("audits") || plan.status === "Draft" || openAudit.isPending} title={plan.status === "Draft" ? "Send this plan for audit first" : "Open Audit Execution"} onClick={() => openAudit.mutate({ id: plan.id, data: { roleIds: [] } }, { onSuccess: audit => navigate(`/audit/audits/${audit.id}`), onError: error => toast({ title: "Unable to open Audit Execution", description: errorText(error), variant: "destructive" }) })}><ClipboardCheck className="mr-2 size-4"/>Audit</Button><Button aria-label="Delete plan" disabled={!permissions.can("plans", "delete")} size="icon" variant="ghost" onClick={() => window.confirm("Soft-delete this plan?") && remove.mutate({ id: plan.id }, { onSuccess: () => refresh("Plan deleted") })}><Trash2 className="size-4"/></Button></>}/>}
     {!!queuedPlans.length && <Card><CardHeader><CardTitle>Plans saved on this device</CardTitle><CardDescription>Correct rejected plans here, then save to retry synchronization. A correction to an already saved plan must be reviewed and applied to its editable draft.</CardDescription></CardHeader><CardContent className="space-y-3">{queuedPlans.map(item => <div key={item.id} className="rounded border p-3"><p className="font-medium">{item.plan.auditTitle}</p><p className="text-sm text-destructive">{item.lastError ?? "Awaiting synchronization"}</p><div className="mt-2 flex flex-wrap gap-2">{item.savedPlanConflict && <Button variant="outline" asChild><Link href={`/audit/plans/${item.id}`}>Compare saved plan</Link></Button>}<Button variant="outline" onClick={() => setCorrecting(item)}>{item.savedPlanConflict ? "Review and apply to saved draft" : "Correct queued plan"}</Button></div></div>)}</CardContent></Card>}
-    <Dialog open={!!correcting} onOpenChange={isOpen => !isOpen && setCorrecting(undefined)}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{correcting?.savedPlanConflict ? "Review correction to saved draft" : "Correct queued Audit Plan"}</DialogTitle>{correcting?.savedPlanConflict && <p className="text-sm text-muted-foreground">Saving applies these corrections to the existing draft. If it is no longer editable, your correction stays on this device with an error.</p>}</DialogHeader>{correcting && <PlanForm key={correcting.id} initial={correcting.plan} queued queuedOperation={correcting.savedPlanConflict ? "update" : correcting.operation ?? "create"} schedules={schedules.data?.items ?? []} onClose={() => setCorrecting(undefined)}/>}</DialogContent></Dialog>
+    <Dialog open={!!correcting} onOpenChange={isOpen => !isOpen && setCorrecting(undefined)}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{correcting?.savedPlanConflict ? "Review correction to saved draft" : "Correct queued Audit Plan"}</DialogTitle>{correcting?.savedPlanConflict && <p className="text-sm text-muted-foreground">Saving applies these corrections to the existing draft. If it is no longer editable, your correction stays on this device with an error.</p>}</DialogHeader>{correcting && <PlanForm key={correcting.id} initial={correcting.plan} queued queuedOperation={correcting.savedPlanConflict ? "update" : correcting.operation ?? "create"} schedules={scheduleItems ?? []} onClose={() => setCorrecting(undefined)}/>}</DialogContent></Dialog>
     <SendForAuditDialog plan={sendPlan} open={!!sendPlan} onOpenChange={isOpen => !isOpen && setSendPlan(undefined)} onSent={() => refresh("Audit sent to Audit Execution")} />
-    {items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}</div>;
+    {filtered.length > 0 && <Pager page={paged.page} total={filtered.length} onPage={setPage}/>}</div>;
 }
 
 function PlanDetail() {
@@ -2026,28 +2080,20 @@ function PlanDetail() {
 }
 
 function Audits() {
-  const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const query = useListAudits({ page, limit: PAGE_SIZE });
-  const items = (query.data?.items ?? []).filter(x => x.title.toLowerCase().includes(search.toLowerCase()));
+  const [page, setPage] = useState(1); const [search, setSearch] = useState(""); const [filters, setFilters] = useState<ExecutionFilters>(EMPTY_EXECUTION_FILTERS);
+  const { audits } = useExecutionRegister();
+  const rows = useMemo(() => (audits.data ?? []).map(buildExecutionRow), [audits.data]);
+  const filtered = useMemo(() => filterExecutionRows(rows, filters, search), [rows, filters, search]);
+  const paged = paginate(filtered, page, PAGE_SIZE);
+  const onFilters = (f: ExecutionFilters) => { setFilters(f); setPage(1); };
   return <div className="space-y-5">
     <PageHeader title="Audit execution" description="Open an audit to run meetings, checklist, findings and evidence"/>
-    <div className="relative max-w-sm"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground"/><Input className="pl-9" placeholder="Search audits…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
-    <State loading={query.isLoading} error={query.error} empty={!items.length}/>
-    <div className="grid gap-4 md:grid-cols-2">{items.map(a => <Card key={a.id}>
-      <CardHeader>
-        <div className="flex justify-between gap-3"><CardTitle className="text-base">{a.title}</CardTitle><Badge variant={workflowTone(a.status)}>{a.status}</Badge></div>
-        <p className="text-sm" data-testid="execution-audit-plan-number">
-          <span className="text-muted-foreground">Audit Plan Number: </span>
-          <span className="break-all font-mono">{a.planNumber || "Not assigned"}</span>
-        </p>
-        <p className="text-sm" data-testid={`execution-audit-report-number-${a.id}`}>
-          <span className="text-muted-foreground">Report Number: </span>
-          <span className="break-all font-mono">{a.reportNumber || "Issued on first report details save"}</span>
-        </p>
-        <CardDescription>Started {date(a.startedAt)}{a.closedAt ? ` · Completed ${date(a.closedAt)}` : ""}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap justify-end gap-2"><MarkCompleteButton audit={a}/><ReportButton audit={a}/><Button asChild><Link href={`/audit/audits/${a.id}`}>Open workspace</Link></Button></CardContent>
-    </Card>)}</div>
-    {items.length > 0 && <Pager page={page} total={query.data?.total ?? 0} onPage={setPage}/>}
+    <div className="relative max-w-sm"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground"/><Input className="pl-9" data-testid="input-search-audits" placeholder="Search audit titles…" value={search} onChange={e=>{ setSearch(e.target.value); setPage(1); }}/></div>
+    <ExecutionRegisterFilters rows={rows} filters={filters} onChange={onFilters} missingSummaries={hasMissingSummaries(rows)} onRefresh={() => void audits.refetch()}/>
+    <State loading={audits.isLoading} error={audits.error} empty={!filtered.length} label={rows.length ? "No audits match the current search and filters." : "No audits found."}/>
+    {audits.error && <div className="flex justify-center"><Button variant="outline" data-testid="button-retry-audits" onClick={() => void audits.refetch()}>Retry</Button></div>}
+    {filtered.length > 0 && <ExecutionRegisterTable rows={paged.rows} renderActions={r => <><MarkCompleteButton audit={r.audit}/><ReportButton audit={r.audit}/><Button asChild size="sm"><Link href={`/audit/audits/${r.audit.id}`} data-testid={`link-open-workspace-${r.audit.id}`}>Open workspace</Link></Button></>}/>}
+    {filtered.length > 0 && <Pager page={paged.page} total={filtered.length} onPage={setPage}/>}
   </div>;
 }
 
@@ -2344,6 +2390,10 @@ function CarEditor({car,onClose}:{car:CorrectiveActionReport;onClose:()=>void}) 
   return <div className="space-y-3"><div><Label>{responseFieldLabels.rootCause}{req("rootCause") ? " *" : ""}</Label><Textarea value={form.rootCause??""} disabled={ro("rootCause")} onChange={e=>setForm(v=>({...v,rootCause:e.target.value}))}/></div><div><Label>{responseFieldLabels.correction}{req("correction") ? " *" : ""}</Label><Textarea value={form.correction??""} disabled={ro("correction")} onChange={e=>setForm(v=>({...v,correction:e.target.value}))}/></div><div><Label>{responseFieldLabels.correctiveAction}{req("correctiveAction") ? " *" : ""}</Label><Textarea value={form.correctiveAction??""} disabled={ro("correctiveAction")} onChange={e=>setForm(v=>({...v,correctiveAction:e.target.value}))}/></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save}>Save response</Button></DialogFooter></div>;
 }
 
+function Findings() {
+  return <FindingRegister/>;
+}
+
 function Cars() {
   return <CarRegister/>;
 }
@@ -2422,12 +2472,13 @@ export function AuditRoutes() {
     <Route path="/audit" component={Dashboard}/>
     <Route path="/audit/my-actions" component={MyActions}/>
     <Route path="/audit/schedules/:parentId" component={Schedules}/>
-    <Route path="/audit/schedules" component={Programmes}/>
+    <Route path="/audit/schedules" component={AuditSchedulesLanding}/>
     <Route path="/audit/plans/:id" component={PlanDetail}/>
     <Route path="/audit/plans" component={Plans}/>
     <Route path="/audit/audits/:id/report" component={AuditReportPage}/>
     <Route path="/audit/audits/:id" component={AuditWorkspace}/>
     <Route path="/audit/audits" component={Audits}/>
+    <Route path="/audit/findings" component={Findings}/>
     <Route path="/audit/cars/:id" component={CarActionDetail}/>
     <Route path="/audit/cars" component={Cars}/>
     <Route path="/audit/reports" component={Reports}/>

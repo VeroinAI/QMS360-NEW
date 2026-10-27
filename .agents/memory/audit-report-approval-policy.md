@@ -35,3 +35,13 @@ the actual Settings API, not only by inserting fixture permissions directly.
 
 **Why:** Directly seeded workflow fixtures can pass while the role editor fails:
 the catalog can render a new grant that the request enum still rejects.
+
+In the Audit Execution register, **Audit Status** is the execution lifecycle and
+**Report Status** is the report approval state. Completion must never be displayed
+as report approval, and adding these filters must not change download eligibility.
+
+**Why:** The requested landing-page layout separates these two status columns;
+existing completion and approval are independent business processes.
+
+**How to apply:** Preserve the distinct statuses even for completed audits with
+pending or sent-back reports. Do not infer Approved from completion.

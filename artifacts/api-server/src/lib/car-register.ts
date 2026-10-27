@@ -8,7 +8,8 @@ import { HttpError } from "./workspace";
 import { activeAuditCapabilities } from "./audit-capabilities";
 import { roleDepartments } from "./role-departments";
 import { auditDepartmentId, processDepartmentAllowed } from "./audit-department-scope";
-import { carReviewers, canReviewCar } from "./car-approval";
+import { carReviewers, canReviewCar, eligibleCarReviewers } from "./car-approval";
+import { carFindingDisplay, carLandingOptions, carPendingWith, carRegisterDates, matchesCarLandingFilters } from "./car-register-presentation";
 
 export const carJson = (value: string | null | undefined): any => {
   try {
@@ -97,9 +98,9 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
     db.select().from(correctiveActionReports).where(active(correctiveActionReports, org)),
     db.select({ id: users.id, name: users.fullName }).from(users).where(eq(users.organizationId, org)),
     db.select().from(projects).where(active(projects, org)),
-    getAuthorizedFullProjectScope(req, "audit"), carLeadMarker(org, userId),
+    getAuthorizedFullProjectScope(req, "audit", { module: "cars", action: "select" }), carLeadMarker(org, userId),
   ]);
-  const scope = await getAuthorizedProjectScope(req, "audit");
+  const scope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "select" });
   const writeScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full" });
   const reviewScope = await getAuthorizedProjectScope(req, "audit", { module: "cars", action: "full", operation: "review" });
   const moduleReview = (await activeAuditCapabilities(req)).keys.includes("audit.cars.approve_reject");
@@ -137,32 +138,42 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
         const canRespond = !inactiveSource && ownerId === userId
           && writableProject(writeScope, audit.projectId, Boolean(process), departmentId);
         const route = carJson(car?.effectivenessNotes).carApproval;
+        const liveReviewers = route ? await carReviewers(db, org, audit.projectId, departmentId) : [];
         const canReview = !inactiveSource && (route
-          ? canReviewCar(route, await carReviewers(db, org, audit.projectId, departmentId), userId)
+          ? canReviewCar(route, liveReviewers, userId)
           : pm.leadAuditorId === userId && (leadMarker
             || (moduleReview && writableProject(reviewScope, audit.projectId, Boolean(process), departmentId))));
         const classification = item.auditFinding || item.result || "";
         const dueDate = carDueDate(classification, item.findingDate, car?.dueDate);
         const response = car ? { ...dto({ ...car, dueDate, classification }), canRespond, canReview } : undefined;
+        const ownerName = people.find(p => p.id === ownerId)?.name || null;
+        const carMeta = carJson(car?.effectivenessNotes);
         entries.push({ id: car?.id || `${audit.id}:${item.id}`, auditId: audit.id, itemId: item.id,
+          ...carFindingDisplay(item, source.finding),
+          actionTakerId: ownerId || null,
+          ...carRegisterDates(car ? { ...car, closedAt: carMeta.closedAt } : undefined),
+          pendingWith: inactiveSource ? null : carPendingWith(car?.workflowState || "open", ownerName,
+            people.find(p => p.id === pm.leadAuditorId)?.name || null, Boolean(route),
+            eligibleCarReviewers(route, liveReviewers).map(reviewer => reviewer.userName)),
           auditTitle: schedule?.title || carJson(audit.status).title || audit.referenceNumber, scheduleId: programme?.id || null,
           auditTypes: Array.isArray(sm.auditTypes) ? sm.auditTypes.filter((type: unknown) => typeof type === "string" && type.trim()) : [],
           department: process && !audit.projectId ? sm.departmentProject || null : null,
           scheduleName: programme?.title || "No linked schedule", projectId: audit.projectId,
-          projectName, clause: item.clause || "", auditArea: item.auditArea || source.finding?.responsibleDepartment || "",
+          projectName, clause: item.clause || "",
           description: item.description || item.question || "", classification,
           createdAt: car?.createdAt ?? null, dueDate,
           canNumber: !!car && !inactiveSource && !carJson(car.effectivenessNotes).carNumber && hasSavedCarResponse(car)
             && (canRespond || !!adminScope && (adminScope.unrestricted
               || !!audit.projectId && adminScope.projectIds.includes(audit.projectId)
               || !audit.projectId && process && processDepartmentAllowed(adminScope, departmentId))),
-          actionTakerName: people.find(p => p.id === ownerId)?.name || "Not assigned",
+          actionTakerName: ownerName || "Not assigned",
           evidenceIds: item.evidenceIds || [], status: response?.status || "Open", canRespond, canReview,
           legacy: source.legacy, ...(response ? { car: response } : {}) });
       }
     }
   }
-  const filtered = entries.filter(entry => (!req.query.projectId || entry.projectId === req.query.projectId)
+  const filtered = entries.filter(entry => matchesCarLandingFilters(entry, req.query)
+    && (!req.query.projectId || entry.projectId === req.query.projectId)
     && (!req.query.scheduleId || entry.scheduleId === req.query.scheduleId)
     && (!req.query.auditTitle || entry.auditTitle === req.query.auditTitle)
     && (!req.query.auditType || entry.auditTypes.includes(req.query.auditType))
@@ -179,5 +190,6 @@ export async function carRegister(req: Request, dto: (row: any) => any) {
     schedules: options(entries, row => row.scheduleId, row => row.scheduleName),
     auditTitles: options(entries, row => row.auditTitle, row => row.auditTitle),
     auditTypes: options(entries.flatMap(entry => entry.auditTypes.map((type: string) => ({ type }))), row => row.type, row => row.type),
-    departments: options(typeEntries, row => row.department, row => row.department) };
+    departments: options(typeEntries, row => row.department, row => row.department),
+    ...carLandingOptions(entries) };
 }
