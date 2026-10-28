@@ -34,3 +34,15 @@ not other project sources. Filter choices and dashboard results must follow thos
 **How to apply:** Resolve classifications before filtering the authorized project
 set; use that same selected set across dashboard panels and drilldowns. Never
 expose projects outside the viewer's existing scope to populate filter options.
+
+Do not interpret empty stored classifications as proof that the user has not
+entered them. Trace the actual form save payload before blaming missing master
+data, and verify save → reopen → dashboard filtering.
+
+**Why:** The user repeatedly reported entered values missing from the dashboard;
+render-only tests passed while the form silently left those fields out of its
+save payload. Checking only database contents or the dashboard reader missed the cause.
+
+**How to apply:** New Additional Data fields must participate in the outgoing
+payload and change detection, not just form rendering and API types. Test
+nonblank saves and explicit clears as well as reopened display.

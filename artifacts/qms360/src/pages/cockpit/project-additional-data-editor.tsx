@@ -27,6 +27,10 @@ const fields: Array<[keyof ProjectAdditionalData, string]> = [
   ['email', 'Email address'], ['phone', 'Phone'],
 ];
 
+export function normaliseProjectAdditionalData(values: Partial<Record<keyof ProjectAdditionalData, string | null>>): ProjectAdditionalData {
+  return Object.fromEntries(fields.map(([key]) => [key, values[key]?.trim() || null])) as Record<keyof ProjectAdditionalData, string | null>;
+}
+
 export function ProjectAdditionalDataEditor({ record, canEdit, onSaved, onPendingChange, onCancel }: {
   record: DronaProjectMasterRecord;
   canEdit: boolean;
@@ -47,16 +51,7 @@ export function ProjectAdditionalDataEditor({ record, canEdit, onSaved, onPendin
     onPendingChange(update.isPending);
     return () => onPendingChange(false);
   }, [update.isPending, onPendingChange]);
-  const normalized: ProjectAdditionalData = {
-    name: values.name.trim() || null,
-    client: values.client.trim() || null, contractor: values.contractor.trim() || null,
-    contractProjectNumber: values.contractProjectNumber.trim() || null, contractSigned: values.contractSigned.trim() || null,
-    contractPeriod: values.contractPeriod.trim() || null, tcc: values.tcc.trim() || null,
-    pac: values.pac.trim() || null, fac: values.fac.trim() || null,
-    email: values.email.trim() || null, phone: values.phone.trim() || null,
-    consultant: values.consultant.trim() || null, projectManager: values.projectManager.trim() || null,
-    contractValue: values.contractValue.trim() || null, ptsNumber: values.ptsNumber.trim() || null,
-  };
+  const normalized = normaliseProjectAdditionalData(values);
   const contactErrors = projectContactErrors(values.email, values.phone);
   const invalidContact = !!(contactErrors.email || contactErrors.phone);
   const changed = targetsChanged || (costCentre.trim() || null) !== (record.costCentre ?? null) ||
