@@ -32,13 +32,17 @@ app.use(
 // (S3/CloudFront frontend, separate backend) needs to set this.
 const allowedOrigins = (process.env.CORS_ORIGINS ?? "").split(",").map((o) => o.trim()).filter(Boolean);
 app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : undefined));
+// EKS ingress forwards the path prefix unstripped (unlike the EC2/nginx deploy,
+// which strips it before proxying here) -- set API_BASE_PATH="/qms360" there.
+const basePath = (process.env.API_BASE_PATH ?? "").replace(/\/$/, "");
+
 // Evidence uploads are raw bytes and must be parsed before the global JSON middleware.
-app.use("/api/files", filesRouter);
-app.use("/api/feedback/attachments", feedbackFilesRouter);
+app.use(`${basePath}/api/files`, filesRouter);
+app.use(`${basePath}/api/feedback/attachments`, feedbackFilesRouter);
 // 2MB accommodates base64-encoded signature uploads (512KB decoded) on the user profile route.
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api", router);
+app.use(`${basePath}/api`, router);
 
 export default app;
