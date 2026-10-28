@@ -63,6 +63,7 @@ import { allocateReportNumber, readReportNumberState, saveReportNumbering } from
 import { lockNumberedCarResponse, readCarNumberState, saveCarNumbering, type CarNumberRange } from "../lib/audit-car-numbering";
 import { carDueDate, findingDateValue, validFindingDate, hasSavedCarResponse } from "../lib/car-dates";
 import { allocateFindingNumber, numberedFindingTypes, readFindingNumberState, saveFindingNumbering, type FindingNumberPattern, type FindingNumberRange } from "../lib/audit-finding-numbering";
+import { numberSubmittedFindings, unnumberedFindingType } from "../lib/audit-submit-finding-numbers";
 import { findingForNumberRepair, preserveFindingNumber } from "../lib/audit-finding-number-repair";
 import { auditProjectNumberSourceValue, auditDepartmentNumberSourceValue } from "../lib/audit-number-source";
 import { auditApprovalAttachmentEnabled, auditApprovalEmailEnabled, auditScheduleSendBackCcIds, queueAuditApprovalEmail } from "../lib/email-rules";
@@ -2873,6 +2874,8 @@ router.get("/audits/:id", asyncHandler(async (req, res) => {
 }));
 router.post("/audits/:id/complete", asyncHandler(async (req, res) => {
   const result = await db.transaction(async tx => {
+    // Number creation and repair use this same counter-before-audit lock order.
+    const { settings } = await lockScheduleNumbering(tx, actor(req).organizationId);
     const [before] = await tx.select().from(audits).where(and(active(audits, actor(req).organizationId),
       eq(audits.id, String(req.params.id)))).for("update");
     if (!before) throw new HttpError(404, "Audit not found");
@@ -2888,7 +2891,31 @@ router.post("/audits/:id/complete", asyncHandler(async (req, res) => {
     await assertFieldControls(req, "audit", "audit-execution", { mode: "update", current: auditDto(before), body: { status: "Complete" } });
     const reportApproval = submitReportApproval(await reportReviewers(tx, actor(req).organizationId, before.projectId, await planDepartmentId(req, before.auditPlanId)),
       actor(req).id, meta.reportApproval);
+    const checklist = Array.isArray(before.checklistState) ? before.checklistState as AnyRow[] : [];
+    const needsNumbers = checklist.some(item => unnumberedFindingType(item) !== null);
+    let numberedChecklist = checklist;
+    if (needsNumbers) {
+      const organizationId = actor(req).organizationId;
+      const [plan] = before.auditPlanId ? await tx.select().from(auditPlans).where(and(
+        active(auditPlans, organizationId), eq(auditPlans.id, before.auditPlanId))) : [];
+      if (!plan?.auditScheduleId) throw new HttpError(422, "A linked Audit Plan and Audit Schedule are required to generate Audit Finding IDs before submission.");
+      const [schedule] = await tx.select().from(auditSchedules).where(and(
+        active(auditSchedules, organizationId), eq(auditSchedules.id, plan.auditScheduleId)));
+      await assertChildSchedule(schedule);
+      const source = scheduleMeta(schedule);
+      numberedChecklist = await numberSubmittedFindings(checklist, async type => {
+        // Each allocation updates the counter JSON. Read our transaction's latest
+        // version so multiple findings of the same type receive distinct sequences.
+        const [currentSettings] = await tx.select().from(organizationSettings)
+          .where(eq(organizationSettings.id, settings.id));
+        if (!currentSettings) throw new HttpError(409, "Finding number settings are unavailable. Retry submission.");
+        return allocateFindingNumber(tx, currentSettings, type,
+          isProcessAuditSchedule(schedule) ? null : plan.projectId,
+          source.departmentProject, source.plannedStartDate);
+      });
+    }
     const [row] = await tx.update(audits).set({
+      ...(needsNumbers ? { checklistState: numberedChecklist as any } : {}),
       workflowState: "closed", updatedAt: new Date(),
       status: JSON.stringify({ ...meta, closedAt: meta.closedAt ?? new Date().toISOString(), completedById: actor(req).id, reportApproval }),
     }).where(eq(audits.id, before.id)).returning();

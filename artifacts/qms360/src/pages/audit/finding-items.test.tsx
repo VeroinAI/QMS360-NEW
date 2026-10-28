@@ -41,14 +41,26 @@ const registry: AuditFindingRegisterItem = {
   description: "Saved description", findingType: "Major NC", riskLevel: "High",
   auditTeamLeadId: "lead", auditTeamLeadName: "Saved Lead", actionTakers: [{ id: "owner", name: "Current owner" }],
 };
-function render(rows: AuditFindingRegisterItem[] = [registry]) {
+function render(rows: AuditFindingRegisterItem[] = [registry], items: ChecklistItem[] = [current], awaitingSubmission = true) {
   const doc = document.implementation.createHTMLDocument();
   doc.body.innerHTML = renderToStaticMarkup(<FindingsGrid auditId="execution" auditTitle="Selected audit"
-    items={[current]} registerRows={rows}/>);
+    items={items} registerRows={rows} awaitingSubmission={awaitingSubmission}/>);
   return doc;
 }
 
 describe("Audit Execution Findings tab", () => {
+  it("explains checklist numbering before submission without promising a new number for submitted history", () => {
+    permission.edit = false;
+    const unnumbered = { ...current, findingNumber: undefined };
+    const pending = render([registry], [unnumbered]);
+    expect(pending.querySelector('[data-testid="text-finding-number-item"]')?.textContent)
+      .toContain("Finding ID will be generated on submission for approval.");
+    const historical = render([registry], [unnumbered], false);
+    expect(historical.querySelector('[data-testid="text-finding-number-item"]')?.textContent).toBe("Not numbered");
+    const manual = render([registry], [{ ...unnumbered, source: "finding" }]);
+    expect(manual.querySelector('[data-testid="text-finding-number-item"]')?.textContent).toBe("Not numbered");
+    permission.edit = true;
+  });
   it("renders the requested columns and seven filters in a single native scroll region", () => {
     permission.edit = true;
     const doc = render();
