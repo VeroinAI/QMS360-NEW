@@ -22,7 +22,8 @@ export function canonicalEmailEventType(value: string) {
 export function eventsForWorkspace(events: EventOption[], workspace: WorkspaceKey) {
   return events.filter(e => {
     const p = parseEvent(e.value);
-    return p?.app === workspaceDef(workspace).app && (workspace === 'docgov' ? p.entity === 'document_governance' : workspace !== 'qaqc' || p.entity !== 'document_governance');
+    const documentEvent = p?.entity === 'document_governance' || p?.entity === 'daily_report';
+    return p?.app === workspaceDef(workspace).app && (workspace === 'docgov' ? documentEvent : workspace !== 'qaqc' || !documentEvent);
   });
 }
 export type SourceDef = {

@@ -64,3 +64,17 @@ Lessons Learned “Reject” is a legacy email-event label for the Send back rev
 **Why:** Administrators configured a Reject template while the review workflow emitted Send back; the unmatched rule caused a remarks-only fallback email instead of the saved template.
 
 **How to apply:** Keep this compatibility specific to Lessons Learned. Preserve rule priority, actor filters and recipients; do not treat Audit rejection and send-back events as equivalent. Approval dates remain approval-only; use Reviewed at for send-back dates.
+
+Final-level approvals must be separately configurable for Audit Reports, CAR responses,
+CAR extensions, Monthly QA/QC reports and Daily Submissions. Monthly and Daily final
+events are independent. Preserve existing Programme/Schedule protected email delivery.
+An explicit final-stage rule supersedes the older approval rule, including when disabled;
+without a final rule, retain the older approval rule rather than losing existing emails.
+Keep domain approval history unchanged when classifying email events.
+
+**Why:** The user requested configurable last-approver events across Audit and QA/QC
+without disrupting other development or existing email behavior.
+
+**How to apply:** Classify from the saved terminal review outcome, never the approver's
+role name or level number. Intermediate approvals, send-back and rejection must not
+emit final events. Keep selected reports, recipient scope and one-rule dispatch semantics.

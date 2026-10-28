@@ -12,10 +12,12 @@ import { emailCcTargetError } from "../lib/email-cc-validation";
 import { listPlaceholderDefinitions, mutatePlaceholderRegistry, validateCustomRuleTemplate } from "../lib/email-placeholder-registry";
 import { CreateEmailPlaceholderBody, UpdateEmailPlaceholderBody, SetEmailPlaceholderActivationBody } from "@workspace/api-zod";
 import { emailRichTextToPlain, validEmailReportSelection } from "@workspace/field-controls";
+import { finalApprovalEmailEvents } from "../lib/approval-email-events";
 
 const router = Router();
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const knownEvents = [
+  ...Object.keys(finalApprovalEmailEvents),
   "qaqc.qaqc_report.create", "qaqc.qaqc_report.update", "qaqc.qaqc_report.delete",
   "qaqc.qaqc_report.submit", "qaqc.qaqc_report.approve", "qaqc.qaqc_report.send_back",
   "audit.audit.complete", "audit.audit.approve_report", "audit.audit.send_back_report",
@@ -232,11 +234,11 @@ async function registeredEmailEvents(organizationId: string) {
   }
   return [...values].sort().map((value) => ({
     value,
-    label: value === "audit.audit_programme.submit"
+    label: finalApprovalEmailEvents[value as keyof typeof finalApprovalEmailEvents] ?? (value === "audit.audit_programme.submit"
       ? "Audit · Audit Schedule · Submit / Resubmit"
       : value === "audit.audit_schedule.reschedule_audit"
         ? "Audit · Individual Audit · Audit Rescheduled"
-      : value.split(".").map((part) => part.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())).join(" · "),
+      : value.split(".").map((part) => part.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())).join(" · ")),
   }));
 }
 router.get("/email-rules/catalog", requireAuth, requireAdmin, asyncHandler(async (req, res) => {

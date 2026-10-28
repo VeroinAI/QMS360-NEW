@@ -8,6 +8,7 @@ import { canonicalEmailEventType } from "@workspace/field-controls";
 import { removeEmailPdfAttachment, type EmailPdfAttachment } from "./email-attachments";
 import { logger } from "./logger";
 import { emailTemplateContext } from "./email-template-context";
+import { legacyFinalApprovalEvent } from "./approval-email-events";
 
 export type AuditEvent = {
   organizationId: string; app: string; entityType: string; action: string;
@@ -59,15 +60,20 @@ async function resolveWorkspaceRoleUserIds(
 
 export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
   const planSend = event.app === "audit" && event.entityType === "audit_plan" && event.action === "send_for_audit";
+  const eventType = `${event.app}.${event.entityType}.${event.action}`;
+  const legacyEventType = legacyFinalApprovalEvent(eventType);
   const rules = await database.select().from(emailEventRules).where(and(
     eq(emailEventRules.organizationId, event.organizationId),
-    ...(planSend ? [] : [eq(emailEventRules.enabled, true)]), isNull(emailEventRules.deletedAt),
+    ...(planSend || legacyEventType ? [] : [eq(emailEventRules.enabled, true)]), isNull(emailEventRules.deletedAt),
   )).orderBy(asc(emailEventRules.priority), asc(emailEventRules.createdAt));
   const rule = rules.find((candidate) =>
-    canonicalEmailEventType(candidate.eventType) === canonicalEmailEventType(`${event.app}.${event.entityType}.${event.action}`) &&
-    (!candidate.createdByUserId || candidate.createdByUserId === event.actorId));
-  // An explicit disabled Plan send rule still suppresses delivery.
-  if (planSend && rule && !rule.enabled) return { rule, recipients: [], sender: null, ccRecipients: [] };
+    canonicalEmailEventType(candidate.eventType) === canonicalEmailEventType(eventType) &&
+    (!candidate.createdByUserId || candidate.createdByUserId === event.actorId))
+    ?? (legacyEventType ? rules.find(candidate => candidate.enabled
+      && candidate.eventType === legacyEventType
+      && (!candidate.createdByUserId || candidate.createdByUserId === event.actorId)) : undefined);
+  // Explicit final-stage rules (including disabled rules) supersede legacy approval rules.
+  if ((planSend || legacyEventType) && rule && !rule.enabled) return { rule, recipients: [], sender: null, ccRecipients: [] };
   const circulation = planSend ? await resolveAuditPlanCirculation(database, event) : [];
   if (!rule) return { rule: null, recipients: circulation, sender: null, ccRecipients: [] };
   const { recipients, sender } = await resolveEmailTarget(database, event, rule);

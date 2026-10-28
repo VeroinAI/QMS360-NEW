@@ -11,6 +11,7 @@ import {
 } from "@workspace/db";
 import { enqueueEmail } from "./email-queue";
 import { dispatchEmailRule } from "./email-rules";
+import { approvalEmailEvent } from "./approval-email-events";
 import type { EmailPdfAttachment } from "./email-attachments";
 
 export type AppKey = "qaqc" | "lessons" | "audit";
@@ -80,11 +81,11 @@ export async function writeAuditLog(database: any, app: AppKey, input: AuditInpu
   if (options.dispatch !== false && input.entityType !== "email_event_rule" && input.entityType !== "email_rule"
     && !(app === "audit" && (input.entityType === "audit_schedule" || input.entityType === "audit_programme")
       && ["submit", "approve", "approved_final", "send_back"].includes(input.action))) {
-    void dispatchEmailRule({
+    void dispatchEmailRule(approvalEmailEvent({
       organizationId: input.organizationId, app, entityType: input.entityType,
       action: input.action, actorId: input.actorId, entityId: input.entityId,
       record: input.after ?? input.before,
-    }, { emailAttachments: options.emailAttachments });
+    }), { emailAttachments: options.emailAttachments });
   }
 }
 
