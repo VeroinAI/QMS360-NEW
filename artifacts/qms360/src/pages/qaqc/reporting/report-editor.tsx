@@ -4,7 +4,7 @@ import { workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Download, FileSpreadsheet, FileText, Save, Send, Trash2, Upload, Eraser } from 'lucide-react';
+import { ArrowLeft, Download, FileSpreadsheet, FileText, Save, Trash2, Upload, Eraser } from 'lucide-react';
 import {
   getGetQaqcSowContextQueryKey, getGetQaqcSowReportQueryKey, downloadQaqcSowTemplate, exportQaqcSowReport,
   useCreateQaqcSowReport, useDeleteQaqcSowReport, useDraftQaqcSowBrief, useGetCurrentUser, useGetQaqcSowContext,
@@ -23,6 +23,7 @@ import { MonthlyApprovalPreview, MonthlyApprovalProgress } from './monthly-appro
 import { useMonthlyApproverSelection } from './monthly-approver-selection';
 import { jumpToMonthlyIssue, monthlyIssuePath } from './monthly-validation-navigation';
 import { DailyValidationIssues } from './daily-validation-navigation';
+import { ReportSubmitAction } from './report-submit-action';
 import { useToast } from '@/hooks/use-toast';
 import { useFieldControls } from '@/lib/field-controls';
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
@@ -317,7 +318,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
             <Card><CardContent className="space-y-2 p-4">
               <div className={metricsEntry ? 'flex flex-wrap gap-2' : 'space-y-3'}>
               {editable && canEdit && canMaintain && <Button className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} disabled={readOnly || checkingAvailability || create.isPending || update.isPending || !pid || submit.isPending} onClick={save}><Save className="mr-2 size-4" />{report ? 'Save draft' : 'Create draft'}</Button>}
-              {editable && (report || reportType === 'csat') && canSubmit && (isCreator || !report) && <Button className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} variant="outline" disabled={!pid || issues.length > 0 || locked || busy || create.isPending || update.isPending || submit.isPending || (metricsEntry && (aiGenerating || ctxQ.isLoading || !!ctxQ.error))} onClick={() => setSubmitOpen(true)}><Send className="mr-2 size-4" />{reportType === 'csat' ? 'Submit' : metricsEntry ? 'Submit for Approval' : 'Submit for approval'}</Button>}
+              {editable && (report || reportType === 'csat') && canSubmit && (isCreator || !report) && <ReportSubmitAction className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} allowFloating={metricsEntry && !submitOpen && !delOpen && !decision} disabled={!pid || issues.length > 0 || locked || busy || create.isPending || update.isPending || submit.isPending || (metricsEntry && (aiGenerating || ctxQ.isLoading || !!ctxQ.error))} onClick={() => setSubmitOpen(true)} label={reportType === 'csat' ? 'Submit' : metricsEntry ? 'Submit for Approval' : 'Submit for approval'} />}
               </div>
               {metricsEntry && issues.length > 0 && <p className="text-xs text-muted-foreground">Drafts can be saved section by section. All required sections must be complete before submission.</p>}
               {editable && report && issues.length > 0 && <p className="text-xs text-destructive">Resolve {issues.length} open validation issue(s) to enable submission.</p>}
