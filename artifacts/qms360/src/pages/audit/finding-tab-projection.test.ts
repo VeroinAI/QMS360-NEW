@@ -11,6 +11,14 @@ const reg = (o: Partial<FindingRegisterItem>): FindingRegisterItem => ({
 const item = (o: Partial<ChecklistItem>) => ({ id: "i1", clause: "7.1", auditFinding: "Major NC", ...o }) as ChecklistItem;
 
 describe("audit findings tab projection", () => {
+  it("shows the newly saved risk before register metadata is refreshed", () => {
+    const rows = projectFindingTab({
+      auditId: "a1", auditTitle: "Audit",
+      items: [item({ riskLevel: "High" })],
+      registerRows: [reg({ id: "checklist:a1:i1", riskLevel: "Low" })],
+    });
+    expect(rows[0]?.reg.riskLevel).toBe("High");
+  });
   it("keeps the requested 11 columns first and exposes exactly 7 filters", () => {
     expect(FINDING_TAB_COLUMNS.slice(0, 11)).toEqual(["Finding ID", "Audit ID", "Audit Title", "Project/Department", "Clause Reference", "Audit Area", "Description", "Finding Type", "Risk Level", "Audit Team Lead", "Action Taker"]);
     expect(FINDING_TAB_COLUMNS.slice(11)).toEqual(["Finding Date", "Evidence", "Recommended priority actions"]);

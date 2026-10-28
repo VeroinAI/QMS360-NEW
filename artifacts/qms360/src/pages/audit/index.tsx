@@ -2149,7 +2149,7 @@ function MeetingEditor({ auditId, kind, value, openingAttendees }: { auditId: st
 function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistItem[] }) {
   const permissions = useAuditCapabilities();
   const readOnly = !permissions.can("audits", "create_edit");
-  const empty = () => ({ clause: "", auditArea: "", question: "", description: "", auditFinding: "", evidenceIds: [] as string[], files: [] as PendingChecklistEvidence[] });
+  const empty = () => ({ clause: "", auditArea: "", question: "", description: "", auditFinding: "", riskLevel: "", evidenceIds: [] as string[], files: [] as PendingChecklistEvidence[] });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ChecklistItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChecklistItem | null>(null);
@@ -2170,7 +2170,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
   const importItems = useImportAuditChecklistItems();
   const intent = useCreateAuditEvidenceIntent();
   const confirm = useConfirmAuditEvidence();
-  const update = (key: "clause" | "auditArea" | "question" | "description" | "auditFinding", value: string) => setDraft(current => ({ ...current, [key]: value }));
+  const update = (key: "clause" | "auditArea" | "question" | "description" | "auditFinding" | "riskLevel", value: string) => setDraft(current => ({ ...current, [key]: value }));
   const removeSelectedEvidence = (clientReference: string) => {
     setDraft(current => ({ ...current, files: current.files.filter(item => item.clientReference !== clientReference) }));
     completedUploads.current.delete(clientReference);
@@ -2183,6 +2183,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
       clause: item.clause ?? "", auditArea: item.auditArea ?? "", question: item.question,
       description: item.description ?? item.notes ?? "",
       auditFinding: item.auditFinding ?? (checklistFindings.find(value => value === item.result) ?? ""),
+      riskLevel: item.riskLevel ?? "",
       evidenceIds: item.evidenceIds ?? [], files: [],
     });
     completedUploads.current.clear();
@@ -2246,6 +2247,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
       });
       const data = {
         clause: draft.clause.trim(), auditArea: draft.auditArea, question: draft.question.trim(),
+        riskLevel: (draft.riskLevel || null) as "Low" | "Medium" | "High" | null,
         description: draft.description.trim(), ...(draft.auditFinding ? { auditFinding: draft.auditFinding as "Minor NC" | "Moderate NC" | "Major NC" | "OFI" | "Not applicable" } : {}),
         evidenceIds: [...new Set([...draft.evidenceIds, ...fileIds])],
       };
@@ -2338,6 +2340,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
           <div><Label htmlFor="checklist-question">Audit Question *</Label><Input id="checklist-question" value={draft.question} onChange={event => update("question", event.target.value)} placeholder="Enter the audit question"/></div>
           <div><Label htmlFor="checklist-description">Description</Label><Textarea id="checklist-description" rows={4} value={draft.description} onChange={event => update("description", event.target.value)} placeholder="Description or findings"/></div>
           <div><Label>Audit Findings</Label><Select value={draft.auditFinding} onValueChange={value => update("auditFinding", value)}><SelectTrigger><SelectValue placeholder="Select a finding (optional)"/></SelectTrigger><SelectContent>{findings.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>{draft.auditFinding && <button type="button" className="mt-1 text-xs text-muted-foreground underline" onClick={() => update("auditFinding", "")}>Clear selection</button>}</div>
+          <div><Label>Risk Level</Label><Select value={draft.riskLevel || undefined} onValueChange={value => update("riskLevel", value)}><SelectTrigger data-testid="select-checklist-risk-level"><SelectValue placeholder="Select risk level"/></SelectTrigger><SelectContent>{["Low", "Medium", "High"].map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2">
             <Label htmlFor="checklist-evidence">Evidence (optional — attach to this item)</Label>
             {draft.evidenceIds.map(id => <div key={id} className="flex items-center justify-between gap-2 text-sm">

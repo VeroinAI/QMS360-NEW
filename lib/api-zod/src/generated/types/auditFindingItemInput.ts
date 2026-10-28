@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AuditFindingItemInputAuditFinding } from './auditFindingItemInputAuditFinding';
+import type { AuditFindingItemInputRiskLevel } from './auditFindingItemInputRiskLevel';
 import type { FindingPriorityAction } from './findingPriorityAction';
 
 export interface AuditFindingItemInput {
@@ -17,6 +18,8 @@ export interface AuditFindingItemInput {
   auditArea: string;
   description?: string;
   auditFinding: AuditFindingItemInputAuditFinding;
+  /** @nullable */
+  riskLevel?: AuditFindingItemInputRiskLevel;
   evidenceIds?: string[];
   actionTakerId: string;
   recommendedPriorityAction: FindingPriorityAction;

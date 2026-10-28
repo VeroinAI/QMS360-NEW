@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mapAuditFindingRegister as map, type FindingRegisterContext } from "./audit-finding-register-mapping";
+import { CreateAuditChecklistItemBody, EditAuditChecklistItemBody, CreateAuditFindingItemBody } from "@workspace/api-zod";
 
 const context = (extra: Partial<FindingRegisterContext> = {}): FindingRegisterContext => ({
   auditExecutionId: "execution", auditId: "QREF-01", auditTitle: "Audit title",
@@ -12,6 +13,21 @@ const context = (extra: Partial<FindingRegisterContext> = {}): FindingRegisterCo
 });
 
 describe("Audit Finding register projection", () => {
+  it.each(["Low", "Medium", "High"])("retains explicitly selected %s risk independently of finding type", riskLevel => {
+    const [row] = map([{ id: "item", auditFinding: "OFI", riskLevel }], [], context());
+    expect(row?.riskLevel).toBe(riskLevel);
+  });
+  it("accepts the three risk choices in both entry contracts and rejects unsupported values", () => {
+    const checklist = { clause: "1", auditArea: "area", question: "Question" };
+    const finding = { clause: "1", auditArea: "area", auditFinding: "OFI", actionTakerId: "owner", recommendedPriorityAction: "Correct and close" };
+    for (const [schema, input] of [[CreateAuditChecklistItemBody, checklist], [EditAuditChecklistItemBody, checklist], [CreateAuditFindingItemBody, finding]] as const) {
+      for (const riskLevel of ["Low", "Medium", "High", null]) {
+        expect(schema.parse({ ...input, riskLevel }).riskLevel).toBe(riskLevel);
+      }
+      expect(schema.safeParse(input).success).toBe(true);
+      expect(schema.safeParse({ ...input, riskLevel: "Critical" }).success).toBe(false);
+    }
+  });
   it("maps saved identifiers, clause, area labels and current assignment without defaulting risk", () => {
     const [row] = map([{ id: "item", findingNumber: "NCR-01", clause: "8.2", auditArea: "design_engg",
       description: "Saved description", auditFinding: "Major NC", actionTakerId: "current" }], [], context());

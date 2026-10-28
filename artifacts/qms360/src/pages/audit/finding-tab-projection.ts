@@ -46,7 +46,7 @@ export function projectFindingTab(opts: {
       clauseReference: item.clause?.trim() || null, auditArea: area(item.auditArea),
       description: (item.description || item.notes)?.trim() || null,
       findingType: (item.auditFinding || item.result) ?? null,
-      riskLevel: m?.riskLevel ?? null,
+      riskLevel: item.riskLevel ?? m?.riskLevel ?? null,
       auditTeamLeadId: m?.auditTeamLeadId ?? null, auditTeamLeadName: m?.auditTeamLeadName ?? null,
       actionTakers: takerId ? [{ id: takerId, name: takerName }] : [],
     };

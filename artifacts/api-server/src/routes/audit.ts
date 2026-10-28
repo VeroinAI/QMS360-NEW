@@ -3145,6 +3145,7 @@ async function checklistEvidenceIds(organizationId: string, auditId: string, ids
 const checklistItemValues = (data: AnyRow, evidenceIds: string[]) => ({
   clause: data.clause.trim(), auditArea: data.auditArea.trim(), question: data.question.trim(),
   description: data.description?.trim() || null, auditFinding: data.auditFinding || null, evidenceIds,
+  ...(data.riskLevel !== undefined ? { riskLevel: data.riskLevel } : {}),
 });
 
 router.post("/audits/:id/checklist/items", asyncHandler(async (req, res) => {
@@ -3302,6 +3303,7 @@ router.post("/audits/:id/finding-items", asyncHandler(async (req, res) => {
       id: randomUUID(), source: "finding", question: "", clause: data.clause.trim(),
       auditArea: data.auditArea.trim(), description: data.description?.trim() || null,
       auditFinding: data.auditFinding, findingDate: data.findingDate ?? null, evidenceIds, actionTakerId: data.actionTakerId,
+      ...(data.riskLevel !== undefined ? { riskLevel: data.riskLevel } : {}),
       recommendedPriorityAction: data.recommendedPriorityAction,
       ...(data.clientReference ? { clientReference: data.clientReference } : {}),
     };

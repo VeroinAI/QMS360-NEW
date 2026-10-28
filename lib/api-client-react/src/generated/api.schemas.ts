@@ -3850,6 +3850,18 @@ export const ChecklistItemAuditFinding = {
 } as const;
 
 /**
+ * @nullable
+ */
+export type ChecklistItemRiskLevel = typeof ChecklistItemRiskLevel[keyof typeof ChecklistItemRiskLevel] | null;
+
+
+export const ChecklistItemRiskLevel = {
+  Low: 'Low',
+  Medium: 'Medium',
+  High: 'High',
+} as const;
+
+/**
  * Finding-only row, excluded from the Checklist tab
  */
 export type ChecklistItemSource = typeof ChecklistItemSource[keyof typeof ChecklistItemSource];
@@ -3879,6 +3891,8 @@ export interface ChecklistItem {
   /** @nullable */
   description?: string | null;
   auditFinding?: ChecklistItemAuditFinding;
+  /** @nullable */
+  riskLevel?: ChecklistItemRiskLevel;
   /** Legacy values managed via /platform/master-data/lov/checklist_results */
   result?: string;
   /** @nullable */
@@ -3908,6 +3922,18 @@ export const AuditFindingItemInputAuditFinding = {
   OFI: 'OFI',
 } as const;
 
+/**
+ * @nullable
+ */
+export type AuditFindingItemInputRiskLevel = typeof AuditFindingItemInputRiskLevel[keyof typeof AuditFindingItemInputRiskLevel] | null;
+
+
+export const AuditFindingItemInputRiskLevel = {
+  Low: 'Low',
+  Medium: 'Medium',
+  High: 'High',
+} as const;
+
 export interface AuditFindingItemInput {
   /** @pattern ^\d{4}-\d{2}-\d{2}$ */
   findingDate?: string;
@@ -3917,6 +3943,8 @@ export interface AuditFindingItemInput {
   auditArea: string;
   description?: string;
   auditFinding: AuditFindingItemInputAuditFinding;
+  /** @nullable */
+  riskLevel?: AuditFindingItemInputRiskLevel;
   evidenceIds?: string[];
   actionTakerId: string;
   recommendedPriorityAction: FindingPriorityAction;
@@ -3944,6 +3972,18 @@ export const AuditChecklistItemInputAuditFinding = {
   Not_applicable: 'Not applicable',
 } as const;
 
+/**
+ * @nullable
+ */
+export type AuditChecklistItemInputRiskLevel = typeof AuditChecklistItemInputRiskLevel[keyof typeof AuditChecklistItemInputRiskLevel] | null;
+
+
+export const AuditChecklistItemInputRiskLevel = {
+  Low: 'Low',
+  Medium: 'Medium',
+  High: 'High',
+} as const;
+
 export interface AuditChecklistItemInput {
   /** @minLength 1 */
   clause: string;
@@ -3956,6 +3996,8 @@ export interface AuditChecklistItemInput {
   question: string;
   description?: string;
   auditFinding?: AuditChecklistItemInputAuditFinding;
+  /** @nullable */
+  riskLevel?: AuditChecklistItemInputRiskLevel;
   evidenceIds?: string[];
 }
 
