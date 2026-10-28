@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import {
-  auditUserWorkspaceRoles, auditWorkspaceRoles, db, emailEventRules,
+  auditPlans, auditUserWorkspaceRoles, auditWorkspaceRoles, db, emailEventRules,
   lessonLearnedForms, lessonsUserWorkspaceRoles, lessonsWorkspaceRoles, userWorkspaceRoles, users, workspaceRoles,
 } from "@workspace/db";
 import { enqueueEmail } from "./email-queue";
@@ -58,17 +58,48 @@ async function resolveWorkspaceRoleUserIds(
 }
 
 export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
+  const planSend = event.app === "audit" && event.entityType === "audit_plan" && event.action === "send_for_audit";
   const rules = await database.select().from(emailEventRules).where(and(
     eq(emailEventRules.organizationId, event.organizationId),
-    eq(emailEventRules.enabled, true), isNull(emailEventRules.deletedAt),
+    ...(planSend ? [] : [eq(emailEventRules.enabled, true)]), isNull(emailEventRules.deletedAt),
   )).orderBy(asc(emailEventRules.priority), asc(emailEventRules.createdAt));
   const rule = rules.find((candidate) =>
     canonicalEmailEventType(candidate.eventType) === canonicalEmailEventType(`${event.app}.${event.entityType}.${event.action}`) &&
     (!candidate.createdByUserId || candidate.createdByUserId === event.actorId));
-  if (!rule) return { rule: null, recipients: [] as Array<{ email: string; name?: string | null }>, sender: null as { email: string; name?: string | null } | null };
+  // An explicit disabled Plan send rule still suppresses delivery.
+  if (planSend && rule && !rule.enabled) return { rule, recipients: [], sender: null, ccRecipients: [] };
+  const circulation = planSend ? await resolveAuditPlanCirculation(database, event) : [];
+  if (!rule) return { rule: null, recipients: circulation, sender: null, ccRecipients: [] };
   const { recipients, sender } = await resolveEmailTarget(database, event, rule);
   const ccRecipients = await resolveEmailRuleCc(database, event, rule.recipientConfig);
-  return { rule, recipients, sender, ccRecipients };
+  return { rule, recipients: [...new Map([...recipients, ...circulation].map(item => [item.email.toLowerCase(), item])).values()], sender, ccRecipients };
+}
+
+/** Saved circulation is authoritative; never trust handoff request role IDs or free-text names. */
+export async function resolveAuditPlanCirculation(database: typeof db, event: AuditEvent) {
+  if (!event.entityId) return [];
+  const [plan] = await database.select({ status: auditPlans.status }).from(auditPlans).where(and(
+    eq(auditPlans.id, event.entityId), eq(auditPlans.organizationId, event.organizationId),
+    isNull(auditPlans.deletedAt),
+  ));
+  if (!plan) return [];
+  let meta: { circulationRoleIds?: unknown };
+  try { meta = JSON.parse(plan.status); } catch { return []; }
+  const roleIds = Array.isArray(meta?.circulationRoleIds)
+    ? [...new Set(meta.circulationRoleIds.filter((id): id is string => typeof id === "string" && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id)))] : [];
+  if (!roleIds.length) return [];
+  const rows = await database.select({ email: users.email, name: users.fullName }).from(auditUserWorkspaceRoles)
+    .innerJoin(auditWorkspaceRoles, eq(auditWorkspaceRoles.id, auditUserWorkspaceRoles.workspaceRoleId))
+    .innerJoin(users, eq(users.id, auditUserWorkspaceRoles.userId))
+    .where(and(
+      eq(auditUserWorkspaceRoles.organizationId, event.organizationId),
+      eq(auditUserWorkspaceRoles.status, "active"), isNull(auditUserWorkspaceRoles.deletedAt),
+      eq(auditWorkspaceRoles.organizationId, event.organizationId), inArray(auditWorkspaceRoles.id, roleIds),
+      eq(auditWorkspaceRoles.status, "active"), isNull(auditWorkspaceRoles.deletedAt),
+      eq(users.organizationId, event.organizationId), eq(users.accessStatus, "active"), isNull(users.deletedAt),
+    ));
+  return [...new Map(rows.filter(row => row.email && emailPattern.test(row.email))
+    .map(row => [row.email.toLowerCase(), row])).values()];
 }
 
 type RecipientTarget = Pick<typeof emailEventRules.$inferSelect, "recipientMode" | "receiverEmail" | "receiverName" | "receiverUserId" | "recipientConfig">;
@@ -213,7 +244,7 @@ export async function dispatchEmailRule(event: AuditEvent, options: {
   let queued = false;
   try {
     const result = await resolveEmailRule(db, event);
-    if (!result.rule || !result.recipients.length) return result;
+    if (!result.recipients.length) return result;
     // Only generate/store a report when an enabled rule actually has recipients.
     // The queue retains the private snapshot for SMTP retries.
     // Report choice is frozen on the queue row. Generation is performed by the
@@ -223,13 +254,13 @@ export async function dispatchEmailRule(event: AuditEvent, options: {
       ccRecipients: result.ccRecipients ?? [],
       ...(attachments.length ? { attachments } : {}),
       sender: result.sender ?? undefined,
-      ruleTemplate: result.rule.recipientConfig,
-      placeholderEvent: { eventType: result.rule.eventType, entityId: event.entityId, actorId: event.actorId, record: event.record },
-      templateValues: result.rule.recipientConfig?.subjectTemplate || result.rule.recipientConfig?.bodyTemplate || result.rule.recipientConfig?.bodyRichText
+      ruleTemplate: result.rule?.recipientConfig,
+      placeholderEvent: { eventType: result.rule?.eventType ?? `${event.app}.${event.entityType}.${event.action}`, entityId: event.entityId, actorId: event.actorId, record: event.record },
+      templateValues: result.rule?.recipientConfig?.subjectTemplate || result.rule?.recipientConfig?.bodyTemplate || result.rule?.recipientConfig?.bodyRichText
         ? await emailTemplateContext(db, event) : undefined,
       subject: `QMS360: ${event.entityType.replaceAll("_", " ")} ${event.action.replaceAll("_", " ")}`,
       text: `A ${event.entityType.replaceAll("_", " ")} record was ${event.action.replaceAll("_", " ")} in QMS360.${event.entityId ? `\n\nRecord reference: ${event.entityId}` : ""}`,
-      context: { kind: "email_event_rule", app: event.app, ruleId: result.rule.id, eventType: result.rule.eventType, entityId: event.entityId },
+      context: { kind: "email_event_rule", app: event.app, ruleId: result.rule?.id, eventType: result.rule?.eventType ?? `${event.app}.${event.entityType}.${event.action}`, entityId: event.entityId },
     });
     queued = delivery.queued > 0;
     return result;

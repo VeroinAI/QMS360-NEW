@@ -1968,19 +1968,11 @@ function SendForAuditDialog({ plan, open, onOpenChange, onSent }: {
   onOpenChange: (open: boolean) => void;
   onSent: () => void;
 }) {
-  const [roleIds, setRoleIds] = useState<string[]>([]);
-  const roles = useListAuditPlanNotificationRoles();
   const sendForAudit = useSendAuditPlanForExecution();
   const { toast } = useToast();
-  useEffect(() => {
-    if (open) setRoleIds([]);
-  }, [open, plan?.id]);
-  const toggleRole = (roleId: string, checked: boolean) => {
-    setRoleIds(current => checked ? [...new Set([...current, roleId])] : current.filter(id => id !== roleId));
-  };
   const submit = () => {
-    if (!plan || !roleIds.length) return;
-    sendForAudit.mutate({ id: plan.id, data: { roleIds } }, {
+    if (!plan) return;
+    sendForAudit.mutate({ id: plan.id, data: {} }, {
       onSuccess: () => {
         onOpenChange(false);
         onSent();
@@ -1992,26 +1984,11 @@ function SendForAuditDialog({ plan, open, onOpenChange, onSent }: {
     <DialogContent className="max-w-lg">
       <DialogHeader>
         <DialogTitle>{workflowConfirmationMessage("send", "this audit plan").title}</DialogTitle>
-        <DialogDescription>{workflowConfirmationMessage("send", "this audit plan").description} Select the roles that need to be informed.</DialogDescription>
+        <DialogDescription>This will hand the plan over to Audit Execution and notify active users linked to the roles saved in Audit Plan Circulation. Recipients from other configured email rules will still apply. Choose Cancel to leave the workflow unchanged.</DialogDescription>
       </DialogHeader>
-      <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border p-3">
-        {roles.isLoading && <p className="py-4 text-center text-sm text-muted-foreground">Loading roles…</p>}
-        {roles.error && <p className="py-4 text-center text-sm text-destructive">{errorText(roles.error)}</p>}
-        <SearchableSelectionList label="Search notification roles">
-        {(roles.data ?? []).map(role => <label key={role.id} className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted">
-          <Checkbox checked={roleIds.includes(role.id)} onCheckedChange={checked => toggleRole(role.id, checked === true)} />
-          <span>
-            <span className="block text-sm font-medium">{role.name}</span>
-            {role.description && <span className="block text-xs text-muted-foreground">{role.description}</span>}
-          </span>
-        </label>)}
-        </SearchableSelectionList>
-        {!roles.isLoading && !roles.error && !(roles.data?.length) && <p className="py-4 text-center text-sm text-muted-foreground">No active roles are available.</p>}
-      </div>
-      {!roleIds.length && <p className="text-xs text-muted-foreground">Select at least one role to continue.</p>}
       <DialogFooter>
         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sendForAudit.isPending}>Cancel</Button>
-        <Button onClick={submit} disabled={!roleIds.length || roles.isLoading || sendForAudit.isPending}>{sendForAudit.isPending ? "Submitting…" : "Yes, send"}</Button>
+        <Button onClick={submit} disabled={!plan || sendForAudit.isPending}>{sendForAudit.isPending ? "Submitting…" : "Yes, send"}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>;

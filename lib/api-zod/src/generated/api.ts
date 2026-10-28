@@ -9050,14 +9050,14 @@ export const ExportAuditPlanReportResponse = zod.unknown()
 
 
 /**
- * @summary Send an Audit Plan to Audit Execution and inform selected roles
+ * @summary Send an Audit Plan to Audit Execution and inform saved circulation roles
  */
 export const SendAuditPlanForExecutionParams = zod.object({
   "id": zod.coerce.string()
 })
 
 export const SendAuditPlanForExecutionBody = zod.object({
-  "roleIds": zod.array(zod.string())
+  "roleIds": zod.array(zod.string()).optional().describe('Legacy input, ignored. Recipients are derived from saved Audit Plan Circulation.')
 })
 
 export const sendAuditPlanForExecutionResponseExecutionSummaryFindingCountMin = 0;

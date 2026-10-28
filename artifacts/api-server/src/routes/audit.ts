@@ -2676,16 +2676,11 @@ async function nestedMeetingValues(database: Pick<typeof db, "select">, req: Req
   values.status = JSON.stringify(meta);
 }
 router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
-  const data = body<AnyRow>(Api.SendAuditPlanForExecutionBody, req);
+  body<AnyRow>(Api.SendAuditPlanForExecutionBody, req);
   const planId = String(req.params.id);
   const organizationId = actor(req).organizationId;
-  const roleIds = [...new Set(data.roleIds as string[])];
-  const selectedRoles = await db.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name })
-    .from(auditWorkspaceRoles)
-    .where(and(active(auditWorkspaceRoles, organizationId), inArray(auditWorkspaceRoles.id, roleIds)));
-  if (selectedRoles.length !== roleIds.length) throw new HttpError(400, "One or more selected roles are not available");
-  const informedRoleIds = selectedRoles.map(role => role.id);
-  const informedRoleNames = selectedRoles.map(role => role.name);
+  let informedRoleIds: string[] = [];
+  let informedRoleNames: string[] = [];
   const [plan] = await db.select().from(auditPlans).where(and(
     active(auditPlans, organizationId), eq(auditPlans.id, planId),
   ));
@@ -2708,6 +2703,17 @@ router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
       active(audits, organizationId), eq(audits.auditPlanId, planId),
     )).orderBy(desc(audits.updatedAt)).limit(1);
     const workflowState = lockedPlan.workflowState.toLowerCase();
+    if (existing && !["draft", "ready"].includes(workflowState)) return existing;
+    const roleIds = [...new Set(planMeta(lockedPlan).circulationRoleIds ?? [])];
+    if (!roleIds.length || roleIds.some(id => typeof id !== "string" || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id))) {
+      throw new HttpError(422, "Select and save Audit Plan Circulation roles in the Audit Plan before sending for audit.");
+    }
+    const selectedRoles = await tx.select({ id: auditWorkspaceRoles.id, name: auditWorkspaceRoles.name })
+      .from(auditWorkspaceRoles)
+      .where(and(active(auditWorkspaceRoles, organizationId), eq(auditWorkspaceRoles.status, "active"), inArray(auditWorkspaceRoles.id, roleIds)));
+    if (selectedRoles.length !== roleIds.length) throw new HttpError(422, "One or more Audit Plan Circulation roles are no longer active. Update and save Audit Plan Circulation before sending.");
+    informedRoleIds = selectedRoles.map(role => role.id);
+    informedRoleNames = selectedRoles.map(role => role.name);
     if (existing) {
       if (["draft", "ready"].includes(workflowState)) {
         await tx.update(auditPlans).set({
@@ -2720,7 +2726,6 @@ router.post("/plans/:id/send-for-audit", asyncHandler(async (req, res) => {
       }
       return existing;
     }
-    if (!informedRoleIds.length) throw new HttpError(400, "Select at least one role to inform");
     await assertChildSchedule(schedule);
     if (lockedPlan.auditScheduleId !== schedule.id) throw new HttpError(409, "Audit Plan changed while it was being sent. Retry.");
     assertPlanDates(planDto(lockedPlan), schedule);

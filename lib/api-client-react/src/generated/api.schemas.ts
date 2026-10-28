@@ -2329,7 +2329,8 @@ export interface LessonsRoleAssignment {
 }
 
 export interface SendAuditPlanForExecutionInput {
-  roleIds: string[];
+  /** Legacy input, ignored. Recipients are derived from saved Audit Plan Circulation. */
+  roleIds?: string[];
 }
 
 export type WorkspaceUserStatus = typeof WorkspaceUserStatus[keyof typeof WorkspaceUserStatus];

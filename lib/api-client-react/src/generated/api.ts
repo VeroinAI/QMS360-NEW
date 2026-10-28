@@ -22349,7 +22349,7 @@ export const getSendAuditPlanForExecutionUrl = (id: string,) => {
 }
 
 /**
- * @summary Send an Audit Plan to Audit Execution and inform selected roles
+ * @summary Send an Audit Plan to Audit Execution and inform saved circulation roles
  */
 export const sendAuditPlanForExecution = async (id: string,
     sendAuditPlanForExecutionInputBody: SendAuditPlanForExecutionInputBody, options?: Parameters<typeof customFetch>[1]): Promise<Audit> => {
@@ -22399,7 +22399,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SendAuditPlanForExecutionMutationError = ErrorType<void>
 
     /**
- * @summary Send an Audit Plan to Audit Execution and inform selected roles
+ * @summary Send an Audit Plan to Audit Execution and inform saved circulation roles
  */
 export const useSendAuditPlanForExecution = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendAuditPlanForExecution>>, TError,{id: string;data: BodyType<SendAuditPlanForExecutionInputBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
