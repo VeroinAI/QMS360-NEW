@@ -29,7 +29,7 @@ export function AuditReportApprovalControls({audit}:{audit:{id:string;reportAppr
       <Badge variant={approval.status==="Approved"?"default":"outline"} title={approval.pendingApprovers.map(user=>user.name).join(", ")}>
         Report approval: {approval.status}{approval.pendingLevel!=null?` · Level ${approval.pendingLevel}`:""}
       </Badge>
-      {approval.status!=="Not submitted"&&<Button variant="outline" size="sm" onClick={()=>{setRemarks("");setOpen(true);}}>
+      {approval.status!=="Not submitted"&&<Button variant={approval.canReview?"default":"outline"} size="sm" onClick={()=>{setRemarks("");setOpen(true);}}>
         {approval.canReview?"Review report":"Approval details"}
       </Button>}
     </div>
