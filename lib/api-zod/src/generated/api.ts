@@ -543,6 +543,14 @@ export const ListDronaProjectMasterQueryParams = zod.object({
   "search": zod.coerce.string().max(listDronaProjectMasterQuerySearchMax).optional()
 })
 
+export const listDronaProjectMasterResponseItemsItemAdditionalDataConsultantMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataProjectManagerMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataContractValueMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataPtsNumberMax = 500;
+
 export const listDronaProjectMasterResponseItemsItemAdditionalDataNameMax = 500;
 
 export const listDronaProjectMasterResponseItemsItemAdditionalDataClientMax = 500;
@@ -593,6 +601,10 @@ export const ListDronaProjectMasterResponse = zod.object({
   "businessUnit": zod.string().nullable(),
   "costCentre": zod.string().nullable(),
   "additionalData": zod.object({
+  "consultant": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataConsultantMax).nullish(),
+  "projectManager": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataProjectManagerMax).nullish(),
+  "contractValue": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataContractValueMax).nullish(),
+  "ptsNumber": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataPtsNumberMax).nullish(),
   "name": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataNameMax).nullish(),
   "client": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataClientMax).nullable(),
   "contractor": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataContractorMax).nullable(),
@@ -666,6 +678,14 @@ export const GetProjectAdditionalDataParams = zod.object({
   "projectId": zod.coerce.string().regex(getProjectAdditionalDataPathProjectIdRegExp)
 })
 
+export const getProjectAdditionalDataResponseAdditionalDataConsultantMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataProjectManagerMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataContractValueMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataPtsNumberMax = 500;
+
 export const getProjectAdditionalDataResponseAdditionalDataNameMax = 500;
 
 export const getProjectAdditionalDataResponseAdditionalDataClientMax = 500;
@@ -715,6 +735,10 @@ export const GetProjectAdditionalDataResponse = zod.object({
   "businessUnit": zod.string().nullable(),
   "costCentre": zod.string().nullable(),
   "additionalData": zod.object({
+  "consultant": zod.string().max(getProjectAdditionalDataResponseAdditionalDataConsultantMax).nullish(),
+  "projectManager": zod.string().max(getProjectAdditionalDataResponseAdditionalDataProjectManagerMax).nullish(),
+  "contractValue": zod.string().max(getProjectAdditionalDataResponseAdditionalDataContractValueMax).nullish(),
+  "ptsNumber": zod.string().max(getProjectAdditionalDataResponseAdditionalDataPtsNumberMax).nullish(),
   "name": zod.string().max(getProjectAdditionalDataResponseAdditionalDataNameMax).nullish(),
   "client": zod.string().max(getProjectAdditionalDataResponseAdditionalDataClientMax).nullable(),
   "contractor": zod.string().max(getProjectAdditionalDataResponseAdditionalDataContractorMax).nullable(),
@@ -759,6 +783,14 @@ export const UpdateProjectAdditionalDataParams = zod.object({
 })
 
 export const updateProjectAdditionalDataBodyCostCentreMax = 100;
+
+export const updateProjectAdditionalDataBodyAdditionalDataConsultantMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataProjectManagerMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataContractValueMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataPtsNumberMax = 500;
 
 export const updateProjectAdditionalDataBodyAdditionalDataNameMax = 500;
 
@@ -805,6 +837,10 @@ export const updateProjectAdditionalDataBodyClosureTargetsPqiMax = 100;
 export const UpdateProjectAdditionalDataBody = zod.object({
   "costCentre": zod.string().max(updateProjectAdditionalDataBodyCostCentreMax).nullable(),
   "additionalData": zod.object({
+  "consultant": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataConsultantMax).nullish(),
+  "projectManager": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataProjectManagerMax).nullish(),
+  "contractValue": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataContractValueMax).nullish(),
+  "ptsNumber": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataPtsNumberMax).nullish(),
   "name": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataNameMax).nullish(),
   "client": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataClientMax).nullable(),
   "contractor": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataContractorMax).nullable(),
@@ -825,6 +861,14 @@ export const UpdateProjectAdditionalDataBody = zod.object({
   "pqi": zod.number().min(updateProjectAdditionalDataBodyClosureTargetsPqiMin).max(updateProjectAdditionalDataBodyClosureTargetsPqiMax).nullish()
 }).optional()
 })
+
+export const updateProjectAdditionalDataResponseAdditionalDataConsultantMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataProjectManagerMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataContractValueMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataPtsNumberMax = 500;
 
 export const updateProjectAdditionalDataResponseAdditionalDataNameMax = 500;
 
@@ -872,6 +916,10 @@ export const UpdateProjectAdditionalDataResponse = zod.object({
   "id": zod.string(),
   "costCentre": zod.string().nullable(),
   "additionalData": zod.object({
+  "consultant": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataConsultantMax).nullish(),
+  "projectManager": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataProjectManagerMax).nullish(),
+  "contractValue": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataContractValueMax).nullish(),
+  "ptsNumber": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataPtsNumberMax).nullish(),
   "name": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataNameMax).nullish(),
   "client": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataClientMax).nullable(),
   "contractor": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataContractorMax).nullable(),

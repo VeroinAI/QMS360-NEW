@@ -3413,6 +3413,10 @@ components:
       additionalProperties: false
       required: [client, contractor, contractProjectNumber, contractSigned, contractPeriod, tcc, pac, fac]
       properties:
+        consultant: {type: ["string", "null"], maxLength: 500}
+        projectManager: {type: ["string", "null"], maxLength: 500}
+        contractValue: {type: ["string", "null"], maxLength: 500}
+        ptsNumber: {type: ["string", "null"], maxLength: 500}
         name: {type: ["string", "null"], maxLength: 500}
         client: {type: ["string", "null"], maxLength: 500}
         contractor: {type: ["string", "null"], maxLength: 500}

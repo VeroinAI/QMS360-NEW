@@ -18,6 +18,8 @@ function targetError(raw: string) {
 
 const fields: Array<[keyof ProjectAdditionalData, string]> = [
   ['client', 'Client'], ['contractor', 'Contractor'],
+  ['consultant', 'Consultant'], ['projectManager', 'Project Manager'],
+  ['contractValue', 'Contract Value'], ['ptsNumber', 'PTS #'],
   ['contractProjectNumber', 'Contract / project no.'], ['contractSigned', 'Contract signed'],
   ['contractPeriod', 'Contract period'], ['tcc', 'TCC'], ['pac', 'PAC'], ['fac', 'FAC'],
   ['name', 'Name'],
@@ -51,6 +53,8 @@ export function ProjectAdditionalDataEditor({ record, canEdit, onSaved, onPendin
     contractPeriod: values.contractPeriod.trim() || null, tcc: values.tcc.trim() || null,
     pac: values.pac.trim() || null, fac: values.fac.trim() || null,
     email: values.email.trim() || null, phone: values.phone.trim() || null,
+    consultant: values.consultant.trim() || null, projectManager: values.projectManager.trim() || null,
+    contractValue: values.contractValue.trim() || null, ptsNumber: values.ptsNumber.trim() || null,
   };
   const contactErrors = projectContactErrors(values.email, values.phone);
   const invalidContact = !!(contactErrors.email || contactErrors.phone);

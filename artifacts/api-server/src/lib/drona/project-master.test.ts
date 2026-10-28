@@ -28,6 +28,33 @@ function mockList(createdAt: unknown, updatedAt: unknown, linkedAt: unknown = is
 
 beforeEach(() => execute.mockReset());
 
+describe("Project Additional Data extended fields", () => {
+  const extended = { consultant: "Consultant A", projectManager: "Manager B", contractValue: "SAR 1,500,000.50", ptsNumber: "PTS-0012" };
+  const existing = { client: null, contractor: null, contractProjectNumber: null, contractSigned: null, contractPeriod: null, tcc: null, pac: null, fac: null };
+  it("validates, persists and returns all four fields without changing source data", async () => {
+    const data = UpdateProjectAdditionalDataBody.parse({ costCentre: null, additionalData: { ...existing, ...extended } });
+    expect(data.additionalData).toMatchObject(extended);
+    execute.mockResolvedValueOnce({ rows: [{ available: false }] })
+      .mockResolvedValueOnce({ rows: [{ id: projectId, costCentre: null, additionalData: data.additionalData, updatedAt: iso }] });
+    const result = await saveProjectAdditionalData(input, projectId, data);
+    expect(UpdateProjectAdditionalDataResponse.parse(result).additionalData).toMatchObject(extended);
+    const query = new PgDialect().sqlToQuery(execute.mock.calls[1][0]);
+    expect(query.params).toContain(JSON.stringify(data.additionalData));
+    expect(query.sql).toContain("p.custom_fields->'qmsAdditionalData'");
+    expect(query.sql).not.toMatch(/SET\s+(?:source|name|code)\s*=/);
+  });
+  it("supports explicitly clearing the new fields", async () => {
+    const cleared = { consultant: null, projectManager: null, contractValue: null, ptsNumber: null };
+    const data = UpdateProjectAdditionalDataBody.parse({ costCentre: null, additionalData: { ...existing, ...cleared } });
+    execute.mockResolvedValueOnce({ rows: [{ available: false }] })
+      .mockResolvedValueOnce({ rows: [{ id: projectId, costCentre: null, additionalData: data.additionalData, updatedAt: iso }] });
+    expect((await saveProjectAdditionalData(input, projectId, data))?.additionalData).toMatchObject(cleared);
+  });
+  it.each(Object.keys(extended))("rejects oversized %s input", key => {
+    expect(UpdateProjectAdditionalDataBody.safeParse({ costCentre: null, additionalData: { ...existing, [key]: "x".repeat(501) } }).success).toBe(false);
+  });
+});
+
 describe("Project Additional Data contacts", () => {
   const additionalData = { client: null, contractor: null, contractProjectNumber: null, contractSigned: null, contractPeriod: null, tcc: null, pac: null, fac: null };
   const payload = (email: string | null, phone: string | null) => ({ costCentre: "CC01", additionalData: { ...additionalData, email, phone } });

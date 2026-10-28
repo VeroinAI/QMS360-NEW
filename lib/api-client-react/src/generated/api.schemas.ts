@@ -1110,6 +1110,26 @@ export interface ProjectAdditionalData {
      * @maxLength 500
      * @nullable
      */
+  consultant?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  projectManager?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  contractValue?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  ptsNumber?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
   name?: string | null;
   /**
      * @maxLength 500
