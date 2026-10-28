@@ -149,9 +149,9 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
     const v = metrics[key] ?? {};
     metricRows.forEach(([r, field, pct]) => put(23, r, col + 1, pct ? percent(v[field]) : v[field]));
     put(23, 14, col + 1, variance(v.variance), 0, tone(v.variance));
-    put(23, 15, col + 1, col < 2 ? text(v.open) : "n/a");
+    put(23, 15, col + 1, text(v.open));
   });
-  para(24, "Cumulative closure % = closed ÷ accumulated issued (100% when nothing issued). Closure rate this month = closed this month ÷ issued this month, using the saved system calculation. Variance = change in cumulative closure %, in percentage points (pp). Open count and ageing are tracked for NCRs only.");
+  para(24, "Cumulative closure % = closed ÷ accumulated issued (100% when nothing issued). Closure rate this month = closed this month ÷ issued this month, using the saved system calculation. Variance = change in cumulative closure %, in percentage points (pp). Open items = accumulated issued − accumulated closed. Ageing is tracked for NCRs only.");
   // The PDF now mirrors the entry screen's three saved ageing buckets.
   const ageingColumns = ["NCR type", "0-15 days", "15-45 days", "Over 45 days", "Total aged", "Total vs Open"];
   const ageingWidths = [2038, 1400, 1400, 1400, 1400, 2000];

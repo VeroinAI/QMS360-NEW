@@ -87,6 +87,25 @@ describe("Customer Word monthly metrics report",()=>{
     expect(text).not.toContain("Reviewed and confirmed");
     expect(text).not.toContain("Weekly Quality Review");
   });
+  it("maps open items for all four metrics, including zero RFI and RMI balances",async()=>{
+    const input = {...data, metrics:{
+      external_ncr:{issued:19,closed:9},internal_ncr:{issued:0,closed:0},
+      rfi:{issued:53,closed:53},rmi:{issued:7,closed:7},
+    }};
+    const {body,text}=await mapped({...report,data:input,baseline:{},computed:calculateReport("monthly",input,{},{})});
+    const row=children(body,"tbl").flatMap(t=>children(t,"tr")).find(r=>children(r,"tc")[0]?.textContent==="Open items now")!;
+    expect(children(row,"tc").map(c=>c.textContent)).toEqual(["Open items now","10","0","0","0"]);
+    expect(text).toContain("Open items = accumulated issued − accumulated closed.");
+    expect(text).not.toContain("Open count and ageing are tracked for NCRs only.");
+  });
+  it("uses saved open balances for RFI and RMI and preserves missing-data dashes",async()=>{
+    const computed={...report.computed,metrics:{
+      rfi:{open:12},rmi:{open:3},external_ncr:{open:0},
+    }};
+    const {body}=await mapped({...report,computed});
+    const row=children(body,"tbl").flatMap(t=>children(t,"tr")).find(r=>children(r,"tc")[0]?.textContent==="Open items now")!;
+    expect(children(row,"tc").map(c=>c.textContent)).toEqual(["Open items now","0","—","12","3"]);
+  });
   it("prints reconciliation mismatches in red without changing or blocking saved data",async()=>{
     const {xml,text}=await mapped({...report,data:{...data,material:{...data.material,totalItems:1}}});
     expect(text).toContain("✖ Status tags total 10 ≠ Total items in MIRNs 1");expect(xml).toContain('w:val="C0392B"');
