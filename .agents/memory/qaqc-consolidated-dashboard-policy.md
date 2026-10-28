@@ -23,12 +23,13 @@ Final submitted CSAT surveys count by survey date, alongside approved legacy sur
 
 SBG, BU and Project Group are maintained in Project Master Additional Data and
 drive the corresponding Monthly and Daily dashboard filters. Treat QMS-managed
-values as authoritative without changing Drona's source master. Preserve legacy
-source classifications only until the respective additional field is maintained;
-explicitly clearing it means Unassigned, not restoring an older source label.
+values as the exclusive source without changing Drona's source master. Never fall
+back to source BU links or old top-level classification metadata. Missing or cleared
+Additional Data values mean Unassigned.
 
-**Why:** The user requested editable Project Master classifications and unique
-filter choices based on them, with dashboard results following the selection.
+**Why:** The user requested editable Project Master classifications and repeated
+that the dashboard must get SBG, BU and Project Group from Additional Data specifically,
+not other project sources. Filter choices and dashboard results must follow those saves.
 
 **How to apply:** Resolve classifications before filtering the authorized project
 set; use that same selected set across dashboard panels and drilldowns. Never

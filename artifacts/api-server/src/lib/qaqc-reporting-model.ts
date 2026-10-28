@@ -1,3 +1,5 @@
+import { duplicateNcrAgeingRows } from "@workspace/field-controls";
+
 export type ReportType = "monthly" | "daily" | "csat";
 export type ValidationResult = { valid: boolean; errors: string[] };
 
@@ -198,6 +200,8 @@ function validateMonthly(data: Record<string, any>, baseline: Record<string, any
     if (key === "external_ncr" || key === "internal_ncr") {
       if (current.ageing !== undefined && !Array.isArray(current.ageing)) errors.push(`metrics.${key}.ageing must be an array`);
       const ageing = Array.isArray(current.ageing) ? current.ageing : [];
+      for (const { index, firstIndex } of duplicateNcrAgeingRows(ageing))
+        errors.push(`metrics.${key}.ageing.${index}.bucket duplicates the BU/Department and Ageing Bucket in row ${firstIndex + 1}; each pair can appear only once`);
       let total = 0;
       for (const [i, row] of ageing.entries()) {
         if (!isObject(row)) { errors.push(`metrics.${key}.ageing.${i} must be an object`); continue; }

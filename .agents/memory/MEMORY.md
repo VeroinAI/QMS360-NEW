@@ -1,5 +1,7 @@
 # Memory Index
 
+- [Monthly NCR ageing](monthly-ncr-ageing-policy.md) — one BU/Department and bucket pair per External/Internal NCR breakdown; disable used choices and reject duplicates.
+
 - [Drizzle multi-schema migration quirks](drizzle-multischema-quirks.md) — drizzle-kit's state is meta/*_snapshot.json, not the .sql files; hand-written migrations silently desync the diff engine.
 - [PostgreSQL catalog comparison](pg-catalog-comparison.md) — identifier arrays, composite-key column identity and index ordering need explicit interpretation.
 - [JSONB merge precedence](jsonb-merge-precedence.md) — parenthesize extracted operands in concatenations; test preservation of destination-only metadata.

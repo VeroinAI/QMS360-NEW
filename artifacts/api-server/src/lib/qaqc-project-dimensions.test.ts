@@ -2,18 +2,19 @@ import { describe, expect, it } from "vitest";
 import { projectDashboardDimensions } from "./qaqc-project-dimensions";
 
 describe("Project Master dashboard classifications", () => {
-  it("uses saved QMS values before source classifications and trims whitespace", () => {
+  it("uses saved Additional Data values and trims whitespace", () => {
     expect(projectDashboardDimensions({ sbg: "old", projectGroup: "old", qmsAdditionalData: {
       sbg: " Construction ", bu: " Infrastructure ", projectGroup: " Central ",
-    } }, "Source BU")).toEqual({ sbg: "Construction", bu: "Infrastructure", projectGroup: "Central" });
+    } })).toEqual({ sbg: "Construction", bu: "Infrastructure", projectGroup: "Central" });
   });
-  it("preserves existing source values until an additional-data field is maintained", () => {
-    expect(projectDashboardDimensions({ SBG: "Legacy SBG", project_group: "Legacy group" }, "Source BU"))
-      .toEqual({ sbg: "Legacy SBG", bu: "Source BU", projectGroup: "Legacy group" });
+  it("never substitutes older source classifications for missing Additional Data", () => {
+    expect(projectDashboardDimensions({ SBG: "Legacy SBG", sbg: "Source SBG",
+      bu: "Source BU", businessUnit: "Legacy BU", project_group: "Legacy group", projectGroup: "Source group" }))
+      .toEqual({ sbg: "Unassigned", bu: "Unassigned", projectGroup: "Unassigned" });
   });
   it("clearing saved values makes them Unassigned instead of restoring stale source data", () => {
     expect(projectDashboardDimensions({ sbg: "old", bu: "old", projectGroup: "old",
-      qmsAdditionalData: { sbg: null, bu: "", projectGroup: " " } }, "old"))
+      qmsAdditionalData: { sbg: null, bu: "", projectGroup: " " } }))
       .toEqual({ sbg: "Unassigned", bu: "Unassigned", projectGroup: "Unassigned" });
   });
   it.each([null, undefined, {}, { qmsAdditionalData: null }])("handles projects without classification metadata", fields => {

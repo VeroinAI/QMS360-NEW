@@ -1,4 +1,5 @@
 import { useId, type ComponentType, type ReactNode } from 'react';
+import { ncrAgeingBucketUsed } from '@workspace/field-controls';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,15 +24,15 @@ function Int({ path, label, min = 0, required = true }: { path: Path; label: str
   const f = useForm(); const id = useId(); const v = getIn(f.data, path);
   return <div data-report-field={path.join('.')}><Fld id={id} label={label} required={required}><Input id={id} type="number" min={min} step={1} inputMode="numeric" aria-required={required} disabled={f.readOnly} value={v ?? ''} onChange={e => f.set(path, e.target.value === '' ? undefined : Number(e.target.value))} /></Fld></div>;
 }
-function Pick({ path, label, options }: { path: Path; label: string; options: { value: string; label: string }[] }) {
+function Pick({ path, label, options, onChange }: { path: Path; label: string; options: { value: string; label: string; disabled?: boolean }[]; onChange?: (value: string) => void }) {
   const f = useForm(); const id = useId(); const v = getIn(f.data, path);
   const opts = v && !options.some(o => o.value === v) ? [{ value: String(v), label: String(v) }, ...options] : options;
-  return <div data-report-field={path.join('.')}><Fld id={id} label={label} required><Select disabled={f.readOnly || !options.length} value={v == null ? '' : String(v)} onValueChange={x => f.set(path, x)}><SelectTrigger id={id} aria-required><SelectValue placeholder={options.length ? 'Select' : 'No options configured'} /></SelectTrigger><SelectContent>{opts.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select>{!options.length && <p className="text-xs text-muted-foreground">Configure Department choices in Master Data before adding NCR ageing rows.</p>}</Fld></div>;
+  return <div data-report-field={path.join('.')}><Fld id={id} label={label} required><Select disabled={f.readOnly || !options.length} value={v == null ? '' : String(v)} onValueChange={x => onChange ? onChange(x) : f.set(path, x)}><SelectTrigger id={id} aria-required><SelectValue placeholder={options.length ? 'Select' : 'No options configured'} /></SelectTrigger><SelectContent>{opts.map(o => <SelectItem key={o.value} value={o.value} disabled={o.disabled}>{o.label}</SelectItem>)}</SelectContent></Select>{!options.length && <p className="text-xs text-muted-foreground">Configure Department choices in Master Data before adding NCR ageing rows.</p>}</Fld></div>;
 }
-function DeptPick({ path }: { path: Path }) {
+function DeptPick({ path, onChange }: { path: Path; onChange?: (value: string) => void }) {
   const f = useForm();
   const list = (f.departments ?? []).map(d => typeof d === 'string' ? { value: d, label: d } : { value: d.value, label: d.label ?? d.value }).filter(d => d.value);
-  return <Pick path={path} label="BU/Dept" options={list} />;
+  return <Pick path={path} label="BU/Dept" options={list} onChange={onChange} />;
 }
 
 function Details({ k, calc }: { k: string; calc?: Obj }) {
@@ -65,15 +66,20 @@ function Details({ k, calc }: { k: string; calc?: Obj }) {
     {ncr && <div data-report-field={ap.join('.')} className="space-y-3">
       <p className="text-sm font-medium">Open NCR ageing</p>
       {rows.length === 0 && <p className="text-sm text-muted-foreground">No ageing rows added.</p>}
-      {rows.map((_, i) => <div key={i} className="flex items-end gap-2 rounded-lg border bg-muted/20 p-3">
+      {rows.map((row, i) => <div key={i} className="flex items-end gap-2 rounded-lg border bg-muted/20 p-3">
         <div className={`${cols} flex-1`}>
-          <DeptPick path={[...ap, i, 'department']} />
-          <Pick path={[...ap, i, 'bucket']} label="Ageing Bucket" options={BUCKETS.map(([value, label]) => ({ value, label }))} />
+          <DeptPick path={[...ap, i, 'department']} onChange={department => f.set([...ap, i], {
+            ...row, department, bucket: ncrAgeingBucketUsed(rows, i, department, row.bucket) ? '' : row.bucket,
+          })} />
+          <Pick path={[...ap, i, 'bucket']} label="Ageing Bucket" options={BUCKETS.map(([value, label]) => ({
+            value, label, disabled: ncrAgeingBucketUsed(rows, i, row.department, value),
+          }))} />
           <Int path={[...ap, i, 'count']} label="Count" min={1} />
         </div>
         {!f.readOnly && <Button type="button" size="icon" variant="ghost" aria-label={`Remove ageing row ${i + 1}`} onClick={() => f.set(ap, rows.filter((_, j) => j !== i))}><Trash2 className="size-4 text-destructive" /></Button>}
       </div>)}
       {!f.readOnly && <Button type="button" size="sm" variant="outline" onClick={() => f.set(ap, [...rows, { department: '', bucket: '' }])}><Plus className="mr-1 size-4" />Add ageing row</Button>}
+      {!f.readOnly && <p className="text-xs text-muted-foreground">Each ageing bucket can be used only once per BU/Department in this NCR section. Buckets already used for the selected BU/Department are disabled.</p>}
       <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-sm"><span className="font-medium">Ageing total vs Open NCRs</span><span data-testid={`text-ageing-${k}`} className={sum === open ? 'font-semibold' : 'font-semibold text-destructive'}>{sum} / {open}</span></div>
     </div>}
   </>;

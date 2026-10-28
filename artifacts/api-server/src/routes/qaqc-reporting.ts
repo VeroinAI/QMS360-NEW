@@ -1162,9 +1162,8 @@ router.get("/consolidated-dashboard", multipleReportAccess(), asyncHandler(async
     if (req.query[key] !== undefined && typeof req.query[key] !== "string") throw new HttpError(422, `${key} must be text`);
   }
   const projectRows = await db.select({ id: projects.id, name: projects.name, code: projects.code,
-    customFields: projects.customFields, businessUnit: businessUnits.name })
-    .from(projects).leftJoin(businessUnits, and(eq(projects.businessUnitId, businessUnits.id),
-      eq(businessUnits.organizationId, org(req)), isNull(businessUnits.deletedAt)))
+    customFields: projects.customFields })
+    .from(projects)
     .where(and(eq(projects.organizationId, org(req)), isNull(projects.deletedAt), eq(projects.status, "active"),
       primary.scope.unrestricted ? undefined : inArray(projects.id, primary.scope.projectIds)));
   const [defaults] = await db.select({ values: sql<Record<string, number>>`coalesce(jsonb_object_agg(${targetBenchmarks.metricKey}, ${targetBenchmarks.targetValue}::numeric), '{}'::jsonb)` })
@@ -1172,7 +1171,7 @@ router.get("/consolidated-dashboard", multipleReportAccess(), asyncHandler(async
   const options = projectRows.map(row => {
     const fields = row.customFields as Record<string, any> ?? {};
     return { id: row.id, name: row.name, code: row.code,
-      ...projectDashboardDimensions(fields, row.businessUnit),
+      ...projectDashboardDimensions(fields),
       costCentre: typeof fields.costCentre === "string" ? fields.costCentre : "",
       targets: { ...defaults?.values, ...(fields.qaqcReporting?.targets ?? {}), ...(fields.targets ?? {}) } };
   });
@@ -1210,10 +1209,10 @@ router.get("/consolidated-dashboard", multipleReportAccess(), asyncHandler(async
   const warnings: string[] = [];
   if (noVisibleReport.length) warnings.push(`${noVisibleReport.length} project(s) have no report visible to your role for this period. Their submission status is not inferred.`);
   if (!selected.length) warnings.push("No active authorized projects match these filters.");
-  if (options.length && options.every(project => project.sbg === "Unassigned"))
-    warnings.push("SBG is not maintained in the available Project Master data. Those projects are grouped as Unassigned.");
-  if (options.length && options.every(project => project.projectGroup === "Unassigned"))
-    warnings.push("Project group is not maintained in the available Project Master data. Those projects are grouped as Unassigned.");
+  for (const [key, label] of [["sbg", "SBG"], ["bu", "BU"], ["projectGroup", "Project Group"]] as const) {
+    if (options.length && options.every(project => project[key] === "Unassigned"))
+      warnings.push(`${label} has no saved values for the available projects. Maintain ${label} in Integration Cockpit → Project Master → Additional Data. Projects without a saved value are grouped as Unassigned.`);
+  }
   const cross = view === "monthly" && selected.length ? await loadDashboardCrossModules(req, selectedIds, today)
     : { lessons: [], audits: [], records: [], warnings: [], availability: { lessons: false, audit: false } };
   if (view === "monthly") {

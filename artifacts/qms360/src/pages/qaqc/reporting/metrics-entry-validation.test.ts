@@ -15,6 +15,16 @@ const valid = (): Obj => ({
 });
 
 describe('thirteen-section QA/QC Metrics entry', () => {
+  it.each(['external_ncr', 'internal_ncr'])('rejects repeated department/bucket pairs in %s', key => {
+    const data = valid();
+    data.metrics[key] = { issued: 3, closed: 0, ageing: [
+      { department: 'Civil', bucket: '0-15', count: 1 },
+      { department: ' civil ', bucket: '0-15', count: 2 },
+    ] };
+    expect(validateMetricsEntry(data).join(' ')).toContain('Ageing Bucket is already used for this BU in row 1');
+    data.metrics[key].ageing[1].bucket = '15-45';
+    expect(validateMetricsEntry(data)).toEqual([]);
+  });
   it('accepts all entry fields without requiring submission confirmation on a draft', () => {
     expect(validateMetricsEntry(valid())).toEqual([]);
   });
