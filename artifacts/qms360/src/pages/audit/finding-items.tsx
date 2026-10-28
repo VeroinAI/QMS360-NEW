@@ -28,7 +28,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useLov } from "@/lib/use-lov";
 import { checklistFindings } from "./checklist-workbook";
 import { useAuditCapabilities } from "@/lib/use-audit-capabilities";
-import { canRepairFindingNumber, FindingNumberRepair } from "./finding-number-repair";
 import { FindingDate } from "./finding-date";
 import { EMPTY_FINDING_FILTERS, filterFindingRows, findingFilterOptions, type FindingFilters } from "./finding-register";
 import { FINDING_TAB_COLUMNS, FINDING_TAB_FILTERS, projectFindingTab } from "./finding-tab-projection";
@@ -284,10 +283,10 @@ export function FindingsGrid({ auditId, items, auditTitle = "", registerRows, aw
               </tr>;
               const item = row.item;
               const numberOnSubmission = awaitingSubmission && item.source !== "finding"
-                && canRepairFindingNumber(item.auditFinding || item.result, item.findingNumber);
+                && !item.findingNumber?.trim()
+                && ["Minor NC", "Moderate NC", "Major NC", "OFI"].includes(item.auditFinding || item.result || "");
               return <tr key={item.id} data-testid={`row-finding-${item.id}`} className="hover:bg-muted/30">
               <td data-testid={`text-finding-number-${item.id}`} className={`${cell} w-40 whitespace-nowrap font-mono text-xs`}>{item.findingNumber?.trim() || <span className="block max-w-44 whitespace-normal font-sans text-muted-foreground">{numberOnSubmission ? "Finding ID will be generated on submission for approval." : "Not numbered"}</span>}
-                {!readOnly && canRepairFindingNumber(item.auditFinding, item.findingNumber) && <FindingNumberRepair auditId={auditId} itemId={item.id}/>}
               </td>
               {common}
               <td className={`${cell} w-64`}>

@@ -49,6 +49,17 @@ function render(rows: AuditFindingRegisterItem[] = [registry], items: ChecklistI
 }
 
 describe("Audit Execution Findings tab", () => {
+  it("never offers manual finding number generation, including to editors and on submitted history", () => {
+    permission.edit = true;
+    for (const awaitingSubmission of [true, false]) {
+      for (const source of [undefined, "finding"] as const) {
+        const doc = render([registry], [{ ...current, source, findingNumber: undefined }], awaitingSubmission);
+        expect(doc.body.textContent?.toLowerCase()).not.toContain("generate finding number");
+        expect(doc.querySelector('[data-testid="button-add-finding"]')).not.toBeNull();
+        expect(doc.querySelector('[data-testid="select-action-taker-item"]')).not.toBeNull();
+      }
+    }
+  });
   it("explains checklist numbering before submission without promising a new number for submitted history", () => {
     permission.edit = false;
     const unnumbered = { ...current, findingNumber: undefined };

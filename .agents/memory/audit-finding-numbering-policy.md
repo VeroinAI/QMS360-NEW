@@ -32,7 +32,7 @@ together, preserving all existing IDs and skipping blank/Not applicable results.
 checklist-transferred findings, instead of relying on individual repair clicks.
 
 **How to apply:** Show pending-issuance text on unnumbered checklist findings
-before submission; retain historical repair. Use the existing type/source/year
+before submission. Use the existing type/source/year
 ranges, allocate sequentially against the latest counter state, and make retries
 and resubmissions idempotent. Read and download operations still never issue IDs.
 
@@ -40,17 +40,13 @@ and resubmissions idempotent. Read and download operations still never issue IDs
 
 **How to apply:** Commit the counter and finding together, preserve numbers through retries and later updates, and retain historical findings and evidence identities. Missing source data should produce an actionable error, never an invented source.
 
-Existing saved, unnumbered findings may receive a number through an explicit,
-confirmed repair action, including on completed audits. Finding edit permission
-must authorize the audit's project or process scope. Reading or downloading an
-audit must never allocate a number.
+Do not offer a manual “Generate Finding Number” action or individual-number
+generation endpoint.
 
-**Why:** Historical findings and checklist-origin findings can predate number
-issuance; maintaining the format alone does not backfill them. The user requested
-a safe frontend correction for production records without re-entering findings.
+**Why:** After automatic submission numbering was implemented, the user explicitly
+requested removal of the manual button and its functionality.
 
-**How to apply:** Use the current configured Finding range and linked Plan/Schedule
-source/year, not CAR numbering or the repair date. Preserve content, original
-dates, status, evidence, identities and CAR links. Repeated requests retain the
-issued reference. Checklist and general audit saves must preserve server-owned
-numbering metadata and reject client-supplied replacements.
+**How to apply:** Keep manual Add Finding numbering on save and checklist
+numbering on approval submission. Preserve previously issued IDs, identities,
+evidence and CAR links. Ordinary saves must still preserve server-owned numbering
+metadata and reject client-supplied replacements. Reads/downloads never issue IDs.
