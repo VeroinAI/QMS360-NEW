@@ -3922,10 +3922,7 @@ export const AuditFindingItemInputAuditFinding = {
   OFI: 'OFI',
 } as const;
 
-/**
- * @nullable
- */
-export type AuditFindingItemInputRiskLevel = typeof AuditFindingItemInputRiskLevel[keyof typeof AuditFindingItemInputRiskLevel] | null;
+export type AuditFindingItemInputRiskLevel = typeof AuditFindingItemInputRiskLevel[keyof typeof AuditFindingItemInputRiskLevel];
 
 
 export const AuditFindingItemInputRiskLevel = {
@@ -3943,8 +3940,7 @@ export interface AuditFindingItemInput {
   auditArea: string;
   description?: string;
   auditFinding: AuditFindingItemInputAuditFinding;
-  /** @nullable */
-  riskLevel?: AuditFindingItemInputRiskLevel;
+  riskLevel: AuditFindingItemInputRiskLevel;
   evidenceIds?: string[];
   actionTakerId: string;
   recommendedPriorityAction: FindingPriorityAction;
@@ -3972,10 +3968,7 @@ export const AuditChecklistItemInputAuditFinding = {
   Not_applicable: 'Not applicable',
 } as const;
 
-/**
- * @nullable
- */
-export type AuditChecklistItemInputRiskLevel = typeof AuditChecklistItemInputRiskLevel[keyof typeof AuditChecklistItemInputRiskLevel] | null;
+export type AuditChecklistItemInputRiskLevel = typeof AuditChecklistItemInputRiskLevel[keyof typeof AuditChecklistItemInputRiskLevel];
 
 
 export const AuditChecklistItemInputRiskLevel = {
@@ -3996,8 +3989,7 @@ export interface AuditChecklistItemInput {
   question: string;
   description?: string;
   auditFinding?: AuditChecklistItemInputAuditFinding;
-  /** @nullable */
-  riskLevel?: AuditChecklistItemInputRiskLevel;
+  riskLevel: AuditChecklistItemInputRiskLevel;
   evidenceIds?: string[];
 }
 

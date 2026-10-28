@@ -6,10 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * @nullable
- */
-export type AuditChecklistItemInputRiskLevel = typeof AuditChecklistItemInputRiskLevel[keyof typeof AuditChecklistItemInputRiskLevel] | null;
+export type AuditChecklistItemInputRiskLevel = typeof AuditChecklistItemInputRiskLevel[keyof typeof AuditChecklistItemInputRiskLevel];
 
 
 export const AuditChecklistItemInputRiskLevel = {

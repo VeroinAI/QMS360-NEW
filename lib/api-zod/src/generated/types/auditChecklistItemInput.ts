@@ -20,7 +20,6 @@ export interface AuditChecklistItemInput {
   question: string;
   description?: string;
   auditFinding?: AuditChecklistItemInputAuditFinding;
-  /** @nullable */
-  riskLevel?: AuditChecklistItemInputRiskLevel;
+  riskLevel: AuditChecklistItemInputRiskLevel;
   evidenceIds?: string[];
 }

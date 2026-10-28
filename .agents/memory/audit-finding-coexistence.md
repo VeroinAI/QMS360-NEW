@@ -63,8 +63,13 @@ conversion from Major/Minor NC or OFI. Unrecorded risk stays blank/dash; do not
 apply the older standalone DTO's default Low as if it were entered transaction data.
 Likewise, Responsible Department is not an Audit Area and cannot fill that column.
 
+Checklist item entry/editing and Add Finding require an explicit Low, Medium or
+High selection. Mandatory entry does not authorize backfilling historical blanks
+or silently selecting a default.
+
 **Why:** The requested register separates Finding Type, Risk Level and Audit Area.
 Filling one from a different business field would hide missing transaction data.
+The user explicitly made the new Risk Level input mandatory in both entry forms.
 
 **How to apply:** Resolve the existing Audit Area master label, retain actual
 standalone risk values and current checklist/mirror risk if saved, and leave genuine

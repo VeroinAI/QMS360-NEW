@@ -2229,6 +2229,10 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
       toast({ title: "Clause, Audit Area and Audit Question are required", variant: "destructive" });
       return;
     }
+    if (!["Low", "Medium", "High"].includes(draft.riskLevel)) {
+      toast({ title: "Risk Level is required", description: "Select Low, Medium or High.", variant: "destructive" });
+      return;
+    }
     if (!areas.options.some(area => area.value === draft.auditArea)) {
       toast({ title: "Select an active Audit Area from master data", variant: "destructive" });
       return;
@@ -2247,7 +2251,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
       });
       const data = {
         clause: draft.clause.trim(), auditArea: draft.auditArea, question: draft.question.trim(),
-        riskLevel: (draft.riskLevel || null) as "Low" | "Medium" | "High" | null,
+        riskLevel: draft.riskLevel as "Low" | "Medium" | "High",
         description: draft.description.trim(), ...(draft.auditFinding ? { auditFinding: draft.auditFinding as "Minor NC" | "Moderate NC" | "Major NC" | "OFI" | "Not applicable" } : {}),
         evidenceIds: [...new Set([...draft.evidenceIds, ...fileIds])],
       };
@@ -2340,7 +2344,7 @@ function Checklist({ auditId, initial }: { auditId: string; initial: ChecklistIt
           <div><Label htmlFor="checklist-question">Audit Question *</Label><Input id="checklist-question" value={draft.question} onChange={event => update("question", event.target.value)} placeholder="Enter the audit question"/></div>
           <div><Label htmlFor="checklist-description">Description</Label><Textarea id="checklist-description" rows={4} value={draft.description} onChange={event => update("description", event.target.value)} placeholder="Description or findings"/></div>
           <div><Label>Audit Findings</Label><Select value={draft.auditFinding} onValueChange={value => update("auditFinding", value)}><SelectTrigger><SelectValue placeholder="Select a finding (optional)"/></SelectTrigger><SelectContent>{findings.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>{draft.auditFinding && <button type="button" className="mt-1 text-xs text-muted-foreground underline" onClick={() => update("auditFinding", "")}>Clear selection</button>}</div>
-          <div><Label>Risk Level</Label><Select value={draft.riskLevel || undefined} onValueChange={value => update("riskLevel", value)}><SelectTrigger data-testid="select-checklist-risk-level"><SelectValue placeholder="Select risk level"/></SelectTrigger><SelectContent>{["Low", "Medium", "High"].map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
+          <div><Label htmlFor="checklist-risk-level">Risk Level *</Label><Select value={draft.riskLevel || undefined} onValueChange={value => update("riskLevel", value)}><SelectTrigger id="checklist-risk-level" data-testid="select-checklist-risk-level" aria-required="true"><SelectValue placeholder="Select risk level"/></SelectTrigger><SelectContent>{["Low", "Medium", "High"].map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2">
             <Label htmlFor="checklist-evidence">Evidence (optional — attach to this item)</Label>
             {draft.evidenceIds.map(id => <div key={id} className="flex items-center justify-between gap-2 text-sm">

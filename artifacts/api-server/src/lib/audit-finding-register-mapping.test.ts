@@ -21,10 +21,12 @@ describe("Audit Finding register projection", () => {
     const checklist = { clause: "1", auditArea: "area", question: "Question" };
     const finding = { clause: "1", auditArea: "area", auditFinding: "OFI", actionTakerId: "owner", recommendedPriorityAction: "Correct and close" };
     for (const [schema, input] of [[CreateAuditChecklistItemBody, checklist], [EditAuditChecklistItemBody, checklist], [CreateAuditFindingItemBody, finding]] as const) {
-      for (const riskLevel of ["Low", "Medium", "High", null]) {
+      for (const riskLevel of ["Low", "Medium", "High"]) {
         expect(schema.parse({ ...input, riskLevel }).riskLevel).toBe(riskLevel);
       }
-      expect(schema.safeParse(input).success).toBe(true);
+      expect(schema.safeParse(input).success).toBe(false);
+      expect(schema.safeParse({ ...input, riskLevel: null }).success).toBe(false);
+      expect(schema.safeParse({ ...input, riskLevel: "" }).success).toBe(false);
       expect(schema.safeParse({ ...input, riskLevel: "Critical" }).success).toBe(false);
     }
   });

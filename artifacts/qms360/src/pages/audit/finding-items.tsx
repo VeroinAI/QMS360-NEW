@@ -40,7 +40,7 @@ const findingSchema = z.object({
   auditArea: z.string().min(1, "Audit Area is required"),
   description: z.string(),
   auditFinding: z.enum(["Minor NC", "Moderate NC", "Major NC", "OFI"], { required_error: "Audit Findings is required" }),
-  riskLevel: z.enum(["Low", "Medium", "High"]).or(z.literal("")),
+  riskLevel: z.enum(["Low", "Medium", "High"], { required_error: "Risk Level is required", invalid_type_error: "Risk Level is required" }),
   actionTakerId: z.string().min(1, "Action Taker is required"),
   recommendedPriorityAction: z.enum(findingPriorityActions).or(z.literal("")),
 }).superRefine((value, ctx) => {
@@ -52,7 +52,7 @@ const findingSchema = z.object({
 type FindingForm = z.infer<typeof findingSchema>;
 const emptyForm = (): FindingForm => ({
   findingDate: "",
-  clause: "", auditArea: "", description: "", auditFinding: undefined as unknown as FindingForm["auditFinding"], riskLevel: "", actionTakerId: "", recommendedPriorityAction: "",
+  clause: "", auditArea: "", description: "", auditFinding: undefined as unknown as FindingForm["auditFinding"], riskLevel: undefined as unknown as FindingForm["riskLevel"], actionTakerId: "", recommendedPriorityAction: "",
 });
 const errorText = (error: unknown) => error instanceof Error ? error.message : "Please try again.";
 const supportedFile = (file: File) =>
@@ -181,7 +181,7 @@ export function FindingsGrid({ auditId, items, auditTitle = "", registerRows }: 
         findingDate: values.findingDate,
         clause: values.clause, auditArea: values.auditArea, description: values.description.trim(),
         auditFinding: values.auditFinding, actionTakerId: values.actionTakerId,
-        riskLevel: values.riskLevel || null,
+        riskLevel: values.riskLevel,
         recommendedPriorityAction: values.recommendedPriorityAction,
         evidenceIds: fileId ? [fileId] : [], clientReference: uploadReference.current,
       };
@@ -348,7 +348,7 @@ export function FindingsGrid({ auditId, items, auditTitle = "", registerRows }: 
           <FormField control={form.control} name="auditArea" render={({ field, fieldState }) => <FormItem><FormLabel>Audit Area *</FormLabel><Select value={field.value || undefined} onValueChange={field.onChange} disabled={areas.isLoading || !!areas.error || !areas.options.length}><FormControl><SelectTrigger data-testid="select-finding-audit-area" aria-invalid={!!fieldState.error}><SelectValue placeholder="Select Audit Area"/></SelectTrigger></FormControl><SelectContent>{areas.options.map(area => <SelectItem key={area.value} value={area.value}>{area.label}</SelectItem>)}</SelectContent></Select><FormMessage/>{areas.error && <p className="text-sm text-destructive">Unable to load Audit Areas. <button type="button" data-testid="button-retry-audit-areas" className="underline" onClick={() => void areas.refetch()}>Retry</button></p>}{!areas.isLoading && !areas.error && !areas.options.length && <p className="text-sm text-muted-foreground">No active Audit Areas are configured.</p>}</FormItem>}/>
           <FormField control={form.control} name="description" render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} data-testid="input-finding-description" rows={3} placeholder="Describe what was observed"/></FormControl><FormMessage/></FormItem>}/>
           <FormField control={form.control} name="auditFinding" render={({ field, fieldState }) => <FormItem><FormLabel>Audit Findings *</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger data-testid="select-finding-classification" aria-invalid={!!fieldState.error}><SelectValue placeholder="Select a finding"/></SelectTrigger></FormControl><SelectContent>{findingOptions.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
-          <FormField control={form.control} name="riskLevel" render={({ field }) => <FormItem><FormLabel>Risk Level</FormLabel><Select value={field.value || undefined} onValueChange={field.onChange}><FormControl><SelectTrigger data-testid="select-finding-risk-level"><SelectValue placeholder="Select risk level"/></SelectTrigger></FormControl><SelectContent>{["Low", "Medium", "High"].map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
+          <FormField control={form.control} name="riskLevel" render={({ field }) => <FormItem><FormLabel>Risk Level *</FormLabel><Select value={field.value || undefined} onValueChange={field.onChange}><FormControl><SelectTrigger data-testid="select-finding-risk-level" aria-required="true"><SelectValue placeholder="Select risk level"/></SelectTrigger></FormControl><SelectContent>{["Low", "Medium", "High"].map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>}/>
           <FormField control={form.control} name="actionTakerId" render={({ field, fieldState }) => <FormItem><FormLabel>Action Taker *</FormLabel><Select value={field.value || undefined} onValueChange={field.onChange} disabled={users.isLoading || !!users.error || !eligibleUsers.length}><FormControl><SelectTrigger data-testid="select-finding-action-taker" aria-invalid={!!fieldState.error}><SelectValue placeholder={users.isLoading ? "Loading Audit users…" : "Select an Audit user"}/></SelectTrigger></FormControl><SelectContent>{eligibleUsers.map(user => <SelectItem key={user.id} value={user.id}>{user.fullName}{user.designation ? ` — ${user.designation}` : ""}</SelectItem>)}</SelectContent></Select><FormMessage/>{users.error && <p className="text-sm text-destructive">Unable to load Audit users. <button type="button" data-testid="button-retry-audit-users" className="underline" onClick={() => void users.refetch()}>Retry</button></p>}{!users.isLoading && !users.error && !eligibleUsers.length && <p className="text-sm text-muted-foreground">No eligible Audit users are available.</p>}</FormItem>}/>
           <FormField control={form.control} name="recommendedPriorityAction" render={({ field, fieldState }) => <FormItem>
             <FormLabel>Recommended priority actions{form.watch("actionTakerId") ? " *" : ""}</FormLabel>

@@ -10662,7 +10662,7 @@ export const CreateAuditChecklistItemBody = zod.object({
   "question": zod.string().min(1),
   "description": zod.string().optional(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
-  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
+  "riskLevel": zod.enum(['Low', 'Medium', 'High']),
   "evidenceIds": zod.array(zod.string()).optional()
 })
 
@@ -10879,7 +10879,7 @@ export const EditAuditChecklistItemBody = zod.object({
   "question": zod.string().min(1),
   "description": zod.string().optional(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI', 'Not applicable']).optional(),
-  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
+  "riskLevel": zod.enum(['Low', 'Medium', 'High']),
   "evidenceIds": zod.array(zod.string()).optional()
 })
 
@@ -11519,7 +11519,7 @@ export const CreateAuditFindingItemBody = zod.object({
   "auditArea": zod.string().min(1),
   "description": zod.string().optional(),
   "auditFinding": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI']),
-  "riskLevel": zod.union([zod.literal('Low'),zod.literal('Medium'),zod.literal('High'),zod.literal(null)]).nullish(),
+  "riskLevel": zod.enum(['Low', 'Medium', 'High']),
   "evidenceIds": zod.array(zod.string()).optional(),
   "actionTakerId": zod.string(),
   "recommendedPriorityAction": zod.enum(['Contain the risk now', 'Correct and close', 'Prevent recurrence']),

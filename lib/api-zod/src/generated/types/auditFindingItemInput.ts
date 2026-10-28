@@ -18,8 +18,7 @@ export interface AuditFindingItemInput {
   auditArea: string;
   description?: string;
   auditFinding: AuditFindingItemInputAuditFinding;
-  /** @nullable */
-  riskLevel?: AuditFindingItemInputRiskLevel;
+  riskLevel: AuditFindingItemInputRiskLevel;
   evidenceIds?: string[];
   actionTakerId: string;
   recommendedPriorityAction: FindingPriorityAction;

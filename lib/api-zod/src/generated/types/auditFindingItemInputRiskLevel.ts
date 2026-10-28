@@ -6,10 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * @nullable
- */
-export type AuditFindingItemInputRiskLevel = typeof AuditFindingItemInputRiskLevel[keyof typeof AuditFindingItemInputRiskLevel] | null;
+export type AuditFindingItemInputRiskLevel = typeof AuditFindingItemInputRiskLevel[keyof typeof AuditFindingItemInputRiskLevel];
 
 
 export const AuditFindingItemInputRiskLevel = {
