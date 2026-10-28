@@ -8,6 +8,7 @@
 import type { EmailCcRecipient } from './emailCcRecipient';
 import type { EmailRecipientConfigBodyRichText } from './emailRecipientConfigBodyRichText';
 import type { EmailRecipientConfigReportAttachment } from './emailRecipientConfigReportAttachment';
+import type { EmailRecipientConfigReportAttachmentsItem } from './emailRecipientConfigReportAttachmentsItem';
 import type { EmailRecipientConfigSenderMode } from './emailRecipientConfigSenderMode';
 
 export interface EmailRecipientConfig {
@@ -27,10 +28,15 @@ export interface EmailRecipientConfig {
   /** @maxLength 20000 */
   bodyTemplate?: string;
   /**
-     * Optional event-specific generated report. Null or omitted means no attachment.
+     * Legacy single report selection. Used only when reportAttachments is omitted.
      * @nullable
      */
   reportAttachment?: EmailRecipientConfigReportAttachment;
+  /**
+     * Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.
+     * @maxItems 10
+     */
+  reportAttachments?: EmailRecipientConfigReportAttachmentsItem[];
   /**
      * Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
      * @nullable

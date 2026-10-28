@@ -11,6 +11,21 @@ export interface ProjectAdditionalData {
      * @maxLength 500
      * @nullable
      */
+  sbg?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  bu?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  projectGroup?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
   consultant?: string | null;
   /**
      * @maxLength 500

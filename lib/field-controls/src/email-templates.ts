@@ -1,5 +1,5 @@
 import { emailRichTextToPlain, renderEmailRichText, type EmailRichDocument } from "./email-rich-text";
-export type EmailRuleTemplate = { subjectTemplate?: string; bodyTemplate?: string; bodyRichText?: EmailRichDocument | Record<string, unknown> | null; reportAttachment?: string | null };
+export type EmailRuleTemplate = { subjectTemplate?: string; bodyTemplate?: string; bodyRichText?: EmailRichDocument | Record<string, unknown> | null; reportAttachment?: string | null; reportAttachments?: string[] };
 /** JSON from API/storage is validated before being used as a document. */
 export function emailRuleBodyText(template: Pick<EmailRuleTemplate, "bodyTemplate" | "bodyRichText">) {
   return template.bodyRichText != null ? emailRichTextToPlain(template.bodyRichText) : template.bodyTemplate ?? "";

@@ -11,6 +11,18 @@ const record = { id: 'project-1', additionalData: { email: 'quality@example.com'
 const props = { record, canEdit: true, onSaved: vi.fn(), onPendingChange: vi.fn(), onCancel: vi.fn() };
 
 describe('Project Additional Data contact fields', () => {
+  it('renders saved dashboard classification fields and retains view-only restrictions', () => {
+    const dimensions = { sbg: 'Construction', bu: 'Infrastructure', projectGroup: 'Central' };
+    for (const canEdit of [true, false]) {
+      const html = renderToStaticMarkup(<ProjectAdditionalDataEditor {...props} canEdit={canEdit}
+        record={{ ...record, additionalData: { ...record.additionalData!, ...dimensions } }} />);
+      for (const [key, label] of [['sbg', 'SBG'], ['bu', 'BU'], ['projectGroup', 'Project Group']] as const) {
+        expect(html).toContain(`for="project-additional-${key}">${label}`);
+        expect(html).toMatch(new RegExp(`id="project-additional-${key}"[^>]*value="${dimensions[key]}"`));
+        if (!canEdit) expect(html).toMatch(new RegExp(`id="project-additional-${key}"[^>]*disabled=""`));
+      }
+    }
+  });
   it('renders the new optional fields with saved values and preserves read-only access', () => {
     const additionalData = { ...record.additionalData!, consultant: 'Consultant A', projectManager: 'Manager B', contractValue: 'SAR 1,500,000.50', ptsNumber: 'PTS-0012' };
     for (const canEdit of [true, false]) {

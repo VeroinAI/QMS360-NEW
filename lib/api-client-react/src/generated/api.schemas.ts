@@ -561,13 +561,25 @@ export const EmailRecipientConfigSenderMode = {
 } as const;
 
 /**
- * Optional event-specific generated report. Null or omitted means no attachment.
+ * Legacy single report selection. Used only when reportAttachments is omitted.
  * @nullable
  */
 export type EmailRecipientConfigReportAttachment = typeof EmailRecipientConfigReportAttachment[keyof typeof EmailRecipientConfigReportAttachment] | null;
 
 
 export const EmailRecipientConfigReportAttachment = {
+  lesson_pdf: 'lesson_pdf',
+  qaqc_report_pdf: 'qaqc_report_pdf',
+  audit_schedule_pdf: 'audit_schedule_pdf',
+  audit_plan_pdf: 'audit_plan_pdf',
+  audit_report_pdf: 'audit_report_pdf',
+  audit_report_pptx: 'audit_report_pptx',
+} as const;
+
+export type EmailRecipientConfigReportAttachmentsItem = typeof EmailRecipientConfigReportAttachmentsItem[keyof typeof EmailRecipientConfigReportAttachmentsItem];
+
+
+export const EmailRecipientConfigReportAttachmentsItem = {
   lesson_pdf: 'lesson_pdf',
   qaqc_report_pdf: 'qaqc_report_pdf',
   audit_schedule_pdf: 'audit_schedule_pdf',
@@ -599,10 +611,15 @@ export interface EmailRecipientConfig {
   /** @maxLength 20000 */
   bodyTemplate?: string;
   /**
-     * Optional event-specific generated report. Null or omitted means no attachment.
+     * Legacy single report selection. Used only when reportAttachments is omitted.
      * @nullable
      */
   reportAttachment?: EmailRecipientConfigReportAttachment;
+  /**
+     * Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.
+     * @maxItems 10
+     */
+  reportAttachments?: EmailRecipientConfigReportAttachmentsItem[];
   /**
      * Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.
      * @nullable
@@ -1106,6 +1123,21 @@ export type DronaProjectMasterRecordDronaLinksItem = {
 };
 
 export interface ProjectAdditionalData {
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  sbg?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  bu?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  projectGroup?: string | null;
   /**
      * @maxLength 500
      * @nullable

@@ -543,6 +543,12 @@ export const ListDronaProjectMasterQueryParams = zod.object({
   "search": zod.coerce.string().max(listDronaProjectMasterQuerySearchMax).optional()
 })
 
+export const listDronaProjectMasterResponseItemsItemAdditionalDataSbgMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataBuMax = 500;
+
+export const listDronaProjectMasterResponseItemsItemAdditionalDataProjectGroupMax = 500;
+
 export const listDronaProjectMasterResponseItemsItemAdditionalDataConsultantMax = 500;
 
 export const listDronaProjectMasterResponseItemsItemAdditionalDataProjectManagerMax = 500;
@@ -601,6 +607,9 @@ export const ListDronaProjectMasterResponse = zod.object({
   "businessUnit": zod.string().nullable(),
   "costCentre": zod.string().nullable(),
   "additionalData": zod.object({
+  "sbg": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataSbgMax).nullish(),
+  "bu": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataBuMax).nullish(),
+  "projectGroup": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataProjectGroupMax).nullish(),
   "consultant": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataConsultantMax).nullish(),
   "projectManager": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataProjectManagerMax).nullish(),
   "contractValue": zod.string().max(listDronaProjectMasterResponseItemsItemAdditionalDataContractValueMax).nullish(),
@@ -678,6 +687,12 @@ export const GetProjectAdditionalDataParams = zod.object({
   "projectId": zod.coerce.string().regex(getProjectAdditionalDataPathProjectIdRegExp)
 })
 
+export const getProjectAdditionalDataResponseAdditionalDataSbgMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataBuMax = 500;
+
+export const getProjectAdditionalDataResponseAdditionalDataProjectGroupMax = 500;
+
 export const getProjectAdditionalDataResponseAdditionalDataConsultantMax = 500;
 
 export const getProjectAdditionalDataResponseAdditionalDataProjectManagerMax = 500;
@@ -735,6 +750,9 @@ export const GetProjectAdditionalDataResponse = zod.object({
   "businessUnit": zod.string().nullable(),
   "costCentre": zod.string().nullable(),
   "additionalData": zod.object({
+  "sbg": zod.string().max(getProjectAdditionalDataResponseAdditionalDataSbgMax).nullish(),
+  "bu": zod.string().max(getProjectAdditionalDataResponseAdditionalDataBuMax).nullish(),
+  "projectGroup": zod.string().max(getProjectAdditionalDataResponseAdditionalDataProjectGroupMax).nullish(),
   "consultant": zod.string().max(getProjectAdditionalDataResponseAdditionalDataConsultantMax).nullish(),
   "projectManager": zod.string().max(getProjectAdditionalDataResponseAdditionalDataProjectManagerMax).nullish(),
   "contractValue": zod.string().max(getProjectAdditionalDataResponseAdditionalDataContractValueMax).nullish(),
@@ -783,6 +801,12 @@ export const UpdateProjectAdditionalDataParams = zod.object({
 })
 
 export const updateProjectAdditionalDataBodyCostCentreMax = 100;
+
+export const updateProjectAdditionalDataBodyAdditionalDataSbgMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataBuMax = 500;
+
+export const updateProjectAdditionalDataBodyAdditionalDataProjectGroupMax = 500;
 
 export const updateProjectAdditionalDataBodyAdditionalDataConsultantMax = 500;
 
@@ -837,6 +861,9 @@ export const updateProjectAdditionalDataBodyClosureTargetsPqiMax = 100;
 export const UpdateProjectAdditionalDataBody = zod.object({
   "costCentre": zod.string().max(updateProjectAdditionalDataBodyCostCentreMax).nullable(),
   "additionalData": zod.object({
+  "sbg": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataSbgMax).nullish(),
+  "bu": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataBuMax).nullish(),
+  "projectGroup": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataProjectGroupMax).nullish(),
   "consultant": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataConsultantMax).nullish(),
   "projectManager": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataProjectManagerMax).nullish(),
   "contractValue": zod.string().max(updateProjectAdditionalDataBodyAdditionalDataContractValueMax).nullish(),
@@ -861,6 +888,12 @@ export const UpdateProjectAdditionalDataBody = zod.object({
   "pqi": zod.number().min(updateProjectAdditionalDataBodyClosureTargetsPqiMin).max(updateProjectAdditionalDataBodyClosureTargetsPqiMax).nullish()
 }).optional()
 })
+
+export const updateProjectAdditionalDataResponseAdditionalDataSbgMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataBuMax = 500;
+
+export const updateProjectAdditionalDataResponseAdditionalDataProjectGroupMax = 500;
 
 export const updateProjectAdditionalDataResponseAdditionalDataConsultantMax = 500;
 
@@ -916,6 +949,9 @@ export const UpdateProjectAdditionalDataResponse = zod.object({
   "id": zod.string(),
   "costCentre": zod.string().nullable(),
   "additionalData": zod.object({
+  "sbg": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataSbgMax).nullish(),
+  "bu": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataBuMax).nullish(),
+  "projectGroup": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataProjectGroupMax).nullish(),
   "consultant": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataConsultantMax).nullish(),
   "projectManager": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataProjectManagerMax).nullish(),
   "contractValue": zod.string().max(updateProjectAdditionalDataResponseAdditionalDataContractValueMax).nullish(),
@@ -15642,6 +15678,8 @@ export const listEmailRulesResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const listEmailRulesResponseRecipientConfigBodyTemplateMax = 20000;
 
+export const listEmailRulesResponseRecipientConfigReportAttachmentsMax = 10;
+
 
 
 export const ListEmailRulesResponseItem = zod.object({
@@ -15670,7 +15708,8 @@ export const ListEmailRulesResponseItem = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(listEmailRulesResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(listEmailRulesResponseRecipientConfigBodyTemplateMax).optional(),
-  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(listEmailRulesResponseRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -15706,6 +15745,8 @@ export const createEmailRuleBodyRecipientConfigSubjectTemplateMax = 250;
 
 export const createEmailRuleBodyRecipientConfigBodyTemplateMax = 20000;
 
+export const createEmailRuleBodyRecipientConfigReportAttachmentsMax = 10;
+
 
 
 export const CreateEmailRuleBody = zod.object({
@@ -15732,7 +15773,8 @@ export const CreateEmailRuleBody = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(createEmailRuleBodyRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(createEmailRuleBodyRecipientConfigBodyTemplateMax).optional(),
-  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(createEmailRuleBodyRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -15763,6 +15805,8 @@ export const createEmailRuleResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const createEmailRuleResponseRecipientConfigBodyTemplateMax = 20000;
 
+export const createEmailRuleResponseRecipientConfigReportAttachmentsMax = 10;
+
 
 
 export const CreateEmailRuleResponse = zod.object({
@@ -15791,7 +15835,8 @@ export const CreateEmailRuleResponse = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(createEmailRuleResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(createEmailRuleResponseRecipientConfigBodyTemplateMax).optional(),
-  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(createEmailRuleResponseRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -15830,6 +15875,8 @@ export const updateEmailRuleBodyRecipientConfigSubjectTemplateMax = 250;
 
 export const updateEmailRuleBodyRecipientConfigBodyTemplateMax = 20000;
 
+export const updateEmailRuleBodyRecipientConfigReportAttachmentsMax = 10;
+
 
 
 export const UpdateEmailRuleBody = zod.object({
@@ -15856,7 +15903,8 @@ export const UpdateEmailRuleBody = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(updateEmailRuleBodyRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(updateEmailRuleBodyRecipientConfigBodyTemplateMax).optional(),
-  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(updateEmailRuleBodyRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -15887,6 +15935,8 @@ export const updateEmailRuleResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const updateEmailRuleResponseRecipientConfigBodyTemplateMax = 20000;
 
+export const updateEmailRuleResponseRecipientConfigReportAttachmentsMax = 10;
+
 
 
 export const UpdateEmailRuleResponse = zod.object({
@@ -15915,7 +15965,8 @@ export const UpdateEmailRuleResponse = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(updateEmailRuleResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(updateEmailRuleResponseRecipientConfigBodyTemplateMax).optional(),
-  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(updateEmailRuleResponseRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -15958,6 +16009,8 @@ export const reorderEmailRulesResponseRecipientConfigSubjectTemplateMax = 250;
 
 export const reorderEmailRulesResponseRecipientConfigBodyTemplateMax = 20000;
 
+export const reorderEmailRulesResponseRecipientConfigReportAttachmentsMax = 10;
+
 
 
 export const ReorderEmailRulesResponseItem = zod.object({
@@ -15986,7 +16039,8 @@ export const ReorderEmailRulesResponseItem = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(reorderEmailRulesResponseRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(reorderEmailRulesResponseRecipientConfigBodyTemplateMax).optional(),
-  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(reorderEmailRulesResponseRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),
@@ -16218,6 +16272,8 @@ export const simulateEmailRuleResponseRuleOneRecipientConfigSubjectTemplateMax =
 
 export const simulateEmailRuleResponseRuleOneRecipientConfigBodyTemplateMax = 20000;
 
+export const simulateEmailRuleResponseRuleOneRecipientConfigReportAttachmentsMax = 10;
+
 
 
 export const SimulateEmailRuleResponse = zod.object({
@@ -16248,7 +16304,8 @@ export const SimulateEmailRuleResponse = zod.object({
   "senderMode": zod.enum(['form_creator', 'approving_user']).optional(),
   "subjectTemplate": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigSubjectTemplateMax).optional(),
   "bodyTemplate": zod.string().max(simulateEmailRuleResponseRuleOneRecipientConfigBodyTemplateMax).optional(),
-  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Optional event-specific generated report. Null or omitted means no attachment.'),
+  "reportAttachment": zod.union([zod.literal(null),zod.literal('lesson_pdf'),zod.literal('qaqc_report_pdf'),zod.literal('audit_schedule_pdf'),zod.literal('audit_plan_pdf'),zod.literal('audit_report_pdf'),zod.literal('audit_report_pptx')]).nullish().describe('Legacy single report selection. Used only when reportAttachments is omitted.'),
+  "reportAttachments": zod.array(zod.enum(['lesson_pdf', 'qaqc_report_pdf', 'audit_schedule_pdf', 'audit_plan_pdf', 'audit_report_pdf', 'audit_report_pptx'])).max(simulateEmailRuleResponseRuleOneRecipientConfigReportAttachmentsMax).optional().describe('Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.'),
   "bodyRichText": zod.record(zod.string(), zod.unknown()).nullish().describe('Validated rich email body document, supporting paragraphs, bold, italic, underline and hex text colors. Plain bodyTemplate is derived from this document.')
 }).optional(),
   "receiverUserId": zod.string().nullish(),

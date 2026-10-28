@@ -1,4 +1,4 @@
-import { emailReportOptions } from '@workspace/field-controls';
+import { emailReportOptions, selectedEmailReports } from '@workspace/field-controls';
 import { EmailRuleAttachmentEditor } from './email-rule-attachment-editor';
 import { NativeSelection } from '@/components/ui/native-selection';
 import { SearchableSelectionList } from '@/components/ui/selection-search';
@@ -319,7 +319,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
     projectId: rule?.recipientConfig?.projectIds?.[0] ?? '',
     subjectTemplate: rule?.recipientConfig?.subjectTemplate ?? '',
     bodyTemplate: rule?.recipientConfig?.bodyTemplate ?? '',
-    reportAttachment: rule?.recipientConfig?.reportAttachment ?? '',
+    reportAttachments: selectedEmailReports(rule?.recipientConfig),
     bodyRichText: (rule?.recipientConfig?.bodyRichText ?? null) as EmailRichDocument | null,
   });
 
@@ -354,7 +354,8 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
         ccRecipient: ccRecipientFromDraft(draft.cc),
         subjectTemplate: draft.subjectTemplate,
         bodyTemplate: draft.bodyTemplate,
-        reportAttachment: emailReportOptions(draft.eventType).find(option => option.value === draft.reportAttachment)?.value ?? null,
+        reportAttachment: null,
+        reportAttachments: emailReportOptions(draft.eventType).filter(option => draft.reportAttachments.includes(option.value)).map(option => option.value),
         bodyRichText: draft.bodyRichText,
         ...(draft.receiverMode === 'linked_approver' ? { senderMode: 'form_creator' as const } : {}),
         ...(draft.receiverMode === 'linked_creator' ? { senderMode: 'approving_user' as const } : {}),
@@ -448,7 +449,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                     const linkedModeSelected = draft.receiverMode === 'linked_approver' || draft.receiverMode === 'linked_creator';
                     set({
                       eventType,
-                      reportAttachment: emailReportOptions(eventType).some(option => option.value === draft.reportAttachment) ? draft.reportAttachment : '',
+                      reportAttachments: draft.reportAttachments.filter(value => emailReportOptions(eventType).some(option => option.value === value)),
                       ...(eventType.split('.')[0] !== eventApp ? { roleNames: [], roleName: '', cc: {...draft.cc, roleNames: [], roleName: ''} } : {}),
                       ...(eventType === FINAL_AUDIT_SCHEDULE_EVENT
                         ? { receiverMode: 'role' as const }
@@ -460,7 +461,7 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                   <option value="">Select an event...</option>
                   {events.map(ev => <option key={ev.value} value={ev.value}>{emailRuleEventLabel(ev)} ({ev.value})</option>)}
                 </NativeSelection>
-                <EmailRuleAttachmentEditor eventType={draft.eventType} value={draft.reportAttachment} onChange={reportAttachment => set({ reportAttachment })} />
+                <EmailRuleAttachmentEditor eventType={draft.eventType} value={draft.reportAttachments} onChange={reportAttachments => set({ reportAttachments })} />
                 {(!draft.eventType || draft.eventType === INTERMEDIATE_AUDIT_SCHEDULE_EVENT) && (
                   <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
                     {draft.eventType === INTERMEDIATE_AUDIT_SCHEDULE_EVENT ? (

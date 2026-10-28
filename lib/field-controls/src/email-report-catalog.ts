@@ -24,3 +24,13 @@ export function validEmailReportSelection(eventType: string, selection: unknown)
   return selection === undefined || selection === null || selection === ""
     || emailReportOptions(eventType).some(option => option.value === selection);
 }
+
+/** An explicit empty multi-selection overrides an older saved single selection. */
+export function selectedEmailReports(config?: { reportAttachments?: string[]; reportAttachment?: string | null } | null): string[] {
+  return [...new Set(config?.reportAttachments ?? (config?.reportAttachment ? [config.reportAttachment] : []))];
+}
+
+export function validEmailReportSelections(eventType: string, selections: unknown) {
+  return selections === undefined || (Array.isArray(selections) && selections.length <= 10
+    && selections.every(selection => typeof selection === "string" && selection.length > 0 && validEmailReportSelection(eventType, selection)));
+}

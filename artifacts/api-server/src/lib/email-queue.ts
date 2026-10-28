@@ -3,7 +3,7 @@ import { db, organizationSettings, outboundEmails, users } from "@workspace/db";
 import { deliverEmail, type EmailDeliveryInput, type EmailDeliveryResult, type EmailReportAttachment } from "./email";
 import { removeEmailPdfAttachment } from "./email-attachments";
 import { logger } from "./logger";
-import { renderEmailRuleTemplate, validEmailReportSelection, type EmailRuleTemplate } from "@workspace/field-controls";
+import { renderEmailRuleTemplate, validEmailReportSelection, validEmailReportSelections, selectedEmailReports, type EmailRuleTemplate } from "@workspace/field-controls";
 import type { EmailReportRequest } from "./email-report-generator";
 import { prepareCustomPlaceholderValues, type PlaceholderEventContext } from "./email-placeholder-values";
 
@@ -79,15 +79,22 @@ export async function enqueueEmail(database: Database, input: EmailDeliveryInput
     // Explicit No attachment also suppresses old hard-coded workflow PDFs.
     delete context.emailAttachments;
     delete context.emailReportRequest;
-    const selection = input.ruleTemplate?.reportAttachment;
-    if (!validEmailReportSelection(String(context.eventType ?? ""), selection)) throw new Error("Report does not belong to this email event");
-    if (selection) {
+    delete context.emailReportRequests;
+    const eventType = String(context.eventType ?? "");
+    if (!validEmailReportSelection(eventType, input.ruleTemplate?.reportAttachment)
+      || !validEmailReportSelections(eventType, input.ruleTemplate?.reportAttachments))
+      throw new Error("Report does not belong to this email event");
+    const selections = selectedEmailReports(input.ruleTemplate);
+    const requests: EmailReportRequest[] = [];
+    for (const selection of selections) {
       if (selection === "audit_schedule_pdf" && input.attachments?.length) context.emailAttachments = input.attachments;
       else {
         if (typeof context.entityId !== "string") throw new Error("The event has no report record");
-        context.emailReportRequest = { selection, eventType: context.eventType, entityId: context.entityId };
+        requests.push({ selection, eventType, entityId: context.entityId });
       }
     }
+    if (input.ruleTemplate?.reportAttachments !== undefined && requests.length) context.emailReportRequests = requests;
+    else if (requests.length) context.emailReportRequest = requests[0];
   }
   const eventType = typeof context.eventType === "string" ? context.eventType : null;
   const ruleId = context.kind === "email_event_rule" && typeof context.ruleId === "string" ? context.ruleId : null;
@@ -157,6 +164,25 @@ export async function processClaimedEmail(database: Database, row: typeof outbou
     : undefined;
   let result: EmailDeliveryResult;
   try {
+    // Persist each generated report before starting the next, so a failed report
+    // or SMTP retry reuses completed private snapshots and never sends a partial set.
+    while (Array.isArray(row.context.emailReportRequests) && row.context.emailReportRequests.length) {
+      const requests = row.context.emailReportRequests as EmailReportRequest[];
+      const { generateEmailReport } = await import("./email-report-generator");
+      const attachment = await generateEmailReport(row.organizationId, requests[0]!);
+      const context = { ...row.context,
+        emailAttachments: [...(row.context.emailAttachments as EmailReportAttachment[] ?? []), attachment],
+        emailReportRequests: requests.slice(1),
+      };
+      try {
+        await database.update(outboundEmails).set({ context, updatedAt: new Date() })
+          .where(and(eq(outboundEmails.id, row.id), eq(outboundEmails.organizationId, row.organizationId)));
+      } catch (error) {
+        await removeEmailPdfAttachment(row.organizationId, attachment.objectPath);
+        throw error;
+      }
+      row.context = context;
+    }
     if (row.context.emailReportRequest && !row.context.emailAttachments) {
       const { generateEmailReport } = await import("./email-report-generator");
       const attachment = await generateEmailReport(row.organizationId, row.context.emailReportRequest as EmailReportRequest);

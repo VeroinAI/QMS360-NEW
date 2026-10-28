@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
+import { projectDashboardDimensions } from "../lib/qaqc-project-dimensions";
 import { assertNoMonthlyDuplicate, isReportPeriodDuplicate, lockMonthlyCreation, monthlyDuplicateReason } from "../lib/qaqc-report-duplicates";
 import { and, asc, count, desc, eq, getTableColumns, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
@@ -1168,13 +1169,10 @@ router.get("/consolidated-dashboard", multipleReportAccess(), asyncHandler(async
       primary.scope.unrestricted ? undefined : inArray(projects.id, primary.scope.projectIds)));
   const [defaults] = await db.select({ values: sql<Record<string, number>>`coalesce(jsonb_object_agg(${targetBenchmarks.metricKey}, ${targetBenchmarks.targetValue}::numeric), '{}'::jsonb)` })
     .from(targetBenchmarks).where(and(eq(targetBenchmarks.organizationId, org(req)), isNull(targetBenchmarks.deletedAt)));
-  const text = (value: unknown) => typeof value === "string" && value.trim() ? value.trim() : "Unassigned";
   const options = projectRows.map(row => {
-    const fields = row.customFields as Record<string, any>;
+    const fields = row.customFields as Record<string, any> ?? {};
     return { id: row.id, name: row.name, code: row.code,
-      sbg: text(fields.sbg ?? fields.SBG ?? fields.strategicBusinessGroup),
-      bu: text(row.businessUnit ?? fields.businessUnit ?? fields.bu),
-      projectGroup: text(fields.projectGroup ?? fields.project_group),
+      ...projectDashboardDimensions(fields, row.businessUnit),
       costCentre: typeof fields.costCentre === "string" ? fields.costCentre : "",
       targets: { ...defaults?.values, ...(fields.qaqcReporting?.targets ?? {}), ...(fields.targets ?? {}) } };
   });

@@ -253,6 +253,7 @@ export * from './emailPlaceholderInputWorkspace';
 export * from './emailRecipientConfig';
 export * from './emailRecipientConfigBodyRichText';
 export * from './emailRecipientConfigReportAttachment';
+export * from './emailRecipientConfigReportAttachmentsItem';
 export * from './emailRecipientConfigSenderMode';
 export * from './emailRuleEventOption';
 export * from './emailRuleOrderInput';

@@ -29,7 +29,8 @@ function mockList(createdAt: unknown, updatedAt: unknown, linkedAt: unknown = is
 beforeEach(() => execute.mockReset());
 
 describe("Project Additional Data extended fields", () => {
-  const extended = { consultant: "Consultant A", projectManager: "Manager B", contractValue: "SAR 1,500,000.50", ptsNumber: "PTS-0012" };
+  const extended = { sbg: "Construction", bu: "Infrastructure", projectGroup: "Central",
+    consultant: "Consultant A", projectManager: "Manager B", contractValue: "SAR 1,500,000.50", ptsNumber: "PTS-0012" };
   const existing = { client: null, contractor: null, contractProjectNumber: null, contractSigned: null, contractPeriod: null, tcc: null, pac: null, fac: null };
   it("validates, persists and returns all four fields without changing source data", async () => {
     const data = UpdateProjectAdditionalDataBody.parse({ costCentre: null, additionalData: { ...existing, ...extended } });

@@ -20,3 +20,16 @@ Final submitted CSAT surveys count by survey date, alongside approved legacy sur
 **Why:** The confirmed CSAT workflow is final submission with no review/send-back. There is no complete historical status snapshot suitable for pretending to reconstruct earlier open/overdue figures.
 
 **How to apply:** Explain these exceptions in the dashboard. Respect each source application's capabilities and ownership; QA/QC administration does not authorize Lessons/Audit data. Do not infer “no report exists” when an own-record viewer cannot see a report.
+
+SBG, BU and Project Group are maintained in Project Master Additional Data and
+drive the corresponding Monthly and Daily dashboard filters. Treat QMS-managed
+values as authoritative without changing Drona's source master. Preserve legacy
+source classifications only until the respective additional field is maintained;
+explicitly clearing it means Unassigned, not restoring an older source label.
+
+**Why:** The user requested editable Project Master classifications and unique
+filter choices based on them, with dashboard results following the selection.
+
+**How to apply:** Resolve classifications before filtering the authorized project
+set; use that same selected set across dashboard panels and drilldowns. Never
+expose projects outside the viewer's existing scope to populate filter options.

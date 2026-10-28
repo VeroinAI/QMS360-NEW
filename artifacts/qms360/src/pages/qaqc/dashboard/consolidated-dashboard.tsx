@@ -159,7 +159,8 @@ export function ConsolidatedDashboardPage() {
     (['projectId', 'sbg', 'bu', 'projectGroup'] as const).forEach(k => { if (p[k]) o[k] = p[k]!; });
     return o as unknown as GetQaqcConsolidatedDashboardParams;
   }, [p]);
-  const q = useGetQaqcConsolidatedDashboard(apiParams, { query: { queryKey: getGetQaqcConsolidatedDashboardQueryKey(apiParams), refetchOnWindowFocus: false } });
+  const q = useGetQaqcConsolidatedDashboard(apiParams, { query: { queryKey: getGetQaqcConsolidatedDashboardQueryKey(apiParams),
+    staleTime: 30_000, refetchOnMount: 'always', refetchOnWindowFocus: true, refetchInterval: 60_000 } });
   const data = q.data as unknown as DashboardData | undefined;
   const [drill, setDrill] = useState<Drill | null>(null);
   const [defsOpen, setDefsOpen] = useState(false);

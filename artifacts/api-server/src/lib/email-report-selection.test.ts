@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emailReportOptions, validEmailReportSelection } from "@workspace/field-controls";
+import { CreateEmailRuleBody } from "@workspace/api-zod";
 const mocks = vi.hoisted(() => ({ generate: vi.fn(), deliver: vi.fn(), remove: vi.fn() }));
 vi.mock("./email-report-generator", () => ({ generateEmailReport: mocks.generate }));
 vi.mock("./email", () => ({ deliverEmail: mocks.deliver }));
@@ -31,6 +32,14 @@ beforeEach(() => {
 });
 
 describe("Email report event boundaries", () => {
+  it("preserves multiple report selections through the API contract", () => {
+    const body = CreateEmailRuleBody.parse({
+      name: "Audit final reports", enabled: true, priority: 1, eventType: "audit.audit.approved_final",
+      recipientMode: "external_email", receiverEmail: "recipient@example.test",
+      recipientConfig: { reportAttachments: ["audit_report_pdf", "audit_report_pptx"] },
+    });
+    expect(body.recipientConfig?.reportAttachments).toEqual(["audit_report_pdf", "audit_report_pptx"]);
+  });
   it("offers only matching reports and none for events without a report", () => {
     expect(emailReportOptions("lessons.lesson_form.approve").map(x => x.value)).toEqual(["lesson_pdf"]);
     expect(emailReportOptions("audit.audit.complete").map(x => x.value)).toEqual(["audit_report_pdf", "audit_report_pptx"]);
@@ -54,6 +63,30 @@ describe("Email report event boundaries", () => {
     expect(inserted[0].context.emailReportRequest).toEqual({ selection: "lesson_pdf", eventType: input.context.eventType, entityId });
     expect(mocks.generate).not.toHaveBeenCalled();
   });
+  it("queues all selected reports together, once each", async () => {
+    const { database, inserted } = fixture();
+    await enqueueEmail(database, { ...input, context: { ...input.context, app: "audit", eventType: "audit.audit.approved_final" },
+      ruleTemplate: { reportAttachments: ["audit_report_pdf", "audit_report_pptx", "audit_report_pdf"] } });
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0].context.emailReportRequests).toEqual([
+      { selection: "audit_report_pdf", eventType: "audit.audit.approved_final", entityId },
+      { selection: "audit_report_pptx", eventType: "audit.audit.approved_final", entityId },
+    ]);
+    expect(inserted[0].context.emailReportRequest).toBeUndefined();
+  });
+  it("an empty multi-selection overrides the legacy scalar and implicit attachments", async () => {
+    const { database, inserted } = fixture();
+    await enqueueEmail(database, { ...input, ruleTemplate: { reportAttachment: "lesson_pdf", reportAttachments: [] },
+      attachments: [attachment as any] });
+    expect(inserted[0].context.emailReportRequests).toBeUndefined();
+    expect(inserted[0].context.emailAttachments).toBeUndefined();
+  });
+  it("rejects a list containing even one report from a different event", async () => {
+    const { database, inserted } = fixture();
+    await expect(enqueueEmail(database, { ...input,
+      ruleTemplate: { reportAttachments: ["lesson_pdf", "audit_report_pptx"] } })).rejects.toThrow("does not belong");
+    expect(inserted).toHaveLength(0);
+  });
   it("rejects a cross-module report even for a forged API request", async () => {
     const { database, inserted } = fixture();
     await expect(enqueueEmail(database, { ...input, ruleTemplate: { reportAttachment: "audit_report_pptx" } })).rejects.toThrow("does not belong");
@@ -66,6 +99,14 @@ describe("Email report event boundaries", () => {
       ruleTemplate: { reportAttachment: "audit_schedule_pdf" }, attachments: [attachment as any] });
     expect(inserted[0].context.emailAttachments).toEqual([attachment]);
     expect(inserted[0].context.emailReportRequest).toBeUndefined();
+  });
+  it("reuses a prepared programme PDF with the new multi-selection", async () => {
+    const { database, inserted } = fixture();
+    await enqueueEmail(database, { ...input,
+      context: { ...input.context, eventType: "audit.audit_programme.approved_final" },
+      ruleTemplate: { reportAttachments: ["audit_schedule_pdf"] }, attachments: [attachment as any] });
+    expect(inserted[0].context.emailAttachments).toEqual([attachment]);
+    expect(inserted[0].context.emailReportRequests).toBeUndefined();
   });
   it("retains attachments for independent automation and already-queued legacy messages", async () => {
     const { database, inserted } = fixture();
@@ -98,5 +139,39 @@ describe("Queued selected-report delivery", () => {
     expect(mocks.deliver).not.toHaveBeenCalled();
     expect(updates.at(-1)).toMatchObject({ deliveryStatus: "retrying", attemptCount: 1 });
     expect(updates.at(-1).lastError).toContain("Report not available");
+  });
+  it("delivers PDF and PPT together and reuses both after an SMTP retry", async () => {
+    const { database } = fixture(), row = queued();
+    delete (row.context as any).emailReportRequest;
+    (row.context as any).emailReportRequests = [
+      { selection: "audit_report_pdf", eventType: "audit.audit.approved_final", entityId },
+      { selection: "audit_report_pptx", eventType: "audit.audit.approved_final", entityId },
+    ];
+    const ppt = { ...attachment, filename: "audit.pptx", objectPath: "/private/audit.pptx" };
+    mocks.generate.mockResolvedValueOnce(attachment).mockResolvedValueOnce(ppt);
+    mocks.deliver.mockResolvedValueOnce({ attempted: true, sent: 0, failed: 1, failedRecipients: to, error: "SMTP unavailable" });
+    await processClaimedEmail(database, row);
+    expect(mocks.deliver.mock.calls[0][1].attachments).toEqual([attachment, ppt]);
+    await processClaimedEmail(database, row);
+    expect(mocks.generate).toHaveBeenCalledTimes(2);
+    expect(mocks.deliver.mock.calls[1][1].attachments).toEqual([attachment, ppt]);
+  });
+  it("retains the first snapshot when the second report fails and never sends a partial email", async () => {
+    const { database, updates } = fixture(), row = queued();
+    delete (row.context as any).emailReportRequest;
+    (row.context as any).emailReportRequests = [
+      { selection: "audit_report_pdf", eventType: "audit.audit.approved_final", entityId },
+      { selection: "audit_report_pptx", eventType: "audit.audit.approved_final", entityId },
+    ];
+    mocks.generate.mockResolvedValueOnce(attachment).mockRejectedValueOnce(new Error("PPT unavailable"));
+    await processClaimedEmail(database, row);
+    expect(mocks.deliver).not.toHaveBeenCalled();
+    expect(updates.at(-1)).toMatchObject({ deliveryStatus: "retrying" });
+    expect((row.context as any).emailAttachments).toEqual([attachment]);
+    const ppt = { ...attachment, filename: "audit.pptx", objectPath: "/private/audit.pptx" };
+    mocks.generate.mockResolvedValueOnce(ppt);
+    await processClaimedEmail(database, row);
+    expect(mocks.generate).toHaveBeenCalledTimes(3);
+    expect(mocks.deliver.mock.calls[0][1].attachments).toEqual([attachment, ppt]);
   });
 });

@@ -47,7 +47,8 @@ automatically copying sample-document recipients.
 
 Event Email Rules explicitly control report attachments, including Lessons
 submission and configured Audit approval emails. No report selection means no
-attachment; selecting a report attaches the triggering record's supported PDF/PPT.
+attachment; selecting reports attaches all selected supported PDF/PPT files to the
+same event email. Multiple selection must not create separate messages.
 
 **Why:** The user superseded the earlier automatic Lessons submission-PDF rule
 with optional, event-specific attachment selection across QMS360. An automatic
@@ -58,6 +59,9 @@ audiences. Permit only reports supported for the selected event, validate on
 the server, keep private snapshots for retries, and retry selected-report
 failures rather than sending without the report. Independent scheduled
 distribution and already queued messages retain their existing behavior.
+Retain completed snapshots when a later selected report fails; retry only the
+unfinished generation and never send an incomplete attachment set. Preserve
+legacy single selections; an explicit empty multi-selection clears them.
 
 Lessons Learned “Reject” is a legacy email-event label for the Send back review outcome, not a separate permanent rejection state. Existing rules and selected-event placeholders must continue to recognize both names.
 

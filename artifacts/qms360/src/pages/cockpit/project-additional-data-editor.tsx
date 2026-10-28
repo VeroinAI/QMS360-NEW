@@ -17,6 +17,7 @@ function targetError(raw: string) {
 }
 
 const fields: Array<[keyof ProjectAdditionalData, string]> = [
+  ['sbg', 'SBG'], ['bu', 'BU'], ['projectGroup', 'Project Group'],
   ['client', 'Client'], ['contractor', 'Contractor'],
   ['consultant', 'Consultant'], ['projectManager', 'Project Manager'],
   ['contractValue', 'Contract Value'], ['ptsNumber', 'PTS #'],

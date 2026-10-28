@@ -4,7 +4,7 @@ import {
   lessonLearnedForms, lessonsUserWorkspaceRoles, lessonsWorkspaceRoles, userWorkspaceRoles, users, workspaceRoles,
 } from "@workspace/db";
 import { enqueueEmail } from "./email-queue";
-import { canonicalEmailEventType } from "@workspace/field-controls";
+import { canonicalEmailEventType, selectedEmailReports } from "@workspace/field-controls";
 import { removeEmailPdfAttachment, type EmailPdfAttachment } from "./email-attachments";
 import { logger } from "./logger";
 import { emailTemplateContext } from "./email-template-context";
@@ -383,5 +383,5 @@ export async function auditApprovalAttachmentEnabled(
     eq(emailEventRules.eventType, `audit.${input.entityType}.approved_final`),
   )).orderBy(asc(emailEventRules.priority), asc(emailEventRules.createdAt));
   const rule = rules.find(candidate => !candidate.createdByUserId || candidate.createdByUserId === input.actorId);
-  return !rule || (rule.enabled && rule.recipientConfig?.reportAttachment === "audit_schedule_pdf");
+  return !rule || (rule.enabled && selectedEmailReports(rule.recipientConfig).includes("audit_schedule_pdf"));
 }

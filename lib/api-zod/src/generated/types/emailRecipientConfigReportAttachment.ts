@@ -7,7 +7,7 @@
  */
 
 /**
- * Optional event-specific generated report. Null or omitted means no attachment.
+ * Legacy single report selection. Used only when reportAttachments is omitted.
  * @nullable
  */
 export type EmailRecipientConfigReportAttachment = typeof EmailRecipientConfigReportAttachment[keyof typeof EmailRecipientConfigReportAttachment] | null;
