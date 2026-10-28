@@ -9,6 +9,12 @@ Treat the supplied Audit Plan PDF as the authoritative branding and layout refer
 
 **How to apply:** Keep report generation read-only and independent from schedule approval, plan submission and execution. Do not fabricate missing dates from UI defaults or infer contract numbers from project codes. The user specified that no other development should be impacted.
 
+Omit the Revision line entirely from the Audit Plan PDF.
+
+**Why:** On 2026-10-28 the user explicitly requested removal of “Revision: To be mapped” from this download.
+
+**How to apply:** Do not print a revision label or placeholder; preserve the surrounding branded cover layout and other report data.
+
 The **Section/Activities to be Accessed** column must display the organization's
 Activities master label, not its stored key. Preserve historical free-text
 sections when no master mapping exists.

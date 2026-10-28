@@ -72,7 +72,6 @@ export async function renderAuditPlanPdf(data: AuditPlanReportData): Promise<Uin
     text(cover, label, x, top, width, 29, 10, true);
     text(cover, value, x === 41 ? 127 : 390, top, x === 41 ? 140 : 164, 29, 9, false, black, false, label);
   }
-  text(cover, `Revision: ${data.revision}`, 370, 630, 189, 16, 8, false, black, true);
 
   const header = (page: PDFPage) => {
     text(page, "PROJECT AUDIT PLAN", 154, 53, 283, 24, 17, true, black, true);

@@ -176,7 +176,7 @@ describe("Extracted Audit Plan PDF output", () => {
     expect(text).toContain("Audit Program Manager (continuation)");
     expect(text).toContain("LEAD-NAME-END");
     expect(text).toContain("MANAGER-NAME-END");
-    expect(text.match(/To be mapped/g)).toHaveLength(1);
+    expect(text).not.toContain("To be mapped");
   });
   it("prints a populated record's cover, dates, project details, activities and signer names", async () => {
     const data = auditPlanReportData({ teamMemberIds: ["team"], createdAt: "2026-01-01T00:00Z" },
@@ -198,21 +198,21 @@ describe("Extracted Audit Plan PDF output", () => {
       "08:15", "16:45", "Saved Activity", "Saved activity notes", "09:00", "10:00",
       ...data.project.map(([, value]) => value)]) expect(text).toContain(value);
     expect(text).toContain("Contract Value 0");
-    expect(text.match(/To be mapped/g)).toHaveLength(1);
+    expect(text).not.toContain("To be mapped");
   });
   it("prints all four saved multiline remarks in their matching rows/labelled continuations", async () => {
     const text = await extracted(remarks, "audit-plan-remarks-verification");
     for (const value of Object.values(remarks)) {
       for (const line of value.split("\n")) expect(text).toContain(line);
     }
-    expect(text).toContain("Revision: To be mapped");
+    expect(text).not.toContain("Revision:");
     expect(text.match(/Signature: -/g)).toHaveLength(2);
-    expect(text.match(/To be mapped/g)).toHaveLength(1);
+    expect(text).not.toContain("To be mapped");
   });
   it("prints dashes for cleared remarks and missing signatures, never old mapping labels", async () => {
     const text = await extracted(Object.fromEntries(Object.keys(remarks).map(key => [key, " \n"])), "audit-plan-sparse-verification");
     expect(text).not.toContain("To Be Mapped");
-    expect(text.match(/To be mapped/g)).toHaveLength(1);
+    expect(text).not.toContain("To be mapped");
     expect(text).toMatch(/Start Date:\s+-\s+-/);
     expect(text).toMatch(/Closing Meeting:\s+-\s+-/);
   });
@@ -227,6 +227,6 @@ describe("Extracted Audit Plan PDF output", () => {
       expect(text).toContain(`${i} FINAL REMARK`);
     }
     for (const marker of Object.values(long).join("").match(/R\d-\d{3}/g)!) expect(text).toContain(marker);
-    expect(text.match(/To be mapped/g)).toHaveLength(1);
+    expect(text).not.toContain("To be mapped");
   }, 30_000);
 });
