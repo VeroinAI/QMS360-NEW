@@ -24,6 +24,7 @@ import { useMonthlyApproverSelection } from './monthly-approver-selection';
 import { jumpToMonthlyIssue, monthlyIssuePath } from './monthly-validation-navigation';
 import { DailyValidationIssues } from './daily-validation-navigation';
 import { ReportSubmitAction } from './report-submit-action';
+import { ReportReviewActions } from './report-review-actions';
 import { useToast } from '@/hooks/use-toast';
 import { useFieldControls } from '@/lib/field-controls';
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
@@ -324,7 +325,12 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
               {editable && report && issues.length > 0 && <p className="text-xs text-destructive">Resolve {issues.length} open validation issue(s) to enable submission.</p>}
               {editable && report && canDelete && isCreator && <Button className="w-full" variant="outline" onClick={() => setDelOpen(true)}><Trash2 className="mr-2 size-4 text-destructive" />Delete draft</Button>}
               <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground"><p className="font-medium text-foreground">Who can act</p><p>{metricsEntry ? 'Authorized contributors can maintain their assigned sections while the document is Draft. Display mode and all other statuses are read-only on this screen.' : reportType === 'monthly' ? 'Authorized contributors: maintain assigned sections in shared drafts or sent-back reports. Other sections are read-only. Creator retains submission and deletion responsibilities.' : 'Creator: save, submit and delete while draft or sent back.'}{locked ? ' Editing is locked by field controls.' : ''}</p>{reportType === 'csat' ? <p>Submission is final. Submitted surveys cannot be edited, deleted or sent back.</p> : <p>Reviewer: {assignedReviewer ? (assignedReviewer.name ?? assignedReviewer.fullName) : report?.approverId ? 'assigned approver' : 'chosen at submission'} approves or sends back once submitted.</p>}</div>
-              {isApprover && canReview && <><Button className="w-full" onClick={() => setDecision('approve')}>{nextApprovalStage ? 'Approve & forward' : 'Approve'}</Button><Button className="w-full" variant="outline" onClick={() => setDecision('send_back')}>Send back</Button></>}
+              {isApprover && canReview && <ReportReviewActions
+                allowFloating={(metricsEntry || reportType === 'daily') && !submitOpen && !delOpen && !decision}
+                approveLabel={nextApprovalStage ? 'Approve & forward' : 'Approve'}
+                disabled={review.isPending}
+                onApprove={() => setDecision('approve')}
+                onSendBack={() => setDecision('send_back')} />}
               {reportType === 'csat' && report?.state === 'submitted' && <p className="text-xs text-muted-foreground">This survey has been submitted and cannot be changed.</p>}
               {reportType !== 'csat' && report?.state === 'submitted' && !(isApprover && canReview) && <p className="text-xs text-muted-foreground">Review actions are disabled for you: only the assigned reviewer can act.</p>}
             </CardContent></Card>
