@@ -28,7 +28,7 @@ export function CsatNumberingSettings() {
   const validRange = !!source && validYear && lastNumber.trim() !== "" && Number.isSafeInteger(last) && last >= lastUsed && last >= 0 && last < 999_999_999_999;
   const validPattern = Number.isInteger(pattern.padding) && pattern.padding >= 1 && pattern.padding <= 12 &&
     ![pattern.prefix, pattern.separator].some(value => /[{}\r\n]/.test(value));
-  const preview = [pattern.prefix, source?.sourceValue || "[Project Code]", validYear ? year : "YYYY",
+  const preview = [pattern.prefix, source?.sourceValue || "[Contract / project no.]", validYear ? year : "YYYY",
     String(validRange ? last + 1 : lastUsed + 1).padStart(Math.max(1, Math.min(12, pattern.padding || 1)), "0")].filter(Boolean).join(pattern.separator);
   const change = (key: keyof CsatNumberingPattern, value: string) => {
     setPattern(current => ({ ...current!, [key]: key === "padding" ? Number(value) : value }));
@@ -37,7 +37,7 @@ export function CsatNumberingSettings() {
   return <Card data-testid="csat-numbering"><CardHeader><CardTitle>Customer Satisfaction (CSAT) — Reference number range</CardTitle>
     <CardDescription>Maintain the CSAT reference format and go-live counters. References are allocated when Create Draft succeeds; existing references are retained.</CardDescription></CardHeader>
     <CardContent className="space-y-5">
-      <p className="text-sm">Format: <strong>Prefix + Project Code + Year (YYYY) + Running number</strong>. The year comes from the CSAT form's Date, not its creation date. Each project and year has an independent sequence starting at 1.</p>
+      <p className="text-sm">Format: <strong>Prefix + Contract / project no. + Year (YYYY) + Running number</strong>. The source comes from Integration Cockpit → Project Master → Additional Data. The year comes from the CSAT form's Date, not its creation date. Each project and year has an independent sequence starting at 1.</p>
       <div className="grid gap-3 sm:grid-cols-3">
         <div><Label htmlFor="csat-number-prefix">Prefix</Label><Input id="csat-number-prefix" maxLength={80} value={pattern.prefix} onChange={event => change("prefix", event.target.value)} /></div>
         <div><Label htmlFor="csat-number-separator">Separator</Label><Input id="csat-number-separator" maxLength={80} value={pattern.separator} onChange={event => change("separator", event.target.value)} /></div>
@@ -58,7 +58,7 @@ export function CsatNumberingSettings() {
           <div><Label htmlFor="csat-number-year">Year (four digits)</Label><Input id="csat-number-year" type="number" min={1900} max={9999} value={year} onChange={event => setYear(event.target.value)} /></div>
           <div><Label htmlFor="csat-number-last">Last number already used</Label><Input id="csat-number-last" type="number" min={lastUsed} max={999999999998} value={lastNumber} onChange={event => { setLastNumber(event.target.value); saveRange.reset(); }} /></div>
         </div>
-        {source && <p className="text-sm">Project Code: <strong>{source.sourceValue}</strong> · Saved last-used number for {year}: <strong>{lastUsed}</strong></p>}
+        {source && <p className="text-sm">Contract / project no.: <strong>{source.sourceValue || 'Missing—maintain Integration Cockpit → Project Master → Additional Data → Contract / project no.'}</strong> · Saved last-used number for {year}: <strong>{lastUsed}</strong></p>}
         {validRange && <p className="text-sm">Next running number after saving: <strong>{last + 1}</strong></p>}
         {!query.data.sources.length && <p className="text-sm text-muted-foreground">No projects are available in your QA/QC administration scope.</p>}
         {saveRange.isError && <p role="alert" className="text-sm text-destructive">{saveRange.error.message}</p>}
@@ -68,7 +68,7 @@ export function CsatNumberingSettings() {
       </section>
       <div className="rounded-lg bg-muted/40 p-3"><p className="text-xs uppercase text-muted-foreground">Illustrative next reference — no number is issued</p>
         <p className="break-all font-mono font-semibold" data-testid="csat-number-preview">{preview}</p>
-        <p className="mt-1 text-xs text-muted-foreground">Example: CSAT-AGH-ALPHA-2026-0126 when the project code is AGH-ALPHA and the last-used number is 125. Saving settings does not modify existing CSAT documents.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Example: CSAT-CTR100-2026-0126 when Contract / project no. is CTR100 and the last-used number is 125. Saving settings does not modify existing CSAT documents or reset project/year counters.</p>
       </div>
     </CardContent></Card>;
 }

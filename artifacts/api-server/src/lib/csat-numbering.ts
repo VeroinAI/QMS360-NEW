@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db, organizationSettings, projects, qaqcReportSubmissions } from "@workspace/db";
 import { lockScheduleNumbering } from "./audit-schedule-numbering";
 import { HttpError } from "./workspace";
+import { auditProjectNumberSourceValue } from "./audit-number-source";
 
 export type CsatPattern = { prefix: string; separator: string; padding: number };
 export type CsatRange = { projectId: string; year: number; lastNumber: number };
@@ -16,11 +17,11 @@ export function csatReferenceYear(date: string) {
   }
   return year;
 }
-export function formatCsatReference(pattern: CsatPattern, projectCode: string, date: string, number: number) {
+export function formatCsatReference(pattern: CsatPattern, contractProjectNumber: string, date: string, number: number) {
   validateCsatPattern(pattern);
-  if (!projectCode.trim()) throw new HttpError(422, "Maintain the Project Code in Project Master before creating this CSAT draft.");
+  if (!contractProjectNumber.trim()) throw new HttpError(422, "Maintain Contract / project no. in Integration Cockpit → Project Master → Additional Data before creating this CSAT draft.");
   if (!Number.isSafeInteger(number) || number < 1 || number > 999_999_999_999) throw new HttpError(409, "CSAT reference number range is exhausted or invalid.");
-  return [pattern.prefix, projectCode.trim(), String(csatReferenceYear(date)), String(number).padStart(pattern.padding, "0")]
+  return [pattern.prefix, contractProjectNumber.trim(), String(csatReferenceYear(date)), String(number).padStart(pattern.padding, "0")]
     .filter(Boolean).join(pattern.separator);
 }
 export function csatNumberState(map: unknown): CsatNumberState {
@@ -66,7 +67,7 @@ export async function saveCsatNumbering(organizationId: string, pattern?: CsatPa
 export async function allocateCsatReference(tx: Tx, organizationId: string, projectId: string, date: string) {
   const year = csatReferenceYear(date);
   const { settings } = await lockScheduleNumbering(tx, organizationId);
-  const [project] = await tx.select({ code: projects.code }).from(projects).where(and(
+  const [project] = await tx.select({ customFields: projects.customFields }).from(projects).where(and(
     eq(projects.organizationId, organizationId), eq(projects.id, projectId), isNull(projects.deletedAt)));
   if (!project) throw new HttpError(404, "Project is not available for CSAT numbering.");
   const state = csatNumberState(settings.documentNumbering);
@@ -74,7 +75,7 @@ export async function allocateCsatReference(tx: Tx, organizationId: string, proj
   let reference: string;
   // Preserve historical references even if they predate these counters or the format changed.
   for (;;) {
-    reference = formatCsatReference(state.pattern, project.code, date, number);
+    reference = formatCsatReference(state.pattern, auditProjectNumberSourceValue(project.customFields), date, number);
     const [existing] = await tx.select({ id: qaqcReportSubmissions.id }).from(qaqcReportSubmissions).where(and(
       eq(qaqcReportSubmissions.organizationId, organizationId), eq(qaqcReportSubmissions.reportType, "csat"),
       eq(qaqcReportSubmissions.referenceNumber, reference))).limit(1);

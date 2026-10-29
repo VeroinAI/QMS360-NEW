@@ -25,6 +25,7 @@ import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, wr
 import { saveQaqcRole } from "../lib/qaqc-role-permissions";
 import { activeQaqcCapabilities, qaqcAdminTask } from "../lib/qaqc-capabilities";
 import { readCsatNumbering, saveCsatNumbering, type CsatPattern, type CsatRange } from "../lib/csat-numbering";
+import { auditProjectNumberSourceValue } from "../lib/audit-number-source";
 import { qaqcOwnedRecordClause, qaqcRecordReadClauses } from "../lib/qaqc-record-scope";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
@@ -791,7 +792,7 @@ async function csatNumberSources(req: Request) {
     isNull(projects.deletedAt), req.permissionAdminBypass || scope?.unrestricted ? undefined :
       inArray(projects.id, scope?.projectIds ?? [])));
   return rows.map(project => ({ key: project.id, kind: "project" as const,
-    label: `${project.code} — ${project.name}`, sourceValue: project.code }));
+    label: `${project.code} — ${project.name}`, sourceValue: auditProjectNumberSourceValue(project.customFields) }));
 }
 async function csatNumberResponse(req: Request) {
   const sources = await csatNumberSources(req);
