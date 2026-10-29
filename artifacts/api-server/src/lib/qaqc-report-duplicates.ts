@@ -7,14 +7,29 @@ type Reader = Pick<typeof db, "select">;
 
 /** Only disclose existence/status, not another creator's report data or identity. */
 export async function monthlyDuplicateReason(organizationId: string, projectId: string, period: string, reader: Reader = db) {
+  return periodDuplicateReason(organizationId, projectId, period, "monthly", reader);
+}
+
+export async function dailyDuplicateReason(organizationId: string, projectId: string, period: string, reader: Reader = db) {
+  return periodDuplicateReason(organizationId, projectId, period, "daily", reader);
+}
+
+async function periodDuplicateReason(organizationId: string, projectId: string, period: string, type: "monthly" | "daily", reader: Reader) {
   const [existing] = await reader.select({ state: qaqcReportSubmissions.state }).from(qaqcReportSubmissions).where(and(
     eq(qaqcReportSubmissions.organizationId, organizationId),
     eq(qaqcReportSubmissions.projectId, projectId),
-    eq(qaqcReportSubmissions.reportType, "monthly"),
+    eq(qaqcReportSubmissions.reportType, type),
     eq(qaqcReportSubmissions.period, period),
     isNull(qaqcReportSubmissions.deletedAt),
   )).limit(1);
-  return existing ? monthlyDuplicateMessage(period, existing.state) : null;
+  return existing ? (type === "monthly" ? monthlyDuplicateMessage(period, existing.state) : dailyDuplicateMessage(period, existing.state)) : null;
+}
+
+export function dailyDuplicateMessage(period: string, state: string) {
+  const date = new Date(`${period.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  const labels: Record<string, string> = { draft: "Draft", submitted: "Submitted", approved: "Approved", sent_back: "Sent back" };
+  const status = labels[state] ?? state.replace(/_/g, " ").replace(/^./, s => s.toUpperCase());
+  return `A Daily Submission report already exists for this project for ${date}. Report status: ${status}. Open the existing report from Daily Submission; another report cannot be created for the same project and date.`;
 }
 
 export function monthlyDuplicateMessage(period: string, state: string) {
@@ -35,6 +50,15 @@ export async function lockMonthlyCreation(organizationId: string, projectId: str
     eq(projects.id, projectId), eq(projects.organizationId, organizationId),
   )).for("update");
   await assertNoMonthlyDuplicate(organizationId, projectId, period, transaction);
+}
+
+/** Share the project lock with historical opening loads and competing creators. */
+export async function lockDailyCreation(organizationId: string, projectId: string, period: string, transaction: Reader) {
+  await transaction.select({ id: projects.id }).from(projects).where(and(
+    eq(projects.id, projectId), eq(projects.organizationId, organizationId),
+  )).for("update");
+  const reason = await dailyDuplicateReason(organizationId, projectId, period, transaction);
+  if (reason) throw new HttpError(409, reason);
 }
 
 /** Drizzle wraps the PostgreSQL code/constraint inside cause, not message. */

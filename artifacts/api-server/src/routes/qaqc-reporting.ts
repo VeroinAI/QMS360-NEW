@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request } from "express";
 import { projectDashboardDimensions } from "../lib/qaqc-project-dimensions";
-import { assertNoMonthlyDuplicate, isReportPeriodDuplicate, lockMonthlyCreation, monthlyDuplicateReason } from "../lib/qaqc-report-duplicates";
+import { assertNoMonthlyDuplicate, dailyDuplicateReason, isReportPeriodDuplicate, lockDailyCreation, lockMonthlyCreation, monthlyDuplicateReason } from "../lib/qaqc-report-duplicates";
 import { and, asc, count, desc, eq, getTableColumns, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
   auditPlans, businessUnits, db, organizations, projects, qaqcMetricEntries, materialInspectionEntries, qtbtEntries,
@@ -639,7 +639,8 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
   const last = history.previous;
   const baseline = Object.keys(history.baseline).length ? history.baseline : legacy;
   const targets = await targetsFor(req, project.customFields, settings);
-  const duplicateReason = type === "monthly" ? await monthlyDuplicateReason(org(req), projectId, period) : null;
+  const duplicateReason = type === "monthly" ? await monthlyDuplicateReason(org(req), projectId, period)
+    : type === "daily" ? await dailyDuplicateReason(org(req), projectId, period) : null;
   const blockedReason = duplicateReason ?? await sequenceBlock(projectId, type, period);
   const portfolioPqi = await portfolioPqiForContext(req, type, projectsInScope, period);
   const projectUserIds = new Set<string>();
@@ -763,6 +764,10 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
   }
   const fieldBody = { projectId, reportType: type, period, data };
   if (type === "monthly") await assertNoMonthlyDuplicate(org(req), projectId, period);
+  if (type === "daily") {
+    const reason = await dailyDuplicateReason(org(req), projectId, period);
+    if (reason) throw new HttpError(409, reason);
+  }
   await assertFieldAccess(req, "qaqc", "report-envelope", { mode: "create", body: fieldBody });
   await assertFieldControls(req, "qaqc", "report-envelope", { mode: "create", body: fieldBody });
   await assertSequence(projectId, type, period);
@@ -782,7 +787,7 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
         // may have committed while this request was entering its transaction.
         await lockMonthlyCreation(org(req), projectId, period, tx);
       }
-      if(type==="daily")await tx.select({id:projects.id}).from(projects).where(and(eq(projects.id,projectId),eq(projects.organizationId,org(req)))).for("update");
+      if(type==="daily") await lockDailyCreation(org(req), projectId, period, tx);
       const fresh=type==="monthly"||type==="daily"?await historyBaseline(org(req),projectId,type,period,tx):null;
       const opening=fresh&&Object.keys(fresh.baseline).length?fresh.baseline:baseline;
       const check=validateReportData(type,data,opening,false);
@@ -796,7 +801,8 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
     res.status(201).json(await withProject(row));
   } catch (error) {
     if (isReportPeriodDuplicate(error)) {
-      const reason = type === "monthly" ? await monthlyDuplicateReason(org(req), projectId, period) : null;
+      const reason = type === "monthly" ? await monthlyDuplicateReason(org(req), projectId, period)
+        : type === "daily" ? await dailyDuplicateReason(org(req), projectId, period) : null;
       throw new HttpError(409, reason ?? "A report already exists for this project, type, and period. Reload the report list before continuing.");
     }
     throw error;

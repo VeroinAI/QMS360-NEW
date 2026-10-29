@@ -5,7 +5,7 @@ description: Cutover, authorization and snapshot safety rules for daily opening 
 
 Daily opening balances are cumulative snapshots through the day before the selected go-live date, not daily movements or synthetic submitted reports. Real earlier submitted/approved Daily Submissions subsequently take precedence.
 
-**Why:** Daily Submission inputs are absolute cumulative snapshots; the user explicitly confirmed that “Current Date” contains cumulative figures including history. Adding the opening balance again would double-count it. Importing movements or manufacturing a daily transaction would distort the carry-forward and approval history.
+**Why:** The opening load is a cumulative balance, not a synthetic daily transaction. The earlier instruction that Current Date includes history was superseded for Drawings/Submittals by Discipline by the user's explicit 100 + 12 = next-day Yesterday 112 example; see [Daily discipline input policy](daily-discipline-input-policy.md). Apply the opening balance once and distinguish daily inputs from cumulative outputs rather than summing both indiscriminately.
 
 **How to apply:** Keep imported source counts separate from calculated totals and percentages. Keep legacy document types distinct instead of relabelling them as newer types.
 

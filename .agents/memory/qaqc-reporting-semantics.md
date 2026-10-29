@@ -19,9 +19,9 @@ Monthly and daily carry-forward uses the immediately preceding submitted report,
 
 **Why:** The SOW says previous submission, not previous approval, and specifies a monthly cadence only for the quality report. Waiting for approval or imposing that cadence on surveys adds restrictions not requested.
 
-Daily document data represents absolute snapshots. Do not sum snapshots across days; filtered movement is the end snapshot minus the start snapshot, and the default view is the latest absolute snapshot.
+Daily dashboard/reporting totals represent cumulative snapshots; do not sum those snapshots across days. For Drawings and Submittals by Discipline, the user's later clarification makes Current Date a daily addition, not a cumulative entry; see [Daily discipline input policy](daily-discipline-input-policy.md).
 
-**Why:** The SOW explicitly distinguishes the latest cumulative snapshot from selected-date/range movement.
+**Why:** The SOW distinguishes latest cumulative snapshots from selected-date/range movement, but the user later explicitly required Yesterday 100 plus Current Date 12 to produce the next day's Yesterday 112. Raw daily additions and cumulative reporting snapshots must be distinguished.
 
 QTBT manhours are attendees × duration in minutes ÷ 60. The SOW's apparent copied calculation was flagged to the user; preserve this dimensional interpretation unless they provide a different confirmed formula.
 

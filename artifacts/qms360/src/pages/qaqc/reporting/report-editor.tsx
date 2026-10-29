@@ -114,7 +114,8 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const [delOpen, setDelOpen] = useState(false);
   const [creationError, setCreationError] = useState('');
   useEffect(() => setCreationError(''), [pid, per]);
-  const checkingAvailability = !report && reportType === 'monthly' && !!pid && ctxQ.isFetching;
+  const datedReport = reportType === 'monthly' || reportType === 'daily';
+  const checkingAvailability = !report && datedReport && !!pid && (ctxQ.isFetching || ctxQ.isLoading);
   const [decision, setDecision] = useState<'approve' | 'send_back'>(); const [comments, setComments] = useState('');
   const [nextApproverId, setNextApproverId] = useState('');
 
@@ -122,7 +123,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     ? canEditMetricsDocument(report.state, canEdit)
     : report.state === 'draft' || report.state === 'sent_back'));
   const blocked = !report && ctx.canStart === false && (reportType !== 'monthly' || !!pid);
-  const readOnly = !editable || !canEdit || !canMaintain || blocked || !pid || locked || busy || create.isPending || update.isPending || aiGenerating || (reportType === 'monthly' && (ctxQ.isLoading || !!ctxQ.error));
+  const readOnly = !editable || !canEdit || !canMaintain || blocked || !pid || locked || busy || create.isPending || update.isPending || aiGenerating || (datedReport && (ctxQ.isLoading || !!ctxQ.error));
   const frozen = !!report && !editable;
   const baseline: Obj = (frozen ? report?.baseline : ctx.baseline) ?? {};
   const targets = ctx.targets as Obj | undefined;
@@ -182,13 +183,13 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   };
 
   const save = () => {
-    if (!report && reportType === 'monthly' && (blocked || checkingAvailability || !!ctxQ.error || !pid)) return;
+    if (!report && datedReport && (blocked || checkingAvailability || !!ctxQ.error || !pid)) return;
     if (metricsEntry && readOnly) return;
     if (report) update.mutate({ id: report.id, data: updateData() }, { onSuccess: r => { saved(r); invalidate(); toast({ title: 'Draft saved' }); }, onError: fail('Could not save') });
     else {
       setCreationError('');
       create.mutate({ data: { projectId: pid, reportType, period: per, data: saveData() } }, { onSuccess: r => { dirtyFields.current.clear(); invalidate(); toast({ title: 'Draft created' }); nav(`${base}/${r.id}`); }, onError: e => {
-        if (reportType === 'monthly') { setCreationError(errMsg(e)); void ctxQ.refetch(); }
+        if (datedReport) { setCreationError(errMsg(e)); void ctxQ.refetch(); }
         fail('Could not create')(e);
       } });
     }
@@ -287,8 +288,8 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
           {!metricsEntry && <><ReadOnlyValue label="Project manager" value={details.pmName} /><ReadOnlyValue label="Project engineer" value={details.peName} /><ReadOnlyValue label="Document controller" value={details.dcName} /></>}
         </div>
         {ctxQ.error && <ErrorBox error={ctxQ.error} retry={() => ctxQ.refetch()} />}
-        {checkingAvailability && <p role="status" className="text-sm text-muted-foreground">Checking monthly report availability for this project and reporting period...</p>}
-        {!report && creationError && !blocked && <Alert variant="destructive"><AlertTitle>Could not create monthly report</AlertTitle><AlertDescription>{creationError}</AlertDescription></Alert>}
+        {checkingAvailability && <p role="status" className="text-sm text-muted-foreground">Checking {reportType === 'daily' ? 'daily' : 'monthly'} report availability for this project and reporting {reportType === 'daily' ? 'date' : 'period'}...</p>}
+        {!report && creationError && !blocked && <Alert variant="destructive"><AlertTitle>Could not create {reportType === 'daily' ? 'daily' : 'monthly'} report</AlertTitle><AlertDescription>{creationError}</AlertDescription></Alert>}
         {blocked && <Alert variant="destructive"><AlertTitle>Entry is blocked</AlertTitle><AlertDescription>{ctx.blockedReason ?? 'The immediately preceding period must be submitted first.'}</AlertDescription></Alert>}
         {pid && !blocked && !report && reportType === 'daily' && baseline?.dailyHistoricalSetup && <Alert><AlertTitle>Historical opening balances in use</AlertTitle><AlertDescription>Yesterday values come from the project's go-live opening load until an earlier submitted Daily Submission is available.</AlertDescription></Alert>}
         {pid && !blocked && !report && reportType !== 'csat' && !baseline?.hasBaseline && <Alert><AlertTitle>First report for this project</AlertTitle><AlertDescription>No earlier submission exists, so the baseline starts from zero.</AlertDescription></Alert>}

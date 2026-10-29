@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm";
-import { assertNoMonthlyDuplicate, isReportPeriodDuplicate, lockMonthlyCreation, monthlyDuplicateMessage, monthlyDuplicateReason } from "./qaqc-report-duplicates";
+import { assertNoMonthlyDuplicate, dailyDuplicateMessage, dailyDuplicateReason, isReportPeriodDuplicate, lockDailyCreation, lockMonthlyCreation, monthlyDuplicateMessage, monthlyDuplicateReason } from "./qaqc-report-duplicates";
 
 const index = "qaqc_report_project_type_period_active_idx";
 type Reader = NonNullable<Parameters<typeof monthlyDuplicateReason>[3]>;
@@ -56,6 +56,60 @@ describe("Monthly report duplicate guards", () => {
     unlock();
     await expect(pending).rejects.toMatchObject({ status: 409 });
     expect(events).toEqual(["lock", "check"]);
+  });
+});
+
+describe("Daily report duplicate guards", () => {
+  it.each(["draft", "submitted", "approved", "sent_back", "rejected"])("blocks an existing %s report on the exact day without exposing its content", async state => {
+    const reason = await dailyDuplicateReason("org", "project", "2026-10-29", reader(state));
+    expect(reason).toBe(dailyDuplicateMessage("2026-10-29", state));
+    expect(reason).toContain("29 October 2026");
+    expect(reason).toContain("Report status:");
+    expect(reason).toContain("same project and date");
+  });
+  it("allows an unused project and date", async () => {
+    expect(await dailyDuplicateReason("org", "project", "2026-10-30", reader())).toBeNull();
+  });
+  it("looks up only the selected tenant, project, daily type and exact date across all statuses", async () => {
+    let condition: SQL | undefined;
+    let selected: Record<string, unknown> = {};
+    const scoped = {
+      select: (fields: Record<string, unknown>) => {
+        selected = fields;
+        return { from: () => ({ where: (sql: SQL) => { condition = sql; return { limit: async () => [] }; } }) };
+      },
+    } as unknown as Reader;
+    await dailyDuplicateReason("tenant-a", "project-b", "2026-10-29", scoped);
+    const query = new PgDialect().sqlToQuery(condition!);
+    expect(query.params).toEqual(["tenant-a", "project-b", "daily", "2026-10-29"]);
+    expect(query.sql).toContain('"deleted_at" is null');
+    expect(query.sql).not.toMatch(/"state"\s*=/);
+    expect(Object.keys(selected)).toEqual(["state"]);
+  });
+  it.each(["draft", "submitted", "approved", "sent_back"])("rechecks after the lock and rejects a concurrent %s creation with HTTP 409", async state => {
+    expect(await dailyDuplicateReason("org", "project", "2026-10-29", reader())).toBeNull();
+    const events: string[] = [];
+    let release!: () => void;
+    const lock = new Promise<void>(resolve => { release = resolve; });
+    const tx = {
+      select: (fields: Record<string, unknown>) => ({ from: () => ({ where: () => "id" in fields
+        ? { for: () => { events.push("lock"); return lock; } }
+        : { limit: async () => { events.push("check"); return [{ state }]; } },
+      }) }),
+    } as unknown as Reader;
+    const pending = lockDailyCreation("org", "project", "2026-10-29", tx);
+    expect(events).toEqual(["lock"]);
+    release();
+    await expect(pending).rejects.toMatchObject({ status: 409, message: dailyDuplicateMessage("2026-10-29", state) });
+    expect(events).toEqual(["lock", "check"]);
+  });
+  it("allows the first save after acquiring the shared project lock", async () => {
+    const tx = {
+      select: (fields: Record<string, unknown>) => ({ from: () => ({ where: () => "id" in fields
+        ? { for: async () => [] } : { limit: async () => [] },
+      }) }),
+    } as unknown as Reader;
+    await expect(lockDailyCreation("org", "project", "2026-10-29", tx)).resolves.toBeUndefined();
   });
 });
 
