@@ -4,6 +4,7 @@ import { DailyForm } from './daily-form';
 import { FormCtx } from './form-kit';
 import { calcDaily, DISCIPLINES, DISC_STATUSES, ENTITIES, PEND_BUCKETS, PEND_STATUSES, zeroFill, type Obj } from './reporting-types';
 import { moveRevision } from './approved-revisions';
+import { DAILY_ADDITIONS } from '@workspace/field-controls';
 
 function render(data: Obj = {}, baseline: Obj = {}, readOnly = false, fieldLocked = false) {
   return renderToStaticMarkup(<FormCtx.Provider value={{ data, readOnly, set: () => {}, fc: () => ({ disabled: fieldLocked, required: false }) }}>
@@ -12,6 +13,18 @@ function render(data: Obj = {}, baseline: Obj = {}, readOnly = false, fieldLocke
 }
 
 describe('Daily discipline submission layout', () => {
+  it('explains daily additions while showing cumulative Yesterday and separate current counts', () => {
+    const data = { dailyDisciplineInputMode: DAILY_ADDITIONS, disciplines: { drawings: { Civil: { approved: 5, resubmit: 2, rejected: 1, underReview: 4 } } } };
+    const baseline = { disciplines: { drawings: { Civil: { approved: 25, resubmit: 25, rejected: 25, underReview: 25 } } } };
+    const html = render(data, baseline);
+    expect(html).toContain('Enter only the counts added on the selected day');
+    expect(html).toContain('Drawings overall total — Yesterday 100 · Current 12');
+    expect(html).not.toContain('Legacy cumulative-entry report');
+  });
+  it('warns when a previous report retains an unreviewed legacy interpretation', () => {
+    expect(render({ dailyDisciplineInputMode: DAILY_ADDITIONS }, { dailyDisciplineLegacyPrevious: true }))
+      .toContain('a reviewed historical correction is required');
+  });
   it('orders disciplines consistently in drawings and submittals', () => {
     const html = render();
     for (const category of ['Drawings', 'Submittals']) {
@@ -24,7 +37,7 @@ describe('Daily discipline submission layout', () => {
   it('combines both categories under one heading with individual discipline tables', () => {
     const html = render();
     expect(html).toContain('Daily Submission - Drawings and Submittals by Discipline');
-    expect(html).toContain('Enter the cumulative figures as on the Current Date for each discipline.');
+    expect(html).toContain('Legacy cumulative-entry report');
     expect(html).not.toContain('Disciplines - drawings');
     expect(html).not.toContain('Disciplines - submittals');
     for (const cat of ['drawings', 'submittals']) for (const d of DISCIPLINES) {

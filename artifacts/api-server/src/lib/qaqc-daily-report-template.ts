@@ -1,6 +1,7 @@
 import { DOMParser, type Element } from "@xmldom/xmldom";
 import { strFromU8, unzipSync } from "fflate";
 import type { QaqcReportExport } from "./qaqc-reporting-export";
+import { dailyDisciplineSnapshot } from "@workspace/field-controls";
 import { child, children, descendants, monthlyAsset, monthlyDate, UNMAPPED, W } from "./qaqc-monthly-report-template";
 
 type Obj = Record<string, any>;
@@ -28,7 +29,7 @@ export async function buildDailyReportDocument(report:QaqcReportExport) {
   const files=unzipSync(await monthlyAsset("qaqc-daily-report-template.docx"));
   const doc=new DOMParser().parseFromString(strFromU8(files["word/document.xml"]!),"application/xml");
   const body=descendants(doc.documentElement!,"body")[0]!, blocks=children(body);
-  const d=report.data as Obj, c=report.computed as Obj, b=report.baseline as Obj;
+  const d=dailyDisciplineSnapshot(report.data as Obj,report.baseline as Obj), c=report.computed as Obj, b=report.baseline as Obj;
   const set=(p:Element,v:unknown,color?:string)=>{
     const run=child(p,"r")?.cloneNode(true) as Element|undefined;
     const replacement=run??doc.createElementNS(W,"w:r");

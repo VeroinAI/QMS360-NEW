@@ -1,4 +1,4 @@
-import { duplicateNcrAgeingRows } from "@workspace/field-controls";
+import { dailyDisciplineSnapshot, duplicateNcrAgeingRows } from "@workspace/field-controls";
 
 export type ReportType = "monthly" | "daily" | "csat";
 export type ValidationResult = { valid: boolean; errors: string[] };
@@ -315,6 +315,7 @@ export function calculateReport(reportType: ReportType, data: Record<string, any
     const values = RATINGS.map((key) => Number(data.ratings?.[key] ?? 0));
     return { averageRating: values.length ? round(values.reduce((a, b) => a + b, 0) / values.length) : 0, ratings: data.ratings ?? {} };
   }
+  data = dailyDisciplineSnapshot(data, baseline);
   const sums: Record<string, number> = {};
   for (const section of ["drawings", "submittals"]) for (const discipline of DISCIPLINES) {
     sums[`${section}.${discipline}`] = DAILY_STATUSES.reduce((sum, status) => sum + Number(data.disciplines?.[section]?.[discipline]?.[status] ?? 0), 0);

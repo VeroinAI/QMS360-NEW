@@ -1,4 +1,5 @@
 import { DAILY_DOCUMENT_TYPES, DAILY_STATUSES, DISCIPLINES, ENTITIES, PENDING_STATUSES, subtractReportSnapshot } from "./qaqc-reporting-model";
+import { dailyDisciplineSnapshot } from "@workspace/field-controls";
 
 type Bag = Record<string, any>;
 export type DashboardReport = { id: string; projectId: string; reportType: string; period: string; state: string; data: Bag; computed: Bag; baseline: Bag };
@@ -15,7 +16,7 @@ export function dayBefore(date: string, days = 1) {
   return result.toISOString().slice(0, 10);
 }
 
-/** Daily inputs are absolute snapshots. Never sum the snapshots across dates. */
+/** Convert versioned daily additions before aggregating end-of-day snapshots. */
 export function dailyDashboard(reports: DashboardReport[], projects: Bag[], end: string, from: string | null, mode: string) {
   const approved = reports.filter(row => row.reportType === "daily" && row.state === "approved");
   const snapshots: Bag[] = [], pendingSnapshots: Bag[] = [], chosen: DashboardReport[] = [], sources: DashboardReport[] = [];
@@ -27,16 +28,17 @@ export function dailyDashboard(reports: DashboardReport[], projects: Bag[], end:
     chosen.push(last);
     sources.push(last);
     pendingSnapshots.push({ ...last.data, projectId: project.id, projectName: project.name, reportId: last.id });
-    if (mode !== "movement") { snapshots.push(last.data); continue; }
+    const lastSnapshot = dailyDisciplineSnapshot(last.data, last.baseline);
+    if (mode !== "movement") { snapshots.push(lastSnapshot); continue; }
     const start = history.filter(row => row.period <= (from ?? dayBefore(end))).at(-1);
     if (start && start.id !== last.id) sources.push(start);
     // For a single-day movement, the form's saved Yesterday baseline is authoritative.
-    const baseline = start?.data ?? (!from && last.period === end ? last.baseline : undefined);
+    const baseline = start ? dailyDisciplineSnapshot(start.data, start.baseline) : (!from && last.period === end ? last.baseline : undefined);
     if (!baseline || !baseline.disciplines) {
       warnings.push(`${project.name}: no approved start snapshot or saved Yesterday baseline; excluded from movement totals.`);
       continue;
     }
-    snapshots.push(subtractReportSnapshot(last.data, baseline));
+    snapshots.push(subtractReportSnapshot(lastSnapshot, baseline));
   }
   const statusBlock = (section: string) => {
     const entries = Object.fromEntries(DAILY_STATUSES.map(status => [
@@ -84,7 +86,7 @@ export function dailyDashboard(reports: DashboardReport[], projects: Bag[], end:
   const trend = Array.from({ length: 14 }, (_, i) => {
     const date = dayBefore(end, 13 - i), rows = approved.filter(row => row.period === date);
     const movement = (section: string) => rows.length ? sum(rows, row => sum([...DISCIPLINES], discipline =>
-      sum([...DAILY_STATUSES], status => number(row.data.disciplines?.[section]?.[discipline]?.[status])
+      sum([...DAILY_STATUSES], status => number(dailyDisciplineSnapshot(row.data, row.baseline).disciplines?.[section]?.[discipline]?.[status])
         - number(row.baseline.disciplines?.[section]?.[discipline]?.[status])))) : null;
     return { name: date, value: movement("submittals"), drawings: movement("drawings"), submittals: movement("submittals") };
   });

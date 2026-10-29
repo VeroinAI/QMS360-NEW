@@ -5,6 +5,7 @@ import { mkdir,writeFile } from "node:fs/promises";
 import { buildDailyReportDocument } from "./qaqc-daily-report-template";
 import { children,child,attr } from "./qaqc-monthly-report-template";
 import { calculateReport } from "./qaqc-reporting-model";
+import { DAILY_ADDITIONS } from "@workspace/field-controls";
 import { exportQaqcReportPdf,type QaqcReportExport } from "./qaqc-reporting-export";
 
 const disciplines=["Civil","Structural","Mechanical","Electrical","Instrumentation"];
@@ -36,6 +37,12 @@ describe("Word-based Daily Submission download",()=>{
     const {text}=await mapped();
     for(const s of ["Example Construction","PROJECT-900","CC-900","Example PM","Example PE","Example DC","Actual Preparer","19-10-2026  15:45","Asia/Riyadh","DAILY-900"])expect(text).toContain(s);
     for(const s of ["Alpha District","AGH-ALPHA","CC-3107","S. Rahman","M. Khan","A. Nair","DDG-20261018","FOR REVIEW ONLY","Display rules for the PDF generator","Sample data is illustrative","First report for this project"])expect(text).not.toContain(s);
+  });
+  it("maps daily additions as movement and cumulative totals in the supplied Word layout",async()=>{
+    const dailyData = { ...data, dailyDisciplineInputMode: DAILY_ADDITIONS };
+    const result = await mapped({ ...report, data: dailyData, computed: calculateReport("daily", dailyData, baseline) });
+    expect(cells(table(result,"CUMULATIVE"),4).map(c=>c.textContent)).toEqual(["Submission total","300","180","40","20","60"]);
+    expect(cells(table(result,"ADDED SINCE"),4).map(c=>c.textContent)).toEqual(["Submission total","+160","+100","+20","+10","+30"]);
   });
   it("maps both summaries and calculates approved share from all five disciplines of both document categories",async()=>{
     const result=await mapped();

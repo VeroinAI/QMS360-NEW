@@ -25,6 +25,14 @@ const report: QaqcReportExport = {
 };
 
 describe("Daily dashboard supplied presentation and mapping workbook", () => {
+  it("maps versioned daily additions to cumulative totals without summing unrelated snapshots", () => {
+    const dailyData = { ...data, dailyDisciplineInputMode: "daily_additions_v1" };
+    const m = dailyDashboardData({ ...report, data: dailyData, computed: calculateReport("daily", dailyData, baseline) });
+    expect(m.values["Cum DRAWINGS chip 1 value"]).toBe("150");
+    expect(m.values["Cum SUBMISSION TOTAL chip 1 value"]).toBe("300");
+    expect(m.values["Added SUBMITTALS chip 1 value"]).toBe("+80");
+    expect(m.values["Added CORRESPONDENCE chip 1 value"]).toBe("+2");
+  });
   it("maps both daily change and cumulative bands from the saved data and baseline", () => {
     const m = dailyDashboardData(report);
     expect(m.values["Added SUBMITTALS chip 1 value"]).toBe("+10");

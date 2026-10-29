@@ -1,5 +1,5 @@
 import { formatDateTime } from '@workspace/spreadsheet-dates';
-import { canMaintainMonthlyField, monthlySectionForField, monthlySectionPayload } from '@workspace/field-controls';
+import { DAILY_ADDITIONS, canMaintainMonthlyField, monthlySectionForField, monthlySectionPayload } from '@workspace/field-controls';
 import { workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
@@ -100,7 +100,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     staleTime: 30_000,
     refetchInterval: metricsEntry ? 60_000 : false,
   } });
-  const [data, setData] = useState<Obj>(() => (metricsEntry ? { ...defaultData(reportType), meetings: [{ type: '', lastDate: '', nextDate: '' }], internalAudit: {}, manpower: [{ department: '', departmentSource: 'master' }], training: { trainingCount: 0, attendance: 0, durationMinutes: 0 }, assessmentConfirmationRequired: true, assessmentConfirmed: false } : defaultData(reportType)));
+  const [data, setData] = useState<Obj>(() => (metricsEntry ? { ...defaultData(reportType), meetings: [{ type: '', lastDate: '', nextDate: '' }], internalAudit: {}, manpower: [{ department: '', departmentSource: 'master' }], training: { trainingCount: 0, attendance: 0, durationMinutes: 0 }, assessmentConfirmationRequired: true, assessmentConfirmed: false } : { ...defaultData(reportType), ...(reportType === 'daily' ? { dailyDisciplineInputMode: DAILY_ADDITIONS } : {}) }));
   const initFor = useRef<string | null>(null);
   useEffect(() => { if (report && initFor.current !== report.id) { initFor.current = report.id; setData({ ...defaultData(reportType), ...(report.data as Obj) }); } }, [report, reportType]);
 
@@ -263,7 +263,8 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
         setImports(r.errors ?? []);
         const imported = reportType === 'monthly' ? monthlySectionPayload(r.data as Obj, editableSections ?? []) : { ...defaultData(reportType), ...(r.data as Obj) };
         Object.keys(imported).forEach(key => dirtyFields.current.add(key));
-        setData(d => resetAssessmentReview(reportType === 'monthly' ? { ...d, ...imported } : imported, metricsEntry));
+        setData(d => resetAssessmentReview(reportType === 'monthly' ? { ...d, ...imported }
+          : reportType === 'daily' ? { ...imported, dailyDisciplineInputMode: d.dailyDisciplineInputMode } : imported, metricsEntry));
         toast({ title: 'Workbook loaded for review', description: 'Only your authorized sections are loaded. Nothing is saved until you save the draft.' });
       }, onError: fail('Import failed'),
     });

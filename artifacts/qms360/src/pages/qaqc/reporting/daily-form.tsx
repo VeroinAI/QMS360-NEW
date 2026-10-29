@@ -1,4 +1,5 @@
 import { ChevronDown } from 'lucide-react';
+import { usesDailyAdditions } from '@workspace/field-controls';
 import { Input } from '@/components/ui/input';
 import { NumField, Section, getIn, useForm } from './form-kit';
 import { calcDaily, DISCIPLINES, DISC_STATUSES, DOC_TYPES, DOC_TYPE_LABELS, LEGACY_DOC_TYPES, REJECTED_SUBMISSION_TYPES, type Obj } from './reporting-types';
@@ -17,7 +18,10 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
   const documentTypes = [...DOC_TYPES, ...LEGACY_DOC_TYPES.filter(t =>
     getIn(f.data, ['documentTypes', t]) !== undefined || bp(['documentTypes', t]) !== undefined)];
   return <div className="space-y-6">
-    <Section title="2. Daily Submission - Drawings and Submittals by Discipline" description="Enter the cumulative figures as on the Current Date for each discipline. Yesterday is read-only (auto-loaded from the previous log) and Total is auto-calculated as Approved + Resubmit + Rejected + Under Review.">
+    {baseline.dailyDisciplineLegacyPrevious && <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">The previous report uses the legacy cumulative-entry format. Its saved Current Date values are retained as the cumulative balance. If they were actually daily additions, a reviewed historical correction is required before they can be accumulated.</p>}
+    <Section title="2. Daily Submission - Drawings and Submittals by Discipline" description={usesDailyAdditions(f.data)
+      ? "Enter only the counts added on the selected day in Current Date. Yesterday is the cumulative balance through the prior reporting date, including historical opening balances. Next day’s Yesterday = Yesterday + Current Date. Total is calculated from the four status counts."
+      : "Legacy cumulative-entry report: Current Date contains cumulative figures, not daily additions. Its original interpretation is preserved. Historical interpretation changes require a reviewed correction."}>
       {(['drawings', 'submittals'] as const).map(cat => {
         const categoryLabel = cat === 'drawings' ? 'Drawings' : 'Submittals';
         const overall = (source: Calc) => DISCIPLINES.reduce((total, discipline) => total + (source.disc[`${cat}.${discipline}`]?.total ?? 0), 0);

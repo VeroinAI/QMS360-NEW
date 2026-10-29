@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request } from "express";
 import { projectDashboardDimensions } from "../lib/qaqc-project-dimensions";
 import { assertNoMonthlyDuplicate, dailyDuplicateReason, isReportPeriodDuplicate, lockDailyCreation, lockMonthlyCreation, monthlyDuplicateReason } from "../lib/qaqc-report-duplicates";
+import { DAILY_ADDITIONS, dailyDisciplineSnapshot, usesDailyAdditions } from "@workspace/field-controls";
 import { and, asc, count, desc, eq, getTableColumns, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
   auditPlans, businessUnits, db, organizations, projects, qaqcMetricEntries, materialInspectionEntries, qtbtEntries,
@@ -242,6 +243,11 @@ async function reportRow(req: Request, id: string, forSubmission = false) {
     && !hasMonthlyReviewHistory(rows[0], actor(req))
     && !(rows[0].reportType === "monthly" && (await monthlySectionAccess(req, rows[0].projectId)).length))
     throw new HttpError(404, "Report not found");
+  if (rows[0].reportType === "daily" && rows[0].state === "draft") {
+    const history = await historyBaseline(org(req), rows[0].projectId, "daily", rows[0].period);
+    const baseline = Object.keys(history.baseline).length ? history.baseline : rows[0].baseline as Record<string, any>;
+    return { ...rows[0], baseline, computed: calculateReport("daily", rows[0].data as any, baseline) };
+  }
   return rows[0];
 }
 
@@ -277,7 +283,7 @@ export async function historyBaseline(organizationId: string, projectId: string,
       historicalSetup:{period,version:setup.version}},previous};
   }
   if (!previous) return { baseline: {}, previous: null };
-  if (type === "daily") return { baseline: previous.data as Record<string, any>, previous };
+  if (type === "daily") return { baseline: dailyDisciplineSnapshot(previous.data as Record<string, any>, previous.baseline as Record<string, any>), previous };
   if (type === "monthly") {
     const computed = previous.computed as Record<string, any>;
     const metrics: Record<string, any> = {};
@@ -668,7 +674,9 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
       peName: allUsers.find((u) => u.id === userId(settings, "peId"))?.fullName ?? null,
       dcName: allUsers.find((u) => u.id === userId(settings, "dcId"))?.fullName ?? null,
     },
-    baseline: { ...baseline, previousPeriod: last?.period ?? null, hasBaseline: !!(baseline as Record<string,unknown>).historicalSetup || !!(baseline as Record<string,unknown>).dailyHistoricalSetup || !!last || Object.keys(legacy).length > 0, legacyFallback: Object.keys(legacy).length > 0 },
+    baseline: { ...baseline, previousPeriod: last?.period ?? null,
+      ...(type === "daily" && last && !usesDailyAdditions(last.data as any) ? { dailyDisciplineLegacyPrevious: true } : {}),
+      hasBaseline: !!(baseline as Record<string,unknown>).historicalSetup || !!(baseline as Record<string,unknown>).dailyHistoricalSetup || !!last || Object.keys(legacy).length > 0, legacyFallback: Object.keys(legacy).length > 0 },
     canStart: !blockedReason,
     blockedReason,
     targets,
@@ -754,6 +762,7 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
   const projectId = String(req.body?.projectId ?? "");
   if (!projectId || !isObject(req.body?.data)) throw new HttpError(422, "projectId and object data are required");
   let data = zeroFill(type, req.body.data);
+  if (type === "daily") data.dailyDisciplineInputMode = DAILY_ADDITIONS;
   await projectAllowed(req, projectId);
   if (type === "monthly") {
     const sections = await monthlySectionAccess(req, projectId);
@@ -827,6 +836,12 @@ router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (re
   await assertFieldAccess(req, "qaqc", "report-envelope", { mode: "update", current: before as any, body: fieldBody });
   await assertFieldControls(req, "qaqc", "report-envelope", { mode: "update", current: before as any, body: fieldBody });
   const data = before.reportType === "monthly" && req.body.data.noUpdates !== true ? requestedData : zeroFill(before.reportType as ReportType, requestedData);
+  // The server owns the input contract; saving a legacy record must not
+  // silently reinterpret its existing cumulative entries as daily additions.
+  if (before.reportType === "daily") {
+    if (before.data?.dailyDisciplineInputMode === DAILY_ADDITIONS) data.dailyDisciplineInputMode = DAILY_ADDITIONS;
+    else delete data.dailyDisciplineInputMode;
+  }
   if (before.data?.assessmentConfirmationRequired === true) data.assessmentConfirmationRequired = true;
   if (before.data?.qmsDepartmentInput === "sow") data.qmsDepartmentInput = "sow";
   // Draft contributors are responsible only for the sections they changed.
@@ -847,6 +862,7 @@ router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (re
   const targets = await targetsFor(req, project?.customFields as any ?? {}, settings);
   const [row] = await db.update(qaqcReportSubmissions).set({
     data, computed: calculateReport(before.reportType as ReportType, data, before.baseline as any, targets),
+    ...(before.reportType === "daily" ? { baseline: before.baseline } : {}),
     ...(before.reportType === "csat" && before.state === "sent_back" ? { state: "draft", approverId: null } : {}),
     updatedAt: new Date(),
   }).where(and(eq(qaqcReportSubmissions.id, before.id), exactReportVersion(qaqcReportSubmissions.updatedAt, before.databaseUpdatedAt), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
@@ -1118,8 +1134,8 @@ export async function buildQaqcReportingDashboard(req: Request): Promise<QaqcRep
     if (!end) return [];
     const startPeriod = from ?? shiftPeriod(end.period, "daily", -1);
     const start = [...history].reverse().find((row) => row.period <= startPeriod);
-    const endData = { ...end.computed, disciplines: (end.data as any).disciplines ?? {} };
-    const startData = start ? { ...start.computed, disciplines: (start.data as any).disciplines ?? {} } : {};
+    const endData = { ...end.computed, ...dailyDisciplineSnapshot(end.data as any, end.baseline as any) };
+    const startData = start ? { ...start.computed, ...dailyDisciplineSnapshot(start.data as any, start.baseline as any) } : {};
     return [{
       id: end.id, projectId, projectName: projectById.get(projectId)?.name ?? null, period: end.period,
       snapshot: endData as DailyReportComputed, movement: from || to ? subtractReportSnapshot(endData, startData) : null,

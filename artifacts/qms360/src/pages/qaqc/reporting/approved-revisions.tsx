@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumField, Section, useForm } from './form-kit';
 import { calcDaily, num, type Obj } from './reporting-types';
+import { dailyDisciplineSnapshot } from '@workspace/field-controls';
 
 type Category = 'drawings' | 'submittals';
 const categories: Category[] = ['drawings', 'submittals'];
@@ -25,7 +26,7 @@ export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
   const f = useForm();
   const disabled = f.readOnly || f.fc('revisions').disabled;
   const revisions: Obj = f.data.revisions ?? {};
-  const totals = calcDaily(f.data).disc;
+  const totals = calcDaily(dailyDisciplineSnapshot(f.data, baseline)).disc;
   const categoryTotal = (cat: Category) => Object.entries(totals)
     .reduce((total, [key, row]) => total + (key.startsWith(`${cat}.`) ? num(row.total) : 0), 0);
   const priorValue = (cat: Category, name: unknown) =>

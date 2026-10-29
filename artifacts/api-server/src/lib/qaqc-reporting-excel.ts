@@ -243,6 +243,11 @@ export function makeQaqcReportingTemplate(
     ["QA/QC Reporting Import Template", "Complete the Values in the Report Data sheet, then upload for preview. Import never saves or submits."],
     ["Report type", reportType],
     ["Period", "Set the reporting period in the application before importing."],
+    ...(reportType === "daily" ? [
+      ["Drawings/Submittals by Discipline", "For new daily-addition reports, enter only the selected day's additions. Yesterday is cumulative and loaded automatically. Next Yesterday = Yesterday + Current Date. Enter 0 for no additions."],
+      ["Legacy daily reports", "Existing cumulative-entry reports retain their original input meaning. Check the form's input guidance before importing. This workbook never changes historical report interpretation."],
+      ["Other daily sections", "Pending/ageing, document types, revisions and correspondence retain their existing snapshot meanings; do not add Yesterday to these fields."],
+    ] : []),
     ["Date format", "DD/MM/YYYY. Use this format for all date cells and dates inside JSON values."],
     ["Project", "Choose a project in the application. Do not enter or edit a project UUID in this workbook."],
       ["Value format", "Use Yes/No for boolean fields. Dynamic meetings, manpower, ageing, QMS and revision entries have separate sheets."],
