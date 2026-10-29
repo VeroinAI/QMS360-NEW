@@ -22,6 +22,7 @@ import { monthlySectionAccess, mergeMonthlySections } from "../lib/qaqc-monthly-
 import { monthlySectionForField } from "@workspace/field-controls";
 import { calculatePortfolioPqi } from "../lib/qaqc-portfolio-pqi";
 import { exactReportVersion } from "../lib/qaqc-report-version";
+import { assertReportSubmissionAccess } from "../lib/qaqc-report-submission-access";
 import { MONTHLY_APPROVAL_KEY, reportApprovalKey, isSequentialReportType, readMonthlyApproval, loadMonthlyApprovalStages, startMonthlyApproval, advanceMonthlyApproval, hasMonthlyReviewHistory } from "../lib/qaqc-monthly-approval";
 import { getHistoricalSetup, historicalBaseline as historicalOpeningBaseline } from "../lib/qaqc-historical-balances";
 import { getDailyOpening, assertDailyOpeningDate } from "../lib/qaqc-daily-historical";
@@ -223,7 +224,7 @@ async function projectAllowed(req: Request, projectId: string) {
   if (!projectHasCapability) throw new HttpError(403, "You do not have reporting capability for this project");
 }
 
-async function reportRow(req: Request, id: string) {
+async function reportRow(req: Request, id: string, forSubmission = false) {
   const scope = await getAuthorizedProjectScope(req, "qaqc");
   const rows = await db.select({
     ...getTableColumns(qaqcReportSubmissions),
@@ -233,6 +234,10 @@ async function reportRow(req: Request, id: string) {
     !scope.unrestricted ? inArray(qaqcReportSubmissions.projectId, scope.projectIds) : undefined,
   )).limit(1);
   if (!rows[0]) throw new HttpError(404, "Report not found");
+  if (forSubmission) {
+    await assertReportSubmissionAccess(req, rows[0]);
+    return rows[0];
+  }
   if (req.permissionScope === "own" && rows[0].createdById !== actor(req) && rows[0].approverId !== actor(req)
     && !hasMonthlyReviewHistory(rows[0], actor(req))
     && !(rows[0].reportType === "monthly" && (await monthlySectionAccess(req, rows[0].projectId)).length))
@@ -858,8 +863,7 @@ router.delete("/reports/:id", reportPermissionById("own"), asyncHandler(async (r
 }));
 
 router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(async (req, res) => {
-  const before = await reportRow(req, String(req.params.id));
-  if (before.createdById !== actor(req)) throw new HttpError(403, "Only the report creator may submit this report");
+  const before = await reportRow(req, String(req.params.id), true);
   if (!["draft", "sent_back"].includes(before.state)) throw new HttpError(409, "Report is not eligible for submission");
   const finalCsat = before.reportType === "csat";
   const approverId = finalCsat ? null : String(req.body?.approverId ?? before.approverId ?? "");

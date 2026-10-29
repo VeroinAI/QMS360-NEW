@@ -141,7 +141,7 @@ export function MetricsReportList() {
                       <span className="inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium hover:bg-muted">{editable ? <Pencil className="size-3.5" /> : <Eye className="size-3.5" />}{editable ? 'Edit' : 'Display'}</span>
                     </Link>
                     {canExport && <Button size="sm" variant="outline" disabled={!!downloading} onClick={() => download(r)} data-testid={`button-download-report-${r.id}`}><Download className="size-3.5" />{downloading === r.id ? 'Preparing...' : 'Download'}</Button>}
-                    {canSubmitMetricsDocument(r.state, canSubmit, r.createdById, me.data?.id) && <Button size="sm" variant="outline" disabled={q.isFetching} onClick={() => setSubmissionId(r.id)} data-testid={`button-submit-report-${r.id}`}><Send className="size-3.5" />Submit for approval</Button>}
+                    {canSubmitMetricsDocument(r.state, canSubmit, me.data?.id) && <Button size="sm" variant="outline" disabled={q.isFetching} onClick={() => setSubmissionId(r.id)} data-testid={`button-submit-report-${r.id}`}><Send className="size-3.5" />Submit for approval</Button>}
                   </div></TableCell>
                 </TableRow>;
               })}

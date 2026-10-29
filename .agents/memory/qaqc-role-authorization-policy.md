@@ -41,7 +41,13 @@ QA/QC monthly reports support section-restricted shared editing. Unauthorized se
 
 **Why:** The user explicitly chose read-only visibility and shared contributions rather than hidden sections or creator-only editing.
 
-**How to apply:** Keep existing project and report-state boundaries. Section permissions are additive across roles; an unconfigured whole-report edit role retains legacy section access. Enable section restrictions on each broad role that should be limited. Preserve creator submission/deletion and reviewer responsibilities. Validate the complete report at submission, not as a prerequisite for another contributor's draft save.
+**How to apply:** Keep existing project and report-state boundaries. Section permissions are additive across roles; an unconfigured whole-report edit role retains legacy section access. Enable section restrictions on each broad role that should be limited. Preserve creator-only deletion and reviewer responsibilities. Validate the complete report at submission, not as a prerequisite for another contributor's draft save.
+
+Monthly report submission is role-based, not creator-only. A different user with Monthly Reports Submit permission for the report's project may review the contributors' saved data and submit for approval.
+
+**Why:** The user explicitly clarified that multiple users prepare a Monthly document and a different user reviews it before submitting it for approval.
+
+**How to apply:** Honor the existing activity-specific submit grant and its own project scope; do not infer submit rights from edit or approval rights. Preserve contributor identity and record the actual submitter independently. Keep creator-only Daily/CSAT submission, creator-only deletion, full-report validation and approval-level routing unchanged.
 
 On the QA/QC Metrics landing page and its document editor, only Draft documents
 may be edited; Display opens read-only even when the viewer could edit a draft.

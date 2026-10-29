@@ -38,7 +38,7 @@ export function MetricsReportSubmitDialog({ id, onClose, onSubmitted }: {
   const invalidate = useInvalidate();
   const { toast } = useToast();
   const loading = reportQ.isFetching || ctxQ.isFetching || me.isLoading || cap.isLoading || fc.isLoading;
-  const eligible = report?.reportType === 'monthly' && canSubmitMetricsDocument(report.state, cap.can('monthly_reports', 'submit'), report.createdById, me.data?.id);
+  const eligible = report?.reportType === 'monthly' && canSubmitMetricsDocument(report.state, cap.can('monthly_reports', 'submit'), me.data?.id);
   const locked = fc.fieldProps('data').disabled;
   const data = normaliseMetricsEntry((report?.data ?? {}) as Obj);
   const issues = report ? [

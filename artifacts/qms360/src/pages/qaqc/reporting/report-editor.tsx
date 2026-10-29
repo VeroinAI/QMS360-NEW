@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { canEditMetricsDocument } from './metrics-report-policy';
+import { canEditMetricsDocument, canSubmitMetricsDocument } from './metrics-report-policy';
 import { MonthlyApprovalPreview, MonthlyApprovalProgress } from './monthly-approval';
 import { useMonthlyApproverSelection } from './monthly-approver-selection';
 import { jumpToMonthlyIssue, monthlyIssuePath } from './monthly-validation-navigation';
@@ -147,6 +147,9 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const selectedNextApprover = nextCandidates.length === 1 ? nextCandidates[0].id : nextApproverId;
   const isApprover = reportType !== 'csat' && report?.state === 'submitted' && !!me.data && report.approverId === me.data.id && report.submittedById !== me.data.id;
   const isCreator = !report || report.createdById === me.data?.id;
+  const canSubmitDocument = metricsEntry
+    ? !displayOnly && canSubmitMetricsDocument(report?.state, canSubmit, me.data?.id)
+    : editable && canSubmit && (reportType === 'monthly' || isCreator);
   const projectName = report?.projectName ?? projects.find(p => p.id === pid)?.name;
 
   const clearAiSuggestion = () => {
@@ -193,7 +196,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const doSubmit = () => {
     if (reportType === 'csat') { void persistCsat(true); return; }
     if (!report) return;
-    if (metricsEntry && (!editable || !canSubmit || !isCreator || locked || issues.length > 0 || busy || aiGenerating || update.isPending || submit.isPending)) return;
+    if (!canSubmitDocument || locked || issues.length > 0 || busy || aiGenerating || update.isPending || submit.isPending) return;
     const send = () => submit.mutate({ id: report.id, data: { approverId } }, { onSuccess: () => { invalidate(); toast({ title: 'Submitted for approval' }); setSubmitOpen(false); }, onError: fail('Could not submit') });
     if (reportType === 'monthly' && !dirtyFields.current.size) { send(); return; }
     update.mutate({ id: report.id, data: updateData() }, { onSuccess: r => { saved(r); send(); }, onError: fail('Could not save before submit') });
@@ -319,12 +322,12 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
             <Card><CardContent className="space-y-2 p-4">
               <div className={metricsEntry ? 'flex flex-wrap gap-2' : 'space-y-3'}>
               {editable && canEdit && canMaintain && <Button className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} disabled={readOnly || checkingAvailability || create.isPending || update.isPending || !pid || submit.isPending} onClick={save}><Save className="mr-2 size-4" />{report ? 'Save draft' : 'Create draft'}</Button>}
-              {editable && (report || reportType === 'csat') && canSubmit && (isCreator || !report) && <ReportSubmitAction className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} allowFloating={metricsEntry && !submitOpen && !delOpen && !decision} disabled={!pid || issues.length > 0 || locked || busy || create.isPending || update.isPending || submit.isPending || (metricsEntry && (aiGenerating || ctxQ.isLoading || !!ctxQ.error))} onClick={() => setSubmitOpen(true)} label={reportType === 'csat' ? 'Submit' : metricsEntry ? 'Submit for Approval' : 'Submit for approval'} />}
+              {(report || reportType === 'csat') && canSubmitDocument && <ReportSubmitAction className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} allowFloating={metricsEntry && !submitOpen && !delOpen && !decision} disabled={!pid || issues.length > 0 || locked || busy || create.isPending || update.isPending || submit.isPending || (metricsEntry && (aiGenerating || ctxQ.isLoading || !!ctxQ.error))} onClick={() => setSubmitOpen(true)} label={reportType === 'csat' ? 'Submit' : metricsEntry ? 'Submit for Approval' : 'Submit for approval'} />}
               </div>
               {metricsEntry && issues.length > 0 && <p className="text-xs text-muted-foreground">Drafts can be saved section by section. All required sections must be complete before submission.</p>}
               {editable && report && issues.length > 0 && <p className="text-xs text-destructive">Resolve {issues.length} open validation issue(s) to enable submission.</p>}
               {editable && report && canDelete && isCreator && <Button className="w-full" variant="outline" onClick={() => setDelOpen(true)}><Trash2 className="mr-2 size-4 text-destructive" />Delete draft</Button>}
-              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground"><p className="font-medium text-foreground">Who can act</p><p>{metricsEntry ? 'Authorized contributors can maintain their assigned sections while the document is Draft. Display mode and all other statuses are read-only on this screen.' : reportType === 'monthly' ? 'Authorized contributors: maintain assigned sections in shared drafts or sent-back reports. Other sections are read-only. Creator retains submission and deletion responsibilities.' : 'Creator: save, submit and delete while draft or sent back.'}{locked ? ' Editing is locked by field controls.' : ''}</p>{reportType === 'csat' ? <p>Submission is final. Submitted surveys cannot be edited, deleted or sent back.</p> : <p>Reviewer: {assignedReviewer ? (assignedReviewer.name ?? assignedReviewer.fullName) : report?.approverId ? 'assigned approver' : 'chosen at submission'} approves or sends back once submitted.</p>}</div>
+              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground"><p className="font-medium text-foreground">Who can act</p><p>{metricsEntry ? 'Authorized contributors can maintain their assigned sections while the document is Draft. A user with Monthly Reports Submit permission for this project can submit, even if another user created the document. Display mode and all other statuses are read-only on this screen.' : reportType === 'monthly' ? 'Authorized contributors: maintain assigned sections in shared drafts or sent-back reports. Other sections are read-only. Users with Monthly Reports Submit permission for this project can submit. Only the creator may delete.' : 'Creator: save, submit and delete while draft or sent back.'}{locked ? ' Editing is locked by field controls.' : ''}</p>{reportType === 'csat' ? <p>Submission is final. Submitted surveys cannot be edited, deleted or sent back.</p> : <p>Reviewer: {assignedReviewer ? (assignedReviewer.name ?? assignedReviewer.fullName) : report?.approverId ? 'assigned approver' : 'chosen at submission'} approves or sends back once submitted.</p>}</div>
               {isApprover && canReview && <ReportReviewActions
                 allowFloating={(metricsEntry || reportType === 'daily') && !submitOpen && !delOpen && !decision}
                 approveLabel={nextApprovalStage ? 'Approve & forward' : 'Approve'}

@@ -8,7 +8,7 @@ export function metricsDocumentHref(id: string, state: string, permitted: boolea
   return canEditMetricsDocument(state, permitted) ? path : `${path}?mode=view`;
 }
 
-/** Submission stays with the creator; the server additionally enforces project scope. */
-export function canSubmitMetricsDocument(state: string | undefined, permitted: boolean, creatorId?: string | null, userId?: string) {
-  return state === 'draft' && permitted && !!userId && creatorId === userId;
+/** Submission is role-based; the server additionally enforces the submit role's project scope. */
+export function canSubmitMetricsDocument(state: string | undefined, permitted: boolean, userId?: string) {
+  return state === 'draft' && permitted && !!userId;
 }

@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { canEditMetricsDocument, canSubmitMetricsDocument, metricsDocumentHref } from './metrics-report-policy';
 
 describe('Metrics document actions', () => {
-  it('requires an identified creator, draft state and submission permission', () => {
-    expect(canSubmitMetricsDocument('draft', true, 'owner', 'owner')).toBe(true);
-    expect(canSubmitMetricsDocument('draft', false, 'owner', 'owner')).toBe(false);
-    expect(canSubmitMetricsDocument('draft', true, 'other', 'owner')).toBe(false);
-    expect(canSubmitMetricsDocument('draft', true, undefined, undefined)).toBe(false);
+  it('requires an identified authorized submitter, not the original creator', () => {
+    expect(canSubmitMetricsDocument('draft', true, 'creator')).toBe(true);
+    expect(canSubmitMetricsDocument('draft', true, 'different-submitter')).toBe(true);
+    expect(canSubmitMetricsDocument('draft', false, 'different-submitter')).toBe(false);
+    expect(canSubmitMetricsDocument('draft', true, undefined)).toBe(false);
     for (const state of ['submitted', 'approved', 'sent_back', undefined])
-      expect(canSubmitMetricsDocument(state, true, 'owner', 'owner')).toBe(false);
+      expect(canSubmitMetricsDocument(state, true, 'different-submitter')).toBe(false);
   });
   it('allows only authorized draft editing', () => {
     expect(canEditMetricsDocument('draft', true)).toBe(true);
