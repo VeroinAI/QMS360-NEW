@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request } from "express";
 import { projectDashboardDimensions } from "../lib/qaqc-project-dimensions";
+import { allocateCsatReference } from "../lib/csat-numbering";
 import { assertNoMonthlyDuplicate, dailyDuplicateReason, isReportPeriodDuplicate, lockDailyCreation, lockMonthlyCreation, monthlyDuplicateReason } from "../lib/qaqc-report-duplicates";
 import { DAILY_ADDITIONS, DAILY_SUPPLEMENT_ADDITIONS, dailyDisciplineSnapshot, usesDailyAdditions, usesDailySupplementAdditions } from "@workspace/field-controls";
 import { and, asc, count, desc, eq, getTableColumns, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
@@ -549,7 +550,7 @@ function userId(customFields: Record<string, unknown>, key: string): string | un
 router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncHandler(async (req, res) => {
   const type = typeFor(req);
   const today = await orgLocalToday(req);
-  const selectedPeriod = type === "csat" ? today : req.query.period ?? (type === "daily" ? today : `${today.slice(0, 7)}-01`);
+  const selectedPeriod = req.query.period ?? (type === "daily" || type === "csat" ? today : `${today.slice(0, 7)}-01`);
   let period = normalizePeriod(type, selectedPeriod, today);
   const projectsInScope = await activeProjects(req, type);
   const allUsers = await activeUsers(req);
@@ -759,7 +760,7 @@ router.get("/reports", multipleReportAccess(), asyncHandler(async (req, res) => 
 router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHandler(async (req, res) => {
   const type = parseType(req.body?.reportType);
   const today = await orgLocalToday(req);
-  const period = normalizePeriod(type, type === "csat" ? today : req.body?.period, today);
+  const period = normalizePeriod(type, req.body?.period ?? (type === "csat" ? today : undefined), today);
   const projectId = String(req.body?.projectId ?? "");
   if (!projectId || !isObject(req.body?.data)) throw new HttpError(422, "projectId and object data are required");
   let data = zeroFill(type, req.body.data);
@@ -805,8 +806,10 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
       const opening=fresh&&Object.keys(fresh.baseline).length?fresh.baseline:baseline;
       const check=validateReportData(type,data,opening,false);
       if(!check.valid)throw new HttpError(422,check.errors.join("; "));
+      const referenceNumber = type === "csat" ? await allocateCsatReference(tx, org(req), projectId, period) : undefined;
       return tx.insert(qaqcReportSubmissions).values({
         organizationId: org(req), projectId, reportType: type, period, data, createdById: actor(req),
+        ...(referenceNumber ? { referenceNumber } : {}),
         baseline:opening, computed: calculateReport(type, data, opening, await targetsFor(req, project.customFields as any, settings)),
       }).returning();
     });

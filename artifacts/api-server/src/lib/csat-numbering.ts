@@ -1,11 +1,28 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { db, organizationSettings } from "@workspace/db";
+import { db, organizationSettings, projects, qaqcReportSubmissions } from "@workspace/db";
 import { lockScheduleNumbering } from "./audit-schedule-numbering";
 import { HttpError } from "./workspace";
 
 export type CsatPattern = { prefix: string; separator: string; padding: number };
 export type CsatRange = { projectId: string; year: number; lastNumber: number };
 export type CsatNumberState = { pattern: CsatPattern; ranges: Record<string, Record<string, number>> };
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export function csatReferenceYear(date: string) {
+  const year = Number(date.slice(0, 4));
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || year < 1900 || year > 9999 ||
+      !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+    throw new HttpError(422, "A valid CSAT Date with a four-digit year is required for reference numbering.");
+  }
+  return year;
+}
+export function formatCsatReference(pattern: CsatPattern, projectCode: string, date: string, number: number) {
+  validateCsatPattern(pattern);
+  if (!projectCode.trim()) throw new HttpError(422, "Maintain the Project Code in Project Master before creating this CSAT draft.");
+  if (!Number.isSafeInteger(number) || number < 1 || number > 999_999_999_999) throw new HttpError(409, "CSAT reference number range is exhausted or invalid.");
+  return [pattern.prefix, projectCode.trim(), String(csatReferenceYear(date)), String(number).padStart(pattern.padding, "0")]
+    .filter(Boolean).join(pattern.separator);
+}
 export function csatNumberState(map: unknown): CsatNumberState {
   const saved = (map as Record<string, any> | undefined)?.csat_reference_numbering;
   return { pattern: { prefix: "CSAT", separator: "-", padding: 4, ...saved?.pattern }, ranges: saved?.ranges ?? {} };
@@ -33,7 +50,7 @@ export async function readCsatNumbering(organizationId: string) {
     eq(organizationSettings.organizationId, organizationId), isNull(organizationSettings.deletedAt)));
   return csatNumberState(settings?.documentNumbering);
 }
-// Configuration only. No CSAT record is read, changed or assigned a reference here.
+// Settings maintenance never issues a reference.
 export async function saveCsatNumbering(organizationId: string, pattern?: CsatPattern, range?: CsatRange) {
   return db.transaction(async tx => {
     const { settings } = await lockScheduleNumbering(tx, organizationId);
@@ -43,4 +60,30 @@ export async function saveCsatNumbering(organizationId: string, pattern?: CsatPa
     }).where(eq(organizationSettings.id, settings.id));
     return state;
   });
+}
+
+/** Allocate within the same transaction as draft creation: failed inserts roll back the counter. */
+export async function allocateCsatReference(tx: Tx, organizationId: string, projectId: string, date: string) {
+  const year = csatReferenceYear(date);
+  const { settings } = await lockScheduleNumbering(tx, organizationId);
+  const [project] = await tx.select({ code: projects.code }).from(projects).where(and(
+    eq(projects.organizationId, organizationId), eq(projects.id, projectId), isNull(projects.deletedAt)));
+  if (!project) throw new HttpError(404, "Project is not available for CSAT numbering.");
+  const state = csatNumberState(settings.documentNumbering);
+  let number = (state.ranges[projectId]?.[String(year)] ?? 0) + 1;
+  let reference: string;
+  // Preserve historical references even if they predate these counters or the format changed.
+  for (;;) {
+    reference = formatCsatReference(state.pattern, project.code, date, number);
+    const [existing] = await tx.select({ id: qaqcReportSubmissions.id }).from(qaqcReportSubmissions).where(and(
+      eq(qaqcReportSubmissions.organizationId, organizationId), eq(qaqcReportSubmissions.reportType, "csat"),
+      eq(qaqcReportSubmissions.referenceNumber, reference))).limit(1);
+    if (!existing) break;
+    number++;
+  }
+  state.ranges = { ...state.ranges, [projectId]: { ...state.ranges[projectId], [String(year)]: number } };
+  await tx.update(organizationSettings).set({
+    documentNumbering: { ...settings.documentNumbering, csat_reference_numbering: state } as any, updatedAt: new Date(),
+  }).where(eq(organizationSettings.id, settings.id));
+  return reference;
 }

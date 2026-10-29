@@ -5,6 +5,6 @@ description: Requested CSAT format, date source, go-live counters and staged int
 
 CSAT Reference numbering is Prefix + Project + four-digit Year + Running number. The year must come from the CSAT form's Date, not the creation timestamp. Go-live maintenance accepts the last-used number, so the next running number is last-used plus one, using independent project/year ranges and no backwards movement.
 
-**Why:** The user requested parity with Audit go-live counter maintenance but specifically limited this development to Number Range settings, with a separate prompt to link CSAT forms.
+**Why:** The user requested parity with Audit go-live counter maintenance, then explicitly authorized linking the configured range to CSAT Create Draft.
 
-**How to apply:** Keep configuration separate from existing CSAT reference generation until the user explicitly requests integration. Do not renumber existing CSAT records or consume counters when saving or previewing settings. The settings use Project Master project code for the Project segment; confirm any different requested project identifier before changing that convention.
+**How to apply:** Allocate only on successful Create Draft, atomically with creation. Reference is read-only in the form and visible in the CSAT landing list. Preserve issued references on later saves and do not renumber legacy records. Never consume counters when saving or previewing settings. The Project segment uses Project Master project code.

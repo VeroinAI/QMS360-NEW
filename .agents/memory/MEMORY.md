@@ -128,4 +128,4 @@
 - [Audit participant boundaries](audit-participant-boundaries.md) — scope team/activity choices to the individual audit; separate historical names and never borrow marker scope or broad offline eligibility.
 - [Consolidated QA/QC dashboards](qaqc-consolidated-dashboard-policy.md) — approved-only web totals, signed snapshot movement, final CSAT surveys and separate cross-app authorization.
 - [Recharts component boundaries](recharts-component-boundaries.md) — forward measured dimensions through wrappers; keep axes as direct chart children and test real bars, labels and finite coordinates.
-- [CSAT reference numbering](csat-reference-numbering-policy.md) — four-digit CSAT Date year and project/year go-live counters; settings only until form integration is requested.
+- [CSAT reference numbering](csat-reference-numbering-policy.md) — allocate on Create Draft using CSAT Date year and independent project/year go-live counters; retain existing references.

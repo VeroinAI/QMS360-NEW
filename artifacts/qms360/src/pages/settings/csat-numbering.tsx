@@ -35,9 +35,9 @@ export function CsatNumberingSettings() {
     savePattern.reset();
   };
   return <Card data-testid="csat-numbering"><CardHeader><CardTitle>Customer Satisfaction (CSAT) — Reference number range</CardTitle>
-    <CardDescription>Maintain the CSAT reference format and go-live counters. Configuration only: this does not assign or change references on CSAT forms yet.</CardDescription></CardHeader>
+    <CardDescription>Maintain the CSAT reference format and go-live counters. References are allocated when Create Draft succeeds; existing references are retained.</CardDescription></CardHeader>
     <CardContent className="space-y-5">
-      <p className="text-sm">Format: <strong>Prefix + Project Code + Year (YYYY) + Running number</strong>. The year is to come from the CSAT form's Date, not its creation date. Each project and year has an independent sequence starting at 1.</p>
+      <p className="text-sm">Format: <strong>Prefix + Project Code + Year (YYYY) + Running number</strong>. The year comes from the CSAT form's Date, not its creation date. Each project and year has an independent sequence starting at 1.</p>
       <div className="grid gap-3 sm:grid-cols-3">
         <div><Label htmlFor="csat-number-prefix">Prefix</Label><Input id="csat-number-prefix" maxLength={80} value={pattern.prefix} onChange={event => change("prefix", event.target.value)} /></div>
         <div><Label htmlFor="csat-number-separator">Separator</Label><Input id="csat-number-separator" maxLength={80} value={pattern.separator} onChange={event => change("separator", event.target.value)} /></div>

@@ -78,14 +78,14 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const reportQ = useGetQaqcSowReport(id ?? '', { query: { enabled: !!id, queryKey: getGetQaqcSowReportQueryKey(id ?? ''), ...(sequentialApproval ? { staleTime: 0, refetchOnMount: 'always' as const, refetchInterval: 30_000 } : {}) } });
   const report = reportQ.data;
   const [projectId, setProjectId] = useState('');
-  const [period, setPeriod] = useState(defaultPeriod(reportType));
+  const [period, setPeriod] = useState(reportType === 'csat' ? '' : defaultPeriod(reportType));
   const pid = report?.projectId ?? projectId;
   const per = report?.period ?? period;
-  const ctxParams = { projectId: pid || undefined, reportType, period: reportType === 'csat' && !report ? undefined : per || undefined };
+  const ctxParams = { projectId: pid || undefined, reportType, period: per || undefined };
   const ctxQ = useGetQaqcSowContext(ctxParams, { query: { queryKey: getGetQaqcSowContextQueryKey(ctxParams), enabled: !id || !!report, ...(sequentialApproval ? { staleTime: 0, refetchOnMount: 'always' as const } : {}), refetchInterval: sequentialApproval ? 30_000 : false, refetchOnWindowFocus: true } });
   const ctx = (ctxQ.data ?? {}) as Obj;
   useEffect(() => {
-    if (reportType === 'csat' && !id && typeof ctx.serverToday === 'string') setPeriod(ctx.serverToday);
+    if (reportType === 'csat' && !id && typeof ctx.serverToday === 'string') setPeriod(current => current || ctx.serverToday);
   }, [reportType, id, ctx.serverToday]);
   const editableSections: string[] | undefined = reportType === 'monthly' ? ctx.editableSections ?? [] : undefined;
   const canSection = (key: string) => !editableSections || editableSections.includes(key);
@@ -183,6 +183,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   };
 
   const save = () => {
+    if (!report && reportType === 'csat' && (!per || create.isPending || !!ctxQ.error || ctxQ.isLoading)) return;
     if (!report && datedReport && (blocked || checkingAvailability || !!ctxQ.error || !pid)) return;
     if (metricsEntry && readOnly) return;
     if (report) update.mutate({ id: report.id, data: updateData() }, { onSuccess: r => { saved(r); invalidate(); toast({ title: 'Draft saved' }); }, onError: fail('Could not save') });
@@ -283,8 +284,9 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
       <MonthlyApprovalProgress workflow={approvalWorkflow} state={report?.state} approverId={report?.approverId} />
       <Wrap>
         <div className={metricsEntry ? 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3' : 'grid gap-3 sm:grid-cols-2 lg:grid-cols-4'}>
+          {reportType === 'csat' && <div className="space-y-1"><Label htmlFor="csat-reference" className="text-xs text-muted-foreground">Reference</Label><Input id="csat-reference" readOnly value={report?.referenceNumber ?? ''} placeholder={report ? 'Not allocated (historical report)' : 'Allocated when you create the draft'} /><p className="text-xs text-muted-foreground">{report ? 'Assigned reference is retained.' : 'Uses the saved CSAT range, selected project and Date year.'}</p></div>}
           <div className="space-y-1"><Label htmlFor="metrics-project" className="text-xs text-muted-foreground">{metricsEntry ? 'Project Name' : 'Project'}{metricsEntry && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{report ? <ReadOnlyValue label="" value={projectName} /> : <Select disabled={fc.fieldProps('projectId').disabled || busy || create.isPending} value={projectId} onValueChange={v => { clearAiSuggestion(); setData(d => resetAssessmentReview(d, metricsEntry)); setProjectId(v); }}><SelectTrigger id="metrics-project" aria-required={metricsEntry}><SelectValue placeholder={ctxQ.isLoading ? 'Loading projects' : 'Select project'} /></SelectTrigger><SelectContent>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</SelectItem>)}</SelectContent></Select>}</div>
-          <div className="space-y-1"><Label htmlFor={metricsEntry ? 'metrics-period' : undefined} className="text-xs text-muted-foreground">{metricsEntry ? 'Month / Year' : reportType === 'monthly' ? 'Period (month)' : 'Date'}{metricsEntry && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{report ? <ReadOnlyValue label="" value={metricsEntry ? `${per.slice(5, 7)}-${per.slice(0, 4)}` : per} /> : reportType === 'csat' ? <><Input aria-label="Date" type="date" readOnly value={typeof ctx.serverToday === 'string' ? ctx.serverToday : ''} /><p className="text-xs text-muted-foreground">System date from the server (organization time zone).</p></> : reportType !== 'monthly' ? <Input disabled={fc.fieldProps('period').disabled || busy || create.isPending} type="date" max={todayIso()} value={period} onChange={e => setPeriod(e.target.value)} /> : <Input id={metricsEntry ? 'metrics-period' : undefined} aria-required={metricsEntry} disabled={fc.fieldProps('period').disabled || busy || create.isPending} type="month" max={todayIso().slice(0, 7)} value={period.slice(0, 7)} onChange={e => { if (e.target.value) { clearAiSuggestion(); setData(d => resetAssessmentReview(d, metricsEntry)); setPeriod(`${e.target.value}-01`); } }} />}</div>
+          <div className="space-y-1"><Label htmlFor={metricsEntry ? 'metrics-period' : undefined} className="text-xs text-muted-foreground">{metricsEntry ? 'Month / Year' : reportType === 'monthly' ? 'Period (month)' : 'Date'}{metricsEntry && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{report ? <ReadOnlyValue label="" value={metricsEntry ? `${per.slice(5, 7)}-${per.slice(0, 4)}` : per} /> : reportType === 'csat' ? <><Input aria-label="Date" type="date" min="1900-01-01" max={typeof ctx.serverToday === 'string' ? ctx.serverToday : todayIso()} disabled={fc.fieldProps('period').disabled || busy || create.isPending} value={period} onChange={e => setPeriod(e.target.value)} /><p className="text-xs text-muted-foreground">The CSAT reference uses the year from this date. Date is fixed when the draft is created.</p></> : reportType !== 'monthly' ? <Input disabled={fc.fieldProps('period').disabled || busy || create.isPending} type="date" max={todayIso()} value={period} onChange={e => setPeriod(e.target.value)} /> : <Input id={metricsEntry ? 'metrics-period' : undefined} aria-required={metricsEntry} disabled={fc.fieldProps('period').disabled || busy || create.isPending} type="month" max={todayIso().slice(0, 7)} value={period.slice(0, 7)} onChange={e => { if (e.target.value) { clearAiSuggestion(); setData(d => resetAssessmentReview(d, metricsEntry)); setPeriod(`${e.target.value}-01`); } }} />}</div>
           <ReadOnlyValue label="Cost centre" value={details.costCentre} />
           {!metricsEntry && <><ReadOnlyValue label="Project manager" value={details.pmName} /><ReadOnlyValue label="Project engineer" value={details.peName} /><ReadOnlyValue label="Document controller" value={details.dcName} /></>}
         </div>
@@ -323,7 +325,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
             {!metricsEntry && reportType === 'monthly' && report && Object.keys(report.computed ?? {}).length > 0 && <Card><CardHeader className="pb-2"><CardTitle className="text-base">Server calculation</CardTitle></CardHeader><CardContent className="max-h-96 overflow-auto text-sm"><DataTree value={report.computed} level={1} /></CardContent></Card>}
             <Card><CardContent className="space-y-2 p-4">
               <div className={metricsEntry ? 'flex flex-wrap gap-2' : 'space-y-3'}>
-              {editable && canEdit && canMaintain && <Button className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} disabled={readOnly || checkingAvailability || create.isPending || update.isPending || !pid || submit.isPending} onClick={save}><Save className="mr-2 size-4" />{report ? 'Save draft' : 'Create draft'}</Button>}
+              {editable && canEdit && canMaintain && <Button className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} disabled={readOnly || checkingAvailability || create.isPending || update.isPending || !pid || submit.isPending || (!report && reportType === 'csat' && (!per || ctxQ.isLoading || !!ctxQ.error))} onClick={save}><Save className="mr-2 size-4" />{report ? 'Save draft' : 'Create draft'}</Button>}
               {(report || reportType === 'csat') && canSubmitDocument && <ReportSubmitAction className={metricsEntry ? 'flex-1 basis-44' : 'w-full'} allowFloating={metricsEntry && !submitOpen && !delOpen && !decision} disabled={!pid || issues.length > 0 || locked || busy || create.isPending || update.isPending || submit.isPending || (metricsEntry && (aiGenerating || ctxQ.isLoading || !!ctxQ.error))} onClick={() => setSubmitOpen(true)} label={reportType === 'csat' ? 'Submit' : metricsEntry ? 'Submit for Approval' : 'Submit for approval'} />}
               </div>
               {metricsEntry && issues.length > 0 && <p className="text-xs text-muted-foreground">Drafts can be saved section by section. All required sections must be complete before submission.</p>}
