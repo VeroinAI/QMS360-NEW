@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { usesDailyAdditions } from '@workspace/field-controls';
+import { usesDailyAdditions, usesDailySupplementAdditions } from '@workspace/field-controls';
 import { Input } from '@/components/ui/input';
 import { NumField, Section, getIn, useForm } from './form-kit';
 import { calcDaily, DISCIPLINES, DISC_STATUSES, DOC_TYPES, DOC_TYPE_LABELS, LEGACY_DOC_TYPES, REJECTED_SUBMISSION_TYPES, type Obj } from './reporting-types';
@@ -56,6 +56,10 @@ export function DailyForm({ calc, baseline }: { calc: Calc; baseline: Obj }) {
       </summary>
       <div className="space-y-4 px-6 pb-6">
         <p className="text-sm font-medium">Documents by Type (cumulative)</p>
+        <p className="text-xs text-muted-foreground">{usesDailySupplementAdditions(f.data)
+          ? 'For tiles 3–6, enter only additions for the selected day. Yesterday includes historical opening balances and all previous submitted daily additions. Next day’s Yesterday = Yesterday + Current Date. Enter 0 when there are no additions.'
+          : 'Legacy report: tiles 3–6 retain their original cumulative-entry meaning. Existing values are not automatically reclassified as daily additions.'}</p>
+        {baseline.dailySupplementLegacyPrevious && usesDailySupplementAdditions(f.data) && <p role="note" className="text-xs text-amber-800">The previous report’s tiles 3–6 use the legacy cumulative format. Their saved balances are retained; historical daily additions require a reviewed correction before they can be accumulated.</p>}
         <div className="overflow-x-auto"><table className="w-full min-w-[360px] table-fixed text-sm" aria-label="Documents by Type (cumulative)">
           <thead><tr>
             <th scope="col" className="w-1/4 px-2 py-2 text-left text-xs font-medium text-muted-foreground">Document Type</th>

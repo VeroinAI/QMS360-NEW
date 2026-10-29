@@ -4,7 +4,7 @@ import { DailyForm } from './daily-form';
 import { FormCtx } from './form-kit';
 import { calcDaily, DISCIPLINES, DISC_STATUSES, ENTITIES, PEND_BUCKETS, PEND_STATUSES, zeroFill, type Obj } from './reporting-types';
 import { moveRevision } from './approved-revisions';
-import { DAILY_ADDITIONS } from '@workspace/field-controls';
+import { DAILY_ADDITIONS, DAILY_SUPPLEMENT_ADDITIONS } from '@workspace/field-controls';
 
 function render(data: Obj = {}, baseline: Obj = {}, readOnly = false, fieldLocked = false) {
   return renderToStaticMarkup(<FormCtx.Provider value={{ data, readOnly, set: () => {}, fc: () => ({ disabled: fieldLocked, required: false }) }}>
@@ -20,6 +20,27 @@ describe('Daily discipline submission layout', () => {
     expect(html).toContain('Enter only the counts added on the selected day');
     expect(html).toContain('Drawings overall total — Yesterday 100 · Current 12');
     expect(html).not.toContain('Legacy cumulative-entry report');
+  });
+  it('explains daily additions for tiles 3–6 and uses cumulative revision approvals for percentages', () => {
+    const data = {
+      dailyDisciplineInputMode: DAILY_ADDITIONS, dailySupplementInputMode: DAILY_SUPPLEMENT_ADDITIONS,
+      disciplines: { drawings: { Civil: { approved: 12 } } },
+      revisions: { drawings: [{ name: 'Rev 0', value: 2 }], submittals: [] },
+      documentTypes: { drawing: 3 }, correspondence: { incoming: 4 }, rejectedSubmissions: { drawing: 5 },
+    };
+    const baseline = { disciplines: { drawings: { Civil: { approved: 100 } } },
+      revisions: { drawings: [{ name: 'Rev 0', value: 5 }] } };
+    const html = render(data, baseline);
+    expect(html).toContain('For tiles 3–6, enter only additions for the selected day');
+    expect(html).toContain('matched by document type and revision number');
+    expect(html).toContain('6.3%');
+    expect(data.revisions.drawings[0].value).toBe(2);
+  });
+  it('warns without silently converting historical supplementary tiles', () => {
+    expect(render({ dailySupplementInputMode: DAILY_SUPPLEMENT_ADDITIONS }, { dailySupplementLegacyPrevious: true }))
+      .toContain('historical daily additions require a reviewed correction');
+    expect(render({ dailyDisciplineInputMode: DAILY_ADDITIONS }))
+      .toContain('tiles 3–6 retain their original cumulative-entry meaning');
   });
   it('warns when a previous report retains an unreviewed legacy interpretation', () => {
     expect(render({ dailyDisciplineInputMode: DAILY_ADDITIONS }, { dailyDisciplineLegacyPrevious: true }))

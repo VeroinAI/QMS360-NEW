@@ -1,6 +1,6 @@
 ---
 name: Daily discipline input policy
-description: User's clarified daily additions versus cumulative Yesterday semantics for Drawings/Submittals by Discipline.
+description: Daily additions versus cumulative Yesterday semantics, including the later extension to tiles 3–6.
 ---
 
 For Daily Submission Drawings/Submittals by Discipline, Current Date should represent that day's addition. Yesterday should represent the cumulative balance through the prior reporting date, including the one-time historical opening.
@@ -14,3 +14,9 @@ Use an explicit input-contract version for new daily-addition reports; unclassif
 **Why:** The user required both the new arithmetic and protection against silently reinterpreting earlier cumulative-entry data. Lower Current Date values alone cannot safely identify historical intent.
 
 **How to apply:** Saving or importing an existing legacy report must not automatically convert its input meaning. Keep daily raw counts separate from end-of-day snapshots so rendering, exports, repeated saves and carry-forward do not add Yesterday twice. Refresh editable draft baselines without changing their entered counts; preserve frozen submitted history.
+
+The user subsequently extended the same daily-addition rule to Document Types, Approved status by Revision, Correspondence and Rejected Submissions. Match revision history by category and normalized revision name; percentages use cumulative approvals divided by the category's cumulative discipline total. Pending-document ageing remains a snapshot.
+
+**Why:** The user explicitly requested carry-forward for the four remaining tiles after the discipline fix. Earlier instructions to keep these four sections as snapshots are superseded for new reports, but the user's decision to keep existing QA history unchanged still applies.
+
+**How to apply:** Version this additional change independently of the discipline-only contract. Existing discipline-addition reports may still contain cumulative supplementary inputs and must not be silently reinterpreted. New reports carry historical opening balances plus daily additions once across all five count sections.

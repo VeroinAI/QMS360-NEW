@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request } from "express";
 import { projectDashboardDimensions } from "../lib/qaqc-project-dimensions";
 import { assertNoMonthlyDuplicate, dailyDuplicateReason, isReportPeriodDuplicate, lockDailyCreation, lockMonthlyCreation, monthlyDuplicateReason } from "../lib/qaqc-report-duplicates";
-import { DAILY_ADDITIONS, dailyDisciplineSnapshot, usesDailyAdditions } from "@workspace/field-controls";
+import { DAILY_ADDITIONS, DAILY_SUPPLEMENT_ADDITIONS, dailyDisciplineSnapshot, usesDailyAdditions, usesDailySupplementAdditions } from "@workspace/field-controls";
 import { and, asc, count, desc, eq, getTableColumns, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
   auditPlans, businessUnits, db, organizations, projects, qaqcMetricEntries, materialInspectionEntries, qtbtEntries,
@@ -676,6 +676,7 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
     },
     baseline: { ...baseline, previousPeriod: last?.period ?? null,
       ...(type === "daily" && last && !usesDailyAdditions(last.data as any) ? { dailyDisciplineLegacyPrevious: true } : {}),
+      ...(type === "daily" && last && !usesDailySupplementAdditions(last.data as any) ? { dailySupplementLegacyPrevious: true } : {}),
       hasBaseline: !!(baseline as Record<string,unknown>).historicalSetup || !!(baseline as Record<string,unknown>).dailyHistoricalSetup || !!last || Object.keys(legacy).length > 0, legacyFallback: Object.keys(legacy).length > 0 },
     canStart: !blockedReason,
     blockedReason,
@@ -762,7 +763,10 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
   const projectId = String(req.body?.projectId ?? "");
   if (!projectId || !isObject(req.body?.data)) throw new HttpError(422, "projectId and object data are required");
   let data = zeroFill(type, req.body.data);
-  if (type === "daily") data.dailyDisciplineInputMode = DAILY_ADDITIONS;
+  if (type === "daily") {
+    data.dailyDisciplineInputMode = DAILY_ADDITIONS;
+    data.dailySupplementInputMode = DAILY_SUPPLEMENT_ADDITIONS;
+  }
   await projectAllowed(req, projectId);
   if (type === "monthly") {
     const sections = await monthlySectionAccess(req, projectId);
@@ -841,6 +845,8 @@ router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (re
   if (before.reportType === "daily") {
     if (before.data?.dailyDisciplineInputMode === DAILY_ADDITIONS) data.dailyDisciplineInputMode = DAILY_ADDITIONS;
     else delete data.dailyDisciplineInputMode;
+    if (usesDailySupplementAdditions(before.data as any)) data.dailySupplementInputMode = DAILY_SUPPLEMENT_ADDITIONS;
+    else delete data.dailySupplementInputMode;
   }
   if (before.data?.assessmentConfirmationRequired === true) data.assessmentConfirmationRequired = true;
   if (before.data?.qmsDepartmentInput === "sow") data.qmsDepartmentInput = "sow";
