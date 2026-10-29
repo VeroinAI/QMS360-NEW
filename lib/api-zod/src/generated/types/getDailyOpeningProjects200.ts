@@ -5,8 +5,10 @@
  * QMS360 Phase 1 foundation API
  * OpenAPI spec version: 0.1.0
  */
+import type { DailyOpeningField } from './dailyOpeningField';
 import type { DailyOpeningProject } from './dailyOpeningProject';
 
 export type GetDailyOpeningProjects200 = {
   items?: DailyOpeningProject[];
+  fields?: DailyOpeningField[];
 };

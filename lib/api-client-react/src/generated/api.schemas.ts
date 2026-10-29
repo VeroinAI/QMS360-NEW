@@ -21,6 +21,25 @@ export interface DailyOpeningUpload {
   fileBase64: string;
 }
 
+export interface DailyOpeningField {
+  key: string;
+  label: string;
+}
+
+export type DailyOpeningManualInputData = { [key: string]: unknown };
+
+export interface DailyOpeningManualInput {
+  confirmed: true;
+  projectId: string;
+  goLiveDate: string;
+  /**
+     * @minLength 3
+     * @maxLength 1000
+     */
+  reason: string;
+  data: DailyOpeningManualInputData;
+}
+
 export type DailyOpeningRowData = { [key: string]: unknown };
 
 export interface DailyOpeningRow {
@@ -5196,6 +5215,11 @@ export const ReportFormatParameter = {
 
 export type GetDailyOpeningProjects200 = {
   items?: DailyOpeningProject[];
+  fields?: DailyOpeningField[];
+};
+
+export type SaveDailyOpeningManual200 = {
+  applied: number;
 };
 
 export type DownloadDailyOpeningTemplateParams = {

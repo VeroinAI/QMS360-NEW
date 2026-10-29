@@ -40,7 +40,17 @@ paths:
       operationId: getDailyOpeningProjects
       tags: [qaqc]
       responses:
-        "200": {description: Authorized project opening-load eligibility, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/DailyOpeningProject'}}}}}}}
+        "200": {description: Authorized project opening-load eligibility and source fields, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: '#/components/schemas/DailyOpeningProject'}}, fields: {type: array, items: {$ref: '#/components/schemas/DailyOpeningField'}}}}}}}
+  /qaqc/reporting/daily-historical-balances/manual:
+    post:
+      operationId: saveDailyOpeningManual
+      tags: [qaqc]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DailyOpeningManualInput'}}}}
+      responses:
+        "200": {description: One-time manual opening balance saved, content: {application/json: {schema: {type: object, required: [applied], properties: {applied: {type: number}}}}}}
+        "403": {description: Historical edit permission required for this project}
+        "409": {description: Project already loaded or has Daily Submissions}
+        "422": {description: Invalid cutoff date or source balances}
   /qaqc/reporting/daily-historical-balances/template:
     get:
       operationId: downloadDailyOpeningTemplate
@@ -2613,6 +2623,21 @@ components:
       required: [fileBase64]
       properties:
         fileBase64: {type: string, maxLength: 2800000}
+    DailyOpeningField:
+      type: object
+      required: [key, label]
+      properties:
+        key: {type: string}
+        label: {type: string}
+    DailyOpeningManualInput:
+      type: object
+      required: [confirmed, projectId, goLiveDate, reason, data]
+      properties:
+        confirmed: {type: boolean, const: true}
+        projectId: {type: string}
+        goLiveDate: {type: string}
+        reason: {type: string, minLength: 3, maxLength: 1000}
+        data: {type: object, additionalProperties: true}
     DailyOpeningRow:
       type: object
       required: [projectId, goLiveDate, reason, data, rowNumber]

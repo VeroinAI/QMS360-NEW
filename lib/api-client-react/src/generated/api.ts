@@ -105,6 +105,7 @@ import type {
   CustomerSatisfactionEntry,
   CustomerSatisfactionPageResponse,
   DailyOpeningApply,
+  DailyOpeningManualInput,
   DailyOpeningPreview,
   DailyOpeningUpload,
   Dashboard,
@@ -373,6 +374,7 @@ import type {
   RolePageResponse,
   RunLessonsEscalationReportJob200,
   RunLessonsEscalationReportJob409,
+  SaveDailyOpeningManual200,
   SaveFieldMappingsBody,
   SaveQaqcHistoricalBalances200,
   SearchLessonsLogParams,
@@ -519,6 +521,71 @@ export function useGetDailyOpeningProjects<TData = Awaited<ReturnType<typeof get
 
 
 
+
+export const getSaveDailyOpeningManualUrl = () => {
+
+
+
+
+  return `/api/qaqc/reporting/daily-historical-balances/manual`
+}
+
+export const saveDailyOpeningManual = async (dailyOpeningManualInput: DailyOpeningManualInput, options?: Parameters<typeof customFetch>[1]): Promise<SaveDailyOpeningManual200> => {
+
+  return customFetch<SaveDailyOpeningManual200>(getSaveDailyOpeningManualUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dailyOpeningManualInput)
+  }
+);}
+
+
+
+
+
+export const getSaveDailyOpeningManualMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveDailyOpeningManual>>, TError,{data: BodyType<DailyOpeningManualInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveDailyOpeningManual>>, TError,{data: BodyType<DailyOpeningManualInput>}, TContext> => {
+
+const mutationKey = ['saveDailyOpeningManual'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveDailyOpeningManual>>, {data: BodyType<DailyOpeningManualInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveDailyOpeningManual(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveDailyOpeningManualMutationResult = NonNullable<Awaited<ReturnType<typeof saveDailyOpeningManual>>>
+    export type SaveDailyOpeningManualMutationBody = BodyType<DailyOpeningManualInput>
+    export type SaveDailyOpeningManualMutationError = ErrorType<void>
+
+    export const useSaveDailyOpeningManual = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveDailyOpeningManual>>, TError,{data: BodyType<DailyOpeningManualInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveDailyOpeningManual>>,
+        TError,
+        {data: BodyType<DailyOpeningManualInput>},
+        TContext
+      > => {
+      return useMutation(getSaveDailyOpeningManualMutationOptions(options));
+    }
 
 export const getDownloadDailyOpeningTemplateUrl = (params: DownloadDailyOpeningTemplateParams,) => {
   const normalizedParams = new URLSearchParams();

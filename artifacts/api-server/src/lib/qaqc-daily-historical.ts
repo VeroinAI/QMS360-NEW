@@ -21,6 +21,7 @@ export const dailyOpeningInput = z.object({
   data:z.record(z.string(),z.unknown()), rowNumber:z.number().int().min(3).max(502),
 });
 export const dailyOpeningBatch = z.object({confirmed:z.literal(true),items:z.array(dailyOpeningInput).min(1).max(500)});
+export const dailyOpeningManual = dailyOpeningInput.omit({rowNumber:true}).extend({confirmed:z.literal(true)});
 export type DailyOpeningInput = z.infer<typeof dailyOpeningInput>;
 export const dailyOpeningKey = "qaqcDailyHistoricalSetup";
 export function getDailyOpening(fields: any): {goLiveDate:string;data:Record<string,any>;reason:string}|null {

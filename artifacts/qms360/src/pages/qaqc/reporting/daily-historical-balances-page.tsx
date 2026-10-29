@@ -17,6 +17,7 @@ import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { useToast } from '@/hooks/use-toast';
 import { ErrorBox, PageFrame, errMsg, saveFile, useInvalidate } from './shell';
 import { historicalOps } from './historical-balances-validation';
+import { DailyHistoricalManual } from './daily-historical-manual';
 
 const BASE = '/api/qaqc/reporting/daily-historical-balances';
 const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -32,7 +33,7 @@ export interface DailyHistPreview { valid: boolean; errors: string[]; fields: Da
 const PROJECTS_KEY = [`${BASE}/projects`];
 const fmtNum = (v: unknown) => typeof v === 'number' ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : v == null || v === '' ? '-' : String(v);
 const getPath = (obj: unknown, path: string): unknown => path.split('.').reduce<unknown>((o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), obj);
-const prevDay = (iso: string) => { const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`); if (isNaN(d.getTime())) return null; d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); };
+const prevDay = (iso: string) => { const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`); if (isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== iso) return null; d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); };
 
 export function DailyHistoricalBalancesPage() {
   const cap = useQaqcCapabilities();
@@ -44,7 +45,7 @@ export function DailyHistoricalBalancesPage() {
 
 function Workspace({ ops }: { ops: ReturnType<typeof historicalOps> }) {
   const { toast } = useToast(); const invalidate = useInvalidate();
-  const projQ = useQuery({ queryKey: PROJECTS_KEY, queryFn: () => customFetch<{ items: DailyHistProject[] }>(`${BASE}/projects`, { method: 'GET' }), refetchOnMount: 'always' });
+  const projQ = useQuery({ queryKey: PROJECTS_KEY, queryFn: () => customFetch<{ items: DailyHistProject[]; fields: DailyHistField[] }>(`${BASE}/projects`, { method: 'GET' }), refetchOnMount: 'always' });
   const projects = projQ.data?.items ?? [];
   const [projectId, setProjectId] = useState('');
   const [goLive, setGoLive] = useState('');
@@ -53,6 +54,7 @@ function Workspace({ ops }: { ops: ReturnType<typeof historicalOps> }) {
   const [error, setError] = useState('');
   const [preview, setPreview] = useState<DailyHistPreview | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const [manualBusy, setManualBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const generation = useRef(0); const applying = useRef(false);
   useEffect(() => () => { generation.current++; }, []);
@@ -68,7 +70,7 @@ function Workspace({ ops }: { ops: ReturnType<typeof historicalOps> }) {
       body: JSON.stringify({ confirmed: true, items: p.rows.map(r => ({ projectId: r.projectId, goLiveDate: r.goLiveDate, reason: r.reason, data: r.data, rowNumber: r.rowNumber })) }) }),
   });
 
-  const busy = reading || downloadM.isPending || previewM.isPending || applyM.isPending;
+  const busy = manualBusy || reading || downloadM.isPending || previewM.isPending || applyM.isPending;
   const ready = !!preview && preview.valid && !preview.errors.length && preview.rows.length > 0 && preview.rows.every(r => !r.errors.length) && ops.edit && ops.importOp;
   const discard = () => { generation.current++; setPreview(null); setFileName(''); setError(''); setConfirm(false); };
 
@@ -112,6 +114,7 @@ function Workspace({ ops }: { ops: ReturnType<typeof historicalOps> }) {
     if (projQ.data && projectId && !projects.some(p => p.id === projectId)) setProjectId('');
   }, [projQ.data, projectId]);
   const baseline = goLive ? prevDay(goLive) : null;
+  const selectedProject = projects.find(p => p.id === projectId);
 
   return <PageFrame title={TITLE} description={DESC} actions={<Button asChild variant="secondary" size="sm"><Link href="/qaqc/settings"><ArrowLeft className="mr-1 size-4" />Reporting settings</Link></Button>}>
     <Alert><CalendarClock className="size-4" /><AlertTitle>How the go-live date works</AlertTitle><AlertDescription>Imported balances are as of the calendar day before each project's go-live date. They pre-fill the Yesterday auto fields on the first daily report, and remain the baseline until an actual submitted prior report replaces them. Setup is allowed only before the project has any Daily Submission — including a draft — or retained submitted history; existing Daily Submissions block setup. Complete setup before creating the first Daily report. Each project can be loaded only once, across all dates.</AlertDescription></Alert>
@@ -125,9 +128,17 @@ function Workspace({ ops }: { ops: ReturnType<typeof historicalOps> }) {
             <SelectContent>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.label || `${p.code ? `${p.code} - ` : ''}${p.name}`}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="flex flex-wrap items-center gap-2"><p className="text-xs text-muted-foreground">Select a project to view its daily opening balance load status. Excel setup remains multi-project, as on Monthly historical balances.</p>
+        {(ops.edit || ops.exportOp) && <div className="max-w-sm space-y-1"><Label htmlFor="dhb-golive">Go-Live date *</Label>
+          <Input id="dhb-golive" type="date" required value={goLive} disabled={busy} onChange={e => setGoLive(e.target.value)} />
+          <p className="text-xs text-muted-foreground">{baseline ? `Historical balances cover all data through ${formatDate(baseline)}. Daily reporting starts on ${formatDate(goLive)}.` : 'Select Go-Live. Historical balances cover data through the day before this date.'}</p>
+        </div>}
+        <div className="flex flex-wrap items-center gap-2"><p className="text-xs text-muted-foreground">Select a project for manual entry or to view its load status. Excel setup remains multi-project.</p>
           {projectId && <Button variant="ghost" size="sm" disabled={busy} onClick={() => setProjectId('')}>Show all projects</Button>}</div>
       </CardContent></Card>
+      {ops.edit && (selectedProject ? <DailyHistoricalManual key={projectId} project={selectedProject} fields={projQ.data?.fields ?? []}
+        goLiveDate={goLive} balancesAsOf={baseline} disabled={busy} onBusyChange={setManualBusy}
+        onSaved={() => { discard(); invalidate(); void projQ.refetch(); toast({ title: 'Daily opening balances loaded', description: 'Manual balances saved. The first Daily Submission will use them as Yesterday values.' }); }} />
+        : <p className="text-sm text-muted-foreground">Select a project above to enter historical balances manually, or use Excel below.</p>)}
       <Card className="min-w-0 border-primary/30">
         <CardHeader><CardTitle className="flex items-center gap-2 text-base"><FileSpreadsheet className="size-4" aria-hidden />Multi-project Excel setup</CardTitle>
           <CardDescription>One project per row on the "{SHEET}" sheet, with all numeric opening fields and revision lists in columns. The template lists only authorized projects not yet loaded; select from the Project Master dropdown. IDs, codes and versions are handled internally. Revision cells use semicolon-separated revision=count pairs, e.g. 0=25; 1=10. Leave empty for none.</CardDescription></CardHeader>
@@ -135,8 +146,7 @@ function Workspace({ ops }: { ops: ReturnType<typeof historicalOps> }) {
           <div className="grid gap-4 md:grid-cols-2">
             {ops.exportOp && <div className="space-y-2 rounded-lg border p-4">
               <p className="text-sm font-medium">1. Download template</p>
-              <div className="space-y-1"><Label htmlFor="dhb-golive" className="text-xs text-muted-foreground">Go-live date (pre-filled in template)</Label>
-                <Input id="dhb-golive" type="date" value={goLive} disabled={busy} onChange={e => setGoLive(e.target.value)} /></div>
+              <p className="text-xs text-muted-foreground">The Go-Live date above is pre-filled in the template. Each uploaded row's date remains its cutoff.</p>
               {baseline && <p className="text-xs text-muted-foreground">Balances will be as of {formatDate(baseline)}.</p>}
               <Button variant="outline" disabled={!goLive || busy} onClick={() => { setError(''); downloadM.mutate(goLive); }}><Download className="mr-2 size-4" />{downloadM.isPending ? 'Preparing template…' : 'Download template'}</Button>
               {!goLive && <p className="text-xs text-primary">Select a go-live date to download the template.</p>}

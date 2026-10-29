@@ -7,7 +7,7 @@ import { requireAppAccess,requirePermission,getAuthorizedProjectScope } from "..
 import { asyncHandler,HttpError,writeAuditLog } from "../lib/workspace";
 import { historicalProjectCatalogue } from "../lib/qaqc-historical-projects";
 import { protectsHistoricalSnapshot } from "../lib/qaqc-historical-balances";
-import { dailyOpeningDate,dailyOpeningBatch,dailyOpeningKey,getDailyOpening,validateDailyOpening,type DailyOpeningInput } from "../lib/qaqc-daily-historical";
+import { dailyOpeningDate,dailyOpeningBatch,dailyOpeningManual,dailyHistoricalFields,dailyOpeningKey,getDailyOpening,validateDailyOpening,type DailyOpeningInput } from "../lib/qaqc-daily-historical";
 import { dailyHistoricalWorkbook,parseDailyHistoricalWorkbook,dailySheet } from "../lib/qaqc-daily-historical-excel";
 import type { QaqcOperation } from "@workspace/field-controls";
 
@@ -53,7 +53,7 @@ router.get("/daily-historical-balances/projects",permission("view_all"),asyncHan
     const [row]=await db.select().from(projects).where(eq(projects.id,project.id));
     items.push({...project,...await eligibility(row!)});
   }
-  res.json({items});
+  res.json({items,fields:dailyHistoricalFields});
 }));
 router.get("/daily-historical-balances/template",permission("export"),asyncHandler(async(req,res)=>{
   const date=parse(dailyOpeningDate,req.query.goLiveDate);await checkDate(req,date);
@@ -87,12 +87,23 @@ router.post("/daily-historical-balances/preview",permission("import"),asyncHandl
 }));
 router.post("/daily-historical-balances/apply",permission("import"),permission("create_edit"),asyncHandler(async(req,res)=>{
   const {items}=parse(dailyOpeningBatch,req.body);
-  const allowed=new Set((await catalogue(req,"import")).map(p=>p.id)),editable=new Set((await catalogue(req,"create_edit")).map(p=>p.id));
+  await applyOpening(req,items,true);
+  res.json({applied:items.length});
+}));
+router.post("/daily-historical-balances/manual",permission("create_edit"),asyncHandler(async(req,res)=>{
+  const input=parse(dailyOpeningManual,req.body);
+  await applyOpening(req,[{...input,rowNumber:3}],false);
+  res.json({applied:1});
+}));
+async function applyOpening(req:Request,items:DailyOpeningInput[],isImport:boolean){
+  const editable=new Set((await catalogue(req,"create_edit")).map(p=>p.id));
+  const allowed=isImport?new Set((await catalogue(req,"import")).map(p=>p.id)):editable;
+  const reference=(item:DailyOpeningInput)=>isImport?`${dailySheet}! Row ${item.rowNumber}`:"Manual opening balances";
   const seen=new Set<string>();
   const validated:DailyOpeningInput[]=[];
   for(const item of items){
-    const ref=`${dailySheet}! Row ${item.rowNumber}`;
-    if(!allowed.has(item.projectId)||!editable.has(item.projectId))throw new HttpError(403,`${ref}: Historical import and edit permissions are required for this project.`);
+    const ref=reference(item);
+    if(!allowed.has(item.projectId)||!editable.has(item.projectId))throw new HttpError(403,`${ref}: Historical ${isImport?"import and edit":"edit"} permissions are required for this project.`);
     if(seen.has(item.projectId))throw new HttpError(422,`${ref}: Duplicate project in this file.`);
     seen.add(item.projectId);
     try{await checkDate(req,item.goLiveDate);validated.push({...item,data:validateDailyOpening(item.data)});}
@@ -102,15 +113,14 @@ router.post("/daily-historical-balances/apply",permission("import"),permission("
     // Same project row lock as report creation; deterministic ordering prevents batch deadlocks.
     for(const item of [...validated].sort((a,b)=>a.projectId.localeCompare(b.projectId))){
       const [project]=await tx.select().from(projects).where(and(eq(projects.id,item.projectId),eq(projects.organizationId,org(req)),isNull(projects.deletedAt))).for("update");
-      if(!project)throw new HttpError(404,`${dailySheet}! Row ${item.rowNumber}: Project not found.`);
+      if(!project)throw new HttpError(404,`${reference(item)}: Project not found.`);
       const state=await eligibility(project,tx);
-      if(state.blocked)throw new HttpError(409,`${dailySheet}! Row ${item.rowNumber}: ${state.reason}`);
+      if(state.blocked)throw new HttpError(409,`${reference(item)}: ${state.reason}`);
       const saved={goLiveDate:item.goLiveDate,data:item.data,reason:item.reason,loadedAt:new Date().toISOString(),loadedById:req.currentUser!.id};
       await tx.update(projects).set({customFields:{...project.customFields,[dailyOpeningKey]:saved},updatedAt:new Date()}).where(eq(projects.id,project.id));
       await writeAuditLog(tx,"qaqc",{organizationId:org(req),actorId:req.currentUser!.id,action:"load_daily_opening_balances",entityType:"qaqc_daily_historical_balances",
         entityId:project.id,before:undefined,after:saved,ipAddress:req.ip},{dispatch:false});
     }
   });
-  res.json({applied:items.length});
-}));
+}
 export default router;

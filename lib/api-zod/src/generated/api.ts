@@ -17,7 +17,29 @@ export const GetDailyOpeningProjectsResponse = zod.object({
   "blocked": zod.boolean(),
   "goLiveDate": zod.string().nullable(),
   "reason": zod.string().optional()
+})).optional(),
+  "fields": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string()
 })).optional()
+})
+
+
+export const saveDailyOpeningManualBodyReasonMin = 3;
+export const saveDailyOpeningManualBodyReasonMax = 1000;
+
+
+
+export const SaveDailyOpeningManualBody = zod.object({
+  "confirmed": zod.literal(true),
+  "projectId": zod.string(),
+  "goLiveDate": zod.string(),
+  "reason": zod.string().min(saveDailyOpeningManualBodyReasonMin).max(saveDailyOpeningManualBodyReasonMax),
+  "data": zod.record(zod.string(), zod.unknown())
+})
+
+export const SaveDailyOpeningManualResponse = zod.object({
+  "applied": zod.number()
 })
 
 
