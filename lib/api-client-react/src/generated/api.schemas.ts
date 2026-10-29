@@ -3629,6 +3629,56 @@ export interface AuditPlanNumberingPattern {
   padding: number;
 }
 
+export interface CsatNumberingPattern {
+  /** @maxLength 80 */
+  prefix: string;
+  /** @maxLength 80 */
+  separator: string;
+  /**
+     * @minimum 1
+     * @maximum 12
+     */
+  padding: number;
+}
+
+export interface CsatNumberRangeInput {
+  /** @minLength 1 */
+  projectId: string;
+  /**
+     * @minimum 1900
+     * @maximum 9999
+     */
+  year: number;
+  /**
+     * @minimum 0
+     * @maximum 999999999998
+     */
+  lastNumber: number;
+}
+
+export type CsatNumberingSettingsRanges = {[key: string]: {[key: string]: number}};
+
+export type AuditNumberingSourceKind = typeof AuditNumberingSourceKind[keyof typeof AuditNumberingSourceKind];
+
+
+export const AuditNumberingSourceKind = {
+  project: 'project',
+  department: 'department',
+} as const;
+
+export interface AuditNumberingSource {
+  key: string;
+  kind: AuditNumberingSourceKind;
+  label: string;
+  sourceValue: string;
+}
+
+export interface CsatNumberingSettings {
+  pattern: CsatNumberingPattern;
+  ranges: CsatNumberingSettingsRanges;
+  sources: AuditNumberingSource[];
+}
+
 export type AuditFindingNumberingPatternCodes = {[key: string]: string};
 
 export interface AuditFindingNumberingPattern {
@@ -3696,21 +3746,6 @@ export const AuditFindingNumberingSettingsFindingTypesItem = {
 } as const;
 
 export type AuditFindingNumberingSettingsRanges = {[key: string]: {[key: string]: {[key: string]: number}}};
-
-export type AuditNumberingSourceKind = typeof AuditNumberingSourceKind[keyof typeof AuditNumberingSourceKind];
-
-
-export const AuditNumberingSourceKind = {
-  project: 'project',
-  department: 'department',
-} as const;
-
-export interface AuditNumberingSource {
-  key: string;
-  kind: AuditNumberingSourceKind;
-  label: string;
-  sourceValue: string;
-}
 
 export interface AuditFindingNumberingSettings {
   pattern: AuditFindingNumberingPattern;

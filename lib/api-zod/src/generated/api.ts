@@ -8,6 +8,98 @@
 import * as zod from 'zod';
 
 
+export const getCsatNumberingResponsePatternPrefixMax = 80;
+
+export const getCsatNumberingResponsePatternSeparatorMax = 80;
+
+export const getCsatNumberingResponsePatternPaddingMax = 12;
+
+
+
+export const GetCsatNumberingResponse = zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string().max(getCsatNumberingResponsePatternPrefixMax),
+  "separator": zod.string().max(getCsatNumberingResponsePatternSeparatorMax),
+  "padding": zod.number().min(1).max(getCsatNumberingResponsePatternPaddingMax)
+}),
+  "ranges": zod.record(zod.string(), zod.record(zod.string(), zod.number())),
+  "sources": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.enum(['project', 'department']),
+  "label": zod.string(),
+  "sourceValue": zod.string()
+}))
+})
+
+
+export const updateCsatNumberingBodyPrefixMax = 80;
+
+export const updateCsatNumberingBodySeparatorMax = 80;
+
+export const updateCsatNumberingBodyPaddingMax = 12;
+
+
+
+export const UpdateCsatNumberingBody = zod.object({
+  "prefix": zod.string().max(updateCsatNumberingBodyPrefixMax),
+  "separator": zod.string().max(updateCsatNumberingBodySeparatorMax),
+  "padding": zod.number().min(1).max(updateCsatNumberingBodyPaddingMax)
+})
+
+export const updateCsatNumberingResponsePrefixMax = 80;
+
+export const updateCsatNumberingResponseSeparatorMax = 80;
+
+export const updateCsatNumberingResponsePaddingMax = 12;
+
+
+
+export const UpdateCsatNumberingResponse = zod.object({
+  "prefix": zod.string().max(updateCsatNumberingResponsePrefixMax),
+  "separator": zod.string().max(updateCsatNumberingResponseSeparatorMax),
+  "padding": zod.number().min(1).max(updateCsatNumberingResponsePaddingMax)
+})
+
+
+
+export const updateCsatNumberRangeBodyYearMin = 1900;
+export const updateCsatNumberRangeBodyYearMax = 9999;
+
+export const updateCsatNumberRangeBodyLastNumberMin = 0;
+export const updateCsatNumberRangeBodyLastNumberMax = 999999999998;
+
+
+
+export const UpdateCsatNumberRangeBody = zod.object({
+  "projectId": zod.string().min(1),
+  "year": zod.number().min(updateCsatNumberRangeBodyYearMin).max(updateCsatNumberRangeBodyYearMax),
+  "lastNumber": zod.number().min(updateCsatNumberRangeBodyLastNumberMin).max(updateCsatNumberRangeBodyLastNumberMax)
+})
+
+export const updateCsatNumberRangeResponsePatternPrefixMax = 80;
+
+export const updateCsatNumberRangeResponsePatternSeparatorMax = 80;
+
+export const updateCsatNumberRangeResponsePatternPaddingMax = 12;
+
+
+
+export const UpdateCsatNumberRangeResponse = zod.object({
+  "pattern": zod.object({
+  "prefix": zod.string().max(updateCsatNumberRangeResponsePatternPrefixMax),
+  "separator": zod.string().max(updateCsatNumberRangeResponsePatternSeparatorMax),
+  "padding": zod.number().min(1).max(updateCsatNumberRangeResponsePatternPaddingMax)
+}),
+  "ranges": zod.record(zod.string(), zod.record(zod.string(), zod.number())),
+  "sources": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.enum(['project', 'department']),
+  "label": zod.string(),
+  "sourceValue": zod.string()
+}))
+})
+
+
 export const GetDailyOpeningProjectsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),

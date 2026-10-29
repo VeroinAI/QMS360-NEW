@@ -101,6 +101,9 @@ import type {
   CreateCarsBody,
   CreateMasterDataGroupInput,
   CreateMasterDataValueInput,
+  CsatNumberRangeInput,
+  CsatNumberingPattern,
+  CsatNumberingSettings,
   CurrentUser,
   CustomerSatisfactionEntry,
   CustomerSatisfactionPageResponse,
@@ -450,6 +453,207 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetCsatNumberingUrl = () => {
+
+
+
+
+  return `/api/qaqc/admin/csat-numbering`
+}
+
+export const getCsatNumbering = async ( options?: Parameters<typeof customFetch>[1]): Promise<CsatNumberingSettings> => {
+
+  return customFetch<CsatNumberingSettings>(getGetCsatNumberingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCsatNumberingQueryKey = () => {
+    return [
+    `/api/qaqc/admin/csat-numbering`
+    ] as const;
+    }
+
+
+export const getGetCsatNumberingQueryOptions = <TData = Awaited<ReturnType<typeof getCsatNumbering>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCsatNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCsatNumberingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCsatNumbering>>> = ({ signal }) => getCsatNumbering({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCsatNumbering>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCsatNumberingQueryResult = NonNullable<Awaited<ReturnType<typeof getCsatNumbering>>>
+export type GetCsatNumberingQueryError = ErrorType<unknown>
+
+
+
+export function useGetCsatNumbering<TData = Awaited<ReturnType<typeof getCsatNumbering>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCsatNumbering>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCsatNumberingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateCsatNumberingUrl = () => {
+
+
+
+
+  return `/api/qaqc/admin/csat-numbering`
+}
+
+export const updateCsatNumbering = async (csatNumberingPattern: CsatNumberingPattern, options?: Parameters<typeof customFetch>[1]): Promise<CsatNumberingPattern> => {
+
+  return customFetch<CsatNumberingPattern>(getUpdateCsatNumberingUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(csatNumberingPattern)
+  }
+);}
+
+
+
+
+
+export const getUpdateCsatNumberingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCsatNumbering>>, TError,{data: BodyType<CsatNumberingPattern>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCsatNumbering>>, TError,{data: BodyType<CsatNumberingPattern>}, TContext> => {
+
+const mutationKey = ['updateCsatNumbering'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCsatNumbering>>, {data: BodyType<CsatNumberingPattern>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateCsatNumbering(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCsatNumberingMutationResult = NonNullable<Awaited<ReturnType<typeof updateCsatNumbering>>>
+    export type UpdateCsatNumberingMutationBody = BodyType<CsatNumberingPattern>
+    export type UpdateCsatNumberingMutationError = ErrorType<unknown>
+
+    export const useUpdateCsatNumbering = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCsatNumbering>>, TError,{data: BodyType<CsatNumberingPattern>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCsatNumbering>>,
+        TError,
+        {data: BodyType<CsatNumberingPattern>},
+        TContext
+      > => {
+      return useMutation(getUpdateCsatNumberingMutationOptions(options));
+    }
+
+export const getUpdateCsatNumberRangeUrl = () => {
+
+
+
+
+  return `/api/qaqc/admin/csat-numbering/ranges`
+}
+
+export const updateCsatNumberRange = async (csatNumberRangeInput: CsatNumberRangeInput, options?: Parameters<typeof customFetch>[1]): Promise<CsatNumberingSettings> => {
+
+  return customFetch<CsatNumberingSettings>(getUpdateCsatNumberRangeUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(csatNumberRangeInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateCsatNumberRangeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCsatNumberRange>>, TError,{data: BodyType<CsatNumberRangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCsatNumberRange>>, TError,{data: BodyType<CsatNumberRangeInput>}, TContext> => {
+
+const mutationKey = ['updateCsatNumberRange'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCsatNumberRange>>, {data: BodyType<CsatNumberRangeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateCsatNumberRange(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCsatNumberRangeMutationResult = NonNullable<Awaited<ReturnType<typeof updateCsatNumberRange>>>
+    export type UpdateCsatNumberRangeMutationBody = BodyType<CsatNumberRangeInput>
+    export type UpdateCsatNumberRangeMutationError = ErrorType<unknown>
+
+    export const useUpdateCsatNumberRange = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCsatNumberRange>>, TError,{data: BodyType<CsatNumberRangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCsatNumberRange>>,
+        TError,
+        {data: BodyType<CsatNumberRangeInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCsatNumberRangeMutationOptions(options));
+    }
 
 export const getGetDailyOpeningProjectsUrl = () => {
 

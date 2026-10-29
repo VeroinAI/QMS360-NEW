@@ -36,6 +36,7 @@ import {
   useUpdateAuditUserProfile,
 } from '@workspace/api-client-react';
 import { PdfTemplatesAdmin } from '@/pages/qaqc/reporting/pdf-templates-admin';
+import { CsatNumberingSettings } from './csat-numbering';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -631,6 +632,7 @@ function NumberingTab({ app }: { app: AppKey }) {
   return <div className="space-y-5">
     {app === 'lessons' && <div className="max-w-sm space-y-2"><Label>Numbering for Project / Department</Label><Select value={sourceType} onValueChange={value => setSourceType(value as 'Project' | 'Department')}><SelectTrigger aria-label="Numbering source"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Project">Project</SelectItem><SelectItem value="Department">Department</SelectItem></SelectContent></Select></div>}
     <NumberingForm key={`${app}-${sourceType}-${config.dataUpdatedAt}`} app={app} sourceType={sourceType} displayName={names[app]} module={module} onSaved={notify} />
+    {app === 'qaqc' && <CsatNumberingSettings />}
     {app === 'audit' && <><div className="rounded-lg border bg-muted/30 p-4 text-sm">
       Plan, Report, Finding and CAR numbers automatically use <strong>Project Master → Additional Data → Contract / project no.</strong> for projects,
       or <strong>Department Master → Cost ID</strong> for departments. Existing numbers and running sequences are retained.

@@ -35,6 +35,25 @@ tags:
   - name: audit-admin
     description: QMS Audit workspace administration
 paths:
+  /qaqc/admin/csat-numbering:
+    get:
+      operationId: getCsatNumbering
+      tags: [qaqc-admin]
+      responses:
+        "200": {description: CSAT reference configuration, content: {application/json: {schema: {$ref: "#/components/schemas/CsatNumberingSettings"}}}}
+    put:
+      operationId: updateCsatNumbering
+      tags: [qaqc-admin]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CsatNumberingPattern"}}}}
+      responses:
+        "200": {description: Saved format, content: {application/json: {schema: {$ref: "#/components/schemas/CsatNumberingPattern"}}}}
+  /qaqc/admin/csat-numbering/ranges:
+    put:
+      operationId: updateCsatNumberRange
+      tags: [qaqc-admin]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CsatNumberRangeInput"}}}}
+      responses:
+        "200": {description: Saved range, content: {application/json: {schema: {$ref: "#/components/schemas/CsatNumberingSettings"}}}}
   /qaqc/reporting/daily-historical-balances/projects:
     get:
       operationId: getDailyOpeningProjects
@@ -4637,6 +4656,27 @@ components:
         middle: {type: string, maxLength: 80}
         separator: {type: string, maxLength: 80}
         padding: {type: number, minimum: 1, maximum: 12}
+    CsatNumberingPattern:
+      type: object
+      required: [prefix, separator, padding]
+      properties:
+        prefix: {type: string, maxLength: 80}
+        separator: {type: string, maxLength: 80}
+        padding: {type: number, minimum: 1, maximum: 12}
+    CsatNumberRangeInput:
+      type: object
+      required: [projectId, year, lastNumber]
+      properties:
+        projectId: {type: string, minLength: 1}
+        year: {type: number, minimum: 1900, maximum: 9999}
+        lastNumber: {type: number, minimum: 0, maximum: 999999999998}
+    CsatNumberingSettings:
+      type: object
+      required: [pattern, ranges, sources]
+      properties:
+        pattern: {$ref: "#/components/schemas/CsatNumberingPattern"}
+        ranges: {type: object, additionalProperties: {type: object, additionalProperties: {type: number}}}
+        sources: {type: array, items: {$ref: "#/components/schemas/AuditNumberingSource"}}
     AuditFindingNumberingPattern:
       type: object
       required: [prefix, separator, padding, codes]

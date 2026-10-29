@@ -24,13 +24,14 @@ import { assertFieldAccess, filterReadOnlyValues, readOnlyFields } from "../lib/
 import { assertFieldControls, assertKnownFieldControlKeys, readFieldControls, writeFieldControls, type FieldControlsMatrix } from "../lib/field-controls";
 import { saveQaqcRole } from "../lib/qaqc-role-permissions";
 import { activeQaqcCapabilities, qaqcAdminTask } from "../lib/qaqc-capabilities";
+import { readCsatNumbering, saveCsatNumbering, type CsatPattern, type CsatRange } from "../lib/csat-numbering";
 import { qaqcOwnedRecordClause, qaqcRecordReadClauses } from "../lib/qaqc-record-scope";
 import {
   aiSuggestionLogs, applicationAccess, auditLogEntries, categorisationRiskMaster,
   customerSatisfactionEntries, db, delegations, disciplines, distributionLists,
   documentGovernanceLogEntries, escalationInstances, escalationRules,
   evidenceFiles, materialInspectionEntries, notificationTemplates, notifications,
-  organizationSettings, permissions, platformRoles, qaqcMetricEntries,
+  organizationSettings, permissions, platformRoles, projects, qaqcMetricEntries,
   qualityAssessmentBriefs, qtbtEntries, targetBenchmarks, users,
   userWorkspaceRoles, workspaceRolePermissions, workspaceRoles,
 } from "@workspace/db";
@@ -784,6 +785,40 @@ router.get("/field-controls", asyncHandler(async (req, res) => {
 
 // Per-application administration
 router.use("/admin", asyncHandler(qaqcAdminTask));
+async function csatNumberSources(req: Request) {
+  const scope = req.permissionProjectScope;
+  const rows = await db.select().from(projects).where(and(eq(projects.organizationId, org(req)),
+    isNull(projects.deletedAt), req.permissionAdminBypass || scope?.unrestricted ? undefined :
+      inArray(projects.id, scope?.projectIds ?? [])));
+  return rows.map(project => ({ key: project.id, kind: "project" as const,
+    label: `${project.code} — ${project.name}`, sourceValue: project.code }));
+}
+async function csatNumberResponse(req: Request) {
+  const sources = await csatNumberSources(req);
+  const state = await readCsatNumbering(org(req));
+  return { ...state, sources, ranges: Object.fromEntries(sources.filter(source => state.ranges[source.key])
+    .map(source => [source.key, state.ranges[source.key]])) };
+}
+router.get("/admin/csat-numbering", asyncHandler(async (req, res) => {
+  res.json(api.GetCsatNumberingResponse.parse(await csatNumberResponse(req)));
+}));
+router.put("/admin/csat-numbering", asyncHandler(async (req, res) => {
+  if (!req.permissionAdminBypass && !req.permissionProjectScope?.unrestricted) throw new HttpError(403, "Organization-wide CSAT format configuration requires an organization-wide role assignment");
+  const pattern = body<CsatPattern>(api.UpdateCsatNumberingBody, req);
+  const before = await readCsatNumbering(org(req));
+  const saved = await saveCsatNumbering(org(req), pattern);
+  await audit(req, "update", "csat_reference_numbering", org(req), before.pattern, saved.pattern);
+  res.json(api.UpdateCsatNumberingResponse.parse(saved.pattern));
+}));
+router.put("/admin/csat-numbering/ranges", asyncHandler(async (req, res) => {
+  const range = body<CsatRange>(api.UpdateCsatNumberRangeBody, req);
+  if (!(await csatNumberSources(req)).some(source => source.key === range.projectId)) throw new HttpError(404, "Project is not available in your QA/QC administration scope");
+  const before = await readCsatNumbering(org(req));
+  const saved = await saveCsatNumbering(org(req), undefined, range);
+  await audit(req, "update", "csat_reference_number_range", range.projectId,
+    before.ranges[range.projectId]?.[String(range.year)] ?? 0, saved.ranges[range.projectId]?.[String(range.year)]);
+  res.json(api.UpdateCsatNumberRangeResponse.parse(await csatNumberResponse(req)));
+}));
 router.use("/admin/users", qaqcUserProfileRouter);
 router.get("/admin/field-controls", asyncHandler(async (req, res) => {
   res.json(await readFieldControls(org(req), "qaqc"));
