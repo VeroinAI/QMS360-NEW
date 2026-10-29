@@ -48,7 +48,27 @@ afterAll(async()=>{await new Promise<void>(resolve=>server.close(()=>resolve()))
 beforeEach(()=>{state.project={id,name:"Example",code:"EX",organizationId:"org",customFields:{unrelated:"preserved"}};
   state.reports=[];state.logs=[];state.writes=[];state.edit=true;state.importOp=true;state.inScope=true;state.locks=0;state.audit.mockReset();});
 const post=(body:unknown=input(),path="/manual")=>fetch(`${base}${path}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+const loadVia=(method:"manual"|"excel",date:string)=>{
+  const body={...input(),goLiveDate:date};
+  if(method==="manual")return post(body);
+  const {confirmed,...row}=body;
+  return post({confirmed,items:[{...row,rowNumber:3}]},"/apply");
+};
 describe("Daily manual opening API",()=>{
+  describe.each([
+    ["manual","manual"],["manual","excel"],["excel","manual"],["excel","excel"],
+  ] as const)("one-time project load: %s then %s",(first,second)=>{
+    it.each(["2025-09-18","2025-09-19","2025-10-01"])("rejects a second load with Go-Live %s",async date=>{
+      expect((await loadVia(first,"2025-09-19")).status).toBe(200);
+      const saved=structuredClone(state.project.customFields);
+      const response=await loadVia(second,date);
+      expect(response.status).toBe(409);
+      expect((await response.json() as {error:string}).error).toMatch(/Only one load is allowed per project, even for a different date/);
+      expect(state.project.customFields).toEqual(saved);
+      expect(state.writes).toHaveLength(1);
+      expect(state.audit).toHaveBeenCalledOnce();
+    });
+  });
   it("saves with historical edit permission without requiring Excel import rights, under a project lock",async()=>{
     state.importOp=false;
     const response=await post();
