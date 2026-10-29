@@ -13,12 +13,26 @@ export const finalApprovalEmailEvents = {
   "qaqc.daily_report.approved_final": "Document Governance · Daily Submission · Final Approval",
 };
 
+export const qaqcReportEmailEvents: Record<string, string> = Object.fromEntries(
+  (["monthly", "daily"] as const).flatMap(type =>
+    Object.entries({
+      create: "Create", update: "Update", delete: "Delete",
+      submit: "Submit for Approval", approve: "Approve & Forward", send_back: "Send Back",
+    }).map(([action, label]) => [
+      `qaqc.${type}_report.${action}`,
+      `${type === "monthly" ? "QA/QC · Monthly Report" : "Document Governance · Daily Submission"} · ${label}`,
+    ]),
+  ),
+);
+
 /** Keep domain history unchanged; classify email events from the saved review result. */
 export function approvalEmailEvent<T extends Event>(event: T): T {
   const record = event.record ?? {};
-  if (event.app === "qaqc" && event.entityType === "qaqc_report" && event.action === "approve"
-    && record.state === "approved" && ["monthly", "daily"].includes(record.reportType)) {
-    return { ...event, entityType: `${record.reportType}_report`, action: "approved_final" };
+  if (event.app === "qaqc" && event.entityType === "qaqc_report"
+    && ["monthly", "daily"].includes(record.reportType)
+    && Object.hasOwn(qaqcReportEmailEvents, `qaqc.${record.reportType}_report.${event.action}`)) {
+    return { ...event, entityType: `${record.reportType}_report`,
+      action: event.action === "approve" && record.state === "approved" ? "approved_final" : event.action };
   }
   if (event.app !== "audit") return event;
   if (event.entityType === "audit" && event.action === "approve_report") {
@@ -34,8 +48,10 @@ export function approvalEmailEvent<T extends Event>(event: T): T {
   return event;
 }
 
-/** Old approval rules keep working until an explicit final-stage rule supersedes them. */
-export function legacyFinalApprovalEvent(eventType: string): string | undefined {
+/** Specific report rules supersede shared rules, without changing existing saved rules. */
+export function legacyEmailEvent(eventType: string): string | undefined {
+  if (Object.hasOwn(qaqcReportEmailEvents, eventType))
+    return `qaqc.qaqc_report.${eventType.split(".")[2]}`;
   return ({
     "audit.audit.approved_final": "audit.audit.approve_report",
     "audit.corrective_action_report.approved_final": "audit.corrective_action_report.accept",

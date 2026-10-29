@@ -30,6 +30,22 @@ describe("Approval email dispatch from saved workflow writes", () => {
     }
     expect(dispatch).not.toHaveBeenCalled();
   });
+  it.each(["monthly", "daily"])("dispatches each saved %s report action once, without changing audit history", async reportType => {
+    for (const action of ["create", "update", "delete", "submit", "approve", "send_back"]) {
+      dispatch.mockClear();
+      const values = vi.fn().mockResolvedValue(undefined);
+      const record = { reportType, state: action === "send_back" ? "sent_back" : "submitted" };
+      await writeAuditLog({ insert: () => ({ values }) }, "qaqc", {
+        organizationId: "tenant", actorId: "actor", entityId: "record", entityType: "qaqc_report", action,
+        ...(action === "delete" ? { before: record } : { after: record }),
+      });
+      expect(values).toHaveBeenCalledWith(expect.objectContaining({ entityType: "qaqc_report", action }));
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        entityType: `${reportType}_report`, action, entityId: "record", record,
+      }), expect.anything());
+    }
+  });
   it("does not dispatch if saving audit history fails", async () => {
     await expect(writeAuditLog({ insert: () => ({ values: vi.fn().mockRejectedValue(new Error("save failed")) }) }, "qaqc", {
       organizationId: "tenant", entityType: "qaqc_report", action: "approve", after: { state: "approved", reportType: "daily" },

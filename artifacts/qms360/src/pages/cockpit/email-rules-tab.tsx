@@ -461,6 +461,17 @@ function RuleEditor({ rule, onClose }: { rule: EmailEventRule | null, onClose: (
                   <option value="">Select an event...</option>
                   {events.map(ev => <option key={ev.value} value={ev.value}>{emailRuleEventLabel(ev)} ({ev.value})</option>)}
                 </NativeSelection>
+                {/^qaqc\.(monthly_report|daily_report)\./.test(draft.eventType) && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Applies only to {draft.eventType.startsWith('qaqc.monthly_report.') ? 'Monthly QA/QC reports' : 'Daily Submissions'}.
+                    {' '}A matching report-specific rule takes precedence over shared legacy rules. Disabling it also blocks the shared fallback.
+                  </p>
+                )}
+                {draft.eventType.startsWith('qaqc.qaqc_report.') && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Shared legacy event for Monthly, Daily and CSAT reports where applicable. Use a Monthly or Daily event to configure separate content and recipients; matching report-specific rules take precedence.
+                  </p>
+                )}
                 <EmailRuleAttachmentEditor eventType={draft.eventType} value={draft.reportAttachments} onChange={reportAttachments => set({ reportAttachments })} />
                 {(!draft.eventType || draft.eventType === INTERMEDIATE_AUDIT_SCHEDULE_EVENT) && (
                   <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">

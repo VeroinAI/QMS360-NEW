@@ -63,6 +63,17 @@ describe("Email report event boundaries", () => {
     expect(inserted[0].context.emailReportRequest).toEqual({ selection: "lesson_pdf", eventType: input.context.eventType, entityId });
     expect(mocks.generate).not.toHaveBeenCalled();
   });
+  it.each(["monthly", "daily"].flatMap(type =>
+    ["create", "update", "submit", "approve", "send_back", "approved_final"].map(action => `qaqc.${type}_report.${action}`),
+  ))("retains the event-specific QA/QC PDF request for %s", async eventType => {
+    const { database, inserted } = fixture();
+    await enqueueEmail(database, { ...input,
+      context: { ...input.context, app: "qaqc", eventType },
+      ruleTemplate: { reportAttachment: "qaqc_report_pdf" },
+    });
+    expect(inserted[0].context.emailReportRequest).toEqual({ selection: "qaqc_report_pdf", eventType, entityId });
+    expect(mocks.generate).not.toHaveBeenCalled();
+  });
   it("queues all selected reports together, once each", async () => {
     const { database, inserted } = fixture();
     await enqueueEmail(database, { ...input, context: { ...input.context, app: "audit", eventType: "audit.audit.approved_final" },

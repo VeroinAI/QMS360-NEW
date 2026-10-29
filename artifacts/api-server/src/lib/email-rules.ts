@@ -8,7 +8,7 @@ import { canonicalEmailEventType, selectedEmailReports } from "@workspace/field-
 import { removeEmailPdfAttachment, type EmailPdfAttachment } from "./email-attachments";
 import { logger } from "./logger";
 import { emailTemplateContext } from "./email-template-context";
-import { legacyFinalApprovalEvent } from "./approval-email-events";
+import { legacyEmailEvent } from "./approval-email-events";
 
 export type AuditEvent = {
   organizationId: string; app: string; entityType: string; action: string;
@@ -61,7 +61,7 @@ async function resolveWorkspaceRoleUserIds(
 export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
   const planSend = event.app === "audit" && event.entityType === "audit_plan" && event.action === "send_for_audit";
   const eventType = `${event.app}.${event.entityType}.${event.action}`;
-  const legacyEventType = legacyFinalApprovalEvent(eventType);
+  const legacyEventType = legacyEmailEvent(eventType);
   const rules = await database.select().from(emailEventRules).where(and(
     eq(emailEventRules.organizationId, event.organizationId),
     ...(planSend || legacyEventType ? [] : [eq(emailEventRules.enabled, true)]), isNull(emailEventRules.deletedAt),
@@ -72,7 +72,7 @@ export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
     ?? (legacyEventType ? rules.find(candidate => candidate.enabled
       && candidate.eventType === legacyEventType
       && (!candidate.createdByUserId || candidate.createdByUserId === event.actorId)) : undefined);
-  // Explicit final-stage rules (including disabled rules) supersede legacy approval rules.
+  // Explicit specific rules (including disabled rules) supersede legacy shared rules.
   if ((planSend || legacyEventType) && rule && !rule.enabled) return { rule, recipients: [], sender: null, ccRecipients: [] };
   const circulation = planSend ? await resolveAuditPlanCirculation(database, event) : [];
   if (!rule) return { rule: null, recipients: circulation, sender: null, ccRecipients: [] };

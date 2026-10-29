@@ -10,7 +10,7 @@ const input = (app: string, entityType: string, action: string, record: Record<s
 describe("Final approval event classification", () => {
   it.each(["monthly", "daily"])("classifies only the last %s approval and keeps its record ID", reportType => {
     const intermediate = input("qaqc", "qaqc_report", "approve", { reportType, state: "submitted" });
-    expect(approvalEmailEvent(intermediate)).toEqual(intermediate);
+    expect(approvalEmailEvent(intermediate)).toMatchObject({ entityType: `${reportType}_report`, action: "approve" });
     expect(approvalEmailEvent({ ...intermediate, record: { reportType, state: "approved" } })).toMatchObject({
       app: "qaqc", entityType: `${reportType}_report`, action: "approved_final", entityId: "record",
     });
@@ -39,7 +39,6 @@ describe("Final approval event classification", () => {
     input("audit", "audit_programme", "approved_final", {}),
     input("audit", "audit_schedule", "approve", {}),
     input("audit", "audit", "send_back_report", { status: JSON.stringify({ reportApproval: { status: "Approved" } }) }),
-    input("qaqc", "qaqc_report", "send_back", { reportType: "daily", state: "sent_back" }),
     input("qaqc", "qaqc_report", "approve", { reportType: "csat", state: "approved" }),
     input("lessons", "lesson_form", "approve", {}),
   ])("preserves other workflows: $app.$entityType.$action", event => {
