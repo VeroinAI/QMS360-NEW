@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQaqcCapabilities } from '@/lib/use-qaqc-capabilities';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +24,7 @@ const SHEET = 'Daily opening balances';
 const TITLE = 'Daily historical balances';
 const DESC = 'One-time go-live opening snapshot per project for Daily Submission reports. Issued reports are never rewritten.';
 
-export interface DailyHistProject { id: string; name: string; label?: string; loaded: boolean; goLiveDate: string | null; blocked?: boolean; reason?: string | null }
+export interface DailyHistProject { id: string; name: string; code?: string; label?: string; loaded: boolean; goLiveDate: string | null; blocked?: boolean; reason?: string | null }
 export interface DailyHistField { key: string; label: string }
 export interface DailyHistRow { projectId: string; projectName: string; rowNumber: number; goLiveDate: string; reason: string; data: Record<string, unknown>; errors: string[] }
 export interface DailyHistPreview { valid: boolean; errors: string[]; fields: DailyHistField[]; rows: DailyHistRow[] }
@@ -45,6 +46,7 @@ function Workspace({ ops }: { ops: ReturnType<typeof historicalOps> }) {
   const { toast } = useToast(); const invalidate = useInvalidate();
   const projQ = useQuery({ queryKey: PROJECTS_KEY, queryFn: () => customFetch<{ items: DailyHistProject[] }>(`${BASE}/projects`, { method: 'GET' }), refetchOnMount: 'always' });
   const projects = projQ.data?.items ?? [];
+  const [projectId, setProjectId] = useState('');
   const [goLive, setGoLive] = useState('');
   const [fileName, setFileName] = useState('');
   const [reading, setReading] = useState(false);
@@ -104,6 +106,11 @@ function Workspace({ ops }: { ops: ReturnType<typeof historicalOps> }) {
   };
 
   const loaded = projects.filter(p => p.loaded).length;
+  const visibleProjects = projectId ? projects.filter(p => p.id === projectId) : projects;
+  // A refreshed permission scope must not leave an unavailable project selected.
+  useEffect(() => {
+    if (projQ.data && projectId && !projects.some(p => p.id === projectId)) setProjectId('');
+  }, [projQ.data, projectId]);
   const baseline = goLive ? prevDay(goLive) : null;
 
   return <PageFrame title={TITLE} description={DESC} actions={<Button asChild variant="secondary" size="sm"><Link href="/qaqc/settings"><ArrowLeft className="mr-1 size-4" />Reporting settings</Link></Button>}>
@@ -111,6 +118,16 @@ function Workspace({ ops }: { ops: ReturnType<typeof historicalOps> }) {
 
     {projQ.error ? <ErrorBox error={projQ.error} retry={() => projQ.refetch()} /> : projQ.isLoading ? <Skeleton className="h-48 w-full" /> : !projects.length ?
       <Card className="border-dashed"><CardContent className="flex flex-col items-center gap-2 py-12 text-center text-sm text-muted-foreground"><FileSpreadsheet className="size-7" aria-hidden /><p className="font-medium text-foreground">No projects in your historical-balances scope</p><p>Ask a QA/QC administrator to grant project access before loading daily opening balances.</p></CardContent></Card> : <>
+      <Card className="min-w-0"><CardContent className="space-y-2 p-4">
+        <div className="min-w-0 space-y-1"><Label htmlFor="dhb-project" className="text-xs text-muted-foreground">Project</Label>
+          <Select disabled={busy} value={projectId} onValueChange={setProjectId}>
+            <SelectTrigger id="dhb-project" className="w-full min-w-0 max-w-full [&>span]:truncate"><SelectValue placeholder="Select project" /></SelectTrigger>
+            <SelectContent>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.label || `${p.code ? `${p.code} - ` : ''}${p.name}`}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-wrap items-center gap-2"><p className="text-xs text-muted-foreground">Select a project to view its daily opening balance load status. Excel setup remains multi-project, as on Monthly historical balances.</p>
+          {projectId && <Button variant="ghost" size="sm" disabled={busy} onClick={() => setProjectId('')}>Show all projects</Button>}</div>
+      </CardContent></Card>
       <Card className="min-w-0 border-primary/30">
         <CardHeader><CardTitle className="flex items-center gap-2 text-base"><FileSpreadsheet className="size-4" aria-hidden />Multi-project Excel setup</CardTitle>
           <CardDescription>One project per row on the "{SHEET}" sheet, with all numeric opening fields and revision lists in columns. The template lists only authorized projects not yet loaded; select from the Project Master dropdown. IDs, codes and versions are handled internally. Revision cells use semicolon-separated revision=count pairs, e.g. 0=25; 1=10. Leave empty for none.</CardDescription></CardHeader>
@@ -156,7 +173,7 @@ function Workspace({ ops }: { ops: ReturnType<typeof historicalOps> }) {
 
       <Card><CardHeader><CardTitle className="text-base">Load status</CardTitle><CardDescription>{loaded} of {projects.length} projects in your scope have a daily opening snapshot.</CardDescription></CardHeader>
         <CardContent className="overflow-x-auto p-0"><table className="w-full text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr><th className="px-4 py-2 text-left font-medium">Project</th><th className="px-4 py-2 text-left font-medium">Status</th><th className="px-4 py-2 text-left font-medium">Go-live date</th><th className="px-4 py-2 text-left font-medium">Balances as of</th></tr></thead>
-          <tbody>{projects.map(p => <tr key={p.id} className="border-t"><td className="px-4 py-2">{p.label || p.name}</td>
+          <tbody>{visibleProjects.map(p => <tr key={p.id} className="border-t"><td className="px-4 py-2">{p.label || p.name}</td>
             <td className="px-4 py-2">{p.loaded ? <Badge variant="secondary"><CheckCircle2 className="mr-1 size-3" />Loaded</Badge> : p.blocked ? <Badge variant="destructive">Blocked</Badge> : <Badge variant="outline">Not loaded</Badge>}{p.blocked && p.reason && <p className="mt-1 text-xs text-muted-foreground">{p.reason}</p>}</td>
             <td className="px-4 py-2 tabular-nums">{p.goLiveDate ? formatDate(p.goLiveDate) : '-'}</td>
             <td className="px-4 py-2 tabular-nums text-muted-foreground">{p.goLiveDate ? formatDate(prevDay(p.goLiveDate)) : '-'}</td></tr>)}</tbody></table></CardContent></Card>
