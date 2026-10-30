@@ -38,3 +38,18 @@ mapping marker or an invented zero average.
 **Why:** The user explicitly confirmed submitted/approved-only eligibility after
 an October report returned zero contributors because the saved reports were drafts.
 The count caption must include the actual reporting month and year.
+
+Monthly Report PDF sign-off tiles retain Submitted by/on, list completed
+intermediate approvals as Reviewed by/on in ascending action-date order, and
+place the actual final approval as Approved by/on last. Omit the Report ID.
+Use only the current submission cycle for sign-off; prior sent-back cycles are
+history, not confirmation of the current document. Never treat an assigned
+approver as evidence of an approval.
+
+**Why:** The business requested sequential reviewer/final-approver sign-off on
+the monthly report. Reusing earlier cycles or assigned names would incorrectly
+certify a changed or still-pending report.
+
+**How to apply:** Use recorded approval actions and dates. A single-stage
+approval has only the final sign-off, and missing legacy evidence must not be
+fabricated. Keep other report types and the separate dashboard layout unchanged.

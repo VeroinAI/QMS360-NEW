@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { DOMParser, type Element } from "@xmldom/xmldom";
 import { strFromU8, unzipSync } from "fflate";
 import type { QaqcReportExport } from "./qaqc-reporting-export";
+import { monthlySignatories } from "./qaqc-monthly-signatories";
 
 export const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 export const UNMAPPED = "To be mapped";
@@ -251,7 +252,31 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   body.removeChild(blocks[51]!);
   put(53,0,0,confirmation,1,d.assessmentConfirmed === true ? "2E7D32" : "66666A");
   put(53,0,1,report.submittedByName,1); put(53,0,1,report.submittedByDesignation?.trim() || null,2);
-  put(53,0,2,reportDate(report.submittedAt),1); put(53,0,2,`Report ID  ${text(report.referenceNumber ?? report.id)}`,2);
+  put(53,0,2,reportDate(report.submittedAt),1);
+  const submittedDateCell = cells(53,0)[2]!;
+  children(submittedDateCell,"p").slice(2).forEach(p => submittedDateCell.removeChild(p));
+  // Preserve the source's lavender sign-off tiles and flow each approval row
+  // together. Reviewers precede the final approver, even for multi-level flows.
+  const signatories = monthlySignatories(report);
+  const signoffTable = blocks[53]!;
+  const sourceRow = children(signoffTable,"tr")[0]!;
+  for (const signatory of [...signatories.filter(s => !s.final), ...signatories.filter(s => s.final)]) {
+    const row = sourceRow.cloneNode(true) as Element;
+    children(row,"tc").forEach(cell => row.removeChild(cell));
+    const sourceCells = children(sourceRow,"tc");
+    for (const [index, label, value] of [
+      [1, signatory.final ? "APPROVED BY" : "REVIEWED BY", signatory.name],
+      [2, signatory.final ? "APPROVED ON" : "REVIEWED ON", reportDate(signatory.at)],
+    ] as const) {
+      const cell = sourceCells[index]!.cloneNode(true) as Element;
+      child(child(cell,"tcPr"),"tcW")!.setAttributeNS(W,"w:w","4819");
+      const paragraphs = children(cell,"p");
+      set(paragraphs[0]!,label); set(paragraphs[1]!,value);
+      paragraphs.slice(2).forEach(p => cell.removeChild(p));
+      row.appendChild(cell);
+    }
+    signoffTable.appendChild(row);
+  }
   // Explicitly remove the reviewer appendix, sample header, comments and sample footer.
   for (const block of blocks.slice(54)) if (block.localName !== "sectPr") body.removeChild(block);
   return { body, project, month };

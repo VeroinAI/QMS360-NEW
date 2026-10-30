@@ -80,6 +80,84 @@ describe("Customer Word monthly metrics report",()=>{
       expect(children(missingCells[1]!,"p")[2]!.textContent).toBe("—");
     }
   });
+  const approvalReport = (state = "approved"): QaqcReportExport => ({
+    ...report, state,
+    baseline: {...baseline,__monthlyApproval:{
+      version:1,cycle:2,currentIndex:3,
+      stages:[
+        {level:1,candidates:[{id:"reviewer-one",name:"First Reviewer"}]},
+        {level:2,candidates:[{id:"reviewer-two",name:"Second Reviewer"}]},
+        {level:3,candidates:[{id:"final",name:"Final Approver"}]},
+      ],
+      // Deliberately unordered storage and a previous sent-back cycle.
+      history:[
+        {cycle:1,level:1,decision:"approve",userId:"old",at:"2026-10-20T09:00:00Z"},
+        {cycle:2,level:3,decision:"approve",userId:"final",at:"2026-11-03T09:00:00Z"},
+        {cycle:2,level:2,decision:"approve",userId:"reviewer-two",at:"2026-11-02T09:00:00Z"},
+        {cycle:2,level:1,decision:"approve",userId:"reviewer-one",at:"2026-11-01T09:00:00Z"},
+        {cycle:2,level:1,decision:"submitted",userId:"submitter",at:"2026-10-31T12:00:00Z"},
+      ],
+    }},
+  });
+  it("adds dated reviewers chronologically, then the actual final approver, without a Report ID",async()=>{
+    const {body,text}=await mapped(approvalReport());
+    const table=children(body,"tbl").find(t=>t.textContent?.includes("SUBMITTED BY"))!;
+    const values=children(table,"tr").slice(1).map(row=>children(row,"tc").map(cell=>cell.textContent));
+    expect(values).toEqual([
+      ["REVIEWED BYFirst Reviewer","REVIEWED ON01-11-2026"],
+      ["REVIEWED BYSecond Reviewer","REVIEWED ON02-11-2026"],
+      ["APPROVED BYFinal Approver","APPROVED ON03-11-2026"],
+    ]);
+    expect(text).not.toContain("Report ID"); expect(text).not.toContain("preview-report");
+    expect(table.textContent).not.toContain("Former or unavailable user");
+  });
+  it("does not claim final approval while pending, sent back or in draft",async()=>{
+    for (const state of ["submitted","sent_back","draft"]) {
+      const input=approvalReport(state);
+      const workflow=input.baseline.__monthlyApproval as any;
+      workflow.history=workflow.history.filter((e:any)=>e.level!==3);
+      const {text}=await mapped(input);
+      expect(text).toContain("REVIEWED BY"); expect(text).not.toContain("APPROVED BY");
+      expect(text).not.toContain("Final Approver");
+    }
+    const {text}=await mapped(report);
+    expect(text).not.toContain("REVIEWED BY"); expect(text).not.toContain("APPROVED BY");
+  });
+  it("supports a single final approver without inventing a reviewer",async()=>{
+    const input=approvalReport();
+    const workflow=input.baseline.__monthlyApproval as any;
+    workflow.stages=workflow.stages.slice(2);
+    workflow.history=workflow.history.filter((e:any)=>e.cycle===2&&e.level===3);
+    const {text}=await mapped(input);
+    expect(text).toContain("APPROVED BYFinal Approver");
+    expect(text).not.toContain("REVIEWED BY");
+  });
+  it("uses completed legacy audit actions, not assignment or an invented approval date",async()=>{
+    const {text}=await mapped({...report,state:"approved",approverId:"assigned-only",history:[
+      {action:"approve",actorName:"Legacy Approver",createdAt:"2026-11-01T12:00:00Z",after:{state:"approved"}},
+      {action:"approve",actorName:"Earlier Cycle",createdAt:"2026-10-01T12:00:00Z",after:{state:"approved"}},
+    ]});
+    expect(text).toContain("APPROVED BYLegacy Approver"); expect(text).toContain("APPROVED ON01-11-2026");
+    expect(text).not.toContain("Earlier Cycle"); expect(text).not.toContain("assigned-only");
+    const missing=await mapped({...report,state:"approved",approverId:"assigned-only"});
+    expect(missing.text).not.toContain("APPROVED BY");
+  });
+  it("renders approval tiles with long names and many reviewers without dropping rows",async()=>{
+    const input=approvalReport();
+    const workflow=input.baseline.__monthlyApproval as any;
+    workflow.stages=Array.from({length:18},(_,i)=>({level:i+1,candidates:[{id:`user-${i}`,name:`Reviewer ${i+1} with a long quality management designation and name`}]}));
+    workflow.history=workflow.stages.map((s:any,i:number)=>({cycle:2,level:s.level,decision:"approve",userId:`user-${i}`,at:`2026-11-${String(i+1).padStart(2,"0")}T09:00:00Z`}));
+    const {body}=await mapped(input);
+    const table=children(body,"tbl").find(t=>t.textContent?.includes("SUBMITTED BY"))!;
+    expect(children(table,"tr")).toHaveLength(19);
+    const bytes=await exportQaqcReportPdf(input,{templateId:"monthly-metrics"});
+    const pdf=await PDFDocument.load(bytes);
+    expect(pdf.getPageCount()).toBeGreaterThan(5);
+    await mkdir("../../generated-artifacts",{recursive:true});
+    await writeFile("../../generated-artifacts/qaqc-monthly-approval-overflow-preview.pdf",bytes);
+    await writeFile("../../generated-artifacts/qaqc-monthly-approval-preview.pdf",
+      await exportQaqcReportPdf(approvalReport(),{templateId:"monthly-metrics"}));
+  },30000);
   it("handles no meetings/reports, inapplicable fields and unconfirmed drafts truthfully",async()=>{
     const {text}=await mapped({...report,data:{...data,meetings:[],qmsReports:[],pqpStatus:"Under Preparation",internalAudit:{conducted:false},material:{...data.material,osdAvailable:false},assessmentConfirmed:false},submittedAt:null,submittedByName:null});
     expect(text).toContain("No meeting added");expect(text).toContain("No QMS document register rows added");
