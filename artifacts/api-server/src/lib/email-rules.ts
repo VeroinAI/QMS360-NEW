@@ -61,12 +61,16 @@ async function resolveWorkspaceRoleUserIds(
 export async function resolveEmailRule(database: typeof db, event: AuditEvent) {
   const planSend = event.app === "audit" && event.entityType === "audit_plan" && event.action === "send_for_audit";
   const eventType = `${event.app}.${event.entityType}.${event.action}`;
+  // Retired shared submission event: keep saved rules/history, but never send.
+  if (eventType === "qaqc.qaqc_report.submit")
+    return { rule: null, recipients: [], sender: null, ccRecipients: [] };
   const legacyEventType = legacyEmailEvent(eventType);
   const rules = await database.select().from(emailEventRules).where(and(
     eq(emailEventRules.organizationId, event.organizationId),
     ...(planSend || legacyEventType ? [] : [eq(emailEventRules.enabled, true)]), isNull(emailEventRules.deletedAt),
   )).orderBy(asc(emailEventRules.priority), asc(emailEventRules.createdAt));
   const rule = rules.find((candidate) =>
+    (candidate.enabled || planSend || Boolean(legacyEventType)) &&
     canonicalEmailEventType(candidate.eventType) === canonicalEmailEventType(eventType) &&
     (!candidate.createdByUserId || candidate.createdByUserId === event.actorId))
     ?? (legacyEventType ? rules.find(candidate => candidate.enabled

@@ -83,8 +83,14 @@ without disrupting other development or existing email behavior.
 role name or level number. Intermediate approvals, send-back and rejection must not
 emit final events. Keep selected reports, recipient scope and one-rule dispatch semantics.
 
-Monthly and Daily report email rules must be independently configurable for all report actions, not only final approval. Preserve shared legacy rules as fallbacks rather than editing saved configurations.
+Monthly and Daily report email rules must be independently configurable for all report actions, not only final approval. Preserve shared legacy rules as fallbacks for non-submission actions rather than editing saved configurations.
 
 **Why:** The user confirmed implementation after pointing out that shared events cannot distinguish the two reports' subjects, bodies or recipients; rule names alone do not determine matching.
 
-**How to apply:** Prefer the matching report-specific rule before considering the shared fallback, retaining actor filters and priority within each group. An explicitly disabled matching specific rule blocks the shared fallback. Dispatch one rule only and preserve audit history, CSAT behavior and the separate final-approval events.
+**How to apply:** For non-submission actions, prefer the matching report-specific rule before considering the shared fallback, retaining actor filters and priority within each group. An explicitly disabled matching specific rule blocks the shared fallback. Dispatch one rule only and preserve audit history and the separate final-approval events.
+
+CSAT, Monthly and Daily submission emails must use separate report-specific events. Never dispatch the shared legacy submission event or use it as a fallback. Existing saved shared rules remain for history only.
+
+**Why:** The user explicitly rejected shared submission events because they could send another report type's wording or recipients. Missing dedicated rules must result in no rule email, not a shared email.
+
+**How to apply:** CSAT uses `qaqc.csat_report.submit`; Monthly and Daily use their corresponding report-specific submission events. Preserve domain history and non-submit event behavior. Require administrators to configure dedicated rules rather than automatically copying shared recipients.

@@ -236,7 +236,8 @@ async function registeredEmailEvents(organizationId: string) {
   }
   return [...values].sort().map((value) => ({
     value,
-    label: qaqcReportEmailEvents[value] ?? finalApprovalEmailEvents[value as keyof typeof finalApprovalEmailEvents] ?? (value.startsWith("qaqc.qaqc_report.")
+    label: value === "qaqc.qaqc_report.submit" ? "Retired · Shared QA/QC submission · No emails sent"
+      : qaqcReportEmailEvents[value] ?? finalApprovalEmailEvents[value as keyof typeof finalApprovalEmailEvents] ?? (value.startsWith("qaqc.qaqc_report.")
       ? `QA/QC · Shared legacy report event · ${value.split(".")[2]!.replaceAll("_", " ")}`
       : value === "audit.audit_programme.submit"
       ? "Audit · Audit Schedule · Submit / Resubmit"

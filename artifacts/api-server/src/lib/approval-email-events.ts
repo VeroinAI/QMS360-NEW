@@ -14,7 +14,7 @@ export const finalApprovalEmailEvents = {
 };
 
 export const qaqcReportEmailEvents: Record<string, string> = Object.fromEntries(
-  (["monthly", "daily"] as const).flatMap(type =>
+  [...(["monthly", "daily"] as const).flatMap(type =>
     Object.entries({
       create: "Create", update: "Update", delete: "Delete",
       submit: "Submit for Approval", approve: "Approve & Forward", send_back: "Send Back",
@@ -22,12 +22,16 @@ export const qaqcReportEmailEvents: Record<string, string> = Object.fromEntries(
       `qaqc.${type}_report.${action}`,
       `${type === "monthly" ? "QA/QC · Monthly Report" : "Document Governance · Daily Submission"} · ${label}`,
     ]),
-  ),
+  ), ["qaqc.csat_report.submit", "QA/QC · Customer Satisfaction (CSAT) · Submit"]],
 );
 
 /** Keep domain history unchanged; classify email events from the saved review result. */
 export function approvalEmailEvent<T extends Event>(event: T): T {
   const record = event.record ?? {};
+  if (event.app === "qaqc" && event.entityType === "qaqc_report"
+    && event.action === "submit" && record.reportType === "csat") {
+    return { ...event, entityType: "csat_report" };
+  }
   if (event.app === "qaqc" && event.entityType === "qaqc_report"
     && ["monthly", "daily"].includes(record.reportType)
     && Object.hasOwn(qaqcReportEmailEvents, `qaqc.${record.reportType}_report.${event.action}`)) {
@@ -50,6 +54,9 @@ export function approvalEmailEvent<T extends Event>(event: T): T {
 
 /** Specific report rules supersede shared rules, without changing existing saved rules. */
 export function legacyEmailEvent(eventType: string): string | undefined {
+  // Submission emails must never cross report types through a shared rule.
+  if (["qaqc.csat_report.submit", "qaqc.monthly_report.submit", "qaqc.daily_report.submit"].includes(eventType))
+    return undefined;
   if (Object.hasOwn(qaqcReportEmailEvents, eventType))
     return `qaqc.qaqc_report.${eventType.split(".")[2]}`;
   return ({

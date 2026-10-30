@@ -5,9 +5,10 @@ export function emailReportOptions(eventType: string): Array<{ value: EmailRepor
   if (!action || action === "delete") return [];
   if (app === "lessons" && entity === "lesson_form")
     return [{ value: "lesson_pdf", label: "Lesson Learned form (PDF)" }];
-  if (app === "qaqc" && ["qaqc_report", "monthly_report", "daily_report"].includes(entity))
+  if (app === "qaqc" && ["qaqc_report", "monthly_report", "daily_report", "csat_report"].includes(entity))
     return [{ value: "qaqc_report_pdf", label: entity === "monthly_report" ? "Monthly QA/QC report (PDF)"
-      : entity === "daily_report" ? "Daily Submission report (PDF)" : "Event's Monthly / Daily / CSAT report (PDF)" }];
+      : entity === "daily_report" ? "Daily Submission report (PDF)"
+      : entity === "csat_report" ? "Customer Satisfaction (CSAT) report (PDF)" : "Event's Monthly / Daily / CSAT report (PDF)" }];
   if (app !== "audit") return [];
   if (entity === "audit_programme" || entity === "audit_schedule")
     return [{ value: "audit_schedule_pdf", label: "Event's Audit Programme / Schedule (PDF)" }];
