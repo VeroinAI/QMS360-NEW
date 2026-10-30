@@ -195,6 +195,22 @@ async function makePdf(title: string, sections: Array<[string, unknown]>) {
   return Buffer.from(await document.save());
 }
 
+/**
+ * Email attachments use the named download layouts, never the generic
+ * technical export or a tenant's unrelated default template.
+ */
+export async function exportQaqcEmailReportPdf(report: QaqcReportExport, layout: "report" | "dashboard" = "report"): Promise<Buffer> {
+  if (layout === "dashboard") {
+    if (report.reportType !== "monthly" && report.reportType !== "daily")
+      throw new Error("This report type has no standalone dashboard PDF");
+    return exportQaqcReportPdf(report, { templateId: `${report.reportType}-dashboard` });
+  }
+  const templateId = report.reportType === "monthly" ? "monthly-metrics"
+    : report.reportType === "daily" ? "daily-submission" : report.reportType === "csat" ? "csat-form" : null;
+  if (!templateId) throw new Error("No official PDF layout exists for this report type");
+  return exportQaqcReportPdf(report, { templateId });
+}
+
 export async function exportQaqcReportPdf(report: QaqcReportExport, options: { templateId?: string } = {}): Promise<Buffer> {
   if (report.reportType === "daily" && options.templateId === "daily-dashboard") {
     const { exportDailyDashboardPdf } = await import("./qaqc-daily-dashboard-pdf");

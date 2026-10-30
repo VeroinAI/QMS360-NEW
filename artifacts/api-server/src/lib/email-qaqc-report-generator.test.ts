@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   load: vi.fn(), render: vi.fn(), store: vi.fn(),
 }));
 vi.mock("../routes/qaqc-reporting-tools", () => ({ qaqcReportForEmail: mocks.load }));
-vi.mock("./qaqc-reporting-export", () => ({ exportQaqcReportPdf: mocks.render }));
+vi.mock("./qaqc-reporting-export", () => ({ exportQaqcEmailReportPdf: mocks.render }));
 vi.mock("./email-attachments", () => ({ storeEmailReportAttachment: mocks.store }));
 vi.mock("./date-format", () => ({ withOrganizationDateFormat: (_org: string, render: () => unknown) => render() }));
 import { generateEmailReport } from "./email-report-generator";
@@ -28,7 +28,7 @@ describe("QA/QC email report renderers", () => {
     mocks.load.mockResolvedValue(report);
     await generateEmailReport("tenant", { selection, eventType: `qaqc.${type}_report.submit`, entityId });
     expect(mocks.load).toHaveBeenCalledWith("tenant", entityId);
-    expect(mocks.render).toHaveBeenCalledWith(report, { templateId });
+    expect(mocks.render).toHaveBeenCalledWith(report, selection === "qaqc_dashboard_pdf" ? "dashboard" : "report");
     expect(mocks.store).toHaveBeenCalledWith("tenant", `${selection}-${entityId}`, Buffer.from("pdf"), "pdf");
   });
 

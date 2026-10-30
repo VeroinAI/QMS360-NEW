@@ -100,3 +100,9 @@ Report attachment choices must include each existing event-specific PDF separate
 **Why:** The user needs the dashboard PDFs as selectable attachments, not just the main report, and explicitly requires multiple documents together.
 
 **How to apply:** Reuse the established download renderers, restrict choices to the triggering report type, and retain retryable generation of every selected attachment before SMTP. Do not invent dashboard choices for CSAT or ambiguous shared legacy events.
+
+Every email path, including scheduled approved-report distribution, must explicitly select the established Monthly or Daily report/dashboard download layout. Generic technical exports are not business email attachments.
+
+**Why:** A business-reported email attachment contained a 28-page raw workflow/data listing while the download buttons produced the correct branded documents. Fixing only event-rule dispatch leaves scheduled distribution capable of producing the wrong format.
+
+**How to apply:** Verify real generated PDFs against the named download layouts, not only mocked renderer calls. Preserve raw-data exports for their existing explicit use, and preserve already-sent or frozen retry attachments rather than rewriting email history.
