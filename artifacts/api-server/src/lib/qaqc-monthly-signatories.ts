@@ -9,7 +9,15 @@ const time = (value: unknown) => new Date(String(value ?? "")).getTime();
  * Assigned candidates and earlier, sent-back cycles are not approvals.
  */
 export function monthlySignatories(report: QaqcReportExport): Signatory[] {
-  const workflow = object(report.baseline.__monthlyApproval);
+  return approvalSignatories(report, "__monthlyApproval");
+}
+
+export function dailySignatories(report: QaqcReportExport): Signatory[] {
+  return approvalSignatories(report, "__dailyApproval");
+}
+
+function approvalSignatories(report: QaqcReportExport, workflowKey: string): Signatory[] {
+  const workflow = object(report.baseline[workflowKey]);
   const audit = report.history ?? [];
   const names = new Map(audit.filter(e => typeof e.actorId === "string" && typeof e.actorName === "string")
     .map(e => [e.actorId as string, e.actorName as string]));
