@@ -33,6 +33,9 @@ describe.each(["monthly", "daily"])("%s report email separation", type => {
     expect(emailReportOptions(eventType)).toEqual(action === "delete" ? [] : [{
       value: "qaqc_report_pdf",
       label: type === "monthly" ? "Monthly QA/QC report (PDF)" : "Daily Submission report (PDF)",
+    }, {
+      value: "qaqc_dashboard_pdf",
+      label: type === "monthly" ? "Monthly QA/QC dashboard (PDF)" : "Daily Submission dashboard (PDF)",
     }]);
   });
 

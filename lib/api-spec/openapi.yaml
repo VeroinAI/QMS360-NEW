@@ -3040,7 +3040,7 @@ components:
         bodyTemplate: {type: string, maxLength: 20000}
         reportAttachment:
           type: [string, "null"]
-          enum: [null, lesson_pdf, qaqc_report_pdf, audit_schedule_pdf, audit_plan_pdf, audit_report_pdf, audit_report_pptx]
+          enum: [null, lesson_pdf, qaqc_report_pdf, qaqc_dashboard_pdf, audit_schedule_pdf, audit_plan_pdf, audit_report_pdf, audit_report_pptx]
           description: Legacy single report selection. Used only when reportAttachments is omitted.
         reportAttachments:
           type: array
@@ -3048,7 +3048,7 @@ components:
           uniqueItems: true
           items:
             type: string
-            enum: [lesson_pdf, qaqc_report_pdf, audit_schedule_pdf, audit_plan_pdf, audit_report_pdf, audit_report_pptx]
+            enum: [lesson_pdf, qaqc_report_pdf, qaqc_dashboard_pdf, audit_schedule_pdf, audit_plan_pdf, audit_report_pdf, audit_report_pptx]
           description: Event-specific generated reports to attach together. An empty array means no attachments and overrides the legacy single selection.
         bodyRichText:
           type: [object, "null"]

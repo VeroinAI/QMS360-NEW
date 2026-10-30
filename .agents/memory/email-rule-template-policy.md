@@ -94,3 +94,9 @@ CSAT, Monthly and Daily submission emails must use separate report-specific even
 **Why:** The user explicitly rejected shared submission events because they could send another report type's wording or recipients. Missing dedicated rules must result in no rule email, not a shared email.
 
 **How to apply:** CSAT uses `qaqc.csat_report.submit`; Monthly and Daily use their corresponding report-specific submission events. Preserve domain history and non-submit event behavior. Require administrators to configure dedicated rules rather than automatically copying shared recipients.
+
+Report attachment choices must include each existing event-specific PDF separately: Monthly report and dashboard, Daily report and dashboard, and CSAT survey only. Multiple selected reports belong on the same email.
+
+**Why:** The user needs the dashboard PDFs as selectable attachments, not just the main report, and explicitly requires multiple documents together.
+
+**How to apply:** Reuse the established download renderers, restrict choices to the triggering report type, and retain retryable generation of every selected attachment before SMTP. Do not invent dashboard choices for CSAT or ambiguous shared legacy events.

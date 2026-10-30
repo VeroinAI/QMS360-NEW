@@ -25,10 +25,21 @@ export async function generateEmailReport(organizationId: string, request: Email
       const { lessonReportPdf } = await import("../routes/lessons");
       return lessonReportPdf(lesson, await listEvidence(db, "lessons", organizationId, "lesson_form", lesson.id) as any);
     }
-    if (request.selection === "qaqc_report_pdf") {
+    if (request.selection === "qaqc_report_pdf" || request.selection === "qaqc_dashboard_pdf") {
       const { qaqcReportForEmail } = await import("../routes/qaqc-reporting-tools");
       const { exportQaqcReportPdf } = await import("./qaqc-reporting-export");
-      return exportQaqcReportPdf(await qaqcReportForEmail(organizationId, request.entityId));
+      const report = await qaqcReportForEmail(organizationId, request.entityId);
+      const entity = request.eventType.split(".")[1];
+      if (entity !== "qaqc_report" && entity !== `${report.reportType}_report`)
+        throw new Error("Email event does not match the QA/QC report type");
+      if (request.selection === "qaqc_dashboard_pdf") {
+        if (report.reportType !== "monthly" && report.reportType !== "daily")
+          throw new Error("This QA/QC report has no dashboard PDF");
+        return exportQaqcReportPdf(report, { templateId: `${report.reportType}-dashboard` });
+      }
+      const templateId = report.reportType === "monthly" ? "monthly-metrics"
+        : report.reportType === "daily" ? "daily-submission" : "csat-form";
+      return exportQaqcReportPdf(report, { templateId });
     }
     const { auditPlanEmailPdf, auditScheduleEmailPdf, auditExecutionEmailReport } = await import("../routes/audit");
     if (request.selection === "audit_plan_pdf") return auditPlanEmailPdf(organizationId, request.entityId);

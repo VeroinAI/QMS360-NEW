@@ -47,7 +47,7 @@ describe("Final approval event classification", () => {
   it("keeps final-stage reports available as event-specific attachments", () => {
     expect(emailReportOptions("audit.audit.approved_final").map(x => x.value)).toEqual(["audit_report_pdf", "audit_report_pptx"]);
     for (const entity of ["monthly_report", "daily_report"])
-      expect(emailReportOptions(`qaqc.${entity}.approved_final`).map(x => x.value)).toEqual(["qaqc_report_pdf"]);
+      expect(emailReportOptions(`qaqc.${entity}.approved_final`).map(x => x.value)).toEqual(["qaqc_report_pdf", "qaqc_dashboard_pdf"]);
     expect(emailReportOptions("audit.corrective_action_report.approved_final")).toEqual([]);
   });
   it("isolates Daily and Monthly event options in their respective workspaces", () => {

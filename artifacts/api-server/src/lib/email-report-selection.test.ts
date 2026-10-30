@@ -85,6 +85,25 @@ describe("Email report event boundaries", () => {
     ]);
     expect(inserted[0].context.emailReportRequest).toBeUndefined();
   });
+  it.each(["monthly", "daily"].flatMap(type =>
+    ["create", "update", "submit", "approve", "send_back", "approved_final"].map(action => `qaqc.${type}_report.${action}`),
+  ))("queues the report and dashboard in the same email for %s", async eventType => {
+    const { database, inserted } = fixture();
+    await enqueueEmail(database, { ...input, context: { ...input.context, app: "qaqc", eventType },
+      ruleTemplate: { reportAttachments: ["qaqc_report_pdf", "qaqc_dashboard_pdf"] } });
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0].context.emailReportRequests).toEqual([
+      { selection: "qaqc_report_pdf", eventType, entityId },
+      { selection: "qaqc_dashboard_pdf", eventType, entityId },
+    ]);
+  });
+  it("rejects a dashboard attachment for CSAT", async () => {
+    const { database, inserted } = fixture();
+    await expect(enqueueEmail(database, { ...input,
+      context: { ...input.context, app: "qaqc", eventType: "qaqc.csat_report.submit" },
+      ruleTemplate: { reportAttachments: ["qaqc_report_pdf", "qaqc_dashboard_pdf"] } })).rejects.toThrow("does not belong");
+    expect(inserted).toHaveLength(0);
+  });
   it("an empty multi-selection overrides the legacy scalar and implicit attachments", async () => {
     const { database, inserted } = fixture();
     await enqueueEmail(database, { ...input, ruleTemplate: { reportAttachment: "lesson_pdf", reportAttachments: [] },
@@ -151,12 +170,16 @@ describe("Queued selected-report delivery", () => {
     expect(updates.at(-1)).toMatchObject({ deliveryStatus: "retrying", attemptCount: 1 });
     expect(updates.at(-1).lastError).toContain("Report not available");
   });
-  it("delivers PDF and PPT together and reuses both after an SMTP retry", async () => {
+  it.each([
+    ["audit.audit.approved_final", "audit_report_pdf", "audit_report_pptx"],
+    ["qaqc.monthly_report.approved_final", "qaqc_report_pdf", "qaqc_dashboard_pdf"],
+    ["qaqc.daily_report.submit", "qaqc_report_pdf", "qaqc_dashboard_pdf"],
+  ])("delivers both selected reports for %s and reuses them after an SMTP retry", async (eventType, first, second) => {
     const { database } = fixture(), row = queued();
     delete (row.context as any).emailReportRequest;
     (row.context as any).emailReportRequests = [
-      { selection: "audit_report_pdf", eventType: "audit.audit.approved_final", entityId },
-      { selection: "audit_report_pptx", eventType: "audit.audit.approved_final", entityId },
+      { selection: first, eventType, entityId },
+      { selection: second, eventType, entityId },
     ];
     const ppt = { ...attachment, filename: "audit.pptx", objectPath: "/private/audit.pptx" };
     mocks.generate.mockResolvedValueOnce(attachment).mockResolvedValueOnce(ppt);

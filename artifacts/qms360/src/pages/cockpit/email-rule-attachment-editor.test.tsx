@@ -23,6 +23,16 @@ describe('Email Rule report attachment selector', () => {
   it('shows No attachment when the selection is empty', () => {
     expect(render('audit.audit.complete')).toContain('No attachment');
   });
+  it.each(['monthly', 'daily'])('displays both selected %s PDFs together', type => {
+    const html = render(`qaqc.${type}_report.approved_final`, ['qaqc_report_pdf', 'qaqc_dashboard_pdf']);
+    expect(html).toContain(type === 'monthly' ? 'Monthly QA/QC report (PDF), Monthly QA/QC dashboard (PDF)'
+      : 'Daily Submission report (PDF), Daily Submission dashboard (PDF)');
+  });
+  it('keeps CSAT limited to its survey PDF', () => {
+    const html = render('qaqc.csat_report.submit', ['qaqc_report_pdf']);
+    expect(html).toContain('Customer Satisfaction (CSAT) report (PDF)');
+    expect(html).not.toContain('dashboard (PDF)');
+  });
   it('opens legacy single-report rules as a multi-selection and allows clearing them', () => {
     expect(selectedEmailReports({ reportAttachment: 'audit_report_pdf' })).toEqual(['audit_report_pdf']);
     expect(selectedEmailReports({ reportAttachment: 'audit_report_pdf', reportAttachments: [] })).toEqual([]);

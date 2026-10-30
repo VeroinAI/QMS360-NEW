@@ -12,6 +12,7 @@ export type EmailRecipientConfigReportAttachmentsItem = typeof EmailRecipientCon
 export const EmailRecipientConfigReportAttachmentsItem = {
   lesson_pdf: 'lesson_pdf',
   qaqc_report_pdf: 'qaqc_report_pdf',
+  qaqc_dashboard_pdf: 'qaqc_dashboard_pdf',
   audit_schedule_pdf: 'audit_schedule_pdf',
   audit_plan_pdf: 'audit_plan_pdf',
   audit_report_pdf: 'audit_report_pdf',
