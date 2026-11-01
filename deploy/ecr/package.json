@@ -1,0 +1,13 @@
+{
+  "name": "qms360-ecr-push",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Standalone CLI that builds, tags, and pushes the qms360-api image to ECR. Never a workspace member -- its own node_modules, never touches the app's.",
+  "scripts": {
+    "push": "node push-image.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ecr": "^3.700.0"
+  }
+}

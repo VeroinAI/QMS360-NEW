@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qms360-scheduler
+  namespace: codefactory
+  labels:
+    app: qms360-scheduler
+spec:
+  # MUST stay 1. Only the lessons-escalation digest takes a Postgres advisory
+  # lock; the escalation sweep, email queue, and QA/QC reporting automation
+  # have no cross-instance locking and will duplicate-run (duplicate emails,
+  # duplicate reminders) if this is ever scaled up. Fix the locking first.
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: qms360-scheduler
+  template:
+    metadata:
+      labels:
+        app: qms360-scheduler
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: qms360-scheduler
+          # Same image as qms360-api -- PROCESS_ROLE picks the entry path.
+          image: 932492652339.dkr.ecr.ap-south-1.amazonaws.com/qms360-api:1.0.2-2c6e368
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            # No business routes -- just the schedulers and a bare /healthz
+            # probe server (see src/index.ts).
+            - name: PROCESS_ROLE
+              value: "scheduler"
+          envFrom:
+            - configMapRef:
+                name: qms360-config
+            - secretRef:
+                name: qms360-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5

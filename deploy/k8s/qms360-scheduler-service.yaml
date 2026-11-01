@@ -1,0 +1,17 @@
+# Nothing routes to this Deployment via Ingress -- this Service exists only
+# for cluster-internal debugging (port-forward + curl /healthz).
+apiVersion: v1
+kind: Service
+metadata:
+  name: qms360-scheduler
+  namespace: codefactory
+  labels:
+    app: qms360-scheduler
+spec:
+  type: ClusterIP
+  selector:
+    app: qms360-scheduler
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

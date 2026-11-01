@@ -39,9 +39,15 @@ FROM node:22-slim AS runtime
 # in as absolute paths computed at build time from this exact location, so
 # the runtime image has to reproduce it or those workers 404 at startup.
 WORKDIR /workspace/artifacts/api-server
-COPY --from=build /deploy/node_modules ./node_modules
-COPY --from=build /deploy/package.json ./package.json
-COPY --from=build /workspace/artifacts/api-server/dist ./dist
+COPY --from=build --chown=node:node /deploy/node_modules ./node_modules
+COPY --from=build --chown=node:node /deploy/package.json ./package.json
+COPY --from=build --chown=node:node /workspace/artifacts/api-server/dist ./dist
+
+# node:22-slim ships a built-in non-root "node" user at uid 1000. Using the
+# numeric UID (not the name "node") because kubelet's runAsNonRoot check
+# can't resolve a username to a UID without starting the container first --
+# it only accepts images that already name a numeric, non-zero user.
+USER 1000
 
 EXPOSE 8000
 ENV PORT=8000

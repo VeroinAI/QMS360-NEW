@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qms360-api
+  namespace: codefactory
+  labels:
+    app: qms360-api
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: qms360-api
+  template:
+    metadata:
+      labels:
+        app: qms360-api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: qms360-api
+          # Built and pushed by deploy/ecr/push-image.mjs -- immutable <version>-<gitSHA> tag.
+          image: 932492652339.dkr.ecr.ap-south-1.amazonaws.com/qms360-api:1.0.2-2c6e368
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            # HTTP API only -- schedulers run in the separate qms360-scheduler
+            # Deployment. Safe to scale this one to multiple replicas.
+            - name: PROCESS_ROLE
+              value: "api"
+          envFrom:
+            - configMapRef:
+                name: qms360-config
+            - secretRef:
+                name: qms360-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /qms360/api/healthz
+              port: http
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /qms360/api/healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /qms360/api/healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5

@@ -50,3 +50,7 @@ Thumbs.db
 .cache/
 .local/
 /generated-artifacts/
+
+# Real k8s secret values -- only the .example template is committed
+deploy/k8s/*-secret.yaml
+deploy/k8s/qms360-configmap.yaml
