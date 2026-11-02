@@ -4,7 +4,8 @@ import { unzipSync, strFromU8 } from "fflate";
 import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, PDFName, PDFString, type PDFFont, type PDFPage, rgb, degrees } from "pdf-lib";
 import type { QaqcReportExport } from "./qaqc-reporting-export";
-import { monthlyAsset, UNMAPPED } from "./qaqc-monthly-report-template";
+import { buildMonthlyReportDocument, children, W, monthlyAsset, UNMAPPED } from "./qaqc-monthly-report-template";
+import { renderQaqcWordDocument } from "./qaqc-monthly-report-pdf";
 import { monthlyDashboardData, type DashboardChart } from "./qaqc-monthly-dashboard-data";
 
 // Render the supplied presentation's named shapes and native chart frames directly.
@@ -20,11 +21,29 @@ const box = (xf?: Element): Box => ({ x: emu(a(one(xf, "off"), "x")), y: emu(a(o
 const palette = ["06AEBB", "EB9823", "D58BCB", "A43C96", "582C83", "BBA9D2"];
 
 export async function exportMonthlyDashboardPdf(report: QaqcReportExport): Promise<Buffer> {
-  return exportPresentationDashboardPdf({
+  const dashboard=await exportPresentationDashboardPdf({
     mapped: monthlyDashboardData(report), template: "qaqc-monthly-dashboard-template.pptx", pages: 5,
     title: `QA/QC Monthly Dashboard — ${report.projectName ?? UNMAPPED} — ${report.period}`,
     footer: "Algihaz · QA/QC Monthly Dashboard", kind: "monthly",
   });
+  const pdf=await PDFDocument.load(dashboard);
+  const {body,signoffTable,signatures,project,month}=await buildMonthlyReportDocument(report);
+  // Reuse the report sign-off verbatim; preserve all five dashboard chart pages.
+  for(const block of children(body)) {
+    if(block!==signoffTable && block.localName!=="sectPr") body.removeChild(block);
+  }
+  const heading=body.ownerDocument!.createElementNS(W,"w:p");
+  const run=body.ownerDocument!.createElementNS(W,"w:r");
+  const text=body.ownerDocument!.createElementNS(W,"w:t");
+  text.textContent=`Monthly QA/QC sign-off — ${project} — ${month}`;
+  run.appendChild(text);heading.appendChild(run);body.insertBefore(heading,signoffTable);
+  const signoff=await PDFDocument.load(await renderQaqcWordDocument(body,{
+    title:"Monthly QA/QC sign-off",subject:"Monthly dashboard sign-off",
+    footer:"Algihaz · QA/QC Monthly Dashboard · Sign-off",
+    signatures,pageSize:pdf.getPages()[0]!.getSize(),pageNumberOffset:pdf.getPageCount(),
+  }));
+  for(const page of await pdf.copyPages(signoff,signoff.getPageIndices())) pdf.addPage(page);
+  return Buffer.from(await pdf.save());
 }
 
 export type PresentationDashboard = {

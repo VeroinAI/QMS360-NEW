@@ -136,10 +136,13 @@ export async function qaqcReportForEmail(orgId: string, id: string, includeSigna
   const dailySettings = report.reportType === "daily" ? jsonObject(jsonObject(project?.customFields).qaqcReporting) : {};
   const teamId = (key:string) => typeof dailySettings[key] === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dailySettings[key]) ? dailySettings[key] as string : null;
-  const { dailySignatories } = await import("../lib/qaqc-monthly-signatories");
+  const { dailySignatories, monthlySignatories } = await import("../lib/qaqc-monthly-signatories");
   const signerIds = report.reportType === "daily" ? new Set([
     report.createdById ?? report.submittedById,
     ...dailySignatories({ ...report, history: audit } as QaqcReportExport).map(s => s.userId),
+  ]) : report.reportType === "monthly" ? new Set([
+    report.submittedById,
+    ...monthlySignatories({ ...report, history: audit } as QaqcReportExport).map(s => s.userId),
   ]) : new Set<string | null | undefined>();
   const actorIds = [...new Set([...audit.map((entry) => entry.actorId), report.submittedById, report.createdById, ...signerIds,
     ...["pmId","peId","dcId"].map(teamId)].filter((id): id is string => !!id))];
@@ -147,7 +150,7 @@ export async function qaqcReportForEmail(orgId: string, id: string, includeSigna
     .where(and(eq(users.organizationId, orgId), inArray(users.id, actorIds))) : [];
   const actorNames = new Map(actors.map((user) => [user.id, user.fullName]));
   const userSignatures: Record<string, Uint8Array> = {};
-  if (report.reportType === "daily" && includeSignatures) {
+  if (["daily","monthly"].includes(report.reportType) && includeSignatures) {
     const { readAuditPlanSignature } = await import("../lib/audit-plan-signatures");
     await Promise.all(actors.filter(user => signerIds.has(user.id) && user.signaturePath).map(async user => {
       const image = await readAuditPlanSignature(user.signaturePath);
@@ -171,10 +174,10 @@ export async function qaqcReportForEmail(orgId: string, id: string, includeSigna
       return typeof value === "string" || typeof value === "number" ? String(value) : null;
     })(),
     submittedByName: report.submittedById ? actorNames.get(report.submittedById) ?? null : null,
+    userSignatures,
     submittedByDesignation: report.submittedById ? actors.find(user => user.id === report.submittedById)?.designation ?? null : null,
     ...(report.reportType === "daily" ? {
       createdByName:actorNames.get(report.createdById) ?? null,
-      userSignatures,
       organizationTimezone:dailyOrganization?.timezone ?? null,
       projectTeam:Object.fromEntries([["pmName","pmId"],["peName","peId"],["dcName","dcId"]]
         .map(([name,key])=>[name,actorNames.get(teamId(key!) ?? "") ?? null])),

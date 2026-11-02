@@ -260,6 +260,9 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   const signatories = monthlySignatories(report);
   const signoffTable = blocks[53]!;
   const sourceRow = children(signoffTable,"tr")[0]!;
+  const signatures = new Map<Element,Uint8Array>();
+  const submittedSignature = report.userSignatures?.[report.submittedById ?? ""];
+  if(submittedSignature) signatures.set(children(sourceRow,"tc")[1]!,submittedSignature);
   for (const signatory of [...signatories.filter(s => !s.final), ...signatories.filter(s => s.final)]) {
     const row = sourceRow.cloneNode(true) as Element;
     children(row,"tc").forEach(cell => row.removeChild(cell));
@@ -276,8 +279,10 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
       row.appendChild(cell);
     }
     signoffTable.appendChild(row);
+    const image=report.userSignatures?.[signatory.userId ?? ""];
+    if(image) signatures.set(children(row,"tc")[0]!,image);
   }
   // Explicitly remove the reviewer appendix, sample header, comments and sample footer.
   for (const block of blocks.slice(54)) if (block.localName !== "sectPr") body.removeChild(block);
-  return { body, project, month };
+  return { body, project, month, signoffTable, signatures };
 }

@@ -46,7 +46,7 @@ describe("real email PDFs match named download layouts", () => {
     expect(emailPdf.getPageCount()).toBe(downloadPdf.getPageCount());
     expect(emailPdf.getPages().map(page => page.getSize())).toEqual(downloadPdf.getPages().map(page => page.getSize()));
     if (layout === "dashboard") {
-      expect(emailPdf.getPageCount()).toBe(5);
+      expect(emailPdf.getPageCount()).toBe(type === "monthly" ? 6 : 5);
       expect(emailPdf.getPage(0).getWidth()).toBeGreaterThan(emailPdf.getPage(0).getHeight());
     } else {
       expect(emailPdf.getPage(0).getHeight()).toBeGreaterThan(emailPdf.getPage(0).getWidth());

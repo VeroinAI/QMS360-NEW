@@ -90,12 +90,12 @@ describe("Monthly dashboard PDF supplied presentation and workbook", () => {
     expect(m.values["QMS name 1"]).toBe("Actual QMS document");
     expect(m.values["QMS detail 1"]).toContain("Actual register remarks");
   });
-  it("renders five landscape pages through the existing export dispatcher without illustrative values", async () => {
+  it("renders five chart pages plus landscape sign-off without illustrative values", async () => {
     const draw = vi.spyOn(PDFPage.prototype, "drawText");
     try {
       const bytes = await exportQaqcReportPdf(report, { templateId: "monthly-dashboard" });
       const pdf = await PDFDocument.load(bytes);
-      expect(pdf.getPageCount()).toBe(5);
+      expect(pdf.getPageCount()).toBe(6);
       for (const page of pdf.getPages()) expect(page.getSize()).toEqual({ width: 960, height: 540 });
       const text = draw.mock.calls.map(c => c[0]).join(" ");
       const governancePage = draw.mock.contexts.find(page =>
@@ -114,7 +114,7 @@ describe("Monthly dashboard PDF supplied presentation and workbook", () => {
   });
   it("renders incomplete and long-value legacy drafts without invalid chart geometry", async () => {
     const bytes = await exportQaqcReportPdf({ ...report, state: "draft", projectName: "Long project name ".repeat(25), data: { narrative: "Long assessment ".repeat(200) }, computed: {}, baseline: {} }, { templateId: "monthly-dashboard" });
-    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(5);
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(6);
     await writeFile("../../generated-artifacts/monthly-dashboard-empty-preview.pdf", bytes);
   });
 });

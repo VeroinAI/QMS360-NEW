@@ -52,4 +52,19 @@ certify a changed or still-pending report.
 
 **How to apply:** Use recorded approval actions and dates. A single-stage
 approval has only the final sign-off, and missing legacy evidence must not be
-fabricated. Keep other report types and the separate dashboard layout unchanged.
+fabricated. Keep other report types independent.
+
+Monthly Report PDF sign-off includes available user-profile signatures below
+Submitted by, Reviewed by and Approved by, matched by actual signer ID in the
+report organization. Monthly Dashboard PDF adds the same sign-off evidence,
+dates and signatures on a separate landscape page after its five chart pages.
+Downloads and newly generated email attachments must share this mapping.
+
+**Why:** The business explicitly requested the Monthly equivalents of the Daily
+PDF signature and dashboard sign-off behavior, without changing approval logic.
+
+**How to apply:** Keep the report's confirmation and submitter designation.
+Include only actual current-cycle completed approvals; keep reviewers in action
+date order and final approval last. Missing signatures are not invented. These
+are profile images read at generation time, not immutable historical evidence;
+replacing a profile signature changes future exports, not already frozen files.

@@ -18,11 +18,12 @@ const height = (lines: Line[]) => lines.reduce((s,l) => s+l.before+l.height+l.af
  * DejaVu is used only for symbols absent from Carlito. No office/browser runtime.
  */
 export async function exportMonthlyMetricsPdf(report: QaqcReportExport): Promise<Buffer> {
-  const { body, project, month } = await buildMonthlyReportDocument(report);
+  const { body, project, month, signoffTable, signatures } = await buildMonthlyReportDocument(report);
   return renderQaqcWordDocument(body, {
     title:`QA/QC Metrics – Monthly Report — ${project} — ${month}`,
     subject:"QA/QC monthly metrics",
     footer:`Algihaz · QA/QC Monthly Metrics Report · ${month}`,
+    signatures,keepTogetherTables:new Set([signoffTable]),
   });
 }
 
