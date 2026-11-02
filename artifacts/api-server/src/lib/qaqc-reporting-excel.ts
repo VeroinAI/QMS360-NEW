@@ -244,9 +244,9 @@ export function makeQaqcReportingTemplate(
     ["Report type", reportType],
     ["Period", "Set the reporting period in the application before importing."],
     ...(reportType === "daily" ? [
-      ["Drawings/Submittals by Discipline", "For new daily-addition reports, enter only the selected day's additions. Yesterday is cumulative and loaded automatically. Next Yesterday = Yesterday + Current Date. Enter 0 for no additions."],
+      ["Drawings/Submittals by Discipline", "For new reports, enter cumulative figures through the selected date. Till yesterday is the previous day's submitted cumulative balance. It is not added to Current Date. Copy previous day data to start from the previous balance."],
       ["Legacy daily reports", "Existing cumulative-entry reports retain their original input meaning. Check the form's input guidance before importing. This workbook never changes historical report interpretation."],
-      ["Other daily sections", "For new reports, Document Types, Approved status by Revision, Correspondence and Rejected Submissions are daily additions; next Yesterday = previous Yesterday + Current Date. Older reports retain their saved input meaning. Pending/ageing remains an end-of-day snapshot and must not be accumulated."],
+      ["Other daily sections", "For new reports, Document Types, Approved status by Revision, Correspondence and Rejected Submissions contain cumulative figures through the selected date. Older reports retain their saved input meaning; check the form guidance before importing. Pending/ageing remains an end-of-day snapshot."],
     ] : []),
     ["Date format", "DD/MM/YYYY. Use this format for all date cells and dates inside JSON values."],
     ["Project", "Choose a project in the application. Do not enter or edit a project UUID in this workbook."],

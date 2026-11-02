@@ -25,6 +25,11 @@ const report: QaqcReportExport = {
 };
 
 describe("Daily dashboard supplied presentation and mapping workbook", () => {
+  it("keeps cumulative-mode report and dashboard totals aligned without adding yesterday twice", () => {
+    const cumulative = { ...data, dailyDisciplineInputMode: "daily_cumulative_v2", dailySupplementInputMode: "daily_cumulative_v2" };
+    expect(dailyDashboardData({ ...report, data: cumulative, computed: calculateReport("daily", cumulative, baseline) }))
+      .toEqual(dailyDashboardData(report));
+  });
   it("maps versioned daily additions to cumulative totals without summing unrelated snapshots", () => {
     const dailyData = { ...data, dailyDisciplineInputMode: "daily_additions_v1" };
     const m = dailyDashboardData({ ...report, data: dailyData, computed: calculateReport("daily", dailyData, baseline) });

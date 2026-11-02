@@ -33,6 +33,12 @@ async function mapped(r=report) {
 const table=(result:Awaited<ReturnType<typeof mapped>>,heading:string)=>result.blocks.find(b=>b.localName==="tbl"&&b.textContent!.startsWith(heading))!;
 const cells=(t:ReturnType<typeof table>,r:number)=>children(children(t,"tr")[r]!,"tc");
 describe("Word-based Daily Submission download",()=>{
+  it("renders new cumulative entries exactly once, matching the cumulative download rather than adding the baseline", async () => {
+    const cumulative = { ...data, dailyDisciplineInputMode: "daily_cumulative_v2", dailySupplementInputMode: "daily_cumulative_v2" };
+    const existing = await mapped();
+    const current = await mapped({ ...report, data: cumulative, computed: calculateReport("daily", cumulative, baseline) });
+    expect(current.text).toBe(existing.text);
+  });
   it("uses actual project identity, team, preparer and organization-local submission time, not sample data",async()=>{
     const {text}=await mapped();
     for(const s of ["Example Construction","PROJECT-900","CC-900","Example PM","Example PE","Example DC","Actual Preparer","19-10-2026  15:45","Asia/Riyadh"])expect(text).toContain(s);

@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request } from "express";
 import { projectDashboardDimensions } from "../lib/qaqc-project-dimensions";
 import { allocateCsatReference } from "../lib/csat-numbering";
 import { assertNoMonthlyDuplicate, dailyDuplicateReason, isReportPeriodDuplicate, lockDailyCreation, lockMonthlyCreation, monthlyDuplicateReason } from "../lib/qaqc-report-duplicates";
-import { DAILY_ADDITIONS, DAILY_SUPPLEMENT_ADDITIONS, dailyDisciplineSnapshot, usesDailyAdditions, usesDailySupplementAdditions } from "@workspace/field-controls";
+import { DAILY_ADDITIONS, DAILY_SUPPLEMENT_ADDITIONS, DAILY_CUMULATIVE, dailyDisciplineSnapshot, usesDailyAdditions, usesDailySupplementAdditions } from "@workspace/field-controls";
 import { and, asc, count, desc, eq, getTableColumns, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
   auditPlans, businessUnits, db, organizations, projects, qaqcMetricEntries, materialInspectionEntries, qtbtEntries,
@@ -644,7 +644,19 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
       isNull(auditPlans.deletedAt), lte(auditPlans.auditDate, periodEnd),
     )).orderBy(desc(auditPlans.auditDate)).limit(20) : [];
   const last = history.previous;
-  const baseline = Object.keys(history.baseline).length ? history.baseline : legacy;
+  const priorDailyPeriod = shiftPeriod(period, "daily", -1);
+  const dailyPreviousAvailable = type === "daily" && last?.period === priorDailyPeriod;
+  const [latestDaily] = type === "daily" ? await db.select({ period: qaqcReportSubmissions.period })
+    .from(qaqcReportSubmissions).where(and(
+      eq(qaqcReportSubmissions.organizationId, org(req)),
+      eq(qaqcReportSubmissions.projectId, projectId),
+      eq(qaqcReportSubmissions.reportType, "daily"),
+      inArray(qaqcReportSubmissions.state, ["submitted", "approved"]),
+      isNull(qaqcReportSubmissions.deletedAt),
+    )).orderBy(desc(qaqcReportSubmissions.period)).limit(1) : [];
+  // Never present an older day's balance as the selected date's immediate predecessor.
+  const baseline = type === "daily" && last && !dailyPreviousAvailable ? {}
+    : Object.keys(history.baseline).length ? history.baseline : legacy;
   const targets = await targetsFor(req, project.customFields, settings);
   const duplicateReason = type === "monthly" ? await monthlyDuplicateReason(org(req), projectId, period)
     : type === "daily" ? await dailyDuplicateReason(org(req), projectId, period) : null;
@@ -675,7 +687,10 @@ router.get("/context", reportPermission((req) => typeFor(req), "select"), asyncH
       peName: allUsers.find((u) => u.id === userId(settings, "peId"))?.fullName ?? null,
       dcName: allUsers.find((u) => u.id === userId(settings, "dcId"))?.fullName ?? null,
     },
-    baseline: { ...baseline, previousPeriod: last?.period ?? null,
+    baseline: { ...baseline, previousPeriod: type === "daily" && !dailyPreviousAvailable ? null : last?.period ?? null,
+      ...(type === "daily" ? { dailyPreviousAvailable, lastSubmittedPeriod: latestDaily?.period ?? null,
+        missingFrom: last && !dailyPreviousAvailable ? shiftPeriod(last.period, "daily", 1) : null,
+        missingTo: last && !dailyPreviousAvailable ? priorDailyPeriod : null } : {}),
       ...(type === "daily" && last && !usesDailyAdditions(last.data as any) ? { dailyDisciplineLegacyPrevious: true } : {}),
       ...(type === "daily" && last && !usesDailySupplementAdditions(last.data as any) ? { dailySupplementLegacyPrevious: true } : {}),
       hasBaseline: !!(baseline as Record<string,unknown>).historicalSetup || !!(baseline as Record<string,unknown>).dailyHistoricalSetup || !!last || Object.keys(legacy).length > 0, legacyFallback: Object.keys(legacy).length > 0 },
@@ -765,8 +780,8 @@ router.post("/reports", reportPermission((req) => typeFor(req), "own"), asyncHan
   if (!projectId || !isObject(req.body?.data)) throw new HttpError(422, "projectId and object data are required");
   let data = zeroFill(type, req.body.data);
   if (type === "daily") {
-    data.dailyDisciplineInputMode = DAILY_ADDITIONS;
-    data.dailySupplementInputMode = DAILY_SUPPLEMENT_ADDITIONS;
+    data.dailyDisciplineInputMode = DAILY_CUMULATIVE;
+    data.dailySupplementInputMode = DAILY_CUMULATIVE;
   }
   await projectAllowed(req, projectId);
   if (type === "monthly") {
@@ -847,8 +862,10 @@ router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (re
   // silently reinterpret its existing cumulative entries as daily additions.
   if (before.reportType === "daily") {
     if (before.data?.dailyDisciplineInputMode === DAILY_ADDITIONS) data.dailyDisciplineInputMode = DAILY_ADDITIONS;
+    else if (before.data?.dailyDisciplineInputMode === DAILY_CUMULATIVE) data.dailyDisciplineInputMode = DAILY_CUMULATIVE;
     else delete data.dailyDisciplineInputMode;
     if (usesDailySupplementAdditions(before.data as any)) data.dailySupplementInputMode = DAILY_SUPPLEMENT_ADDITIONS;
+    else if (before.data?.dailySupplementInputMode === DAILY_CUMULATIVE) data.dailySupplementInputMode = DAILY_CUMULATIVE;
     else delete data.dailySupplementInputMode;
   }
   if (before.data?.assessmentConfirmationRequired === true) data.assessmentConfirmationRequired = true;

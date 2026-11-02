@@ -1,22 +1,22 @@
 ---
 name: Daily discipline input policy
-description: Daily additions versus cumulative Yesterday semantics, including the later extension to tiles 3–6.
+description: Current cumulative-entry requirement and compatibility with earlier daily-addition reports.
 ---
 
-For Daily Submission Drawings/Submittals by Discipline, Current Date should represent that day's addition. Yesterday should represent the cumulative balance through the prior reporting date, including the one-time historical opening.
+New Daily Submissions use cumulative Current Date inputs across Drawings/Submittals, Document Types, Approved status by Revision, Correspondence and Rejected Submissions. “Till yesterday” is the immediately previous submitted calendar day's cumulative snapshot, not Yesterday plus today's cumulative input.
 
-**Why:** The user explicitly clarified that a report with Yesterday Civil Total 100 and Current Date Total 12 must yield Yesterday Total 112 on the next date. This supersedes the earlier answer that Current Date contains cumulative figures including history.
+**Why:** On 2026-11-02 the user explicitly changed the input rule back to cumulative values and requested removal of addition-based carry-forward across all Daily tiles. This supersedes the earlier 100 + 12 = 112 daily-addition requirement for new reports.
 
-**How to apply:** Accumulate the affected count fields once, derive totals from the status fields, and distinguish raw daily additions from cumulative snapshots in carry-forward, dashboards and exports. Do not blindly apply addition to pending/ageing snapshots, percentages or unrelated sections. Do not silently reinterpret all historical records as daily additions; preserve approved history and assess legacy semantics before an authorized correction.
+**How to apply:** New reports retain entered cumulative values unchanged. Derive totals from statuses and movement as current cumulative minus baseline. Align downloads, email attachments and dashboards through the same snapshot interpretation. Pending/ageing remains a snapshot. Preserve existing records' original input meaning; normalize prior daily-addition records once when obtaining their cumulative end-of-day snapshot.
 
-Use an explicit input-contract version for new daily-addition reports; unclassified historical reports retain their legacy cumulative-entry interpretation until a reviewed correction is approved.
+Keep explicit input contracts for cumulative and earlier daily-addition records. Never reclassify existing submitted history or draft values merely because they are saved again.
 
-**Why:** The user required both the new arithmetic and protection against silently reinterpreting earlier cumulative-entry data. Lower Current Date values alone cannot safely identify historical intent.
+**Why:** Input semantics have changed more than once; values alone cannot establish historical intent, and the user previously instructed that QA history remain unchanged.
 
-**How to apply:** Saving or importing an existing legacy report must not automatically convert its input meaning. Keep daily raw counts separate from end-of-day snapshots so rendering, exports, repeated saves and carry-forward do not add Yesterday twice. Refresh editable draft baselines without changing their entered counts; preserve frozen submitted history.
+**How to apply:** Preserve stored input-mode metadata on edits and imports. Historical addition-mode inputs still need their saved baseline to produce a snapshot; cumulative inputs do not. Never sum cumulative snapshots twice.
 
-The user subsequently extended the same daily-addition rule to Document Types, Approved status by Revision, Correspondence and Rejected Submissions. Match revision history by category and normalized revision name; percentages use cumulative approvals divided by the category's cumulative discipline total. Pending-document ageing remains a snapshot.
+New Report UX must hide the blocked-entry banner for a blank project, show the project's last submitted report date after project selection, and provide informational missing-date guidance after date selection. Copy previous day data is available only for the exact preceding submitted date.
 
-**Why:** The user explicitly requested carry-forward for the four remaining tiles after the discipline fix. Earlier instructions to keep these four sections as snapshots are superseded for new reports, but the user's decision to keep existing QA history unchanged still applies.
+**Why:** The user requested these behaviors alongside the cumulative-entry change to avoid confusing initial errors and copying an older report as though it were yesterday.
 
-**How to apply:** Version this additional change independently of the discipline-only contract. Existing discipline-addition reports may still contain cumulative supplementary inputs and must not be silently reinterpreted. New reports carry historical opening balances plus daily additions once across all five count sections.
+**How to apply:** Keep server-side sequence and duplicate protections. Copy business inputs only, never workflow or identity metadata. Display the organization-formatted selected date in Current Date headers. First reports can use the one-time go-live opening snapshot, but it is not a prior submitted report for enabling the copy button.

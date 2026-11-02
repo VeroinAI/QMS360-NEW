@@ -117,7 +117,7 @@
 - [Daily historical balances](daily-historical-balances-policy.md) — one-time pre-report snapshots through the day before go-live; scoped historical grants and atomic multi-project imports.
 - [Monthly report uniqueness](monthly-report-uniqueness.md) — all workflow states block duplicate project/month reports; selection feedback and race-safe save checks are required.
 - [Daily report uniqueness](daily-report-uniqueness.md) — one active report per project/date across all statuses; warn on selection and recheck under the shared project lock at save.
-- [Daily discipline inputs](daily-discipline-input-policy.md) — clarified Current Date daily additions: Yesterday 100 + Current 12 must carry forward as 112, superseding cumulative-entry guidance.
+- [Daily discipline inputs](daily-discipline-input-policy.md) — new reports use cumulative Current Date and exact prior-day snapshots; preserve earlier addition-mode history and organization-formatted headings.
 - [Department Lessons](department-lessons-policy.md) — explicit department role scopes and independent department reference sequences; preserve project behavior and official PDF branding.
 - [Department role boundaries](department-role-scope-policy.md) — shared Department Master without Lessons access; department-only entry grants no projects or new QA/QC reporting models.
 - [Project closure target ownership](project-closure-target-ownership.md) — edit targets in Project Master; keep Reporting Settings read-only and preserve hidden workflow configuration.

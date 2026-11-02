@@ -1,5 +1,5 @@
-import { formatDateTime } from '@workspace/spreadsheet-dates';
-import { DAILY_ADDITIONS, DAILY_SUPPLEMENT_ADDITIONS, canMaintainMonthlyField, monthlySectionForField, monthlySectionPayload } from '@workspace/field-controls';
+import { formatDate, formatDateTime } from '@workspace/spreadsheet-dates';
+import { DAILY_CUMULATIVE, canMaintainMonthlyField, monthlySectionForField, monthlySectionPayload } from '@workspace/field-controls';
 import { workflowConfirmationMessage } from "@/lib/workflow-confirmation";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
@@ -33,6 +33,7 @@ import { CsatDownloadButton } from './csat-download-button';
 import { DailyDownloadButton } from './daily-download-button';
 import { validateCsat } from './csat-validation';
 import { DailyForm } from './daily-form';
+import { copyPreviousDailyData } from './daily-entry-policy';
 import { FormCtx, ReadOnlyValue } from './form-kit';
 import { AdditionalMetricsTiles } from './additional-metrics-tiles';
 import { editAssessmentData, resetAssessmentReview } from './assessment-editing';
@@ -78,8 +79,10 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const reportQ = useGetQaqcSowReport(id ?? '', { query: { enabled: !!id, queryKey: getGetQaqcSowReportQueryKey(id ?? ''), ...(sequentialApproval ? { staleTime: 0, refetchOnMount: 'always' as const, refetchInterval: 30_000 } : {}) } });
   const report = reportQ.data;
   const [projectId, setProjectId] = useState('');
+  const [dailyDateChosen, setDailyDateChosen] = useState(false);
   const [period, setPeriod] = useState(reportType === 'csat' ? '' : defaultPeriod(reportType));
   const pid = report?.projectId ?? projectId;
+  useEffect(() => setDailyDateChosen(false), [pid]);
   const per = report?.period ?? period;
   const ctxParams = { projectId: pid || undefined, reportType, period: per || undefined };
   const ctxQ = useGetQaqcSowContext(ctxParams, { query: { queryKey: getGetQaqcSowContextQueryKey(ctxParams), enabled: !id || !!report, ...(sequentialApproval ? { staleTime: 0, refetchOnMount: 'always' as const } : {}), refetchInterval: sequentialApproval ? 30_000 : false, refetchOnWindowFocus: true } });
@@ -100,7 +103,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
     staleTime: 30_000,
     refetchInterval: metricsEntry ? 60_000 : false,
   } });
-  const [data, setData] = useState<Obj>(() => (metricsEntry ? { ...defaultData(reportType), meetings: [{ type: '', lastDate: '', nextDate: '' }], internalAudit: {}, manpower: [{ department: '', departmentSource: 'master' }], training: { trainingCount: 0, attendance: 0, durationMinutes: 0 }, assessmentConfirmationRequired: true, assessmentConfirmed: false } : { ...defaultData(reportType), ...(reportType === 'daily' ? { dailyDisciplineInputMode: DAILY_ADDITIONS, dailySupplementInputMode: DAILY_SUPPLEMENT_ADDITIONS } : {}) }));
+  const [data, setData] = useState<Obj>(() => (metricsEntry ? { ...defaultData(reportType), meetings: [{ type: '', lastDate: '', nextDate: '' }], internalAudit: {}, manpower: [{ department: '', departmentSource: 'master' }], training: { trainingCount: 0, attendance: 0, durationMinutes: 0 }, assessmentConfirmationRequired: true, assessmentConfirmed: false } : { ...defaultData(reportType), ...(reportType === 'daily' ? { dailyDisciplineInputMode: DAILY_CUMULATIVE, dailySupplementInputMode: DAILY_CUMULATIVE } : {}) }));
   const initFor = useRef<string | null>(null);
   useEffect(() => { if (report && initFor.current !== report.id) { initFor.current = report.id; setData({ ...defaultData(reportType), ...(report.data as Obj) }); } }, [report, reportType]);
 
@@ -122,7 +125,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
   const editable = !displayOnly && (!report || (metricsEntry
     ? canEditMetricsDocument(report.state, canEdit)
     : report.state === 'draft' || report.state === 'sent_back'));
-  const blocked = !report && ctx.canStart === false && (reportType !== 'monthly' || !!pid);
+  const blocked = !report && !!pid && ctx.canStart === false;
   const readOnly = !editable || !canEdit || !canMaintain || blocked || !pid || locked || busy || create.isPending || update.isPending || aiGenerating || (datedReport && (ctxQ.isLoading || !!ctxQ.error));
   const frozen = !!report && !editable;
   const baseline: Obj = (frozen ? report?.baseline : ctx.baseline) ?? {};
@@ -285,7 +288,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
       <Wrap>
         <div className={metricsEntry ? 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3' : 'grid gap-3 sm:grid-cols-2 lg:grid-cols-4'}>
           <div className="space-y-1"><Label htmlFor="metrics-project" className="text-xs text-muted-foreground">{metricsEntry ? 'Project Name' : 'Project'}{metricsEntry && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{report ? <ReadOnlyValue label="" value={projectName} /> : <Select disabled={fc.fieldProps('projectId').disabled || busy || create.isPending} value={projectId} onValueChange={v => { clearAiSuggestion(); setData(d => resetAssessmentReview(d, metricsEntry)); setProjectId(v); }}><SelectTrigger id="metrics-project" aria-required={metricsEntry}><SelectValue placeholder={ctxQ.isLoading ? 'Loading projects' : 'Select project'} /></SelectTrigger><SelectContent>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</SelectItem>)}</SelectContent></Select>}</div>
-          <div className="space-y-1"><Label htmlFor={metricsEntry ? 'metrics-period' : undefined} className="text-xs text-muted-foreground">{metricsEntry ? 'Month / Year' : reportType === 'monthly' ? 'Period (month)' : 'Date'}{metricsEntry && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{report ? <ReadOnlyValue label="" value={metricsEntry ? `${per.slice(5, 7)}-${per.slice(0, 4)}` : per} /> : reportType === 'csat' ? <><Input aria-label="Date" type="date" min="1900-01-01" max={typeof ctx.serverToday === 'string' ? ctx.serverToday : todayIso()} disabled={fc.fieldProps('period').disabled || busy || create.isPending} value={period} onChange={e => setPeriod(e.target.value)} /><p className="text-xs text-muted-foreground">The CSAT reference uses the year from this date. Date is fixed when the draft is created.</p></> : reportType !== 'monthly' ? <Input disabled={fc.fieldProps('period').disabled || busy || create.isPending} type="date" max={todayIso()} value={period} onChange={e => setPeriod(e.target.value)} /> : <Input id={metricsEntry ? 'metrics-period' : undefined} aria-required={metricsEntry} disabled={fc.fieldProps('period').disabled || busy || create.isPending} type="month" max={todayIso().slice(0, 7)} value={period.slice(0, 7)} onChange={e => { if (e.target.value) { clearAiSuggestion(); setData(d => resetAssessmentReview(d, metricsEntry)); setPeriod(`${e.target.value}-01`); } }} />}</div>
+          <div className="space-y-1"><Label htmlFor={metricsEntry ? 'metrics-period' : undefined} className="text-xs text-muted-foreground">{metricsEntry ? 'Month / Year' : reportType === 'monthly' ? 'Period (month)' : 'Date'}{metricsEntry && <span className="ml-1 text-destructive" aria-hidden="true">*</span>}</Label>{report ? <ReadOnlyValue label="" value={metricsEntry ? `${per.slice(5, 7)}-${per.slice(0, 4)}` : per} /> : reportType === 'csat' ? <><Input aria-label="Date" type="date" min="1900-01-01" max={typeof ctx.serverToday === 'string' ? ctx.serverToday : todayIso()} disabled={fc.fieldProps('period').disabled || busy || create.isPending} value={period} onChange={e => setPeriod(e.target.value)} /><p className="text-xs text-muted-foreground">The CSAT reference uses the year from this date. Date is fixed when the draft is created.</p></> : reportType !== 'monthly' ? <Input aria-label="Date" disabled={fc.fieldProps('period').disabled || busy || create.isPending} type="date" max={todayIso()} value={period} onChange={e => { setPeriod(e.target.value); setDailyDateChosen(true); }} /> : <Input id={metricsEntry ? 'metrics-period' : undefined} aria-required={metricsEntry} disabled={fc.fieldProps('period').disabled || busy || create.isPending} type="month" max={todayIso().slice(0, 7)} value={period.slice(0, 7)} onChange={e => { if (e.target.value) { clearAiSuggestion(); setData(d => resetAssessmentReview(d, metricsEntry)); setPeriod(`${e.target.value}-01`); } }} />}</div>
           <ReadOnlyValue label="Cost centre" value={details.costCentre} />
           {!metricsEntry && <><ReadOnlyValue label="Project manager" value={details.pmName} /><ReadOnlyValue label="Project engineer" value={details.peName} /><ReadOnlyValue label="Document controller" value={details.dcName} /></>}
           {reportType === 'csat' && <div className="space-y-1"><Label htmlFor="csat-reference" className="text-xs text-muted-foreground">Reference</Label><Input id="csat-reference" className="bg-muted/40 text-muted-foreground" readOnly value={report?.referenceNumber ?? ''} placeholder={report ? 'Not allocated (historical report)' : 'Allocated when you create the draft'} /><p className="text-xs text-muted-foreground">{report ? 'Assigned reference is retained.' : 'Uses the saved CSAT range, selected project and Date year.'}</p></div>}
@@ -293,7 +296,16 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
         {ctxQ.error && <ErrorBox error={ctxQ.error} retry={() => ctxQ.refetch()} />}
         {checkingAvailability && <p role="status" className="text-sm text-muted-foreground">Checking {reportType === 'daily' ? 'daily' : 'monthly'} report availability for this project and reporting {reportType === 'daily' ? 'date' : 'period'}...</p>}
         {!report && creationError && !blocked && <Alert variant="destructive"><AlertTitle>Could not create {reportType === 'daily' ? 'daily' : 'monthly'} report</AlertTitle><AlertDescription>{creationError}</AlertDescription></Alert>}
-        {blocked && <Alert variant="destructive"><AlertTitle>Entry is blocked</AlertTitle><AlertDescription>{ctx.blockedReason ?? 'The immediately preceding period must be submitted first.'}</AlertDescription></Alert>}
+        {reportType === 'daily' && pid && !ctxQ.isFetching && <p role="status" className="text-sm text-muted-foreground">{ctx.baseline?.lastSubmittedPeriod ? `Last submitted report date: ${formatDate(ctx.baseline.lastSubmittedPeriod)}.` : 'No submitted Daily Submission exists for this project.'}</p>}
+        {blocked && !ctxQ.isFetching && (reportType !== 'daily' || dailyDateChosen) && <Alert variant={reportType === 'daily' ? 'default' : 'destructive'}><AlertTitle>{reportType === 'daily' ? 'Reporting date information' : 'Entry is blocked'}</AlertTitle><AlertDescription>{reportType === 'daily' && ctx.baseline?.missingFrom
+          ? `Enter and submit daily reports from ${formatDate(ctx.baseline.missingFrom)} through ${formatDate(ctx.baseline.missingTo)} in date order before entering the selected report for ${formatDate(per)}. ${ctx.blockedReason ?? ''}`
+          : ctx.blockedReason ?? 'The immediately preceding period must be submitted first.'}</AlertDescription></Alert>}
+        {reportType === 'daily' && !report && editable && <Button type="button" variant="outline"
+          disabled={readOnly || !per || ctxQ.isFetching || !baseline.dailyPreviousAvailable}
+          onClick={() => {
+            setData(current => copyPreviousDailyData(current, baseline, key => !fc.fieldProps(`data.${key}`).disabled));
+            toast({ title: 'Previous day copied', description: 'Review the copied values and update the cumulative figures before saving.' });
+          }}>Copy previous day data</Button>}
         {pid && !blocked && !report && reportType === 'daily' && baseline?.dailyHistoricalSetup && <Alert><AlertTitle>Historical opening balances in use</AlertTitle><AlertDescription>Yesterday values come from the project's go-live opening load until an earlier submitted Daily Submission is available.</AlertDescription></Alert>}
         {pid && !blocked && !report && reportType !== 'csat' && !baseline?.hasBaseline && <Alert><AlertTitle>First report for this project</AlertTitle><AlertDescription>No earlier submission exists, so the baseline starts from zero.</AlertDescription></Alert>}
         {baseline?.historicalSetup ? <p className="text-xs text-muted-foreground">Opening balances from Historical Balances / Go-live Setup for {String(baseline.historicalSetup.period)}{frozen ? ' (frozen at submission)' : ''}.</p> : baseline?.previousPeriod && <p className="text-xs text-muted-foreground">Baseline taken from the submitted report for {String(baseline.previousPeriod)}{frozen ? ' (frozen at submission)' : ''}.</p>}
@@ -317,7 +329,7 @@ export function ReportEditor({ reportType, id, metricsEntry = false }: { reportT
             portfolio={(portfolioQ.data as Obj | undefined)?.portfolioPqi}
             portfolioLoading={portfolioQ.isLoading} portfolioError={portfolioQ.isError} />
             <AdditionalMetricsTiles Tile={Tile} calc={monthly} baseline={baseline} onDraftAi={draftAi} aiBusy={ai.isPending || aiGenerating || !canAi || !canSection('assessment')} aiDraft={aiDraft} aiError={aiError} onUseDraft={useAiDraft} /></div> : reportType === 'monthly' ? <MonthlyForm calc={monthly} target={targets} onDraftAi={draftAi} aiBusy={ai.isPending || aiGenerating || !canAi || !canSection('assessment')} aiDraft={aiDraft} aiError={aiError} onUseDraft={useAiDraft} />
-            : reportType === 'daily' ? <DailyForm calc={daily} baseline={baseline} /> : <CsatForm projectName={projectName} />}</div>
+            : reportType === 'daily' ? <DailyForm calc={daily} baseline={baseline} period={per} /> : <CsatForm projectName={projectName} />}</div>
           <aside className={metricsEntry ? 'grid items-start gap-4 md:grid-cols-2' : 'space-y-4 lg:sticky lg:top-4 lg:self-start'}>
             <Card><CardHeader className="pb-2"><CardTitle className="text-base">Validation</CardTitle></CardHeader><CardContent className="text-sm">{reportType === 'daily'
               ? <DailyValidationIssues issues={daily.validationIssues} rootRef={editorRoot} />

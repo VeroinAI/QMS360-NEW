@@ -1,4 +1,5 @@
 import { NativeSelection } from '@/components/ui/native-selection';
+import { formatDate } from '@workspace/spreadsheet-dates';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,7 @@ export function moveRevision(revisions: Obj, from: Category, index: number, to: 
   };
 }
 
-export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
+export function ApprovedRevisions({ baseline, period }: { baseline: Obj; period?: string }) {
   const f = useForm();
   const disabled = f.readOnly || f.fc('revisions').disabled;
   const revisions: Obj = f.data.revisions ?? {};
@@ -37,10 +38,10 @@ export function ApprovedRevisions({ baseline }: { baseline: Obj }) {
     .map((row: Obj) => ({ cat, row })));
   const add = (cat: Category, row: Obj) => f.set(['revisions'], { ...revisions, [cat]: [...(revisions[cat] ?? []), row] });
 
-  return <Section title="4. Approved status by Rivision" description={`${usesDailySupplementAdditions(f.data) ? 'Enter approvals added today in Current Approved. Next day’s Yesterday Approved includes Yesterday + Current, matched by document type and revision number.' : 'Legacy report: Current Approved retains its original cumulative-entry meaning.'} Drawing revision percentages use total cumulative Drawings; Submittal revision percentages use total cumulative Submittals.`}>
+  return <Section title="4. Approved status by Rivision" description={`${usesDailySupplementAdditions(f.data) ? 'Enter approvals added today in Current Approved. Next day’s Yesterday Approved includes Yesterday + Current, matched by document type and revision number.' : 'Enter cumulative approvals through the selected date. Till yesterday is the previous day’s submitted cumulative approval count, matched by document type and revision number.'} Drawing revision percentages use total cumulative Drawings; Submittal revision percentages use total cumulative Submittals.`}>
     <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm" aria-label="Approved status by revision">
       <thead><tr>
-        {['Document Type', 'Revision No.', 'Yesterday Approved (auto)', 'Current Approved', '% of Overall Cum'].map((label, i) =>
+        {['Document Type', 'Revision No.', 'Till yesterday', period ? `Current Date (${formatDate(period)})` : 'Current Date', '% of Overall Cum'].map((label, i) =>
           <th key={label} scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">{label}{(i === 0 || i === 3) && <span aria-hidden="true"> *</span>}</th>)}
         <th scope="col"><span className="sr-only">Actions</span></th>
       </tr></thead>

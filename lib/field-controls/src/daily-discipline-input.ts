@@ -1,6 +1,7 @@
 /** Unmarked historical records keep their original cumulative-entry meaning. */
 export const DAILY_ADDITIONS = "daily_additions_v1";
 export const DAILY_SUPPLEMENT_ADDITIONS = "daily_supplement_additions_v1";
+export const DAILY_CUMULATIVE = "daily_cumulative_v2";
 export type DailyData = Record<string, any>;
 export function usesDailyAdditions(data: DailyData) {
   return data.dailyDisciplineInputMode === DAILY_ADDITIONS;

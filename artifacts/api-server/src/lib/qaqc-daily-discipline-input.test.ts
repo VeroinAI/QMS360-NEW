@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DAILY_ADDITIONS, dailyDisciplineSnapshot } from "@workspace/field-controls";
+import { DAILY_ADDITIONS, DAILY_CUMULATIVE, dailyDisciplineSnapshot } from "@workspace/field-controls";
 import { calculateReport, DISCIPLINES } from "./qaqc-reporting-model";
 import { dailyDashboard, type DashboardReport } from "./qaqc-consolidated-daily";
 const grid = (counts: number[]) => Object.fromEntries(["drawings", "submittals"].map(category => [category,
@@ -9,6 +9,28 @@ const opening = { disciplines: grid([25, 25, 25, 25]), pending: { unchanged: 7 }
 const additions = (counts: number[]) => ({ dailyDisciplineInputMode: DAILY_ADDITIONS, disciplines: grid(counts), pending: { unchanged: 2 }, correspondence: { outgoing: 3 } });
 const total = (data: Record<string, any>) => Object.values(data.disciplines.drawings.Civil).reduce<number>((sum, value) => sum + Number(value), 0);
 describe("Daily additions are distinct from cumulative discipline snapshots", () => {
+  it("treats new cumulative reports as snapshots across every tile and reports only the difference as movement", () => {
+    const prior = { disciplines: grid([25, 25, 25, 25]), documentTypes: { drawing: 100 },
+      revisions: { drawings: [{ name: 'A', value: 20 }] }, correspondence: { incoming: 50 },
+      rejectedSubmissions: { drawing: 10 } };
+    const current = { dailyDisciplineInputMode: DAILY_CUMULATIVE, dailySupplementInputMode: DAILY_CUMULATIVE,
+      disciplines: grid([30, 27, 26, 29]), documentTypes: { drawing: 112 },
+      revisions: { drawings: [{ name: 'A', value: 25 }] }, correspondence: { incoming: 53 },
+      rejectedSubmissions: { drawing: 12 } };
+    expect(dailyDisciplineSnapshot(current, prior)).toBe(current);
+    expect(total(dailyDisciplineSnapshot(current, prior))).toBe(112);
+    expect(calculateReport('daily', current, prior)).toMatchObject({ disciplineTotals: { 'drawings.Civil': 112 } });
+    const row: DashboardReport = { id: 'cumulative', projectId: 'p', reportType: 'daily', period: '2026-10-29',
+      state: 'approved', data: current, baseline: prior, computed: calculateReport('daily', current, prior) };
+    const projects = [{ id: 'p', name: 'Project' }];
+    expect(dailyDashboard([row], projects, '2026-10-29', null, 'cumulative').data.drawings.total).toBe(112 * DISCIPLINES.length);
+    expect(dailyDashboard([row], projects, '2026-10-29', null, 'movement').data.drawings.total).toBe(12 * DISCIPLINES.length);
+    // A historical daily-addition report is normalized once at the transition.
+    const legacySnapshot = dailyDisciplineSnapshot(additions([5, 2, 1, 4]), prior);
+    expect(total(dailyDisciplineSnapshot(current, legacySnapshot))).toBe(112);
+    expect(current.documentTypes.drawing).toBe(112);
+    expect(current.revisions.drawings[0].value).toBe(25);
+  });
   it("carries the reviewed QA example from 100 + 12 to 112 across every discipline and category", () => {
     const snapshot = dailyDisciplineSnapshot(additions([5, 2, 1, 4]), opening);
     for (const category of ["drawings", "submittals"]) for (const discipline of DISCIPLINES)

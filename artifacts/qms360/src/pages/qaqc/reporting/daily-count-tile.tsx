@@ -1,11 +1,12 @@
 import { ChevronDown } from 'lucide-react';
+import { formatDate } from '@workspace/spreadsheet-dates';
 import { Input } from '@/components/ui/input';
 import { NumField, getIn, useForm } from './form-kit';
 import { usesDailySupplementAdditions } from '@workspace/field-controls';
 import type { Obj } from './reporting-types';
 
-export function DailyCountTile({ title, field, rows, baseline, index }: {
-  title: string; field: string; rows: readonly (readonly [string, string])[]; baseline: Obj; index?: number;
+export function DailyCountTile({ title, field, rows, baseline, index, period }: {
+  title: string; field: string; rows: readonly (readonly [string, string])[]; baseline: Obj; index?: number; period?: string;
 }) {
   const form = useForm();
   return <details open className="group rounded-xl border bg-card text-card-foreground shadow-sm">
@@ -15,12 +16,12 @@ export function DailyCountTile({ title, field, rows, baseline, index }: {
     <div className="overflow-x-auto px-6 pb-6">
       <p className="mb-3 text-xs text-muted-foreground">{usesDailySupplementAdditions(form.data)
         ? 'Current Date contains additions for this day only. Next day’s Yesterday = Yesterday + Current Date; enter 0 for no additions.'
-        : 'Legacy report: Current Date retains its original cumulative-entry meaning.'}</p>
+        : 'Enter cumulative figures through the selected date. Till yesterday is the previous day’s submitted balance and is not added again.'}</p>
       <table className="w-full min-w-[360px] table-fixed text-sm" aria-label={title}>
       <thead><tr>
         <th scope="col" className="w-1/6 px-2 py-2 text-left text-xs font-medium text-muted-foreground">Type</th>
-        <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">Yesterday (auto)</th>
-        <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">Current Date <span aria-hidden="true">*</span></th>
+        <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">Till yesterday</th>
+        <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">{period ? `Current Date (${formatDate(period)})` : 'Current Date'} <span aria-hidden="true">*</span></th>
       </tr></thead>
       <tbody>{rows.map(([key, label], i) => <tr key={key} className={`border-t ${i % 2 ? 'bg-muted/20' : ''}`}>
         <th scope="row" className="px-2 py-2 text-left font-normal">{label}</th>
