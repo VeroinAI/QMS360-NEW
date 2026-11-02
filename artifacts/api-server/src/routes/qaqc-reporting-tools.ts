@@ -108,14 +108,14 @@ async function projectScopeIds(req: any, types: ReportingType[]) {
 }
 
 async function getReport(req: any, id: string) {
-  const report = await qaqcReportForEmail(organizationId(req), id);
+  const report = await qaqcReportForEmail(organizationId(req), id, requestedFormat(req) === "pdf");
   const access = await reportAccess(req, report.reportType as ReportingType);
   if (!canReadReport(req, access, report as any)) throw new HttpError(404, "QA/QC report was not found in your authorized project scope");
   return report;
 }
 
 /** Tenant-scoped report hydration shared by authorized downloads and the email worker. */
-export async function qaqcReportForEmail(orgId: string, id: string) {
+export async function qaqcReportForEmail(orgId: string, id: string, includeSignatures = true) {
   const clauses = [
     eq(qaqcReportSubmissions.organizationId, orgId),
     eq(qaqcReportSubmissions.id, id),
@@ -136,11 +136,24 @@ export async function qaqcReportForEmail(orgId: string, id: string) {
   const dailySettings = report.reportType === "daily" ? jsonObject(jsonObject(project?.customFields).qaqcReporting) : {};
   const teamId = (key:string) => typeof dailySettings[key] === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dailySettings[key]) ? dailySettings[key] as string : null;
-  const actorIds = [...new Set([...audit.map((entry) => entry.actorId), report.submittedById, report.createdById,
+  const { dailySignatories } = await import("../lib/qaqc-monthly-signatories");
+  const signerIds = report.reportType === "daily" ? new Set([
+    report.createdById ?? report.submittedById,
+    ...dailySignatories({ ...report, history: audit } as QaqcReportExport).map(s => s.userId),
+  ]) : new Set<string | null | undefined>();
+  const actorIds = [...new Set([...audit.map((entry) => entry.actorId), report.submittedById, report.createdById, ...signerIds,
     ...["pmId","peId","dcId"].map(teamId)].filter((id): id is string => !!id))];
-  const actors = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName, designation: users.designation }).from(users)
+  const actors = actorIds.length ? await db.select({ id: users.id, fullName: users.fullName, designation: users.designation, signaturePath: users.signaturePath }).from(users)
     .where(and(eq(users.organizationId, orgId), inArray(users.id, actorIds))) : [];
   const actorNames = new Map(actors.map((user) => [user.id, user.fullName]));
+  const userSignatures: Record<string, Uint8Array> = {};
+  if (report.reportType === "daily" && includeSignatures) {
+    const { readAuditPlanSignature } = await import("../lib/audit-plan-signatures");
+    await Promise.all(actors.filter(user => signerIds.has(user.id) && user.signaturePath).map(async user => {
+      const image = await readAuditPlanSignature(user.signaturePath);
+      if (image) userSignatures[user.id] = image;
+    }));
+  }
   const [dailyOrganization] = report.reportType === "daily"
     ? await db.select({timezone:organizations.timezone}).from(organizations).where(eq(organizations.id,orgId)).limit(1)
     : [];
@@ -161,6 +174,7 @@ export async function qaqcReportForEmail(orgId: string, id: string) {
     submittedByDesignation: report.submittedById ? actors.find(user => user.id === report.submittedById)?.designation ?? null : null,
     ...(report.reportType === "daily" ? {
       createdByName:actorNames.get(report.createdById) ?? null,
+      userSignatures,
       organizationTimezone:dailyOrganization?.timezone ?? null,
       projectTeam:Object.fromEntries([["pmName","pmId"],["peName","peId"],["dcName","dcId"]]
         .map(([name,key])=>[name,actorNames.get(teamId(key!) ?? "") ?? null])),

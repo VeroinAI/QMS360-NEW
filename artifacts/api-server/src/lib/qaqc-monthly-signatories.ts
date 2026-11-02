@@ -1,6 +1,6 @@
 import type { QaqcReportExport } from "./qaqc-reporting-export";
 
-type Signatory = { name: string; at: string; final: boolean };
+type Signatory = { name: string; at: string; final: boolean; userId?: string };
 const object = (value: unknown): Record<string, any> =>
   value && typeof value === "object" ? value as Record<string, any> : {};
 const time = (value: unknown) => new Date(String(value ?? "")).getTime();
@@ -30,6 +30,7 @@ function approvalSignatories(report: QaqcReportExport, workflowKey: string): Sig
       const candidate = workflow.stages.flatMap((s: any) => s.candidates ?? [])
         .find((c: any) => c.id === event.userId);
       return {
+        userId: event.userId,
         name: names.get(event.userId) ?? candidate?.name ?? "Former or unavailable user",
         at: event.at,
         final: report.state === "approved" && event.level === finalLevel,
@@ -44,6 +45,7 @@ function approvalSignatories(report: QaqcReportExport, workflowKey: string): Sig
     (!Number.isFinite(submittedAt) || time(entry.createdAt) >= submittedAt))
     .sort((a, b) => time(a.createdAt) - time(b.createdAt))
     .map(entry => ({
+      userId: typeof entry.actorId === "string" ? entry.actorId : undefined,
       name: typeof entry.actorName === "string" ? entry.actorName : "Former or unavailable user",
       at: String(entry.createdAt instanceof Date ? entry.createdAt.toISOString() : entry.createdAt),
       final: report.state === "approved" && object(entry.after).state === "approved",

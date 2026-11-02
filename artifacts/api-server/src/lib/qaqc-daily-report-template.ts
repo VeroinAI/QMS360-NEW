@@ -197,6 +197,9 @@ export async function buildDailyReportDocument(report:QaqcReportExport) {
     children(grid).forEach(column=>column.setAttributeNS(W,"w:w",halfWidth));
   }
   const signatories=dailySignatories(report);
+  const signatures=new Map<Element,Uint8Array>();
+  const preparedSignature=report.userSignatures?.[report.createdById ?? report.submittedById ?? ""];
+  if(preparedSignature) signatures.set(children(sourceRow,"tc")[0]!,preparedSignature);
   for(const signatory of [...signatories.filter(s=>!s.final),...signatories.filter(s=>s.final)]) {
     const row=sourceRow.cloneNode(true) as Element;
     children(row,"tc").forEach((cell,index)=>{
@@ -208,8 +211,15 @@ export async function buildDailyReportDocument(report:QaqcReportExport) {
       paragraphs.slice(2).forEach(p=>cell.removeChild(p));
     });
     signoffTable.appendChild(row);
+    const image=report.userSignatures?.[signatory.userId ?? ""];
+    if(image) signatures.set(children(row,"tc")[0]!,image);
+  }
+  if(preparedSignature) {
+    const cell=children(sourceRow,"tc")[0]!;
+    const placeholder=children(cell,"p")[2];
+    if(placeholder?.textContent===UNMAPPED) cell.removeChild(placeholder);
   }
   // Do not issue the designer's sample-data/reviewer instructions.
   blocks.slice(38).filter(e=>e.localName!=="sectPr").forEach(e=>body.removeChild(e));
-  return {body,project,date};
+  return {body,project,date,signoffTable,signatures};
 }

@@ -32,4 +32,20 @@ the Monthly Report for every generated Daily Submission report.
 
 **How to apply:** Keep downloads and newly generated email report attachments on
 the shared Daily report layout. Never fabricate missing legacy approval evidence.
-Leave the separate dashboard, workflow routing and frozen attachments unchanged.
+Leave workflow routing and already frozen email attachments unchanged.
+
+Daily report and dashboard PDFs share the current-cycle sign-off evidence:
+Prepared by/Submitted on, chronological Reviewed by/on, then actual final
+Approved by/on. Include available signer-profile images under names, matched
+by user ID within the report organization, never by display name. The dashboard
+adds a separate landscape sign-off page without replacing its chart pages.
+
+**Why:** The business explicitly requested signatures and equivalent sign-off
+details for both Daily downloads and their email attachments. This request uses
+attached user-profile signatures; it does not define immutable historical
+signature snapshots like the separate CAR policy.
+
+**How to apply:** Preserve missing-signature gaps without invented images.
+Use the exact report approval-cycle rules for the dashboard too. Profile images
+are read at generation time, so replacing a profile signature affects future
+exports; do not describe these images as historically frozen evidence.

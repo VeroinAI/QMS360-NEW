@@ -15,6 +15,9 @@ export type QaqcReportExport = {
   submittedByName?: string | null;
   submittedByDesignation?: string | null;
   createdByName?: string | null;
+  createdById?: string | null;
+  /** Server-only, tenant-scoped profile images; never supplied by report input. */
+  userSignatures?: Record<string, Uint8Array>;
   projectTeam?: { pmName?: string | null; peName?: string | null; dcName?: string | null };
   organizationTimezone?: string | null;
   monthlyDownloadPqi?: { average: number | null; projectCount: number };
