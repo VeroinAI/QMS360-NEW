@@ -55,17 +55,32 @@ describe("Customer Word monthly metrics report",()=>{
   });
   it("prints the live average with its report count and removes the old pending explanation",async()=>{
     const {text}=await mapped();
-    expect(text).toContain("37.5 (Total monthly report for reporting period (October, 2026) submitted -> 2)");
+    expect(text).toContain("37.5% (Total monthly report for reporting period (October, 2026) submitted -> 2)");
     expect(text).not.toContain("Total monthly report for project is");
     expect(text).not.toContain("stays pending until every");
     const none=await mapped({...report,monthlyDownloadPqi:{average:null,projectCount:0}});
     expect(none.text).toContain("No submitted reports (Total monthly report for reporting period (October, 2026) submitted -> 0)");
     const zero=await mapped({...report,monthlyDownloadPqi:{average:0,projectCount:1}});
-    expect(zero.text).toContain("0.0 (Total monthly report for reporting period (October, 2026) submitted -> 1)");
+    expect(zero.text).toContain("0.0% (Total monthly report for reporting period (October, 2026) submitted -> 1)");
     const missingScore=await mapped({...report,monthlyDownloadPqi:{average:null,projectCount:1}});
     expect(missingScore.text).toContain("— (Total monthly report for reporting period (October, 2026) submitted -> 1)");
     const differentMonth=await mapped({...report,period:"2027-01-01"});
     expect(differentMonth.text).toContain("reporting period (January, 2027) submitted -> 2");
+  });
+  it("labels PQI scores as percentages and changes as percentage points without recalculating saved scores",async()=>{
+    for(const variance of [0.2,-0.2,0]) {
+      const input={...report,computed:{...report.computed,pqi:{previous:85.8,accumulated:86,monthly:65.8,variance}}};
+      const {body,text}=await mapped(input);
+      const pqiTable=children(body,"tbl").find(t=>t.textContent?.includes("Acc. till last month")&&t.textContent?.includes("This month score"))!;
+      const cells=children(children(pqiTable,"tr")[0]!,"tc");
+      expect(children(cells[0]!,"p")[1]!.textContent).toBe("85.8%");
+      expect(children(cells[1]!,"p")[1]!.textContent).toBe("86.0%");
+      expect(children(cells[2]!,"p")[0]!.textContent).toBe("Variance (percentage points)");
+      expect(children(cells[2]!,"p")[1]!.textContent).toBe(`${variance>0?"+":""}${variance.toFixed(1)} pp`);
+      expect(children(cells[3]!,"p")[1]!.textContent).toBe("65.8%");
+      expect(text).toContain("37.5%");
+      expect(input.computed.pqi.variance).toBe(variance);
+    }
   });
   it("prints the submitter's saved designation and keeps missing designations explicit",async()=>{
     const submittedBy = (body: Awaited<ReturnType<typeof mapped>>["body"]) =>

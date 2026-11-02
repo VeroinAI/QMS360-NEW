@@ -15,6 +15,15 @@ Reserve “To be mapped” strictly for fields with no QMS mapping. Mapped field
 
 **How to apply:** Distinguish missing data from missing mappings at each report binding, not through a blanket replacement of PDF text. Preserve literal user content, saved calculations and other report types' existing fallback policies.
 
+Display Monthly Report PDF PQI scores and the eligible-project average with `%`;
+label PQI variance as percentage points (`pp`), not relative percent change.
+
+**Why:** The user confirmed these unit labels after reviewing the percentage-based
+PQI formula. This is a display clarification, not a recalculation request.
+
+**How to apply:** Keep saved scores, equal metric weighting and zero-issued
+category rules unchanged. Preserve missing-score and no-submitted-report messages.
+
 The user explicitly approved replacing the original Word ageing bands with the
 input screen's buckets in the monthly PDF only.
 

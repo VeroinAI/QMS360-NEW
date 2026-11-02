@@ -93,8 +93,8 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
   const month = period(report.period), project = text(report.projectName);
   put(0, 0, 0, project, 1); put(0, 0, 0, `Cost centre  ${text(report.costCentre)}`, 2);
   put(0, 0, 1, month, 1);
-  put(3, 0, 0, decimal(pqi.accumulated), 1);
-  put(3, 0, 0, `${variance(pqi.variance, "pts")} vs last month`, 2, tone(pqi.variance));
+  put(3, 0, 0, percent(pqi.accumulated), 1);
+  put(3, 0, 0, `${variance(pqi.variance, "pp")} vs last month`, 2, tone(pqi.variance));
   for (const [col, key] of [[1, "external_ncr"], [2, "internal_ncr"]] as const) {
     put(3, 0, col, metrics[key]?.open, 1);
     put(3, 0, col, `${text(metrics[key]?.issued)} issued · ${text(metrics[key]?.closed)} closed`, 2);
@@ -178,10 +178,11 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
       known ? sum === open ? "2E7D32" : "C0392B" : "66666A");
   });
   [pqi.previous,pqi.accumulated,pqi.variance,pqi.monthly].forEach((v,i) => put(29,0,i,
-    i === 2 && num(v) !== undefined && Number(v) > 0 ? `+${decimal(v)}` : decimal(v),1,i === 2 ? tone(v) : undefined));
+    i === 2 ? num(v) === undefined ? MISSING_DATA : `${Number(v)>0?"+":""}${decimal(v)} pp` : percent(v),1,i === 2 ? tone(v) : undefined));
+  put(29,0,2,"Variance (percentage points)",0);
   put(29,0,2,num(pqi.variance) === undefined ? MISSING_DATA : Number(pqi.variance)>0 ? "▲ improved vs last month" : Number(pqi.variance)<0 ? "▼ declined vs last month" : "● no change",2,tone(pqi.variance));
   const downloadPqi = report.monthlyDownloadPqi;
-  const downloadAverage = downloadPqi?.projectCount === 0 ? "No submitted reports" : decimal(downloadPqi?.average);
+  const downloadAverage = downloadPqi?.projectCount === 0 ? "No submitted reports" : percent(downloadPqi?.average);
   const reportingPeriod = period(report.period).replace(/ (\d{4})$/, ", $1");
   put(31,0,1,`${downloadAverage}${downloadPqi ? ` (Total monthly report for reporting period (${reportingPeriod}) submitted -> ${downloadPqi.projectCount})` : ""}`,0);
   put(31,0,1,"Average of saved ‘Acc. till this month’ scores from authorized submitted/approved project reports for this month, calculated at download time.",1);
