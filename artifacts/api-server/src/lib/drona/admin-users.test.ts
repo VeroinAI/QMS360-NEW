@@ -47,6 +47,7 @@ describe("administrator Drona user discovery", () => {
     expect(queries[0]!.sql).not.toContain("PERSON@");
     expect(queries[1]!.sql).toContain("a.is_active = true AND p.is_active = true");
     expect(queries[1]!.sql).toContain("a.modules");
+    expect(queries[1]!.sql).not.toMatch(/\ba\.module\b/);
     expect(queries[1]!.params).toContain("QMS360");
     expect(provision).not.toHaveBeenCalled();
     expect(transaction).not.toHaveBeenCalled();
@@ -97,6 +98,8 @@ describe("administrator Drona user discovery", () => {
     });
     expect(queries[0]!.sql).toContain("FOR SHARE");
     expect(queries[1]!.sql).not.toContain("FOR SHARE");
+    expect(queries[1]!.sql).toContain("a.modules");
+    expect(queries[1]!.sql).not.toMatch(/\ba\.module\b/);
     expect(provision).toHaveBeenCalledWith({ execute }, "person@example.test",
       expect.objectContaining({ organizationId: org, environment: "qa" }),
       { actorId: userId, reference: "admin:email-search" });

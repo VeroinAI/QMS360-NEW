@@ -60,6 +60,15 @@ describe("read-only Drona preparation reader", () => {
       assignments: [{ assignmentActive: null, projectActive: false, projectMappingModules: [] }],
     });
   });
+  it("reads assignment modules without the UAT-only scalar module column", async () => {
+    const c = client([row({ assignment_modules: ["Other", "QMS360"] })]);
+    const snapshot = await readDronaUserSnapshot(c.source, bigId);
+    expect(DRONA_USER_SNAPSHOT_SQL).not.toMatch(/\ba\.module\b/);
+    expect(DRONA_USER_SNAPSHOT_SQL).toContain("a.modules AS assignment_modules");
+    expect(snapshot?.assignments[0]).toMatchObject({
+      assignmentModule: null, assignmentModules: ["Other", "QMS360"],
+    });
+  });
   it("returns no snapshot for an unknown user", async () => {
     expect(await readDronaUserSnapshot(client([]).source, bigId)).toBeNull();
   });

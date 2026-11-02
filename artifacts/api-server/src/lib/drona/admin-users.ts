@@ -54,14 +54,11 @@ async function candidate(tx: ProvisionExecutor, email: string, organizationId: s
     JOIN public.project_master p ON p.project_id = m.project_id
     WHERE a.user_id = ${externalUserId}::bigint
       AND a.is_active = true AND p.is_active = true
-      AND (
-        lower(btrim(a.module)) = lower(${target.moduleValue})
-        OR EXISTS (
+      AND EXISTS (
           SELECT 1 FROM jsonb_array_elements_text(
             CASE WHEN jsonb_typeof(to_jsonb(a.modules)) = 'array'
               THEN to_jsonb(a.modules) ELSE '[]'::jsonb END
           ) AS assigned(value) WHERE lower(btrim(assigned.value)) = lower(${target.moduleValue})
-        )
       )
     LIMIT 1
   `);

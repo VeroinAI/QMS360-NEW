@@ -55,7 +55,7 @@ SELECT u.user_id::text AS user_id, u.is_active AS user_active,
        a.is_coordinator AS coordinator,
        m.sbg_id::text AS sbg_id, m.bu_id::text AS bu_id,
        m.division_id::text AS division_id, m.department_id::text AS department_id,
-       a.module AS assignment_module, a.modules AS assignment_modules,
+       NULL::varchar AS assignment_module, a.modules AS assignment_modules,
        m.modules AS mapping_modules, p.module AS project_module,
        p.modules AS project_modules
 FROM public.user_master u
