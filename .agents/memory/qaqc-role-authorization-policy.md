@@ -49,17 +49,17 @@ Monthly report submission is role-based, not creator-only. A different user with
 
 **How to apply:** Honor the existing activity-specific submit grant and its own project scope; do not infer submit rights from edit or approval rights. Preserve contributor identity and record the actual submitter independently. Keep creator-only Daily/CSAT submission, creator-only deletion, full-report validation and approval-level routing unchanged.
 
-On the QA/QC Metrics landing page and its document editor, only Draft documents
-may be edited; Display opens read-only even when the viewer could edit a draft.
-Keep the separate full monthly-report submission/review workflow's sent-back
-correction rules unchanged.
+On the QA/QC Metrics landing page and its document editor, Draft and Sent Back
+monthly reports may be edited and submitted by appropriately authorized users.
+Display explicitly opens read-only; Submitted and Approved remain read-only.
 
-**Why:** The user explicitly required Draft-only editing for the revised Metrics
-landing page while asking not to impact other development.
+**Why:** The user superseded the earlier Draft-only landing-page rule after it
+prevented a properly authorized representative from correcting and resubmitting
+a sent-back monthly report in production.
 
 **How to apply:** Reuse monthly-report RBAC and existing section/project scope.
-Do not interpret the landing page's Draft-only rule as a global removal of
-sent-back corrections, or as permission to expose legacy metric transactions.
+Do not require the monthly submitter to be the original creator, weaken backend
+validation, or expose legacy metric transactions. Keep other applications unchanged.
 
 QA/QC approval roles require a positive whole-number level when saved; existing roles without a level remain readable. Monthly Metrics and Daily Submissions use sequential approval. CSAT instead uses final locked submission without approval, per [CSAT policy](csat-submission-origin-policy.md).
 
