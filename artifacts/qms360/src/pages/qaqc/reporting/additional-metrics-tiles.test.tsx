@@ -34,6 +34,25 @@ describe('AdditionalMetricsTiles', () => {
     expect(render(base)).toContain('Status tags total 3 / Total items 3');
     expect(render({ ...base, material: { ...base.material, approved: 1 } })).toContain('tags must equal total items');
   });
+  it('visually and semantically separates quantity fields from material status fields', () => {
+    for (const readOnly of [false, true]) {
+      const html = render(base, {}, readOnly);
+      const quantities = /<fieldset[^>]*data-testid="group-material-quantities"[^>]*>([\s\S]*?)<\/fieldset>/.exec(html)?.[1] ?? '';
+      const statuses = /<fieldset[^>]*data-testid="group-material-status"[^>]*>([\s\S]*?)<\/fieldset>/.exec(html)?.[1] ?? '';
+      expect(quantities).toContain('>OSD quantities</legend>');
+      expect(statuses).toContain('>Material / item status breakdown</legend>');
+      for (const field of ['overage', 'shortage', 'damage', 'defective']) {
+        expect(quantities).toContain(`input-material-${field}`);
+        expect(statuses).not.toContain(`input-material-${field}`);
+      }
+      for (const field of ['total-items', 'approved', 'onHold', 'rejectedDoNotUse', 'rejectedReturn', 'hazardous', 'handleWithCare']) {
+        expect(statuses).toContain(`input-material-${field}`);
+        expect(quantities).not.toContain(`input-material-${field}`);
+      }
+      expect(statuses).toContain('Status tags total 3 / Total items 3');
+      expect(quantities).not.toContain('input-material-osd-mirns');
+    }
+  });
   it('qtbt', () => {
     expect(tid(h, 'text-qtbt-manhours')).toBe('5.00'); expect(tid(h, 'text-qtbt-acc-talks')).toBe('6'); expect(tid(h, 'text-qtbt-acc-manhours')).toBe('15.00');
     expect(tid(h, 'text-qtbt-base-talks')).toBe('4');

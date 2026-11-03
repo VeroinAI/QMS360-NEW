@@ -73,17 +73,27 @@ export function MaterialTile({ calc, baseline }: { calc: Obj; baseline?: Obj }) 
     </div>
     <div className={cols}>
       <Int path={['material', 'osdMirns']} label="No. of MIRNs with OSD" required={osd === true} disabled={osd !== true} tid="material-osd-mirns" />
+    </div>
+    <fieldset className="min-w-0 rounded-lg border border-primary/25 bg-muted/20 p-4" data-testid="group-material-quantities">
+      <legend className="px-2 text-sm font-semibold text-primary">OSD quantities</legend>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Int path={['material', 'overage']} label="Total Overage Quantity" tid="material-overage" />
       <Int path={['material', 'shortage']} label="Total Shortage Qty" tid="material-shortage" />
       <Int path={['material', 'damage']} label="Total Damage Qty" tid="material-damage" />
       <Int path={['material', 'defective']} label="Total Defective Qty" tid="material-defective" />
+      </div>
+    </fieldset>
+    <fieldset className="min-w-0 space-y-3 rounded-lg border border-primary/25 bg-muted/20 p-4" data-testid="group-material-status">
+      <legend className="px-2 text-sm font-semibold text-primary">Material / item status breakdown</legend>
+      <div className={cols}>
       <Int path={['material', 'totalItems']} label="Total No. of Material/Items in MIRN" tid="material-total-items" />
       {([['approved', 'Approved'], ['onHold', 'On Hold Quarantine'], ['rejectedDoNotUse', 'Rejected - Do Not Use'], ['rejectedReturn', 'Rejected - Return to Supplier'], ['hazardous', 'Hazardous Material'], ['handleWithCare', 'Handle & Store with care']] as const).map(([k, l]) =>
         <Int key={k} path={['material', k]} label={l} disabled={!tagsOn} tid={`material-${k}`} />)}
-    </div>
+      </div>
     <div className={`rounded-md border px-3 py-2 text-sm ${mismatch ? 'border-destructive text-destructive' : 'bg-muted/40'}`} data-testid="text-material-tag-guard" role={mismatch ? 'alert' : undefined}>
       Status tags total {calc.tagSum} / Total items {total ?? 0}{mismatch ? ' - tags must equal total items before submission.' : ''}
     </div>
+    </fieldset>
   </div>;
 }
 
