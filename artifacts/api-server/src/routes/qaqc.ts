@@ -821,7 +821,7 @@ router.put("/admin/csat-numbering/ranges", asyncHandler(async (req, res) => {
   const before = await readCsatNumbering(org(req));
   const saved = await saveCsatNumbering(org(req), undefined, range);
   await audit(req, "update", "csat_reference_number_range", range.projectId,
-    before.ranges[range.projectId]?.[String(range.year)] ?? 0, saved.ranges[range.projectId]?.[String(range.year)]);
+    before.ranges[range.projectId]?.continuous ?? 0, saved.ranges[range.projectId]?.continuous);
   res.json(api.UpdateCsatNumberRangeResponse.parse(await csatNumberResponse(req)));
 }));
 router.use("/admin/users", qaqcUserProfileRouter);

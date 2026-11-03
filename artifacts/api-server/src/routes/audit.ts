@@ -4738,13 +4738,13 @@ router.put("/admin/plan-numbering", asyncHandler(async (req, res) => {
   res.json(Api.UpdateAuditPlanNumberingResponse.parse(saved.pattern));
 }));
 router.put("/admin/plan-numbering/ranges", asyncHandler(async (req, res) => {
-  const range = body<{ scope: string; year: number; lastNumber: number }>(Api.UpdateAuditPlanNumberRangeBody, req);
+  const range = body<{ scope: string; lastNumber: number }>(Api.UpdateAuditPlanNumberRangeBody, req);
   if (!(await auditPlanNumberSources(req)).some(source => source.key === range.scope)) throw new HttpError(404, "Project or department is not available in your Audit administration scope");
   const before = await readPlanNumberState(actor(req).organizationId);
   const saved = await savePlanNumbering(actor(req).organizationId, undefined, range);
   await auditLog(req, "maintain_plan_number_range", "audit_plan_numbering", range.scope.split(":")[1],
-    { scope: range.scope, year: range.year, lastNumber: before.ranges[range.scope]?.[String(range.year)] ?? 0 },
-    { scope: range.scope, year: range.year, lastNumber: saved.ranges[range.scope]?.[String(range.year)] });
+    { scope: range.scope, lastNumber: before.ranges[range.scope]?.continuous ?? 0 },
+    { scope: range.scope, lastNumber: saved.ranges[range.scope]?.continuous });
   res.json({ saved: true });
 }));
 router.get("/admin/report-numbering", asyncHandler(async (req, res) => {
@@ -4783,8 +4783,8 @@ router.put("/admin/car-numbering/ranges", asyncHandler(async (req, res) => {
   const before = await readCarNumberState(actor(req).organizationId);
   const saved = await saveCarNumbering(actor(req).organizationId, undefined, range);
   await auditLog(req, "maintain_car_number_range", "audit_car_numbering", range.scope.split(":")[1],
-    { ...range, nextNumber: (before.ranges[range.scope]?.[String(range.year)] ?? 0) + 1 },
-    { ...range, nextNumber: (saved.ranges[range.scope]?.[String(range.year)] ?? 0) + 1 });
+    { ...range, lastNumber: before.ranges[range.scope]?.continuous ?? 0 },
+    { ...range, lastNumber: saved.ranges[range.scope]?.continuous ?? 0 });
   res.json(Api.UpdateAuditCarNumberRangeResponse.parse({ saved: true }));
 }));
 router.put("/admin/finding-numbering", asyncHandler(async (req, res) => {
@@ -4800,8 +4800,8 @@ router.put("/admin/finding-numbering/ranges", asyncHandler(async (req, res) => {
   const before = await readFindingNumberState(actor(req).organizationId);
   const saved = await saveFindingNumbering(actor(req).organizationId, undefined, range);
   await auditLog(req, "maintain_finding_number_range", "audit_finding_numbering", range.scope.split(":")[1],
-    { ...range, nextNumber: (before.ranges[range.findingType]?.[range.scope]?.[String(range.year)] ?? 0) + 1 },
-    { ...range, nextNumber: (saved.ranges[range.findingType]?.[range.scope]?.[String(range.year)] ?? 0) + 1 });
+    { ...range, lastNumber: before.ranges[range.findingType]?.[range.scope]?.continuous ?? 0 },
+    { ...range, lastNumber: saved.ranges[range.findingType]?.[range.scope]?.continuous ?? 0 });
   res.json(Api.UpdateAuditFindingNumberRangeResponse.parse({ saved: true }));
 }));
 router.put("/admin/report-numbering", asyncHandler(async (req, res) => {
@@ -4812,13 +4812,13 @@ router.put("/admin/report-numbering", asyncHandler(async (req, res) => {
   res.json(Api.UpdateAuditReportNumberingResponse.parse(saved.pattern));
 }));
 router.put("/admin/report-numbering/ranges", asyncHandler(async (req, res) => {
-  const range = body<{ scope: string; year: number; lastNumber: number }>(Api.UpdateAuditReportNumberRangeBody, req);
+  const range = body<{ scope: string; lastNumber: number }>(Api.UpdateAuditReportNumberRangeBody, req);
   if (!(await auditPlanNumberSources(req)).some(source => source.key === range.scope)) throw new HttpError(404, "Project or department is not available in your Audit administration scope");
   const before = await readReportNumberState(actor(req).organizationId);
   const saved = await saveReportNumbering(actor(req).organizationId, undefined, range);
   await auditLog(req, "maintain_report_number_range", "audit_report_numbering", range.scope.split(":")[1],
-    { scope: range.scope, year: range.year, lastNumber: before.ranges[range.scope]?.[String(range.year)] ?? 0 },
-    { scope: range.scope, year: range.year, lastNumber: saved.ranges[range.scope]?.[String(range.year)] });
+    { scope: range.scope, lastNumber: before.ranges[range.scope]?.continuous ?? 0 },
+    { scope: range.scope, lastNumber: saved.ranges[range.scope]?.continuous });
   res.json({ saved: true });
 }));
 router.get("/admin/schedule-numbering", asyncHandler(async (req, res) => {

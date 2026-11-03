@@ -4,6 +4,7 @@ import { HttpError } from "./workspace";
 import { lockScheduleNumbering } from "./audit-schedule-numbering";
 import { auditProjectNumberSourceValue, auditDepartmentNumberSourceValue } from "./audit-number-source";
 import { resolveMasterDataGroupId } from "./lov";
+import { continuousLastUsed, continuousRanges, validateLastNumber, type AuditLastNumberRange } from "./audit-continuous-numbering";
 
 export type PlanNumberPattern = { prefix: string; middle: string; separator: string; padding: number };
 export type PlanNumberState = { pattern: PlanNumberPattern; ranges: Record<string, Record<string, number>> };
@@ -12,16 +13,16 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Reader = Pick<Tx, "select">;
 export const planNumberState = (map: unknown): PlanNumberState => {
   const saved = (map as Record<string, any> | undefined)?.audit_plan_numbering;
-  return { pattern: { ...defaultPlanNumberPattern, ...saved?.pattern }, ranges: saved?.ranges ?? {} };
+  return { pattern: { ...defaultPlanNumberPattern, ...saved?.pattern }, ranges: continuousRanges(saved?.ranges) };
 };
-export function formatPlanNumber(pattern: PlanNumberPattern, source: string, year: number, number: number) {
-  return [pattern.prefix, source, pattern.middle, String(year).slice(-2), String(number).padStart(pattern.padding, "0")]
+export function formatPlanNumber(pattern: PlanNumberPattern, source: string, _year: number, number: number) {
+  return [pattern.prefix, source, pattern.middle, String(number).padStart(pattern.padding, "0")]
     .filter(part => part !== "").join(pattern.separator);
 }
 export function validatePlanNumberPattern(pattern: PlanNumberPattern) {
   if (!Number.isInteger(pattern.padding) || pattern.padding < 1 || pattern.padding > 12 ||
     [pattern.prefix, pattern.middle, pattern.separator].some(text => typeof text !== "string" || text.length > 80 || /[{}\r\n]/.test(text))) {
-    throw new HttpError(422, "Use literal prefix/middle text, a separator and 1–12 padding digits. The source and year are inserted automatically.");
+    throw new HttpError(422, "Use literal prefix/middle text, a separator and 1–12 padding digits. The source is inserted automatically; no year is included.");
   }
 }
 export async function getPlanNumberDepartments(reader: Reader, organizationId: string) {
@@ -60,9 +61,10 @@ export function planNumberYear(fromDate: unknown, document = "Audit Plan"): numb
   }
   return year;
 }
+// Schedule year is retained as provenance metadata only; it never partitions the counter or format.
 /** Read-only calculation shared by preview and allocation. Never reserves a number. */
 export function nextPlanNumber(state: PlanNumberState, source: { key: string; sourceValue: string }, year: number, document = "Audit Plan") {
-  const last = state.ranges[source.key]?.[String(year)] ?? 0;
+  const last = continuousLastUsed(state.ranges[source.key]);
   if (!Number.isSafeInteger(last) || last < 0 || last >= 999_999_999_999) throw new HttpError(409, `${document} number range is exhausted or invalid.`);
   const sequence = last + 1;
   return { sequence, number: formatPlanNumber(state.pattern, source.sourceValue, year, sequence) };
@@ -78,7 +80,7 @@ export async function allocatePlanNumber(tx: Tx, settings: typeof organizationSe
   const year = planNumberYear(fromDate);
   const state = planNumberState(settings.documentNumbering);
   const { sequence, number } = nextPlanNumber(state, source, year);
-  state.ranges = { ...state.ranges, [source.key]: { ...state.ranges[source.key], [String(year)]: sequence } };
+  state.ranges = { ...state.ranges, [source.key]: { ...state.ranges[source.key], continuous: sequence } };
   await tx.update(organizationSettings).set({
     documentNumbering: { ...settings.documentNumbering, audit_plan_numbering: state } as any, updatedAt: new Date(),
   }).where(eq(organizationSettings.id, settings.id));
@@ -88,18 +90,15 @@ export async function readPlanNumberState(organizationId: string) {
   const [settings] = await db.select().from(organizationSettings).where(and(eq(organizationSettings.organizationId, organizationId), isNull(organizationSettings.deletedAt)));
   return planNumberState(settings?.documentNumbering);
 }
-export async function savePlanNumbering(organizationId: string, pattern?: PlanNumberPattern, range?: { scope: string; year: number; lastNumber: number }) {
+export async function savePlanNumbering(organizationId: string, pattern?: PlanNumberPattern, range?: AuditLastNumberRange) {
   if (pattern) validatePlanNumberPattern(pattern);
   return db.transaction(async tx => {
     const { settings } = await lockScheduleNumbering(tx, organizationId);
     const state = planNumberState(settings.documentNumbering);
     if (pattern) state.pattern = pattern;
     if (range) {
-      if (!Number.isInteger(range.year) || range.year < 1900 || range.year > 9999 || !Number.isSafeInteger(range.lastNumber) ||
-        range.lastNumber < 0 || range.lastNumber >= 999_999_999_999) throw new HttpError(422, "Enter a valid four-digit year and a whole last-used number from 0 to 999999999998.");
-      const current = state.ranges[range.scope]?.[String(range.year)] ?? 0;
-      if (range.lastNumber < current) throw new HttpError(409, `The last-used number cannot be below ${current}; allocated numbers must not be reused.`);
-      state.ranges = { ...state.ranges, [range.scope]: { ...state.ranges[range.scope], [String(range.year)]: range.lastNumber } };
+      validateLastNumber(range.lastNumber, continuousLastUsed(state.ranges[range.scope]));
+      state.ranges = { ...state.ranges, [range.scope]: { ...state.ranges[range.scope], continuous: range.lastNumber } };
     }
     await tx.update(organizationSettings).set({ documentNumbering: { ...settings.documentNumbering, audit_plan_numbering: state } as any, updatedAt: new Date() })
       .where(eq(organizationSettings.id, settings.id));

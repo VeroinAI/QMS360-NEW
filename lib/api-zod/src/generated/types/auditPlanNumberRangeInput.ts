@@ -9,11 +9,6 @@
 export interface AuditPlanNumberRangeInput {
   scope: string;
   /**
-     * @minimum 1900
-     * @maximum 9999
-     */
-  year: number;
-  /**
      * @minimum 0
      * @maximum 999999999998
      */

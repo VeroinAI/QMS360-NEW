@@ -2,6 +2,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { audits, db, organizationSettings } from "@workspace/db";
 import { HttpError } from "./workspace";
 import { lockScheduleNumbering } from "./audit-schedule-numbering";
+import { continuousLastUsed, continuousRanges, validateLastNumber, type AuditLastNumberRange } from "./audit-continuous-numbering";
 import { nextPlanNumber, planNumberSource, planNumberYear, validatePlanNumberPattern } from "./audit-plan-numbering";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -23,7 +24,8 @@ export function findingNumberState(map: unknown): FindingNumberState {
   return {
     pattern: { ...defaultFindingNumberPattern, ...saved?.pattern,
       codes: { ...defaultFindingNumberPattern.codes, ...saved?.pattern?.codes } },
-    ranges: saved?.ranges ?? {},
+    ranges: Object.fromEntries(Object.entries(saved?.ranges ?? {}).map(([type, ranges]) =>
+      [type, continuousRanges(ranges as Record<string, Record<string, number>>)])),
   };
 }
 export function validateFindingNumberPattern(pattern: FindingNumberPattern) {
@@ -41,7 +43,7 @@ export async function readFindingNumberState(organizationId: string) {
     eq(organizationSettings.organizationId, organizationId), isNull(organizationSettings.deletedAt)));
   return findingNumberState(settings?.documentNumbering);
 }
-export type FindingNumberRange = { findingType: string; scope: string; year: number; nextNumber: number };
+export type FindingNumberRange = AuditLastNumberRange & { findingType: string };
 export async function saveFindingNumbering(organizationId: string, input?: FindingNumberPattern, range?: FindingNumberRange) {
   if (input) validateFindingNumberPattern(input);
   return db.transaction(async tx => {
@@ -49,16 +51,13 @@ export async function saveFindingNumbering(organizationId: string, input?: Findi
     const state = findingNumberState(settings.documentNumbering);
     if (input) state.pattern = { ...input, codes: Object.fromEntries(numberedFindingTypes.map(type => [type, input.codes[type].trim()])) };
     if (range) {
-      if (!numberedFindingTypes.includes(range.findingType as NumberedFindingType) ||
-          !Number.isInteger(range.year) || range.year < 1900 || range.year > 9999 ||
-          !Number.isSafeInteger(range.nextNumber) || range.nextNumber < 1 || range.nextNumber > 999_999_999_999) {
-        throw new HttpError(422, "Select a numbered finding type, a four-digit year and a whole next running number from 1 to 999999999999.");
+      if (!numberedFindingTypes.includes(range.findingType as NumberedFindingType)) {
+        throw new HttpError(422, "Select a numbered finding type.");
       }
-      const current = state.ranges[range.findingType]?.[range.scope]?.[String(range.year)] ?? 0;
-      if (range.nextNumber <= current) throw new HttpError(409, `The next running number must be at least ${current + 1}; the counter cannot move backwards.`);
+      validateLastNumber(range.lastNumber, continuousLastUsed(state.ranges[range.findingType]?.[range.scope]));
       state.ranges = { ...state.ranges, [range.findingType]: {
         ...state.ranges[range.findingType],
-        [range.scope]: { ...state.ranges[range.findingType]?.[range.scope], [String(range.year)]: range.nextNumber - 1 },
+        [range.scope]: { ...state.ranges[range.findingType]?.[range.scope], continuous: range.lastNumber },
       } };
     }
     await tx.update(organizationSettings).set({
@@ -95,7 +94,7 @@ export async function allocateFindingNumber(
   )).limit(1);
   if (duplicate) throw new HttpError(409, "This Audit Finding Number already exists for this finding type. Maintain distinct Project Contract / project no. or Department Cost ID values, or correct the numbering format; existing numbers will not be overwritten.");
   state.ranges = { ...state.ranges, [type]: {
-    ...state.ranges[type], [source.key]: { ...state.ranges[type]?.[source.key], [String(year)]: sequence },
+    ...state.ranges[type], [source.key]: { ...state.ranges[type]?.[source.key], continuous: sequence },
   } };
   await tx.update(organizationSettings).set({
     documentNumbering: { ...settings.documentNumbering, audit_finding_numbering: state } as any,

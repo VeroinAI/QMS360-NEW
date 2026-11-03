@@ -10,6 +10,8 @@ import * as zod from 'zod';
 
 export const getCsatNumberingResponsePatternPrefixMax = 80;
 
+export const getCsatNumberingResponsePatternMiddleMax = 80;
+
 export const getCsatNumberingResponsePatternSeparatorMax = 80;
 
 export const getCsatNumberingResponsePatternPaddingMax = 12;
@@ -19,6 +21,7 @@ export const getCsatNumberingResponsePatternPaddingMax = 12;
 export const GetCsatNumberingResponse = zod.object({
   "pattern": zod.object({
   "prefix": zod.string().max(getCsatNumberingResponsePatternPrefixMax),
+  "middle": zod.string().max(getCsatNumberingResponsePatternMiddleMax),
   "separator": zod.string().max(getCsatNumberingResponsePatternSeparatorMax),
   "padding": zod.number().min(1).max(getCsatNumberingResponsePatternPaddingMax)
 }),
@@ -34,6 +37,8 @@ export const GetCsatNumberingResponse = zod.object({
 
 export const updateCsatNumberingBodyPrefixMax = 80;
 
+export const updateCsatNumberingBodyMiddleMax = 80;
+
 export const updateCsatNumberingBodySeparatorMax = 80;
 
 export const updateCsatNumberingBodyPaddingMax = 12;
@@ -42,11 +47,14 @@ export const updateCsatNumberingBodyPaddingMax = 12;
 
 export const UpdateCsatNumberingBody = zod.object({
   "prefix": zod.string().max(updateCsatNumberingBodyPrefixMax),
+  "middle": zod.string().max(updateCsatNumberingBodyMiddleMax),
   "separator": zod.string().max(updateCsatNumberingBodySeparatorMax),
   "padding": zod.number().min(1).max(updateCsatNumberingBodyPaddingMax)
 })
 
 export const updateCsatNumberingResponsePrefixMax = 80;
+
+export const updateCsatNumberingResponseMiddleMax = 80;
 
 export const updateCsatNumberingResponseSeparatorMax = 80;
 
@@ -56,14 +64,12 @@ export const updateCsatNumberingResponsePaddingMax = 12;
 
 export const UpdateCsatNumberingResponse = zod.object({
   "prefix": zod.string().max(updateCsatNumberingResponsePrefixMax),
+  "middle": zod.string().max(updateCsatNumberingResponseMiddleMax),
   "separator": zod.string().max(updateCsatNumberingResponseSeparatorMax),
   "padding": zod.number().min(1).max(updateCsatNumberingResponsePaddingMax)
 })
 
 
-
-export const updateCsatNumberRangeBodyYearMin = 1900;
-export const updateCsatNumberRangeBodyYearMax = 9999;
 
 export const updateCsatNumberRangeBodyLastNumberMin = 0;
 export const updateCsatNumberRangeBodyLastNumberMax = 999999999998;
@@ -72,11 +78,12 @@ export const updateCsatNumberRangeBodyLastNumberMax = 999999999998;
 
 export const UpdateCsatNumberRangeBody = zod.object({
   "projectId": zod.string().min(1),
-  "year": zod.number().min(updateCsatNumberRangeBodyYearMin).max(updateCsatNumberRangeBodyYearMax),
   "lastNumber": zod.number().min(updateCsatNumberRangeBodyLastNumberMin).max(updateCsatNumberRangeBodyLastNumberMax)
 })
 
 export const updateCsatNumberRangeResponsePatternPrefixMax = 80;
+
+export const updateCsatNumberRangeResponsePatternMiddleMax = 80;
 
 export const updateCsatNumberRangeResponsePatternSeparatorMax = 80;
 
@@ -87,6 +94,7 @@ export const updateCsatNumberRangeResponsePatternPaddingMax = 12;
 export const UpdateCsatNumberRangeResponse = zod.object({
   "pattern": zod.object({
   "prefix": zod.string().max(updateCsatNumberRangeResponsePatternPrefixMax),
+  "middle": zod.string().max(updateCsatNumberRangeResponsePatternMiddleMax),
   "separator": zod.string().max(updateCsatNumberRangeResponsePatternSeparatorMax),
   "padding": zod.number().min(1).max(updateCsatNumberRangeResponsePatternPaddingMax)
 }),
@@ -15008,7 +15016,7 @@ export const ListAuditAccessQueueResponse = zod.object({
 
 
 /**
- * @summary Read Audit Plan yearly project and department numbering
+ * @summary Read continuous Audit Plan project and department numbering
  */
 export const getAuditPlanNumberingResponsePatternPrefixMax = 80;
 
@@ -15078,9 +15086,6 @@ export const UpdateAuditPlanNumberingResponse = zod.object({
 /**
  * @summary Maintain last-used Audit Plan number for go-live
  */
-export const updateAuditPlanNumberRangeBodyYearMin = 1900;
-export const updateAuditPlanNumberRangeBodyYearMax = 9999;
-
 export const updateAuditPlanNumberRangeBodyLastNumberMin = 0;
 export const updateAuditPlanNumberRangeBodyLastNumberMax = 999999999998;
 
@@ -15088,7 +15093,6 @@ export const updateAuditPlanNumberRangeBodyLastNumberMax = 999999999998;
 
 export const UpdateAuditPlanNumberRangeBody = zod.object({
   "scope": zod.string(),
-  "year": zod.number().min(updateAuditPlanNumberRangeBodyYearMin).max(updateAuditPlanNumberRangeBodyYearMax),
   "lastNumber": zod.number().min(updateAuditPlanNumberRangeBodyLastNumberMin).max(updateAuditPlanNumberRangeBodyLastNumberMax)
 })
 
@@ -15096,7 +15100,7 @@ export const UpdateAuditPlanNumberRangeResponse = zod.unknown()
 
 
 /**
- * @summary Read independent Audit Report yearly project and department numbering
+ * @summary Read independent continuous Audit Report project and department numbering
  */
 export const getAuditReportNumberingResponsePatternPrefixMax = 80;
 
@@ -15164,7 +15168,7 @@ export const UpdateAuditReportNumberingResponse = zod.object({
 
 
 /**
- * @summary Read independent Audit CAR yearly numbering
+ * @summary Read independent continuous Audit CAR numbering
  */
 export const getAuditCarNumberingResponsePatternPrefixMax = 80;
 
@@ -15232,20 +15236,17 @@ export const UpdateAuditCarNumberingResponse = zod.object({
 
 
 /**
- * @summary Set the next CAR running number for a project or department and year
+ * @summary Maintain the last-used CAR number for a project or department
  */
 
-export const updateAuditCarNumberRangeBodyYearMin = 1900;
-export const updateAuditCarNumberRangeBodyYearMax = 9999;
-
-export const updateAuditCarNumberRangeBodyNextNumberMax = 999999999999;
+export const updateAuditCarNumberRangeBodyLastNumberMin = 0;
+export const updateAuditCarNumberRangeBodyLastNumberMax = 999999999998;
 
 
 
 export const UpdateAuditCarNumberRangeBody = zod.object({
   "scope": zod.string().min(1),
-  "year": zod.number().min(updateAuditCarNumberRangeBodyYearMin).max(updateAuditCarNumberRangeBodyYearMax),
-  "nextNumber": zod.number().min(1).max(updateAuditCarNumberRangeBodyNextNumberMax)
+  "lastNumber": zod.number().min(updateAuditCarNumberRangeBodyLastNumberMin).max(updateAuditCarNumberRangeBodyLastNumberMax)
 })
 
 export const UpdateAuditCarNumberRangeResponse = zod.object({
@@ -15254,7 +15255,7 @@ export const UpdateAuditCarNumberRangeResponse = zod.object({
 
 
 /**
- * @summary Read independent finding-type yearly numbering
+ * @summary Read independent continuous finding-type numbering
  */
 export const getAuditFindingNumberingResponsePatternPrefixMax = 80;
 
@@ -15323,21 +15324,18 @@ export const UpdateAuditFindingNumberingResponse = zod.object({
 
 
 /**
- * @summary Set the next Audit Finding running number for a finding type, project or department and year
+ * @summary Maintain the last-used Audit Finding number for a finding type and project or department
  */
 
-export const updateAuditFindingNumberRangeBodyYearMin = 1900;
-export const updateAuditFindingNumberRangeBodyYearMax = 9999;
-
-export const updateAuditFindingNumberRangeBodyNextNumberMax = 999999999999;
+export const updateAuditFindingNumberRangeBodyLastNumberMin = 0;
+export const updateAuditFindingNumberRangeBodyLastNumberMax = 999999999998;
 
 
 
 export const UpdateAuditFindingNumberRangeBody = zod.object({
   "findingType": zod.enum(['Minor NC', 'Moderate NC', 'Major NC', 'OFI']),
   "scope": zod.string().min(1),
-  "year": zod.number().min(updateAuditFindingNumberRangeBodyYearMin).max(updateAuditFindingNumberRangeBodyYearMax),
-  "nextNumber": zod.number().min(1).max(updateAuditFindingNumberRangeBodyNextNumberMax)
+  "lastNumber": zod.number().min(updateAuditFindingNumberRangeBodyLastNumberMin).max(updateAuditFindingNumberRangeBodyLastNumberMax)
 })
 
 export const UpdateAuditFindingNumberRangeResponse = zod.object({
@@ -15346,11 +15344,8 @@ export const UpdateAuditFindingNumberRangeResponse = zod.object({
 
 
 /**
- * @summary Maintain the last used Audit Report number for a project or department and year
+ * @summary Maintain the last used Audit Report number for a project or department
  */
-export const updateAuditReportNumberRangeBodyYearMin = 1900;
-export const updateAuditReportNumberRangeBodyYearMax = 9999;
-
 export const updateAuditReportNumberRangeBodyLastNumberMin = 0;
 export const updateAuditReportNumberRangeBodyLastNumberMax = 999999999998;
 
@@ -15358,7 +15353,6 @@ export const updateAuditReportNumberRangeBodyLastNumberMax = 999999999998;
 
 export const UpdateAuditReportNumberRangeBody = zod.object({
   "scope": zod.string(),
-  "year": zod.number().min(updateAuditReportNumberRangeBodyYearMin).max(updateAuditReportNumberRangeBodyYearMax),
   "lastNumber": zod.number().min(updateAuditReportNumberRangeBodyLastNumberMin).max(updateAuditReportNumberRangeBodyLastNumberMax)
 })
 

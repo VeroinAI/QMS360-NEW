@@ -3645,6 +3645,8 @@ export interface CsatNumberingPattern {
   /** @maxLength 80 */
   prefix: string;
   /** @maxLength 80 */
+  middle: string;
+  /** @maxLength 80 */
   separator: string;
   /**
      * @minimum 1
@@ -3656,11 +3658,6 @@ export interface CsatNumberingPattern {
 export interface CsatNumberRangeInput {
   /** @minLength 1 */
   projectId: string;
-  /**
-     * @minimum 1900
-     * @maximum 9999
-     */
-  year: number;
   /**
      * @minimum 0
      * @maximum 999999999998
@@ -3721,30 +3718,20 @@ export interface AuditFindingNumberRangeInput {
   /** @minLength 1 */
   scope: string;
   /**
-     * @minimum 1900
-     * @maximum 9999
+     * @minimum 0
+     * @maximum 999999999998
      */
-  year: number;
-  /**
-     * @minimum 1
-     * @maximum 999999999999
-     */
-  nextNumber: number;
+  lastNumber: number;
 }
 
 export interface AuditCarNumberRangeInput {
   /** @minLength 1 */
   scope: string;
   /**
-     * @minimum 1900
-     * @maximum 9999
+     * @minimum 0
+     * @maximum 999999999998
      */
-  year: number;
-  /**
-     * @minimum 1
-     * @maximum 999999999999
-     */
-  nextNumber: number;
+  lastNumber: number;
 }
 
 export type AuditFindingNumberingSettingsFindingTypesItem = typeof AuditFindingNumberingSettingsFindingTypesItem[keyof typeof AuditFindingNumberingSettingsFindingTypesItem];
@@ -3768,11 +3755,6 @@ export interface AuditFindingNumberingSettings {
 
 export interface AuditPlanNumberRangeInput {
   scope: string;
-  /**
-     * @minimum 1900
-     * @maximum 9999
-     */
-  year: number;
   /**
      * @minimum 0
      * @maximum 999999999998

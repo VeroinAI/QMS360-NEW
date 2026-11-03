@@ -3,25 +3,25 @@ name: Audit Finding numbering policy
 description: User-confirmed finding codes, sequence boundaries and issuance timing
 ---
 
-Audit Finding numbering uses an administrator-configured middle code for each finding type, not the finding's master-data Value automatically. Each finding type has its own running sequence for each project or department and full Schedule From Date year, starting at 1 annually. “Not applicable” is excluded from numbering configuration and issuance.
+Audit Finding numbering uses an administrator-configured middle code for each finding type, not the finding's master-data Value automatically. Each finding type has its own continuous running sequence for each project or department, starting at 1 with no year in the number and no annual reset. “Not applicable” is excluded from numbering configuration and issuance.
 
 **Why:** The user explicitly chose configurable codes per type and separate per-type sequences, rather than one sequence shared by all finding types.
 
 **How to apply:** Keep type identity independent of editable codes. Changing a code or number format must not restart counters or rewrite numbers already issued.
 
-The same middle code may be used for multiple finding types. Keep separate type/source/year counters even when codes match; identical displayed numbers across different types are allowed.
+The same middle code may be used for multiple finding types. Keep separate type/source counters even when codes match; identical displayed numbers across different types are allowed.
 
 **Why:** The user explicitly corrected the initial distinct-code restriction and requested code reuse across Audit Finding types.
 
 **How to apply:** Do not reject duplicate codes in settings or treat another finding type's issued number as a collision. Preserve collision protection within the same issued finding type.
 
-Administrators maintain the **next running number** for a selected finding type, project/department and full year. Entering 126 means the next saved finding receives sequence 126, not 127. Unmaintained ranges start at 1.
+Administrators maintain the **last-used number** for a selected finding type and project/department, without a year. Entering 125 means the next saved finding receives sequence 126. Unmaintained ranges start at 1; enter 0 for a fresh range.
 
-**Why:** The user requested an entry field for the next number after the initial counter section was read-only.
+**Why:** The user explicitly replaced yearly Plan, Report, Finding and CAR numbering with continuous sequences and requested last-used maintenance for all four.
 
-**How to apply:** Store next minus one as the last-used counter, never move a counter backwards, and do not rewrite existing findings or affect other type/source/year ranges.
+**How to apply:** Continue above the highest saved former yearly counter for that type/source. Never rewind or sum yearly counters; do not rewrite existing findings or affect other type/source ranges.
 
-For manual Add Finding, issue the number on successful Save Finding. Derive the source from the linked Plan: Department Master Cost ID for department/process audits, Project Master Additional Data Contract / project no. for project audits. Preserve text and leading zeroes; do not fall back to Department Value/label or Project Cost Center. Derive the two-digit displayed year from the linked child Audit Schedule From Date, not the current date.
+For manual Add Finding, issue the number on successful Save Finding. Derive the source from the linked Plan: Department Master Cost ID for department/process audits, Project Master Additional Data Contract / project no. for project audits. Preserve text and leading zeroes; do not fall back to Department Value/label or Project Cost Center. No year is displayed or used to partition counters.
 
 Checklist-origin findings receive any missing Finding IDs automatically when the
 audit is submitted or resubmitted for report approval. Keep manual Add Finding
@@ -32,7 +32,7 @@ together, preserving all existing IDs and skipping blank/Not applicable results.
 checklist-transferred findings, instead of relying on individual repair clicks.
 
 **How to apply:** Show pending-issuance text on unnumbered checklist findings
-before submission. Use the existing type/source/year
+before submission. Use the continuous type/source
 ranges, allocate sequentially against the latest counter state, and make retries
 and resubmissions idempotent. Read and download operations still never issue IDs.
 

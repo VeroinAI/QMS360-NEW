@@ -5,12 +5,13 @@ import { lockScheduleNumbering } from "./audit-schedule-numbering";
 import { nextPlanNumber, planNumberSource, planNumberYear, validatePlanNumberPattern, type PlanNumberPattern, type PlanNumberState } from "./audit-plan-numbering";
 import { actionableFinding, carJson } from "./car-register";
 import { hasSavedCarResponse } from "./car-dates";
+import { continuousLastUsed, continuousRanges, validateLastNumber, type AuditLastNumberRange } from "./audit-continuous-numbering";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-export type CarNumberRange = { scope: string; year: number; nextNumber: number };
+export type CarNumberRange = AuditLastNumberRange;
 export function carNumberState(map: unknown): PlanNumberState {
   const saved = (map as Record<string, any> | undefined)?.audit_car_numbering;
-  return { pattern: { prefix: "CAR", middle: "", separator: "-", padding: 4, ...saved?.pattern }, ranges: saved?.ranges ?? {} };
+  return { pattern: { prefix: "CAR", middle: "", separator: "-", padding: 4, ...saved?.pattern }, ranges: continuousRanges(saved?.ranges) };
 }
 export async function readCarNumberState(organizationId: string) {
   const [settings] = await db.select().from(organizationSettings).where(and(
@@ -24,13 +25,8 @@ export async function saveCarNumbering(organizationId: string, pattern?: PlanNum
     const state = carNumberState(settings.documentNumbering);
     if (pattern) state.pattern = pattern;
     if (range) {
-      if (!Number.isInteger(range.year) || range.year < 1900 || range.year > 9999 ||
-          !Number.isSafeInteger(range.nextNumber) || range.nextNumber < 1 || range.nextNumber > 999_999_999_999) {
-        throw new HttpError(422, "Enter a valid four-digit year and a whole next CAR number from 1 to 999999999999.");
-      }
-      const current = state.ranges[range.scope]?.[String(range.year)] ?? 0;
-      if (range.nextNumber <= current) throw new HttpError(409, `The next CAR number must be at least ${current + 1}; the counter cannot move backwards.`);
-      state.ranges = { ...state.ranges, [range.scope]: { ...state.ranges[range.scope], [String(range.year)]: range.nextNumber - 1 } };
+      validateLastNumber(range.lastNumber, continuousLastUsed(state.ranges[range.scope]));
+      state.ranges = { ...state.ranges, [range.scope]: { ...state.ranges[range.scope], continuous: range.lastNumber } };
     }
     await tx.update(organizationSettings).set({
       documentNumbering: { ...settings.documentNumbering, audit_car_numbering: state } as any, updatedAt: new Date(),
@@ -76,7 +72,7 @@ export async function lockNumberedCarResponse(tx: Tx, settings: typeof organizat
   const year = planNumberYear(sm.plannedStartDate, "Audit CAR");
   const state = carNumberState(settings.documentNumbering);
   const { number, sequence } = nextPlanNumber(state, source, year, "Audit CAR");
-  state.ranges = { ...state.ranges, [source.key]: { ...state.ranges[source.key], [String(year)]: sequence } };
+  state.ranges = { ...state.ranges, [source.key]: { ...state.ranges[source.key], continuous: sequence } };
   await tx.update(organizationSettings).set({
     documentNumbering: { ...settings.documentNumbering, audit_car_numbering: state } as any, updatedAt: new Date(),
   }).where(eq(organizationSettings.id, settings.id));
