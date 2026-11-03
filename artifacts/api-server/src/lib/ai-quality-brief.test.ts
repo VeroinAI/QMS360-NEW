@@ -67,6 +67,26 @@ describe("quality brief provider timing", () => {
     await expect(draftQualityBrief(context)).rejects.toThrow("short-bullet format");
   });
 
+  it("adds the actual project name without sending routing IDs to the model", async () => {
+    provider(0);
+    const pending = draftQualityBrief({
+      ...context, projectName: "Example Construction Project", projectId: "internal-project-id",
+      history: [{ id: "internal-report-id", actorId: "internal-user-id", period: "2026-09-01" }],
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(pending).resolves.toEqual({
+      draft: "- Project: Example Construction Project\n- Evidence-based draft.", suggestions: [],
+    });
+    const prompt = JSON.parse(mocks.fetch.mock.calls[0][1].body).messages[0].content;
+    const evidence = JSON.parse(prompt.split("UNTRUSTED SERIALIZED CONTEXT:\n")[1]);
+    expect(evidence).toEqual({
+      projectName: "Example Construction Project", history: [{ period: "2026-09-01" }],
+    });
+    expect(mocks.values).toHaveBeenCalledWith(expect.objectContaining({
+      organizationId: context.organizationId, actorId: context.actorId,
+    }));
+  });
+
   it("still bounds brief generation at sixty seconds and audits the failure", async () => {
     provider();
     const checked = expect(draftQualityBrief(context)).rejects.toThrow("VerionAI timed out");

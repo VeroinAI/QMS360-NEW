@@ -1060,9 +1060,10 @@ router.post("/reports/:id/ai-brief", reportPermissionById("own"), asyncHandler(a
   )).orderBy(
     desc(qaqcReportSubmissions.period), desc(qaqcReportSubmissions.createdAt), desc(qaqcReportSubmissions.id),
   ).limit(3);
-  const [project] = await db.select({ customFields: projects.customFields }).from(projects).where(and(
+  const [project] = await db.select({ name: projects.name, customFields: projects.customFields }).from(projects).where(and(
     eq(projects.id, row.projectId), eq(projects.organizationId, org(req)), isNull(projects.deletedAt),
   )).limit(1);
+  if (!project?.name?.trim()) throw new HttpError(422, "The selected project's name is unavailable. Maintain its name in Project Master before generating a quality brief.");
   const settings = isObject(project?.customFields.qaqcReporting) ? project.customFields.qaqcReporting : {};
   const { baseline: historicalBaseline } = await historyBaseline(org(req), row.projectId, "monthly", row.period);
   const baseline = Object.keys(historicalBaseline).length ? historicalBaseline : await legacyBaseline(row.projectId, "monthly", row.period);
@@ -1075,7 +1076,7 @@ router.post("/reports/:id/ai-brief", reportPermissionById("own"), asyncHandler(a
   });
   try {
     const result = await draftQualityBrief({
-      app: "qaqc", organizationId: org(req), actorId: actor(req), projectId: row.projectId,
+      app: "qaqc", organizationId: org(req), actorId: actor(req), projectId: row.projectId, projectName: project.name,
       period: row.period, data, computed: assessment.computed, targets, history, assessment,
     }, "Summarize the selected project's monthly quality performance using only the supplied assessment. Select the most important supported figures and changes from NCR, RFI, RMI, PQI and material results, rather than listing every category. Highlight open NCRs over 45 days as critical when present. Mention sustained below-target PQI only when exact consecutive-month evidence supports it. Do not infer missing values, causes or conclusions. Keep the summary brief; do not provide rankings, analysis or recommendations.");
     if (typeof result?.draft !== "string" || !result.draft.trim())

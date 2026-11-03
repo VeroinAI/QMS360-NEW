@@ -27,6 +27,17 @@ bullets and 120 words for new AI suggestions; reject nonconforming responses
 explicitly rather than truncating potentially important facts. Do not rewrite
 previously saved assessments or constrain manually authored final text.
 
+New AI quality briefs identify the selected project by its saved Project Master
+name, not its UUID; omit organization identity.
+
+**Why:** The user reported organization and project UUIDs appearing as apparently
+random text in the generated assessment and asked for the actual project name.
+
+**How to apply:** Resolve the name within the current organization on the server,
+keep audit/routing identifiers out of model evidence, and add the name
+deterministically to the concise summary. Keep IDs for authorization and audit.
+Do not modify already saved assessments automatically.
+
 Evidence-heavy monthly assessment generation needs a bounded, feature-specific response budget rather than the deadline used for short text rephrasing.
 
 **Why:** The live assessment succeeded using the existing integration, but only after the generic short deadline had expired. A timeout here is not evidence that credentials need replacement.

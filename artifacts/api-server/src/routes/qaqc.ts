@@ -465,9 +465,13 @@ router.put("/quality-briefs/:id", asyncHandler(async (req, res) => {
 }));
 router.post("/quality-briefs/:id/ai-draft", asyncHandler(async (req, res) => {
   const brief: any = await activeRow(req, qualityAssessmentBriefs, String(req.params.id));
+  const [project] = await db.select({ name: projects.name }).from(projects).where(and(
+    eq(projects.id, brief.projectId), eq(projects.organizationId, org(req)), isNull(projects.deletedAt),
+  )).limit(1);
+  if (!project?.name?.trim()) throw new HttpError(422, "The selected project's name is unavailable. Maintain its name in Project Master before generating a quality brief.");
   try {
     const metrics = await db.select().from(qaqcMetricEntries).where(and(eq(qaqcMetricEntries.organizationId, org(req)), eq(qaqcMetricEntries.projectId, brief.projectId), eq(qaqcMetricEntries.reportingPeriod, brief.reportingPeriod), isNull(qaqcMetricEntries.deletedAt), ...await qaqcRecordReadClauses(req, qaqcMetricEntries, "metrics")));
-    const generated = await draftQualityBrief({ app: "qaqc", organizationId: org(req), actorId: actor(req), brief, metrics: metrics.map(mapMetric) });
+    const generated = await draftQualityBrief({ app: "qaqc", organizationId: org(req), actorId: actor(req), projectName: project.name, brief, metrics: metrics.map(mapMetric) });
     await db.update(qualityAssessmentBriefs).set({ aiDraft: generated.draft, aiReviewState: "pending", updatedAt: new Date() }).where(eq(qualityAssessmentBriefs.id, brief.id));
     await audit(req, "ai_draft", "quality_brief", brief.id, brief, { aiDraft: generated.draft });
     res.json(generated);
