@@ -30,7 +30,7 @@ beforeEach(() => execute.mockReset());
 
 describe("Project Additional Data extended fields", () => {
   const extended = { sbg: "Construction", bu: "Infrastructure", projectGroup: "Central",
-    consultant: "Consultant A", projectManager: "Manager B", contractValue: "SAR 1,500,000.50", ptsNumber: "PTS-0012" };
+    consultant: "Consultant A", projectManager: "Manager B", documentController: "Document Role", projectEngineer: "Engineer Role", contractValue: "SAR 1,500,000.50", ptsNumber: "PTS-0012" };
   const existing = { client: null, contractor: null, contractProjectNumber: null, contractSigned: null, contractPeriod: null, tcc: null, pac: null, fac: null };
   it("validates, persists and returns all four fields without changing source data", async () => {
     const data = UpdateProjectAdditionalDataBody.parse({ costCentre: null, additionalData: { ...existing, ...extended } });
@@ -45,7 +45,7 @@ describe("Project Additional Data extended fields", () => {
     expect(query.sql).not.toMatch(/SET\s+(?:source|name|code)\s*=/);
   });
   it("supports explicitly clearing the new fields", async () => {
-    const cleared = { consultant: null, projectManager: null, contractValue: null, ptsNumber: null };
+    const cleared = { consultant: null, projectManager: null, documentController: null, projectEngineer: null, contractValue: null, ptsNumber: null };
     const data = UpdateProjectAdditionalDataBody.parse({ costCentre: null, additionalData: { ...existing, ...cleared } });
     execute.mockResolvedValueOnce({ rows: [{ available: false }] })
       .mockResolvedValueOnce({ rows: [{ id: projectId, costCentre: null, additionalData: data.additionalData, updatedAt: iso }] });

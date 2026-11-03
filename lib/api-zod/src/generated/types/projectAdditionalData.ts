@@ -36,6 +36,16 @@ export interface ProjectAdditionalData {
      * @maxLength 500
      * @nullable
      */
+  documentController?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  projectEngineer?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
   contractValue?: string | null;
   /**
      * @maxLength 500

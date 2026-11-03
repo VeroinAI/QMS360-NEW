@@ -3470,6 +3470,8 @@ components:
         projectGroup: {type: ["string", "null"], maxLength: 500}
         consultant: {type: ["string", "null"], maxLength: 500}
         projectManager: {type: ["string", "null"], maxLength: 500}
+        documentController: {type: ["string", "null"], maxLength: 500}
+        projectEngineer: {type: ["string", "null"], maxLength: 500}
         contractValue: {type: ["string", "null"], maxLength: 500}
         ptsNumber: {type: ["string", "null"], maxLength: 500}
         name: {type: ["string", "null"], maxLength: 500}
