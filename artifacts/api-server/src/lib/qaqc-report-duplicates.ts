@@ -1,6 +1,7 @@
 import { db, projects, qaqcReportSubmissions } from "@workspace/db";
 import { and, eq, isNull } from "drizzle-orm";
 import { HttpError } from "./workspace";
+import { formatDate } from "@workspace/spreadsheet-dates";
 
 const PERIOD_INDEX = "qaqc_report_project_type_period_active_idx";
 type Reader = Pick<typeof db, "select">;
@@ -26,7 +27,7 @@ async function periodDuplicateReason(organizationId: string, projectId: string, 
 }
 
 export function dailyDuplicateMessage(period: string, state: string) {
-  const date = new Date(`${period.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  const date = formatDate(period);
   const labels: Record<string, string> = { draft: "Draft", submitted: "Submitted", approved: "Approved", sent_back: "Sent back" };
   const status = labels[state] ?? state.replace(/_/g, " ").replace(/^./, s => s.toUpperCase());
   return `A Daily Submission report already exists for this project for ${date}. Report status: ${status}. Open the existing report from Daily Submission; another report cannot be created for the same project and date.`;

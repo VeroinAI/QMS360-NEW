@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setDateFormatResolver } from "@workspace/spreadsheet-dates";
+beforeEach(() => setDateFormatResolver(() => "DD-MM-YYYY"));
+afterEach(() => setDateFormatResolver(() => "DD/MM/YYYY"));
 import { PDFDocument, PDFPage, PDFDict, PDFName, PDFString } from "pdf-lib";
 import { mkdir, writeFile } from "node:fs/promises";
 import { calculateReport } from "./qaqc-reporting-model";

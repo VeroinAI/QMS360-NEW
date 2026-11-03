@@ -7,6 +7,8 @@ import {
 import { AlertTriangle, BookOpen, ChevronRight, RefreshCw } from 'lucide-react';
 import { useGetQaqcConsolidatedDashboard, getGetQaqcConsolidatedDashboardQueryKey, type GetQaqcConsolidatedDashboardParams } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { formatReportingPeriod as displayPeriod } from '@workspace/spreadsheet-dates';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { DashboardData, DashboardRecord, Point, ProjectOption } from './types';
@@ -101,13 +103,13 @@ export function SeriesBars({ data, series, stacked, expand, layout = 'horizontal
     <CartesianGrid strokeDasharray="2 4" stroke={`${C.lilac}66`} vertical={layout === 'vertical'} horizontal={layout === 'horizontal'} />
     {layout === 'vertical'
       ? <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={expand ? (v: number) => `${Math.round(v * 100)}%` : undefined} domain={pct ? [0, 100] : undefined} />
-      : <XAxis type="category" dataKey="name" tick={{ fontSize: 10 }} interval={0} />}
+      : <XAxis type="category" dataKey="name" tick={{ fontSize: 10 }} interval={0} tickFormatter={v => displayPeriod(v)} />}
     {layout === 'vertical'
-      ? <YAxis type="category" dataKey="name" width={92} tick={{ fontSize: 10 }} />
+      ? <YAxis type="category" dataKey="name" width={92} tick={{ fontSize: 10 }} tickFormatter={v => displayPeriod(v)} />
       : <YAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} domain={pct ? [0, 100] : undefined} tickFormatter={expand ? (v: number) => `${Math.round(v * 100)}%` : undefined} />}
     {signedValues && <ReferenceLine {...(layout === 'vertical' ? { x: 0 } : { y: 0 })} stroke={C.ink} strokeOpacity={0.4} />}
     <Tooltip {...tip} formatter={(v: unknown, n: unknown) => [fmt(v), String(n)]} labelFormatter={(l: unknown, payload: readonly { payload?: Point }[]) => {
-      const pt = payload?.[0]?.payload; const extra = pt && extraTip ? extraTip(pt) : null; return extra ? `${String(l)} · ${extra}` : String(l);
+      const pt = payload?.[0]?.payload; const extra = pt && extraTip ? extraTip(pt) : null; return extra ? `${displayPeriod(l)} · ${extra}` : displayPeriod(l);
     }} />
     {series.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" />}
     {series.map((s, index) => <Bar key={s.key} dataKey={s.key} name={s.name} stackId={stacked || expand ? 's' : undefined} fill={s.color} maxBarSize={34} radius={stacked || expand ? 0 : [4, 4, 4, 4]} className={onPick ? 'cursor-pointer' : ''} onClick={onPick ? (d: unknown) => onPick((d as { payload: Point }).payload) : undefined}>
@@ -178,7 +180,7 @@ export function ConsolidatedDashboardPage() {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/60">QMS360 · Algihaz Holding</p>
           <h1 className="mt-1 font-[Outfit,sans-serif] text-3xl font-bold md:text-4xl">QAQC Dashboard <span style={{ color: C.cyan }}>·</span> {p.view === 'monthly' ? 'Monthly' : 'Daily'}</h1>
-          <p className="mt-1 text-sm text-white/75">Reflects approved reports only{data ? ` · ${data.view === 'monthly' ? data.period : data.mode === 'movement' ? `${data.from ?? '—'} → ${data.to ?? '—'}` : data.period}` : ''}</p>
+          <p className="mt-1 text-sm text-white/75">Reflects approved reports only{data ? ` · ${data.view === 'monthly' ? displayPeriod(data.period) : data.mode === 'movement' ? `${displayPeriod(data.from ?? '—')} → ${displayPeriod(data.to ?? '—')}` : displayPeriod(data.period)}` : ''}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div role="tablist" aria-label="Dashboard view" className="flex rounded-full bg-white/10 p-1">
@@ -194,13 +196,13 @@ export function ConsolidatedDashboardPage() {
         <Select label="Project group" all="All project groups" value={p.projectGroup} options={uniq(inBu, 'projectGroup')} onChange={v => set({ projectGroup: v, projectId: undefined })} />
         <Select label="Project" all="All projects" value={p.projectId} options={inGroup.map(x => [x.id, `${x.code} · ${x.name}`])} onChange={v => set({ projectId: v })} />
         {p.view === 'monthly'
-          ? <Select label="Reporting period" all={data?.period ? `Latest (${data.period})` : 'Latest approved'} value={p.period} options={(data?.periods ?? []).map(x => [x, x])} onChange={v => set({ period: v })} />
+          ? <Select label="Reporting period" all={data?.period ? `Latest (${displayPeriod(data.period)})` : 'Latest approved'} value={p.period} options={(data?.periods ?? []).map(x => [x, displayPeriod(x)])} onChange={v => set({ period: v })} />
           : <>
             <Select label="Mode" all="Cumulative" value={p.mode === 'movement' ? 'movement' : undefined} options={[['movement', 'Movement']]} onChange={v => set({ mode: v === 'movement' ? 'movement' : 'cumulative' })} />
             {p.mode === 'movement' ? <>
               <DateField label="From" value={p.from} onChange={v => set({ from: v })} />
               <DateField label="To" value={p.to} onChange={v => set({ to: v })} />
-            </> : <Select label="Report date" all={data?.period ? `Latest (${data.period})` : 'Latest approved'} value={p.date} options={(data?.periods ?? []).map(x => [x, x])} onChange={v => set({ date: v })} />}
+            </> : <Select label="Report date" all={data?.period ? `Latest (${displayPeriod(data.period)})` : 'Latest approved'} value={p.date} options={(data?.periods ?? []).map(x => [x, displayPeriod(x)])} onChange={v => set({ date: v })} />}
           </>}
       </div>
     </div>
@@ -230,7 +232,7 @@ export function ConsolidatedDashboardPage() {
 
 function DateField({ label, value, onChange }: { label: string; value?: string; onChange: (v?: string) => void }) {
   return <label className="flex flex-col gap-1 text-[10.5px] font-semibold uppercase tracking-wider text-white/70">{label}
-    <input type="date" value={value ?? ''} onChange={e => onChange(e.target.value || undefined)} className="h-9 rounded-lg border border-white/20 bg-white/10 px-2 text-sm text-white [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-[#06AEBB]" /></label>;
+    <Input type="date" value={value ?? ''} onChange={e => onChange(e.target.value || undefined)} className="h-9 rounded-lg border border-white/20 bg-white/10 px-2 text-sm text-white [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-[#06AEBB]" /></label>;
 }
 
 function LoadingState() {
@@ -245,7 +247,7 @@ function Coverage({ data, onDrill }: { data: DashboardData; onDrill: (d: Drill) 
     ['Pending submission', c.pendingSubmission, C.amber, 'Draft'], ['Pending approval', c.pendingApproval, C.fuchsia, 'Submitted'],
   ];
   return <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-    {items.map(([l, v, col, state]) => <button key={l} type="button" onClick={() => onDrill({ title: `${l} · ${data.period}`, module: mod, state, period: data.period })} className="group flex items-center justify-between rounded-xl border bg-card px-4 py-3 text-left transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2" style={{ borderLeft: `4px solid ${col}` }}>
+    {items.map(([l, v, col, state]) => <button key={l} type="button" onClick={() => onDrill({ title: `${l} · ${displayPeriod(data.period)}`, module: mod, state, period: data.period })} className="group flex items-center justify-between rounded-xl border bg-card px-4 py-3 text-left transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2" style={{ borderLeft: `4px solid ${col}` }}>
       <span><span className="block text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{l}</span><span className="font-[Outfit,sans-serif] text-2xl font-bold tabular-nums" style={{ color: col }}>{v}</span></span>
       <ChevronRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5" />
     </button>)}
@@ -257,7 +259,7 @@ export function MonthlyQualityEmptyState({ period, pendingApproval, pendingSubmi
   period: string; pendingApproval: number; pendingSubmission: number; onReports: () => void; onPending: () => void;
 }) {
   return <div role="status" className="rounded-xl border border-dashed p-4 text-sm">
-    <p className="font-semibold" style={{ color: C.purple }}>No approved monthly reports for {period}</p>
+    <p className="font-semibold" style={{ color: C.purple }}>No approved monthly reports for {displayPeriod(period)}</p>
     <p className="mt-2 text-muted-foreground">No approved reports are available in your current selection. Draft reports and reports awaiting approval are excluded from the quality figures. Values appear after final approval.</p>
     <dl className="mt-3 grid grid-cols-2 gap-3">
       <div><dt className="text-xs text-muted-foreground">Pending approval</dt><dd className="text-lg font-semibold">{pendingApproval}</dd></div>
@@ -366,7 +368,7 @@ function Scorecard({ rows, data, onDrill }: { rows: DashboardData['monthly']['sc
   const projectAll = (r: { projectId: string; projectName: string }) => onDrill({ title: `${r.projectName} · all backing records`, projectId: r.projectId });
   const cardCls = 'rounded-xl p-3 text-left transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2';
   return <section aria-label="Project scorecard" className="rounded-2xl border bg-card p-4 md:p-5">
-    <div className="mb-3"><h2 className="font-[Outfit,sans-serif] text-xl font-bold" style={{ color: C.purple }}>Project scorecard</h2><p className="text-xs text-muted-foreground">One row per project · {period} · approved reports only</p></div>
+    <div className="mb-3"><h2 className="font-[Outfit,sans-serif] text-xl font-bold" style={{ color: C.purple }}>Project scorecard</h2><p className="text-xs text-muted-foreground">One row per project · {displayPeriod(period)} · approved reports only</p></div>
     <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {escalated.map(r => <button key={r.projectId} type="button" onClick={() => projectAll(r)} className={`${cardCls} text-white`} style={{ background: `linear-gradient(135deg, ${C.purple}, ${escColor(r.escalation)})` }}>
         <p className="text-[10px] font-semibold uppercase tracking-widest text-white/75">Needs attention · {r.escalation}</p><p className="truncate font-semibold">{r.projectName}</p>
@@ -479,10 +481,10 @@ function DrillDialog({ drill, records, onClose }: { drill: Drill | null; records
   const list = drill ? filterRecords(records, drill) : [];
   return <Dialog open={!!drill} onOpenChange={o => !o && onClose()}><DialogContent className="max-h-[85dvh] max-w-2xl overflow-y-auto">
     <DialogHeader><DialogTitle style={{ color: C.purple }}>{drill?.title}</DialogTitle>
-      <DialogDescription>{list.length} matching record{list.length === 1 ? '' : 's'}{drill?.state ? ` · state ${drill.state}` : ''}{drill?.period ? ` · ${drill.period}` : ''}</DialogDescription></DialogHeader>
+      <DialogDescription>{list.length} matching record{list.length === 1 ? '' : 's'}{drill?.state ? ` · state ${drill.state}` : ''}{drill?.period ? ` · ${displayPeriod(drill.period)}` : ''}</DialogDescription></DialogHeader>
     {list.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No matching records for this selection.</p> :
       <ul className="divide-y">{list.map(r => <li key={`${r.type}-${r.id}`}><Link href={r.href} onClick={onClose} className="flex items-center justify-between gap-3 py-2.5 hover:bg-[#BBA9D2]/15">
-        <span className="min-w-0"><span className="block truncate font-medium">{r.id.startsWith('missing-') ? `${r.projectName} · no report yet` : r.title}</span><span className="text-xs text-muted-foreground">{r.projectName} · {r.type} · {r.period}{r.category ? ` · ${r.category}` : ''}{r.impact ? ` · ${r.impact}` : ''}</span></span>
+        <span className="min-w-0"><span className="block truncate font-medium">{r.id.startsWith('missing-') ? `${r.projectName} · no report yet` : r.title}</span><span className="text-xs text-muted-foreground">{r.projectName} · {r.type} · {displayPeriod(r.period)}{r.category ? ` · ${r.category}` : ''}{r.impact ? ` · ${r.impact}` : ''}</span></span>
         <span className="flex shrink-0 items-center gap-2"><span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `${C.lilac}55`, color: C.purple }}>{r.id.startsWith('missing-') ? 'Create report' : r.state}</span><ChevronRight className="size-4" /></span>
       </Link></li>)}</ul>}
     <p className="border-t pt-2 text-right text-xs text-muted-foreground">Total: {list.length}</p>

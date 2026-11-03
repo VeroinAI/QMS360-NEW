@@ -11,7 +11,7 @@ describe('consolidated dashboard helpers', () => {
     const html = renderToStaticMarkup(createElement(MonthlyQualityEmptyState, {
       period: '2026-10', pendingApproval: 1, pendingSubmission: 8, onReports: () => {}, onPending: () => {},
     }));
-    expect(html).toContain('No approved monthly reports for 2026-10');
+    expect(html).toContain('No approved monthly reports for 10/2026');
     expect(html).toContain('Values appear after final approval');
     expect(html).toContain('View pending approval');
     expect(html).toContain('View monthly reports');

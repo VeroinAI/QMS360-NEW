@@ -4,6 +4,7 @@ import type { QaqcReportExport } from "./qaqc-reporting-export";
 import { dailySignatories } from "./qaqc-monthly-signatories";
 import { dailyDisciplineSnapshot } from "@workspace/field-controls";
 import { attr, child, children, descendants, monthlyAsset, monthlyDate, UNMAPPED, W } from "./qaqc-monthly-report-template";
+import { formatDate } from "@workspace/spreadsheet-dates";
 
 type Obj = Record<string, any>;
 type Count = number | undefined;
@@ -176,7 +177,7 @@ export async function buildDailyReportDocument(report:QaqcReportExport) {
       if(Number.isFinite(date.getTime())) {
         const parts=new Intl.DateTimeFormat("en-GB",{timeZone:report.organizationTimezone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);
         const part=(key:string)=>parts.find(p=>p.type===key)?.value;
-        return `${part("day")}-${part("month")}-${part("year")}  ${part("hour")}:${part("minute")}`;
+        return `${formatDate(`${part("year")}-${part("month")}-${part("day")}`)}  ${part("hour")}:${part("minute")}`;
       }
     }
     return UNMAPPED;

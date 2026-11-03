@@ -52,21 +52,21 @@ describe('Monthly metrics landing report list', () => {
     expect(html).not.toContain('>Download<');
     expect(html).not.toContain('Submit for approval');
   });
-  it('offers submission only for the authorized creator of a draft', () => {
+  it('offers submission for authorized draft and sent-back reports regardless of creator', () => {
     mocks.submit = true;
     const html = render();
     expect(html).toContain('button-submit-report-draft-report');
     expect(html).not.toContain('button-submit-report-submitted-report');
-    expect(html).not.toContain('button-submit-report-returned-report');
+    expect(html).toContain('button-submit-report-returned-report');
     mocks.list.mock.results[0].value.data.items[0].createdById = 'another-user';
-    expect(render()).not.toContain('button-submit-report-draft-report');
+    expect(render()).toContain('button-submit-report-draft-report');
   });
-  it('offers Edit only on drafts and keeps submitted and returned reports in Display', () => {
+  it('offers Edit on drafts and sent-back reports and keeps submitted reports in Display', () => {
     mocks.edit = true; mocks.download = true;
     const html = render();
     expect(html).toContain('href="/qaqc/metrics/reports/draft-report"');
     expect(html).toContain('/submitted-report?mode=view');
-    expect(html).toContain('/returned-report?mode=view');
+    expect(html).toContain('href="/qaqc/metrics/reports/returned-report"');
     expect(html).toContain('>Download<');
   });
   it('fails closed when monthly read permission is absent', () => {

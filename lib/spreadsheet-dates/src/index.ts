@@ -81,6 +81,14 @@ export function formatDate(raw: unknown, format: DateFormat = getDateFormat()): 
   }
   return formatSpreadsheetDate(raw, format);
 }
+/** A reporting month is not a full date. Keep its precision and the selected order/separator. */
+export function formatReportingPeriod(raw: unknown, format: DateFormat = getDateFormat()): string {
+  if (typeof raw === "string" && /^\d{4}-\d{2}$/.test(raw) && parseSpreadsheetDate(`${raw}-01`)) {
+    const monthFormat = format.replace(/^DD[/-]|[/-]DD(?=[/-]|$)/, "");
+    return monthFormat.replace("YYYY", raw.slice(0, 4)).replace("MM", raw.slice(5, 7));
+  }
+  return formatDate(raw, format);
+}
 export function formatDateInTimeZone(raw: unknown, timeZone: string, format: DateFormat = getDateFormat()): string {
   if (raw === null || raw === undefined || raw === "") return "";
   const date = new Date(raw as string | number | Date);

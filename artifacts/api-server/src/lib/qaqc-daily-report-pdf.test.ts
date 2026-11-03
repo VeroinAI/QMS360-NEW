@@ -1,4 +1,7 @@
-import { describe,expect,it } from "vitest";
+import { afterEach,beforeEach,describe,expect,it } from "vitest";
+import { setDateFormatResolver } from "@workspace/spreadsheet-dates";
+beforeEach(() => setDateFormatResolver(() => "DD-MM-YYYY"));
+afterEach(() => setDateFormatResolver(() => "DD/MM/YYYY"));
 import { PDFDocument } from "pdf-lib";
 import { XMLSerializer } from "@xmldom/xmldom";
 import { mkdir,writeFile } from "node:fs/promises";

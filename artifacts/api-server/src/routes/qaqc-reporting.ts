@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
+import { formatReportingPeriod as displayPeriod } from "@workspace/spreadsheet-dates";
 import { projectDashboardDimensions } from "../lib/qaqc-project-dimensions";
 import { allocateCsatReference } from "../lib/csat-numbering";
 import { assertNoMonthlyDuplicate, dailyDuplicateReason, isReportPeriodDuplicate, lockDailyCreation, lockMonthlyCreation, monthlyDuplicateReason } from "../lib/qaqc-report-duplicates";
@@ -355,7 +356,7 @@ async function sequenceBlock(projectId: string, type: ReportType, period: string
   const otherReports = reports.filter((row) => row.id !== currentId);
   if(type==="monthly"&&getHistoricalSetup(project?.customFields as any,period)){
     const downstream=otherReports.find(row=>row.period>period&&["submitted","approved"].includes(row.state));
-    if(downstream)return `Cannot change ${period}; downstream report ${downstream.period} has already been submitted`;
+    if(downstream)return `Cannot change ${displayPeriod(period)}; downstream report ${displayPeriod(downstream.period)} has already been submitted`;
     if(configuredStart&&period<configuredStart)return `The first reporting period is ${configuredStart}`;
     // An explicitly authorized opening-balance month is a cutover anchor;
     // do not require users to fabricate all missing pre-go-live reports.
@@ -363,11 +364,11 @@ async function sequenceBlock(projectId: string, type: ReportType, period: string
   }
   const priorPeriod = shiftPeriod(period, type, -1);
   const prior = otherReports.find((row) => row.period === priorPeriod);
-  if (prior && !["submitted", "approved"].includes(prior.state)) return `The immediately prior report for ${priorPeriod} must be submitted`;
+  if (prior && !["submitted", "approved"].includes(prior.state)) return `The immediately prior report for ${displayPeriod(priorPeriod)} must be submitted`;
   if (!prior && otherReports.some((row) => row.period < period))
-    return `The immediately prior submitted report for ${priorPeriod} is required`;
+    return `The immediately prior submitted report for ${displayPeriod(priorPeriod)} is required`;
   const downstream = otherReports.find((row) => row.period > period && ["submitted", "approved"].includes(row.state));
-  if (downstream) return `Cannot change ${period}; downstream report ${downstream.period} has already been submitted`;
+  if (downstream) return `Cannot change ${displayPeriod(period)}; downstream report ${displayPeriod(downstream.period)} has already been submitted`;
   if (configuredStart && period < configuredStart) return `The first reporting period is ${configuredStart}`;
   const earliest = otherReports[0];
   if (!prior && configuredStart && period > configuredStart)
@@ -849,7 +850,7 @@ router.patch("/reports/:id", reportPermissionById("own"), asyncHandler(async (re
   if (before.reportType !== "monthly" && before.createdById !== actor(req)) throw new HttpError(403, "Only the report creator may edit this report");
   if (!["draft", "sent_back"].includes(before.state)) throw new HttpError(409, "Only draft or sent-back reports can be edited");
   if (await hasDownstreamSubmission(before.projectId, before.reportType as ReportType, before.period))
-    throw new HttpError(409, `Cannot edit ${before.period}; a later report has already been submitted`);
+    throw new HttpError(409, `Cannot edit ${displayPeriod(before.period)}; a later report has already been submitted`);
   if (!isObject(req.body?.data)) throw new HttpError(422, "data must be an object");
   const requestedData = before.reportType === "monthly"
     ? mergeMonthlySections(before.data as Record<string, any>, req.body.data, await monthlySectionAccess(req, before.projectId))
@@ -902,7 +903,7 @@ router.delete("/reports/:id", reportPermissionById("own"), asyncHandler(async (r
   if (before.createdById !== actor(req)) throw new HttpError(403, "Only the report creator may delete this report");
   if (!["draft", "sent_back"].includes(before.state)) throw new HttpError(409, "Only draft or sent-back reports can be deleted");
   if (await hasDownstreamSubmission(before.projectId, before.reportType as ReportType, before.period))
-    throw new HttpError(409, `Cannot delete ${before.period}; a later report has already been submitted`);
+    throw new HttpError(409, `Cannot delete ${displayPeriod(before.period)}; a later report has already been submitted`);
   const [row] = await db.update(qaqcReportSubmissions).set({ deletedAt: new Date(), updatedAt: new Date() })
     .where(and(eq(qaqcReportSubmissions.id, before.id), inArray(qaqcReportSubmissions.state, ["draft", "sent_back"]))).returning();
   if (!row) throw new HttpError(409, "Report state changed; reload before deleting");
@@ -970,7 +971,7 @@ router.post("/reports/:id/submit", reportPermissionById("own"), asyncHandler(asy
   await audit(req, "submit", row.id, before, row);
   if (approverId) await notifyWithEmail(db, "qaqc", {
     organizationId: org(req), userId: approverId, type: "approval", title: "QA/QC report awaiting review",
-    body: `${row.reportType} report for ${row.period} is awaiting review.`, entityType: "qaqc_report", entityId: row.id,
+    body: `${row.reportType} report for ${displayPeriod(row.period)} is awaiting review.`, entityType: "qaqc_report", entityId: row.id,
   }).catch((error) => logger.error({ error, reportId: row.id }, "Unable to queue QA/QC submission notification"));
   res.json(await withProject(row));
 }));
@@ -987,7 +988,7 @@ router.post("/reports/:id/review", reportPermissionById("own"), asyncHandler(asy
   if (before.approverId !== actor(req)) throw new HttpError(403, "Only the assigned approver may review this report");
   await projectAllowed(req, before.projectId);
   if (decision === "send_back" && await hasDownstreamSubmission(before.projectId, before.reportType as ReportType, before.period))
-    throw new HttpError(409, `Cannot send back ${before.period}; a later report has already been submitted`);
+    throw new HttpError(409, `Cannot send back ${displayPeriod(before.period)}; a later report has already been submitted`);
   const reviewedAt = new Date(Math.max(Date.now(), before.updatedAt.getTime() + 1));
   const workflow = isSequentialReportType(before.reportType) ? readMonthlyApproval(before.baseline, before.reportType) : undefined;
   let state = decision === "approve" ? "approved" : "sent_back";
@@ -1022,7 +1023,7 @@ router.post("/reports/:id/review", reportPermissionById("own"), asyncHandler(asy
   });
   if (state === "submitted" && nextApproverId) await notifyWithEmail(db, "qaqc", {
     organizationId: org(req), userId: nextApproverId, type: "approval", title: "QA/QC report awaiting next-level review",
-    body: `${row.reportType === "daily" ? "Daily" : "Monthly"} report for ${row.period} is awaiting your approval.`, entityType: "qaqc_report", entityId: row.id,
+    body: `${row.reportType === "daily" ? "Daily" : "Monthly"} report for ${displayPeriod(row.period)} is awaiting your approval.`, entityType: "qaqc_report", entityId: row.id,
   }).catch((error) => logger.error({ error, reportId: row.id }, "Unable to queue next-level QA/QC notification"));
   if (before.submittedById) await notifyWithEmail(db, "qaqc", {
     organizationId: org(req), userId: before.submittedById, type: "decision", title: state === "submitted" ? "QA/QC approval level completed" : `QA/QC report ${state}`,
@@ -1039,7 +1040,7 @@ router.post("/reports/:id/ai-brief", reportPermissionById("own"), asyncHandler(a
   if (!["draft", "sent_back"].includes(row.state)) throw new HttpError(409, "AI briefs are available only for editable draft or sent-back reports");
   await projectAllowed(req, row.projectId);
   if (await hasDownstreamSubmission(row.projectId, "monthly", row.period))
-    throw new HttpError(409, `Cannot edit ${row.period}; a later report has already been submitted`);
+    throw new HttpError(409, `Cannot edit ${displayPeriod(row.period)}; a later report has already been submitted`);
   if (Object.prototype.hasOwnProperty.call(req.body ?? {}, "data") && !isObject(req.body.data))
     throw new HttpError(422, "data must be an object");
   const data = isObject(req.body?.data)
@@ -1285,7 +1286,7 @@ router.get("/consolidated-dashboard", multipleReportAccess(), asyncHandler(async
     id: row.id, projectId: row.projectId, projectName: selected.find(project => project.id === row.projectId)?.name ?? "",
     type: row.reportType, period: row.period, state: row.state, category: row.reportType === "csat" ? row.data.expectations : undefined,
     snapshot: row.reportType === "daily" && daily.sources.some(source => source.id === row.id),
-    title: `${row.reportType === "monthly" ? "Monthly QA/QC" : row.reportType === "daily" ? "Daily submission" : "CSAT survey"} · ${row.period}`,
+    title: `${row.reportType === "monthly" ? "Monthly QA/QC" : row.reportType === "daily" ? "Daily submission" : "CSAT survey"} · ${displayPeriod(row.period)}`,
     href: `/qaqc/${row.reportType === "monthly" ? "metrics/reports" : row.reportType === "daily" ? "daily" : "csat"}/${row.id}`,
   }));
   for (const project of selected.filter(project => !stateFor(project.id) && fullProject(project.id))) records.push({

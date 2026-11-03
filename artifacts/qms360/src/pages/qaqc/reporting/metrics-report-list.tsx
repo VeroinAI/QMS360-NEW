@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatDate as organizationDate } from '@workspace/spreadsheet-dates';
+import { formatDate as organizationDate, formatReportingPeriod } from '@workspace/spreadsheet-dates';
 import { Link } from 'wouter';
 import { getGetCurrentUserQueryKey, getGetQaqcSowContextQueryKey, getListQaqcSowReportsQueryKey, useGetCurrentUser, useGetQaqcSowContext, useListQaqcSowReports, type ListQaqcSowReportsParams, type QaqcSowReport } from '@workspace/api-client-react';
 import { Download, Eye, Lock, Pencil, Send } from 'lucide-react';
@@ -29,7 +29,7 @@ export const monthInputToPeriod = (m: string) => (/^\d{4}-\d{2}$/.test(m) ? `${m
 export const formatMonthYear = (period: string) => {
   const m = /^(\d{4})-(\d{2})/.exec(period ?? '');
   if (!m) return period || '-';
-  return new Date(Number(m[1]), Number(m[2]) - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  return formatReportingPeriod(`${m[1]}-${m[2]}`);
 };
 export const pqpStatusLabel = (data: Record<string, unknown> | undefined) => {
   const s = typeof data?.pqpStatus === 'string' ? data.pqpStatus : '';

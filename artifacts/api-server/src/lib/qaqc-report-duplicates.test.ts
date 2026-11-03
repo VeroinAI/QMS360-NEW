@@ -63,7 +63,7 @@ describe("Daily report duplicate guards", () => {
   it.each(["draft", "submitted", "approved", "sent_back", "rejected"])("blocks an existing %s report on the exact day without exposing its content", async state => {
     const reason = await dailyDuplicateReason("org", "project", "2026-10-29", reader(state));
     expect(reason).toBe(dailyDuplicateMessage("2026-10-29", state));
-    expect(reason).toContain("29 October 2026");
+    expect(reason).toContain("29/10/2026");
     expect(reason).toContain("Report status:");
     expect(reason).toContain("same project and date");
   });
