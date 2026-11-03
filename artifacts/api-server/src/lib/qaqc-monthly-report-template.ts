@@ -128,7 +128,13 @@ export async function buildMonthlyReportDocument(report: QaqcReportExport) {
     children(row, "tc").forEach((cell, i) =>
       child(child(cell, "tcPr"), "tcW")!.setAttributeNS(W, "w:w", String([6438, 3200][i])));
   });
-  rebuild(16, d.meetings, r => [r.type, reportDate(r.lastDate)], "No meeting added");
+  rebuild(16, d.meetings, r => [r.type, `From Date : ${reportDate(r.lastDate)}`], "No meeting added");
+  rows(d.meetings).forEach((meeting, index) => {
+    const cell = cells(16, index + 1)[1]!, from = children(cell, "p")[0]!;
+    const to = from.cloneNode(true) as Element;
+    set(to, `To Date : ${reportDate(meeting.nextDate)}`);
+    cell.appendChild(to);
+  });
   para(17, `${rows(d.meetings).length} meetings conducted this month.`);
   const audit = d.internalAudit ?? {};
   put(19, 0, 1, typeof audit.conducted === "boolean" ? audit.conducted ? "Yes" : "No" : MISSING_DATA);

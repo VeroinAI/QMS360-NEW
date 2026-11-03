@@ -38,6 +38,28 @@ async function mapped(r=report) {
   return { ...result, xml:new XMLSerializer().serializeToString(result.body), text:result.body.textContent! };
 }
 describe("Customer Word monthly metrics report",()=>{
+  it("prints each meeting's From Date and To Date on separate lines without mixing rows",async()=>{
+    const {body}=await mapped({...report,data:{...data,meetings:[
+      {type:"Project Management Review Meeting",lastDate:"2026-10-08",nextDate:"2026-10-12"},
+      {type:"Internal Meeting",lastDate:"2026-10-20",nextDate:"2026-10-20"},
+    ]}});
+    const table=children(body,"tbl").find(t=>t.textContent?.includes("Meeting type"))!;
+    const dateLines=children(table,"tr").slice(1).map(row=>children(children(row,"tc")[1]!,"p").map(p=>p.textContent));
+    expect(dateLines).toEqual([
+      ["From Date : 08-10-2026","To Date : 12-10-2026"],
+      ["From Date : 20-10-2026","To Date : 20-10-2026"],
+    ]);
+  });
+  it("uses the organization date format for both meeting dates and preserves missing-date gaps",async()=>{
+    setDateFormatResolver(()=>"MM/DD/YYYY");
+    const {body}=await mapped({...report,data:{...data,meetings:[
+      {type:"Internal Meeting",lastDate:"2026-10-08",nextDate:"2026-10-12"},
+      {type:"Internal Meeting",lastDate:"2026-10-20",nextDate:""},
+    ]}});
+    const table=children(body,"tbl").find(t=>t.textContent?.includes("Meeting type"))!;
+    expect(table.textContent).toContain("From Date : 10/08/2026To Date : 10/12/2026");
+    expect(table.textContent).toContain("From Date : 10/20/2026To Date : —");
+  });
   it("maps actual identity, assessment, dates, manpower and details without illustrative data",async()=>{
     const {text,xml}=await mapped();
     for(const value of ["Example Construction Project","CC-900","October 2026","Actual assessment","CLIENT-SEP-01","03-09-2026","Report Submitter","31-10-2026","Actual Document","Actual drawing remarks","Actual submittal remarks","Actual QMS remarks"])expect(text).toContain(value);
@@ -49,7 +71,7 @@ describe("Customer Word monthly metrics report",()=>{
     const tables=children(body,"tbl");
     const meeting=tables.find(t=>t.textContent?.includes("Meeting type"))!;
     expect(children(meeting,"tr").map(row=>children(row,"tc").map(c=>c.textContent)))
-      .toEqual([["Meeting type","Date"],["Internal Meeting","10-10-2026"]]);
+      .toEqual([["Meeting type","Date"],["Internal Meeting","From Date : 10-10-2026To Date : 10-11-2026"]]);
     expect(meeting.textContent).not.toMatch(/Participants|Key outcome/);
     const ageing=tables.find(t=>t.textContent?.includes("NCR type"))!;
     expect(children(children(ageing,"tr")[1]!,"tc").map(c=>c.textContent).slice(1,4)).toEqual(["2","0","0"]);
