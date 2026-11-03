@@ -74,7 +74,8 @@ export async function buildDailyReportDocument(report:QaqcReportExport) {
   const project=value(report.projectName), date=monthlyDate(report.period), team=report.projectTeam??{};
   put(0,0,0,project,1);
   inline(children(cells(0,0)[0]!,"p")[2]!,[`${value(report.projectCode)}   ·   Cost centre  `,value(report.costCentre)]);
-  inline(children(cells(0,0)[0]!,"p")[3]!,["Project team:  ",`PM – ${value(team.pmName)}   ||   PE – ${value(team.peName)}   ||   DC – ${value(team.dcName)}`]);
+  const teamValue=(name:unknown)=>typeof name==="string"&&name.trim()?name.trim():"-";
+  inline(children(cells(0,0)[0]!,"p")[3]!,["Project team:  ",`PM – ${teamValue(team.pmName)}   ||   PE – ${teamValue(team.peName)}   ||   DC – ${teamValue(team.dcName)}`]);
   put(0,0,1,date,1);
   for(const i of [2,4])for(const [r,key] of [[2,"submittals"],[3,"drawings"],[4,"all"]] as const) {
     [undefined,...statuses].forEach((s,col)=>{
@@ -93,7 +94,21 @@ export async function buildDailyReportDocument(report:QaqcReportExport) {
   put(7,0,3,count(allPending),1);put(7,0,3,entities.map(e=>`${e} ${count(pendingTotal(e))}`).join(" · "),2);
   put(9,0,1,report.projectCode);put(9,0,3,report.projectName);
   put(9,1,1,date);put(9,1,3,report.costCentre);
-  put(9,2,1,team.pmName);put(9,2,3,team.peName);put(9,3,1,team.dcName);
+  for(const [row,col,name] of [[2,1,team.pmName],[2,3,team.peName],[3,1,team.dcName]] as const) {
+    const cell=cells(9,row)[col]!, p=children(cell,"p")[0]!, text=teamValue(name);
+    set(p,text);
+    let props=child(p,"pPr");
+    if(!props){props=doc.createElementNS(W,"w:pPr");p.insertBefore(props,p.firstChild);}
+    let align=child(props,"jc");
+    if(!align){align=doc.createElementNS(W,"w:jc");props.appendChild(align);}
+    align.setAttributeNS(W,"w:val",text==="-"?"center":"left");
+    // Let the existing PDF renderer measure/wrap text and grow the whole row.
+    const cellProps=child(cell,"tcPr"), noWrap=child(cellProps,"noWrap");
+    if(noWrap)cellProps!.removeChild(noWrap);
+    const rowProps=child(cell.parentNode as Element,"trPr");
+    const fixedHeight=child(rowProps,"trHeight");
+    if(fixedHeight)rowProps!.removeChild(fixedHeight);
+  }
   const baselineKeys=Object.keys(b).filter(k=>!["hasBaseline","previousPeriod","legacyFallback"].includes(k));
   if(b.hasBaseline===false||b.hasBaseline!==true&&baselineKeys.length===0)
     para(10,"First report for this project – no earlier submission exists, so Yesterday values start from zero.");
