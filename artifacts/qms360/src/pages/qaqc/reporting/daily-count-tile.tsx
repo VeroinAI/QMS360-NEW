@@ -21,7 +21,7 @@ export function DailyCountTile({ title, field, rows, baseline, index, period }: 
       <thead><tr>
         <th scope="col" className="w-1/6 px-2 py-2 text-left text-xs font-medium text-muted-foreground">Type</th>
         <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">Till yesterday</th>
-        <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">{period ? `Current Date (${formatDate(period)})` : 'Current Date'} <span aria-hidden="true">*</span></th>
+        <th scope="col" className="px-2 py-2 text-left text-xs font-medium text-muted-foreground">{period ? `Till Current Date (${formatDate(period)})` : 'Till Current Date'} <span aria-hidden="true">*</span></th>
       </tr></thead>
       <tbody>{rows.map(([key, label], i) => <tr key={key} className={`border-t ${i % 2 ? 'bg-muted/20' : ''}`}>
         <th scope="row" className="px-2 py-2 text-left font-normal">{label}</th>

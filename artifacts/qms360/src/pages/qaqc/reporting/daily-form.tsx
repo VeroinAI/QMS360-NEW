@@ -14,7 +14,7 @@ const displayDisciplines = [...DISCIPLINES].sort((a, b) => disciplineOrder.index
 
 export function DailyForm({ calc, baseline, period }: { calc: Calc; baseline: Obj; period?: string }) {
   const f = useForm();
-  const currentLabel = period ? `Current Date (${formatDate(period)})` : 'Current Date';
+  const currentLabel = period ? `Till Current Date (${formatDate(period)})` : 'Till Current Date';
   const prevCalc = calcDaily(baseline ?? {});
   const bp = (p: (string | number)[]) => getIn(baseline, p);
   const documentTypes = [...DOC_TYPES, ...LEGACY_DOC_TYPES.filter(t =>
