@@ -196,3 +196,16 @@ users, never signatures belonging merely to eligible role holders. Preserve
 missing values as `-`, prior workflow history and all source data. Keep PDF/JSON
 mapping independent, and use the common PowerPoint generator for downloads and
 email attachments.
+
+The PowerPoint Corrective action tracker includes a leading **Finding ID**
+column before the independent CAR Ref column. Use the saved Finding ID from
+the Audit Findings workspace for both current checklist findings and standalone
+history, not the internal row UUID, client reference or generated B.x link.
+
+**Why:** The user supplied a revised tracker image and explicitly named the
+workspace Finding ID as the source of this additional column.
+
+**How to apply:** Preserve both identifiers on continuation pages and keep
+Correction, Corrective action, Owner, due date, status and verification aligned.
+An unissued Finding ID is `-`; reading the report must never issue a number.
+Keep PDF/JSON columns and unrelated PowerPoint sections unchanged.

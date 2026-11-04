@@ -4685,7 +4685,11 @@ async function consolidatedReport(orgId: string, id: string, pptxWorkbookMapping
     audit: { ...mappedAudit, referenceNumber: audit.referenceNumber }, plan: mappedPlan, project,
     schedule: schedule ? { ...scheduleMeta(schedule), department: scheduleMeta(schedule).departmentProject, ownerId: schedule.ownerId } : null,
     legacyFindings: findings.filter(row => !(row.evidence as AnyRow)?.sourceChecklistItemId).map(row => ({
-      ...findingDto(row), ...(pptxWorkbookMappings ? { createdAt: row.createdAt } : {}),
+      ...findingDto(row), ...(pptxWorkbookMappings ? {
+        createdAt: row.createdAt,
+        // Add the legacy workspace ID only to the CAR tracker, not other report mappings.
+        pptxCarFindingNumber: (row.evidence as AnyRow)?.findingNumber,
+      } : {}),
     })),
     cars: cars.map(car => {
       const finding = findings.find(f => f.id === car.auditFindingId);
@@ -4754,20 +4758,20 @@ export async function auditExecutionEmailReport(orgId: string, id: string, forma
   tracker?.rows.forEach((row, i) => {
     const car = report.cars[i]!;
     const meta = carMeta(car);
-    row[0] = meta.carNumber || "-";
+    row[1] = meta.carNumber || "-";
     const finding = report.findings.find(f => f.id === car.auditFindingId);
     const item = Array.isArray(report.audit.checklistState) ? report.audit.checklistState.find((i: AnyRow) => i.id === (finding?.evidence as AnyRow)?.sourceChecklistItemId) as AnyRow | undefined : undefined;
     const due = carDueDate(item?.auditFinding || finding?.classification, findingDateValue(item, finding), car.dueDate);
-    row[6] = car.extensionStatus === "approved" && car.extensionDueDate ? date(car.extensionDueDate) : due ? date(due) : "-";
-    row[7] = carDto(car).status;
-    row[8] = meta.reviewedAt && (meta.reviewOutcome === "accept" || car.workflowState === "closed" || car.workflowState === "accepted")
+    row[7] = car.extensionStatus === "approved" && car.extensionDueDate ? date(car.extensionDueDate) : due ? date(due) : "-";
+    row[8] = carDto(car).status;
+    row[9] = meta.reviewedAt && (meta.reviewOutcome === "accept" || car.workflowState === "closed" || car.workflowState === "accepted")
       ? `${reviewerRows.find(u => u.id === meta.reviewedBy)?.name || "-"} / ${date(meta.reviewedAt)}`
       : "Pending verification";
-    row[1] = ["Not recorded", "-"].includes(row[1]!) ? report.findings.find(f => f.id === car.auditFindingId)?.classification || "-" : row[1]!;
-    row[2] = car.rootCause?.trim() || "-";
-    row[3] = car.correction?.trim() || "-";
-    row[4] = car.correctiveAction?.trim() || "-";
-    if (row[5] === "Not recorded" || row[5] === "To be mapped") row[5] = "-";
+    row[2] = ["Not recorded", "-"].includes(row[2]!) ? report.findings.find(f => f.id === car.auditFindingId)?.classification || "-" : row[2]!;
+    row[3] = car.rootCause?.trim() || "-";
+    row[4] = car.correction?.trim() || "-";
+    row[5] = car.correctiveAction?.trim() || "-";
+    if (row[6] === "Not recorded" || row[6] === "To be mapped") row[6] = "-";
   });
   const images = new Map<string, Uint8Array>();
   for (const photo of report.sections.flatMap(s => s.photos)) {

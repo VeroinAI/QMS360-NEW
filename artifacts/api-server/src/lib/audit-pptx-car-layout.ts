@@ -3,9 +3,9 @@ import type { Element } from "@xmldom/xmldom";
 const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
 const P = "http://schemas.openxmlformats.org/presentationml/2006/main";
 const nodes = (node: Element, tag: string) => Array.from(node.getElementsByTagNameNS(A, tag));
-export const CAR_HEADERS = ["Ref", "Grade", "Root cause", "Correction", "Corrective action", "Owner", "Due date", "Status", "Verified by / date"];
+export const CAR_HEADERS = ["Finding ID", "Ref", "Grade", "Root cause", "Correction", "Corrective action", "Owner", "Due date", "Status", "Verified by / date"];
 // Sum equals the branded frame's original width; no changes to other slides.
-const WIDTHS = [1005840, 685800, 1554480, 1691640, 1691640, 1143000, 914400, 1051560, 1353312];
+const WIDTHS = [1234440, 1097280, 868680, 1097280, 1280160, 1371600, 914400, 1097280, 1005840, 1124712];
 const LINE = 152400; // 12pt spacing, 10pt text.
 const INSET = 36576;
 const HEADER = 609600;
@@ -35,21 +35,25 @@ function wrap(text: string, width: number): string[] {
 }
 
 export function carPages(rows: string[][]): CarPage[] {
-  if (!rows.length) return [[{ cells: ["No CAR responses recorded", ...Array<string>(8).fill("-")], height: 762000 }]];
+  if (!rows.length) {
+    const message = wrap("No CAR responses recorded", WIDTHS[1]!);
+    return [[{ cells: ["-", message.join("\n"), ...Array<string>(8).fill("-")],
+      height: Math.max(762000, message.length * LINE + INSET * 2) }]];
+  }
   const pages: CarPage[] = [[]];
   let used = 0;
   const limit = Math.floor((BUDGET - INSET * 2) / LINE);
   for (const row of rows) {
-    if (row.length !== 9) throw new Error("PowerPoint CAR tracker requires nine separate columns");
+    if (row.length !== CAR_HEADERS.length) throw new Error("PowerPoint CAR tracker requires ten separate columns");
     const wrapped = row.map((cell, col) => wrap(cell, WIDTHS[col]!));
     // Reserve reference space for the continuation marker; each part retains
     // its reference and short workflow/ownership values, never another CAR's.
-    const reference = wrap(`${row[0]} (continued)`, WIDTHS[0]!);
+    const reference = wrap(`${row[1]} (continued)`, WIDTHS[1]!);
     if (reference.length > limit) throw new Error("CAR reference is too long to fit on a tracker slide");
     const count = Math.max(1, ...wrapped.map(cell => Math.ceil(cell.length / limit)));
     for (let part = 0; part < count; part++) {
-      const cells = wrapped.map((cell, col) => col === 0 && part ? reference
-        : part && col >= 5 && cell.length <= limit ? cell
+      const cells = wrapped.map((cell, col) => col === 1 && part ? reference
+        : part && (col === 0 || col >= 6) && cell.length <= limit ? cell
         : cell.slice(part * limit, (part + 1) * limit));
       const height = Math.max(566928, Math.max(...cells.map(cell => cell.length)) * LINE + INSET * 2);
       if (used + height > BUDGET && pages.at(-1)!.length) { pages.push([]); used = 0; }
@@ -97,8 +101,9 @@ export function renderCarPage(table: Element, page: CarPage, setText: (cell: Ele
   for (const row of rows) table.removeChild(row);
   const fill = (row: Element, values: string[], height: number, headings = false) => {
     const old = nodes(row, "tc");
-    // Duplicate only the combined response cell, shifting owner and later cells.
+    // Split the combined response cell, then prepend the requested Finding ID.
     row.insertBefore(old[3]!.cloneNode(true), old[4]!);
+    row.insertBefore(old[0]!.cloneNode(true), old[0]!);
     row.setAttribute("h", String(height));
     nodes(row, "tc").forEach((cell, col) => {
       setText(cell, headings ? wrap(values[col]!, WIDTHS[col]!).join("\n") : values[col]!);

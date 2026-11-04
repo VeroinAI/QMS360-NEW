@@ -14,7 +14,7 @@ export const recordedGoodPractice = (row: Row) =>
 export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input: {
   audit: Row; plan?: Row | null; schedule?: Row | null; project?: Row | null;
   evidence: Row[]; names: Map<string, string>; roleNames: Map<string, string>;
-  cars: Row[]; findingReferences: Map<string, { reference: string; grade: string }>;
+  cars: Row[]; findingReferences: Map<string, { reference: string; grade: string; findingNumber?: string }>;
   pptxProcessOwnerNames?: string[]; generatedAt?: Date; timeZone?: string;
 }) {
   const { audit, plan, schedule, project, evidence, names, roleNames } = input;
@@ -105,7 +105,8 @@ export function fillAuditPptxWorkbookFields(sections: ReportSectionData[], input
   tracker?.rows.forEach((row, index) => {
     const finding = input.findingReferences.get(input.cars[index]?.findingId);
     // CAR reference is issued independently from the underlying finding.
-    row[0] = input.cars[index]?.carNumber || PPTX_EMPTY;
-    if (finding && empty(row[1])) row[1] = finding.grade;
+    row[0] = finding?.findingNumber?.trim() || PPTX_EMPTY;
+    row[1] = input.cars[index]?.carNumber || PPTX_EMPTY;
+    if (finding && empty(row[2])) row[2] = finding.grade;
   });
 }

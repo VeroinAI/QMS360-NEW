@@ -126,7 +126,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
   it("maps conforming records and resolves CAR references and grades through linked checklist findings", () => {
     const mapped = auditPptxMappings(build());
     expect(mapped.get(10)!.tables[0]).toEqual([["Design", "Actual verified practice", "Record X"]]);
-    expect(mapped.get(15)!.tables[0]![0]!.slice(0, 3)).toEqual(["-", "Moderate", "Actual root cause"]);
+    expect(mapped.get(15)!.tables[0]![0]!.slice(0, 4)).toEqual(["-", "-", "Moderate", "Actual root cause"]);
   });
   it("uses the independently issued CAR number", () => {
     const data = { ...fixture(), audit: { ...fixture().audit, checklist: [{ ...fixture().audit.checklist[0], evidenceIds: ["linked"] }] },
@@ -136,7 +136,7 @@ describe("Audit Report Conditions workbook: missing PPTX fields only", () => {
       ] };
     (data.cars[0] as typeof data.cars[0] & { carNumber: string }).carNumber = "QAM-CTR-CAR-26-0007";
     const table = auditPptxMappings(build(data)).get(15)!.tables[0]!;
-    expect(table[0]?.slice(0, 3)).toEqual(["QAM-CTR-CAR-26-0007", "Moderate", "Actual root cause"]);
+    expect(table[0]?.slice(0, 4)).toEqual(["-", "QAM-CTR-CAR-26-0007", "Moderate", "Actual root cause"]);
   });
   it("does not overwrite existing report values or mutate the source audit, plan or other export sections", () => {
     const data = { ...fixture(), audit: { ...fixture().audit, reportDetails: {
